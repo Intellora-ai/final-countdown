@@ -1,0 +1,22 @@
+name: axle-verify
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  axle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install AXLE
+        run: pip install --quiet axiom-axle
+      - name: Enforce strong specs
+        run: python3 scripts/enforce_spec.py specs/*_spec.lean
+      - name: Verify proofs with AXLE
+        run: bash scripts/verify_with_axle.sh

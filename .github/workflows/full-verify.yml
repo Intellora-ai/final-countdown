@@ -1,0 +1,27 @@
+name: full-verify
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install --quiet -r requirements.txt
+      - name: Spec strength
+        run: python3 scripts/enforce_spec.py specs/*_spec.lean
+      - name: AXLE proofs
+        run: bash scripts/verify_with_axle.sh
+      - name: Tests + coverage
+        run: pytest --cov=src --cov-branch --cov-fail-under=95
+      - name: Types
+        run: pyright
+      - name: Security
+        run: bandit -r src scripts --severity-level low --confidence-level low

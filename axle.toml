@@ -1,0 +1,19 @@
+# AXLE configuration for final-countdown
+#
+# AXLE is a client for a hosted Lean service. Override the endpoint with
+# AXLE_API_URL and authenticate with AXLE_API_KEY if the server requires it.
+
+[axle]
+environment = "lean-4.33.0"
+url = "https://axle.axiommath.ai"
+timeout_seconds = 120
+
+[paths]
+specs = "specs"
+proofs = "proofs"
+source = "src"
+
+[naming]
+# specs/<name>_spec.lean  pairs with  proofs/<name>_proof.lean
+spec_suffix = "_spec.lean"
+proof_suffix = "_proof.lean"

@@ -1,0 +1,22 @@
+name: mutation
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  mutmut:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install --quiet -r requirements.txt
+      - name: Run mutation testing
+        run: mutmut run || true
+      - name: Enforce 95% mutation score
+        run: python3 scripts/mutation_gate.py 95

@@ -1,0 +1,32 @@
+[project]
+name = "final-countdown"
+version = "0.1.0"
+description = "Learning OS with 100% verified Python code via AXLE + Lean 4"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q --strict-markers"
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 95
+show_missing = true
+exclude_lines = ["pragma: no cover", "if __name__ == .__main__.:"]
+
+[tool.pyright]
+include = ["src", "tests", "scripts"]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+reportMissingImports = true
+
+[tool.mutmut]
+paths_to_mutate = ["src/"]
+tests_dir = "tests/"
+
+[tool.bandit]
+exclude_dirs = ["tests"]

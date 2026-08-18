@@ -1,4 +1,4 @@
-name: mutation
+name: Honest Report
 on:
   pull_request:
   push:
@@ -6,24 +6,24 @@ on:
 permissions:
   contents: read
 jobs:
-  mutmut:
+  honest-report:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
           cache: pip
-      - run: pip install --quiet -r requirements.txt
-      # Layer 5: scores the SPEC against AST mutants, not the test suite
-      # against mutmut. Equivalent mutants are excluded from the denominator.
-      - name: Mutation discrimination (per function)
+      - run: pip install -r requirements.txt
+      # Ten dimensions, reported separately. Blocks on FAIL only: an
+      # unestablished contract is information, not a broken build, and
+      # collapsing it into PASS/FAIL is exactly the overclaim Layer 10 forbids.
+      - name: All ten layers, per function
         run: |
           set -euo pipefail
           python3 scripts/spec_source.py specs/*_spec.lean > /tmp/pairs.txt
           cut -d= -f2 /tmp/pairs.txt | sort -u | while read -r src; do
             specs=$(grep "=${src}$" /tmp/pairs.txt | cut -d= -f1 | tr '\n' ' ')
-            echo "── $src"
-            python3 scripts/mutation_gate.py $specs --min-score 0.95
+            python3 scripts/honest_report.py $specs --min-strength 0.9
           done

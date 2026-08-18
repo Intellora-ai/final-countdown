@@ -97,7 +97,9 @@ def generate_mutants(source):
         ast.fix_missing_locations(mutated)
         try:
             code = ast.unparse(mutated)
-        except Exception:
+        except (ValueError, RecursionError, AttributeError):
+            # An un-unparseable tree is not a usable mutant; skip it. Narrowed
+            # so a genuine bug in an operator surfaces instead of vanishing.
             continue
         if code.strip() == ast.unparse(ast.parse(source)).strip():
             continue  # no observable change; not a mutant

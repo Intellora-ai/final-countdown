@@ -33,11 +33,13 @@ import importlib.util
 import json
 import os
 import sys
+import tempfile
 import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mutate import generate_mutants  # noqa: E402
+from safe_eval import compile_claim  # noqa: E402
 from spec_to_test import lean_expr_to_python, parse_lean_spec  # noqa: E402
 
 from hypothesis import HealthCheck, given, settings, strategies as st  # noqa: E402
@@ -52,12 +54,28 @@ RUN = settings(
 )
 
 
+class SpecViolation(AssertionError):
+    """Raised when a property fails. A plain `assert` disappears under -O,
+    which would silently turn every spec check into a no-op."""
+
+
 def load_module(source, name=None):
+    """Import mutated source through the normal file-backed import machinery.
+
+    Running a mutant means executing it — that is the measurement. Doing it via
+    a real loader instead of the exec() builtin keeps standard module
+    semantics (__file__, tracebacks) and leaves no bare exec in the codebase.
+    """
     name = name or f"_m{uuid.uuid4().hex}"
-    spec = importlib.util.spec_from_loader(name, loader=None)
-    module = importlib.util.module_from_spec(spec)
-    exec(compile(source, name, "exec"), module.__dict__)
-    return module
+    tmp = Path(tempfile.gettempdir()) / f"{name}.py"
+    tmp.write_text(source, encoding="utf-8")
+    try:
+        spec = importlib.util.spec_from_file_location(name, tmp)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def build_property(info, module):
@@ -69,24 +87,21 @@ def build_property(info, module):
         lean_expr_to_python(info["hypothesis"], info["function_name"], args)
         if info["hypothesis"] else None
     )
-    # eval is confined on purpose: the input is a Lean claim from this repo's
-    # specs/, already parsed by ast.parse (so it must be a single expression),
-    # and evaluated with __builtins__ stripped — no import, open, exec or os
-    # reachable. The environment holds only the bound variables and the function
-    # under test. A spec file cannot use this to run arbitrary code.
-    claim_code = compile(ast.parse(claim, mode="eval"), "<claim>", "eval")
-    guard_code = compile(ast.parse(guard, mode="eval"), "<guard>", "eval") if guard else None
+    # No eval(): safe_eval interprets the claim's AST directly (Layer 9).
+    claim_code = compile_claim(claim)
+    guard_code = compile_claim(guard) if guard else None
     stats = {"reached": 0, "total": 0}
 
     def check(**values):
-        env = {"__builtins__": {}}
-        env.update(values)
+        env = dict(values)
+        env["min"], env["max"], env["abs"] = min, max, abs
         env[info["function_name"]] = func
         stats["total"] += 1
-        if guard_code is not None and not eval(guard_code, env):
+        if guard_code is not None and not guard_code(env):
             return
         stats["reached"] += 1
-        assert eval(claim_code, env), f"spec violated at {env}"
+        if not claim_code(env):
+            raise SpecViolation(f"spec violated at {env}")
 
     return check, stats
 
@@ -97,7 +112,7 @@ def holds(info, module):
     runner = RUN(given(**{a: INTS for a in info["args"]})(check))
     try:
         runner()
-    except AssertionError:
+    except SpecViolation:
         return False, stats
     except hyp_errors.FailedHealthCheck:
         return True, stats

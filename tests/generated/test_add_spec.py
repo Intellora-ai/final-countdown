@@ -10,4 +10,4 @@ from src.add import add
 
 @given(st.integers(min_value=-10**6, max_value=10**6), st.integers(min_value=-10**6, max_value=10**6))
 def test_add_spec(a, b):
-    assert add(a, b) == add(b, a)
+    assert add(a, 1) == a + 1

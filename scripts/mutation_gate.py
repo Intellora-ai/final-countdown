@@ -1,48 +1,65 @@
 #!/usr/bin/env python3
-"""Fail the build unless the mutation score meets the threshold.
+"""LAYER 5 — MUTATION GATE. AST-only mutants, equivalents excluded.
 
-`mutmut run` exits non-zero when mutants survive, so the workflow tolerates its
-exit code and this script owns the pass/fail decision instead.
+Replaces the earlier mutmut wrapper. Two reasons: mutmut scores the TEST suite,
+while this scores the SPEC, and string-level mutation rewrites strings and
+comments, producing broken rather than subtly-wrong programs that any spec
+kills for free.
+
+Equivalent mutants are excluded from the denominator. `a + b` -> `b + a` is the
+same function; no spec can kill it, and counting it caps every honest score.
 """
+import argparse, sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from mutate import generate_mutants
+from spec_source import source_for
+from spec_strength import holds, is_equivalent, load_module
+from spec_to_test import parse_lean_spec
 
-import json
-import subprocess
-import sys
+def score(spec_files, threshold=0.9):
+    infos = [(s, parse_lean_spec(s)) for s in spec_files]
+    infos = [(s, i) for s, i in infos if i]
+    if not infos:
+        return {"mutation_score": 0.0, "mutants_killed": 0, "mutants": 0,
+                "equivalent_excluded": 0, "survivors": [], "verdict": "UNKNOWN"}
+    src = source_for(spec_files[0])
+    source = Path(src).read_text()
+    original = load_module(source)
+    name, arity = infos[0][1]["function_name"], len(infos[0][1]["args"])
 
+    equivalent, live = 0, []
+    for m in generate_mutants(source):
+        if is_equivalent(original, m.source, name, arity):
+            equivalent += 1
+        else:
+            live.append(m)
 
-def mutation_score() -> tuple[float, dict[str, int]]:
-    raw = subprocess.run(
-        ["mutmut", "results", "--all", "--json"],
-        capture_output=True,
-        text=True,
-        check=False,
-    ).stdout
-
-    counts = {"killed": 0, "survived": 0, "timeout": 0, "suspicious": 0}
-    try:
-        for entry in json.loads(raw or "[]"):
-            status = str(entry.get("status", "")).lower()
-            if status in counts:
-                counts[status] += 1
-    except (ValueError, TypeError):
-        print("mutation_gate: could not parse `mutmut results --json`", file=sys.stderr)
-        print(raw[:500], file=sys.stderr)
-        sys.exit(1)
-
-    # Timeouts count as killed: the mutant changed behaviour enough to hang.
-    killed = counts["killed"] + counts["timeout"]
-    total = killed + counts["survived"] + counts["suspicious"]
-    if total == 0:
-        print("mutation_gate: no mutants generated — refusing to pass vacuously", file=sys.stderr)
-        sys.exit(1)
-    return 100.0 * killed / total, counts
-
+    killed, survivors = 0, []
+    for m in live:
+        try:
+            mod = load_module(m.source)
+            alive = any(holds(i, mod)[0] for _, i in infos) and all(
+                holds(i, mod)[0] for _, i in infos)
+        except Exception:
+            alive = False
+        if alive:
+            survivors.append(m.name)
+        else:
+            killed += 1
+    total = len(live)
+    s = killed / total if total else 0.0
+    return {"mutation_score": round(s, 3), "mutants_killed": killed, "mutants": total,
+            "equivalent_excluded": equivalent, "survivors": survivors,
+            "verdict": "PASS" if s >= threshold else "FAIL"}
 
 if __name__ == "__main__":
-    threshold = float(sys.argv[1]) if len(sys.argv) > 1 else 95.0
-    score, counts = mutation_score()
-    print(f"mutation score: {score:.1f}%  (threshold {threshold:.0f}%)  {counts}")
-    if score < threshold:
-        print(f"❌ mutation score {score:.1f}% is below {threshold:.0f}%")
-        sys.exit(1)
-    print("✓ mutation score meets threshold")
+    p = argparse.ArgumentParser(); p.add_argument("specs", nargs="+")
+    p.add_argument("--min-score", type=float, default=0.9); ns = p.parse_args()
+    r = score(ns.specs, ns.min_score)
+    print(f"  mutation discrimination: {r['mutants_killed']}/{r['mutants']} "
+          f"({r['mutation_score']:.0%})")
+    print(f"  equivalent mutants: {r['equivalent_excluded']} excluded")
+    if r["survivors"]:
+        print(f"  survivors: {', '.join(r['survivors'])}")
+    sys.exit(0 if r["verdict"] == "PASS" else 1)

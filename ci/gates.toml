@@ -32,7 +32,7 @@ required_checks = [
   "preflight",
   "axle-verify", "spec-strength", "spec-composition", "vacuity-check",
   "counterexample-search", "honest-report", "coverage", "pyright",
-  "bandit", "mutmut",
+  "bandit", "mutmut", "correspondence",
   "full",
 ]
 
@@ -158,6 +158,18 @@ role = "gate"
 must_contain = ["scripts/mutation_gate.py", "--min-score 0.95"]
 evidence = "reports/mutmut.json"
 artifact = "reports-mutmut"
+
+[gates.correspondence]
+workflow = "verify.yml"
+job = "correspondence"
+mandatory = true
+role = "gate"
+# The theorem must be about the Python in this tree. Freshness compares the
+# committed pair against a regeneration from source; the kernel then checks the
+# correspondence and the property. See TRUST.md for what this does NOT prove.
+must_contain = ["scripts/correspondence_gate.py", "pytest -m axle"]
+evidence = "reports/correspondence.json"
+artifact = "reports-correspondence"
 
 # ---------------------------------------------------------------------------
 # FINALIZER — downloads every gate's artifact from THIS run and proves the

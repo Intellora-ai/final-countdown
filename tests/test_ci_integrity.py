@@ -826,7 +826,9 @@ def test_finalizer_is_not_expected_to_report_on_itself(sandbox: Path) -> None:
 def test_attack_mandatory_gate_absent_from_required_checks_is_caught(
         sandbox: Path) -> None:
     toml = sandbox / "ci" / "gates.toml"
-    toml.write_text(toml.read_text().replace('  "bandit", "mutmut",\n', '  "bandit",\n'))
+    text = toml.read_text()
+    line = next(l for l in text.splitlines() if '"mutmut"' in l and "required" not in l)
+    toml.write_text(text.replace(line, '  "bandit",'))
     result = integrity(sandbox)
     assert result.returncode != 0, "a gate that blocks nothing was not detected"
     assert "mandatory but not required" in result.stdout

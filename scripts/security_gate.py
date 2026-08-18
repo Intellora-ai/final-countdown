@@ -80,7 +80,9 @@ ELIGIBLE = {("B404", "scripts/proof_gate.py"), ("B603", "scripts/proof_gate.py")
             ("B404", "scripts/gate.py"), ("B603", "scripts/gate.py"),
             ("B404", "scripts/run_gate.py"), ("B603", "scripts/run_gate.py"),
             ("B404", "scripts/axle_gate.py"), ("B603", "scripts/axle_gate.py"),
-            ("B404", "scripts/check_ruleset.py"), ("B603", "scripts/check_ruleset.py")}
+            ("B404", "scripts/check_ruleset.py"), ("B603", "scripts/check_ruleset.py"),
+            ("B404", "scripts/correspondence_gate.py"),
+            ("B603", "scripts/correspondence_gate.py")}
 
 
 def check_subprocess_safety(path: str) -> tuple[bool, str]:

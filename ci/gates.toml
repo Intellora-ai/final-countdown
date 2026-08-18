@@ -17,7 +17,7 @@ required_checks = [
 workflow = "axle-verify.yml"
 job = "axle-verify"
 mandatory = true
-must_contain = ["scripts/verify_with_axle.sh", "scripts/enforce_spec.py"]
+must_contain = ["scripts/axle_gate.py", "scripts/enforce_spec.py"]
 
 [gates.spec-strength]
 workflow = "spec-strength.yml"

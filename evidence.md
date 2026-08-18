@@ -1,120 +1,95 @@
 # Evidence Report
 
-Generated 2026-08-18. Every line below is a command result, not a claim.
+Every line below is a command result, not a claim.
+
+This file used to restate what the gates measure. That is why it went stale:
+it was a hand-written copy of facts the system already emits, and nothing kept
+the copy true. Anything mechanical now lives in `reports/gate-manifest.json`,
+which is generated per run and bound to that run's commit. What stays here is
+the part a machine cannot emit — what was measured by hand, and what is still
+not true.
+
+`scripts/gate_integrity.py` now fails the build if this file or `README.md`
+tells anyone to run a verifier that does not exist. That check is narrow on
+purpose: it does not make prose true, it only blocks the claim that breaks
+first when a gate is renamed.
 
 ---
 
-## GitHub Repo
+## Repository
 
-- **Repo:** `Intellora-ai/final-countdown`
-- **Visibility:** — **DOES NOT EXIST**
-- **Created:** —
-
-```
-$ gh repo list Intellora-ai --json name,visibility,createdAt
-accountant-dad-core   PUBLIC   2026-08-07
-axiom-lean-engine     PUBLIC   2026-08-18
-accountant-dad        PUBLIC   2026-08-02
-
-$ gh repo create Intellora-ai/final-countdown --public --source . --push
-GraphQL: Resource not accessible by personal access token (createRepository)
-```
-
-**Blocker.** The active token for `Intellora-ai` is a fine-grained PAT
-(`github_pat_11CDV32IY0O7HSlhDyPzio…`). It has `admin:true, push:true` on existing
-repos but lacks account-level **Administration: write**, so it cannot create one.
-
-The second account `sidhutanveer19-code` has a classic token with
-`repo, delete_repo, workflow` and *could* create a repo — but under the wrong owner.
-I did not switch accounts, because that changes global `gh` state you did not ask me
-to change.
-
-**One-line fix — then `git push` and everything below goes live:**
-
-```bash
-gh repo create Intellora-ai/final-countdown --public --source "/Users/tanveersidhu/final countdown" --remote origin --push
-```
-
-Grant the PAT **Administration: Read and write** (and "All repositories") at
-https://github.com/settings/tokens first, or create the empty repo in the browser.
-
-## Workflows — 7 built, 0 pushed
-
-| Workflow | Exists locally | On GitHub |
-|---|---|---|
-| `pr-fast.yml` | YES | NO |
-| `full-verify.yml` | YES | NO |
-| `axle-verify.yml` | YES | NO |
-| `coverage.yml` | YES | NO |
-| `typecheck.yml` | YES | NO |
-| `security.yml` | YES | NO |
-| `mutation.yml` | YES | NO |
-| `github-logs.yml` | **NO — not built** | NO |
-
-`github-logs.yml` was not built: it needs the auto-commit-bot decision that is still
-unanswered, and "when GitHub logs load" is not a GitHub event (the real trigger is
-`workflow_run: completed`, which self-retriggers if the job commits).
-
-## Files
-
-| File | Exists |
+| | |
 |---|---|
-| `scripts/enforce_spec.py` | YES |
-| `scripts/verify_with_axle.sh` | YES |
-| `scripts/mutation_gate.py` | YES |
-| `specs/add_spec.lean` | YES |
-| `proofs/add_proof.lean` | YES |
-| `specs/clamp_spec.lean` | YES |
-| `proofs/clamp_proof.lean` | YES |
-| `src/add.py` | YES |
-| `src/clamp.py` | YES |
-| `tests/test_add.py` | YES |
-| `tests/test_clamp.py` | YES |
-| `pyproject.toml` / `requirements.txt` / `axle.toml` / `README.md` / `LICENSE` | YES |
-| `scripts/translate_to_lean.py` | **NO** — see "AI writing specs/proofs" |
-| `scripts/fix_python.py` | **NO** — same reason |
-| `scripts/github_logs_analyzer.py` | **NO** — blocked on bot decision |
+| Repo | `Intellora-ai/final-countdown`, PUBLIC, created 2026-08-18 |
+| Default branch | `main` |
+| Commits | 15 |
+| Open PR | #1 — full-verify on PRs, one security source of truth, AXLE health preflight |
+| Workflows | 13 |
+| Ruleset | "final countdown protection" (id 20990225), 10 required checks pinned to GitHub Actions |
 
-## Commits / PRs / Runs
+The earlier blocker in this file — "repo DOES NOT EXIST, token cannot create
+it" — is resolved. The repo exists and direct pushes to `main` are rejected by
+the ruleset (tested).
 
-- Commits: **1** (`78ac65e`), local only — 25 tracked files
-- PRs: **0** (no remote)
-- Workflow runs: **0** (no remote)
+## Corpus
 
-## Gates — proven working locally
+| | count |
+|---|---|
+| `src/*.py` | 4 (`add`, `clamp`, `multiply`, `subtract`) |
+| `specs/*_spec.lean` | 10 |
+| `proofs/*_proof.lean` | 10 |
+| tests | 67 passed, 2 skipped |
+| of those, adversarial CI tests | 44 |
 
-```
-$ pytest --cov=src --cov-branch --cov-fail-under=95
-src/add.py      2 stmts   0 miss   100%
-src/clamp.py    4 stmts   0 miss   100%
-TOTAL           6 stmts   0 miss   100%
-Required test coverage of 95% reached. Total coverage: 100.00%
-10 passed, 2 skipped                                          exit=0
+Ten specs against four functions: a function's contract is a *set* of theorems,
+and `check_composition.py` scores the set, because individually weak specs can
+be jointly strong.
 
-$ bash scripts/verify_with_axle.sh
-✓ add: verified          (AXLE total_ms: 202)
-✓ clamp: verified        (AXLE total_ms: 312)
-✓ All proofs verified                                          exit=0
-
-$ python3 scripts/enforce_spec.py specs/*_spec.lean
-✓ Spec specs/add_spec.lean is strong.
-✓ Spec specs/clamp_spec.lean is strong.                        exit=0
-```
-
-**Negative tests — the gates actually block:**
+## Gates — measured, all ten on one filesystem
 
 ```
-# planted trivial spec
-❌ Spec specs/cheat_spec.lean is trivial. AI must rewrite.      exit=1
-
-# planted bad proof (rfl on a+b=b+a)
-❌ add: AXLE rejected the proof
-   error: Tactic `rfl` failed: a + b is not definitionally equal to b + a
+axle-verify            PASS   11759 ms
+spec-strength          PASS    3244 ms
+spec-composition       PASS    3538 ms
+vacuity-check          PASS     175 ms
+counterexample-search  PASS     390 ms
+honest-report          PASS   26064 ms
+coverage               PASS    2399 ms
+pyright                PASS    1214 ms
+bandit                 PASS     273 ms
+mutmut                 PASS    3437 ms
+                       ────────────────
+                       total  ~52 s   (job timeout 600 s)
 ```
+
+Authoritative copy: `reports/gate-manifest.json`, which also records the run
+identity every report had to match.
+
+## What the gates block — proven by attack, not by assertion
+
+Each row is a real sabotage run against a throwaway copy, with a test that
+fails if the defence is removed. Full list in `tests/test_ci_integrity.py`.
+
+| Attack | Result |
+|---|---|
+| Delete a gate step, leave the job green | caught by `gate_integrity.py` |
+| Delete a workflow / rename a job / delete a script | caught |
+| `continue-on-error`, `\|\| true` on a gate | caught |
+| Empty `specs/` | `axle_gate.py` FAILs — previously exited 0 |
+| Proof whose spec was deleted | FAILs — previously invisible |
+| Spec with no proof | FAILs |
+| AXLE binary absent | `INFRASTRUCTURE_FAILURE`, not `FAIL` |
+| Report missing / corrupt / from another run / another commit / another attempt | aggregate blocks |
+| Report omitting its identity fields | blocked (absence must not be a bypass) |
+| One gate's report renamed to cover another | blocked |
+| `reports/` unwritable | `INFRASTRUCTURE_FAILURE`, exit 1 |
+| Per-function loop with zero functions | FAILs |
+| Gate prints "PASS" but exits 7 | recorded `FAIL` |
+| Gate killed with SIGKILL | not PASS |
 
 ## `enforce_spec.py` — two defects found and fixed
 
-Tested your script verbatim before shipping it:
+Tested verbatim before shipping:
 
 | Input | Verdict | Exit code |
 |---|---|---|
@@ -122,76 +97,78 @@ Tested your script verbatim before shipping it:
 | `x + 0 = x` | "strong" | 0 |
 | `n ≤ n + 1` | "strong" | 0 |
 
-1. **Exit code was always 0.** `enforce_spec()` returns `False` but `__main__`
-   discarded it. `run: python3 scripts/enforce_spec.py …` would have **never failed a
-   build** — the gate was a no-op. Fixed with `sys.exit(0 if … else 1)`.
-2. **Only checked `sys.argv[1]`.** With `specs/*_spec.lean` expanding to many files,
-   only the first was inspected. Fixed by looping over `sys.argv[1:]`.
+1. **Exit code was always 0.** `enforce_spec()` returned `False` but `__main__`
+   discarded it, so the gate was a no-op. Fixed with `sys.exit(0 if … else 1)`.
+2. **Only checked `sys.argv[1]`.** With `specs/*_spec.lean` expanding to many
+   files, only the first was inspected. Fixed by looping over `sys.argv[1:]`.
 
-Detection logic is unchanged. Rows 2 and 3 still pass — they are non-trivial theorems
-that say nothing about your Python. Regex cannot close that gap.
-
-## Local `.claude/` Setup — complete
-
-| Item | Status |
-|---|---|
-| `~/.claude/skills/auto-load/` exists | YES |
-| `SKILL.md` with frontmatter (discoverable) | YES — registered as skill `auto-load` |
-| 16 per-skill files | YES (`01-karpathy.md` … `16-rtk.md`, 17 files with SKILL.md) |
-| `~/.claude/config.json` `requiredSkills` | YES — 16 entries |
-| `~/.claude/hooks/` 3 hooks executable | YES — `force-skills.py`, `skill-routing.sh`, `explicit-skill-policy.py` |
-| `settings.json` hooks merged | YES — all 13 top-level keys preserved |
-
-All three hooks fired on this turn: `✓ Forced 16 skills to load`,
-`✓ All required skills enforced`, and the 16-name REQUIRED block.
+Rows 2 and 3 still pass. They are non-trivial theorems that say nothing about
+the Python. A regex cannot close that gap, which is why the mutation gate
+exists: a spec is scored by whether a realistic bug makes it false.
 
 ---
 
-# WILL AXLE WORK AUTOMATICALLY WHEN YOU WRITE CODE?
+# What is still NOT true
 
-## NO.
+## AXLE does not write itself
 
-Two reasons, in order of how hard they are to fix.
-
-**1. Nothing is on GitHub.** Token cannot create the repo. Fixable in one minute.
-
-**2. Nothing writes the Lean.** This is the real one.
-
-Your checklist item 4 — "AI configured to write Lean 4 specs + proofs" — is the load-
-bearing step, and it is not satisfied. Measured:
+The load-bearing step — "AI writes the Lean spec and proof" — is not satisfied.
+Measured:
 
 ```
-$ ollama run qwen2.5-coder:7b  "prove: theorem py_add_comm (a b : Int) : a + b = b + a"
+$ ollama run qwen2.5-coder:7b "prove: theorem py_add_comm (a b : Int) : a + b = b + a"
 theorem py_add_comm (a b : Int) : a + b = b + a := by rw [add.comm]
 
 $ axle verify-proof …
 okay: false — Unknown identifier `add.comm`
 ```
 
-That is the easiest theorem in the corpus and the model hallucinated the lemma name
-(Mathlib's is `add_comm`). None of your 10 Ollama models are Lean-tuned. So
-`translate_to_lean.py` would be a script that reliably emits proofs AXLE rejects —
-which is why I did not ship it as a working component.
+The easiest theorem in the corpus, and the model hallucinated the lemma name
+(Mathlib's is `add_comm`). None of the installed Ollama models are Lean-tuned,
+so `scripts/translate_to_lean.py` would be a script that reliably emits proofs
+AXLE rejects. It was not shipped for that reason. `scripts/fix_python.py` and
+`scripts/github_logs_analyzer.py` are also not built — the second is blocked on
+an auto-commit-bot decision that was never made, and "when GitHub logs load" is
+not a GitHub event.
 
-**The two proofs in this repo were written by me, by hand, not generated.** They
-verify (202 ms, 312 ms). That is honest and it works — but it is not "you write Python
-and Lean appears."
+**Every spec and proof in this repo was written by hand.** They verify. That is
+honest, and it is not "you write Python and Lean appears."
 
-## What DOES work automatically once you push
+## The Python ↔ Lean boundary
 
-- AXLE verifies committed proofs — real Lean kernel check, 200–320 ms
-- Coverage 95% floor, Pyright strict, Bandit at LOW, mutation 95%
-- Spec-strength gate blocks degenerate specs (now that it exits non-zero)
-- Every gate blocks the merge when it fails — proven above with planted failures
+AXLE proves that `proofs/<n>_proof.lean` discharges `specs/<n>_spec.lean`. It
+knows nothing about Python. Nothing in this repo formally proves that the Lean
+`def` models `src/<n>.py`.
 
-So: **write Python + a Lean contract → everything else is automatic.**
-The gap is exactly the contract, and it is a real gap, not a setup problem.
+That gap is bounded, not closed:
 
-## To close it
+- `spec_source.py` requires each spec to name a real `src/*.py` subject.
+- `find_counterexample.py` runs the spec's claim against the **real Python
+  function** and fails on a counterexample.
+- `mutation_gate.py` scores the spec by whether realistic mutations of the
+  Python make it false, excluding equivalent mutants.
+- `honest_report.py` reports contract sufficiency as `ESTABLISHED` /
+  `NOT_ESTABLISHED` / `UNKNOWN` within a declared search scope, and never as
+  "fully specified".
 
-- **Frontier model for translation** (Claude/GPT via API, not a local 7B) — highest
-  chance, costs per call, still needs review of the *spec*
-- **Spec templates** — for a fixed vocabulary (arithmetic, bounds, monotonicity) a
-  generator beats an LLM and is deterministic
-- **Hypothesis as the everyday gate**, AXLE for the small pure-numeric core — already
-  wired; `tests/` mirrors each Lean contract as a property test
+So the formal claim is about the Lean model; the empirical claims are about the
+Python. Do not read a green `axle-verify` as "the Python is proven correct".
+
+## Root of trust
+
+Everything above bottoms out at `ci/gates.toml` and `scripts/gate.py` **as
+committed**. One commit that edits both the manifest and the checker together
+defeats the integrity layer. Nothing inside the repo can escape that; only the
+diff and PR review can. Recursive self-verification has an end, and this is it.
+
+`ci/gates.toml`'s `[ruleset]` block is a copy of the live GitHub ruleset that
+nothing compares against GitHub. They match today; nothing keeps them matching.
+
+## Security note
+
+An earlier revision of this file contained the first 25 characters of a
+fine-grained GitHub PAT, and that revision is on `origin/main` in a **public**
+repository. The fragment is removed here, but it remains in git history.
+A truncated token is not directly usable; a published credential prefix is
+still a reason to rotate. Rotating the token is the fix — removing it from
+history alone does not un-publish it.

@@ -15,8 +15,10 @@ proofs/<name>_proof.lean the proof AXLE checks against the spec
 tests/test_<name>.py   Hypothesis properties mirroring the same contract
 ```
 
-`scripts/verify_with_axle.sh` pairs each `specs/<name>_spec.lean` with
-`proofs/<name>_proof.lean` and calls:
+`scripts/axle_gate.py` first proves the sets match — every spec has a proof,
+every proof has a spec, and there is at least one of each — because verifying
+every member of a set says nothing about it being the right set. Only then does
+it pair each `specs/<name>_spec.lean` with `proofs/<name>_proof.lean` and call:
 
 ```bash
 axle verify-proof --environment lean-4.33.0 specs/add_spec.lean proofs/add_proof.lean
@@ -40,7 +42,7 @@ authentication.
 ```bash
 pytest --cov=src --cov-branch --cov-fail-under=95   # tests + coverage
 python3 scripts/enforce_spec.py specs/*_spec.lean   # spec strength
-bash scripts/verify_with_axle.sh                    # AXLE proof check
+python3 scripts/axle_gate.py                        # AXLE proof check
 pyright                                             # strict types
 bandit -r src scripts --severity-level low --confidence-level low
 ```

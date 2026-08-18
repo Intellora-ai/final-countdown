@@ -8,6 +8,14 @@ from spec_strength import holds, load_module
 from spec_to_test import parse_lean_spec
 
 if __name__ == "__main__":
+    if not sys.argv[1:]:
+        # A loop over nothing exits 0, so this gate would report success having
+        # examined no spec at all. Same class as an empty scan uploading a
+        # valid-but-blank report: the set has to be non-empty before any
+        # statement about its members means anything.
+        print("❌ no spec files given — this gate would have checked nothing",
+              file=sys.stderr)
+        sys.exit(1)
     bad = False
     for spec in sys.argv[1:]:
         info = parse_lean_spec(spec)

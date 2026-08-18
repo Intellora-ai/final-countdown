@@ -23,12 +23,14 @@ jobs:
         run: python3 scripts/axle_health.py
       - name: Enforce strong specs (syntactic)
         run: python3 scripts/enforce_spec.py specs/*_spec.lean
-      # verify_with_axle.sh owns the pass/fail decision because
-      # `axle verify-proof` exits 0 on "okay": false, and emits plain-text
-      # `Error:` (no JSON) when the statement fails to compile — so neither the
-      # exit code nor a grep for '"okay": false' blocks on its own.
+      # axle_gate.py owns the pass/fail decision because `axle verify-proof`
+      # exits 0 on "okay": false, and emits plain-text `Error:` (no JSON) when
+      # the statement fails to compile — so neither the exit code nor a grep
+      # for '"okay": false' blocks on its own. It proves SPEC_SET == PROOF_SET
+      # and that the set is non-empty BEFORE checking any proof, and it writes
+      # its own reports/axle-verify.json, so it is not wrapped in run_gate.py.
       - name: Verify all proofs with AXLE
-        run: python3 scripts/run_gate.py --name axle-verify -- bash scripts/verify_with_axle.sh
+        run: python3 scripts/axle_gate.py
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4

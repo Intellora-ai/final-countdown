@@ -17,7 +17,7 @@ jobs:
       - name: Spec strength gate
         run: python3 scripts/enforce_spec.py specs/*_spec.lean
       - name: AXLE proof gate
-        run: bash scripts/verify_with_axle.sh
+        run: python3 scripts/axle_gate.py
       - name: Unit tests
         run: pytest -q
       - name: Upload evidence

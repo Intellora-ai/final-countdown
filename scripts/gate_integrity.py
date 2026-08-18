@@ -15,6 +15,7 @@ This asserts the verification system is still intact BEFORE any gate runs:
   5. no failure suppression (`|| true`, `|| echo`) on a gate command
   6. every job id required by the ruleset still exists in some workflow
   7. every gate job uploads its evidence
+  8. no doc tells anyone to run a verifier script that no longer exists
 
 The expected shape lives in ci/gates.toml, which is version controlled. Changing
 what a gate does now requires changing the manifest too, and that shows up in
@@ -135,6 +136,31 @@ def main() -> None:
                            where=f"{wf.name} -> {script}",
                            requirement="Every invoked verifier must exist.",
                            fix=f"Restore {script} or remove the step.")
+
+        # 8. documentation cannot tell anyone to RUN a verifier that is gone.
+        # evidence.md and README.md are hand-written copies of facts the system
+        # emits, so they drift by construction and nothing noticed.
+        #
+        # Scoped to INVOCATIONS (`bash scripts/x.sh`, `python3 scripts/x.py`),
+        # not every mention: evidence.md legitimately documents scripts that do
+        # NOT exist and says so, and flagging that would punish honesty. This
+        # does not make the prose true — it makes the one claim that breaks
+        # first, when a verifier is renamed, into a blocking one.
+        for doc in (Path("README.md"), Path("evidence.md")):
+            if not doc.is_file():
+                continue
+            for script in sorted(set(re.findall(
+                    r"(?:python3?|bash|sh)\s+(scripts/[\w./-]+\.(?:py|sh))",
+                    doc.read_text(encoding="utf-8")))):
+                if not Path(script).is_file():
+                    ok = False
+                    g.check(f"{doc}: {script}", False, "missing")
+                    g.fail(what="documentation names a script that does not exist",
+                           where=f"{doc} -> {script}",
+                           why="the doc describes a verifier the repo no longer has",
+                           requirement="Docs must not describe a verification "
+                                       "system that is not the one running.",
+                           fix=f"Update {doc}, or restore {script}.")
 
         ruleset: dict[str, Any] = manifest.get("ruleset", {})
         required: list[str] = list(ruleset.get("required_checks", []))

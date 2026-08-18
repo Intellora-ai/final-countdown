@@ -119,7 +119,7 @@ def test_attack_deleted_gate_invocation_is_caught(sandbox: Path) -> None:
     wf = sandbox / ".github/workflows/axle-verify.yml"
     text = wf.read_text()
     sabotaged = "\n".join(l for l in text.splitlines()
-                          if "verify_with_axle.sh" not in l)
+                          if "scripts/axle_gate.py" not in l)
     assert sabotaged != text, "sabotage did not modify the workflow"
     wf.write_text(sabotaged)
 
@@ -500,3 +500,177 @@ def test_per_function_loop_still_reports_what_it_covered(tmp_path: Path) -> None
         cwd=REPO, capture_output=True, text=True, timeout=120)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "verifying" in result.stdout and "source file(s)" in result.stdout
+
+
+# --------------------------------------------------------------------------
+# Attack 17 — the AXLE gate's SET, not its members
+#
+# The old shell loop verified every spec it found and reported success. It
+# never asked whether the set it found was the set that should exist, so an
+# empty specs/ and a deleted spec both produced a green required check.
+# These run without touching AXLE: the completeness invariant is decided
+# before any proof is submitted, which is the point of checking it first.
+# --------------------------------------------------------------------------
+def axle_sandbox(tmp_path: Path, specs: list[str], proofs: list[str]) -> Path:
+    work = tmp_path / "axle"
+    (work / "scripts").mkdir(parents=True)
+    (work / "specs").mkdir()
+    (work / "proofs").mkdir()
+    (work / "reports").mkdir()
+    for script in ("axle_gate.py", "gate.py"):
+        shutil.copy(SCRIPTS / script, work / "scripts")
+    for name in specs:
+        shutil.copy(REPO / "specs" / f"{name}_spec.lean", work / "specs")
+    for name in proofs:
+        shutil.copy(REPO / "proofs" / f"{name}_proof.lean", work / "proofs")
+    return work
+
+
+def axle_gate(cwd: Path) -> subprocess.CompletedProcess[str]:
+    return run([str(cwd / "scripts" / "axle_gate.py")], cwd)
+
+
+def test_attack_axle_with_zero_specs_is_not_pass(tmp_path: Path) -> None:
+    """Measured on the old gate: empty specs/ printed 'All proofs verified'."""
+    result = axle_gate(axle_sandbox(tmp_path, [], []))
+    assert result.returncode != 0, (
+        "an empty spec set reported success — the gate verified nothing")
+    assert "no specs to verify" in result.stdout
+
+
+def test_attack_axle_orphan_proof_is_not_pass(tmp_path: Path) -> None:
+    """Deleting a spec must not silently drop a function from verification."""
+    result = axle_gate(axle_sandbox(tmp_path, [], ["add"]))
+    assert result.returncode != 0, "a proof whose spec was deleted passed"
+    assert "proof but no spec" in result.stdout
+
+
+def test_attack_axle_missing_proof_is_not_pass(tmp_path: Path) -> None:
+    result = axle_gate(axle_sandbox(tmp_path, ["add"], []))
+    assert result.returncode != 0, "a spec with no proof passed"
+    assert "spec but no proof" in result.stdout
+
+
+def test_axle_reports_incompleteness_as_fail_not_infrastructure(
+        tmp_path: Path) -> None:
+    """An incomplete set is the repository's fault, not the service's."""
+    axle_gate(work := axle_sandbox(tmp_path, [], ["add"]))
+    report = json.loads((work / "reports/axle-verify.json").read_text())
+    assert report["status"] == "FAIL"
+    assert report["mergeable_contribution"] is False
+    assert report["scope"]["specs_found"] == 0
+    assert report["scope"]["proofs_found"] == 1
+
+
+def test_axle_missing_binary_is_infrastructure_failure(tmp_path: Path) -> None:
+    """'Could not verify' must stay distinguishable from 'did not verify'."""
+    work = axle_sandbox(tmp_path, ["add"], ["add"])
+    env = dict(os.environ)
+    env["PATH"] = "/nonexistent"
+    env.pop("GITHUB_STEP_SUMMARY", None)
+    result = subprocess.run([PY, str(work / "scripts" / "axle_gate.py")],
+                            cwd=work, capture_output=True, text=True,
+                            timeout=120, env=env)
+    assert result.returncode != 0
+    report = json.loads((work / "reports/axle-verify.json").read_text())
+    assert report["status"] == "INFRASTRUCTURE_FAILURE", (
+        "an absent AXLE was reported as a failed proof")
+
+
+# --------------------------------------------------------------------------
+# Attack 18 — documentation describing a verification system that is not the
+# one running. The README told people to run a script that had been deleted,
+# and nothing failed. Narrow by design: an INVOCATION of a missing script, not
+# every mention, so evidence.md can keep honestly documenting what is absent.
+# --------------------------------------------------------------------------
+def test_attack_doc_invoking_a_deleted_script_is_caught(sandbox: Path) -> None:
+    (sandbox / "README.md").write_text(
+        "## Use\n\n```bash\npython3 scripts/ghost_gate.py\n```\n", encoding="utf-8")
+    result = integrity(sandbox)
+    assert result.returncode != 0, (
+        "a doc telling people to run a nonexistent verifier was not caught")
+    assert "documentation names a script that does not exist" in result.stdout
+
+
+def test_doc_documenting_an_absent_script_is_allowed(sandbox: Path) -> None:
+    """Honesty about what does not exist must not be punished."""
+    (sandbox / "evidence.md").write_text(
+        "| `scripts/translate_to_lean.py` | **NO** — not built |\n",
+        encoding="utf-8")
+    assert integrity(sandbox).returncode == 0, (
+        "documenting an absent script as absent was treated as drift")
+
+
+# --------------------------------------------------------------------------
+# Attack 19 — a gate that runs, goes red, and blocks nothing
+#
+# ci/gates.toml's [ruleset] block was a copy of the live GitHub ruleset that
+# nothing compared against GitHub. gate_integrity check 6 validated the
+# manifest against itself, so the dangerous direction — a mandatory gate that
+# GitHub does not actually require — was invisible.
+# --------------------------------------------------------------------------
+def ruleset_sandbox(tmp_path: Path, gates_toml: str) -> Path:
+    work = tmp_path / "rs"
+    (work / "scripts").mkdir(parents=True)
+    (work / "ci").mkdir()
+    shutil.copy(SCRIPTS / "check_ruleset.py", work / "scripts")
+    (work / "ci" / "gates.toml").write_text(gates_toml, encoding="utf-8")
+    return work
+
+
+def test_attack_required_check_with_no_mandatory_gate_is_caught(
+        tmp_path: Path) -> None:
+    toml = (REPO / "ci" / "gates.toml").read_text(encoding="utf-8")
+    toml = toml.replace('"bandit", "mutmut",', '"bandit", "mutmut", "ghost-gate",')
+    work = ruleset_sandbox(tmp_path, toml)
+    result = run([str(work / "scripts" / "check_ruleset.py")], work)
+    assert result.returncode != 0
+    assert "ghost-gate" in result.stdout
+
+
+def test_ruleset_check_treats_unreachable_github_as_unknown(
+        tmp_path: Path) -> None:
+    """'Could not compare' must not read as 'aligned'."""
+    work = ruleset_sandbox(
+        tmp_path, (REPO / "ci" / "gates.toml").read_text(encoding="utf-8"))
+    env = dict(os.environ)
+    env["PATH"] = "/nonexistent"      # no gh
+    env.pop("GITHUB_STEP_SUMMARY", None)
+    result = subprocess.run([PY, str(work / "scripts" / "check_ruleset.py")],
+                            cwd=work, capture_output=True, text=True,
+                            timeout=120, env=env)
+    assert result.returncode != 0, "an unverifiable ruleset reported success"
+    assert "CANNOT COMPARE" in result.stdout
+
+
+# --------------------------------------------------------------------------
+# Attack 20 — every spec verifier, given nothing, must not report success
+#
+# Property, not example: `for spec in sys.argv[1:]` exits 0 when the list is
+# empty, so any verifier written that way passes having examined nothing.
+# check_vacuity.py and find_counterexample.py both did. Parametrised so a
+# verifier added later is covered without anyone remembering to add a test.
+# --------------------------------------------------------------------------
+SPEC_VERIFIERS = ["enforce_spec.py", "check_vacuity.py",
+                  "find_counterexample.py", "check_composition.py"]
+
+
+@pytest.mark.parametrize("verifier", SPEC_VERIFIERS)
+def test_spec_verifier_with_no_specs_is_not_success(verifier: str,
+                                                    tmp_path: Path) -> None:
+    result = subprocess.run([PY, str(SCRIPTS / verifier)], cwd=REPO,
+                            capture_output=True, text=True, timeout=120)
+    assert result.returncode != 0, (
+        f"{verifier} exited 0 with no specs — it verified nothing and said so "
+        "in the affirmative")
+
+
+@pytest.mark.parametrize("verifier", SPEC_VERIFIERS)
+def test_spec_verifier_with_a_nonexistent_path_is_not_success(
+        verifier: str, tmp_path: Path) -> None:
+    """bash leaves an unmatched glob as a literal, so this is the live path."""
+    result = subprocess.run(
+        [PY, str(SCRIPTS / verifier), str(tmp_path / "*_spec.lean")],
+        cwd=REPO, capture_output=True, text=True, timeout=120)
+    assert result.returncode != 0, (
+        f"{verifier} exited 0 on a spec path that does not exist")

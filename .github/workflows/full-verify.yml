@@ -48,7 +48,7 @@ jobs:
       - name: All ten layers per function
         run: python3 scripts/run_gate.py --name honest-report -- bash scripts/verify_per_function.sh scripts/honest_report.py --min-strength 0.9
       - name: AXLE proofs
-        run: python3 scripts/run_gate.py --name axle-verify -- bash scripts/verify_with_axle.sh
+        run: python3 scripts/axle_gate.py
       - name: Tests + coverage
         run: python3 scripts/run_gate.py --name coverage -- pytest --cov=src --cov-branch --cov-fail-under=95
       - name: Types

@@ -11,6 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from spec_source import source_for
 from spec_strength import evaluate
+from typing import Any
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
@@ -18,7 +19,7 @@ if __name__ == "__main__":
     p.add_argument("--min-strength", type=float, default=0.9)
     ns = p.parse_args()
 
-    reports = []
+    reports: list[dict[str, Any]] = []
     for spec in ns.specs:
         src = source_for(spec)
         if src is None:
@@ -28,10 +29,13 @@ if __name__ == "__main__":
             sys.exit(1)
         reports.append(rep)
 
-    scored = [r for r in reports if "mutants" in r]
+    scored: list[dict[str, Any]] = [r for r in reports if "mutants" in r]
     if not scored:
         print("❌ nothing scored"); sys.exit(1)
-    survivors = set.intersection(*[set(r["survivors"]) for r in scored])
+    survivor_sets: list[set[str]] = [set(r["survivors"]) for r in scored]
+    survivors: set[str] = survivor_sets[0].copy()
+    for extra in survivor_sets[1:]:
+        survivors &= extra
     total = max(r["mutants"] for r in scored)
     joint = (total - len(survivors)) / total if total else 0.0
     print(f"\nJOINT strength: {joint:.2f} ({total - len(survivors)}/{total} killed by the set)")

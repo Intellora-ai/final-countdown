@@ -1,6 +1,5 @@
 """Tests for src.add — mirrors specs/add_spec.lean."""
 
-import pytest
 from hypothesis import given, strategies as st
 
 from src.add import add

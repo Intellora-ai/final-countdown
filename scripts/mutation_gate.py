@@ -12,30 +12,35 @@ same function; no spec can kill it, and counting it caps every honest score.
 import argparse, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mutate import generate_mutants
+from mutate import Mutant, generate_mutants
 from spec_source import source_for
 from spec_strength import holds, is_equivalent, load_module
 from spec_to_test import parse_lean_spec
+from typing import Any
 
-def score(spec_files, threshold=0.9):
+def score(spec_files: list[str], threshold: float = 0.9) -> dict[str, Any]:
     infos = [(s, parse_lean_spec(s)) for s in spec_files]
     infos = [(s, i) for s, i in infos if i]
     if not infos:
         return {"mutation_score": 0.0, "mutants_killed": 0, "mutants": 0,
                 "equivalent_excluded": 0, "survivors": [], "verdict": "UNKNOWN"}
     src = source_for(spec_files[0])
+    if src is None:
+        raise SystemExit(f"no src/ file for {spec_files[0]}")
     source = Path(src).read_text()
     original = load_module(source)
     name, arity = infos[0][1]["function_name"], len(infos[0][1]["args"])
 
-    equivalent, live = 0, []
+    equivalent = 0
+    live: list[Mutant] = []
     for m in generate_mutants(source):
         if is_equivalent(original, m.source, name, arity):
             equivalent += 1
         else:
             live.append(m)
 
-    killed, survivors = 0, []
+    killed = 0
+    survivors: list[str] = []
     for m in live:
         try:
             mod = load_module(m.source)

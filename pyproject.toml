@@ -19,6 +19,11 @@ show_missing = true
 exclude_lines = ["pragma: no cover", "if __name__ == .__main__.:"]
 
 [tool.pyright]
+# Without venvPath/venv, pyright cannot resolve hypothesis (which ships
+# py.typed). Every unresolved import makes downstream values Unknown, which is
+# where the bulk of the strict-mode errors came from - a config gap, not code.
+venvPath = "."
+venv = ".venv"
 include = ["src", "tests", "scripts"]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"

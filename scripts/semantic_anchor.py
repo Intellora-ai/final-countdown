@@ -16,13 +16,14 @@ import ast
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 
-def _docstring_contract(doc):
+def _docstring_contract(doc: str | None) -> list[dict[str, str]]:
     """Clauses under a 'Contract' heading, or any 'name: claim' bullet lines."""
     if not doc:
         return []
-    clauses = []
+    clauses: list[dict[str, str]] = []
     for raw in doc.splitlines():
         line = raw.strip().lstrip("-*").strip()
         m = re.match(r'^([a-z][a-z_ ]{2,30}):\s+(.+)$', line)
@@ -31,20 +32,20 @@ def _docstring_contract(doc):
     return clauses
 
 
-def anchor_for(source_file):
+def anchor_for(source_file: str) -> dict[str, Any] | None:
     src = Path(source_file).read_text(encoding="utf-8")
     tree = ast.parse(src)
     fn = next((n for n in tree.body if isinstance(n, ast.FunctionDef)), None)
     if fn is None:
         return None
 
-    hints = {}
+    hints: dict[str, str | None] = {}
     for arg in fn.args.args:
         hints[arg.arg] = ast.unparse(arg.annotation) if arg.annotation else None
     returns = ast.unparse(fn.returns) if fn.returns else None
 
     name = fn.name
-    tests = []
+    tests: list[str] = []
     for candidate in (Path("tests") / f"test_{name}.py",):
         if candidate.is_file():
             ttree = ast.parse(candidate.read_text(encoding="utf-8"))
@@ -63,7 +64,7 @@ def anchor_for(source_file):
     }
 
 
-def strength(anchor):
+def strength(anchor: dict[str, Any] | None) -> str:
     if anchor is None:
         return "ABSENT"
     if anchor["reference"]:

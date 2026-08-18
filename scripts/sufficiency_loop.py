@@ -36,6 +36,8 @@ from semantic_anchor import anchor_for
 from spec_source import source_for
 from spec_strength import holds, load_module
 from spec_to_test import parse_lean_spec
+from typing import Any
+from collections.abc import Callable, Sequence
 
 SCOPE = {
     "domain": "integers [-1000, 1000]",
@@ -45,7 +47,8 @@ SCOPE = {
 }
 
 
-def divergence(original, alt, probes):
+def divergence(original: Callable[..., int], alt: Callable[..., int],
+               probes: Sequence[tuple[int, ...]]) -> dict[str, Any] | None:
     """First probe point where the two implementations disagree."""
     for values in probes:
         try:
@@ -59,14 +62,14 @@ def divergence(original, alt, probes):
     return None
 
 
-def anchor_verdict(anchor, func_name, div):
+def anchor_verdict(anchor: dict[str, Any], func_name: str,
+                   div: dict[str, Any]) -> str | None:
     """Does an authoritative assertion settle this divergence?
 
     Only the anchor's own assertions are consulted. Nothing is invented here.
     """
     if not anchor or not anchor["tests"]:
         return None
-    env_names = {func_name}
     for assertion in anchor["tests"]:
         try:
             claim = compile_claim(assertion)
@@ -87,13 +90,16 @@ def anchor_verdict(anchor, func_name, div):
     return None
 
 
-def run(spec_files, verbose=True):
+def run(spec_files: list[str], verbose: bool = True) -> dict[str, Any]:
     infos = [(s, parse_lean_spec(s)) for s in spec_files]
     infos = [(s, i) for s, i in infos if i]
     if not infos:
         return {"sufficiency": "UNKNOWN", "reason": "no parsable specs", "scope": SCOPE}
 
     src = source_for(spec_files[0])
+    if src is None:
+        return {"sufficiency": "UNKNOWN",
+                "reason": f"no src/ file for {spec_files[0]}", "scope": SCOPE}
     original_mod = load_module(Path(src).read_text())
     func_name = infos[0][1]["function_name"]
     original = getattr(original_mod, func_name)
@@ -101,10 +107,11 @@ def run(spec_files, verbose=True):
     table = ALTERNATIVES_2 if arity == 2 else ALTERNATIVES_3
     probes = PROBES_2 if arity == 2 else PROBES_3
 
-    anchor = anchor_for(src)
+    anchor = anchor_for(str(src))
     scope = dict(SCOPE, probe_points=len(probes), witness_table=len(table))
 
-    tested, survivors = 0, []
+    tested = 0
+    survivors: list[tuple[str, Callable[..., int]]] = []
     for label, fn in table.items():
         if not distinct(original, fn, probes):
             continue
@@ -120,10 +127,12 @@ def run(spec_files, verbose=True):
                 "reason": f"no witness survived within scope ({tested} tested)",
                 "derivations": []}
 
-    derivations = []
+    derivations: list[dict[str, Any]] = []
     for label, fn in survivors:
         div = divergence(original, fn, probes)
         if div is None:
+            continue
+        if anchor is None:
             continue
         anchor["_original"], anchor["_witness"] = original, fn
         refuting = anchor_verdict(anchor, func_name, div)

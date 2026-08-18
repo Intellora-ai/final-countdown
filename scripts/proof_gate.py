@@ -16,10 +16,12 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 ENVIRONMENT = "lean-4.33.0"
 
-def verify(spec_file, proof_file, environment=ENVIRONMENT, timeout=180):
+def verify(spec_file: str, proof_file: str, environment: str = ENVIRONMENT,
+           timeout: int = 180) -> dict[str, Any]:
     if not Path(proof_file).is_file():
         return {"proof": "MISSING", "axle_ms": None, "detail": f"{proof_file} absent"}
     axle = shutil.which("axle")
@@ -45,7 +47,7 @@ def verify(spec_file, proof_file, environment=ENVIRONMENT, timeout=180):
     return {"proof": "VERIFIED", "axle_ms": data.get("timings", {}).get("total_ms"),
             "detail": ""}
 
-def proof_for(spec_file):
+def proof_for(spec_file: str) -> str:
     return str(Path("proofs") / Path(spec_file).name.replace("_spec.lean", "_proof.lean"))
 
 if __name__ == "__main__":

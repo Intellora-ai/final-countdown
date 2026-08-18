@@ -28,7 +28,6 @@ the property scored here is the property the proof is about.
 """
 
 import argparse
-import ast
 import importlib.util
 import json
 import os
@@ -36,9 +35,12 @@ import sys
 import tempfile
 import uuid
 from pathlib import Path
+from typing import Any
+from collections.abc import Callable
+from types import ModuleType
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mutate import generate_mutants  # noqa: E402
+from mutate import Mutant, generate_mutants  # noqa: E402
 from safe_eval import compile_claim  # noqa: E402
 from spec_to_test import lean_expr_to_python, parse_lean_spec  # noqa: E402
 
@@ -50,7 +52,7 @@ RUN = settings(
     max_examples=120,
     deadline=None,
     database=None,
-    suppress_health_check=list(HealthCheck),
+    suppress_health_check=list(HealthCheck),  # pyright: ignore[reportArgumentType]
 )
 
 
@@ -59,7 +61,7 @@ class SpecViolation(AssertionError):
     which would silently turn every spec check into a no-op."""
 
 
-def load_module(source, name=None):
+def load_module(source: str, name: str | None = None) -> ModuleType:
     """Import mutated source through the normal file-backed import machinery.
 
     Running a mutant means executing it — that is the measurement. Doing it via
@@ -71,6 +73,8 @@ def load_module(source, name=None):
     tmp.write_text(source, encoding="utf-8")
     try:
         spec = importlib.util.spec_from_file_location(name, tmp)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"cannot load mutant module {name}")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module
@@ -78,7 +82,8 @@ def load_module(source, name=None):
         tmp.unlink(missing_ok=True)
 
 
-def build_property(info, module):
+def build_property(info: dict[str, Any], module: ModuleType
+                   ) -> tuple[Callable[..., None], dict[str, int]]:
     """Return (check, reached) — check raises on violation, reached counts hits."""
     func = getattr(module, info["function_name"])
     args = info["args"]
@@ -92,9 +97,11 @@ def build_property(info, module):
     guard_code = compile_claim(guard) if guard else None
     stats = {"reached": 0, "total": 0}
 
-    def check(**values):
-        env = dict(values)
-        env["min"], env["max"], env["abs"] = min, max, abs
+    def check(**values: int) -> None:
+        env: dict[str, Any] = dict(values)
+        env["min"] = min
+        env["max"] = max
+        env["abs"] = abs
         env[info["function_name"]] = func
         stats["total"] += 1
         if guard_code is not None and not guard_code(env):
@@ -106,7 +113,7 @@ def build_property(info, module):
     return check, stats
 
 
-def holds(info, module):
+def holds(info: dict[str, Any], module: ModuleType) -> tuple[bool, dict[str, int]]:
     """True if the property survives Hypothesis against this module."""
     check, stats = build_property(info, module)
     runner = RUN(given(**{a: INTS for a in info["args"]})(check))
@@ -123,7 +130,8 @@ def holds(info, module):
     return True, stats
 
 
-def is_equivalent(original, mutant_src, func_name, arity):
+def is_equivalent(original: ModuleType, mutant_src: str, func_name: str,
+                  arity: int) -> bool:
     """True if the mutant computes the same function as the original.
 
     `a + b` mutated to `b + a` is not a bug — it is the same program. Standard
@@ -146,7 +154,8 @@ def is_equivalent(original, mutant_src, func_name, arity):
     return True
 
 
-def evaluate(spec_file, source_file, threshold):
+def evaluate(spec_file: str, source_file: str, threshold: float
+             ) -> dict[str, Any] | None:
     info = parse_lean_spec(spec_file)
     if info is None:
         print(f"❌ {spec_file}: could not parse the theorem")
@@ -175,7 +184,7 @@ def evaluate(spec_file, source_file, threshold):
 
     # 3. strength
     mutants = generate_mutants(source)
-    live = []
+    live: list[Mutant] = []
     for mut in mutants:
         if is_equivalent(original, mut.source, info["function_name"], len(info["args"])):
             print(f"  – skipped:  {mut.name} (equivalent mutant, same function)")
@@ -183,7 +192,8 @@ def evaluate(spec_file, source_file, threshold):
             live.append(mut)
     mutants = live
 
-    killed, survivors = 0, []
+    killed = 0
+    survivors: list[str] = []
     for mut in mutants:
         try:
             mutant_mod = load_module(mut.source)
@@ -211,21 +221,25 @@ def evaluate(spec_file, source_file, threshold):
     return report
 
 
-def compose(reports):
+def compose(reports: list[dict[str, Any]]) -> list[str]:
     """Minimal subset of specs covering every mutant any of them kills."""
-    by_spec = {r["spec"]: set(r.get("survivors", [])) for r in reports if "mutants" in r}
+    by_spec: dict[str, set[str]] = {
+        r["spec"]: set(r.get("survivors", [])) for r in reports if "mutants" in r
+    }
     if not by_spec:
         return []
-    universe = set().union(*by_spec.values())
+    universe: set[str] = set()
+    for survivors in by_spec.values():
+        universe |= survivors
     all_names = {r["spec"]: r for r in reports}
     # A spec "covers" the mutants it kills = universe - its survivors.
-    remaining = set()
+    remaining: set[str] = set()
     for spec in by_spec:
         remaining |= (universe - by_spec[spec])
-    chosen = []
+    chosen: list[str] = []
     while remaining:
         best = max(by_spec, key=lambda s: len((universe - by_spec[s]) & remaining))
-        gain = (universe - by_spec[best]) & remaining
+        gain: set[str] = (universe - by_spec[best]) & remaining
         if not gain:
             break
         chosen.append(best)
@@ -241,7 +255,8 @@ if __name__ == "__main__":
     p.add_argument("--json", help="write the report here")
     ns = p.parse_args()
 
-    reports, failed = [], False
+    reports: list[dict[str, Any]] = []
+    failed = False
     for pair in ns.pairs:
         spec_file, _, source_file = pair.partition("=")
         print(f"\n── {spec_file}  vs  {source_file} ──")
@@ -257,10 +272,13 @@ if __name__ == "__main__":
     # reject a set that fully constrains the function.
     scored = [r for r in reports if "mutants" in r]
     if scored:
-        universe = set()
+        universe: set[str] = set()
         for r in scored:
             universe |= set(r["survivors"]) | {f"k{i}" for i in range(r["killed"])}
-        all_survivors = set.intersection(*[set(r["survivors"]) for r in scored])
+        survivor_sets: list[set[str]] = [set(r["survivors"]) for r in scored]
+        all_survivors: set[str] = survivor_sets[0].copy()
+        for extra in survivor_sets[1:]:
+            all_survivors &= extra
         total = max(r["mutants"] for r in scored)
         joint = (total - len(all_survivors)) / total if total else 0.0
         print(f"\n  JOINT strength over {len(scored)} specs: {joint:.2f} "

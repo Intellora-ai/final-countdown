@@ -9,6 +9,6 @@ from src.clamp import clamp
 
 
 @given(st.integers(min_value=-10**6, max_value=10**6), st.integers(min_value=-10**6, max_value=10**6), st.integers(min_value=-10**6, max_value=10**6))
-def test_clamp_spec(lo, hi, x):
+def test_clamp_spec(lo: int, hi: int, x: int) -> None:
     assume(lo <= x and x <= hi)
     assert clamp(lo, hi, x) == x

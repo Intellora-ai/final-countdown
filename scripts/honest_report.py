@@ -19,9 +19,9 @@ from mutation_gate import score
 from semantic_anchor import anchor_for, strength as anchor_strength
 from spec_source import source_for
 
-def report(spec_files, threshold=0.9):
+def report(spec_files: list[str], threshold: float = 0.9) -> str:
     src = source_for(spec_files[0])
-    anchor = anchor_for(src) if src else None
+    anchor = anchor_for(str(src)) if src else None
 
     truths = [truth_gate.assess(s) for s in spec_files]
     truth = "PASS" if all(t["truth"] == "PASS" for t in truths) else "FAIL"

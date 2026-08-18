@@ -48,7 +48,9 @@ TEMPLATES = {
 }
 
 
-def generate_spec(template_name, func_name, body, args=None, hyp=None, unit='0'):
+def generate_spec(template_name: str, func_name: str, body: str,
+                  args: str | None = None, hyp: str | None = None,
+                  unit: str = '0') -> str | None:
     if template_name not in TEMPLATES:
         print(f"❌ Unknown template: {template_name}", file=sys.stderr)
         print(f"Available: {', '.join(TEMPLATES)}", file=sys.stderr)

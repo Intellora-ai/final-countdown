@@ -29,6 +29,8 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from collections.abc import Sequence
+from typing import Any
 
 # (test_id, file) pairs eligible for verification. Eligibility is not approval:
 # each still has to pass check_subprocess_safety below.
@@ -36,7 +38,7 @@ ELIGIBLE = {("B404", "scripts/proof_gate.py"), ("B603", "scripts/proof_gate.py")
             ("B404", "scripts/security_gate.py"), ("B603", "scripts/security_gate.py")}
 
 
-def check_subprocess_safety(path):
+def check_subprocess_safety(path: str) -> tuple[bool, str]:
     """Re-derive the safe pattern from source. Returns (ok, evidence)."""
     tree = ast.parse(Path(path).read_text(encoding="utf-8"))
     which_vars = {
@@ -56,7 +58,7 @@ def check_subprocess_safety(path):
     if not calls:
         return False, "no subprocess call found — stale exception"
 
-    evidence = []
+    evidence: list[str] = []
     for call in calls:
         kw = {k.arg: k.value for k in call.keywords}
         if "shell" in kw and not (isinstance(kw["shell"], ast.Constant) and kw["shell"].value is False):
@@ -78,7 +80,7 @@ def check_subprocess_safety(path):
     return True, "; ".join(evidence)
 
 
-def run_bandit(targets):
+def run_bandit(targets: Sequence[str]) -> list[dict[str, Any]]:
     out = subprocess.run(
         [sys.executable, "-m", "bandit", "-r", *targets, "-f", "json",
          "--severity-level", "low", "--confidence-level", "low"],
@@ -91,9 +93,10 @@ def run_bandit(targets):
         sys.exit(2)
 
 
-def main(targets):
+def main(targets: Sequence[str]) -> int:
     findings = run_bandit(targets)
-    verified, unresolved = [], []
+    verified: list[tuple[tuple[str, str], str]] = []
+    unresolved: list[dict[str, Any]] = []
 
     for f in findings:
         key = (f["test_id"], f["filename"].lstrip("./"))

@@ -9,22 +9,25 @@ Unknown node types raise instead of degrading to Python's evaluator.
 
 import ast
 import operator
+from collections.abc import Callable
+from typing import Any
 
-_BIN = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
-        ast.FloorDiv: operator.floordiv, ast.Mod: operator.mod,
-        ast.BitXor: operator.xor, ast.BitOr: operator.or_, ast.BitAnd: operator.and_}
-_CMP = {ast.Eq: operator.eq, ast.NotEq: operator.ne, ast.Lt: operator.lt,
+_BIN: dict[type[ast.operator], Callable[[Any, Any], Any]] = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
+        ast.FloorDiv: lambda a, b: a // b, ast.Mod: operator.mod,
+        ast.BitXor: lambda a, b: a ^ b, ast.BitOr: lambda a, b: a | b,
+        ast.BitAnd: lambda a, b: a & b}
+_CMP: dict[type[ast.cmpop], Callable[[Any, Any], Any]] = {ast.Eq: operator.eq, ast.NotEq: operator.ne, ast.Lt: operator.lt,
         ast.LtE: operator.le, ast.Gt: operator.gt, ast.GtE: operator.ge}
-_UNARY = {ast.USub: operator.neg, ast.UAdd: operator.pos, ast.Not: operator.not_}
+_UNARY: dict[type[ast.unaryop], Callable[[Any], Any]] = {ast.USub: operator.neg, ast.UAdd: operator.pos, ast.Not: operator.not_}
 
-ALLOWED_CALLS = {"min", "max", "abs"}
+ALLOWED_CALLS: set[str] = {"min", "max", "abs"}
 
 
 class UnsupportedClaim(Exception):
     pass
 
 
-def evaluate(node, env):
+def evaluate(node: ast.AST, env: dict[str, Any]) -> Any:
     if isinstance(node, ast.Expression):
         return evaluate(node.body, env)
     if isinstance(node, ast.Constant):
@@ -65,6 +68,6 @@ def evaluate(node, env):
     raise UnsupportedClaim(type(node).__name__)
 
 
-def compile_claim(text):
+def compile_claim(text: str) -> Callable[[dict[str, Any]], object]:
     tree = ast.parse(text, mode="eval")
     return lambda env: evaluate(tree, env)

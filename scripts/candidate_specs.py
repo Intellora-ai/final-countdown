@@ -10,19 +10,20 @@ import argparse, json, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from semantic_anchor import anchor_for
+from typing import Any
 
 BY_ARITY = {
     2: ["commutativity", "associativity", "identity", "self_inverse"],
     3: ["bounds", "monotonicity"],
 }
 
-def candidates(source_file):
+def candidates(source_file: str) -> list[dict[str, Any]]:
     a = anchor_for(source_file)
     if a is None:
         return []
     arity = len(a["type_hints"]["args"])
     named = {c["name"].lower() for c in a["contract"]}
-    out = []
+    out: list[dict[str, Any]] = []
     for tpl in BY_ARITY.get(arity, []):
         # A docstring clause naming the property raises confidence from
         # "guessed from arity" to "the author wrote it down" — still unvalidated.
@@ -39,7 +40,7 @@ def candidates(source_file):
 if __name__ == "__main__":
     p = argparse.ArgumentParser(); p.add_argument("sources", nargs="+")
     p.add_argument("--json", action="store_true"); ns = p.parse_args()
-    allc = []
+    allc: list[dict[str, Any]] = []
     for s in ns.sources:
         c = candidates(s); allc += c
         if not ns.json:

@@ -22,11 +22,11 @@ class Mutant:
     source: str
 
 
-_BINOP_SWAPS = {
+_BINOP_SWAPS: dict[type[ast.operator], type[ast.operator]] = {
     ast.Add: ast.Sub, ast.Sub: ast.Add,
     ast.Mult: ast.FloorDiv, ast.FloorDiv: ast.Mult,
 }
-_CMP_SWAPS = {
+_CMP_SWAPS: dict[type[ast.cmpop], type[ast.cmpop]] = {
     ast.GtE: ast.Gt, ast.LtE: ast.Lt,
     ast.Gt: ast.GtE, ast.Lt: ast.LtE,
     ast.Eq: ast.NotEq, ast.NotEq: ast.Eq,
@@ -36,26 +36,26 @@ _CMP_SWAPS = {
 class _Mutator(ast.NodeTransformer):
     """Applies exactly one mutation, selected by index."""
 
-    def __init__(self, target):
+    def __init__(self, target: int) -> None:
         self.target = target
         self.seen = 0
         self.applied = None
 
-    def _fire(self, label):
+    def _fire(self, label: str) -> bool:
         hit = self.seen == self.target
         self.seen += 1
         if hit:
             self.applied = label
         return hit
 
-    def visit_BinOp(self, node):
+    def visit_BinOp(self, node: ast.BinOp) -> ast.AST:
         self.generic_visit(node)
         swap = _BINOP_SWAPS.get(type(node.op))
         if swap and self._fire(f"binop {type(node.op).__name__}->{swap.__name__}"):
             node.op = swap()
         return node
 
-    def visit_Compare(self, node):
+    def visit_Compare(self, node: ast.Compare) -> ast.AST:
         self.generic_visit(node)
         for i, op in enumerate(node.ops):
             swap = _CMP_SWAPS.get(type(op))
@@ -63,13 +63,13 @@ class _Mutator(ast.NodeTransformer):
                 node.ops[i] = swap()
         return node
 
-    def visit_Constant(self, node):
+    def visit_Constant(self, node: ast.Constant) -> ast.AST:
         if isinstance(node.value, int) and not isinstance(node.value, bool):
             if self._fire(f"constant {node.value}->{node.value + 1}"):
                 return ast.Constant(value=node.value + 1)
         return node
 
-    def visit_Return(self, node):
+    def visit_Return(self, node: ast.Return) -> ast.AST:
         self.generic_visit(node)
         # Swap operands: a - b  ->  b - a. Invisible to a commutative spec,
         # fatal to a correct one — exactly the bug worth detecting.
@@ -81,14 +81,14 @@ class _Mutator(ast.NodeTransformer):
         return node
 
 
-def generate_mutants(source):
+def generate_mutants(source: str) -> list[Mutant]:
     """Every single-point mutant of `source`, in AST order."""
     tree = ast.parse(source)
     total = _Mutator(-1)
     total.visit(copy.deepcopy(tree))
     count = total.seen
 
-    mutants = []
+    mutants: list[Mutant] = []
     for i in range(count):
         m = _Mutator(i)
         mutated = m.visit(copy.deepcopy(tree))

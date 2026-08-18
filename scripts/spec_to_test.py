@@ -16,6 +16,8 @@ import argparse
 import os
 import re
 import sys
+from typing import Any
+from collections.abc import Sequence
 
 # `[^:=]+` cannot work: it stops at the first `=`, and every equality spec has
 # one. Capture up to the final `:=` instead.
@@ -30,7 +32,7 @@ DEF = re.compile(r'\bdef\s+(\w+)\s*\(([^)]*)\)')
 LEAN_TO_PY = [("≤", "<="), ("≥", ">="), ("≠", "!="), ("∧", " and "), ("∨", " or ")]
 
 
-def parse_lean_spec(spec_file):
+def parse_lean_spec(spec_file: str) -> dict[str, Any] | None:
     with open(spec_file, "r", encoding="utf-8") as f:
         content = f.read()
 
@@ -52,7 +54,7 @@ def parse_lean_spec(spec_file):
     }
 
 
-def lean_expr_to_python(expr, func, args):
+def lean_expr_to_python(expr: str, func: str, args: Sequence[str]) -> str:
     """`add a b = add b a`  ->  `add(a, b) == add(b, a)`"""
     out = expr
     # Function application: `func x y` -> `func(x, y)`. Longest arity first.
@@ -72,7 +74,7 @@ def lean_expr_to_python(expr, func, args):
     return " ".join(out.split())
 
 
-def generate_hypothesis_test(spec_info):
+def generate_hypothesis_test(spec_info: dict[str, Any]) -> str:
     func = spec_info["function_name"]
     args = spec_info["args"]
     strategy = {"Nat": "st.integers(min_value=0)", "Bool": "st.booleans()"}.get(
@@ -85,23 +87,28 @@ def generate_hypothesis_test(spec_info):
         cond = lean_expr_to_python(spec_info["hypothesis"], func, args)
         guard = f"    assume({cond})\n"
 
+    # Parameters are annotated and `assume` is imported only when a
+    # precondition exists: pyright strict rejects untyped params and unused
+    # imports, and generated files are checked like any other source.
+    imports = "assume, given" if guard else "given"
+    params = ", ".join(f"{a}: int" for a in args)
     return f'''"""Auto-generated from specs/{func}_spec.lean by scripts/spec_to_test.py.
 
 Do not edit: regenerate instead. The assertion mirrors the Lean claim exactly.
 """
 
-from hypothesis import assume, given, strategies as st
+from hypothesis import {imports}, strategies as st
 
 from src.{func} import {func}
 
 
 @given({', '.join(strategy for _ in args)})
-def test_{func}_spec({', '.join(args)}):
+def test_{func}_spec({params}) -> None:
 {guard}    assert {assertion}
 '''
 
 
-def spec_to_test(spec_file, output_file=None):
+def spec_to_test(spec_file: str, output_file: str | None = None) -> bool:
     spec_info = parse_lean_spec(spec_file)
     if not spec_info:
         print(f"❌ Failed to parse {spec_file}")

@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 
-def source_for(spec_file):
+def source_for(spec_file: str) -> Path | None:
     text = Path(spec_file).read_text(encoding="utf-8")
     # Anchored to line start: an unanchored \bdef matches prose in a comment
     # ("the def is the contract's subject" -> src/is.py).

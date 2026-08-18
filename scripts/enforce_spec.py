@@ -14,7 +14,7 @@ import re
 import sys
 
 
-def is_trivial(spec_content):
+def is_trivial(spec_content: str) -> bool:
     """Check for reflexivity: a = a"""
     if re.search(r':\s*(\w+)\s*=\s*\1', spec_content):
         return True
@@ -23,7 +23,7 @@ def is_trivial(spec_content):
     return False
 
 
-def theorem_body(spec_content):
+def theorem_body(spec_content: str) -> str:
     """The statement between the binders and `:=` — the part that makes a claim.
 
     Checking the whole file is useless: the theorem is named `<func>_spec`, so
@@ -33,12 +33,12 @@ def theorem_body(spec_content):
     return match.group(1) if match else spec_content
 
 
-def mentions_function(spec_content, function_name):
+def mentions_function(spec_content: str, function_name: str) -> bool:
     """The CLAIM must be about the function, not merely the theorem's name."""
     return function_name in theorem_body(spec_content)
 
 
-def models_function(spec_content, function_name):
+def models_function(spec_content: str, function_name: str) -> bool:
     """A `def <func>` must exist, or the claim is about operators, not your code.
 
     Without it Lean rejects the statement outright:
@@ -47,7 +47,7 @@ def models_function(spec_content, function_name):
     return re.search(rf'\bdef\s+{re.escape(function_name)}\b', spec_content) is not None
 
 
-def is_vacuous(spec_content):
+def is_vacuous(spec_content: str) -> bool:
     """Check for vacuous specs (True, ∀ x, x = x)"""
     if re.search(r':\s*True\s*:=', spec_content):
         return True
@@ -56,7 +56,7 @@ def is_vacuous(spec_content):
     return False
 
 
-def min_tokens(spec_content, min_count=10):
+def min_tokens(spec_content: str, min_count: int = 10) -> bool:
     """Check if spec has at least N tokens"""
     tokens = spec_content.split()
     if len(tokens) < min_count:
@@ -64,14 +64,14 @@ def min_tokens(spec_content, min_count=10):
     return True
 
 
-def is_tautology(spec_content):
+def is_tautology(spec_content: str) -> bool:
     """Check for obvious tautologies"""
     if re.search(r':\s*∀\s*\w+,\s*\w+\s*≤\s*\w+\s*→\s*\w+\s*≤\s*\w+', spec_content):
         return True
     return False
 
 
-def unbound_vars(spec_content):
+def unbound_vars(spec_content: str) -> set[str]:
     """Free single-letter identifiers in the claim that no binder declares.
 
     Lean's autoImplicit turns them into implicit arguments instead of erroring,
@@ -89,7 +89,7 @@ def unbound_vars(spec_content):
     return used - declared - defs
 
 
-def enforce_spec(spec_file):
+def enforce_spec(spec_file: str) -> bool:
     # The subject comes from the `def` line, not the filename. A function may
     # carry several specs (add_spec.lean, addid_spec.lean), and deriving the
     # name from the filename makes "addid"/"mulid" look like missing functions.

@@ -4,17 +4,19 @@ import argparse, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mutation_gate import score
+from typing import Any
 
-def analyse(spec_files, threshold=0.9):
+def analyse(spec_files: list[str], threshold: float = 0.9) -> dict[str, Any]:
     individual = {s: score([s], threshold) for s in spec_files}
     joint = score(spec_files, threshold)
     # Greedy cover: keep adding the spec that kills the most still-alive mutants.
-    remaining = set(joint["survivors"])
-    universe = set()
+    remaining: set[str] = set(joint["survivors"])
+    universe: set[str] = set()
     for r in individual.values():
         universe |= set(r["survivors"])
     need = universe - remaining
-    chosen, pool = [], dict(individual)
+    chosen: list[str] = []
+    pool: dict[str, dict[str, Any]] = dict(individual)
     while need and pool:
         best = max(pool, key=lambda s: len(need - set(pool[s]["survivors"])))
         gain = need - set(pool[best]["survivors"])

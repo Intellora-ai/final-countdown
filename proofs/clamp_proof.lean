@@ -6,3 +6,4 @@ theorem clamp_spec (lo hi x : Int) (h : lo ≤ hi) :
   constructor
   · exact le_max_left lo (min hi x)
   · exact max_le h (min_le_left hi x)
+

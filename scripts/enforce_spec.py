@@ -71,6 +71,24 @@ def is_tautology(spec_content):
     return False
 
 
+def unbound_vars(spec_content):
+    """Free single-letter identifiers in the claim that no binder declares.
+
+    Lean's autoImplicit turns them into implicit arguments instead of erroring,
+    so AXLE returns okay=True for a theorem nobody intended to state.
+    """
+    thm = re.search(r'theorem\s+\w+\s*\(([^)]*)\)(.*?):=', spec_content, re.DOTALL)
+    if not thm:
+        return set()
+    declared = set(thm.group(1).split(':')[0].split())
+    for extra in re.findall(r'\(\s*\w+\s*:\s*[^)]*\)', thm.group(2)):
+        declared.update(extra.strip('()').split(':')[0].split())
+    body = theorem_body(spec_content)
+    defs = set(re.findall(r'\bdef\s+(\w+)', spec_content))
+    used = set(re.findall(r'\b([a-z])\b', body))
+    return used - declared - defs
+
+
 def enforce_spec(spec_file):
     function_name = spec_file.split('/')[-1].replace('_spec.lean', '')
 
@@ -84,6 +102,7 @@ def enforce_spec(spec_file):
         ("Not vacuous", not is_vacuous(spec)),
         ("Has enough tokens", min_tokens(spec, min_count=10)),
         ("Not tautology", not is_tautology(spec)),
+        ("No unbound variables", not unbound_vars(spec)),
     ]
 
     all_pass = True

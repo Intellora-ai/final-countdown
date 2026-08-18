@@ -31,7 +31,7 @@ TEMPLATES = {
     },
     'identity': {
         'args': 'x : Int',
-        'statement': '{func} x 0 = x',
+        'statement': '{func} {v0} 0 = {v0}',
     },
     'bounds': {
         'args': 'lo hi x : Int',
@@ -39,7 +39,7 @@ TEMPLATES = {
     },
     'monotonicity': {
         'args': 'x y : Int',
-        'statement': 'x ≤ y → {func} x ≤ {func} y',
+        'statement': '{v0} ≤ {v1} → {func} {v0} ≤ {func} {v1}',
     },
 }
 
@@ -52,7 +52,9 @@ def generate_spec(template_name, func_name, body, args=None, hyp=None):
 
     tpl = TEMPLATES[template_name]
     def_args = args or tpl['args']
-    statement = tpl['statement'].format(func=func_name)
+    binders = def_args.split(':')[0].split()
+    vs = {f'v{i}': n for i, n in enumerate(binders)}
+    statement = tpl['statement'].format(func=func_name, **vs)
     hypothesis = f" (h : {hyp})" if hyp else ""
 
     return (

@@ -57,7 +57,8 @@ def lean_expr_to_python(expr, func, args):
     out = expr
     # Function application: `func x y` -> `func(x, y)`. Longest arity first.
     for arity in range(len(args), 0, -1):
-        operand = r'(?:\([^()]*\)|[A-Za-z_][A-Za-z0-9_]*)'
+        # numeric literals are operands too: `add a 0` must not become `add(a) 0`
+        operand = r'(?:\([^()]*\)|[A-Za-z_][A-Za-z0-9_]*|\d+)'
         pattern = rf'\b{re.escape(func)}\b((?:\s+{operand}){{{arity}}})'
         out = re.sub(
             pattern,

@@ -17,6 +17,10 @@ jobs:
           python-version: '3.11'
       - name: Install AXLE CLI
         run: pip install axiom-axle          # NOT axle-cli (unrelated package)
+      # Runs first so an outage is named as an outage in the log, instead of
+      # surfacing as a wall of proof failures.
+      - name: AXLE service health
+        run: python3 scripts/axle_health.py
       - name: Enforce strong specs (syntactic)
         run: python3 scripts/enforce_spec.py specs/*_spec.lean
       # verify_with_axle.sh owns the pass/fail decision because

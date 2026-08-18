@@ -81,6 +81,51 @@ function is correct for every purpose".
 | spec exists but proof missing | naming mismatch | `<name>_spec.lean` pairs with `<name>_proof.lean` |
 | AXLE requests hang in CI | service unreachable | check `axle environments`, set `AXLE_API_URL` |
 
+## External dependency: the AXLE service
+
+Every proof gate calls `https://axle.axiommath.ai`. Lean never runs on your
+machine or on the GitHub runner — AXLE is a client, and the kernel check happens
+server-side.
+
+**If that host is unreachable, `axle-verify`, `pr-fast` and `full-verify` all
+fail, and nothing merges.**
+
+That is deliberate, not a gap. The alternative — skipping the proof check when
+the server is down — would mean unverified code merges during exactly the window
+when verification is impossible. A blocked merge is recoverable; a merge that
+silently skipped its proof is not.
+
+Three options were considered:
+
+| Option | Verdict |
+|---|---|
+| Self-host AXLE | Strongest, but real infrastructure to run and keep current with Mathlib |
+| **Accept the risk** | **Chosen.** An outage blocks merges; it never weakens a gate |
+| Skip when unreachable | Rejected — turns an outage into silently unverified merges |
+
+### Telling an outage apart from a bad proof
+
+`scripts/axle_health.py` runs before the proof steps and reports the service
+separately, so the CI log distinguishes the two cases:
+
+```bash
+python3 scripts/axle_health.py
+# REACHABLE: https://axle.axiommath.ai  1261ms  13 Lean environments
+```
+
+It exits non-zero when unreachable, so the gate still blocks — it just says why.
+
+### External monitoring
+
+Not configured. A hosted monitor (UptimeRobot, Better Stack, Pingdom) needs an
+account this repository cannot create. To add one, point an HTTPS monitor at
+`https://axle.axiommath.ai` and alert on non-200 or >5s latency. Until then, the
+preflight above is in-CI only: it tells you about an outage when a build runs,
+not before.
+
+Override the endpoint with `AXLE_API_URL`, and authenticate with `AXLE_API_KEY`
+if the server starts requiring it.
+
 ## License
 
 MIT

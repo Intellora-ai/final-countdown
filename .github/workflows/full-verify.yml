@@ -1,5 +1,8 @@
 name: full-verify
 on:
+  # Runs on PRs too. Push-only meant the one workflow that runs every gate
+  # together fired AFTER merge, so it could report a problem but never block it.
+  pull_request:
   push:
     branches: [main]
 permissions:
@@ -24,4 +27,4 @@ jobs:
       - name: Types
         run: pyright
       - name: Security
-        run: bandit -r src scripts --severity-level low --confidence-level low
+        run: python3 scripts/security_gate.py src scripts

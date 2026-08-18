@@ -12,7 +12,8 @@ PASS_WITH_LIMITATIONS, and what is unknown is named.
 import argparse, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import contract_strength, proof_gate, truth_gate
+import proof_gate, truth_gate
+import sufficiency_loop
 from composition import analyse
 from mutation_gate import score
 from semantic_anchor import anchor_for, strength as anchor_strength
@@ -31,7 +32,7 @@ def report(spec_files, threshold=0.9):
 
     mut = score(spec_files, threshold)
     comp = analyse(spec_files, threshold)
-    suff = contract_strength.assess(spec_files)
+    suff = sufficiency_loop.run(spec_files)
 
     boundary = sum(1 for t in truths if t.get("precondition_reach") is not None)
     runtime = "PASS" if truth == "PASS" else "FAIL"
@@ -40,7 +41,7 @@ def report(spec_files, threshold=0.9):
                    and mut["verdict"] == "PASS")
     if not blocking_ok:
         overall = "FAIL"
-    elif suff["sufficiency"].startswith("ESTABLISHED"):
+    elif suff["sufficiency"] == "ESTABLISHED":
         overall = "PASS"
     else:
         overall = "PASS_WITH_LIMITATIONS"
@@ -57,14 +58,31 @@ def report(spec_files, threshold=0.9):
     print(f"  Boundary coverage:        {boundary}/{len(spec_files)} specs probed")
     print(f"  Joint strength:           {comp['joint_strength']:.2f}"
           f"   individual {[f'{v:.2f}' for v in comp['individual_strengths']]}")
-    print(f"  Contract sufficiency:     {suff['sufficiency']}")
+    sc = suff["scope"]
+    scoped = (f"{suff['sufficiency']} (within scope: {sc['domain']})"
+              if suff["sufficiency"] == "ESTABLISHED" else suff["sufficiency"])
+    print(f"  Contract sufficiency:     {scoped}")
+    print(f"  Scope:                    {sc['domain']}, "
+          f"{sc['witness_table']} candidate implementations")
+    print(f"  Search depth:             {sc['examples_per_property']} examples per property")
+    print(f"  Witnesses tested:         {suff['witnesses_tested']}")
+    print(f"  Witnesses excluded:       {suff['witnesses_excluded']}")
     print(f"  Overall:                  {overall}")
     if overall == "PASS_WITH_LIMITATIONS":
         print(f"\n  NOT CLAIMED: the contract does not pin down the behaviour.")
         print(f"  {suff['reason']}")
-        for w in suff.get("witnesses", []):
-            print(f"    - {w}")
+        for d in suff.get("derivations", []):
+            i = d["diverges_at"]
+            print(f"    witness {d['witness']}: at {i['inputs']} "
+                  f"original={i['original']} witness={i['witness']}")
+            if d["anchor_refutes"]:
+                print(f"      anchor refutes it: {d['anchor_refutes']}")
+                print(f"      derivable spec (from the anchor): {d['derived_from_anchor']}")
+            else:
+                print("      anchor is SILENT — state the intent, do not invent a property")
         print("  The proofs are valid. The specs are true. They are not sufficient.")
+    print("\n  TRUE != USEFUL != SUFFICIENT != COMPLETE. "
+          "ESTABLISHED is scoped, never 'fully specified'.")
     return overall
 
 if __name__ == "__main__":

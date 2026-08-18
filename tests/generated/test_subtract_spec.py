@@ -10,4 +10,4 @@ from src.subtract import subtract
 
 @given(st.integers(min_value=-10**6, max_value=10**6), st.integers(min_value=-10**6, max_value=10**6))
 def test_subtract_spec(a, b):
-    assert subtract(a, a) == 0
+    assert subtract(a, 1) == a - 1

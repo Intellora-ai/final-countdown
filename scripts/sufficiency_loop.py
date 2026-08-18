@@ -50,7 +50,9 @@ def divergence(original, alt, probes):
     for values in probes:
         try:
             a, b = original(*values), alt(*values)
-        except Exception:
+        except (ValueError, TypeError, ZeroDivisionError, ArithmeticError):
+            # An input one side rejects is not evidence of divergence in value.
+            # Narrowed so an unexpected fault surfaces instead of being skipped.
             continue
         if a != b:
             return {"inputs": values, "original": a, "witness": b}
@@ -70,16 +72,15 @@ def anchor_verdict(anchor, func_name, div):
             claim = compile_claim(assertion)
         except (SyntaxError, ValueError):
             continue
-        for impl, label in ((lambda *a: div["original"], "original"),
-                            (lambda *a: div["witness"], "witness")):
-            pass
         # Evaluate the assertion against each implementation's actual function.
         try:
             ok_original = claim({func_name: anchor["_original"], "min": min,
                                  "max": max, "abs": abs})
             ok_witness = claim({func_name: anchor["_witness"], "min": min,
                                 "max": max, "abs": abs})
-        except (UnsupportedClaim, Exception):
+        except (UnsupportedClaim, TypeError, ValueError, ArithmeticError):
+            # The assertion references something outside the claim language, or
+            # the implementation rejects it; either way it cannot settle intent.
             continue
         if ok_original and not ok_witness:
             return assertion

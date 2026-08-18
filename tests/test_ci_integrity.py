@@ -92,10 +92,20 @@ def write_report(cwd: Path, gate: str, status: str = "PASS",
                                                   encoding="utf-8")
 
 
+VERIFY = ".github/workflows/verify.yml"
+
+
 def all_gates(cwd: Path) -> list[str]:
+    """Mandatory gates that must PRODUCE a report.
+
+    The finalizer is mandatory but is excluded: its evidence is the manifest it
+    is writing, so it cannot have reported before it runs. Writing a report for
+    it would land in the `unexpected` bucket, which is correct behaviour.
+    """
     import tomllib
     data = tomllib.loads((cwd / "ci" / "gates.toml").read_text(encoding="utf-8"))
-    return [n for n, s in data["gates"].items() if s.get("mandatory")]
+    return [n for n, spec in data["gates"].items()
+            if spec.get("mandatory") and spec.get("role") != "finalizer"]
 
 
 # --------------------------------------------------------------------------
@@ -116,7 +126,7 @@ def test_baseline_aggregate_passes_when_all_gates_report(sandbox: Path) -> None:
 # --------------------------------------------------------------------------
 def test_attack_deleted_gate_invocation_is_caught(sandbox: Path) -> None:
     """The headline scenario: remove the AXLE proof step, job still exits 0."""
-    wf = sandbox / ".github/workflows/axle-verify.yml"
+    wf = sandbox / VERIFY
     text = wf.read_text()
     sabotaged = "\n".join(l for l in text.splitlines()
                           if "scripts/axle_gate.py" not in l)
@@ -125,14 +135,14 @@ def test_attack_deleted_gate_invocation_is_caught(sandbox: Path) -> None:
 
     result = integrity(sandbox)
     assert result.returncode != 0, "a deleted gate invocation was NOT detected"
-    assert "no longer runs its command" in result.stdout
+    assert "no longer invokes its command" in result.stdout
 
 
 # --------------------------------------------------------------------------
 # Attack 2 — remove a required workflow entirely
 # --------------------------------------------------------------------------
 def test_attack_deleted_workflow_is_caught(sandbox: Path) -> None:
-    (sandbox / ".github/workflows/coverage.yml").unlink()
+    (sandbox / VERIFY).unlink()
     result = integrity(sandbox)
     assert result.returncode != 0, "a deleted workflow was NOT detected"
     assert "lost its workflow" in result.stdout
@@ -142,9 +152,9 @@ def test_attack_deleted_workflow_is_caught(sandbox: Path) -> None:
 # Attack 3 — introduce continue-on-error
 # --------------------------------------------------------------------------
 def test_attack_continue_on_error_is_caught(sandbox: Path) -> None:
-    wf = sandbox / ".github/workflows/typecheck.yml"
+    wf = sandbox / VERIFY
     wf.write_text(wf.read_text().replace(
-        "    steps:", "    continue-on-error: true\n    steps:", 1))
+        "  pyright:\n", "  pyright:\n    continue-on-error: true\n", 1))
     result = integrity(sandbox)
     assert result.returncode != 0, "continue-on-error was NOT detected"
     assert "continue-on-error" in result.stdout
@@ -154,7 +164,7 @@ def test_attack_continue_on_error_is_caught(sandbox: Path) -> None:
 # Attack 4 — suppress a gate failure with `|| true`
 # --------------------------------------------------------------------------
 def test_attack_failure_suppression_is_caught(sandbox: Path) -> None:
-    wf = sandbox / ".github/workflows/vacuity-check.yml"
+    wf = sandbox / VERIFY
     text = wf.read_text()
     line = next(l for l in text.splitlines() if "check_vacuity.py" in l)
     wf.write_text(text.replace(line, line + " || true"))
@@ -167,7 +177,7 @@ def test_attack_failure_suppression_is_caught(sandbox: Path) -> None:
 # Attack 5 — rename a job so the required check can never report
 # --------------------------------------------------------------------------
 def test_attack_renamed_job_is_caught(sandbox: Path) -> None:
-    wf = sandbox / ".github/workflows/coverage.yml"
+    wf = sandbox / VERIFY
     wf.write_text(wf.read_text().replace("\n  coverage:", "\n  coverage_renamed:", 1))
     result = integrity(sandbox)
     assert result.returncode != 0, "a renamed job was NOT detected"
@@ -674,3 +684,158 @@ def test_spec_verifier_with_a_nonexistent_path_is_not_success(
         cwd=REPO, capture_output=True, text=True, timeout=120)
     assert result.returncode != 0, (
         f"{verifier} exited 0 on a spec path that does not exist")
+
+
+# ==========================================================================
+# The consolidated topology: verify.yml, artifact-based aggregation.
+# ==========================================================================
+
+def evidence_tree(cwd: Path, gates: list[str], **kw: object) -> Path:
+    """Reproduce what download-artifact leaves behind: one dir per artifact."""
+    root = cwd / "evidence"
+    for gate in gates:
+        (root / f"reports-{gate}").mkdir(parents=True, exist_ok=True)
+        report: dict[str, object] = {
+            "schema_version": "1.1", "gate": gate, "status": "PASS",
+            "commit": "local", "run_id": "local", "run_attempt": "local",
+            "workflow": "local", "duration_ms": 1, "failures": [],
+        }
+        report.update(kw)
+        (root / f"reports-{gate}" / f"{gate}.json").write_text(
+            json.dumps(report), encoding="utf-8")
+    return root
+
+
+def aggregate_root(cwd: Path, root: Path) -> subprocess.CompletedProcess[str]:
+    return run([str(cwd / "scripts" / "aggregate_gates.py"),
+                "--evidence-root", str(root)], cwd)
+
+
+# --------------------------------------------------------------------------
+# Attack 21 — a gate step that is present but conditioned away
+#
+# `if: false` is the reason this checker parses YAML instead of searching text.
+# The step is in the file, the job exits 0, the required check goes green, and
+# the gate never ran. Containment is not execution.
+# --------------------------------------------------------------------------
+def test_attack_gate_step_conditioned_away_is_caught(sandbox: Path) -> None:
+    wf = sandbox / VERIFY
+    text = wf.read_text()
+    line = next(l for l in text.splitlines() if "scripts/axle_gate.py" in l)
+    indent = " " * (len(line) - len(line.lstrip()))
+    wf.write_text(text.replace(line, f"{line}\n{indent}if: false", 1))
+    result = integrity(sandbox)
+    assert result.returncode != 0, "a conditioned-away gate step was NOT detected"
+    assert "runs conditionally" in result.stdout
+
+
+def test_attack_undeclared_job_condition_is_caught(sandbox: Path) -> None:
+    """Only the finalizer may carry a job-level `if:`, and only as declared."""
+    wf = sandbox / VERIFY
+    wf.write_text(wf.read_text().replace(
+        "  mutmut:\n", "  mutmut:\n    if: github.actor != 'nobody'\n", 1))
+    result = integrity(sandbox)
+    assert result.returncode != 0, "an undeclared job condition was NOT detected"
+    assert "runs conditionally" in result.stdout
+
+
+# --------------------------------------------------------------------------
+# Attack 22 — evidence that never arrives, quietly
+#
+# `if-no-files-found: ignore` means a gate that produced no report uploads
+# nothing and the job stays green. The finalizer then sees a missing gate, but
+# only if the upload itself was supposed to be loud.
+# --------------------------------------------------------------------------
+def test_attack_ignoring_a_missing_artifact_is_caught(sandbox: Path) -> None:
+    wf = sandbox / VERIFY
+    wf.write_text(wf.read_text().replace(
+        "if-no-files-found: error", "if-no-files-found: ignore", 1))
+    result = integrity(sandbox)
+    assert result.returncode != 0, "a silently-ignored missing artifact was allowed"
+    assert "ignores a missing artifact" in result.stdout
+
+
+def test_attack_evidence_only_uploaded_on_success_is_caught(sandbox: Path) -> None:
+    """Evidence matters most on failure."""
+    wf = sandbox / VERIFY
+    text = wf.read_text()
+    i = text.index("name: reports-coverage")
+    j = text.rindex("if: always()", 0, i)
+    wf.write_text(text[:j] + "if: success()" + text[j + len("if: always()"):])
+    result = integrity(sandbox)
+    assert result.returncode != 0, "upload-only-on-success was NOT detected"
+    assert "only uploads evidence when it passes" in result.stdout
+
+
+# --------------------------------------------------------------------------
+# Attack 23 — the finalizer must block nothing less than the complete set
+# --------------------------------------------------------------------------
+def test_aggregate_reads_downloaded_artifact_tree(sandbox: Path) -> None:
+    """Baseline: one directory per artifact, exactly as download-artifact leaves it."""
+    root = evidence_tree(sandbox, all_gates(sandbox))
+    assert aggregate_root(sandbox, root).returncode == 0
+
+
+def test_attack_one_artifact_missing_from_the_tree(sandbox: Path) -> None:
+    gates = all_gates(sandbox)
+    root = evidence_tree(sandbox, gates[1:])          # first gate's upload failed
+    result = aggregate_root(sandbox, root)
+    assert result.returncode != 0, "a gate with no artifact was counted as verified"
+    manifest = json.loads((sandbox / "reports/gate-manifest.json").read_text())
+    assert gates[0] in manifest["gates_missing"]
+    assert gates[0] in manifest["blocking"]
+
+
+def test_attack_duplicate_reports_for_one_gate_block(sandbox: Path) -> None:
+    """Two authoritative answers is an ambiguity, not redundancy."""
+    gates = all_gates(sandbox)
+    root = evidence_tree(sandbox, gates)
+    # A re-run leaving a second artifact behind that also claims this gate.
+    stray = root / "reports-rerun"
+    stray.mkdir(parents=True)
+    shutil.copy(root / f"reports-{gates[0]}" / f"{gates[0]}.json",
+                stray / f"{gates[0]}.json")
+    result = aggregate_root(sandbox, root)
+    assert result.returncode != 0, "two reports for one gate were merged silently"
+    manifest = json.loads((sandbox / "reports/gate-manifest.json").read_text())
+    assert gates[0] in manifest["gates_duplicated"]
+
+
+def test_attack_unexpected_gate_evidence_blocks(sandbox: Path) -> None:
+    """ObservedGateSet == ExpectedGateSet, not merely ⊇."""
+    root = evidence_tree(sandbox, [*all_gates(sandbox), "ghost-gate"])
+    result = aggregate_root(sandbox, root)
+    assert result.returncode != 0, "evidence for an undeclared gate was accepted"
+    manifest = json.loads((sandbox / "reports/gate-manifest.json").read_text())
+    assert "ghost-gate" in manifest["gates_unexpected"]
+
+
+def test_finalizer_is_not_expected_to_report_on_itself(sandbox: Path) -> None:
+    """Its evidence is the manifest it is writing; requiring one would deadlock."""
+    manifest_spec = (sandbox / "ci" / "gates.toml").read_text(encoding="utf-8")
+    assert 'role = "finalizer"' in manifest_spec
+    root = evidence_tree(sandbox, all_gates(sandbox))
+    assert aggregate_root(sandbox, root).returncode == 0
+    manifest = json.loads((sandbox / "reports/gate-manifest.json").read_text())
+    assert "full" not in manifest["gates_expected"]
+
+
+# --------------------------------------------------------------------------
+# Attack 24 — a mandatory gate that GitHub does not require blocks nothing
+# --------------------------------------------------------------------------
+def test_attack_mandatory_gate_absent_from_required_checks_is_caught(
+        sandbox: Path) -> None:
+    toml = sandbox / "ci" / "gates.toml"
+    toml.write_text(toml.read_text().replace('  "bandit", "mutmut",\n', '  "bandit",\n'))
+    result = integrity(sandbox)
+    assert result.returncode != 0, "a gate that blocks nothing was not detected"
+    assert "mandatory but not required" in result.stdout
+
+
+def test_preflight_is_itself_mandatory(sandbox: Path) -> None:
+    """An integrity failure that does not block a merge is a diagnostic."""
+    import tomllib
+    data = tomllib.loads((sandbox / "ci" / "gates.toml").read_text(encoding="utf-8"))
+    assert data["gates"]["preflight"]["mandatory"] is True
+    assert "preflight" in data["ruleset"]["required_checks"]
+    assert "full" in data["ruleset"]["required_checks"]

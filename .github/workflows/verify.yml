@@ -1,0 +1,358 @@
+name: verify
+
+# ONE WORKFLOW, BECAUSE THE AGGREGATE HAS TO BE REAL.
+#
+# Every mandatory gate used to be its own workflow, and `full` re-ran all ten
+# in an eleventh. That had two defects no amount of care inside a gate could
+# fix:
+#
+#   1. Separate workflows are separate runs with separate filesystems. A
+#      finalizer in workflow C cannot see evidence produced in workflows A and
+#      B. `full`'s manifest only ever summarised `full`'s own second execution,
+#      so it proved nothing about the ten checks the ruleset actually required.
+#
+#   2. Every gate therefore executed twice, under one gate id, in two runs.
+#      Two authoritative reports for one gate is an ambiguity, not redundancy.
+#
+# Here the gates are parallel jobs in one run. `needs:` and `download-artifact`
+# then work, so the finalizer consumes the evidence the required checks
+# actually produced. The job ids are unchanged, so the ruleset contexts are
+# unchanged.
+#
+# NO `needs:` BETWEEN GATES. They are independent, so they start together;
+# `preflight` is deliberately not a dependency of the gates either. It blocks
+# the merge on its own as a required check, and making ten jobs queue behind it
+# would buy nothing but latency.
+#
+#     preflight ─┐
+#     gate  ×10 ─┴─→ full (needs: all, if: always())
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # The guard on the guard: asserts the verification system still matches
+  # ci/gates.toml before any result from it is worth reading.
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Gate integrity
+        run: python3 scripts/gate_integrity.py
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-preflight
+          path: reports/
+          retention-days: 30
+          if-no-files-found: error
+
+  axle-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12', cache: pip}
+      - run: pip install --quiet -r requirements.txt
+      # Named as an outage in the log instead of surfacing as ten proof
+      # failures. It exits non-zero either way: unverifiable must not merge.
+      - name: AXLE service health
+        run: python3 scripts/axle_health.py
+      - name: Enforce strong specs (syntactic)
+        run: python3 scripts/enforce_spec.py specs/*_spec.lean
+      # Proves SPEC_SET == PROOF_SET and that the set is non-empty before
+      # submitting any proof, then owns the verdict: `axle verify-proof` exits
+      # 0 on "okay": false, so the exit code is not the answer.
+      - name: Verify all proofs with AXLE
+        run: python3 scripts/axle_gate.py
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-axle-verify
+          path: reports/
+          retention-days: 30
+          if-no-files-found: error
+
+  spec-strength:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12', cache: pip}
+      - run: pip install --quiet -r requirements.txt
+      - name: Spec strength as a set
+        run: python3 scripts/run_gate.py --name spec-strength -- python3 scripts/check_composition.py specs/add_spec.lean specs/addid_spec.lean specs/addsucc_spec.lean specs/clamp_spec.lean specs/clampid_spec.lean specs/mulid_spec.lean specs/multiply_spec.lean specs/subpred_spec.lean specs/subself_spec.lean specs/subtract_spec.lean --min-strength 0.9
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-spec-strength
+          path: reports/
+          retention-days: 30
+          if-no-files-found: error
+
+  spec-composition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12', cache: pip}
+      - run: pip install --quiet -r requirements.txt
+      - name: Check spec composition per function
+        run: python3 scripts/run_gate.py --name spec-composition -- bash scripts/verify_per_function.sh scripts/check_composition.py --min-strength 0.9
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-spec-composition
+          path: reports/
+          retention-days: 30
+          if-no-files-found: error
+
+  vacuity-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12', cache: pip}
+      - run: pip install --quiet -r requirements.txt
+      - name: Vacuity
+        run: python3 scripts/run_gate.py --name vacuity-check -- python3 scripts/check_vacuity.py specs/add_spec.lean specs/addid_spec.lean specs/addsucc_spec.lean specs/clamp_spec.lean specs/clampid_spec.lean specs/mulid_spec.lean specs/multiply_spec.lean specs/subpred_spec.lean specs/subself_spec.lean specs/subtract_spec.lean
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-vacuity-check
+          path: reports/
+          retention-days: 30
+          if-no-files-found: error
+
+  counterexample-search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12', cache: pip}
+      - run: pip install --quiet -r requirements.txt
+      - name: Counterexample search
+        run: python3 scripts/run_gate.py --name counterexample-search -- python3 scripts/find_counterexample.py specs/add_spec.lean specs/addid_spec.lean specs/addsucc_spec.lean specs/clamp_spec.lean specs/clampid_spec.lean specs/mulid_spec.lean specs/multiply_spec.lean specs/subpred_spec.lean specs/subself_spec.lean specs/subtract_spec.lean
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-counterexample-search
+          path: reports/
+          retention-days: 30
+          if-no-files-found: error
+
+  honest-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12', cache: pip}
+      - run: pip install --quiet -r requirements.txt
+      # Ten dimensions, reported separately. Blocks on FAIL only: an
+      # unestablished contract is information, not a broken build.
+      - name: All ten layers, per function
+        run: python3 scripts/run_gate.py --name honest-report -- bash scripts/verify_per_function.sh scripts/honest_report.py --min-strength 0.9
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-honest-report
+          path: reports/
+          retention-days: 30
+          if-no-files-found: error
+
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12', cache: pip}
+      - run: pip install --quiet -r requirements.txt
+      - name: Tests + branch coverage
+        run: python3 scripts/run_gate.py --name coverage -- pytest --cov=src --cov-branch --cov-fail-under=95
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-coverage
+          path: reports/
+          retention-days: 30
+          if-no-files-found: error
+
+  pyright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12', cache: pip}
+      - run: pip install --quiet -r requirements.txt
+      - name: Types
+        run: python3 scripts/run_gate.py --name pyright -- pyright
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-pyright
+          path: reports/
+          retention-days: 30
+          if-no-files-found: error
+
+  bandit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write   # required to upload SARIF to code scanning
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12', cache: pip}
+      - run: pip install --quiet -r requirements.txt "bandit[sarif]"
+      # scripts/ is verification infrastructure and part of the trusted
+      # computing base, so it is scanned, never excluded. The gate re-derives
+      # the safe subprocess pattern from the AST rather than allowlisting a
+      # finding id: break the pattern and the exception evaporates.
+      - name: Bandit at LOW, with verified safe-pattern exceptions
+        run: python3 scripts/run_gate.py --name bandit -- python3 scripts/security_gate.py src scripts
+      # Must not fail on findings — there are always findings and the gate
+      # above owns that verdict — but MUST fail when bandit itself did not run,
+      # because then the SARIF is missing or truncated and code scanning
+      # silently keeps serving whatever it last saw. Measured on bandit 1.9.4:
+      # exit 2 = never ran; exit 1 = findings OR a crash leaving a 0-byte file;
+      # exit 0 = clean OR a mis-targeted scan producing an empty runs[]. So
+      # neither the exit code nor the artifact check suffices alone.
+      - name: Bandit SARIF
+        if: always()
+        run: |
+          set +e
+          bandit -r src scripts -f sarif -o bandit.sarif \
+            --severity-level low --confidence-level low
+          rc=$?
+          set -e
+          if [ "$rc" -gt 1 ]; then
+            echo "::error title=bandit failed to run::bandit exited $rc; 0 and 1 are scan results, anything higher means no report was produced and code scanning would go stale"
+            exit "$rc"
+          fi
+          BANDIT_RC="$rc" python3 - <<'PY'
+          import json
+          import os
+          import pathlib
+          import sys
+
+          rc = os.environ["BANDIT_RC"]
+          sarif = pathlib.Path("bandit.sarif")
+          if not sarif.is_file():
+              sys.exit(f"::error title=bandit wrote no SARIF::bandit exited {rc} but bandit.sarif does not exist")
+          raw = sarif.read_text(encoding="utf-8")
+          try:
+              doc = json.loads(raw)
+          except ValueError as exc:
+              sys.exit(f"::error title=bandit SARIF truncated::bandit.sarif is {len(raw)} bytes and not valid JSON ({exc}); bandit died while writing it")
+          runs = doc.get("runs") or []
+          if not runs:
+              sys.exit("::error title=bandit SARIF empty::bandit.sarif carries no runs[]; nothing was scanned, so uploading it would blank the Security tab")
+          print(f"bandit exit={rc} (0=no findings, 1=findings), "
+                f"{len(runs[0].get('results', []))} result(s) in bandit.sarif")
+          PY
+      - name: Upload to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: bandit.sarif
+          category: bandit
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-bandit
+          path: reports/
+          retention-days: 30
+          if-no-files-found: error
+
+  mutmut:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12', cache: pip}
+      - run: pip install --quiet -r requirements.txt
+      # Scores the SPEC against AST mutants, not the test suite against mutmut.
+      # Equivalent mutants are excluded from the denominator.
+      - name: Mutation discrimination (per function)
+        run: python3 scripts/run_gate.py --name mutmut -- bash scripts/verify_per_function.sh scripts/mutation_gate.py --min-score 0.95
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-mutmut
+          path: reports/
+          retention-days: 30
+          if-no-files-found: error
+
+  # THE FINALIZER. The only check that can see a job which went green without
+  # producing evidence, because it is the only one that knows the whole set.
+  #
+  # `if: always()` is load-bearing twice over. Without it a single failing gate
+  # skips this job, the required `full` context never reports, and the PR sits
+  # pending forever instead of failing. And a skipped finalizer would mean the
+  # completeness proof disappears in exactly the situation it is for.
+  full:
+    needs:
+      - preflight
+      - axle-verify
+      - spec-strength
+      - spec-composition
+      - vacuity-check
+      - counterexample-search
+      - honest-report
+      - coverage
+      - pyright
+      - mutmut
+      - bandit
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      # No `name:` filter: every artifact this run produced, each into its own
+      # directory. A gate whose upload failed simply is not here, which is the
+      # signal the aggregator turns into a blocking UNKNOWN.
+      - name: Collect every gate's evidence from this run
+        uses: actions/download-artifact@v4
+        with:
+          path: evidence
+      - name: Gate manifest
+        run: python3 scripts/aggregate_gates.py --evidence-root evidence
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-full
+          path: reports/
+          retention-days: 30
+          if-no-files-found: error

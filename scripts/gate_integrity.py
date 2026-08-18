@@ -1,25 +1,44 @@
 #!/usr/bin/env python3
 """GATE INTEGRITY — the guard on the guard.
 
-The audit found one hole with no coverage: delete the `AXLE proofs` step from
-axle-verify.yml and the job still runs, still exits 0, still posts
-`axle-verify: success`. The ruleset sees a green required check. The gate is
-gone and nothing notices.
+Asserts the verification system still matches ci/gates.toml BEFORE any result
+from it is worth reading. Deleting a gate's step leaves the job green, the
+required check green, and the gate gone; nothing else in the system notices.
 
-This asserts the verification system is still intact BEFORE any gate runs:
+WHY THIS PARSES YAML INSTEAD OF SEARCHING TEXT.
+The previous version asked whether a workflow file CONTAINED the gate's
+command. Containment is not execution. All of these contain it and none of
+them run it:
 
-  1. every declared gate's workflow file exists
-  2. every gate's command still appears in that workflow
-  3. every script a workflow invokes exists on disk
-  4. no `continue-on-error` on a mandatory job
-  5. no failure suppression (`|| true`, `|| echo`) on a gate command
-  6. every job id required by the ruleset still exists in some workflow
-  7. every gate job uploads its evidence
-  8. no doc tells anyone to run a verifier script that no longer exists
+    - run: python3 scripts/axle_gate.py
+      if: false                        # never runs, job still green
+    - run: echo python3 scripts/axle_gate.py
+    - run: python3 scripts/axle_gate.py || true
 
-The expected shape lives in ci/gates.toml, which is version controlled. Changing
-what a gate does now requires changing the manifest too, and that shows up in
-the diff.
+So the structure is parsed, the gate's step is located as an object, and the
+properties that decide whether it executes — and whether its failure survives
+— are checked on that object. A conditioned-away step is now the same finding
+as a deleted one, because it has the same consequence.
+
+Checks, per mandatory gate:
+
+  1. the workflow parses, and declares the job id the ruleset requires
+  2. the job carries no `if:` unless ci/gates.toml declares one for it
+  3. the job carries no continue-on-error
+  4. a step actually invokes the gate's command
+  5. that step carries no `if:` — a conditioned gate is a deleted gate
+  6. that step carries no continue-on-error, and does not suppress failure
+  7. the job uploads the gate's declared artifact, with `if: always()` and
+     `if-no-files-found: error`, so evidence that never appears is loud
+
+And across the repository:
+
+  8. every scripts/… path any workflow invokes exists
+  9. the manifest's required_checks equals its own mandatory gate set
+ 10. no doc tells anyone to run a verifier that no longer exists
+
+Check 9 is self-consistency only. Proving the manifest matches the LIVE GitHub
+ruleset needs an API call with admin access: scripts/check_ruleset.py.
 """
 
 from __future__ import annotations
@@ -28,125 +47,241 @@ import re
 import sys
 import tomllib
 from pathlib import Path
+from typing import Any, cast
+
+import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gate import Gate  # noqa: E402
-from typing import Any
 
 MANIFEST = Path("ci/gates.toml")
 WORKFLOWS = Path(".github/workflows")
 SUPPRESSION = re.compile(r"\|\|\s*(true|echo|:)")
+DOCS = (Path("README.md"), Path("evidence.md"))
 
 
-def load_manifest() -> dict[str, Any]:
-    return tomllib.loads(MANIFEST.read_text(encoding="utf-8"))
+def steps_of(job: dict[str, Any]) -> list[dict[str, Any]]:
+    raw = job.get("steps")
+    if not isinstance(raw, list):
+        return []
+    steps = cast("list[Any]", raw)
+    return [cast("dict[str, Any]", s) for s in steps if isinstance(s, dict)]
+
+
+def step_text(step: dict[str, Any]) -> str:
+    """What a step EXECUTES: its `run` script and the action it `uses`.
+
+    `with:` is deliberately excluded. It holds parameters, not commands, and
+    including it made an artifact named `reports-pyright` look like an
+    invocation of `pyright` — so the upload step was mistaken for the gate step
+    and its legitimate `if: always()` was reported as a conditioned-away gate.
+    """
+    return f"{step.get('run', '')}\n{step.get('uses', '')}"
 
 
 def main() -> None:
-    tools = {"python": [sys.executable, "--version"]}
-    with Gate("gate-integrity", version="1.0.0", tools=tools) as g:
+    with Gate("preflight", version="2.0.0") as g:
         if not MANIFEST.is_file():
             g.infrastructure_failure(f"{MANIFEST} missing — cannot verify integrity")
             return
 
-        manifest = load_manifest()
+        manifest = tomllib.loads(MANIFEST.read_text(encoding="utf-8"))
         gates: dict[str, dict[str, Any]] = manifest.get("gates", {})
+        mandatory = {n: s for n, s in gates.items() if s.get("mandatory")}
         g.set_scope(manifest=str(MANIFEST), gates_declared=len(gates),
+                    mandatory=len(mandatory),
                     workflows_on_disk=len(list(WORKFLOWS.glob("*.yml"))))
 
         ok = True
-        job_ids_seen: set[str] = set()
+        parsed: dict[str, dict[str, Any]] = {}
 
-        for name, spec in gates.items():
+        for name, spec in mandatory.items():
             wf = WORKFLOWS / str(spec["workflow"])
-            job = str(spec["job"])
-            job_ids_seen.add(job)
+            job_id = str(spec["job"])
 
             if not wf.is_file():
                 ok = False
                 g.check(f"{name}: workflow exists", False, str(wf))
                 g.fail(what=f"gate '{name}' lost its workflow", where=str(wf),
                        requirement="Every declared gate must have a workflow file.",
-                       fix=f"Restore {wf} or remove the gate from {MANIFEST}.")
+                       fix=f"Restore {wf} or remove the gate from {MANIFEST} "
+                           "and the ruleset together.")
                 continue
-            text = wf.read_text(encoding="utf-8")
-            g.check(f"{name}: workflow exists", True, str(wf))
 
-            # 2. the gate's command is still present
-            must: list[str] = list(spec.get("must_contain", []))
-            for cmd in must:
-                present = str(cmd) in text
-                g.check(f"{name}: command present", present, str(cmd))
-                if not present:
+            if str(wf) not in parsed:
+                try:
+                    loaded = yaml.safe_load(wf.read_text(encoding="utf-8"))
+                except yaml.YAMLError as exc:
                     ok = False
-                    g.fail(what=f"gate '{name}' no longer runs its command",
-                           where=str(wf), why=f"missing: {cmd}",
-                           requirement="A required check must still execute its verifier. "
-                                       "Removing the step leaves the check green and the gate gone.",
-                           fix=f"Restore `{cmd}` in {wf}, or remove the gate from {MANIFEST} "
-                               "and from the ruleset together.")
+                    g.check(f"{wf.name}: parses", False, str(exc)[:80])
+                    g.fail(what=f"{wf.name} is not valid YAML", where=str(wf),
+                           why=str(exc)[:200],
+                           requirement="A workflow that does not parse runs no gates.",
+                           fix="Fix the YAML syntax.")
+                    continue
+                parsed[str(wf)] = cast("dict[str, Any]", loaded or {})
+            doc = parsed[str(wf)]
 
-            # 3. job id still declared
-            job_pattern = "".join(["^", " " * 2, re.escape(job), ":"])
-            has_job = re.search(job_pattern, text, re.MULTILINE) is not None
-            g.check(f"{name}: job '{job}' declared", has_job, str(wf))
+            jobs = doc.get("jobs")
+            jobs_map = cast("dict[str, Any]", jobs) if isinstance(jobs, dict) else {}
+            job_obj = jobs_map.get(job_id)
+            has_job = isinstance(job_obj, dict)
+            g.check(f"{name}: job '{job_id}' declared", has_job, str(wf))
             if not has_job:
                 ok = False
-                g.fail(what=f"job '{job}' renamed or removed", where=str(wf),
-                       requirement="The ruleset requires this exact job id as a check context. "
-                                   "A rename makes the required check permanently pending.",
-                       fix=f"Restore job id `{job}` or update the ruleset and {MANIFEST}.")
+                g.fail(what=f"job '{job_id}' renamed or removed", where=str(wf),
+                       requirement="The ruleset requires this exact job id as a "
+                                   "check context. A rename makes the required "
+                                   "check permanently pending, not failing.",
+                       fix=f"Restore job id `{job_id}` or update the ruleset "
+                           f"and {MANIFEST} together.")
+                continue
+            job = cast("dict[str, Any]", job_obj)
 
-            # 4. no continue-on-error
-            no_coe = "continue-on-error" not in text
-            g.check(f"{name}: no continue-on-error", no_coe, str(wf))
-            if not no_coe:
+            # 2. job-level condition, only where the manifest declares one
+            allowed_if = spec.get("job_if")
+            job_if = job.get("if")
+            if_ok = (job_if is None) or (str(job_if).strip() == str(allowed_if).strip())
+            g.check(f"{name}: job condition", if_ok,
+                    f"if: {job_if}" if job_if else "unconditional")
+            if not if_ok:
                 ok = False
-                g.fail(what=f"continue-on-error present in '{name}'", where=str(wf),
+                g.fail(what=f"job '{job_id}' runs conditionally", where=str(wf),
+                       why=f"if: {job_if}",
+                       requirement="A mandatory job must run every time, unless "
+                                   f"{MANIFEST} declares the condition.",
+                       fix=f"Remove the condition, or declare job_if in {MANIFEST}.")
+
+            # 3. job-level continue-on-error
+            if job.get("continue-on-error"):
+                ok = False
+                g.check(f"{name}: job propagates failure", False, "continue-on-error")
+                g.fail(what=f"continue-on-error on job '{job_id}'", where=str(wf),
                        requirement="A mandatory gate must propagate failure.",
                        fix="Remove continue-on-error.")
 
-            # 5. no failure suppression on the gate command itself
-            for line in text.splitlines():
-                if SUPPRESSION.search(line) and any(str(c) in line for c in must):
-                    ok = False
-                    g.check(f"{name}: no suppression", False, line.strip()[:70])
-                    g.fail(what=f"failure suppressed in '{name}'", where=str(wf),
-                           why=line.strip()[:120],
-                           requirement="Never convert a gate failure into success.",
-                           fix="Remove `|| true` / `|| echo` from the gate command.")
+            steps = steps_of(job)
 
-            # 6. evidence is uploaded
-            uploads = "upload-artifact" in text
-            g.check(f"{name}: uploads evidence", uploads, str(wf))
+            # 4-6. the step that actually invokes the gate
+            for token in [str(c) for c in spec.get("must_contain", [])]:
+                carriers = [s for s in steps if token in step_text(s)]
+                g.check(f"{name}: invokes {token}", bool(carriers),
+                        f"{len(carriers)} step(s)")
+                if not carriers:
+                    ok = False
+                    g.fail(what=f"gate '{name}' no longer invokes its command",
+                           where=str(wf), why=f"no step runs: {token}",
+                           requirement="A required check must still execute its "
+                                       "verifier. Removing the step leaves the "
+                                       "check green and the gate gone.",
+                           fix=f"Restore `{token}` in {wf}, or remove the gate "
+                               f"from {MANIFEST} and the ruleset together.")
+                    continue
+                for step in carriers:
+                    label = str(step.get("name", token))[:40]
+                    if step.get("if") is not None:
+                        ok = False
+                        g.check(f"{name}: step unconditional", False,
+                                f"{label}: if: {step['if']}")
+                        g.fail(what=f"gate step in '{name}' runs conditionally",
+                               where=f"{wf} -> {label}", why=f"if: {step['if']}",
+                               requirement="A conditioned gate step is a deleted "
+                                           "gate: the job still exits 0 and the "
+                                           "required check still goes green.",
+                               fix="Remove the `if:` from the gate step.")
+                    if step.get("continue-on-error"):
+                        ok = False
+                        g.check(f"{name}: step propagates failure", False, label)
+                        g.fail(what=f"continue-on-error on a gate step in '{name}'",
+                               where=f"{wf} -> {label}",
+                               requirement="Never convert a gate failure into success.",
+                               fix="Remove continue-on-error.")
+                    run = str(step.get("run", ""))
+                    for line in run.splitlines():
+                        if token in line and SUPPRESSION.search(line):
+                            ok = False
+                            g.check(f"{name}: no suppression", False, line.strip()[:70])
+                            g.fail(what=f"failure suppressed in '{name}'",
+                                   where=f"{wf} -> {label}", why=line.strip()[:120],
+                                   requirement="Never convert a gate failure into "
+                                               "success.",
+                                   fix="Remove `|| true` / `|| echo` from the "
+                                       "gate command.")
+
+            # 7. evidence must be uploaded, and its absence must be loud
+            artifact = str(spec.get("artifact", ""))
+            uploads = [s for s in steps
+                       if "upload-artifact" in str(s.get("uses", ""))
+                       and str(cast("dict[str, Any]",
+                                    s.get("with", {})).get("name", "")) == artifact]
+            g.check(f"{name}: uploads {artifact}", bool(uploads))
             if not uploads:
                 ok = False
                 g.fail(what=f"gate '{name}' preserves no evidence", where=str(wf),
-                       requirement="Reports must survive the run, especially on failure.",
-                       fix="Add actions/upload-artifact with `if: always()`.")
+                       why=f"no upload-artifact step named {artifact!r}",
+                       requirement="Reports must survive the run and the log "
+                                   "retention window, especially on failure.",
+                       fix=f"Add actions/upload-artifact named {artifact} with "
+                           "`if: always()` and `if-no-files-found: error`.")
+            for step in uploads:
+                with_ = cast("dict[str, Any]", step.get("with", {}))
+                if str(step.get("if", "")).strip() != "always()":
+                    ok = False
+                    g.check(f"{name}: uploads on failure", False, str(step.get("if")))
+                    g.fail(what=f"'{name}' only uploads evidence when it passes",
+                           where=f"{wf} -> {artifact}",
+                           requirement="Evidence matters most on failure.",
+                           fix="Add `if: always()` to the upload step.")
+                if str(with_.get("if-no-files-found", "")) != "error":
+                    ok = False
+                    g.check(f"{name}: missing evidence is loud", False,
+                            str(with_.get("if-no-files-found")))
+                    g.fail(what=f"'{name}' ignores a missing artifact",
+                           where=f"{wf} -> {artifact}",
+                           why="if-no-files-found is not 'error', so a gate that "
+                               "produced no evidence uploads nothing and the job "
+                               "stays green",
+                           requirement="Artifact absence must be detectable.",
+                           fix="Set `if-no-files-found: error`.")
 
-        # 7. every script referenced by any workflow exists
+        # 8. every script any workflow invokes exists
         for wf in sorted(WORKFLOWS.glob("*.yml")):
-            for script in re.findall(r"scripts/[\w./-]+\.(?:py|sh)", wf.read_text(encoding="utf-8")):
-                exists = Path(script).is_file()
-                if not exists:
+            for script in sorted(set(re.findall(r"scripts/[\w./-]+\.(?:py|sh)",
+                                                wf.read_text(encoding="utf-8")))):
+                if not Path(script).is_file():
                     ok = False
                     g.check(f"{wf.name}: {script}", False, "missing")
-                    g.fail(what=f"workflow calls a script that does not exist",
+                    g.fail(what="workflow calls a script that does not exist",
                            where=f"{wf.name} -> {script}",
                            requirement="Every invoked verifier must exist.",
                            fix=f"Restore {script} or remove the step.")
 
-        # 8. documentation cannot tell anyone to RUN a verifier that is gone.
-        # evidence.md and README.md are hand-written copies of facts the system
-        # emits, so they drift by construction and nothing noticed.
-        #
-        # Scoped to INVOCATIONS (`bash scripts/x.sh`, `python3 scripts/x.py`),
-        # not every mention: evidence.md legitimately documents scripts that do
-        # NOT exist and says so, and flagging that would punish honesty. This
-        # does not make the prose true — it makes the one claim that breaks
-        # first, when a verifier is renamed, into a blocking one.
-        for doc in (Path("README.md"), Path("evidence.md")):
+        # 9. the manifest agrees with itself
+        ruleset: dict[str, Any] = manifest.get("ruleset", {})
+        required = {str(c) for c in ruleset.get("required_checks", [])}
+        aligned = required == set(mandatory)
+        g.check("required_checks == mandatory gates", aligned,
+                f"{len(required)} required, {len(mandatory)} mandatory")
+        if not aligned:
+            ok = False
+            for ctx in sorted(required - set(mandatory)):
+                g.fail(what=f"ruleset requires '{ctx}' but no gate declares it",
+                       requirement="Required checks must map to real jobs, or "
+                                   "merges hang forever.",
+                       fix=f"Add the gate to {MANIFEST} or drop '{ctx}'.")
+            for name in sorted(set(mandatory) - required):
+                g.fail(what=f"gate '{name}' is mandatory but not required",
+                       why="it runs, it can go red, and nothing is blocked by it",
+                       requirement="A mandatory gate that GitHub does not require "
+                                   "blocks nothing.",
+                       fix=f"Add '{name}' to required_checks in {MANIFEST} and to "
+                           "the ruleset.")
+
+        # 10. docs must not tell anyone to run a verifier that is gone.
+        # Scoped to INVOCATIONS, not every mention: evidence.md legitimately
+        # documents scripts that do NOT exist and says so, and flagging that
+        # would punish honesty.
+        for doc in DOCS:
             if not doc.is_file():
                 continue
             for script in sorted(set(re.findall(
@@ -162,18 +297,7 @@ def main() -> None:
                                        "system that is not the one running.",
                            fix=f"Update {doc}, or restore {script}.")
 
-        ruleset: dict[str, Any] = manifest.get("ruleset", {})
-        required: list[str] = list(ruleset.get("required_checks", []))
-        for ctx in required:
-            known = ctx in job_ids_seen
-            g.check(f"ruleset requires '{ctx}' and it exists", known)
-            if not known:
-                ok = False
-                g.fail(what=f"ruleset requires '{ctx}' but no gate declares it",
-                       requirement="Required checks must map to real jobs, or merges hang forever.",
-                       fix=f"Add the gate to {MANIFEST} or drop '{ctx}' from the ruleset.")
-
-        g.artifact("reports/gate-integrity.json")
+        g.artifact("reports/preflight.json")
         g.passed() if ok else g.failed()
 
 

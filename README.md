@@ -49,15 +49,36 @@ bandit -r src scripts --severity-level low --confidence-level low
 
 ## Gates
 
-| Workflow | Gate | Threshold |
+All of them are jobs in one workflow, `verify.yml`, and that is not tidiness.
+Separate workflows are separate runs with separate filesystems, so a finalizer
+in one cannot see evidence produced in another — an aggregate spread across
+workflows can only ever summarise its own duplicate execution of the gates.
+One workflow gives the finalizer `needs:` and `download-artifact` over the same
+run, which is the only arrangement where the aggregate is real.
+
+```
+preflight ─┐
+gate  ×10 ─┴─→ full   (needs: all, if: always())
+```
+
+| Job | Gate | Threshold |
 |---|---|---|
-| `pr-fast.yml` | spec strength + AXLE + tests | all must pass |
-| `axle-verify.yml` | spec strength + AXLE proofs | all proofs verified |
-| `coverage.yml` | pytest branch coverage | **95%** |
-| `typecheck.yml` | Pyright | strict mode |
-| `security.yml` | Bandit | LOW severity and above blocks |
-| `mutation.yml` | mutmut via `scripts/mutation_gate.py` | **95%** |
-| `full-verify.yml` | everything, on push to main | all must pass |
+| `preflight` | `scripts/gate_integrity.py` — the verification system still matches `ci/gates.toml` | no drift |
+| `axle-verify` | spec set completeness, then AXLE proofs | `SPEC_SET == PROOF_SET`, non-empty, all verified |
+| `spec-strength` | joint spec strength over the whole set | **0.90** |
+| `spec-composition` | joint strength per function | **0.90** |
+| `vacuity-check` | precondition reachability | not vacuous |
+| `counterexample-search` | spec claim against the real Python | no counterexample |
+| `honest-report` | ten dimensions, reported separately | blocks on FAIL only |
+| `coverage` | pytest branch coverage | **95%** |
+| `pyright` | strict types | 0 errors |
+| `bandit` | LOW severity and above, `src` and `scripts` | verified safe patterns only |
+| `mutmut` | spec vs AST mutants, equivalent mutants excluded | **95%** |
+| `full` | finalizer: evidence set == declared set | no missing, unexpected, duplicate or foreign evidence |
+
+`pr-fast.yml` is supplementary and blocks nothing — a strict subset of
+`axle-verify`, `spec-strength` and `coverage`, kept for latency feedback on a
+PR. `ci/gates.toml` records that decision rather than leaving it implicit.
 
 ## What the proof does and does not tell you
 

@@ -1,0 +1,23 @@
+name: Spec Strength
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  spec-strength:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt
+      # Scored as a SET. add's commutativity (0.50) and identity (0.50) each
+      # miss a different mutant; together they kill both. Per-spec gating would
+      # reject a pair that fully constrains the function.
+      - name: Measure spec strength (mutation testing)
+        run: python3 scripts/check_composition.py specs/*_spec.lean --min-strength 0.9

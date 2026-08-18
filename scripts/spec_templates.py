@@ -31,7 +31,11 @@ TEMPLATES = {
     },
     'identity': {
         'args': 'x : Int',
-        'statement': '{func} {v0} 0 = {v0}',
+        'statement': '{func} {v0} {unit} = {v0}',
+    },
+    'self_inverse': {
+        'args': 'a b : Int',
+        'statement': '{func} {v0} {v0} = 0',
     },
     'bounds': {
         'args': 'lo hi x : Int',
@@ -44,7 +48,7 @@ TEMPLATES = {
 }
 
 
-def generate_spec(template_name, func_name, body, args=None, hyp=None):
+def generate_spec(template_name, func_name, body, args=None, hyp=None, unit='0'):
     if template_name not in TEMPLATES:
         print(f"❌ Unknown template: {template_name}", file=sys.stderr)
         print(f"Available: {', '.join(TEMPLATES)}", file=sys.stderr)
@@ -54,6 +58,7 @@ def generate_spec(template_name, func_name, body, args=None, hyp=None):
     def_args = args or tpl['args']
     binders = def_args.split(':')[0].split()
     vs = {f'v{i}': n for i, n in enumerate(binders)}
+    vs['unit'] = unit
     statement = tpl['statement'].format(func=func_name, **vs)
     hypothesis = f" (h : {hyp})" if hyp else ""
 
@@ -71,10 +76,11 @@ if __name__ == "__main__":
     p.add_argument("func")
     p.add_argument("--body", required=True, help="Lean expression the Python computes")
     p.add_argument("--args", help="override the binder list, e.g. 'lo hi x : Int'")
+    p.add_argument("--unit", default="0", help="identity element")
     p.add_argument("--hyp", help="precondition, e.g. 'lo <= hi'")
     ns = p.parse_args()
 
-    spec = generate_spec(ns.template, ns.func, ns.body, ns.args, ns.hyp)
+    spec = generate_spec(ns.template, ns.func, ns.body, ns.args, ns.hyp, ns.unit)
     if not spec:
         sys.exit(1)
     print(spec)

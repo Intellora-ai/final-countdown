@@ -10,4 +10,4 @@ from src.multiply import multiply
 
 @given(st.integers(min_value=-10**6, max_value=10**6), st.integers(min_value=-10**6, max_value=10**6))
 def test_multiply_spec(a, b):
-    assert multiply(a, b) == multiply(b, a)
+    assert multiply(a, 1) == a

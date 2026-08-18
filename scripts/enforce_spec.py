@@ -90,7 +90,13 @@ def unbound_vars(spec_content):
 
 
 def enforce_spec(spec_file):
-    function_name = spec_file.split('/')[-1].replace('_spec.lean', '')
+    # The subject comes from the `def` line, not the filename. A function may
+    # carry several specs (add_spec.lean, addid_spec.lean), and deriving the
+    # name from the filename makes "addid"/"mulid" look like missing functions.
+    with open(spec_file, 'r') as _f:
+        _head = _f.read()
+    _def = re.search(r'^def\s+(\w+)', _head, re.MULTILINE)
+    function_name = _def.group(1) if _def else spec_file.split('/')[-1].replace('_spec.lean', '')
 
     with open(spec_file, 'r') as f:
         spec = f.read()

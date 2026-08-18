@@ -37,7 +37,12 @@ PROOF_TEMPLATES = {
     },
     'identity': {
         'args': 'x : Int',
-        'statement': '{func} {v0} 0 = {v0}',
+        'statement': '{func} {v0} {unit} = {v0}',
+        'tactics': '  unfold {func}\n  exact {lemma} {v0}',
+    },
+    'self_inverse': {
+        'args': 'a b : Int',
+        'statement': '{func} {v0} {v0} = 0',
         'tactics': '  unfold {func}\n  exact {lemma} {v0}',
     },
     'bounds': {
@@ -58,14 +63,15 @@ PROOF_TEMPLATES = {
 LEMMAS = {
     'commutativity': {'multiply': 'mul_comm', 'add': 'add_comm'},
     'associativity': {'multiply': 'mul_assoc', 'add': 'add_assoc'},
-    'identity': {'add': 'add_zero', 'subtract': 'sub_zero'},
+    'identity': {'add': 'add_zero', 'subtract': 'sub_zero', 'multiply': 'mul_one'},
+    'self_inverse': {'subtract': 'sub_self'},
     'bounds': {'clamp': {'lemma_low': 'le_max_left lo (min hi x)',
                          'lemma_high': 'max_le h (min_le_left hi x)'}},
     'monotonicity': {},
 }
 
 
-def generate_proof(template_name, func_name, body, args=None, hyp=None):
+def generate_proof(template_name, func_name, body, args=None, hyp=None, unit='0'):
     if template_name not in PROOF_TEMPLATES:
         print(f"❌ Unknown template: {template_name}", file=sys.stderr)
         print(f"Available: {', '.join(PROOF_TEMPLATES)}", file=sys.stderr)
@@ -86,6 +92,7 @@ def generate_proof(template_name, func_name, body, args=None, hyp=None):
     def_args = args or tpl['args']
     binders = def_args.split(':')[0].split()
     vs = {f'v{i}': n for i, n in enumerate(binders)}
+    vs['unit'] = unit
     hypothesis = f" (h : {hyp})" if hyp else ""
     statement = tpl['statement'].format(func=func_name, **vs)
     tactics = tpl['tactics'].format(func=func_name, **slots, **vs)
@@ -103,10 +110,11 @@ if __name__ == "__main__":
     p.add_argument("func")
     p.add_argument("--body", required=True)
     p.add_argument("--args")
+    p.add_argument("--unit", default="0", help="identity element")
     p.add_argument("--hyp")
     ns = p.parse_args()
 
-    proof = generate_proof(ns.template, ns.func, ns.body, ns.args, ns.hyp)
+    proof = generate_proof(ns.template, ns.func, ns.body, ns.args, ns.hyp, ns.unit)
     if not proof:
         sys.exit(1)
     print(proof)

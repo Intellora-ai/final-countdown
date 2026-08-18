@@ -1,0 +1,30 @@
+name: Spec Composition
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  spec-composition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt
+      # Per function, not per file: `${spec/specs/src}` maps addid_spec.lean to
+      # src/addid.py, which does not exist. spec_source.py reads the subject
+      # from the spec's own `def` line instead.
+      - name: Check spec composition per function
+        run: |
+          set -euo pipefail
+          python3 scripts/spec_source.py specs/*_spec.lean > /tmp/pairs.txt
+          cut -d= -f2 /tmp/pairs.txt | sort -u | while read -r src; do
+            specs=$(grep "=${src}$" /tmp/pairs.txt | cut -d= -f1 | tr '\n' ' ')
+            echo "── $src ← $specs"
+            python3 scripts/check_composition.py $specs --min-strength 0.9
+          done

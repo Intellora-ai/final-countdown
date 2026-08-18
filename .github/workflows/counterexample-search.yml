@@ -1,0 +1,22 @@
+name: Counterexample Search
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  counterexample-search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt
+      # Runs before any proof attempt: a false spec is cheaper to refute than
+      # to fail to prove.
+      - name: Search for counterexamples
+        run: python3 scripts/find_counterexample.py specs/*_spec.lean

@@ -1,0 +1,74 @@
+# GATE MANIFEST — the expected shape of the verification system.
+#
+# scripts/gate_integrity.py asserts reality still matches this before any gate
+# runs. Changing what a gate does now requires changing this file too, so the
+# change appears in the diff instead of silently weakening a green check.
+
+[ruleset]
+id = 20990225
+name = "final countdown protection"
+required_checks = [
+  "axle-verify", "spec-strength", "spec-composition", "vacuity-check",
+  "counterexample-search", "honest-report", "coverage", "pyright",
+  "bandit", "mutmut",
+]
+
+[gates.axle-verify]
+workflow = "axle-verify.yml"
+job = "axle-verify"
+mandatory = true
+must_contain = ["scripts/verify_with_axle.sh", "scripts/enforce_spec.py"]
+
+[gates.spec-strength]
+workflow = "spec-strength.yml"
+job = "spec-strength"
+mandatory = true
+must_contain = ["scripts/check_composition.py", "--min-strength 0.9"]
+
+[gates.spec-composition]
+workflow = "spec-composition.yml"
+job = "spec-composition"
+mandatory = true
+must_contain = ["scripts/check_composition.py", "--min-strength 0.9"]
+
+[gates.vacuity-check]
+workflow = "vacuity-check.yml"
+job = "vacuity-check"
+mandatory = true
+must_contain = ["scripts/check_vacuity.py"]
+
+[gates.counterexample-search]
+workflow = "counterexample-search.yml"
+job = "counterexample-search"
+mandatory = true
+must_contain = ["scripts/find_counterexample.py"]
+
+[gates.honest-report]
+workflow = "honest-report.yml"
+job = "honest-report"
+mandatory = true
+must_contain = ["scripts/honest_report.py", "--min-strength 0.9"]
+
+[gates.coverage]
+workflow = "coverage.yml"
+job = "coverage"
+mandatory = true
+must_contain = ["--cov-fail-under=95"]
+
+[gates.pyright]
+workflow = "typecheck.yml"
+job = "pyright"
+mandatory = true
+must_contain = ["pyright"]
+
+[gates.bandit]
+workflow = "security.yml"
+job = "bandit"
+mandatory = true
+must_contain = ["scripts/security_gate.py"]
+
+[gates.mutmut]
+workflow = "mutation.yml"
+job = "mutmut"
+mandatory = true
+must_contain = ["scripts/mutation_gate.py", "--min-score 0.95"]

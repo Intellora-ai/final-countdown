@@ -27,3 +27,11 @@ jobs:
             echo "── $src"
             python3 scripts/mutation_gate.py $specs --min-score 0.95
           done
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-mutmut
+          path: reports/
+          retention-days: 30
+          if-no-files-found: ignore

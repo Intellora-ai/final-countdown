@@ -34,23 +34,83 @@ from typing import Any
 
 # (test_id, file) pairs eligible for verification. Eligibility is not approval:
 # each still has to pass check_subprocess_safety below.
+# B105 fires on any string constant whose NAME contains "pass" - our status
+# constants ("PASS") trip it. B608 fires on string concatenation that resembles
+# SQL - our regex builder trips it. Both are heuristics, so they get the same
+# treatment as subprocess: an exception is granted only if the claim is
+# re-derived from the source, never because the id was allowlisted.
+HEURISTIC = {("B105", "scripts/gate.py"), ("B105", "scripts/aggregate_gates.py"),
+             ("B608", "scripts/gate_integrity.py")}
+
+STATUS_LITERALS = {"PASS", "FAIL", "INFRASTRUCTURE_FAILURE", "SKIPPED",
+                   "NOT_APPLICABLE", "UNKNOWN"}
+DB_MODULES = {"sqlite3", "psycopg2", "pymysql", "sqlalchemy", "asyncpg", "MySQLdb"}
+
+
+def check_not_a_secret(path: str, line_no: int) -> tuple[bool, str]:
+    """B105: the flagged string must be a known status literal, not a credential."""
+    lines = Path(path).read_text(encoding="utf-8").splitlines()
+    if not (1 <= line_no <= len(lines)):
+        return False, "line out of range"
+    line = lines[line_no - 1]
+    hits = [lit for lit in STATUS_LITERALS if f'"{lit}"' in line]
+    if not hits:
+        return False, "flagged string is not a known status literal"
+    return True, f"status constant {hits[0]!r}, not a credential; no secret material"
+
+
+def check_no_sql(path: str, line_no: int) -> tuple[bool, str]:
+    """B608: the file must not import any database driver, so there is no query."""
+    tree = ast.parse(Path(path).read_text(encoding="utf-8"))
+    imported: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported.update(a.name.split(".")[0] for a in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported.add(node.module.split(".")[0])
+    hit = imported & DB_MODULES
+    if hit:
+        return False, f"file imports a database driver: {sorted(hit)}"
+    return True, "no database driver imported; the string is a regex, not a query"
+
+
 ELIGIBLE = {("B404", "scripts/proof_gate.py"), ("B603", "scripts/proof_gate.py"),
             ("B404", "scripts/security_gate.py"), ("B603", "scripts/security_gate.py"),
-            ("B404", "scripts/axle_health.py"), ("B603", "scripts/axle_health.py")}
+            ("B404", "scripts/axle_health.py"), ("B603", "scripts/axle_health.py"),
+            ("B404", "scripts/gate.py"), ("B603", "scripts/gate.py"),
+            ("B404", "scripts/run_gate.py"), ("B603", "scripts/run_gate.py")}
 
 
 def check_subprocess_safety(path: str) -> tuple[bool, str]:
     """Re-derive the safe pattern from source. Returns (ok, evidence)."""
     tree = ast.parse(Path(path).read_text(encoding="utf-8"))
-    which_vars = {
-        t.id
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Assign)
-        for t in node.targets
-        if isinstance(t, ast.Name)
-        and isinstance(node.value, ast.Call)
-        and ast.unparse(node.value.func).endswith("shutil.which")
-    }
+    # Both `x = shutil.which(..)` and `x: str | None = shutil.which(..)` count;
+    # an annotation does not make the call less resolved.
+    which_vars: set[str] = set()
+    for node in ast.walk(tree):
+        value = getattr(node, "value", None)
+        # typing.cast(T, shutil.which(..)) is a type-level assertion with no
+        # runtime effect, so unwrap it: the value is still a resolved path.
+        if (isinstance(value, ast.Call)
+                and ast.unparse(value.func) == "cast" and len(value.args) == 2):
+            value = value.args[1]
+        if not (isinstance(value, ast.Call)
+                and ast.unparse(value.func).endswith("shutil.which")):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else (
+            [node.target] if isinstance(node, ast.AnnAssign) else [])
+        which_vars.update(t.id for t in targets if isinstance(t, ast.Name))
+
+    # Follow one level of aliasing: `resolved = exe` where exe came from
+    # shutil.which is still a resolved absolute path. Narrowing a value for the
+    # type checker must not cost the security exception.
+    for node in ast.walk(tree):
+        value = getattr(node, "value", None)
+        if not (isinstance(value, ast.Name) and value.id in which_vars):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else (
+            [node.target] if isinstance(node, ast.AnnAssign) else [])
+        which_vars.update(t.id for t in targets if isinstance(t, ast.Name))
 
     calls = [
         n for n in ast.walk(tree)
@@ -101,6 +161,15 @@ def main(targets: Sequence[str]) -> int:
 
     for f in findings:
         key = (f["test_id"], f["filename"].lstrip("./"))
+        if key in HEURISTIC:
+            checker = check_not_a_secret if key[0] == "B105" else check_no_sql
+            ok, evidence = checker(key[1], f["line_number"])
+            if ok:
+                verified.append((key, evidence))
+            else:
+                f["_reason"] = f"heuristic exception NOT justified: {evidence}"
+                unresolved.append(f)
+            continue
         if key not in ELIGIBLE:
             unresolved.append(f)
             continue

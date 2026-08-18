@@ -18,13 +18,29 @@ jobs:
           python-version: '3.12'
           cache: pip
       - run: pip install --quiet -r requirements.txt
+      - name: Gate integrity
+        run: python3 scripts/gate_integrity.py
       - name: Spec strength
-        run: python3 scripts/enforce_spec.py specs/*_spec.lean
+        run: python3 scripts/run_gate.py --name enforce-spec -- python3 scripts/enforce_spec.py specs/*_spec.lean
       - name: AXLE proofs
-        run: bash scripts/verify_with_axle.sh
+        run: python3 scripts/run_gate.py --name axle-verify -- bash scripts/verify_with_axle.sh
       - name: Tests + coverage
-        run: pytest --cov=src --cov-branch --cov-fail-under=95
+        run: python3 scripts/run_gate.py --name coverage -- pytest --cov=src --cov-branch --cov-fail-under=95
       - name: Types
-        run: pyright
+        run: python3 scripts/run_gate.py --name pyright -- pyright
       - name: Security
-        run: python3 scripts/security_gate.py src scripts
+        run: python3 scripts/run_gate.py --name bandit -- python3 scripts/security_gate.py src scripts
+      # Every gate above wrote reports/<name>.json to this filesystem, so the
+      # manifest here is a real aggregate. It only summarises: a missing report
+      # is UNKNOWN and fails the run.
+      - name: Gate manifest
+        if: always()
+        run: python3 scripts/aggregate_gates.py
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-full
+          path: reports/
+          retention-days: 30
+          if-no-files-found: ignore

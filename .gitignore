@@ -8,3 +8,4 @@ htmlcov/
 .hypothesis/
 .venv/
 venv/
+reports/

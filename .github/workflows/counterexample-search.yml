@@ -19,4 +19,12 @@ jobs:
       # Runs before any proof attempt: a false spec is cheaper to refute than
       # to fail to prove.
       - name: Search for counterexamples
-        run: python3 scripts/find_counterexample.py specs/*_spec.lean
+        run: python3 scripts/run_gate.py --name counterexample-search -- python3 scripts/find_counterexample.py specs/*_spec.lean
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-counterexample-search
+          path: reports/
+          retention-days: 30
+          if-no-files-found: ignore

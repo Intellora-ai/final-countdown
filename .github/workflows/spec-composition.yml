@@ -28,3 +28,11 @@ jobs:
             echo "── $src ← $specs"
             python3 scripts/check_composition.py $specs --min-strength 0.9
           done
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-spec-composition
+          path: reports/
+          retention-days: 30
+          if-no-files-found: ignore

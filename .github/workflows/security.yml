@@ -23,7 +23,7 @@ jobs:
       # subprocess pattern from the AST rather than allowlisting a finding id:
       # break the pattern and the exception evaporates.
       - name: Bandit at LOW, with verified safe-pattern exceptions
-        run: python3 scripts/security_gate.py src scripts
+        run: python3 scripts/run_gate.py --name bandit -- python3 scripts/security_gate.py src scripts
 
       # Findings land in the Security tab with file:line, instead of only
       # existing inside a log nobody reads. Runs even when the gate above
@@ -37,3 +37,11 @@ jobs:
         with:
           sarif_file: bandit.sarif
           category: bandit
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-bandit
+          path: reports/
+          retention-days: 30
+          if-no-files-found: ignore

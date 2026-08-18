@@ -1,4 +1,4 @@
-name: typecheck
+name: ci-integrity
 on:
   pull_request:
   push:
@@ -6,7 +6,10 @@ on:
 permissions:
   contents: read
 jobs:
-  pyright:
+  # Runs BEFORE the gates matter. If the verification system itself is broken -
+  # a gate deleted, a job renamed, a command suppressed, a script missing - the
+  # merge is blocked even though every other check would be green.
+  preflight:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -14,15 +17,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: pip
-      - run: pip install --quiet -r requirements.txt
-      - name: Pyright strict
-        run: python3 scripts/run_gate.py --name pyright -- pyright
+      - name: Gate integrity
+        run: python3 scripts/gate_integrity.py
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: reports-pyright
+          name: reports-preflight
           path: reports/
           retention-days: 30
           if-no-files-found: ignore

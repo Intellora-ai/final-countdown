@@ -17,4 +17,12 @@ jobs:
           cache: pip
       - run: pip install --quiet -r requirements.txt
       - name: pytest with 95% coverage floor
-        run: pytest --cov=src --cov-branch --cov-report=term-missing --cov-fail-under=95
+        run: python3 scripts/run_gate.py --name coverage -- pytest --cov=src --cov-branch --cov-report=term-missing --cov-fail-under=95
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-coverage
+          path: reports/
+          retention-days: 30
+          if-no-files-found: ignore

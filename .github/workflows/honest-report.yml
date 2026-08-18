@@ -27,3 +27,11 @@ jobs:
             specs=$(grep "=${src}$" /tmp/pairs.txt | cut -d= -f1 | tr '\n' ' ')
             python3 scripts/honest_report.py $specs --min-strength 0.9
           done
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-honest-report
+          path: reports/
+          retention-days: 30
+          if-no-files-found: ignore

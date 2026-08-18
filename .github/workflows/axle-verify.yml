@@ -28,4 +28,12 @@ jobs:
       # `Error:` (no JSON) when the statement fails to compile — so neither the
       # exit code nor a grep for '"okay": false' blocks on its own.
       - name: Verify all proofs with AXLE
-        run: bash scripts/verify_with_axle.sh
+        run: python3 scripts/run_gate.py --name axle-verify -- bash scripts/verify_with_axle.sh
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-axle-verify
+          path: reports/
+          retention-days: 30
+          if-no-files-found: ignore

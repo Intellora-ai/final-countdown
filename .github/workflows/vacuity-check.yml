@@ -17,4 +17,12 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - name: Check spec preconditions are reachable
-        run: python3 scripts/check_vacuity.py specs/*_spec.lean
+        run: python3 scripts/run_gate.py --name vacuity-check -- python3 scripts/check_vacuity.py specs/*_spec.lean
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-vacuity-check
+          path: reports/
+          retention-days: 30
+          if-no-files-found: ignore

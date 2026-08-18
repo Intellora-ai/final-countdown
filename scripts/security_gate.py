@@ -35,7 +35,8 @@ from typing import Any
 # (test_id, file) pairs eligible for verification. Eligibility is not approval:
 # each still has to pass check_subprocess_safety below.
 ELIGIBLE = {("B404", "scripts/proof_gate.py"), ("B603", "scripts/proof_gate.py"),
-            ("B404", "scripts/security_gate.py"), ("B603", "scripts/security_gate.py")}
+            ("B404", "scripts/security_gate.py"), ("B603", "scripts/security_gate.py"),
+            ("B404", "scripts/axle_health.py"), ("B603", "scripts/axle_health.py")}
 
 
 def check_subprocess_safety(path: str) -> tuple[bool, str]:

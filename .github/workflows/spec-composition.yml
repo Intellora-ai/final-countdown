@@ -20,14 +20,7 @@ jobs:
       # src/addid.py, which does not exist. spec_source.py reads the subject
       # from the spec's own `def` line instead.
       - name: Check spec composition per function
-        run: |
-          set -euo pipefail
-          python3 scripts/spec_source.py specs/*_spec.lean > /tmp/pairs.txt
-          cut -d= -f2 /tmp/pairs.txt | sort -u | while read -r src; do
-            specs=$(grep "=${src}$" /tmp/pairs.txt | cut -d= -f1 | tr '\n' ' ')
-            echo "── $src ← $specs"
-            python3 scripts/check_composition.py $specs --min-strength 0.9
-          done
+        run: python3 scripts/run_gate.py --name spec-composition -- bash scripts/verify_per_function.sh scripts/check_composition.py --min-strength 0.9
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4

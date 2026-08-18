@@ -19,14 +19,7 @@ jobs:
       # Layer 5: scores the SPEC against AST mutants, not the test suite
       # against mutmut. Equivalent mutants are excluded from the denominator.
       - name: Mutation discrimination (per function)
-        run: |
-          set -euo pipefail
-          python3 scripts/spec_source.py specs/*_spec.lean > /tmp/pairs.txt
-          cut -d= -f2 /tmp/pairs.txt | sort -u | while read -r src; do
-            specs=$(grep "=${src}$" /tmp/pairs.txt | cut -d= -f1 | tr '\n' ' ')
-            echo "── $src"
-            python3 scripts/mutation_gate.py $specs --min-score 0.95
-          done
+        run: python3 scripts/run_gate.py --name mutmut -- bash scripts/verify_per_function.sh scripts/mutation_gate.py --min-score 0.95
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4

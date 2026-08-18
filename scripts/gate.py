@@ -39,6 +39,9 @@ from typing import Any
 
 REPORTS = Path("reports")
 
+# Bump when the report shape changes. Consumers must reject an unknown major.
+SCHEMA_VERSION = "1.1"  # 1.1 added run_attempt
+
 # Status names are constants, not credentials; bandit's B105 heuristic keys
 # on the variable name, so they are namespaced to keep the scan signal clean.
 STATUS_PASS = "PASS"
@@ -149,7 +152,13 @@ class Gate:
         duration_ms = int((time.monotonic() - self._start) * 1000)
         self.ended_at = _now()
         report = self.to_dict(duration_ms)
-        self._write_report(report)
+        if not self._write_report(report):
+            # No durable evidence => cannot claim PASS, whatever the gate said.
+            self.result = INFRASTRUCTURE_FAILURE
+            self.fail(what=f"{self.name} produced no durable evidence",
+                      why="the report could not be written",
+                      requirement="Every mandatory gate must persist machine-readable evidence.",
+                      fix="Fix permissions or disk space for reports/; do not ignore this.")
         self._print_summary(duration_ms)
         self._step_summary(duration_ms)
 
@@ -177,6 +186,7 @@ class Gate:
     def to_dict(self, duration_ms: int) -> dict[str, Any]:
         passed = sum(1 for c in self.checks if c["result"] == PASS)
         return {
+            "schema_version": SCHEMA_VERSION,
             "gate": self.name,
             "gate_version": self.version,
             "status": self.result,
@@ -185,6 +195,9 @@ class Gate:
             "workflow": os.environ.get("GITHUB_WORKFLOW", "local"),
             "job": os.environ.get("GITHUB_JOB", "local"),
             "run_id": os.environ.get("GITHUB_RUN_ID", "local"),
+            # A re-run keeps GITHUB_RUN_ID and increments this. Without it,
+            # attempt 1's evidence would satisfy attempt 2.
+            "run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT", "local"),
             "ref": os.environ.get("GITHUB_REF", "local"),
             "started_at": self.started_at,
             "ended_at": self.ended_at,
@@ -200,14 +213,27 @@ class Gate:
             "artifacts": self.artifacts,
         }
 
-    def _write_report(self, report: dict[str, Any]) -> None:
+    def _write_report(self, report: dict[str, Any]) -> bool:
+        """Persist evidence. Returns False if it could not be written.
+
+        A gate that cannot write its report has not proven anything, so the
+        caller downgrades the result to INFRASTRUCTURE_FAILURE. Warning and
+        exiting zero would produce a green check backed by no evidence.
+        """
         try:
             REPORTS.mkdir(parents=True, exist_ok=True)
             path = REPORTS / f"{self.name}.json"
-            path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+            payload = json.dumps(report, indent=2)
+            # Write-then-rename so a crash mid-write cannot leave a truncated
+            # report that later parses as valid but incomplete.
+            tmp = path.with_suffix(".json.tmp")
+            tmp.write_text(payload, encoding="utf-8")
+            tmp.replace(path)
             print(f"\n[EVIDENCE]\nartifact={path}")
+            return True
         except OSError as exc:
-            print(f"\n[EVIDENCE]\nWARNING: could not write report: {exc}")
+            print(f"\n[EVIDENCE]\nEVIDENCE GENERATION FAILED: {exc}")
+            return False
 
     def _print_summary(self, duration_ms: int) -> None:
         if self.scope:

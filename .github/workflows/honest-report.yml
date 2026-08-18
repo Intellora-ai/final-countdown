@@ -20,13 +20,7 @@ jobs:
       # unestablished contract is information, not a broken build, and
       # collapsing it into PASS/FAIL is exactly the overclaim Layer 10 forbids.
       - name: All ten layers, per function
-        run: |
-          set -euo pipefail
-          python3 scripts/spec_source.py specs/*_spec.lean > /tmp/pairs.txt
-          cut -d= -f2 /tmp/pairs.txt | sort -u | while read -r src; do
-            specs=$(grep "=${src}$" /tmp/pairs.txt | cut -d= -f1 | tr '\n' ' ')
-            python3 scripts/honest_report.py $specs --min-strength 0.9
-          done
+        run: python3 scripts/run_gate.py --name honest-report -- bash scripts/verify_per_function.sh scripts/honest_report.py --min-strength 0.9
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4

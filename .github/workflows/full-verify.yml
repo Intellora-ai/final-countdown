@@ -22,6 +22,31 @@ jobs:
         run: python3 scripts/gate_integrity.py
       - name: Spec strength
         run: python3 scripts/run_gate.py --name enforce-spec -- python3 scripts/enforce_spec.py specs/*_spec.lean
+      # ALL TEN MANDATORY GATES RUN HERE.
+      # The aggregator's rule is that a mandatory gate with no report is UNKNOWN
+      # and fails. The honest way to satisfy that rule is to run every gate, not
+      # to tell the aggregator to expect fewer. Passing a hand-written list of
+      # "gates this job runs" would create a second copy of that list which
+      # nothing validates: delete a step and delete its name from the list in
+      # the same commit, and the check goes green with a gate gone — the exact
+      # hole scripts/gate_integrity.py exists to close. ci/gates.toml stays the
+      # single source of truth for what must run.
+      - name: Spec strength as a set
+        run: python3 scripts/run_gate.py --name spec-strength -- python3 scripts/check_composition.py specs/*_spec.lean --min-strength 0.9
+      - name: Vacuity
+        run: python3 scripts/run_gate.py --name vacuity-check -- python3 scripts/check_vacuity.py specs/*_spec.lean
+      - name: Counterexample search
+        run: python3 scripts/run_gate.py --name counterexample-search -- python3 scripts/find_counterexample.py specs/*_spec.lean
+      # The next three verify per function rather than per file. They call the
+      # same scripts/verify_per_function.sh their own workflows call, so the loop
+      # has one definition and this job cannot drift into checking something
+      # weaker than the dedicated check does.
+      - name: Spec composition per function
+        run: python3 scripts/run_gate.py --name spec-composition -- bash scripts/verify_per_function.sh scripts/check_composition.py --min-strength 0.9
+      - name: Mutation discrimination per function
+        run: python3 scripts/run_gate.py --name mutmut -- bash scripts/verify_per_function.sh scripts/mutation_gate.py --min-score 0.95
+      - name: All ten layers per function
+        run: python3 scripts/run_gate.py --name honest-report -- bash scripts/verify_per_function.sh scripts/honest_report.py --min-strength 0.9
       - name: AXLE proofs
         run: python3 scripts/run_gate.py --name axle-verify -- bash scripts/verify_with_axle.sh
       - name: Tests + coverage
@@ -32,7 +57,8 @@ jobs:
         run: python3 scripts/run_gate.py --name bandit -- python3 scripts/security_gate.py src scripts
       # Every gate above wrote reports/<name>.json to this filesystem, so the
       # manifest here is a real aggregate. It only summarises: a missing report
-      # is UNKNOWN and fails the run.
+      # is UNKNOWN and fails the run, and so is a report that does not carry
+      # this run's commit, run id and workflow.
       - name: Gate manifest
         if: always()
         run: python3 scripts/aggregate_gates.py

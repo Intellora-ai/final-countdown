@@ -36,7 +36,11 @@ PY = sys.executable
 PAT_PREFIX = "github" + "_pat_"
 PAT_ID = "A1b2C3d4E5f6G7h8I9j0K1"          # 22 chars, as a real token id is
 FINE_GRAINED_PAT = PAT_PREFIX + PAT_ID
-CLASSIC_TOKEN = "gh" + "p_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"
+# The id half is split too: at 36 characters it is long enough to trip the
+# high-entropy rule on its own, without the `ghp_` prefix. Every literal here
+# stays under the 32-character threshold so the file cannot flag itself, while
+# the concatenated value is unchanged and still exercises the detector.
+CLASSIC_TOKEN = "gh" + "p_" + "A1b2C3d4E5f6G7h8" + "I9j0K1l2M3n4O5p6Q7r8"
 AWS_KEY_ID = "AKI" + "AIOSFODNN7EXAMPLE"
 PEM_HEADER = "-----" + "BEGIN RSA PRIVATE KEY-----"
 SK_KEY = "sk" + "-" + "A1b2C3d4E5f6G7h8I9j0"

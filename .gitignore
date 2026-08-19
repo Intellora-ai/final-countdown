@@ -9,3 +9,6 @@ htmlcov/
 .venv/
 venv/
 reports/
+node_modules/
+playwright-report/
+test-results/

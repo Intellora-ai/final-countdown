@@ -1,0 +1,30 @@
+{
+  "name": "final-countdown",
+  "version": "1.0.0",
+  "description": "Learning OS with 100% verified Python code via AXLE + Lean 4.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Intellora-ai/final-countdown.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Intellora-ai/final-countdown/issues"
+  },
+  "homepage": "https://github.com/Intellora-ai/final-countdown#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
+  }
+}

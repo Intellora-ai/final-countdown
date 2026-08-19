@@ -1,0 +1,75 @@
+name: e2e
+
+# BROWSER-LEVEL SMOKE TEST. Separate from `verify` on purpose.
+#
+# This workflow adds a check; it does not touch one. No job here shares an id
+# with any of the 16 required contexts in ci/gates.toml, so nothing it does can
+# satisfy, replace, or weaken an existing gate. It is not in `required_checks`
+# and does not become blocking unless the ruleset is edited by hand.
+#
+# WHY PYTHON IS INSTALLED IN A BROWSER WORKFLOW.
+# The page under test is this repository's coverage report, and that report is
+# produced by pytest. `.coverage` and `htmlcov/` are both gitignored, so the
+# artifact does not exist on a fresh checkout — it has to be generated before a
+# browser can open it. `-m "not axle"` keeps the run off the AXLE service:
+# the kernel checks are the `verify` workflow's job, and duplicating them here
+# would make this workflow fail for reasons that have nothing to do with the
+# browser.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: pip install --require-hashes -r requirements.lock
+
+      # Produces htmlcov/index.html, which is the page the browser test opens.
+      # Without this step the Playwright webServer has nothing to serve.
+      - name: Generate the coverage report under test
+        run: pytest --cov=src --cov-branch --cov-report=html -m "not axle" -q
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+
+      # `npm ci` installs exactly what package-lock.json pins and fails if the
+      # lockfile and package.json disagree. `npm install` would silently
+      # resolve new versions, which is the reproducibility hole this closes.
+      - name: Install Node dependencies from the lockfile
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # No `continue-on-error`: Playwright's exit code is the verdict.
+      - name: Run Playwright
+        run: npm run test:e2e
+
+      # Failure evidence only. On a green run there is nothing worth keeping,
+      # and uploading a report nobody opens is just storage.
+      - name: Preserve the report when the browser test fails
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore

@@ -75,10 +75,53 @@ DEFAULT_IDENTITY = {"commit": "GITHUB_SHA", "run_id": "GITHUB_RUN_ID",
                     "workflow": "GITHUB_WORKFLOW"}
 
 
+class CannotAggregate(Exception):
+    """The expected gate set could not be established, so nothing can be
+    concluded about it. Distinct from "aggregated, and something failed"."""
+
+
 def load_manifest() -> dict[str, Any]:
+    """The canonical gate set, or a refusal to proceed without it.
+
+    NO GATES IS NOT ALL GATES PASSING.
+
+    This used to return `{}` when ci/gates.toml was absent, and `{}` flows
+    straight through: `topology()` finds no gates, `expected` is empty,
+    `blocking` is empty, `overall` becomes PASS and the process exits 0.
+    Measured on a copy with no manifest --
+
+        [GATE MANIFEST] overall=PASS  mergeable=True
+        expected 0 gate(s), admissible reports 0        exit 0
+
+    -- which is the one component whose stated job is that absence must be
+    fail-closed, failing open on the absence of its own manifest. Deleting one
+    file turned twelve gates into zero and reported success.
+
+    It is not reachable through CI today, because removing ci/gates.toml also
+    reddens `preflight`. That is a second control happening to cover this one,
+    not this one being correct, and a control that depends on another control
+    noticing is not fail-closed.
+
+    An unreadable or malformed manifest is the same condition: the expected set
+    is unknown, so no claim about it can be made. Both raise, and main()
+    reports INFRASTRUCTURE_FAILURE with a non-zero exit rather than a verdict.
+    """
     if not MANIFEST.is_file():
-        return {}
-    return tomllib.loads(MANIFEST.read_text(encoding="utf-8"))
+        raise CannotAggregate(
+            f"{MANIFEST} is missing, so the expected gate set is unknown. "
+            "An empty expected set is not an empty set of requirements; it is "
+            "the absence of the record that says what was required.")
+    try:
+        parsed = tomllib.loads(MANIFEST.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        raise CannotAggregate(f"{MANIFEST} could not be read: {exc}") from exc
+    gates = parsed.get("gates")
+    if not isinstance(gates, dict) or not gates:
+        raise CannotAggregate(
+            f"{MANIFEST} declares no gates. A manifest with an empty gate "
+            "table cannot distinguish 'nothing was required' from 'the "
+            "requirements were lost'.")
+    return parsed
 
 
 def topology(manifest: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
@@ -196,7 +239,30 @@ def main() -> int:
     ns = ap.parse_args()
     root = Path(ns.evidence_root)
 
-    expected, identity_fields = topology(load_manifest())
+    try:
+        expected, identity_fields = topology(load_manifest())
+    except CannotAggregate as exc:
+        # INFRASTRUCTURE_FAILURE, not FAIL: nothing was judged, so there is no
+        # verdict to report. Printed in the same shape a reader already knows
+        # so it cannot be mistaken for a normal red run, and returned as 2 so
+        # "could not run" is distinguishable from "ran and something failed".
+        bar = "=" * 72
+        print(f"\n{bar}\n[GATE MANIFEST] overall=INFRASTRUCTURE_FAILURE  "
+              f"mergeable=False\n{bar}")
+        print(f"  {exc}")
+        print("\n  No gates is not all gates passing. Nothing was aggregated, "
+              "so nothing is claimed.")
+        summary = os.environ.get("GITHUB_STEP_SUMMARY")
+        if summary:
+            try:
+                with open(summary, "a", encoding="utf-8") as fh:
+                    fh.write(f"## ❌ Gate manifest — INFRASTRUCTURE_FAILURE\n\n"
+                             f"{exc}\n")
+            except OSError:
+                pass
+        print(f"::error title=gate manifest::{str(exc)[:900]}")
+        return 2
+
     identity = run_identity(identity_fields)
     found, rejected, seen = load_reports(root, identity)
 

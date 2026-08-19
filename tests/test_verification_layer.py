@@ -466,3 +466,197 @@ def test_a_stripped_path_never_produces_a_green_gate(
         rep = cast("dict[str, Any]", json.loads(path.read_text(encoding="utf-8")))
         assert rep["status"] != "PASS", f"{path.name} claimed PASS with no toolchain"
         assert rep["mergeable_contribution"] is False
+
+
+# ==========================================================================
+# ONE WRITER PER REPORT PATH
+#
+# `reports/<gate>.json` had two writers for `correspondence`.
+# correspondence_gate.py opens Gate("correspondence") and records one finding
+# per bad pair, each carrying a runnable
+# `python3 scripts/gen_correspondence.py --function <name>`. ci/gates.toml then
+# mandates the whole thing run inside `run_gate.py --name correspondence`, and
+# the wrapper opened Gate("correspondence") too. Same path, last writer wins.
+#
+# Measured against a five-finding stand-in, before the fix:
+#
+#     inner alone            failures: 5  checks: 5
+#     through run_gate.py    failures: 1  checks: 1
+#     surviving fix command: False
+#
+# Every per-function finding was destroyed between being written and being
+# uploaded. gate_integrity enforces the wrapper token, so the collision was
+# required by the contract rather than accidental, and nothing tested it.
+#
+# The control matters as much as the fix. run_gate.py wraps ten gates and eight
+# of them run tools that write no report at all -- pyright, bandit, coverage,
+# mutmut, spec-strength, spec-composition, honest-report, vacuity-check,
+# counterexample-search. Making the wrapper stop writing would have traded one
+# data-loss bug for eight silent gates.
+# ==========================================================================
+
+INNER_GATE = '''
+import sys, pathlib
+sys.path.insert(0, {scripts!r})
+from gate import Gate
+with Gate({name!r}) as g:
+    for i in range({n}):
+        g.check("pair %d" % i, False, "stale")
+        g.fail(what="denotation %d is stale" % i,
+               where="src/add.py:%d" % (10 + i),
+               why="the committed pair does not match a regeneration",
+               requirement="Every pair must be fresh.",
+               fix="python3 scripts/gen_correspondence.py --function fn%d" % i)
+    g.failed()
+'''
+
+
+def wrap(work: Path, name: str, inner: list[str]) -> subprocess.CompletedProcess[str]:
+    """Run the real wrapper over `inner`, in a workspace with its own reports/."""
+    env = dict(os.environ)
+    env.pop("GITHUB_STEP_SUMMARY", None)
+    for var in ("GITHUB_SHA", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT",
+                "GITHUB_WORKFLOW"):
+        env.pop(var, None)
+    return subprocess.run(
+        [PY, str(work / "scripts" / "run_gate.py"), "--name", name, "--", *inner],
+        cwd=work, capture_output=True, text=True, timeout=300, env=env)
+
+
+@pytest.fixture
+def wrapper_workspace(tmp_path: Path) -> Path:
+    """A tree with the real wrapper and its own reports/ directory."""
+    import shutil
+    work = tmp_path / "w"
+    shutil.copytree(REPO / "scripts", work / "scripts")
+    (work / "reports").mkdir(parents=True)
+    return work
+
+
+def test_a_wrapped_verifier_keeps_every_finding_it_wrote(
+        wrapper_workspace: Path, tmp_path: Path) -> None:
+    """The defect. Five findings in, five findings out."""
+    work = wrapper_workspace
+    inner = tmp_path / "inner.py"
+    inner.write_text(INNER_GATE.format(scripts=str(work / "scripts"),
+                                       name="probe", n=5), encoding="utf-8")
+
+    result = wrap(work, "probe", [PY, str(inner)])
+    assert result.returncode != 0, "a failing inner gate must fail the wrapper"
+
+    doc = report(work, "probe")
+    failures = cast("list[dict[str, Any]]", doc["failures"])
+    assert len(failures) == 5, (
+        f"the wrapper kept {len(failures)} of 5 findings; before the fix this "
+        f"was 1\n{result.stdout[-600:]}")
+    assert all(f"denotation {i} is stale" in str(failures) for i in range(5))
+
+
+def test_the_runnable_fix_command_survives_the_wrapper(
+        wrapper_workspace: Path, tmp_path: Path) -> None:
+    """What was actually lost. `how_to_fix` carried a command to paste.
+
+    The wrapper's own record says "Read reports/ and the log above", which is
+    advice. The inner record says exactly which function to regenerate. Losing
+    the second and keeping the first is the difference between a finding and a
+    shrug.
+    """
+    work = wrapper_workspace
+    inner = tmp_path / "inner.py"
+    inner.write_text(INNER_GATE.format(scripts=str(work / "scripts"),
+                                       name="probe", n=3), encoding="utf-8")
+    wrap(work, "probe", [PY, str(inner)])
+
+    failures = cast("list[dict[str, Any]]", report(work, "probe")["failures"])
+    commands = [f.get("how_to_fix", "") for f in failures]
+    assert any("gen_correspondence.py --function fn0" in c for c in commands), (
+        f"the runnable fix command did not survive: {commands}")
+
+
+def test_the_wrappers_own_verdict_still_decides(
+        wrapper_workspace: Path, tmp_path: Path) -> None:
+    """An inner report is evidence, not a verdict.
+
+    A verifier that records findings and then exits 0 must not turn the gate
+    green by having written a report -- and one that claims PASS internally
+    must not survive a non-zero exit.
+    """
+    work = wrapper_workspace
+    inner = tmp_path / "passing.py"
+    inner.write_text(
+        f"import sys, pathlib\n"
+        f"sys.path.insert(0, {str(work / 'scripts')!r})\n"
+        f"from gate import Gate\n"
+        f"g = Gate('probe').__enter__()\n"
+        f"g.check('a check', True)\n"
+        f"g.passed()\n"
+        f"g.__exit__(None, None, None)\n"
+        f"sys.exit(1)\n", encoding="utf-8")
+
+    result = wrap(work, "probe", [PY, str(inner)])
+    assert result.returncode != 0
+    assert report(work, "probe")["status"] == "FAIL", (
+        "an inner PASS survived a non-zero exit code")
+
+
+def test_a_wrapper_only_gate_still_produces_a_report(
+        wrapper_workspace: Path) -> None:
+    """THE CONTROL, and the reason the wrapper still writes.
+
+    Eight of the ten gates run tools that write no report. If the wrapper
+    stopped constructing a Gate, those eight would produce no evidence and the
+    finalizer would block every one of them as MISSING.
+    """
+    work = wrapper_workspace
+    result = wrap(work, "probe2",
+                  [PY, "-c", "import sys; print('boom'); sys.exit(1)"])
+    assert result.returncode != 0
+
+    doc = report(work, "probe2")
+    assert doc["status"] == "FAIL"
+    assert len(cast("list[Any]", doc["failures"])) == 1, (
+        "a tool that writes no report must still produce exactly one record")
+
+
+def test_a_report_left_by_an_earlier_run_is_not_adopted(
+        wrapper_workspace: Path, tmp_path: Path) -> None:
+    """Freshness. A stale PASS must not supply findings for a commit it never saw.
+
+    Compared by fingerprint rather than against a clock: on a filesystem with
+    one-second mtime granularity a stale report written in the same second the
+    wrapper starts is indistinguishable from one the wrapped process just
+    wrote. Comparing the file against itself has no such window.
+    """
+    work = wrapper_workspace
+    inner = tmp_path / "inner.py"
+    inner.write_text(INNER_GATE.format(scripts=str(work / "scripts"),
+                                       name="probe", n=5), encoding="utf-8")
+    subprocess.run([PY, str(inner)], cwd=work, capture_output=True, timeout=300)
+    assert len(cast("list[Any]", report(work, "probe")["failures"])) == 5
+
+    # A different tool, under the same gate id, that writes nothing.
+    wrap(work, "probe", [PY, "-c", "import sys; print('x'); sys.exit(1)"])
+
+    failures = cast("list[dict[str, Any]]", report(work, "probe")["failures"])
+    assert len(failures) == 1, "a leftover report was adopted"
+    assert "denotation" not in str(failures), (
+        "findings from an earlier run leaked into this one")
+
+
+def test_every_wrapped_gate_in_the_workflow_has_one_writer() -> None:
+    """The standing rule, asserted against the real workflow.
+
+    A gate whose wrapped command contains a second `run_gate.py` would write
+    the same path twice with no adoption between them. Nothing declared this
+    before; the correspondence collision existed for exactly that reason.
+    """
+    import re as _re
+    text = (REPO / ".github" / "workflows" / "verify.yml").read_text(
+        encoding="utf-8")
+    for line in text.splitlines():
+        if "run_gate.py --name" not in line:
+            continue
+        names = _re.findall(r"run_gate\.py --name (\S+)", line)
+        assert len(names) == 1, (
+            f"two wrappers on one line would write one report path twice: "
+            f"{names} in {line.strip()[:120]}")

@@ -67,7 +67,15 @@ workflow = "verify.yml"
 job = "preflight"
 mandatory = true
 role = "integrity"
-must_contain = ["scripts/gate_integrity.py", "scripts/tcb_gate.py"]
+# check_ruleset.py is listed here, not just called in the workflow, because
+# listing it is what makes the wiring survive. gate_integrity.py then requires
+# a preflight step that actually EXECUTES it, with no `if:`, no
+# continue-on-error and no `|| true` — so deleting the step, commenting it out
+# or conditioning it away fails preflight instead of silently restoring the
+# state this file spent its existence describing: a verification topology
+# nothing compares against the live ruleset.
+must_contain = ["scripts/gate_integrity.py", "scripts/tcb_gate.py",
+                "scripts/check_ruleset.py"]
 evidence = "reports/preflight.json"
 artifact = "reports-preflight"
 

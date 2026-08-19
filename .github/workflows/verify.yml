@@ -77,6 +77,41 @@ jobs:
       # and a one-person repository has none.
       - name: Trusted computing base
         run: python3 scripts/tcb_gate.py --base origin/${{ github.base_ref || 'main' }}
+      # The manifest agreeing with the workflows is not the manifest agreeing
+      # with GitHub. gate_integrity check 9 compares ci/gates.toml against
+      # itself; this compares it against the live ruleset, which is the only
+      # place the answer to "is this check actually REQUIRED?" exists. Until
+      # now nothing in CI ran it, so an admin edit to ruleset 20990225 —
+      # dropping a required check, unpinning a context so any actor can satisfy
+      # it — went unnoticed until someone happened to run the script by hand.
+      #
+      # DRIFT TURNS THE WHOLE RUN RED, AND THAT IS THE POINT. preflight is
+      # mandatory, so this failing fails everything. It has to: preflight is
+      # itself one of the 17 required contexts, so when an admin removes a
+      # DIFFERENT check from the ruleset, preflight going red is the only thing
+      # left blocking the merge. A drift check that merely warned would be a
+      # diagnostic, not a gate.
+      #
+      # BEFORE gate_integrity, deliberately, for the same reason the TCB gate
+      # is: gate_integrity is what writes reports/preflight.json. Running this
+      # after it would mean a drift failure left behind a preflight.json saying
+      # PASS, and aggregate_gates.py reads reports, not job conclusions — so
+      # `full` would certify a complete, all-green run while preflight was red.
+      # Failing first means no preflight evidence exists, the aggregator turns
+      # that absence into a blocking UNKNOWN, and both required checks agree.
+      #
+      # No `if:` and no `continue-on-error`: gate_integrity forbids both on a
+      # must_contain step, and a fork pull request must not become a hole. The
+      # script needs no credentials to avoid one — a public repository's
+      # rulesets are public, confirmed at HTTP 200 with no auth — so GH_TOKEN
+      # only buys the authenticated 1000/hr rate limit, and the script falls
+      # back to an anonymous read when the token is absent or refused. Exit 1
+      # is drift, exit 2 is "could not read the ruleset"; both are red, because
+      # "could not compare" is not "aligned".
+      - name: Ruleset alignment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/check_ruleset.py
       - name: Gate integrity
         run: python3 scripts/gate_integrity.py
       - name: Upload evidence
@@ -228,28 +263,14 @@ jobs:
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
-      # `--junitxml` writes the standard per-test report. The gate does NOT
-      # parse it -- it reads pytest's short summary out of captured stdout,
-      # because parsing XML in-process would mean `xml.etree`, which bandit
-      # flags (B405/B314), and clearing that would add a verified exemption to
-      # security_gate.py for a file this workflow generated seconds earlier.
-      # The XML is emitted and uploaded anyway: it costs one flag, it is the
-      # format every other tool understands, and keeping it means the gate's
-      # decision path and the interchange format are not the same dependency.
       - name: Tests + branch coverage
-        run: python3 scripts/run_gate.py --name coverage -- pytest --cov=src --cov-branch --cov-fail-under=95 -m "not axle" --junitxml=test-results/pytest.xml
+        run: python3 scripts/run_gate.py --name coverage -- pytest --cov=src --cov-branch --cov-fail-under=95 -m "not axle"
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: reports-coverage
-          # test-results/ is listed second and the upload does not require it:
-          # a crash before pytest writes the XML must still deliver
-          # reports/coverage.json, which is the evidence the finalizer needs.
-          # `if-no-files-found: error` still fires when BOTH are missing.
-          path: |
-            reports/
-            test-results/
+          path: reports/
           retention-days: 30
           if-no-files-found: error
 

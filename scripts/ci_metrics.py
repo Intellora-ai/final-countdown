@@ -12,7 +12,7 @@ import datetime as dt
 import json
 import shutil
 import statistics
-import subprocess
+import subprocess  # nosec B404: required for fixed local `gh` CLI invocation; shell disabled and argv is fixed/validated
 import sys
 from collections import defaultdict
 from pathlib import Path

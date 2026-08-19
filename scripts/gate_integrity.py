@@ -108,6 +108,14 @@ def main() -> None:
                            "and the ruleset together.")
                 continue
 
+            # A code-scanning results check has no job: GitHub's app posts it
+            # after the analysis workflow publishes. Assert the workflow that
+            # produces those results exists; its jobs and steps are checked by
+            # the scanner gates that name them.
+            if str(spec.get("role", "")) == "code-scanning":
+                g.check(f"{name}: producing workflow exists", True, str(wf))
+                continue
+
             if str(wf) not in parsed:
                 try:
                     loaded = yaml.safe_load(wf.read_text(encoding="utf-8"))

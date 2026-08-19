@@ -33,7 +33,7 @@ required_checks = [
   "axle-verify", "spec-strength", "spec-composition", "vacuity-check",
   "counterexample-search", "honest-report", "coverage", "pyright",
   "bandit", "mutmut", "correspondence",
-  "codeql-python", "codeql-actions",
+  "codeql-python", "codeql-actions", "CodeQL",
   "full",
 ]
 
@@ -199,6 +199,23 @@ mandatory = true
 role = "scanner"
 must_contain = ["github/codeql-action/init@v3", "github/codeql-action/analyze@v3"]
 evidence = "github code scanning, category /language:actions"
+artifact = ""
+
+# The code-scanning RESULTS check. Not a workflow job — GitHub's
+# github-advanced-security app (57789) posts it once CodeQL results land, and
+# it is what turns a finding into a blocked merge. Required alongside the two
+# analysis jobs because they answer different questions: the jobs prove the
+# analysis RAN on this commit, this proves the results were CLEAN. Requiring
+# only the results check would let deleting codeql.yml pass on stale data;
+# requiring only the jobs would let a green analysis full of alerts through.
+[gates.CodeQL]
+workflow = "codeql.yml"
+job = ""
+mandatory = true
+role = "code-scanning"
+integration_id = 57789
+must_contain = []
+evidence = "github code scanning results check"
 artifact = ""
 
 # ---------------------------------------------------------------------------

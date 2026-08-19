@@ -161,9 +161,21 @@ def main() -> int:
         params = cast("dict[str, Any]", rule["parameters"])
         existing = cast("list[Any]", params["required_status_checks"])
         have = {str(cast("dict[str, Any]", c).get("context")) for c in existing}
-        added = [c for c in wanted if c not in have]
-        for context in added:
-            existing.append({"context": context, "integration_id": ACTIONS_APP})
+        # `context` or `context:app_id`. The app id must be the one GitHub
+        # actually used for that check run — code scanning reports under
+        # github-advanced-security (57789), not github-actions (15368), and a
+        # context pinned to the wrong app never matches, which would leave the
+        # PR pending forever instead of failing.
+        parsed_wanted: list[tuple[str, int]] = []
+        for spec in wanted:
+            name, _, app = spec.partition(":")
+            parsed_wanted.append((name, int(app) if app else ACTIONS_APP))
+        wanted = [n for n, _ in parsed_wanted]
+        added = [n for n, _ in parsed_wanted if n not in have]
+        for name, app_id in parsed_wanted:
+            if name in have:
+                continue
+            existing.append({"context": name, "integration_id": app_id})
 
         body = body_from(before)
         put(body)

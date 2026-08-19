@@ -55,6 +55,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import blocker_report  # noqa: E402 - path must be set before this import
+
 REPORTS = Path("reports")
 MANIFEST = Path("ci/gates.toml")
 MANIFEST_NAME = "gate-manifest.json"
@@ -310,6 +313,19 @@ def main() -> int:
             pass
 
     print(f"\n  evidence: reports/{MANIFEST_NAME}")
+
+    # The blockers-first view, printed last so it is what a reader lands on
+    # when the log opens at the end. It renders `out`, which is already
+    # decided and already written to disk above -- it computes no status and
+    # cannot change `overall`. A crash in rendering must not turn a FAIL into
+    # a PASS, so it is caught and reported rather than allowed to propagate:
+    # the return below is the verdict either way.
+    try:
+        blocker_report.emit(out, MERGEABLE)
+    except Exception as exc:  # noqa: BLE001 - rendering must never decide
+        print(f"\n  [blocker report unavailable: {exc!r}] "
+              f"the verdict above stands; see reports/{MANIFEST_NAME}")
+
     return 0 if overall == "PASS" else 1
 
 

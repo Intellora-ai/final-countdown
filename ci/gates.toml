@@ -33,6 +33,7 @@ required_checks = [
   "axle-verify", "spec-strength", "spec-composition", "vacuity-check",
   "counterexample-search", "honest-report", "coverage", "pyright",
   "bandit", "mutmut", "correspondence",
+  "codeql-python", "codeql-actions",
   "full",
 ]
 
@@ -170,6 +171,35 @@ role = "gate"
 must_contain = ["scripts/correspondence_gate.py", "pytest -m axle"]
 evidence = "reports/correspondence.json"
 artifact = "reports-correspondence"
+
+# ---------------------------------------------------------------------------
+# SCANNERS — CodeQL. Mandatory, and deliberately NOT in verify.yml: they need
+# `security-events: write`, and their evidence is the code-scanning database,
+# not a reports/*.json. role = "scanner" is what tells the integrity checker
+# not to demand an artifact and the finalizer not to expect a report; every
+# other structural check still applies.
+#
+# The ruleset's `code_scanning` rule already required the CodeQL TOOL. These
+# make the WORKFLOW required too, which is the difference between "GitHub will
+# read CodeQL results if they exist" and "results must exist".
+# ---------------------------------------------------------------------------
+[gates.codeql-python]
+workflow = "codeql.yml"
+job = "codeql-python"
+mandatory = true
+role = "scanner"
+must_contain = ["github/codeql-action/init@v3", "github/codeql-action/analyze@v3"]
+evidence = "github code scanning, category /language:python"
+artifact = ""
+
+[gates.codeql-actions]
+workflow = "codeql.yml"
+job = "codeql-actions"
+mandatory = true
+role = "scanner"
+must_contain = ["github/codeql-action/init@v3", "github/codeql-action/analyze@v3"]
+evidence = "github code scanning, category /language:actions"
+artifact = ""
 
 # ---------------------------------------------------------------------------
 # FINALIZER — downloads every gate's artifact from THIS run and proves the

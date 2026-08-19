@@ -20,6 +20,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from typing import Any, cast
 
 REPO = Path(__file__).resolve().parent.parent
 SCRIPTS = REPO / "scripts"
@@ -104,8 +105,12 @@ def all_gates(cwd: Path) -> list[str]:
     """
     import tomllib
     data = tomllib.loads((cwd / "ci" / "gates.toml").read_text(encoding="utf-8"))
+    # `finalizer` has not reported when it runs; `scanner` (CodeQL) runs in
+    # another workflow and publishes to code scanning, so neither contributes a
+    # reports/*.json to this run's evidence tree.
     return [n for n, spec in data["gates"].items()
-            if spec.get("mandatory") and spec.get("role") != "finalizer"]
+            if spec.get("mandatory")
+            and spec.get("role") not in {"finalizer", "scanner"}]
 
 
 # --------------------------------------------------------------------------
@@ -841,3 +846,102 @@ def test_preflight_is_itself_mandatory(sandbox: Path) -> None:
     assert data["gates"]["preflight"]["mandatory"] is True
     assert "preflight" in data["ruleset"]["required_checks"]
     assert "full" in data["ruleset"]["required_checks"]
+
+
+# ==========================================================================
+# Attack 25 — the two enforcement blockers: preflight and CodeQL
+#
+# Both exist to be REQUIRED. A scanner that runs and reports, but that GitHub
+# does not require, blocks nothing — and an integrity check outside the
+# enforcement boundary is a diagnostic, not a gate.
+# ==========================================================================
+CODEQL = ".github/workflows/codeql.yml"
+
+
+def manifest_of(sandbox: Path) -> dict[str, Any]:
+    import tomllib
+    return tomllib.loads((sandbox / "ci" / "gates.toml").read_text(encoding="utf-8"))
+
+
+def test_codeql_and_preflight_are_mandatory_and_required(sandbox: Path) -> None:
+    data = manifest_of(sandbox)
+    gates = cast_dict(data["gates"])
+    required = set(cast_list(cast_dict(data["ruleset"])["required_checks"]))
+    for name in ("preflight", "full", "codeql-python", "codeql-actions"):
+        assert cast_dict(gates[name])["mandatory"] is True, name
+        assert name in required, f"{name} is mandatory but not required"
+
+
+def cast_dict(v: object) -> dict[str, Any]:
+    assert isinstance(v, dict)
+    return cast("dict[str, Any]", v)
+
+
+def cast_list(v: object) -> list[Any]:
+    assert isinstance(v, list)
+    return cast("list[Any]", v)
+
+
+def test_attack_codeql_workflow_deleted_is_caught(sandbox: Path) -> None:
+    (sandbox / CODEQL).unlink()
+    result = integrity(sandbox)
+    assert result.returncode != 0, "deleting the CodeQL workflow was not caught"
+    assert "lost its workflow" in result.stdout
+
+
+def test_attack_codeql_job_renamed_is_caught(sandbox: Path) -> None:
+    wf = sandbox / CODEQL
+    wf.write_text(wf.read_text().replace("\n  codeql-python:", "\n  codeql_py:", 1))
+    result = integrity(sandbox)
+    assert result.returncode != 0, "renaming a CodeQL job was not caught"
+    assert "renamed or removed" in result.stdout
+
+
+def test_attack_codeql_analyze_step_removed_is_caught(sandbox: Path) -> None:
+    """Init without analyze produces no results, and no results is not clean."""
+    wf = sandbox / CODEQL
+    text = wf.read_text()
+    wf.write_text("\n".join(l for l in text.splitlines()
+                            if "codeql-action/analyze@v3" not in l))
+    result = integrity(sandbox)
+    assert result.returncode != 0, "removing the analyze step was not caught"
+    assert "no longer invokes its command" in result.stdout
+
+
+def test_attack_codeql_step_conditioned_away_is_caught(sandbox: Path) -> None:
+    wf = sandbox / CODEQL
+    text = wf.read_text()
+    line = next(l for l in text.splitlines() if "codeql-action/analyze@v3" in l)
+    indent = " " * (len(line) - len(line.lstrip()))
+    wf.write_text(text.replace(line, f"{line}\n{indent}if: false", 1))
+    result = integrity(sandbox)
+    assert result.returncode != 0, "a conditioned-away CodeQL analysis passed"
+    assert "runs conditionally" in result.stdout
+
+
+def test_attack_continue_on_error_on_codeql_is_caught(sandbox: Path) -> None:
+    wf = sandbox / CODEQL
+    wf.write_text(wf.read_text().replace(
+        "  codeql-python:\n", "  codeql-python:\n    continue-on-error: true\n", 1))
+    result = integrity(sandbox)
+    assert result.returncode != 0, "continue-on-error on CodeQL was not caught"
+    assert "continue-on-error" in result.stdout
+
+
+def test_codeql_workflow_has_no_untrusted_interpolation(sandbox: Path) -> None:
+    """A workflow that interpolates event text into a shell is the injection
+    class CodeQL's `actions` pack exists to find. Not in our own file."""
+    import re
+    text = (sandbox / CODEQL).read_text(encoding="utf-8")
+    assert not re.search(r"\$\{\{\s*github\.(event|head_ref)", text)
+
+
+def test_scanner_role_is_exempt_only_from_the_artifact_check(sandbox: Path) -> None:
+    """CodeQL publishes to code scanning, not to reports/ — but every
+    structural check still applies, which the sabotage tests above prove."""
+    gates = cast_dict(manifest_of(sandbox)["gates"])
+    for name in ("codeql-python", "codeql-actions"):
+        spec = cast_dict(gates[name])
+        assert spec["role"] == "scanner"
+        assert spec["artifact"] == ""
+        assert "code scanning" in str(spec["evidence"])

@@ -87,8 +87,14 @@ def topology(manifest: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
     it expects to find, and only from that set.
     """
     gates: dict[str, dict[str, Any]] = manifest.get("gates", {})
+    # `finalizer` cannot have reported before it runs. `scanner` runs in
+    # another workflow and publishes to code scanning rather than to reports/,
+    # so its artifact is not in this run's evidence tree; the ruleset enforces
+    # it directly instead. Both are excluded from the expected-report set and
+    # from nothing else.
+    excluded = {"finalizer", "scanner"}
     expected = [name for name, spec in gates.items()
-                if spec.get("mandatory") and spec.get("role") != "finalizer"]
+                if spec.get("mandatory") and spec.get("role") not in excluded]
     schema: dict[str, Any] = manifest.get("schema", {})
     declared = schema.get("run_identity")
     identity = cast("dict[str, str]", declared) if isinstance(declared, dict) \

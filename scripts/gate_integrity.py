@@ -208,7 +208,16 @@ def main() -> None:
                                    fix="Remove `|| true` / `|| echo` from the "
                                        "gate command.")
 
-            # 7. evidence must be uploaded, and its absence must be loud
+            # 7. evidence must be uploaded, and its absence must be loud.
+            # A scanner is exempt from THIS check only: CodeQL's result is a
+            # code-scanning analysis, not a file in reports/. Its job, its
+            # invocation, its conditions and its failure propagation are all
+            # still checked above, and the ruleset's code_scanning rule is what
+            # reads the result.
+            if str(spec.get("role", "")) == "scanner":
+                g.check(f"{name}: publishes to code scanning", True,
+                        str(spec.get("evidence", "")))
+                continue
             artifact = str(spec.get("artifact", ""))
             uploads = [s for s in steps
                        if "upload-artifact" in str(s.get("uses", ""))

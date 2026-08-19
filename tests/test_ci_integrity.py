@@ -110,7 +110,8 @@ def all_gates(cwd: Path) -> list[str]:
     # reports/*.json to this run's evidence tree.
     return [n for n, spec in data["gates"].items()
             if spec.get("mandatory")
-            and spec.get("role") not in {"finalizer", "scanner"}]
+            and spec.get("role") not in {"finalizer", "scanner",
+                                          "code-scanning"}]
 
 
 # --------------------------------------------------------------------------
@@ -995,3 +996,23 @@ def test_real_launchers_still_count_as_execution(sandbox: Path) -> None:
                     "scripts/axle_gate.py")
     assert not executes("echo python3 scripts/axle_gate.py", "scripts/axle_gate.py")
     assert not executes("# python3 scripts/axle_gate.py", "scripts/axle_gate.py")
+
+
+def test_only_app_posted_roles_are_exempt_from_reporting(sandbox: Path) -> None:
+    """Every mandatory gate that IS a workflow job must still report.
+
+    The exemption exists because three roles genuinely produce no
+    reports/*.json in the verify run. If it ever widened to a role that runs as
+    a job, that gate could go missing and the finalizer would not notice.
+    """
+    import tomllib
+    data = tomllib.loads((sandbox / "ci" / "gates.toml").read_text(encoding="utf-8"))
+    exempt = {"finalizer", "scanner", "code-scanning"}
+    for name, spec in cast_dict(data["gates"]).items():
+        s = cast_dict(spec)
+        if not s.get("mandatory"):
+            continue
+        if s.get("role") in exempt:
+            continue
+        assert s.get("job"), f"{name} must name the job that produces its report"
+        assert s.get("artifact"), f"{name} must declare an artifact"

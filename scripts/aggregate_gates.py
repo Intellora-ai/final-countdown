@@ -92,7 +92,14 @@ def topology(manifest: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
     # so its artifact is not in this run's evidence tree; the ruleset enforces
     # it directly instead. Both are excluded from the expected-report set and
     # from nothing else.
-    excluded = {"finalizer", "scanner"}
+    # Roles that legitimately produce no reports/*.json in THIS run:
+    #   finalizer      has not reported when it runs — its evidence is the
+    #                  manifest it is writing
+    #   scanner        CodeQL analysis, another workflow, publishes to code
+    #                  scanning
+    #   code-scanning  the results check, posted by GitHub's app, not a job
+    # Every other mandatory gate must be present, and absence still blocks.
+    excluded = {"finalizer", "scanner", "code-scanning"}
     expected = [name for name, spec in gates.items()
                 if spec.get("mandatory") and spec.get("role") not in excluded]
     schema: dict[str, Any] = manifest.get("schema", {})

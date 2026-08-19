@@ -68,6 +68,48 @@ def steps_of(job: dict[str, Any]) -> list[dict[str, Any]]:
     return [cast("dict[str, Any]", s) for s in steps if isinstance(s, dict)]
 
 
+# Programs that may legitimately launch a gate. Anything else in command
+# position is not an invocation — `echo python3 scripts/axle_gate.py` contains
+# the command and runs nothing, which is the exact "containment is not
+# execution" failure this checker exists to catch. An allowlist rather than a
+# denylist of printers, because an unknown launcher must fail closed.
+LAUNCHERS = {"python", "python3", "bash", "sh", "pytest", "pyright", "bandit",
+             "coverage", "mutmut"}
+
+
+def executes(run: str, token: str) -> bool:
+    """Does `run` actually EXECUTE something containing `token`?
+
+    Splits the script into command segments and requires the segment holding
+    the token to begin with the token itself or with a known launcher.
+    Comment lines are skipped: a comment naming a script is documentation, not
+    an invocation, and treating it as one would let a comment satisfy a gate.
+    """
+    for line in run.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if token not in line:
+            continue
+        for sep in ("&&", "||", ";", "|"):
+            line = line.replace(sep, "\n")
+        for segment in line.split("\n"):
+            if token not in segment:
+                continue
+            words = segment.strip().split()
+            if not words:
+                continue
+            head = words[0]
+            # `VAR=x cmd ...` — step past leading environment assignments.
+            i = 0
+            while i < len(words) and "=" in words[i] and not words[i].startswith("-"):
+                i += 1
+            head = words[i] if i < len(words) else head
+            if head == token or token in head or head in LAUNCHERS:
+                return True
+    return False
+
+
 def step_text(step: dict[str, Any]) -> str:
     """What a step EXECUTES: its `run` script and the action it `uses`.
 
@@ -172,7 +214,11 @@ def main() -> None:
 
             # 4-6. the step that actually invokes the gate
             for token in [str(c) for c in spec.get("must_contain", [])]:
-                carriers = [s for s in steps if token in step_text(s)]
+                # `uses:` is an action reference — the token IS what runs.
+                # `run:` needs the stronger test: present is not executed.
+                carriers = [s for s in steps
+                            if token in str(s.get("uses", ""))
+                            or executes(str(s.get("run", "")), token)]
                 g.check(f"{name}: invokes {token}", bool(carriers),
                         f"{len(carriers)} step(s)")
                 if not carriers:

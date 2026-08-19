@@ -945,3 +945,53 @@ def test_scanner_role_is_exempt_only_from_the_artifact_check(sandbox: Path) -> N
         assert spec["role"] == "scanner"
         assert spec["artifact"] == ""
         assert "code scanning" in str(spec["evidence"])
+
+
+# --------------------------------------------------------------------------
+# Attack 26 — the command is present and nothing runs it
+#
+# Found live, on this repository: `echo python3 scripts/axle_gate.py` passed
+# gate_integrity with exit 0. The string was there, the gate was gone, and
+# preflight went green — the exact failure the checker's own docstring names.
+# Containment is not execution, and neither is a comment.
+# --------------------------------------------------------------------------
+@pytest.mark.parametrize("prefix", ["echo", "printf", "cat", "true", ":"])
+def test_attack_gate_command_is_only_printed_not_run(sandbox: Path,
+                                                     prefix: str) -> None:
+    wf = sandbox / VERIFY
+    wf.write_text(wf.read_text().replace(
+        "        run: python3 scripts/axle_gate.py",
+        f"        run: {prefix} python3 scripts/axle_gate.py", 1))
+    result = integrity(sandbox)
+    assert result.returncode != 0, (
+        f"`{prefix} <gate command>` satisfied the gate — it runs nothing")
+    # `:` makes `run: : cmd` invalid YAML, so it is caught one step earlier.
+    # Either detection is correct; silently passing is the only failure.
+    assert ("no longer invokes its command" in result.stdout
+            or "not valid YAML" in result.stdout), result.stdout[-600:]
+
+
+def test_attack_gate_command_only_in_a_comment(sandbox: Path) -> None:
+    """A comment naming a verifier is documentation, not an invocation."""
+    wf = sandbox / VERIFY
+    wf.write_text(wf.read_text().replace(
+        "        run: python3 scripts/axle_gate.py",
+        "        run: |\n          # python3 scripts/axle_gate.py\n          true", 1))
+    result = integrity(sandbox)
+    assert result.returncode != 0, "a commented-out gate satisfied the gate"
+
+
+def test_real_launchers_still_count_as_execution(sandbox: Path) -> None:
+    """The fix must not reject the ways gates are actually launched here."""
+    import sys as _s
+    _s.path.insert(0, str(SCRIPTS))
+    from gate_integrity import executes
+    assert executes("python3 scripts/axle_gate.py", "scripts/axle_gate.py")
+    assert executes("bash scripts/verify_per_function.sh scripts/x.py --min 0.9",
+                    "scripts/x.py")
+    assert executes("python3 scripts/run_gate.py --name c -- pytest --cov-fail-under=95",
+                    "--cov-fail-under=95")
+    assert executes("AXLE_ENV=lean-4.33.0 python3 scripts/axle_gate.py",
+                    "scripts/axle_gate.py")
+    assert not executes("echo python3 scripts/axle_gate.py", "scripts/axle_gate.py")
+    assert not executes("# python3 scripts/axle_gate.py", "scripts/axle_gate.py")

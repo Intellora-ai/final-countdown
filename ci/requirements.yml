@@ -1,0 +1,518 @@
+# REQUIREMENT REGISTRY — the denominator for "all checks green".
+#
+# ci/gates.toml answers "what runs". This answers "what is thereby established",
+# and — the half that has no home anywhere else — WHAT IS NOT.
+#
+# Nothing here was invented. Every row was derived from a document already in
+# this repository and names it in `source`, so a reader can check the derivation
+# rather than trust it. scripts/registry_gate.py proves the references resolve.
+#
+# FIELDS
+#   id            REQ-nnn, unique across this file, never reused after deletion.
+#   statement     One sentence, falsifiable. If you cannot say what observation
+#                 would show it false, it is a slogan and does not belong here.
+#   verification  A gate id from ci/gates.toml, or the literal `none`.
+#                 `none` is not a gap in this file — it is the file working.
+#   severity      blocking | advisory. See the note below; it is checked, not
+#                 asserted.
+#   evidence      Must equal, byte for byte, that gate's `evidence` in
+#                 ci/gates.toml. `none` when verification is `none`.
+#   source        The document this requirement was read out of.
+#   note          Optional. Anything that is not the statement itself.
+#
+# WHY severity HAS TWO VALUES AND NOT FIVE
+# critical/high/medium/low are adjectives nobody can settle an argument with.
+# These two have an operational meaning and one of them is cross-checkable:
+#
+#   blocking   if unmet, a merge must not happen.
+#   advisory   if unmet, that is information; the merge proceeds.
+#
+# So for any requirement citing a gate, `severity: blocking` must hold exactly
+# when that gate has `mandatory = true` in ci/gates.toml. The registry gate
+# fails on a disagreement — a "blocking" requirement resting on a gate that
+# blocks nothing is the exact failure scripts/check_ruleset.py describes,
+# one level up.
+#
+# For `verification: none`, severity is the honest judgement of what it WOULD
+# be if anything checked it. A `blocking` requirement with `verification: none`
+# is the loudest row this file can produce and there are three of them:
+# REQ-034, REQ-035 and REQ-036.
+
+version: 1
+
+requirements:
+
+  # -------------------------------------------------------------------------
+  # preflight — the guard on the guard
+  # -------------------------------------------------------------------------
+  - id: REQ-001
+    statement: >-
+      Every gate ci/gates.toml marks mandatory is a job that exists, carries no
+      `if:` the manifest did not declare and no continue-on-error, invokes its
+      declared command in an unconditioned step, and uploads its declared
+      artifact with `if: always()` and `if-no-files-found: error`.
+    verification: preflight
+    severity: blocking
+    evidence: reports/preflight.json
+    source: scripts/gate_integrity.py module docstring, checks 1-7
+    note: >-
+      Containment is not execution. The checker parses the workflow and locates
+      the step as an object, because `if: false`, `echo <cmd>` and `<cmd> ||
+      true` all contain the command and run none of it.
+
+  - id: REQ-002
+    statement: >-
+      Every scripts/... path that any workflow invokes exists on disk.
+    verification: preflight
+    severity: blocking
+    evidence: reports/preflight.json
+    source: scripts/gate_integrity.py module docstring, check 8
+
+  - id: REQ-003
+    statement: >-
+      The `required_checks` list in ci/gates.toml equals exactly the set of
+      gates in that same file with `mandatory = true`.
+    verification: preflight
+    severity: blocking
+    evidence: reports/preflight.json
+    source: scripts/gate_integrity.py module docstring, check 9
+    note: >-
+      Self-consistency only. Whether GITHUB requires that set is REQ-034, and
+      nothing in CI answers it.
+
+  - id: REQ-004
+    statement: >-
+      No line in README.md or evidence.md tells a reader to run a verifier that
+      no longer exists.
+    verification: preflight
+    severity: blocking
+    evidence: reports/preflight.json
+    source: scripts/gate_integrity.py module docstring, check 10, and its DOCS constant
+    note: >-
+      Scoped to README.md and evidence.md. Files under docs/ — including
+      docs/registries.md — are not scanned by this check.
+
+  - id: REQ-005
+    statement: >-
+      A pull request that changes a file under .github/, scripts/, ci/, specs/,
+      proofs/ or semantics/, or any requirements file, carries a `TCB:` line
+      with a reason in a commit message on the branch.
+    verification: preflight
+    severity: blocking
+    evidence: reports/preflight.json
+    source: scripts/tcb_gate.py module docstring and TRUSTED_PREFIXES
+    note: >-
+      A commit trailer rather than a PR checkbox: the PR body can be edited
+      after the checks pass, a commit message cannot without changing the SHA.
+
+  # -------------------------------------------------------------------------
+  # axle-verify — the proofs
+  # -------------------------------------------------------------------------
+  - id: REQ-006
+    statement: >-
+      The set of specs/*_spec.lean equals the set of proofs/*_proof.lean under
+      the <name> pairing, and both are non-empty.
+    verification: axle-verify
+    severity: blocking
+    evidence: reports/axle-verify.json
+    source: README.md "How verification works"; scripts/axle_gate.py docstring, defects 1 and 2
+    note: >-
+      Measured before this check existed - an empty specs/ produced a green
+      required check, and a proof whose spec had been deleted was invisible.
+
+  - id: REQ-007
+    statement: >-
+      For every pair, the Lean 4.33.0 kernel accepts proofs/<name>_proof.lean as
+      a proof of specs/<name>_spec.lean, reported by AXLE as `"okay": true`.
+    verification: axle-verify
+    severity: blocking
+    evidence: reports/axle-verify.json
+    source: README.md Gates table, row axle-verify; scripts/axle_gate.py "MEASURED AXLE SEMANTICS"
+
+  - id: REQ-008
+    statement: >-
+      No spec is a syntactic degenerate of the form `a = a` or `a + b = a + b`.
+    verification: axle-verify
+    severity: blocking
+    evidence: reports/axle-verify.json
+    source: README.md "What the proof does and does not tell you"; scripts/enforce_spec.py
+    note: >-
+      This rejects the obvious degenerate forms only. A spec can still be true,
+      non-trivial and unrelated to the code - that is ASM-001.
+
+  - id: REQ-009
+    statement: >-
+      The AXLE service is contacted and reports itself reachable before any
+      proof verdict from it is read, so an outage appears in the log as an
+      outage rather than as ten proof failures.
+    verification: axle-verify
+    severity: blocking
+    evidence: reports/axle-verify.json
+    source: README.md "Telling an outage apart from a bad proof"; scripts/axle_health.py
+    note: >-
+      It exits non-zero when unreachable. Unverifiable must not merge; the
+      health check changes the diagnosis, never the verdict.
+
+  # -------------------------------------------------------------------------
+  # spec strength
+  # -------------------------------------------------------------------------
+  - id: REQ-010
+    statement: >-
+      Taken as a set, the specs kill at least 0.90 of the non-excluded
+      single-point AST mutants of the sources they name.
+    verification: spec-strength
+    severity: blocking
+    evidence: reports/spec-strength.json
+    source: README.md Gates table (0.90); ci/gates.toml [gates.spec-strength] must_contain "--min-strength 0.9"
+    note: >-
+      Scored as a set deliberately. add's commutativity spec and its identity
+      spec each score 0.50 alone and together kill every mutant.
+
+  - id: REQ-011
+    statement: >-
+      For each function in src/, the specs naming that function jointly reach
+      strength 0.90.
+    verification: spec-composition
+    severity: blocking
+    evidence: reports/spec-composition.json
+    source: README.md Gates table, row spec-composition; scripts/check_composition.py docstring
+
+  - id: REQ-012
+    statement: >-
+      Every spec's precondition is satisfied by more than 1% of the generated
+      inputs, so no spec is guarded into vacuity.
+    verification: vacuity-check
+    severity: blocking
+    evidence: reports/vacuity-check.json
+    source: scripts/check_vacuity.py FLOOR = 0.01; README.md Gates table "not vacuous"
+
+  - id: REQ-013
+    statement: >-
+      No spec is false of the real Python function it names, under a Hypothesis
+      search run before any proof is attempted.
+    verification: counterexample-search
+    severity: blocking
+    evidence: reports/counterexample-search.json
+    source: scripts/find_counterexample.py module docstring; README.md Gates table
+
+  - id: REQ-014
+    statement: >-
+      Ten verification dimensions are reported separately and never collapsed
+      into one word, and the overall verdict is PASS only when sufficiency is
+      established, otherwise PASS_WITH_LIMITATIONS naming what is unknown.
+    verification: honest-report
+    severity: blocking
+    evidence: reports/honest-report.json
+    source: scripts/honest_report.py module docstring, LAYER 8 and LAYER 10
+    note: "Blocks on FAIL only. An unestablished contract is information, not a broken build."
+
+  # -------------------------------------------------------------------------
+  # tests, types, security
+  # -------------------------------------------------------------------------
+  - id: REQ-015
+    statement: >-
+      Branch coverage of src/ measured by pytest is at least 95%.
+    verification: coverage
+    severity: blocking
+    evidence: reports/coverage.json
+    source: README.md Gates table (95%); ci/gates.toml [gates.coverage] must_contain "--cov-fail-under=95"
+
+  - id: REQ-016
+    statement: >-
+      Every test under tests/ that is not marked `axle` passes, which is where
+      the adversarial suites against the gates themselves are executed.
+    verification: coverage
+    severity: blocking
+    evidence: reports/coverage.json
+    source: .github/workflows/verify.yml, coverage job; pyproject.toml [tool.pytest.ini_options] markers
+    note: >-
+      tests/test_ci_integrity.py, tests/test_supply_chain.py,
+      tests/test_correspondence.py and tests/test_registries.py all run here.
+      Tests marked `axle` run under the correspondence gate instead.
+
+  - id: REQ-017
+    statement: >-
+      pyright in strict mode reports zero errors across src, tests and scripts.
+    verification: pyright
+    severity: blocking
+    evidence: reports/pyright.json
+    source: README.md Gates table "0 errors"; pyproject.toml [tool.pyright]
+
+  - id: REQ-018
+    statement: >-
+      Bandit at LOW severity and LOW confidence over src/ and scripts/ leaves no
+      finding except ones whose safe pattern the gate re-derives from the AST on
+      this run.
+    verification: bandit
+    severity: blocking
+    evidence: reports/bandit.json
+    source: scripts/security_gate.py module docstring; README.md Gates table "verified safe patterns only"
+    note: >-
+      scripts/ is never excluded and no `# nosec` is used. The difference
+      between a verified exception and a suppression is that the first
+      evaporates when the pattern stops holding.
+
+  - id: REQ-019
+    statement: >-
+      Code scanning opens no alert for a bandit finding the security gate has
+      already proved safe.
+    verification: bandit
+    severity: blocking
+    evidence: reports/bandit.json
+    source: scripts/sarif_suppress.py module docstring
+    note: >-
+      Two sources of truth for the same findings disagreed by construction;
+      each disagreement became an unresolved review thread that blocked the PR.
+
+  - id: REQ-020
+    statement: >-
+      No file tracked in .git/index contains credential material.
+    verification: bandit
+    severity: blocking
+    evidence: reports/bandit.json
+    source: scripts/credential_scan.py module docstring; ci/gates.toml [gates.bandit] must_contain
+    note: >-
+      Tracked content only, because tracked content is exactly what a push
+      publishes. Findings carry a label, a file, a line and a length, never the
+      matched text - the CI log is public.
+
+  - id: REQ-021
+    statement: >-
+      Every scripts/*.sh passes shellcheck.
+    verification: bandit
+    severity: blocking
+    evidence: reports/bandit.json
+    source: ci/gates.toml [gates.bandit] must_contain "shellcheck"; .github/workflows/verify.yml "Shell analysis"
+    note: >-
+      CodeQL has no Shell analyzer, and scripts/verify_per_function.sh is the
+      loop three mandatory gates run.
+
+  - id: REQ-022
+    statement: >-
+      Per function, the specs kill at least 0.95 of the AST mutants, with
+      mutants that no derived witness distinguishes from the original excluded
+      from the denominator and never described as equivalent.
+    verification: mutmut
+    severity: blocking
+    evidence: reports/mutmut.json
+    source: README.md Gates table (95%); ci/gates.toml [gates.mutmut] must_contain "--min-score 0.95"; scripts/mutation_gate.py docstring
+    note: "The exclusion is observational, not semantic. See ASM-007."
+
+  # -------------------------------------------------------------------------
+  # correspondence — the theorems are about the Python that is here now
+  # -------------------------------------------------------------------------
+  - id: REQ-023
+    statement: >-
+      Every function in src/*.py has a correspondence pair, and every
+      correspondence pair maps back to a function in src/.
+    verification: correspondence
+    severity: blocking
+    evidence: reports/correspondence.json
+    source: scripts/correspondence_gate.py module docstring, COMPLETENESS
+
+  - id: REQ-024
+    statement: >-
+      The committed correspondence pair is byte-identical to a regeneration from
+      the current source, so editing a file in src/ breaks CI.
+    verification: correspondence
+    severity: blocking
+    evidence: reports/correspondence.json
+    source: scripts/correspondence_gate.py module docstring, FRESHNESS
+    note: >-
+      The committed pair is self-consistent, so AXLE would verify a pair
+      describing last week's source. Only comparison against src/ detects that.
+
+  - id: REQ-025
+    statement: >-
+      The denotation, the correspondence and the property are each discharged by
+      the Lean kernel rather than by the gate script.
+    verification: correspondence
+    severity: blocking
+    evidence: reports/correspondence.json
+    source: scripts/correspondence_gate.py module docstring, KERNEL and "THE THREE KERNEL OBLIGATIONS ARE NOT INTERCHANGEABLE"
+
+  - id: REQ-026
+    statement: >-
+      No generated proof depends on an axiom outside Lean's three foundational
+      ones (propext, Classical.choice, Quot.sound) - in particular none depends
+      on sorryAx and none on a project-defined axiom.
+    verification: correspondence
+    severity: blocking
+    evidence: reports/correspondence.json
+    source: TRUST.md "Axiom audit"; scripts/correspondence_gate.py module docstring
+    note: >-
+      No sorryAx means no proof is incomplete. No project-defined axiom means
+      nothing assumes the result it is meant to establish.
+
+  - id: REQ-027
+    statement: >-
+      A Python construct outside the supported subset raises `Unsupported` in
+      scripts/pysem.py, so it produces no correspondence and can acquire no
+      claim.
+    verification: coverage
+    severity: blocking
+    evidence: reports/coverage.json
+    source: TRUST.md "Only the supported subset exists"; tests/test_correspondence.py UNSUPPORTED
+    note: >-
+      TRUST.md says fifteen constructs are tested. The UNSUPPORTED table in
+      tests/test_correspondence.py holds twenty today; the prose is stale, the
+      test is the measurement.
+
+  # -------------------------------------------------------------------------
+  # scanners and the finalizer
+  # -------------------------------------------------------------------------
+  - id: REQ-028
+    statement: >-
+      For one run, the set of gate reports collected equals the declared
+      mandatory gate set exactly - no missing, unexpected, duplicate, stale or
+      foreign evidence, in either direction.
+    verification: full
+    severity: blocking
+    evidence: reports/gate-manifest.json
+    source: scripts/aggregate_gates.py "THE INVARIANT"; README.md Gates table, row full
+    note: >-
+      The finalizer never turns failure into success. Every uncertainty it meets
+      resolves to UNKNOWN, which is not mergeable.
+
+  - id: REQ-029
+    statement: >-
+      Every report's commit, run_id, run_attempt and workflow equal this run's
+      environment values, so a re-run's first attempt cannot satisfy its second.
+    verification: full
+    severity: blocking
+    evidence: reports/gate-manifest.json
+    source: ci/gates.toml [schema].run_identity and its comment
+    note: >-
+      Absence is fail-closed as hard as mismatch: a report that omits its
+      identity cannot be shown to belong to this run, and forging evidence must
+      not be as easy as leaving fields out.
+
+  - id: REQ-030
+    statement: >-
+      CodeQL's Python analysis ran on this commit.
+    verification: codeql-python
+    severity: blocking
+    evidence: "github code scanning, category /language:python"
+    source: ci/gates.toml [gates.codeql-python]
+
+  - id: REQ-031
+    statement: >-
+      CodeQL's Actions analysis ran on this commit.
+    verification: codeql-actions
+    severity: blocking
+    evidence: "github code scanning, category /language:actions"
+    source: ci/gates.toml [gates.codeql-actions]
+
+  - id: REQ-032
+    statement: >-
+      The code-scanning results check posted by the github-advanced-security app
+      (integration 57789) is green, so the analyses that ran found nothing that
+      blocks.
+    verification: CodeQL
+    severity: blocking
+    evidence: "github code scanning results check"
+    source: ci/gates.toml [gates.CodeQL] and its comment
+    note: >-
+      Required alongside the two analysis jobs because they answer different
+      questions: the jobs prove the analysis ran on this commit, this proves the
+      results were clean.
+
+  - id: REQ-033
+    statement: >-
+      The coverage report - the one artifact this repository renders - loads in
+      Chromium at a desktop and a phone viewport, from dependencies installed by
+      `npm ci` against package-lock.json.
+    verification: e2e
+    severity: blocking
+    evidence: "playwright report, uploaded as an artifact on failure"
+    source: README.md "Browser smoke test"; ci/gates.toml [gates.e2e] must_contain
+
+  # -------------------------------------------------------------------------
+  # verification: none — the rows this file exists for
+  #
+  # These are not omissions. Each is a requirement this repository states, in
+  # prose, that no gate reads. Three of the six are `blocking`: if they are
+  # false, a merge should not happen, and nothing would stop it.
+  # -------------------------------------------------------------------------
+  - id: REQ-034
+    statement: >-
+      The live GitHub ruleset requires exactly the checks ci/gates.toml marks
+      mandatory - no more, and no fewer.
+    verification: none
+    severity: blocking
+    evidence: none
+    source: scripts/check_ruleset.py module docstring; ci/gates.toml header and [ruleset]
+    note: >-
+      scripts/check_ruleset.py can prove this and no workflow invokes it - grep
+      .github/ for it and the only hits are the AI reviewer's deny list. It
+      needs an admin-scoped token. Until it runs, a gate that is mandatory here
+      but not required by GitHub "runs, goes red, and the PR merges anyway",
+      caught by nothing. See ASM-008.
+
+  - id: REQ-035
+    statement: >-
+      The Lean specification in specs/<name>_spec.lean states a property that a
+      competent reader would accept as the intent of src/<name>.py.
+    verification: none
+    severity: blocking
+    evidence: none
+    source: README.md "What the proof does and does not tell you"
+    note: >-
+      Closed by a human reading a spec, not by a gate. AXLE does not read
+      Python. This is the assumption the whole "verified" claim rests on -
+      ASM-001 - and it cannot be closed by writing YAML.
+
+  - id: REQ-036
+    statement: >-
+      AXLE's `"okay": true` faithfully reports the verdict the Lean kernel
+      actually reached.
+    verification: none
+    severity: blocking
+    evidence: none
+    source: TRUST.md "Trust ledger", row 5
+    note: >-
+      A hosted service. A compromised or buggy AXLE could report okay=true for a
+      rejected proof and nothing here would notice. The semantic mutation
+      attacks under `pytest -m axle` show it does say no to some wrong proofs,
+      which refutes "always yes" and verifies nothing. See ASM-003.
+
+  - id: REQ-037
+    statement: >-
+      The version recorded on a technology-universe registry record at readiness
+      P2 or higher was measured on this machine rather than asserted.
+    verification: none
+    severity: advisory
+    evidence: none
+    source: technology-universe/registry/SCHEMA.md, "readiness - earned, not assigned"
+    note: >-
+      The builder refuses P2+ without a non-null `version`. That is presence,
+      not provenance. Advisory rather than blocking because no gate covers this
+      subsystem at all and no merge decision currently depends on it. See
+      ASM-010 and ASM-011.
+
+  - id: REQ-038
+    statement: >-
+      An outage of https://axle.axiommath.ai is known before a build runs, not
+      when one fails.
+    verification: none
+    severity: advisory
+    evidence: none
+    source: README.md "External monitoring"
+    note: >-
+      "Not configured. A hosted monitor needs an account this repository cannot
+      create." Advisory because the failure mode is a blocked merge, which is
+      loud and recoverable. See ASM-015.
+
+  - id: REQ-039
+    statement: >-
+      Every inline comment the AI reviewer posts on a pull request is resolved
+      before that pull request merges.
+    verification: none
+    severity: advisory
+    evidence: none
+    source: ci/gates.toml [gates.ai-review] comment; docs/ai-review.md
+    note: >-
+      Enforced by the ruleset's `required_review_thread_resolution`, whose
+      presence nothing in CI checks - that is REQ-034. The ai-review check's own
+      conclusion is always green, so citing it as the verification would be
+      false. Advisory, and today moot: see ASM-016.

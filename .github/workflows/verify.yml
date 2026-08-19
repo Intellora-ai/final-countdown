@@ -112,6 +112,30 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/check_ruleset.py
+      # What the gates prove, and what they do not. ci/requirements.yml names
+      # 39 claims and which gate establishes each -- six of them nothing does,
+      # and that is the point of writing them down. ci/assumptions.yml records
+      # 16, quoted from README.md, TRUST.md and the gate docstrings rather than
+      # paraphrased, because a paraphrase of a limitation always reads weaker
+      # than the limitation.
+      #
+      # The gate does not fail on an unverified assumption. Eight of the nine
+      # high-impact ones cannot be closed by any amount of work here -- the Lean
+      # kernel is the root of trust, CPython's `ast` IS the language, and Rice's
+      # theorem closes the mutation question. A gate that failed the build for
+      # those would be edited into silence within a week, and the file it
+      # guards exists to prevent exactly that kind of quiet.
+      #
+      # It fails on the thing that IS actionable: an untested high-impact
+      # assumption, or a falsified one, with no written acceptance. Adding that
+      # acceptance edits ci/, a trusted path, so it needs a TCB: trailer in the
+      # commit message and cannot be done quietly.
+      #
+      # Before gate_integrity for the same reason as the ruleset check above:
+      # gate_integrity writes reports/preflight.json, and aggregate_gates.py
+      # reads reports rather than job conclusions.
+      - name: Requirement and assumption registries
+        run: python3 scripts/registry_gate.py
       - name: Gate integrity
         run: python3 scripts/gate_integrity.py
       - name: Upload evidence

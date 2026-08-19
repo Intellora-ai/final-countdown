@@ -75,7 +75,7 @@ role = "integrity"
 # state this file spent its existence describing: a verification topology
 # nothing compares against the live ruleset.
 must_contain = ["scripts/gate_integrity.py", "scripts/tcb_gate.py",
-                "scripts/check_ruleset.py"]
+                "scripts/check_ruleset.py", "scripts/registry_gate.py"]
 evidence = "reports/preflight.json"
 artifact = "reports-preflight"
 

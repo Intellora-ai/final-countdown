@@ -34,9 +34,19 @@ TWO PROPERTIES MAKE THIS SAFE TO DO AT ALL.
    itself failed, nothing is suppressed at all — a red gate publishes
    everything, because that is when a human most needs to see it.
 
-Suppression is recorded in SARIF's own `suppressions` field with a
-justification, not by deleting the result. The finding stays in the file and
-stays auditable; what changes is that it is marked reviewed.
+MEASURED: GitHub IGNORES SARIF `suppressions`.
+The first attempt marked each verified result with a `suppressions` entry and
+its justification, which is the honest SARIF representation. Uploaded, the 21
+alerts stayed `open` and the 17 threads stayed unresolved — GitHub code
+scanning does not close an alert because the SARIF says it was reviewed. So
+verified results are REMOVED from the uploaded file instead, which GitHub does
+act on: an alert absent from the newest analysis of that category is closed as
+fixed.
+
+Nothing is lost. Every removed finding is listed by rule and location in the
+gate's own log on every run, kept in reports/bandit.json for 30 days, and the
+count and the list are written into the SARIF run's `properties` so the
+uploaded file states what it omits and why.
 """
 
 from __future__ import annotations
@@ -132,36 +142,42 @@ def main() -> int:
         print("SARIF has no runs[]; nothing to do", file=sys.stderr)
         return 1
 
-    suppressed = 0
+    removed: list[str] = []
     total = 0
     for run in cast("list[Any]", runs):
         if not isinstance(run, dict):
             continue
-        results = cast("dict[str, Any]", run).get("results")
+        run_obj = cast("dict[str, Any]", run)
+        results = run_obj.get("results")
         if not isinstance(results, list):
             continue
+        kept: list[Any] = []
         for r in cast("list[Any]", results):
-            if not isinstance(r, dict):
-                continue
-            result = cast("dict[str, Any]", r)
             total += 1
-            where = result_location(result)
-            if where is None or where not in ok_locations:
+            if not isinstance(r, dict):
+                kept.append(r)
                 continue
-            result["suppressions"] = [{
-                "kind": "external",
-                "justification":
-                    "Verified by scripts/security_gate.py: the safe pattern is "
-                    "re-derived from the AST on every run (shell=False, argv "
-                    "list literal, argv[0] from shutil.which or sys.executable, "
-                    "timeout set). If the pattern stops holding, the exception "
-                    "evaporates and the bandit gate fails.",
-            }]
-            suppressed += 1
+            where = result_location(cast("dict[str, Any]", r))
+            if where is None or where not in ok_locations:
+                kept.append(r)
+                continue
+            removed.append(f"{where[0]} {where[1]}:{where[2]}")
+        run_obj["results"] = kept
+        # The uploaded file states what it omits, so the artifact is not a
+        # silent edit of the scanner's output.
+        props = run_obj.get("properties")
+        run_obj["properties"] = {
+            **(cast("dict[str, Any]", props) if isinstance(props, dict) else {}),
+            "gateVerifiedRemoved": sorted(removed),
+            "gateVerifiedRemovedCount": len(removed),
+            "gateVerifiedBy": "scripts/security_gate.py",
+        }
 
     path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
-    print(f"  bandit SARIF: {total} result(s), {suppressed} marked verified by "
-          f"the gate, {total - suppressed} left for a human")
+    for entry in sorted(removed):
+        print(f"    gate-verified, withheld from code scanning: {entry}")
+    print(f"  bandit SARIF: {total} result(s), {len(removed)} verified by the "
+          f"gate, {total - len(removed)} left for a human")
     return 0
 
 

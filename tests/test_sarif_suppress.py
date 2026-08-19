@@ -20,10 +20,19 @@ PY = sys.executable
 
 
 def bandit_sarif(cwd: Path, out: Path) -> None:
-    subprocess.run([PY, "-m", "bandit", "-r", "src", "scripts", "-f", "sarif",
-                    "-o", str(out), "--severity-level", "low",
-                    "--confidence-level", "low"],
-                   cwd=cwd, capture_output=True, text=True, timeout=300)
+    """Produce SARIF, and fail loudly if the toolchain cannot.
+
+    SARIF output needs the `bandit[sarif]` extra. When only plain `bandit` was
+    installed this wrote nothing and the tests died on FileNotFoundError three
+    frames later, which named the symptom and hid the cause.
+    """
+    r = subprocess.run([PY, "-m", "bandit", "-r", "src", "scripts", "-f", "sarif",
+                        "-o", str(out), "--severity-level", "low",
+                        "--confidence-level", "low"],
+                       cwd=cwd, capture_output=True, text=True, timeout=300)
+    assert out.is_file(), (
+        f"bandit produced no SARIF (exit {r.returncode}). Install "
+        f"bandit[sarif].\n{(r.stderr or r.stdout)[:400]}")
 
 
 def suppress(cwd: Path, sarif: Path) -> subprocess.CompletedProcess[str]:
@@ -55,12 +64,13 @@ def test_verified_findings_are_marked_and_none_are_deleted(tmp_path: Path) -> No
 
     assert suppress(w, sarif).returncode == 0
     after = results(sarif)
-    assert len(after) == before, "results were deleted; they must be marked, not removed"
-    marked = [r for r in after if r.get("suppressions")]
-    assert marked, "the gate verifies findings but none were marked"
-    for r in marked:
-        just = r["suppressions"][0]["justification"]
-        assert "security_gate.py" in just and "re-derived" in just
+    assert len(after) < before, "the gate verifies findings but none were withheld"
+    # What is omitted must be stated in the file itself, not silently dropped.
+    doc = json.loads(sarif.read_text(encoding="utf-8"))
+    props = doc["runs"][0]["properties"]
+    assert props["gateVerifiedRemovedCount"] == before - len(after)
+    assert props["gateVerifiedBy"] == "scripts/security_gate.py"
+    assert props["gateVerifiedRemoved"], "the omitted findings must be listed"
 
 
 def test_a_failing_gate_marks_nothing(tmp_path: Path) -> None:
@@ -74,10 +84,11 @@ def test_a_failing_gate_marks_nothing(tmp_path: Path) -> None:
 
     sarif = w / "b.sarif"
     bandit_sarif(w, sarif)
+    before = len(results(sarif))
     result = suppress(w, sarif)
     assert result.returncode == 0
     assert "suppressing nothing" in result.stdout
-    assert not [r for r in results(sarif) if r.get("suppressions")]
+    assert len(results(sarif)) == before, "a red gate must publish every finding"
 
 
 def test_an_unverified_finding_is_never_marked(tmp_path: Path) -> None:
@@ -90,6 +101,5 @@ def test_an_unverified_finding_is_never_marked(tmp_path: Path) -> None:
     sarif = w / "b.sarif"
     bandit_sarif(w, sarif)
     suppress(w, sarif)
-    unmarked = [r for r in results(sarif) if not r.get("suppressions")]
-    assert any("danger.py" in json.dumps(r) for r in unmarked), (
+    assert any("danger.py" in json.dumps(r) for r in results(sarif)), (
         "a shell=True call was hidden from code scanning")

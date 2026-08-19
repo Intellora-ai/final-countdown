@@ -903,7 +903,7 @@ def test_attack_codeql_analyze_step_removed_is_caught(sandbox: Path) -> None:
     wf = sandbox / CODEQL
     text = wf.read_text()
     wf.write_text("\n".join(l for l in text.splitlines()
-                            if "codeql-action/analyze@v3" not in l))
+                            if "codeql-action/analyze@" not in l))
     result = integrity(sandbox)
     assert result.returncode != 0, "removing the analyze step was not caught"
     assert "no longer invokes its command" in result.stdout
@@ -912,7 +912,7 @@ def test_attack_codeql_analyze_step_removed_is_caught(sandbox: Path) -> None:
 def test_attack_codeql_step_conditioned_away_is_caught(sandbox: Path) -> None:
     wf = sandbox / CODEQL
     text = wf.read_text()
-    line = next(l for l in text.splitlines() if "codeql-action/analyze@v3" in l)
+    line = next(l for l in text.splitlines() if "codeql-action/analyze@" in l)
     indent = " " * (len(line) - len(line.lstrip()))
     wf.write_text(text.replace(line, f"{line}\n{indent}if: false", 1))
     result = integrity(sandbox)

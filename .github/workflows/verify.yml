@@ -42,8 +42,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: {python-version: '3.12', cache: pip}
       # gate_integrity.py parses workflow YAML rather than searching it, so it
       # needs a YAML parser. Only that: preflight must stay fast, and it must
@@ -53,7 +53,7 @@ jobs:
         run: python3 scripts/gate_integrity.py
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: reports-preflight
           path: reports/
@@ -64,8 +64,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: {python-version: '3.12', cache: pip}
       - run: pip install --quiet -r requirements.txt
       # Named as an outage in the log instead of surfacing as ten proof
@@ -81,7 +81,7 @@ jobs:
         run: python3 scripts/axle_gate.py
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: reports-axle-verify
           path: reports/
@@ -92,15 +92,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: {python-version: '3.12', cache: pip}
       - run: pip install --quiet -r requirements.txt
       - name: Spec strength as a set
         run: python3 scripts/run_gate.py --name spec-strength -- python3 scripts/check_composition.py specs/add_spec.lean specs/addid_spec.lean specs/addsucc_spec.lean specs/clamp_spec.lean specs/clampid_spec.lean specs/mulid_spec.lean specs/multiply_spec.lean specs/subpred_spec.lean specs/subself_spec.lean specs/subtract_spec.lean --min-strength 0.9
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: reports-spec-strength
           path: reports/
@@ -111,15 +111,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: {python-version: '3.12', cache: pip}
       - run: pip install --quiet -r requirements.txt
       - name: Check spec composition per function
         run: python3 scripts/run_gate.py --name spec-composition -- bash scripts/verify_per_function.sh scripts/check_composition.py --min-strength 0.9
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: reports-spec-composition
           path: reports/
@@ -130,15 +130,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: {python-version: '3.12', cache: pip}
       - run: pip install --quiet -r requirements.txt
       - name: Vacuity
         run: python3 scripts/run_gate.py --name vacuity-check -- python3 scripts/check_vacuity.py specs/add_spec.lean specs/addid_spec.lean specs/addsucc_spec.lean specs/clamp_spec.lean specs/clampid_spec.lean specs/mulid_spec.lean specs/multiply_spec.lean specs/subpred_spec.lean specs/subself_spec.lean specs/subtract_spec.lean
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: reports-vacuity-check
           path: reports/
@@ -149,15 +149,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: {python-version: '3.12', cache: pip}
       - run: pip install --quiet -r requirements.txt
       - name: Counterexample search
         run: python3 scripts/run_gate.py --name counterexample-search -- python3 scripts/find_counterexample.py specs/add_spec.lean specs/addid_spec.lean specs/addsucc_spec.lean specs/clamp_spec.lean specs/clampid_spec.lean specs/mulid_spec.lean specs/multiply_spec.lean specs/subpred_spec.lean specs/subself_spec.lean specs/subtract_spec.lean
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: reports-counterexample-search
           path: reports/
@@ -168,8 +168,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: {python-version: '3.12', cache: pip}
       - run: pip install --quiet -r requirements.txt
       # Ten dimensions, reported separately. Blocks on FAIL only: an
@@ -178,7 +178,7 @@ jobs:
         run: python3 scripts/run_gate.py --name honest-report -- bash scripts/verify_per_function.sh scripts/honest_report.py --min-strength 0.9
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: reports-honest-report
           path: reports/
@@ -189,15 +189,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: {python-version: '3.12', cache: pip}
       - run: pip install --quiet -r requirements.txt
       - name: Tests + branch coverage
         run: python3 scripts/run_gate.py --name coverage -- pytest --cov=src --cov-branch --cov-fail-under=95 -m "not axle"
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: reports-coverage
           path: reports/
@@ -208,15 +208,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: {python-version: '3.12', cache: pip}
       - run: pip install --quiet -r requirements.txt
       - name: Types
         run: python3 scripts/run_gate.py --name pyright -- pyright
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: reports-pyright
           path: reports/
@@ -230,8 +230,8 @@ jobs:
       contents: read
       security-events: write   # required to upload SARIF to code scanning
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: {python-version: '3.12', cache: pip}
       - run: pip install --quiet -r requirements.txt "bandit[sarif]"
       # scripts/ is verification infrastructure and part of the trusted
@@ -297,13 +297,13 @@ jobs:
         run: shellcheck scripts/*.sh
       - name: Upload to code scanning
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: bandit.sarif
           category: bandit
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: reports-bandit
           path: reports/
@@ -314,8 +314,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: {python-version: '3.12', cache: pip}
       - run: pip install --quiet -r requirements.txt
       # Scores the SPEC against AST mutants, not the test suite against mutmut.
@@ -324,7 +324,7 @@ jobs:
         run: python3 scripts/run_gate.py --name mutmut -- bash scripts/verify_per_function.sh scripts/mutation_gate.py --min-score 0.95
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: reports-mutmut
           path: reports/
@@ -337,8 +337,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: {python-version: '3.12', cache: pip}
       - run: pip install --quiet -r requirements.txt
       - name: AXLE service health
@@ -353,7 +353,7 @@ jobs:
         run: pytest -m axle
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: reports-correspondence
           path: reports/
@@ -385,21 +385,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: {python-version: '3.12'}
       # No `name:` filter: every artifact this run produced, each into its own
       # directory. A gate whose upload failed simply is not here, which is the
       # signal the aggregator turns into a blocking UNKNOWN.
       - name: Collect every gate's evidence from this run
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: evidence
       - name: Gate manifest
         run: python3 scripts/aggregate_gates.py --evidence-root evidence
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: reports-full
           path: reports/

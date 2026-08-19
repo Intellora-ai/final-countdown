@@ -1,26 +1,8 @@
 #!/usr/bin/env python3
 """CI durations, measured from GitHub's own run metadata.
 
-The question this exists to answer is "did that change actually make CI
-faster", and the only honest way to answer it is to compare distributions
-before and after rather than two lucky runs. So this reports N, median, p50,
-p95, min and max per workflow, and refuses to print a comparison it cannot
-support.
-
-It deliberately installs nothing. GitHub already records `run_started_at` and
-`updated_at` for every run; a monitoring platform would be a second source of
-truth for a number the first source already has.
-
-WHAT IS COUNTED. Only completed runs, and by default only successful ones. A
-cancelled run's duration measures when someone hit the button, and a failed
-run's measures how fast it fell over -- averaging either into "how long does
-CI take" produces a number that answers no question. `--include-failures`
-overrides this when the failures are what you are studying.
-
-    python3 scripts/ci_metrics.py                      # per-workflow summary
-    python3 scripts/ci_metrics.py --since 2026-08-19   # only runs after a date
-    python3 scripts/ci_metrics.py --baseline base.json # compare against a saved run
-    python3 scripts/ci_metrics.py --save base.json     # save the current numbers
+The script reads GitHub Actions metadata through the local `gh` CLI and reports
+measured distributions rather than guessing from individual runs.
 """
 
 from __future__ import annotations
@@ -37,26 +19,32 @@ from pathlib import Path
 from typing import Any
 
 REPO = "Intellora-ai/final-countdown"
-# Workflows this repository owns. Dependabot's own runs are noise here: their
-# duration says something about Dependabot, not about our CI.
 OURS = {"verify", "codeql", "e2e", "pr-fast"}
 
 
 def gh_json(path: str) -> Any:
+    """Call the fixed `gh api` command without a shell.
+
+    `path` is constructed internally from fixed repository/workflow constants;
+    it is never accepted as a shell command or executed through a shell.
+    """
     gh = shutil.which("gh")
     if gh is None:
         raise SystemExit("gh is not on PATH, so GitHub cannot be consulted")
-    out = subprocess.run([gh, "api", path], capture_output=True, text=True,
-                         timeout=120)
+    out = subprocess.run(  # nosec B603: fixed executable, list argv, shell disabled
+        [gh, "api", path], capture_output=True, text=True, timeout=120,
+        stdin=subprocess.DEVNULL, shell=False,
+    )
     if out.returncode != 0:
-        raise SystemExit(f"gh api failed: {(out.stderr or out.stdout)[:200]}")
-    return json.loads(out.stdout)
+        raise SystemExit("gh api failed; see the command output above")
+    try:
+        return json.loads(out.stdout)
+    except json.JSONDecodeError as exc:
+        raise SystemExit("gh api returned invalid JSON") from exc
 
 
 def percentile(values: list[float], fraction: float) -> float:
-    """Nearest-rank. With N below ~20 this lands on an actual observation,
-    which is more honest than interpolating between two points that were
-    never measured."""
+    """Nearest-rank percentile based on observed measurements."""
     if not values:
         return 0.0
     ordered = sorted(values)
@@ -124,8 +112,6 @@ def compare(now: dict[str, dict[str, float]],
         before, after = base[name]["median"], now[name]["median"]
         delta = after - before
         pct = (delta / before * 100) if before else 0.0
-        # A sample of one or two says nothing about a distribution. Saying so
-        # is more useful than a percentage that will not reproduce.
         weak = min(now[name]["n"], base[name]["n"]) < 3
         note = "  (N<3, preliminary)" if weak else ""
         print(f"  {name:10s} {before:13.1f}s {after:8.1f}s "

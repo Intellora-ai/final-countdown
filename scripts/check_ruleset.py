@@ -141,10 +141,18 @@ def main() -> int:
     # but GitHub does not run means those findings block nothing.
     declared_tools = sorted(str(t) for t in ruleset.get("code_scanning_tools", []))
     if declared_tools:
+        # argv[0] must be a variable assigned from shutil.which, checked for
+        # None. `str(shutil.which("gh"))` inline is what the security gate
+        # rejected, and rightly: with gh absent it becomes the literal "None"
+        # and tries to execute a file by that name.
+        gh_exe = shutil.which("gh")
+        if gh_exe is None:
+            print("CANNOT COMPARE code-scanning tools: gh is not on PATH")
+            return 1
         try:
             raw_tools = subprocess.run(
-                [str(shutil.which("gh")), "api",
-                 f"repos/{repo}/rulesets/{ruleset_id}", "--jq", TOOLS_QUERY],
+                [gh_exe, "api", f"repos/{repo}/rulesets/{ruleset_id}",
+                 "--jq", TOOLS_QUERY],
                 capture_output=True, text=True, timeout=60)
             live_tools = sorted(str(t) for t in json.loads(raw_tools.stdout))
         except (OSError, ValueError, subprocess.SubprocessError) as exc:

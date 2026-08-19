@@ -53,7 +53,7 @@ jobs:
         run: python3 scripts/gate_integrity.py
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: reports-preflight
           path: reports/
@@ -81,7 +81,7 @@ jobs:
         run: python3 scripts/axle_gate.py
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: reports-axle-verify
           path: reports/
@@ -100,7 +100,7 @@ jobs:
         run: python3 scripts/run_gate.py --name spec-strength -- python3 scripts/check_composition.py specs/add_spec.lean specs/addid_spec.lean specs/addsucc_spec.lean specs/clamp_spec.lean specs/clampid_spec.lean specs/mulid_spec.lean specs/multiply_spec.lean specs/subpred_spec.lean specs/subself_spec.lean specs/subtract_spec.lean --min-strength 0.9
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: reports-spec-strength
           path: reports/
@@ -119,7 +119,7 @@ jobs:
         run: python3 scripts/run_gate.py --name spec-composition -- bash scripts/verify_per_function.sh scripts/check_composition.py --min-strength 0.9
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: reports-spec-composition
           path: reports/
@@ -138,7 +138,7 @@ jobs:
         run: python3 scripts/run_gate.py --name vacuity-check -- python3 scripts/check_vacuity.py specs/add_spec.lean specs/addid_spec.lean specs/addsucc_spec.lean specs/clamp_spec.lean specs/clampid_spec.lean specs/mulid_spec.lean specs/multiply_spec.lean specs/subpred_spec.lean specs/subself_spec.lean specs/subtract_spec.lean
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: reports-vacuity-check
           path: reports/
@@ -157,7 +157,7 @@ jobs:
         run: python3 scripts/run_gate.py --name counterexample-search -- python3 scripts/find_counterexample.py specs/add_spec.lean specs/addid_spec.lean specs/addsucc_spec.lean specs/clamp_spec.lean specs/clampid_spec.lean specs/mulid_spec.lean specs/multiply_spec.lean specs/subpred_spec.lean specs/subself_spec.lean specs/subtract_spec.lean
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: reports-counterexample-search
           path: reports/
@@ -178,7 +178,7 @@ jobs:
         run: python3 scripts/run_gate.py --name honest-report -- bash scripts/verify_per_function.sh scripts/honest_report.py --min-strength 0.9
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: reports-honest-report
           path: reports/
@@ -197,7 +197,7 @@ jobs:
         run: python3 scripts/run_gate.py --name coverage -- pytest --cov=src --cov-branch --cov-fail-under=95 -m "not axle"
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: reports-coverage
           path: reports/
@@ -216,7 +216,7 @@ jobs:
         run: python3 scripts/run_gate.py --name pyright -- pyright
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: reports-pyright
           path: reports/
@@ -303,7 +303,7 @@ jobs:
           category: bandit
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: reports-bandit
           path: reports/
@@ -324,7 +324,7 @@ jobs:
         run: python3 scripts/run_gate.py --name mutmut -- bash scripts/verify_per_function.sh scripts/mutation_gate.py --min-score 0.95
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: reports-mutmut
           path: reports/
@@ -353,7 +353,7 @@ jobs:
         run: pytest -m axle
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: reports-correspondence
           path: reports/
@@ -392,14 +392,14 @@ jobs:
       # directory. A gate whose upload failed simply is not here, which is the
       # signal the aggregator turns into a blocking UNKNOWN.
       - name: Collect every gate's evidence from this run
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           path: evidence
       - name: Gate manifest
         run: python3 scripts/aggregate_gates.py --evidence-root evidence
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: reports-full
           path: reports/

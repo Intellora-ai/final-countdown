@@ -27,7 +27,7 @@ jobs:
         run: pytest -q
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: reports-fast
           path: reports/

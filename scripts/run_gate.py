@@ -15,12 +15,14 @@ stays non-zero; the wrapper exits non-zero too.
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gate import Gate  # noqa: E402
@@ -143,6 +145,109 @@ SCOPE_PATTERNS = [
 ]
 
 
+
+# --- ONE WRITER PER REPORT PATH -------------------------------------------
+#
+# THE DEFECT THIS CLOSES, MEASURED BEFORE THE FIX.
+#
+# Some wrapped verifiers own a Gate themselves. `correspondence_gate.py` opens
+# `Gate("correspondence")` and writes reports/correspondence.json with one
+# record per bad pair -- each carrying a runnable
+# `python3 scripts/gen_correspondence.py --function <name>`. ci/gates.toml then
+# mandates that the whole thing run inside `run_gate.py --name correspondence`,
+# and this wrapper opened `Gate("correspondence")` too. Same path, two writers,
+# last one wins. Reproduced with a five-finding stand-in:
+#
+#     inner alone            failures: 5  checks: 5
+#     through run_gate.py    failures: 1  checks: 1
+#     surviving fix command: False
+#
+# Every per-function finding was destroyed between being written and being
+# uploaded, and gate_integrity enforces the wrapper, so the collision was
+# required by the contract rather than accidental.
+#
+# WHY THE WRAPPER STILL WRITES. It wraps ten gates and eight of them --
+# pyright, bandit, coverage, mutmut, spec-strength, spec-composition,
+# honest-report, vacuity-check, counterexample-search -- run tools that write
+# no report at all. If this simply stopped constructing a Gate, those eight
+# would produce no evidence and the finalizer would block every one of them as
+# MISSING. So the rule is one writer per path PER RUN, decided at runtime:
+# adopt an inner report when there is one, be the sole writer when there is not.
+
+
+def report_fingerprint(name: str) -> tuple[bool, float, int]:
+    """(exists, mtime, size) for reports/<name>.json, taken before the run.
+
+    Compared against the same triple afterwards. A clock floor was tried first
+    and is wrong on a filesystem with one-second mtime granularity: a stale
+    report written in the same second the wrapper starts is indistinguishable
+    from one the wrapped process just wrote. Comparing the file against itself
+    has no such window.
+    """
+    path = REPO / "reports" / f"{name}.json"
+    try:
+        st = path.stat()
+    except OSError:
+        return (False, 0.0, 0)
+    return (True, st.st_mtime, st.st_size)
+
+
+def adopt_inner_report(g: Gate, name: str,
+                       before: tuple[bool, float, int]) -> int:
+    """Fold a report the wrapped process wrote into `g`. Returns findings taken.
+
+    Returns 0 when there is nothing to adopt, which is the common case and
+    leaves this wrapper's behaviour exactly as it was.
+
+    Two guards, both fail-safe in the direction of ignoring the file:
+
+    `before` is the file's fingerprint taken before the wrapped command ran.
+    An unchanged file was not written by this invocation -- it belongs to an
+    earlier run of the same gate on the same runner, and merging it would let a
+    previous PASS supply findings for a commit it never saw.
+
+    Identity is then checked against the run the same way gate.py records it.
+    A mismatch is recorded as a finding rather than silently dropped: evidence
+    that does not belong to this run is itself a fact about this run.
+    """
+    path = REPO / "reports" / f"{name}.json"
+    if report_fingerprint(name) == before:
+        return 0  # nothing new was written; this wrapper is the sole writer
+    try:
+        inner = cast("dict[str, Any]",
+                     json.loads(path.read_text(encoding="utf-8")))
+    except (OSError, ValueError) as exc:
+        # Unreadable is not fatal: this wrapper writes its own record anyway,
+        # so the gate still reports. Say so rather than losing it quietly.
+        g.warn(f"reports/{name}.json existed but could not be read ({exc}); "
+               f"the wrapped verifier's own findings were not adopted")
+        return 0
+
+    for field, env in (("commit", "GITHUB_SHA"), ("run_id", "GITHUB_RUN_ID"),
+                       ("run_attempt", "GITHUB_RUN_ATTEMPT")):
+        expected = os.environ.get(env, "local")
+        if str(inner.get(field, "")) != expected:
+            g.fail(what=f"{name} wrote evidence belonging to another run",
+                   where=f"reports/{name}.json",
+                   why=f"{field}={inner.get(field)!r} but {env}={expected!r}",
+                   requirement="Evidence must belong to the run that reads it.",
+                   fix="This is an infrastructure fault, not a code defect; "
+                       "re-run the job on a clean workspace.")
+            return 0
+
+    taken = 0
+    for check in cast("list[Any]", inner.get("checks") or []):
+        if isinstance(check, dict):
+            g.checks.append(cast("dict[str, Any]", check))
+    for failure in cast("list[Any]", inner.get("failures") or []):
+        if isinstance(failure, dict):
+            g.failures.append(cast("dict[str, Any]", failure))
+            taken += 1
+    for warning in cast("list[Any]", inner.get("warnings") or []):
+        g.warnings.append(str(warning))
+    return taken
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--name", required=True, help="gate name; becomes reports/<name>.json")
@@ -164,6 +269,10 @@ def main() -> None:
         resolved = exe
         g.set_scope(command=" ".join(cmd))
 
+        # Taken before the command runs so the report it may write can be told
+        # apart from one left behind by an earlier run. See adopt_inner_report.
+        before = report_fingerprint(ns.name)
+
         try:
             # shell=False, absolute executable, fixed argv from this repo's
             # workflows - never a shell string.
@@ -182,6 +291,12 @@ def main() -> None:
             if found:
                 counts[label] = len(found) if label == "axle_verified" else found[-1]
         g.set_scope(**counts)
+
+        # Adopted before the verdict is recorded, so a verifier that owns a
+        # Gate keeps every finding it wrote. The wrapper's exit code is still
+        # what decides PASS/FAIL -- an inner report claiming PASS does not
+        # survive a non-zero exit.
+        adopted = adopt_inner_report(g, ns.name, before)
 
         g.check(f"{ns.name} exit code", out.returncode == 0, f"exit={out.returncode}")
         if out.returncode == 0:
@@ -210,8 +325,9 @@ def main() -> None:
                        fix=f"Reproduce with: pytest {failure['file']}"
                            + (f"::{failure['test']}"
                               if failure["test"] != "(collection)" else ""))
-            if not per_test:
-                # Not a test-suite failure, or a shape the summary did not
+            if not per_test and not adopted:
+                # Not a test-suite failure, and the wrapped verifier recorded
+                # nothing itself -- or a shape the summary did not
                 # print -- a crash before collection, a threshold miss, a tool
                 # that is not pytest at all. The single record is kept for
                 # those, so a failure is never recorded as zero failures.

@@ -25,6 +25,55 @@ from typing import cast
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gate import Gate  # noqa: E402
 
+REPO = Path(__file__).resolve().parent.parent
+
+# A compiler-style position in tool output. Deliberately narrow: a real
+# extension, then a line number. `1:30` in a duration and `95%` in a coverage
+# line must not look like locations.
+#
+# No leading `\b`. A word boundary does not exist between a space and a `/`,
+# so anchoring on one silently dropped the leading slash of every absolute
+# path -- `/tmp/x/y.py:12` was captured as `tmp/x/y.py`, which is not
+# absolute, is not relative to this repository either, and therefore resolved
+# to nothing. The optional `/` is what makes pyright's output usable.
+_POSITION = re.compile(r"(/?[\w./-]+\.[A-Za-z]{1,6}):(\d+)\b")
+
+
+def first_location(text: str) -> str:
+    """The first `path:line` in tool output that names a file that exists.
+
+    Existence is checked rather than assumed. This string becomes a GitHub
+    annotation, and an annotation on a path that is not in the tree sends a
+    reader somewhere there is nothing to read -- worse than giving no position
+    at all. Returns "" when the output names no real file, and the caller then
+    keeps its previous behaviour.
+    """
+    for match in _POSITION.finditer(text):
+        raw = match.group(1)
+        # pyright prints absolute paths -- on a runner that is
+        # /home/runner/work/<repo>/<repo>/tests/x.py -- while bandit prints
+        # repository-relative ones. An annotation needs the relative form, so
+        # an absolute path under this repository is rebased and one outside it
+        # (a dependency in site-packages, say) is skipped: it is a real file,
+        # but not one the reader can open in this diff.
+        path = Path(raw)
+        if path.is_absolute():
+            try:
+                # Both sides are resolved. Resolving only the reported path
+                # makes the comparison fail wherever a symlink sits above the
+                # checkout -- on macOS /var is a link to /private/var, so an
+                # unresolved REPO never matches a resolved path and every
+                # absolute position was silently discarded.
+                candidate = str(path.resolve().relative_to(REPO.resolve()))
+            except (ValueError, OSError):
+                continue
+        else:
+            candidate = raw.lstrip("./")
+        if (REPO / candidate).is_file():
+            return f"{candidate}:{match.group(2)}"
+    return ""
+
+
 # Scope lines worth lifting out of gate stdout into structured evidence.
 SCOPE_PATTERNS = [
     (re.compile(r"Total coverage:\s*([\d.]+%)"), "coverage"),
@@ -91,7 +140,17 @@ def main() -> None:
         else:
             tail = [ln for ln in combined.strip().splitlines() if ln.strip()][-6:]
             g.failed()
-            g.fail(what=f"{ns.name} failed", where=" ".join(cmd[:3]),
+            # `where` used to be the command, which is already in scope.command
+            # and is not a place a reader can open. The tools wrapped here do
+            # print a position -- bandit says
+            # `UNRESOLVED B603 scripts/ci_metrics.py:43`, pyright says
+            # `scripts/x.py:12:5 - error: ...` -- but it stayed as prose in the
+            # tail, so the finalizer had no location to annotate and every
+            # annotation this repository could emit was silently empty.
+            # Falls back to the command when the output names no real file, so
+            # a gate whose failure has no position is unchanged.
+            g.fail(what=f"{ns.name} failed",
+                   where=first_location(combined) or " ".join(cmd[:3]),
                    why="\n".join(tail)[:500],
                    requirement="This gate is required by the ruleset; it must exit 0.",
                    fix="Read reports/ and the log above; fix the code, not the gate.")

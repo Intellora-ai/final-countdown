@@ -112,9 +112,18 @@ def annotate(gate: str, fid: str, failure: dict[str, Any]) -> str | None:
     if spot is None:
         return None
     path, line, col = spot
+    # `why` is the last six lines of the tool's output, and for a gate like
+    # bandit most of those lines are the exceptions that PASSED. Concatenating
+    # all of them put "verified exception ... verified exception ..." in front
+    # of the finding, so the annotation opened on the reader's screen with the
+    # part that was fine. Prefer the line that actually mentions the file this
+    # annotation points at; fall back to the whole thing when none does.
+    why = str(failure.get("why", ""))
+    relevant = [ln.strip() for ln in why.splitlines() if path in ln]
+    detail = relevant[0] if relevant else why
+    body = f"{failure.get('what', '')} — {detail}".strip(" —")
     # Newlines terminate an annotation command, so the message is flattened.
     # `::` would open a second command inside this one.
-    body = " ".join(str(failure.get(k, "")) for k in ("what", "why")).strip()
     body = body.replace("\n", " ").replace("::", ":").strip()
     where = f"file={path},line={line}" + (f",col={col}" if col else "")
     return f"::error {where},title={gate} [{fid}]::{body[:900]}"

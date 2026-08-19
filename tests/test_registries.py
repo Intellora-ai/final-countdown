@@ -166,8 +166,11 @@ def test_blocking_severity_on_a_gate_that_blocks_nothing_is_rejected(
         tmp_path: Path) -> None:
     """The failure scripts/check_ruleset.py describes, one level up."""
     def edit(rows: list[Row]) -> None:
-        rows[0]["verification"] = "fast"
-        rows[0]["evidence"] = "reports/fast.json"
+        # Any gate with mandatory = false will do; this needs one that exists.
+        # It was `fast` until pr-fast.yml was removed for being slower than the
+        # required jobs it duplicated.
+        rows[0]["verification"] = "ai-review"
+        rows[0]["evidence"] = "reports/ai-review.json"
         rows[0]["severity"] = "blocking"
 
     r = run_gate(requirements=broken_requirements(tmp_path, edit))

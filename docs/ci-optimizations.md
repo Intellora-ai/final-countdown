@@ -9,6 +9,15 @@ Rule for this document: every number is measured, and every number says what
 produced it. Where a number cannot exist yet, it says **MEASUREMENT PENDING**
 and names the exact command or event that would produce it. No estimates.
 
+> **`pr-fast` no longer exists.** The rows below that name it are kept as the
+> record of what was measured at the time, not as a description of the current
+> workflow set. It was removed after a later measurement tested its stated
+> purpose — "latency feedback on a PR" — and found it false: at job-level
+> medians it ran in 126s while `axle-verify` answered the same question in 23s
+> and `coverage` in 98s. A supplementary check slower than every required job
+> it shadows delivers no feedback earlier than they do. See `ci/gates.toml`
+> where `[gates.fast]` used to be for the full numbers.
+
 ## Measured baseline
 
 Wall-clock seconds for **successful** runs, from GitHub's own `run_started_at`

@@ -520,8 +520,14 @@ def test_all_mutants_excluded_is_a_hard_fail(monkeypatch: pytest.MonkeyPatch) ->
     so at --min-score 0 an all-excluded run returned PASS having killed nothing.
     """
     monkeypatch.chdir(REPO)
-    def only_a_commuted_mutant(_source: str) -> list[Mutant]:
-        return [Mutant(name="swap operands", source=ADD_COMMUTED)]
+    # `qualifier` is accepted because the real generate_mutants takes it: a
+    # mutant is named `src/add.py::swap operands` so names cannot collide
+    # across files. A double whose signature drifts from the function it
+    # replaces stops testing that function.
+    def only_a_commuted_mutant(_source: str,
+                               qualifier: str = "") -> list[Mutant]:
+        name = f"{qualifier}::swap operands" if qualifier else "swap operands"
+        return [Mutant(name=name, source=ADD_COMMUTED)]
 
     monkeypatch.setattr(mutation_gate, "generate_mutants", only_a_commuted_mutant)
 
@@ -536,7 +542,7 @@ def test_all_mutants_excluded_is_a_hard_fail(monkeypatch: pytest.MonkeyPatch) ->
 
 def test_no_mutants_at_all_is_also_a_hard_fail(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(REPO)
-    def no_mutants(_source: str) -> list[Mutant]:
+    def no_mutants(_source: str, qualifier: str = "") -> list[Mutant]:
         return []
 
     monkeypatch.setattr(mutation_gate, "generate_mutants", no_mutants)

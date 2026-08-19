@@ -798,7 +798,7 @@ def evaluate(spec_file: str, source_file: str, threshold: float
     print(f"  ✓ precondition reachable ({rate:.0%} of inputs)")
 
     # 3. strength
-    mutants = generate_mutants(source)
+    mutants = generate_mutants(source, qualifier=source_file)
     live: list[Mutant] = []
     excluded: list[tuple[str, SampleVerdict]] = []
     for mut in mutants:
@@ -835,7 +835,7 @@ def evaluate(spec_file: str, source_file: str, threshold: float
         report.update(mutants=0, killed=0, strength=0.0, survivors=[],
                       verdict="zero-denominator")
         print(f"\n  spec strength: 0.00  (0/0 — nothing left to kill)")
-        print(f"❌ {spec_file}: ZERO DENOMINATOR — {len(generate_mutants(source))} "
+        print(f"❌ {spec_file}: ZERO DENOMINATOR — {len(generate_mutants(source, qualifier=source_file))} "
               f"mutants generated, {len(excluded)} excluded as "
               f"{OBSERVATIONALLY_EQUIVALENT_UNDER_WITNESS_SET}, 0 scored. A spec "
               f"that killed "

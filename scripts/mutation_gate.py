@@ -118,7 +118,11 @@ def score(spec_files: list[str], threshold: float = 0.9) -> dict[str, Any]:
     # it. Without that, "the witnesses are derived" is a claim about the code
     # rather than an observation about this run.
     distinguished: list[tuple[str, SampleVerdict]] = []
-    for m in generate_mutants(source):
+    # Qualified with the source path for the same reason spec_strength is:
+    # an operator label alone is not unique across files. This gate scores
+    # one source at a time so it could not collide, but two tools printing
+    # the same mutant under two different names is its own trap.
+    for m in generate_mutants(source, qualifier=str(src)):
         verdict = observationally_equivalent_under_witness_set(
             source, m.source, name, arity)
         if verdict.indistinguishable:

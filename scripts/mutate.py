@@ -81,8 +81,37 @@ class _Mutator(ast.NodeTransformer):
         return node
 
 
-def generate_mutants(source: str) -> list[Mutant]:
-    """Every single-point mutant of `source`, in AST order."""
+def generate_mutants(source: str, qualifier: str = "") -> list[Mutant]:
+    """Every single-point mutant of `source`, in AST order.
+
+    `qualifier` names the file the source came from, and it is what makes a
+    mutant name mean something across files.
+
+    THE DEFECT IT CLOSES, MEASURED. A mutant used to be named by its operator
+    alone -- "return constant 0", "swap operands", "binop Sub->Add". Those
+    strings are not unique across functions: `src/add.py` and `src/subtract.py`
+    both have a "return constant 0". `scripts/check_composition.py` scores a
+    SET of specs by intersecting their survivor sets, and the `spec-strength`
+    gate hands it ten specs spanning four different source files. So add's kill
+    of "return constant 0" cancelled subtract's survivor of a completely
+    different mutant that happened to share a label, and the intersection
+    shrank toward empty as more unrelated specs were added -- the score went UP
+    as coverage went DOWN.
+
+    Measured on the real repository, before this:
+
+        ❌ specs/subself_spec.lean is too weak (0.33 < 0.90)
+        ❌ specs/subtract_spec.lean is too weak (0.67 < 0.90)
+           ... 6 of 10 specs below threshold
+        JOINT strength: 1.00 (3/3 killed by the set)
+        exit 0
+
+    A required check printing six failures and reporting a perfect score.
+
+    Set-scoring itself is deliberate and stays -- check_composition.py explains
+    why gating each spec separately throws away correct sets. Only the names
+    change, so specs of the SAME source still intersect exactly as before.
+    """
     tree = ast.parse(source)
     total = _Mutator(-1)
     total.visit(copy.deepcopy(tree))
@@ -103,7 +132,8 @@ def generate_mutants(source: str) -> list[Mutant]:
             continue
         if code.strip() == ast.unparse(ast.parse(source)).strip():
             continue  # no observable change; not a mutant
-        mutants.append(Mutant(name=m.applied, source=code))
+        name = f"{qualifier}::{m.applied}" if qualifier else m.applied
+        mutants.append(Mutant(name=name, source=code))
     return mutants
 
 

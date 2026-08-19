@@ -147,7 +147,8 @@ workflow = "verify.yml"
 job = "bandit"
 mandatory = true
 role = "gate"
-must_contain = ["scripts/security_gate.py"]
+must_contain = ["scripts/security_gate.py", "scripts/sarif_suppress.py",
+                "shellcheck"]
 evidence = "reports/bandit.json"
 artifact = "reports-bandit"
 

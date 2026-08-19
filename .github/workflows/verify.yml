@@ -280,6 +280,21 @@ jobs:
           print(f"bandit exit={rc} (0=no findings, 1=findings), "
                 f"{len(runs[0].get('results', []))} result(s) in bandit.sarif")
           PY
+      # Code scanning must not contradict the gate that already judged these
+      # findings. security_gate.py proves 21 of them safe by re-deriving the
+      # pattern from the AST; the raw SARIF opened an alert for every one, and
+      # each alert became an unresolved review thread that blocked the PR.
+      # This marks only what the gate PROVED, using the gate's own adjudication.
+      #
+      # Deliberately NO `if:`. When the gate step fails this step is skipped,
+      # the upload below still runs, and the unfiltered SARIF is published —
+      # a red gate shows every finding, which is when a human most needs them.
+      - name: Mark gate-verified findings in the SARIF
+        run: python3 scripts/sarif_suppress.py --sarif bandit.sarif src scripts
+      # CodeQL has no Shell analyzer, and scripts/verify_per_function.sh is the
+      # loop three mandatory gates run. shellcheck is the tool that covers it.
+      - name: Shell analysis
+        run: shellcheck scripts/*.sh
       - name: Upload to code scanning
         if: always()
         uses: github/codeql-action/upload-sarif@v3

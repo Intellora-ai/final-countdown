@@ -42,6 +42,9 @@ printf '%s\n' "$sources" | while read -r src; do
     specs=$(grep "=${src}$" /tmp/pairs.txt | cut -d= -f1 | tr '\n' ' ')
     echo "── $src ← $specs"
     # $specs is deliberately unquoted: one argument per spec file, not one
-    # argument containing every spec file.
+    # argument containing every spec file. Quoting it would pass a single
+    # argument holding every path, and the verifier would look for one file
+    # with a name containing spaces.
+    # shellcheck disable=SC2086
     python3 "$verifier" $specs "$@"
 done

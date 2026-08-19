@@ -1,0 +1,5963 @@
+{
+  "1": {
+    "name": "React",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=0.10.0"
+    ]
+  },
+  "2": {
+    "name": "React DOM",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "3": {
+    "name": "Next.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=20.9.0"
+    ]
+  },
+  "4": {
+    "name": "Vite",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node^20.19.0 || >=22.12.0"
+    ]
+  },
+  "5": {
+    "name": "TypeScript",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node>=16.20.0"
+    ]
+  },
+  "6": {
+    "name": "JavaScript",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "7": {
+    "name": "TanStack Router",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=20.19"
+    ]
+  },
+  "8": {
+    "name": "TanStack Start",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=22.12.0"
+    ]
+  },
+  "9": {
+    "name": "Remix",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=18.0.0"
+    ]
+  },
+  "10": {
+    "name": "Astro",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=22.12.0"
+    ]
+  },
+  "11": {
+    "name": "Svelte",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=18"
+    ]
+  },
+  "12": {
+    "name": "SvelteKit",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=18.13"
+    ]
+  },
+  "13": {
+    "name": "Vue",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "14": {
+    "name": "Nuxt",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node^22.19.0 || ^24.11.0 || >=26.0.0"
+    ]
+  },
+  "15": {
+    "name": "SolidJS",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "16": {
+    "name": "Qwik",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=16.8.0 <18.0.0 || >=18.11"
+    ]
+  },
+  "17": {
+    "name": "Lit",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "18": {
+    "name": "Preact",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "19": {
+    "name": "Alpine.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "20": {
+    "name": "HTMX",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "21": {
+    "name": "Tailwind CSS",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "22": {
+    "name": "PostCSS",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node^10 || ^12 || >=14"
+    ]
+  },
+  "23": {
+    "name": "Autoprefixer",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node^10 || ^12 || >=14"
+    ]
+  },
+  "24": {
+    "name": "Radix UI",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "25": {
+    "name": "Headless UI",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=10"
+    ]
+  },
+  "26": {
+    "name": "Ark UI",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "27": {
+    "name": "Mantine",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "28": {
+    "name": "Chakra UI",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "29": {
+    "name": "shadcn/ui",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node>=20.18.1"
+    ]
+  },
+  "30": {
+    "name": "Base UI",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=14.0.0"
+    ]
+  },
+  "31": {
+    "name": "React Aria",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "32": {
+    "name": "React Spectrum",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "33": {
+    "name": "MUI",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=14.0.0"
+    ]
+  },
+  "34": {
+    "name": "Ant Design",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "35": {
+    "name": "DaisyUI",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "36": {
+    "name": "Lucide",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "37": {
+    "name": "Heroicons",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "38": {
+    "name": "Tabler Icons",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "39": {
+    "name": "Phosphor Icons",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "40": {
+    "name": "Floating UI",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "41": {
+    "name": "Zustand",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=12.20.0"
+    ]
+  },
+  "42": {
+    "name": "Redux Toolkit",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "43": {
+    "name": "Jotai",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=12.20.0"
+    ]
+  },
+  "44": {
+    "name": "MobX",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "45": {
+    "name": "Valtio",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=12.20.0"
+    ]
+  },
+  "46": {
+    "name": "XState",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "47": {
+    "name": "TanStack Query",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "48": {
+    "name": "TanStack Store",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "49": {
+    "name": "Immer",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "50": {
+    "name": "RxJS",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "51": {
+    "name": "Effector",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=11.0.0"
+    ]
+  },
+  "52": {
+    "name": "Recoil",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "53": {
+    "name": "Vercel SWR",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "54": {
+    "name": "Zod",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "55": {
+    "name": "Valibot",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "56": {
+    "name": "Yup",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "57": {
+    "name": "Joi",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>= 20"
+    ]
+  },
+  "58": {
+    "name": "Ajv",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "59": {
+    "name": "TypeBox",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "60": {
+    "name": "JSON Schema",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "61": {
+    "name": "React Hook Form",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=18.0.0"
+    ]
+  },
+  "62": {
+    "name": "Final Form",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=18"
+    ]
+  },
+  "63": {
+    "name": "Formik",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "64": {
+    "name": "Superstruct",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=14.0.0"
+    ]
+  },
+  "65": {
+    "name": "io-ts",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "66": {
+    "name": "Motion",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "67": {
+    "name": "Framer Motion",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "68": {
+    "name": "GSAP",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "69": {
+    "name": "Anime.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "70": {
+    "name": "Popmotion",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "71": {
+    "name": "React Spring",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "72": {
+    "name": "Motion One",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "73": {
+    "name": "Auto Animate",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "74": {
+    "name": "Lottie-web",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "75": {
+    "name": "Rive Runtime",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "76": {
+    "name": "Theatre.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "77": {
+    "name": "React Transition Group",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "78": {
+    "name": "SVG",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "79": {
+    "name": "HTML Canvas",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "80": {
+    "name": "Konva",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "81": {
+    "name": "React Konva",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "82": {
+    "name": "PixiJS",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "83": {
+    "name": "Fabric.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=20.0.0"
+    ]
+  },
+  "84": {
+    "name": "Paper.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=8.0.0"
+    ]
+  },
+  "85": {
+    "name": "Two.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "86": {
+    "name": "Rough.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "87": {
+    "name": "p5.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "88": {
+    "name": "regl",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "89": {
+    "name": "CairoSVG",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python>=3.10"
+    ]
+  },
+  "90": {
+    "name": "SVG.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "91": {
+    "name": "React Flow",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "92": {
+    "name": "Cytoscape.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=0.10"
+    ]
+  },
+  "93": {
+    "name": "Mermaid",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "94": {
+    "name": "Graphology",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "95": {
+    "name": "Sigma.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "96": {
+    "name": "Dagre",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "97": {
+    "name": "ELK.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "98": {
+    "name": "Graphviz",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "99": {
+    "name": "Viz.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "100": {
+    "name": "JointJS Community",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "101": {
+    "name": "mxGraph / maxGraph",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "102": {
+    "name": "GoJS alternatives via Cytoscape/React Flow",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "103": {
+    "name": "JSXGraph",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=20.19.0"
+    ]
+  },
+  "104": {
+    "name": "Excalidraw",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "105": {
+    "name": "Perfect Freehand",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "106": {
+    "name": "Rough.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "107": {
+    "name": "React Sketch Canvas",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=22.13.0"
+    ]
+  },
+  "108": {
+    "name": "Fabric.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "109": {
+    "name": "Konva",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "110": {
+    "name": "Paper.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "111": {
+    "name": "tldraw",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=22.12.0"
+    ]
+  },
+  "112": {
+    "name": "D3",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "113": {
+    "name": "Observable Plot",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "114": {
+    "name": "Vega",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "115": {
+    "name": "Vega-Lite",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "116": {
+    "name": "Apache ECharts",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "117": {
+    "name": "Plotly.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "118": {
+    "name": "Chart.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "119": {
+    "name": "Apache Charts alternatives via ECharts/Vega",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "120": {
+    "name": "Nivo",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser",
+      "react"
+    ]
+  },
+  "121": {
+    "name": "Recharts",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser",
+      "react"
+    ]
+  },
+  "122": {
+    "name": "Visx",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser",
+      "react"
+    ]
+  },
+  "123": {
+    "name": "Victory",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser",
+      "react"
+    ]
+  },
+  "124": {
+    "name": "uPlot",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "125": {
+    "name": "Frappe Charts",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "126": {
+    "name": "Billboard.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "127": {
+    "name": "Three.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "128": {
+    "name": "React Three Fiber",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser",
+      "react",
+      "three"
+    ]
+  },
+  "129": {
+    "name": "@react-three/drei",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser",
+      "react",
+      "three"
+    ]
+  },
+  "130": {
+    "name": "Babylon.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "131": {
+    "name": "PlayCanvas Engine",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "132": {
+    "name": "A-Frame",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "133": {
+    "name": "OGL",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "134": {
+    "name": "TresJS",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser",
+      "vue",
+      "three"
+    ]
+  },
+  "135": {
+    "name": "React BabylonJS",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser",
+      "react"
+    ]
+  },
+  "136": {
+    "name": "deck.gl",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "137": {
+    "name": "CesiumJS",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "138": {
+    "name": "vtk.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "139": {
+    "name": "xeokit",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "140": {
+    "name": "Potree",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "141": {
+    "name": "OpenCascade.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "142": {
+    "name": "WebGL",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": [
+      "browser"
+    ]
+  },
+  "143": {
+    "name": "WebGPU",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": [
+      "webgpu-capable-browser"
+    ]
+  },
+  "144": {
+    "name": "wgpu",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "rust-toolchain"
+    ]
+  },
+  "145": {
+    "name": "Three.js WebGPU renderer",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "webgpu-capable-browser"
+    ]
+  },
+  "146": {
+    "name": "regl",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "147": {
+    "name": "luma.gl",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "148": {
+    "name": "GPU.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "149": {
+    "name": "gl-matrix",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "150": {
+    "name": "twgl.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "151": {
+    "name": "Babylon WebGPU",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "webgpu-capable-browser"
+    ]
+  },
+  "152": {
+    "name": "shaderc",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "153": {
+    "name": "Matter.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "154": {
+    "name": "Rapier",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "rust-toolchain"
+    ]
+  },
+  "155": {
+    "name": "Rapier.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "156": {
+    "name": "Cannon-es",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "157": {
+    "name": "Ammo.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "158": {
+    "name": "Planck.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "159": {
+    "name": "Box2D",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "c++-toolchain",
+      "cmake"
+    ]
+  },
+  "160": {
+    "name": "Oimo.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "161": {
+    "name": "Jolt Physics",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "162": {
+    "name": "Chipmunk2D",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "c-toolchain",
+      "cmake"
+    ]
+  },
+  "163": {
+    "name": "PyBullet",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "164": {
+    "name": "Bullet Physics",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "c++-toolchain",
+      "cmake"
+    ]
+  },
+  "165": {
+    "name": "MuJoCo",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "166": {
+    "name": "Pymunk",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "167": {
+    "name": "Taichi",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3<3.14"
+    ]
+  },
+  "168": {
+    "name": "KaTeX",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "169": {
+    "name": "MathJax",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "170": {
+    "name": "MathLive",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "171": {
+    "name": "Math.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "172": {
+    "name": "SymPy",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "173": {
+    "name": "Nerdamer",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "174": {
+    "name": "Algebrite",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "175": {
+    "name": "Fraction.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "176": {
+    "name": "decimal.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "177": {
+    "name": "big.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "178": {
+    "name": "numeric.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "179": {
+    "name": "math-expression-evaluator",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ]
+  },
+  "180": {
+    "name": "JSXGraph",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "181": {
+    "name": "SageMath",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "182": {
+    "name": "GNU Octave",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "183": {
+    "name": "NumPy",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "184": {
+    "name": "SciPy",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "185": {
+    "name": "pandas",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "186": {
+    "name": "Polars",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "187": {
+    "name": "Apache Arrow",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "188": {
+    "name": "DuckDB",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "189": {
+    "name": "PyArrow",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "190": {
+    "name": "Numba",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "191": {
+    "name": "JAX",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "192": {
+    "name": "PyTorch",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "193": {
+    "name": "TensorFlow",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3<3.14"
+    ]
+  },
+  "194": {
+    "name": "Keras",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "195": {
+    "name": "XGBoost",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "196": {
+    "name": "LightGBM",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "197": {
+    "name": "CatBoost",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "198": {
+    "name": "scikit-learn",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "199": {
+    "name": "Statsmodels",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "200": {
+    "name": "NetworkX",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "201": {
+    "name": "Lean 4",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "elan"
+    ]
+  },
+  "202": {
+    "name": "Mathlib",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "lean4-toolchain",
+      "lake"
+    ]
+  },
+  "203": {
+    "name": "Coq",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "204": {
+    "name": "Isabelle",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "205": {
+    "name": "Agda",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "206": {
+    "name": "Z3",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "207": {
+    "name": "CVC5",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "208": {
+    "name": "SymPy",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "209": {
+    "name": "SMT-LIB tooling",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "210": {
+    "name": "OpenQASM tooling",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "211": {
+    "name": "NetworkX",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "212": {
+    "name": "igraph",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "213": {
+    "name": "graphology",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "214": {
+    "name": "Neo4j Community Edition",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "jvm",
+      "docker"
+    ]
+  },
+  "215": {
+    "name": "Memgraph Community",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "docker"
+    ]
+  },
+  "216": {
+    "name": "Apache TinkerPop",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "jvm"
+    ]
+  },
+  "217": {
+    "name": "RDFLib",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "218": {
+    "name": "rdflib.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "219": {
+    "name": "Comunica",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "220": {
+    "name": "N-Triples / Turtle tooling",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "221": {
+    "name": "SHACL tooling",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "222": {
+    "name": "pySHACL",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "223": {
+    "name": "Markdown-it",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "224": {
+    "name": "unified",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "225": {
+    "name": "remark",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "226": {
+    "name": "rehype",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "227": {
+    "name": "retext",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "228": {
+    "name": "micromark",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "229": {
+    "name": "mdast",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "230": {
+    "name": "hast",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "231": {
+    "name": "gray-matter",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "232": {
+    "name": "MDX",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "233": {
+    "name": "next-mdx-remote",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "234": {
+    "name": "react-markdown",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "235": {
+    "name": "marked",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "236": {
+    "name": "showdown",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "237": {
+    "name": "DOMPurify",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "238": {
+    "name": "Lexical",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "239": {
+    "name": "ProseMirror",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "240": {
+    "name": "TipTap Core",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "241": {
+    "name": "Slate",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "242": {
+    "name": "Slate React",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "243": {
+    "name": "Quill",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "244": {
+    "name": "Editor.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "245": {
+    "name": "Draft.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "246": {
+    "name": "Milkdown",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "247": {
+    "name": "Remirror",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "248": {
+    "name": "BlockNote",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "249": {
+    "name": "Monaco Editor",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "250": {
+    "name": "CodeMirror",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "251": {
+    "name": "Sandpack",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "252": {
+    "name": "Shiki",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "253": {
+    "name": "Highlight.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "254": {
+    "name": "Prism",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "255": {
+    "name": "Tree-sitter",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "256": {
+    "name": "Lezer",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "257": {
+    "name": "Acorn",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "258": {
+    "name": "Babel parser",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "259": {
+    "name": "SWC",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "260": {
+    "name": "esbuild",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "261": {
+    "name": "Rollup",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "262": {
+    "name": "tsup",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "263": {
+    "name": "TypeScript compiler",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "264": {
+    "name": "PDF.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "265": {
+    "name": "PSPDFKit alternatives via PDF.js",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "266": {
+    "name": "OpenSeadragon",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "267": {
+    "name": "pdf-lib",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "268": {
+    "name": "PDFKit",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "269": {
+    "name": "MuPDF",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "270": {
+    "name": "Poppler",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "271": {
+    "name": "PyMuPDF",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "272": {
+    "name": "pypdf",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "273": {
+    "name": "Apache Tika",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "jvm"
+    ]
+  },
+  "274": {
+    "name": "OpenCV",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "275": {
+    "name": "Pillow",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "276": {
+    "name": "ImageMagick",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "277": {
+    "name": "Sharp",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "278": {
+    "name": "libvips",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "279": {
+    "name": "scikit-image",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "280": {
+    "name": "imageio",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "281": {
+    "name": "Wand",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "imagemagick"
+    ]
+  },
+  "282": {
+    "name": "torchvision",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "283": {
+    "name": "Kornia",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "284": {
+    "name": "Tesseract OCR",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "leptonica"
+    ]
+  },
+  "285": {
+    "name": "PaddleOCR",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "286": {
+    "name": "EasyOCR",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "287": {
+    "name": "docTR",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "288": {
+    "name": "OpenCV",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "289": {
+    "name": "LayoutParser",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "290": {
+    "name": "OCRmyPDF",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "tesseract",
+      "ghostscript"
+    ]
+  },
+  "291": {
+    "name": "Leptonica",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "292": {
+    "name": "Kraken OCR",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "293": {
+    "name": "Web Audio API",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": [
+      "browser with Web Audio API support"
+    ]
+  },
+  "294": {
+    "name": "Tone.js",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node",
+      "browser with Web Audio API support"
+    ]
+  },
+  "295": {
+    "name": "Howler.js",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": [
+      "browser with Web Audio API support"
+    ]
+  },
+  "296": {
+    "name": "Wavesurfer.js",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": [
+      "browser with Web Audio API support",
+      "DOM"
+    ]
+  },
+  "297": {
+    "name": "AudioWorklet",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": [
+      "browser with Web Audio API support",
+      "secure context (HTTPS or localhost)"
+    ]
+  },
+  "298": {
+    "name": "Essentia",
+    "platform_support": [
+      "linux",
+      "macos"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "299": {
+    "name": "librosa",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "numpy",
+      "scipy",
+      "soundfile"
+    ]
+  },
+  "300": {
+    "name": "soundfile",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "libsndfile"
+    ]
+  },
+  "301": {
+    "name": "pydub",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "ffmpeg (for any format other than WAV)"
+    ]
+  },
+  "302": {
+    "name": "FFmpeg",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "303": {
+    "name": "FFmpeg",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "304": {
+    "name": "WebCodecs",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": [
+      "browser with WebCodecs support",
+      "secure context (HTTPS or localhost)"
+    ]
+  },
+  "305": {
+    "name": "Media Source Extensions",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": [
+      "browser with Media Source Extensions support"
+    ]
+  },
+  "306": {
+    "name": "MediaRecorder API",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": [
+      "browser with MediaStream Recording support",
+      "secure context (HTTPS or localhost)",
+      "user permission for getUserMedia when recording capture devices"
+    ]
+  },
+  "307": {
+    "name": "Video.js",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": [
+      "browser",
+      "DOM"
+    ]
+  },
+  "308": {
+    "name": "hls.js",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": [
+      "browser with Media Source Extensions support"
+    ]
+  },
+  "309": {
+    "name": "dash.js",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": [
+      "browser with Media Source Extensions support",
+      "browser with Encrypted Media Extensions for DRM"
+    ]
+  },
+  "310": {
+    "name": "Plyr",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": [
+      "browser",
+      "DOM"
+    ]
+  },
+  "311": {
+    "name": "Shaka Player",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": [
+      "browser with Media Source Extensions support",
+      "browser with Encrypted Media Extensions for DRM"
+    ]
+  },
+  "312": {
+    "name": "GStreamer",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "313": {
+    "name": "Whisper",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "PyTorch",
+      "ffmpeg"
+    ]
+  },
+  "314": {
+    "name": "whisper.cpp",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "315": {
+    "name": "faster-whisper",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "ctranslate2"
+    ]
+  },
+  "316": {
+    "name": "Vosk",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "317": {
+    "name": "Kaldi",
+    "platform_support": [
+      "linux",
+      "macos"
+    ],
+    "runtime_requirements": [
+      "C++ toolchain",
+      "BLAS/LAPACK implementation"
+    ]
+  },
+  "318": {
+    "name": "Piper",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "onnxruntime",
+      "espeak-ng phonemisation data"
+    ]
+  },
+  "319": {
+    "name": "Coqui TTS",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "PyTorch",
+      "python<3.12"
+    ]
+  },
+  "320": {
+    "name": "eSpeak NG",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "321": {
+    "name": "Festival",
+    "platform_support": [
+      "linux"
+    ],
+    "runtime_requirements": [
+      "C++ toolchain when building from source"
+    ]
+  },
+  "322": {
+    "name": "llama.cpp",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "323": {
+    "name": "Ollama",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "324": {
+    "name": "vLLM",
+    "platform_support": [
+      "linux"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "NVIDIA GPU with CUDA",
+      "linux"
+    ]
+  },
+  "325": {
+    "name": "Hugging Face Transformers",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "PyTorch"
+    ]
+  },
+  "326": {
+    "name": "Sentence Transformers",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "PyTorch",
+      "transformers"
+    ]
+  },
+  "327": {
+    "name": "PEFT",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "PyTorch",
+      "transformers"
+    ]
+  },
+  "328": {
+    "name": "Accelerate",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "PyTorch"
+    ]
+  },
+  "329": {
+    "name": "bitsandbytes",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "PyTorch"
+    ]
+  },
+  "330": {
+    "name": "ONNX Runtime",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "331": {
+    "name": "OpenVINO",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "332": {
+    "name": "MLX",
+    "platform_support": [
+      "macos"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "Apple silicon (arm64) Mac"
+    ]
+  },
+  "333": {
+    "name": "TensorRT-LLM",
+    "platform_support": [
+      "linux"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "NVIDIA GPU (Volta or newer)",
+      "CUDA toolkit",
+      "linux"
+    ]
+  },
+  "334": {
+    "name": "llama-cpp-python",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "C/C++ toolchain",
+      "cmake"
+    ]
+  },
+  "335": {
+    "name": "LangChain",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "336": {
+    "name": "LlamaIndex",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "337": {
+    "name": "Haystack",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "338": {
+    "name": "DSPy",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "339": {
+    "name": "LiteLLM",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "340": {
+    "name": "Semantic Kernel",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "341": {
+    "name": "AutoGen",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "342": {
+    "name": "smolagents",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "343": {
+    "name": "PydanticAI",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "pydantic"
+    ]
+  },
+  "344": {
+    "name": "Guidance",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "345": {
+    "name": "FAISS",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "numpy"
+    ]
+  },
+  "346": {
+    "name": "hnswlib",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "C++ toolchain (wheel builds from source)"
+    ]
+  },
+  "347": {
+    "name": "Annoy",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "C++ toolchain (wheel builds from source)"
+    ]
+  },
+  "348": {
+    "name": "Chroma",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "349": {
+    "name": "Qdrant",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container runtime"
+    ]
+  },
+  "350": {
+    "name": "Milvus",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container runtime",
+      "etcd",
+      "object storage (MinIO or S3-compatible)"
+    ]
+  },
+  "351": {
+    "name": "Weaviate Community",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container runtime"
+    ]
+  },
+  "352": {
+    "name": "LanceDB",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "353": {
+    "name": "pgvector",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "PostgreSQL server (see id 386)",
+      "C toolchain and PostgreSQL development headers when building"
+    ]
+  },
+  "354": {
+    "name": "Vespa",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container runtime",
+      "JVM (bundled in the image)"
+    ]
+  },
+  "355": {
+    "name": "OpenSearch",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container runtime",
+      "JVM (bundled in the image)"
+    ]
+  },
+  "356": {
+    "name": "Elasticsearch",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container runtime",
+      "JVM (bundled in the image)"
+    ]
+  },
+  "357": {
+    "name": "Meilisearch",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container runtime"
+    ]
+  },
+  "358": {
+    "name": "Typesense",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container runtime"
+    ]
+  },
+  "359": {
+    "name": "Tantivy",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "rust toolchain"
+    ]
+  },
+  "360": {
+    "name": "Whoosh",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "361": {
+    "name": "Apache Lucene",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "jvm"
+    ]
+  },
+  "362": {
+    "name": "FastAPI",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "363": {
+    "name": "Starlette",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "364": {
+    "name": "Uvicorn",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "365": {
+    "name": "Gunicorn",
+    "platform_support": [
+      "linux",
+      "macos"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "366": {
+    "name": "Flask",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "367": {
+    "name": "Django",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "368": {
+    "name": "Litestar",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "369": {
+    "name": "Sanic",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "370": {
+    "name": "Node.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "371": {
+    "name": "Express",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "372": {
+    "name": "Fastify",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "373": {
+    "name": "Hono",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "374": {
+    "name": "NestJS",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "375": {
+    "name": "OpenAPI",
+    "platform_support": [],
+    "runtime_requirements": []
+  },
+  "376": {
+    "name": "Swagger UI",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "377": {
+    "name": "Redoc",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "378": {
+    "name": "Scalar",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "379": {
+    "name": "GraphQL",
+    "platform_support": [],
+    "runtime_requirements": []
+  },
+  "380": {
+    "name": "GraphQL Yoga",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "381": {
+    "name": "Apollo Server",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "382": {
+    "name": "tRPC",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "383": {
+    "name": "gRPC",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "384": {
+    "name": "ConnectRPC",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "385": {
+    "name": "Protocol Buffers",
+    "platform_support": [],
+    "runtime_requirements": []
+  },
+  "386": {
+    "name": "PostgreSQL",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "387": {
+    "name": "SQLite",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "388": {
+    "name": "DuckDB",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "389": {
+    "name": "MariaDB",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "390": {
+    "name": "MySQL Community",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "391": {
+    "name": "Redis",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "392": {
+    "name": "Valkey",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "393": {
+    "name": "MongoDB Community",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "394": {
+    "name": "Neo4j Community",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "395": {
+    "name": "ClickHouse",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "396": {
+    "name": "TimescaleDB",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "postgresql",
+      "container-runtime"
+    ]
+  },
+  "397": {
+    "name": "CockroachDB Community",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "398": {
+    "name": "Celery",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "message-broker"
+    ]
+  },
+  "399": {
+    "name": "Dramatiq",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "message-broker"
+    ]
+  },
+  "400": {
+    "name": "RQ",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "redis"
+    ]
+  },
+  "401": {
+    "name": "BullMQ",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node",
+      "redis"
+    ]
+  },
+  "402": {
+    "name": "Bull",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node",
+      "redis"
+    ]
+  },
+  "403": {
+    "name": "RabbitMQ",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "404": {
+    "name": "NATS",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "405": {
+    "name": "Apache Kafka",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "406": {
+    "name": "Redis Streams",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "redis"
+    ]
+  },
+  "407": {
+    "name": "Temporal",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "408": {
+    "name": "APScheduler",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "409": {
+    "name": "WebSocket API",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": [
+      "browser"
+    ]
+  },
+  "410": {
+    "name": "WebRTC",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": [
+      "browser"
+    ]
+  },
+  "411": {
+    "name": "Socket.IO",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "412": {
+    "name": "Yjs",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "413": {
+    "name": "Automerge",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "414": {
+    "name": "Hocuspocus",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "415": {
+    "name": "Liveblocks alternatives via Yjs/Hocuspocus",
+    "platform_support": [],
+    "runtime_requirements": []
+  },
+  "416": {
+    "name": "mediasoup",
+    "platform_support": [
+      "linux",
+      "macos"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "417": {
+    "name": "Janus",
+    "platform_support": [
+      "linux",
+      "macos"
+    ],
+    "runtime_requirements": []
+  },
+  "418": {
+    "name": "Jitsi Meet",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "419": {
+    "name": "LiveKit Community",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "420": {
+    "name": "Auth.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "421": {
+    "name": "Keycloak",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "422": {
+    "name": "Ory Kratos",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "423": {
+    "name": "Ory Keto",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "424": {
+    "name": "OpenFGA",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "425": {
+    "name": "Casbin",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "go"
+    ]
+  },
+  "426": {
+    "name": "Oso",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "427": {
+    "name": "Lucia alternatives",
+    "platform_support": [],
+    "runtime_requirements": []
+  },
+  "428": {
+    "name": "Passport.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "429": {
+    "name": "Better Auth",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "430": {
+    "name": "OpenTelemetry",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "431": {
+    "name": "Prometheus",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "432": {
+    "name": "Grafana",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "433": {
+    "name": "Loki",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "434": {
+    "name": "Tempo",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "435": {
+    "name": "Jaeger",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "436": {
+    "name": "OpenSearch Dashboards",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "437": {
+    "name": "Sentry self-hosted",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "438": {
+    "name": "GlitchTip",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "439": {
+    "name": "VictoriaMetrics",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "container-runtime"
+    ]
+  },
+  "440": {
+    "name": "Playwright",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=20"
+    ]
+  },
+  "441": {
+    "name": "Vitest",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node>=20"
+    ]
+  },
+  "442": {
+    "name": "Jest",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node>=18"
+    ]
+  },
+  "443": {
+    "name": "Testing Library",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=18"
+    ]
+  },
+  "444": {
+    "name": "React Testing Library",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=18"
+    ]
+  },
+  "445": {
+    "name": "Cypress",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "446": {
+    "name": "WebdriverIO",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node>=18"
+    ]
+  },
+  "447": {
+    "name": "pytest",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python>=3.12"
+    ]
+  },
+  "448": {
+    "name": "Hypothesis",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python>=3.12"
+    ]
+  },
+  "449": {
+    "name": "property-based testing tools",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "450": {
+    "name": "k6",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "451": {
+    "name": "Locust",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "452": {
+    "name": "Artillery",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "453": {
+    "name": "axe-core",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=4"
+    ]
+  },
+  "454": {
+    "name": "Lighthouse",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node>=22.19"
+    ]
+  },
+  "455": {
+    "name": "Puppeteer",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=22.12"
+    ]
+  },
+  "456": {
+    "name": "Pa11y",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node>=20"
+    ]
+  },
+  "457": {
+    "name": "WebPageTest tooling",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "458": {
+    "name": "OpenUI",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "459": {
+    "name": "PerformanceObserver API",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "460": {
+    "name": "ResizeObserver",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "461": {
+    "name": "IntersectionObserver",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "462": {
+    "name": "pnpm",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "463": {
+    "name": "npm",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "464": {
+    "name": "Yarn",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "465": {
+    "name": "Bun",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "466": {
+    "name": "Turborepo",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "467": {
+    "name": "Nx",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "468": {
+    "name": "Bazel",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "469": {
+    "name": "Pants",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "470": {
+    "name": "Buck2",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "471": {
+    "name": "Changesets",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node>=22.11"
+    ]
+  },
+  "472": {
+    "name": "Renovate",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "473": {
+    "name": "Dependabot",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "474": {
+    "name": "ESLint",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node>=20.19"
+    ]
+  },
+  "475": {
+    "name": "Biome",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node>=14.21.3"
+    ]
+  },
+  "476": {
+    "name": "Prettier",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node>=14"
+    ]
+  },
+  "477": {
+    "name": "Ruff",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "478": {
+    "name": "Black",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "479": {
+    "name": "isort",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "480": {
+    "name": "mypy",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "481": {
+    "name": "Pyright",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python>=3.12",
+      "node"
+    ]
+  },
+  "482": {
+    "name": "Pylint",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "483": {
+    "name": "Bandit",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python>=3.12"
+    ]
+  },
+  "484": {
+    "name": "Semgrep Community",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "485": {
+    "name": "CodeQL",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "486": {
+    "name": "clang-format",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "487": {
+    "name": "Clang-Tidy",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "488": {
+    "name": "Git",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "489": {
+    "name": "Git LFS",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "490": {
+    "name": "pre-commit",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "491": {
+    "name": "Husky",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node>=18"
+    ]
+  },
+  "492": {
+    "name": "lint-staged",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node>=22.22.1"
+    ]
+  },
+  "493": {
+    "name": "commitlint",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node>=22.12"
+    ]
+  },
+  "494": {
+    "name": "Commitizen",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node>=18"
+    ]
+  },
+  "495": {
+    "name": "Lefthook",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "496": {
+    "name": "simple-git-hooks",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "497": {
+    "name": "Docker",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "498": {
+    "name": "Docker Compose",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "499": {
+    "name": "Podman",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "500": {
+    "name": "Kubernetes",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "501": {
+    "name": "k3s",
+    "platform_support": [
+      "linux"
+    ],
+    "runtime_requirements": []
+  },
+  "502": {
+    "name": "Kind",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "503": {
+    "name": "Minikube",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "504": {
+    "name": "Helm",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "505": {
+    "name": "Kustomize",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "506": {
+    "name": "Terraform",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "507": {
+    "name": "OpenTofu",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "508": {
+    "name": "Ansible",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "509": {
+    "name": "MinIO",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "510": {
+    "name": "SeaweedFS",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "511": {
+    "name": "Garage",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "512": {
+    "name": "S3-compatible storage APIs",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "513": {
+    "name": "Apache Commons Compress",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "java"
+    ]
+  },
+  "514": {
+    "name": "Zip.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node>=18"
+    ]
+  },
+  "515": {
+    "name": "Manim",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "ffmpeg",
+      "cairo",
+      "pango"
+    ]
+  },
+  "516": {
+    "name": "VPython",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "517": {
+    "name": "PyVista",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "518": {
+    "name": "Plotly",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "519": {
+    "name": "Bokeh",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "520": {
+    "name": "Holoviews",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "521": {
+    "name": "Datashader",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "522": {
+    "name": "Mayavi",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "523": {
+    "name": "VisPy",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "opengl"
+    ]
+  },
+  "524": {
+    "name": "Napari",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "525": {
+    "name": "Open3D",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "526": {
+    "name": "Trimesh",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "527": {
+    "name": "OpenCascade",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "528": {
+    "name": "OpenCascade.js",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "529": {
+    "name": "CGAL",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "530": {
+    "name": "Shapely",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "531": {
+    "name": "GeoPandas",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "532": {
+    "name": "Fiona",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3",
+      "gdal"
+    ]
+  },
+  "533": {
+    "name": "Rasterio",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "python3"
+    ]
+  },
+  "534": {
+    "name": "PROJ",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "535": {
+    "name": "GDAL",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "536": {
+    "name": "Turf.js",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "537": {
+    "name": "Godot",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "538": {
+    "name": "Bevy",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "rust"
+    ]
+  },
+  "539": {
+    "name": "Phaser",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "540": {
+    "name": "PixiJS",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "541": {
+    "name": "PlayCanvas",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "542": {
+    "name": "Defold",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "543": {
+    "name": "Mermaid",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "544": {
+    "name": "Graphviz",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": []
+  },
+  "545": {
+    "name": "PlantUML",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "java"
+    ]
+  },
+  "546": {
+    "name": "Ditaa",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "java"
+    ]
+  },
+  "547": {
+    "name": "Kroki",
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "runtime_requirements": [
+      "java"
+    ]
+  },
+  "548": {
+    "name": "BPMN.js",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": [
+      "node"
+    ]
+  },
+  "549": {
+    "name": "Rough.js",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": []
+  },
+  "550": {
+    "name": "Fabric.js",
+    "platform_support": [
+      "browser"
+    ],
+    "runtime_requirements": []
+  }
+}

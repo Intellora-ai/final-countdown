@@ -1,0 +1,3695 @@
+[
+  {
+    "id": 112,
+    "name": "D3",
+    "category": "Charts / data visualization",
+    "category_number": 9,
+    "technology_id": "d3",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "d3",
+    "install_method": "npm",
+    "version": "7.9.0",
+    "license": "ISC",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/d3/d3",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://d3js.org/",
+    "notes": "Installed on this machine: `npm install --save-exact d3@7.9.0` into technology-universe/runtimes/javascript-viz/ (its own package.json; the repository-root package.json was not touched). Version measured by reading technology-universe/runtimes/javascript-viz/node_modules/d3/package.json. Smoke test under Node v26.0.0: d3.scaleLinear().domain([0,10]).range([0,100])(5) === 50; 577 exports. `npm install` reported 'found 0 vulnerabilities' over the 116-package tree, which is the only security evidence behind `scanned-clean`. Lockfile: technology-universe/runtimes/javascript-viz/package-lock.json. Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7."
+  },
+  {
+    "id": 113,
+    "name": "Observable Plot",
+    "category": "Charts / data visualization",
+    "category_number": 9,
+    "technology_id": "observable-plot",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@observablehq/plot",
+    "install_method": "npm",
+    "version": "0.6.17",
+    "license": "ISC",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/observablehq/plot",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://observablehq.com/plot/",
+    "notes": "Installed on this machine: `npm install --save-exact @observablehq/plot@0.6.17` into technology-universe/runtimes/javascript-viz/ (its own package.json; the repository-root package.json was not touched). Version measured by reading technology-universe/runtimes/javascript-viz/node_modules/@observablehq/plot/package.json. Smoke test under Node v26.0.0: Plot.dot([{x:1,y:2},{x:2,y:3}],{x:'x',y:'y'}) returned a Dot mark with an initialize() method; 166 exports. Rendering to SVG needs a DOM, which was not stood up. `npm install` reported 'found 0 vulnerabilities' over the 116-package tree, which is the only security evidence behind `scanned-clean`. Lockfile: technology-universe/runtimes/javascript-viz/package-lock.json. Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7."
+  },
+  {
+    "id": 114,
+    "name": "Vega",
+    "category": "Charts / data visualization",
+    "category_number": 9,
+    "technology_id": "vega",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "vega",
+    "install_method": "npm",
+    "version": null,
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/vega/vega",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://vega.github.io/vega/docs/",
+    "notes": "Not installed. Reproducible: `npm install --save-exact vega@6.4.0` into technology-universe/runtimes/javascript-viz/. 6.4.0 is what the npm registry served for `vega` at probe time and is recorded here, not in `version`, because nothing was installed or measured. Licence read from the npm registry metadata for vega@6.4.0."
+  },
+  {
+    "id": 115,
+    "name": "Vega-Lite",
+    "category": "Charts / data visualization",
+    "category_number": 9,
+    "technology_id": "vega-lite",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "vega-lite",
+    "install_method": "npm",
+    "version": "6.4.3",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/vega/vega-lite",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://vega.github.io/vega-lite/docs/",
+    "notes": "Installed on this machine: `npm install --save-exact vega-lite@6.4.3` into technology-universe/runtimes/javascript-viz/ (its own package.json; the repository-root package.json was not touched). Version measured by reading technology-universe/runtimes/javascript-viz/node_modules/vega-lite/package.json. Smoke test under Node v26.0.0: compile({mark:'bar',data:{values:[{a:1}]},encoding:{x:{field:'a',type:'quantitative'}}}) produced a Vega spec with 1 mark. `npm install` reported 'found 0 vulnerabilities' over the 116-package tree, which is the only security evidence behind `scanned-clean`. Lockfile: technology-universe/runtimes/javascript-viz/package-lock.json. Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7."
+  },
+  {
+    "id": 116,
+    "name": "Apache ECharts",
+    "category": "Charts / data visualization",
+    "category_number": 9,
+    "technology_id": "apache-echarts",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "echarts",
+    "install_method": "npm",
+    "version": "6.1.0",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/apache/echarts",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://echarts.apache.org/en/index.html",
+    "notes": "Installed on this machine: `npm install --save-exact echarts@6.1.0` into technology-universe/runtimes/javascript-viz/ (its own package.json; the repository-root package.json was not touched). Version measured by reading technology-universe/runtimes/javascript-viz/node_modules/echarts/package.json. Smoke test under Node v26.0.0: server-side render \u2014 init(null,null,{renderer:'svg',ssr:true,width:100,height:100}) with a bar series produced a 2299-byte SVG string. `npm install` reported 'found 0 vulnerabilities' over the 116-package tree, which is the only security evidence behind `scanned-clean`. Lockfile: technology-universe/runtimes/javascript-viz/package-lock.json. Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7."
+  },
+  {
+    "id": 117,
+    "name": "Plotly.js",
+    "category": "Charts / data visualization",
+    "category_number": 9,
+    "technology_id": "plotly-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "plotly.js",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/plotly/plotly.js",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://plotly.com/javascript/",
+    "notes": "LICENCE REVIEW REQUIRED \u2014 deliberately not installed pending it. Two measurements agree that the source code is MIT: the npm registry reports `license: MIT` for plotly.js@3.7.0, and the GitHub API reports MIT for plotly/plotly.js. The specification states the distribution carries additional EULA conditions for some uses and says to check before committing, and that condition cannot be confirmed from registry metadata alone \u2014 it lives in the shipped bundle and in Plotly's product terms, neither of which was read here. Resolve by reading the LICENSE and any EULA/terms file in the published tarball before adopting. Not installed. Reproducible: `npm install --save-exact plotly.js@3.7.0` into technology-universe/runtimes/javascript-viz/. 3.7.0 is what the npm registry served for `plotly.js` at probe time and is recorded here, not in `version`, because nothing was installed or measured."
+  },
+  {
+    "id": 118,
+    "name": "Chart.js",
+    "category": "Charts / data visualization",
+    "category_number": 9,
+    "technology_id": "chart-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "chart.js",
+    "install_method": "npm",
+    "version": "4.5.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/chartjs/Chart.js",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://www.chartjs.org/docs/latest/",
+    "notes": "Installed on this machine: `npm install --save-exact chart.js@4.5.1` into technology-universe/runtimes/javascript-viz/ (its own package.json; the repository-root package.json was not touched). Version measured by reading technology-universe/runtimes/javascript-viz/node_modules/chart.js/package.json. Smoke test under Node v26.0.0: Chart.register(...registerables) then read the registry \u2014 8 controllers and 6 scales registered. Drawing a chart needs a canvas backend, which was not installed. `npm install` reported 'found 0 vulnerabilities' over the 116-package tree, which is the only security evidence behind `scanned-clean`. Lockfile: technology-universe/runtimes/javascript-viz/package-lock.json. Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7."
+  },
+  {
+    "id": 119,
+    "name": "Apache Charts alternatives via ECharts/Vega",
+    "category": "Charts / data visualization",
+    "category_number": 9,
+    "technology_id": "apache-charts-alternatives",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "alternative-group",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://echarts.apache.org/en/index.html",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://echarts.apache.org/en/api.html",
+    "notes": "Names a class of alternatives, not a package \u2014 there is nothing to install and nothing to license as a unit, so `license` is null and the class is flagged for review rather than given a licence it does not have. The members already carry their own records and their own measured licences: id 116 Apache ECharts (Apache-2.0, installed and smoke-tested at 6.1.0), id 114 Vega (BSD-3-Clause) and id 115 Vega-Lite (BSD-3-Clause, installed and smoke-tested at 6.4.3). The URLs on this record point at the primary member because a class has no homepage of its own. Resolve by choosing a member; the choice, not this record, is what gets a licence."
+  },
+  {
+    "id": 120,
+    "name": "Nivo",
+    "category": "Charts / data visualization",
+    "category_number": 9,
+    "technology_id": "nivo",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@nivo/core",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/plouc/nivo",
+    "runtime_requirements": [
+      "node",
+      "browser",
+      "react"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://nivo.rocks/",
+    "notes": "Not installed. Reproducible: `npm install --save-exact @nivo/core@0.99.0` into technology-universe/runtimes/javascript-viz/. 0.99.0 is what the npm registry served for `@nivo/core` at probe time and is recorded here, not in `version`, because nothing was installed or measured. Chart types ship as sibling packages (@nivo/bar, @nivo/line, ...); @nivo/core alone renders nothing. Needs React."
+  },
+  {
+    "id": 121,
+    "name": "Recharts",
+    "category": "Charts / data visualization",
+    "category_number": 9,
+    "technology_id": "recharts",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "recharts",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/recharts/recharts",
+    "runtime_requirements": [
+      "node",
+      "browser",
+      "react"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://recharts.org/en-US/api",
+    "notes": "Not installed. Reproducible: `npm install --save-exact recharts@3.10.1` into technology-universe/runtimes/javascript-viz/. 3.10.1 is what the npm registry served for `recharts` at probe time and is recorded here, not in `version`, because nothing was installed or measured. Needs React."
+  },
+  {
+    "id": 122,
+    "name": "Visx",
+    "category": "Charts / data visualization",
+    "category_number": 9,
+    "technology_id": "visx",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@visx/visx",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/airbnb/visx",
+    "runtime_requirements": [
+      "node",
+      "browser",
+      "react"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://airbnb.io/visx/docs",
+    "notes": "Not installed. Reproducible: `npm install --save-exact @visx/visx@4.0.0` into technology-universe/runtimes/javascript-viz/. 4.0.0 is what the npm registry served for `@visx/visx` at probe time and is recorded here, not in `version`, because nothing was installed or measured. @visx/visx is the umbrella that pulls in every module; production use normally installs the handful of @visx/* packages actually needed. Needs React."
+  },
+  {
+    "id": 123,
+    "name": "Victory",
+    "category": "Charts / data visualization",
+    "category_number": 9,
+    "technology_id": "victory",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "victory",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/FormidableLabs/victory",
+    "runtime_requirements": [
+      "node",
+      "browser",
+      "react"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://github.com/FormidableLabs/victory#readme",
+    "notes": "Not installed. Reproducible: `npm install --save-exact victory@37.3.6` into technology-universe/runtimes/javascript-viz/. 37.3.6 is what the npm registry served for `victory` at probe time and is recorded here, not in `version`, because nothing was installed or measured. Needs React. The documentation link is the repository README because Victory's hosted docs have moved between domains and no current URL was verified from this machine."
+  },
+  {
+    "id": 124,
+    "name": "uPlot",
+    "category": "Charts / data visualization",
+    "category_number": 9,
+    "technology_id": "uplot",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "uplot",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/leeoniya/uPlot",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://github.com/leeoniya/uPlot/tree/master/docs",
+    "notes": "Not installed. Reproducible: `npm install --save-exact uplot@1.6.32` into technology-universe/runtimes/javascript-viz/. 1.6.32 is what the npm registry served for `uplot` at probe time and is recorded here, not in `version`, because nothing was installed or measured."
+  },
+  {
+    "id": 125,
+    "name": "Frappe Charts",
+    "category": "Charts / data visualization",
+    "category_number": 9,
+    "technology_id": "frappe-charts",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "frappe-charts",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/frappe/charts",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://frappe.io/charts/docs",
+    "notes": "Not installed. Reproducible: `npm install --save-exact frappe-charts@1.6.2` into technology-universe/runtimes/javascript-viz/. 1.6.2 is what the npm registry served for `frappe-charts` at probe time and is recorded here, not in `version`, because nothing was installed or measured."
+  },
+  {
+    "id": 126,
+    "name": "Billboard.js",
+    "category": "Charts / data visualization",
+    "category_number": 9,
+    "technology_id": "billboard-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "billboard.js",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/naver/billboard.js",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://naver.github.io/billboard.js/release/latest/doc/",
+    "notes": "Not installed. Reproducible: `npm install --save-exact billboard.js@4.0.3` into technology-universe/runtimes/javascript-viz/. 4.0.3 is what the npm registry served for `billboard.js` at probe time and is recorded here, not in `version`, because nothing was installed or measured. Built on D3 (id 112), which it takes as a dependency."
+  },
+  {
+    "id": 127,
+    "name": "Three.js",
+    "category": "3D / immersive visualization",
+    "category_number": 10,
+    "technology_id": "three-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "three",
+    "install_method": "npm",
+    "version": "0.185.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/mrdoob/three.js",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://threejs.org/docs/",
+    "notes": "Installed on this machine: `npm install --save-exact three@0.185.1` into technology-universe/runtimes/javascript-viz/ (its own package.json; the repository-root package.json was not touched). Version measured by reading technology-universe/runtimes/javascript-viz/node_modules/three/package.json. Smoke test under Node v26.0.0: new THREE.Vector3(1,2,2).length() === 3; 441 exports. Rendering needs a WebGL context \u2014 see id 142, where WebGL 2.0 was confirmed working in headless Chromium on this machine. `npm install` reported 'found 0 vulnerabilities' over the 116-package tree, which is the only security evidence behind `scanned-clean`. Lockfile: technology-universe/runtimes/javascript-viz/package-lock.json. Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7."
+  },
+  {
+    "id": 128,
+    "name": "React Three Fiber",
+    "category": "3D / immersive visualization",
+    "category_number": 10,
+    "technology_id": "react-three-fiber",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@react-three/fiber",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/pmndrs/react-three-fiber",
+    "runtime_requirements": [
+      "node",
+      "browser",
+      "react",
+      "three"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://r3f.docs.pmnd.rs/",
+    "notes": "Not installed. Reproducible: `npm install --save-exact @react-three/fiber@9.7.0` into technology-universe/runtimes/javascript-viz/. 9.7.0 is what the npm registry served for `@react-three/fiber` at probe time and is recorded here, not in `version`, because nothing was installed or measured. A React renderer for Three.js: needs React and `three` (id 127, already installed at 0.185.1 in this runtime) as peers."
+  },
+  {
+    "id": 129,
+    "name": "@react-three/drei",
+    "category": "3D / immersive visualization",
+    "category_number": 10,
+    "technology_id": "react-three-drei",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@react-three/drei",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/pmndrs/drei",
+    "runtime_requirements": [
+      "node",
+      "browser",
+      "react",
+      "three"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://github.com/pmndrs/drei#readme",
+    "notes": "Not installed. Reproducible: `npm install --save-exact @react-three/drei@10.7.8` into technology-universe/runtimes/javascript-viz/. 10.7.8 is what the npm registry served for `@react-three/drei` at probe time and is recorded here, not in `version`, because nothing was installed or measured. Helper collection for React Three Fiber (id 128); needs that plus React and `three`."
+  },
+  {
+    "id": 130,
+    "name": "Babylon.js",
+    "category": "3D / immersive visualization",
+    "category_number": 10,
+    "technology_id": "babylon-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "@babylonjs/core",
+    "install_method": "npm",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/BabylonJS/Babylon.js",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://doc.babylonjs.com/",
+    "notes": "Not installed. Reproducible: `npm install --save-exact @babylonjs/core@9.21.2` into technology-universe/runtimes/javascript-viz/. 9.21.2 is what the npm registry served for `@babylonjs/core` at probe time and is recorded here, not in `version`, because nothing was installed or measured. @babylonjs/core is the engine; loaders, GUI and materials are separate @babylonjs/* packages."
+  },
+  {
+    "id": 131,
+    "name": "PlayCanvas Engine",
+    "category": "3D / immersive visualization",
+    "category_number": 10,
+    "technology_id": "playcanvas-engine",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "playcanvas",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/playcanvas/engine",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://developer.playcanvas.com/",
+    "notes": "Not installed. Reproducible: `npm install --save-exact playcanvas@2.21.4` into technology-universe/runtimes/javascript-viz/. 2.21.4 is what the npm registry served for `playcanvas` at probe time and is recorded here, not in `version`, because nothing was installed or measured. The MIT licence covers the engine. The PlayCanvas hosted editor is a separate commercial product and is not what this record describes."
+  },
+  {
+    "id": 132,
+    "name": "A-Frame",
+    "category": "3D / immersive visualization",
+    "category_number": 10,
+    "technology_id": "a-frame",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "aframe",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/aframevr/aframe",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://aframe.io/docs/",
+    "notes": "Not installed. Reproducible: `npm install --save-exact aframe@1.8.0` into technology-universe/runtimes/javascript-viz/. 1.8.0 is what the npm registry served for `aframe` at probe time and is recorded here, not in `version`, because nothing was installed or measured. Declarative WebXR layer over Three.js; bundles its own Three build."
+  },
+  {
+    "id": 133,
+    "name": "OGL",
+    "category": "3D / immersive visualization",
+    "category_number": 10,
+    "technology_id": "ogl",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "ogl",
+    "install_method": "npm",
+    "version": null,
+    "license": "Unlicense",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/oframe/ogl",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://github.com/oframe/ogl#readme",
+    "notes": "Not installed. Reproducible: `npm install --save-exact ogl@1.0.11` into technology-universe/runtimes/javascript-viz/. 1.0.11 is what the npm registry served for `ogl` at probe time and is recorded here, not in `version`, because nothing was installed or measured. The npm registry declares `Unlicense` \u2014 a public-domain dedication, not the absence of a licence. Recorded as read; no conclusion drawn beyond the declaration."
+  },
+  {
+    "id": 134,
+    "name": "TresJS",
+    "category": "3D / immersive visualization",
+    "category_number": 10,
+    "technology_id": "tresjs",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@tresjs/core",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/Tresjs/tres",
+    "runtime_requirements": [
+      "node",
+      "browser",
+      "vue",
+      "three"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://docs.tresjs.org/",
+    "notes": "Not installed. Reproducible: `npm install --save-exact @tresjs/core@5.8.3` into technology-universe/runtimes/javascript-viz/. 5.8.3 is what the npm registry served for `@tresjs/core` at probe time and is recorded here, not in `version`, because nothing was installed or measured. A Vue renderer for Three.js; needs Vue 3 and `three` as peers."
+  },
+  {
+    "id": 135,
+    "name": "React BabylonJS",
+    "category": "3D / immersive visualization",
+    "category_number": 10,
+    "technology_id": "react-babylonjs",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "react-babylonjs",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/brianzinn/react-babylonjs",
+    "runtime_requirements": [
+      "node",
+      "browser",
+      "react"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://brianzinn.github.io/react-babylonjs/",
+    "notes": "Not installed. Reproducible: `npm install --save-exact react-babylonjs@4.0.2` into technology-universe/runtimes/javascript-viz/. 4.0.2 is what the npm registry served for `react-babylonjs` at probe time and is recorded here, not in `version`, because nothing was installed or measured. Needs React and @babylonjs/core (id 130) as peers."
+  },
+  {
+    "id": 136,
+    "name": "deck.gl",
+    "category": "3D / immersive visualization",
+    "category_number": 10,
+    "technology_id": "deck-gl",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "deck.gl",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/visgl/deck.gl",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://deck.gl/docs",
+    "notes": "Not installed. Reproducible: `npm install --save-exact deck.gl@9.3.10` into technology-universe/runtimes/javascript-viz/. 9.3.10 is what the npm registry served for `deck.gl` at probe time and is recorded here, not in `version`, because nothing was installed or measured. Built on luma.gl (id 147); basemap integrations (Mapbox, MapLibre, Google Maps) are separate and carry their own terms."
+  },
+  {
+    "id": 137,
+    "name": "CesiumJS",
+    "category": "3D / immersive visualization",
+    "category_number": 10,
+    "technology_id": "cesiumjs",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "cesium",
+    "install_method": "npm",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/CesiumGS/cesium",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://cesium.com/learn/cesiumjs/ref-doc/",
+    "notes": "Not installed. Reproducible: `npm install --save-exact cesium@1.144.0` into technology-universe/runtimes/javascript-viz/. 1.144.0 is what the npm registry served for `cesium` at probe time and is recorded here, not in `version`, because nothing was installed or measured. The engine is Apache-2.0. Cesium ion \u2014 the hosted terrain, imagery and tiling service the default examples point at \u2014 is a separate commercial product with its own terms; CesiumJS does not require it, but a deployment that quietly keeps the default ion asset IDs is using a paid service."
+  },
+  {
+    "id": 138,
+    "name": "vtk.js",
+    "category": "3D / immersive visualization",
+    "category_number": 10,
+    "technology_id": "vtk-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@kitware/vtk.js",
+    "install_method": "npm",
+    "version": null,
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/Kitware/vtk-js",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://kitware.github.io/vtk-js/docs/",
+    "notes": "Not installed. Reproducible: `npm install --save-exact @kitware/vtk.js@36.9.0` into technology-universe/runtimes/javascript-viz/. 36.9.0 is what the npm registry served for `@kitware/vtk.js` at probe time and is recorded here, not in `version`, because nothing was installed or measured. WebGL/WebGPU scientific visualisation; sibling of the C++ VTK, not a binding to it."
+  },
+  {
+    "id": 139,
+    "name": "xeokit",
+    "category": "3D / immersive visualization",
+    "category_number": 10,
+    "technology_id": "xeokit",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@xeokit/xeokit-sdk",
+    "install_method": "npm",
+    "version": null,
+    "license": "AGPL-3.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/xeokit/xeokit-sdk",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://xeokit.github.io/xeokit-sdk/docs/",
+    "notes": "Deliberately NOT installed. Two measurements agree the licence is AGPL-3.0: the npm registry for @xeokit/xeokit-sdk@2.6.112 and the GitHub API for xeokit/xeokit-sdk. AGPL-3.0 is an OSI-approved open-source licence, which is why license_class is OPEN_SOURCE \u2014 but section 13 extends copyleft to users served over a network, so shipping xeokit inside a hosted proprietary application obliges you to offer that application's corresponding source. xeokit is also offered under a paid commercial licence for exactly that case. Pulling AGPL code into this repository is a licensing decision, not a build decision, so it was left to a human. Not installed. Reproducible: `npm install --save-exact @xeokit/xeokit-sdk@2.6.112` into technology-universe/runtimes/javascript-viz/. 2.6.112 is what the npm registry served for `@xeokit/xeokit-sdk` at probe time and is recorded here, not in `version`, because nothing was installed or measured."
+  },
+  {
+    "id": 140,
+    "name": "Potree",
+    "category": "3D / immersive visualization",
+    "category_number": 10,
+    "technology_id": "potree",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": null,
+    "install_method": "source-build",
+    "version": null,
+    "license": "BSD-2-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/potree/potree",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://github.com/potree/potree#readme",
+    "notes": "Licence read directly from the repository's LICENSE file via the GitHub API: a two-condition BSD notice (Copyright (c) 2011-2020, Markus Schutz) with no endorsement clause \u2014 BSD-2-Clause. `package` is null on purpose: npm carries a `potree` package but it sits at 0.1.0 and does not track the project, which is distributed as a source tree you build (npm install && npm run build) plus the PotreeConverter tool for preparing point clouds. Installing the npm name would have recorded a different artifact under this id."
+  },
+  {
+    "id": 141,
+    "name": "OpenCascade.js",
+    "category": "3D / immersive visualization",
+    "category_number": 10,
+    "technology_id": "opencascade-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "opencascade.js",
+    "install_method": "npm",
+    "version": null,
+    "license": "LGPL-2.1-only",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/donalffons/opencascade.js",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://ocjs.org/",
+    "notes": "Not installed. Reproducible: `npm install --save-exact opencascade.js@1.1.1` into technology-universe/runtimes/javascript-viz/. 1.1.1 is what the npm registry served for `opencascade.js` at probe time and is recorded here, not in `version`, because nothing was installed or measured. WebAssembly port of the OpenCascade CAD kernel (id 527), and the LGPL-2.1 comes from that kernel. LGPL over WASM deserves thought before shipping: the usual dynamic-linking escape hatch is awkward when the library is statically linked into a bundle. This is the canonical record; id 528 repeats the name."
+  },
+  {
+    "id": 142,
+    "name": "WebGL",
+    "category": "WebGPU / GPU / shaders",
+    "category_number": 11,
+    "technology_id": "webgl",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "browser",
+    "kind": "platform-api",
+    "package": null,
+    "install_method": "builtin",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://www.khronos.org/webgl/",
+    "runtime_requirements": [
+      "browser"
+    ],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "platform-api",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API",
+    "notes": "VERIFIED WORKING on this machine. Probe: Playwright's headless Chromium 151.0.7922.34 (already present in ~/Library/Caches/ms-playwright, so nothing was downloaded), page at about:blank, canvas.getContext('webgl2') returned a context reporting VERSION='WebGL 2.0 (OpenGL ES 3.0 Chromium)', RENDERER='WebKit WebGL', MAX_TEXTURE_SIZE=8192. That is a software-rasterised context, which is enough to prove the API path works and not enough to say anything about GPU performance. `version` stays null because a platform API has no installable artifact to version \u2014 the measured VERSION string is above. For the same reason P2 (\"version is non-null\") is unreachable here, and because the ladder runs through P2, P3 is unreachable too: readiness is therefore P1, matching the other browser platform APIs (SVG 78, HTML Canvas 79, WebGPU 143, WebSocket API 409, WebRTC 410). This record was written as P3 and was lowered at merge time rather than given an invented version. verification_status stays smoke-tested because the probe above genuinely ran and passed; that evidence is not withdrawn, it just does not earn a level whose bar is a measured version. license is null and flagged: nothing is distributed to license, and the specification text is under Khronos's own terms rather than a software licence."
+  },
+  {
+    "id": 143,
+    "name": "WebGPU",
+    "category": "WebGPU / GPU / shaders",
+    "category_number": 11,
+    "technology_id": "webgpu",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "browser",
+    "kind": "platform-api",
+    "package": null,
+    "install_method": "builtin",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://www.w3.org/TR/webgpu/",
+    "runtime_requirements": [
+      "webgpu-capable-browser"
+    ],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "platform-api",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API",
+    "notes": "NOT verified \u2014 and the negative result is about the probe, not the machine. Two attempts in Playwright's headless Chromium 151.0.7922.34: default flags, then --enable-unsafe-webgpu --enable-features=Vulkan,WebGPU --use-angle=metal. Both returned 'gpu' in navigator === false, so requestAdapter() was never reachable. WebGL 2.0 came up in the same context (id 142), which isolates the failure to WebGPU rather than to graphics in general: headless Chromium gates WebGPU behind a GPU process this launch does not start. Do not read this as 'WebGPU is unavailable on this machine' \u2014 a headed browser on macOS 26.4.1 is the test that would settle it, and it was not run. license is null and flagged for the same reason as id 142: a platform API distributes nothing to license."
+  },
+  {
+    "id": 144,
+    "name": "wgpu",
+    "category": "WebGPU / GPU / shaders",
+    "category_number": 11,
+    "technology_id": "wgpu",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "rust",
+    "kind": "library",
+    "package": "wgpu",
+    "install_method": "cargo",
+    "version": null,
+    "license": "MIT OR Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/gfx-rs/wgpu",
+    "runtime_requirements": [
+      "rust-toolchain"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ],
+    "documentation": "https://docs.rs/wgpu/",
+    "notes": "Not installed, and not installable here as things stand: `command -v cargo` found nothing, so this machine has no Rust toolchain. Reproducible once one exists: add `wgpu = \"30.0.0\"` to Cargo.toml, or `cargo add wgpu@30.0.0`. 30.0.0 is what the crates.io API served at probe time and the licence 'MIT OR Apache-2.0' is that release's declared field \u2014 neither is a local measurement. Targets Vulkan, Metal, D3D12 and WebGPU/WASM."
+  },
+  {
+    "id": 145,
+    "name": "Three.js WebGPU renderer",
+    "category": "WebGPU / GPU / shaders",
+    "category_number": 11,
+    "technology_id": "three-js-webgpu-renderer",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "three",
+    "install_method": "npm",
+    "version": "0.185.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/mrdoob/three.js",
+    "runtime_requirements": [
+      "node",
+      "webgpu-capable-browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://threejs.org/docs/#manual/en/introduction/How-to-use-WebGPURenderer",
+    "notes": "Not a separate artifact: it is the `three/webgpu` entry point of the `three` package installed for id 127, so the measured version is that package's \u2014 0.185.1, read from technology-universe/runtimes/javascript-viz/node_modules/three/package.json. Verified as far as this environment allows: `await import('three/webgpu')` resolved under Node v26.0.0 with 629 exports and `WebGPURenderer` present as a function, and `three/tsl` resolved with 638 exports. That exercises the package's export map and module graph, not the renderer \u2014 creating a device needs navigator.gpu, which id 143 shows is absent in the headless browser available here. Hence P2 and version-measured rather than P3: the thing this record is named for has not been made to draw anything."
+  },
+  {
+    "id": 146,
+    "name": "regl",
+    "category": "WebGPU / GPU / shaders",
+    "category_number": 11,
+    "technology_id": "regl",
+    "canonical": false,
+    "canonical_id": 88,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/regl-project/regl",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P0",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://github.com/regl-project/regl/blob/master/API.md",
+    "notes": "Duplicate inventory position. Per SCHEMA.md the technology's installation and verification are recorded on the canonical record only (id 88); repeating them here would let one technology be counted as verified twice. Identity and licence are repeated because they belong to the technology, not to the install. The name first appears at id 88 (category 6, 2D rendering / graphics). Licence MIT read from the npm registry for regl@2.1.1."
+  },
+  {
+    "id": 147,
+    "name": "luma.gl",
+    "category": "WebGPU / GPU / shaders",
+    "category_number": 11,
+    "technology_id": "luma-gl",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@luma.gl/core",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/visgl/luma.gl",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://luma.gl/docs",
+    "notes": "Not installed. Reproducible: `npm install --save-exact @luma.gl/core@9.3.6` into technology-universe/runtimes/javascript-viz/. 9.3.6 is what the npm registry served for `@luma.gl/core` at probe time and is recorded here, not in `version`, because nothing was installed or measured. The GPU layer under deck.gl (id 136); v9 abstracts over both WebGL 2 and WebGPU."
+  },
+  {
+    "id": 148,
+    "name": "GPU.js",
+    "category": "WebGPU / GPU / shaders",
+    "category_number": 11,
+    "technology_id": "gpu-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "gpu.js",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/gpujs/gpu.js",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://github.com/gpujs/gpu.js#readme",
+    "notes": "Not installed. Reproducible: `npm install --save-exact gpu.js@2.24.0` into technology-universe/runtimes/javascript-viz/. 2.24.0 is what the npm registry served for `gpu.js` at probe time and is recorded here, not in `version`, because nothing was installed or measured. Compiles JavaScript kernels to GLSL; falls back to CPU when no WebGL context is available, so a passing run does not by itself prove GPU execution."
+  },
+  {
+    "id": 149,
+    "name": "gl-matrix",
+    "category": "WebGPU / GPU / shaders",
+    "category_number": 11,
+    "technology_id": "gl-matrix",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "gl-matrix",
+    "install_method": "npm",
+    "version": "3.4.4",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/toji/gl-matrix",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://glmatrix.net/docs/",
+    "notes": "Installed on this machine: `npm install --save-exact gl-matrix@3.4.4` into technology-universe/runtimes/javascript-viz/ (its own package.json; the repository-root package.json was not touched). Version measured by reading technology-universe/runtimes/javascript-viz/node_modules/gl-matrix/package.json. Smoke test under Node v26.0.0: vec3.add(out,[1,2,3],[4,5,6]) === [5,7,9]; 13 exports. `npm install` reported 'found 0 vulnerabilities' over the 116-package tree, which is the only security evidence behind `scanned-clean`. Lockfile: technology-universe/runtimes/javascript-viz/package-lock.json. Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7."
+  },
+  {
+    "id": 150,
+    "name": "twgl.js",
+    "category": "WebGPU / GPU / shaders",
+    "category_number": 11,
+    "technology_id": "twgl-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "twgl.js",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/greggman/twgl.js",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://twgljs.org/docs/",
+    "notes": "Not installed. Reproducible: `npm install --save-exact twgl.js@7.0.0` into technology-universe/runtimes/javascript-viz/. 7.0.0 is what the npm registry served for `twgl.js` at probe time and is recorded here, not in `version`, because nothing was installed or measured."
+  },
+  {
+    "id": 151,
+    "name": "Babylon WebGPU",
+    "category": "WebGPU / GPU / shaders",
+    "category_number": 11,
+    "technology_id": "babylon-webgpu",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@babylonjs/core",
+    "install_method": "npm",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/BabylonJS/Babylon.js",
+    "runtime_requirements": [
+      "node",
+      "webgpu-capable-browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://doc.babylonjs.com/setup/support/webGPU",
+    "notes": "Not a separate package: WebGPUEngine ships inside @babylonjs/core, the same artifact as id 130, so installing it twice would be one download recorded as two. Not installed. Reproducible: `npm install --save-exact @babylonjs/core@9.21.2` into technology-universe/runtimes/javascript-viz/. 9.21.2 is what the npm registry served for `@babylonjs/core` at probe time and is recorded here, not in `version`, because nothing was installed or measured. Running it needs navigator.gpu, which id 143 records as absent in the headless browser available here."
+  },
+  {
+    "id": 152,
+    "name": "shaderc",
+    "category": "WebGPU / GPU / shaders",
+    "category_number": 11,
+    "technology_id": "shaderc",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "cli-tool",
+    "package": "shaderc",
+    "install_method": "brew",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/google/shaderc",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/google/shaderc#readme",
+    "notes": "Not installed: `command -v glslc` and `command -v shaderc` both found nothing. Reproducible: `brew install shaderc` \u2014 Homebrew carries the formula at 2026.3 and declares Apache-2.0 (measured via `brew info --json=v2 shaderc`), which agrees with the Apache-2.0 text read from the repository's LICENSE via the GitHub API. 2026.3 is the formula's version, not a local measurement, so `version` stays null. Left at P1 because a native GLSL/HLSL-to-SPIR-V compiler is a toolchain install, not a project dependency."
+  },
+  {
+    "id": 153,
+    "name": "Matter.js",
+    "category": "Physics / simulation",
+    "category_number": 12,
+    "technology_id": "matter-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "matter-js",
+    "install_method": "npm",
+    "version": "0.20.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/liabru/matter-js",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://brm.io/matter-js/docs/",
+    "notes": "Installed on this machine: `npm install --save-exact matter-js@0.20.0` into technology-universe/runtimes/javascript-viz/ (its own package.json; the repository-root package.json was not touched). Version measured by reading technology-universe/runtimes/javascript-viz/node_modules/matter-js/package.json. Smoke test under Node v26.0.0: built an Engine, added a circle body at the origin, ran Engine.update(engine,16) and read body.position.y === 0.2560 \u2014 gravity integrated, so the solver actually stepped. `npm install` reported 'found 0 vulnerabilities' over the 116-package tree, which is the only security evidence behind `scanned-clean`. Lockfile: technology-universe/runtimes/javascript-viz/package-lock.json. Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7."
+  },
+  {
+    "id": 154,
+    "name": "Rapier",
+    "category": "Physics / simulation",
+    "category_number": 12,
+    "technology_id": "rapier",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "rust",
+    "kind": "library",
+    "package": "rapier3d",
+    "install_method": "cargo",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/dimforge/rapier",
+    "runtime_requirements": [
+      "rust-toolchain"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://rapier.rs/docs/",
+    "notes": "Not installed \u2014 no Rust toolchain on this machine (`command -v cargo` found nothing). Reproducible once one exists: `cargo add rapier3d@0.35.2` (or rapier2d for the 2D build). 0.35.2 and the Apache-2.0 field are what the crates.io API served at probe time, not local measurements. Id 155 is the JavaScript/WASM binding of the same engine and is a separate inventory entry, not a duplicate name."
+  },
+  {
+    "id": 155,
+    "name": "Rapier.js",
+    "category": "Physics / simulation",
+    "category_number": 12,
+    "technology_id": "rapier-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@dimforge/rapier3d",
+    "install_method": "npm",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/dimforge/rapier.js",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://rapier.rs/docs/user_guides/javascript/getting_started_js",
+    "notes": "Not installed. Reproducible: `npm install --save-exact @dimforge/rapier3d@0.20.0` into technology-universe/runtimes/javascript-viz/. 0.20.0 is what the npm registry served for `@dimforge/rapier3d` at probe time and is recorded here, not in `version`, because nothing was installed or measured. WASM build of the Rust engine at id 154; @dimforge/rapier2d is the 2D counterpart, and -compat variants exist for bundlers that cannot load WASM as an ES module."
+  },
+  {
+    "id": 156,
+    "name": "Cannon-es",
+    "category": "Physics / simulation",
+    "category_number": 12,
+    "technology_id": "cannon-es",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "cannon-es",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/pmndrs/cannon-es",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://pmndrs.github.io/cannon-es/docs/",
+    "notes": "Not installed. Reproducible: `npm install --save-exact cannon-es@0.20.0` into technology-universe/runtimes/javascript-viz/. 0.20.0 is what the npm registry served for `cannon-es` at probe time and is recorded here, not in `version`, because nothing was installed or measured. Maintained fork of the dormant cannon.js, in TypeScript with ES modules."
+  },
+  {
+    "id": 157,
+    "name": "Ammo.js",
+    "category": "Physics / simulation",
+    "category_number": 12,
+    "technology_id": "ammo-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": null,
+    "install_method": "source-build",
+    "version": null,
+    "license": "Zlib",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/kripken/ammo.js",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://github.com/kripken/ammo.js#readme",
+    "notes": "Licence read from the repository's LICENSE file via the GitHub API: the three-restriction 'provided as-is / do not misrepresent origin / mark altered versions / keep this notice' text, i.e. Zlib \u2014 inherited from Bullet (id 164), which ammo.js is an Emscripten port of. `package` is null because the project publishes prebuilt ammo.js and ammo.wasm.js in its repository rather than on npm; `ammojs-typed@1.0.6` (MIT, per the npm registry) is a third-party republish with TypeScript types and is a different artifact from the one this id names. Reproducible: take the prebuilt builds/ files from a pinned commit, or rebuild with Emscripten."
+  },
+  {
+    "id": 158,
+    "name": "Planck.js",
+    "category": "Physics / simulation",
+    "category_number": 12,
+    "technology_id": "planck-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "planck",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/piqnt/planck.js",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://piqnt.com/planck.js/docs/",
+    "notes": "Not installed. Reproducible: `npm install --save-exact planck@1.5.0` into technology-universe/runtimes/javascript-viz/. 1.5.0 is what the npm registry served for `planck` at probe time and is recorded here, not in `version`, because nothing was installed or measured. Note the package rename: the current name is `planck` (1.5.0); the legacy `planck-js` name is frozen at 1.3.0. Both were seen on the npm registry as MIT, and the GitHub API reports MIT for piqnt/planck.js. It is a JavaScript rewrite of Box2D (id 159)."
+  },
+  {
+    "id": 159,
+    "name": "Box2D",
+    "category": "Physics / simulation",
+    "category_number": 12,
+    "technology_id": "box2d",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "library",
+    "package": null,
+    "install_method": "source-build",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/erincatto/box2d",
+    "runtime_requirements": [
+      "c++-toolchain",
+      "cmake"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://box2d.org/documentation/",
+    "notes": "Licence MIT, reported by the GitHub API for erincatto/box2d \u2014 note this is a relicensing: Box2D shipped under Zlib for years before v2.4, so an old vendored copy in some other tree may not be MIT. `package` is null: the upstream is a CMake source tree with no registry artifact. Reproducible: clone at a pinned tag and `cmake -B build && cmake --build build`. The npm package `box2d-wasm@7.0.0` (Zlib, per the npm registry) is a third-party WASM port, not this. Left at P1 \u2014 a C++ build is a toolchain decision, not a dependency."
+  },
+  {
+    "id": 160,
+    "name": "Oimo.js",
+    "category": "Physics / simulation",
+    "category_number": 12,
+    "technology_id": "oimo-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "oimo",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/lo-th/Oimo.js",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://github.com/lo-th/Oimo.js#readme",
+    "notes": "Not installed. Reproducible: `npm install --save-exact oimo@1.0.9` into technology-universe/runtimes/javascript-viz/. 1.0.9 is what the npm registry served for `oimo` at probe time and is recorded here, not in `version`, because nothing was installed or measured. The npm name is `oimo`, not `oimo.js`; MIT agrees between the npm registry and the GitHub API for lo-th/Oimo.js. Low activity upstream \u2014 check maintenance before depending on it."
+  },
+  {
+    "id": 161,
+    "name": "Jolt Physics",
+    "category": "Physics / simulation",
+    "category_number": 12,
+    "technology_id": "jolt-physics",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "jolt-physics",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/jrouwe/JoltPhysics",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://jrouwe.github.io/JoltPhysics/",
+    "notes": "Not installed. Reproducible: `npm install --save-exact jolt-physics@1.1.0` into technology-universe/runtimes/javascript-viz/. 1.1.0 is what the npm registry served for `jolt-physics` at probe time and is recorded here, not in `version`, because nothing was installed or measured. MIT agrees between the npm registry and the GitHub API for jrouwe/JoltPhysics. The npm package is the WASM/JS distribution; the C++ engine itself is a CMake source tree at the same repository."
+  },
+  {
+    "id": 162,
+    "name": "Chipmunk2D",
+    "category": "Physics / simulation",
+    "category_number": 12,
+    "technology_id": "chipmunk2d",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "library",
+    "package": null,
+    "install_method": "source-build",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/slembcke/Chipmunk2D",
+    "runtime_requirements": [
+      "c-toolchain",
+      "cmake"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://chipmunk-physics.net/release/ChipmunkLatest-Docs/",
+    "notes": "Licence MIT, reported by the GitHub API for slembcke/Chipmunk2D. `package` is null \u2014 a C source tree built with CMake, no registry artifact. Reproducible: clone at a pinned tag and `cmake -B build && cmake --build build`. Id 166 (Pymunk) is the maintained Python binding and is the practical route to this engine from Python."
+  },
+  {
+    "id": 163,
+    "name": "PyBullet",
+    "category": "Physics / simulation",
+    "category_number": 12,
+    "technology_id": "pybullet",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "pybullet",
+    "install_method": "pip",
+    "version": null,
+    "license": "Zlib",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/bulletphysics/bullet3",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://pybullet.org/wordpress/",
+    "notes": "Not installed. Reproducible: `pip install pybullet==3.2.7` into technology-universe/runtimes/python-scientific/.venv. 3.2.7 is the version the PyPI JSON API reported at probe time \u2014 recorded here, not in `version`, because nothing was installed or measured. Licence 'zlib' read from the PyPI metadata, consistent with Bullet's own LICENSE (id 164). It builds from source on install, so expect a C++ toolchain and minutes, not seconds \u2014 that cost, not any doubt about the licence, is why it was left at P1."
+  },
+  {
+    "id": 164,
+    "name": "Bullet Physics",
+    "category": "Physics / simulation",
+    "category_number": 12,
+    "technology_id": "bullet-physics",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "library",
+    "package": null,
+    "install_method": "source-build",
+    "version": null,
+    "license": "Zlib",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/bulletphysics/bullet3",
+    "runtime_requirements": [
+      "c++-toolchain",
+      "cmake"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/bulletphysics/bullet3/tree/master/docs",
+    "notes": "Licence read from the repository's LICENSE.txt via the GitHub API, and it carves out exceptions in its first line: 'The files in this repository are licensed under the zlib license, except for the files under 'Extras' and examples/ThirdPartyLibs.' So Zlib for the engine, review needed for anything vendored out of those two directories. `package` is null: a CMake source tree. Id 163 (PyBullet) is the Python route to the same engine, and id 157 (Ammo.js) the WASM one."
+  },
+  {
+    "id": 165,
+    "name": "MuJoCo",
+    "category": "Physics / simulation",
+    "category_number": 12,
+    "technology_id": "mujoco",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "mujoco",
+    "install_method": "pip",
+    "version": "3.11.0",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/google-deepmind/mujoco",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://mujoco.readthedocs.io/en/stable/overview.html",
+    "notes": "Installed on this machine: `pip install mujoco==3.11.0` into the dedicated venv at technology-universe/runtimes/python-scientific/.venv (CPython 3.14.7). The repository's existing .venv, which the verification gates depend on, was not touched. Version measured by import. Smoke test: compiled a one-body model from an XML string, built MjData and ran mj_step \u2014 nq=7 (a free joint) and the clock advanced to t=0.002, so the physics loop ran, not just the import. Pins: technology-universe/runtimes/python-scientific/requirements.txt (pip freeze, 34 exact ==). Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7. The wheel is 49 MB on disk (`du -sh` on site-packages/mujoco), far cheaper than the 'large, do not download' assumption this record started from \u2014 DeepMind ships native macOS arm64 wheels. Apache-2.0 agrees between the PyPI metadata and the GitHub API. Rendering needs OpenGL/EGL and was not exercised."
+  },
+  {
+    "id": 166,
+    "name": "Pymunk",
+    "category": "Physics / simulation",
+    "category_number": 12,
+    "technology_id": "pymunk",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "pymunk",
+    "install_method": "pip",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/viblo/pymunk",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://www.pymunk.org/en/latest/",
+    "notes": "Not installed. Reproducible: `pip install pymunk==7.3.0` into technology-universe/runtimes/python-scientific/.venv. 7.3.0 is the version the PyPI JSON API reported at probe time \u2014 recorded here, not in `version`, because nothing was installed or measured. Python binding over Chipmunk2D (id 162); licence MIT from the PyPI metadata."
+  },
+  {
+    "id": 167,
+    "name": "Taichi",
+    "category": "Physics / simulation",
+    "category_number": 12,
+    "technology_id": "taichi",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "taichi",
+    "install_method": "pip",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/taichi-dev/taichi",
+    "runtime_requirements": [
+      "python3<3.14"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.taichi-lang.org/",
+    "notes": "ATTEMPTED AND FAILED on this machine. `pip install taichi==1.7.4` into technology-universe/runtimes/python-scientific/.venv returned, verbatim: 'ERROR: Could not find a version that satisfies the requirement taichi==1.7.4 (from versions: none)' followed by 'ERROR: No matching distribution found for taichi==1.7.4'. 'from versions: none' means pip found no distribution matching this interpreter at all \u2014 CPython 3.14 on macOS arm64 \u2014 not that the pin was wrong. Taichi ships compiled wheels per Python minor version and 3.14 is ahead of them. platform_support still lists the three desktop OSes because upstream supports them on older interpreters; the constraint measured here is the interpreter, not the OS. Reproducible route: create a CPython 3.12 venv and `pip install taichi==1.7.4`. Apache-2.0 agrees between the PyPI metadata and the GitHub API."
+  },
+  {
+    "id": 168,
+    "name": "KaTeX",
+    "category": "Mathematics / equations",
+    "category_number": 13,
+    "technology_id": "katex",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "katex",
+    "install_method": "npm",
+    "version": "0.18.4",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/KaTeX/KaTeX",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://katex.org/docs/",
+    "notes": "Installed on this machine: `npm install --save-exact katex@0.18.4` into technology-universe/runtimes/javascript-viz/ (its own package.json; the repository-root package.json was not touched). Version measured by reading technology-universe/runtimes/javascript-viz/node_modules/katex/package.json. Smoke test under Node v26.0.0: renderToString('x^2') returned HTML beginning '<span class=\"katex\">...' \u2014 the renderer ran, not just the import. `npm install` reported 'found 0 vulnerabilities' over the 116-package tree, which is the only security evidence behind `scanned-clean`. Lockfile: technology-universe/runtimes/javascript-viz/package-lock.json. Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7."
+  },
+  {
+    "id": 169,
+    "name": "MathJax",
+    "category": "Mathematics / equations",
+    "category_number": 13,
+    "technology_id": "mathjax",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "mathjax",
+    "install_method": "npm",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/mathjax/MathJax",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://docs.mathjax.org/",
+    "notes": "Not installed. Reproducible: `npm install --save-exact mathjax@4.1.3` into technology-universe/runtimes/javascript-viz/. 4.1.3 is what the npm registry served for `mathjax` at probe time and is recorded here, not in `version`, because nothing was installed or measured. `mathjax` ships the built components; `mathjax-full` is the source package if you need to build a custom component set."
+  },
+  {
+    "id": 170,
+    "name": "MathLive",
+    "category": "Mathematics / equations",
+    "category_number": 13,
+    "technology_id": "mathlive",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "mathlive",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/arnog/mathlive",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://cortexjs.io/mathlive/",
+    "notes": "Not installed. Reproducible: `npm install --save-exact mathlive@0.110.0` into technology-universe/runtimes/javascript-viz/. 0.110.0 is what the npm registry served for `mathlive` at probe time and is recorded here, not in `version`, because nothing was installed or measured. A math *input* web component, not a renderer \u2014 the closest thing in this range to an editable equation field."
+  },
+  {
+    "id": 171,
+    "name": "Math.js",
+    "category": "Mathematics / equations",
+    "category_number": 13,
+    "technology_id": "math-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "mathjs",
+    "install_method": "npm",
+    "version": "15.2.0",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/josdejong/mathjs",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://mathjs.org/docs/",
+    "notes": "Installed on this machine: `npm install --save-exact mathjs@15.2.0` into technology-universe/runtimes/javascript-viz/ (its own package.json; the repository-root package.json was not touched). Version measured by reading technology-universe/runtimes/javascript-viz/node_modules/mathjs/package.json. Smoke test under Node v26.0.0: evaluate('sqrt(3^2+4^2)') === 5; 1138 exports. `npm install` reported 'found 0 vulnerabilities' over the 116-package tree, which is the only security evidence behind `scanned-clean`. Lockfile: technology-universe/runtimes/javascript-viz/package-lock.json. Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7."
+  },
+  {
+    "id": 172,
+    "name": "SymPy",
+    "category": "Mathematics / equations",
+    "category_number": 13,
+    "technology_id": "sympy",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "sympy",
+    "install_method": "pip",
+    "version": "1.14.0",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/sympy/sympy",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.sympy.org/latest/index.html",
+    "notes": "Installed on this machine: `pip install sympy==1.14.0` into the dedicated venv at technology-universe/runtimes/python-scientific/.venv (CPython 3.14.7). The repository's existing .venv, which the verification gates depend on, was not touched. Version measured by import. Smoke test: simplify('sin(x)**2 + cos(x)**2') === 1 \u2014 the CAS actually reduced it. Pins: technology-universe/runtimes/python-scientific/requirements.txt (pip freeze, 34 exact ==). Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7. Licence confirmed from the installed distribution rather than a registry summary: sympy-1.14.0.dist-info/licenses/LICENSE is the three-clause BSD text (it carries the 'Neither the name' clause). PyPI only says 'BSD', and the GitHub API says NOASSERTION because of the long author preamble \u2014 reading the shipped file is what settled it. This is the canonical record; id 208 repeats the name in category 15."
+  },
+  {
+    "id": 173,
+    "name": "Nerdamer",
+    "category": "Mathematics / equations",
+    "category_number": 13,
+    "technology_id": "nerdamer",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "nerdamer",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/jiggzson/nerdamer",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://nerdamer.com/documentation.html",
+    "notes": "Not installed. Reproducible: `npm install --save-exact nerdamer@1.1.13` into technology-universe/runtimes/javascript-viz/. 1.1.13 is what the npm registry served for `nerdamer` at probe time and is recorded here, not in `version`, because nothing was installed or measured. Symbolic algebra in the browser; the Calculus/Algebra/Solve add-ons load as separate files from the same package."
+  },
+  {
+    "id": 174,
+    "name": "Algebrite",
+    "category": "Mathematics / equations",
+    "category_number": 13,
+    "technology_id": "algebrite",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "algebrite",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/davidedc/Algebrite",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://github.com/davidedc/Algebrite#readme",
+    "notes": "Not installed. Reproducible: `npm install --save-exact algebrite@1.4.0` into technology-universe/runtimes/javascript-viz/. 1.4.0 is what the npm registry served for `algebrite` at probe time and is recorded here, not in `version`, because nothing was installed or measured. A CoffeeScript port of the Eigenmath CAS. The documentation link is the repository README: the project's own site was not reachable over HTTPS from this machine and an http:// URL was not worth recording as canonical."
+  },
+  {
+    "id": 175,
+    "name": "Fraction.js",
+    "category": "Mathematics / equations",
+    "category_number": 13,
+    "technology_id": "fraction-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "fraction.js",
+    "install_method": "npm",
+    "version": "5.3.4",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/rawify/Fraction.js",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://github.com/rawify/Fraction.js#readme",
+    "notes": "Installed on this machine: `npm install --save-exact fraction.js@5.3.4` into technology-universe/runtimes/javascript-viz/ (its own package.json; the repository-root package.json was not touched). Version measured by reading technology-universe/runtimes/javascript-viz/node_modules/fraction.js/package.json. Smoke test under Node v26.0.0: new Fraction(1,3).add(new Fraction(1,6)).toFraction() === '1/2' \u2014 exact rational arithmetic, no float drift. `npm install` reported 'found 0 vulnerabilities' over the 116-package tree, which is the only security evidence behind `scanned-clean`. Lockfile: technology-universe/runtimes/javascript-viz/package-lock.json. Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7. The repository moved to the rawify org; that URL was read from the installed package.json rather than assumed."
+  },
+  {
+    "id": 176,
+    "name": "decimal.js",
+    "category": "Mathematics / equations",
+    "category_number": 13,
+    "technology_id": "decimal-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "decimal.js",
+    "install_method": "npm",
+    "version": "10.6.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/MikeMcl/decimal.js",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://mikemcl.github.io/decimal.js/",
+    "notes": "Installed on this machine: `npm install --save-exact decimal.js@10.6.0` into technology-universe/runtimes/javascript-viz/ (its own package.json; the repository-root package.json was not touched). Version measured by reading technology-universe/runtimes/javascript-viz/node_modules/decimal.js/package.json. Smoke test under Node v26.0.0: new Decimal(1).div(3).toFixed(20) === '0.33333333333333333333' \u2014 arbitrary precision, not float64. `npm install` reported 'found 0 vulnerabilities' over the 116-package tree, which is the only security evidence behind `scanned-clean`. Lockfile: technology-universe/runtimes/javascript-viz/package-lock.json. Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7."
+  },
+  {
+    "id": 177,
+    "name": "big.js",
+    "category": "Mathematics / equations",
+    "category_number": 13,
+    "technology_id": "big-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "big.js",
+    "install_method": "npm",
+    "version": "7.0.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/MikeMcl/big.js",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://mikemcl.github.io/big.js/",
+    "notes": "Installed on this machine: `npm install --save-exact big.js@7.0.1` into technology-universe/runtimes/javascript-viz/ (its own package.json; the repository-root package.json was not touched). Version measured by reading technology-universe/runtimes/javascript-viz/node_modules/big.js/package.json. Smoke test under Node v26.0.0: new Big('0.1').plus('0.2').toString() === '0.3' \u2014 the canonical float64 failure does not occur. `npm install` reported 'found 0 vulnerabilities' over the 116-package tree, which is the only security evidence behind `scanned-clean`. Lockfile: technology-universe/runtimes/javascript-viz/package-lock.json. Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7."
+  },
+  {
+    "id": 178,
+    "name": "numeric.js",
+    "category": "Mathematics / equations",
+    "category_number": 13,
+    "technology_id": "numeric-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "numeric",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/sloisel/numeric",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://github.com/sloisel/numeric#readme",
+    "notes": "LICENCE REVIEW REQUIRED. Two findings pull apart. (1) The npm registry entry for `numeric@1.2.6` declares no `license` field at all \u2014 the metadata is empty, not permissive. (2) The repository's license.txt, read via the GitHub API, is standard MIT permission text, but its first line is '(See also licenses in the resources subdirectory.)', so the tree is an aggregate rather than one declared licence. `license` records the MIT text that was actually read; the class is flagged because what ships is not established. Resolve by reading license.txt plus everything under resources/ at the pinned version. Separately: the package is long unmaintained at 1.2.6 \u2014 id 171 (Math.js, Apache-2.0, installed and smoke-tested at 15.2.0) covers most of the same ground."
+  },
+  {
+    "id": 179,
+    "name": "math-expression-evaluator",
+    "category": "Mathematics / equations",
+    "category_number": 13,
+    "technology_id": "math-expression-evaluator",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "math-expression-evaluator",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/bugwheels94/math-expression-evaluator",
+    "runtime_requirements": [
+      "node",
+      "browser"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ],
+    "documentation": "https://github.com/bugwheels94/math-expression-evaluator#readme",
+    "notes": "Not installed. Reproducible: `npm install --save-exact math-expression-evaluator@2.0.7` into technology-universe/runtimes/javascript-viz/. 2.0.7 is what the npm registry served for `math-expression-evaluator` at probe time and is recorded here, not in `version`, because nothing was installed or measured. A single-purpose infix expression evaluator \u2014 much smaller than id 171 if evaluation is all that is needed."
+  },
+  {
+    "id": 180,
+    "name": "JSXGraph",
+    "category": "Mathematics / equations",
+    "category_number": 13,
+    "technology_id": "jsxgraph",
+    "canonical": false,
+    "canonical_id": 103,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": "MIT OR LGPL-3.0-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/jsxgraph/jsxgraph",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P0",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://jsxgraph.uni-bayreuth.de/docs/",
+    "notes": "Duplicate inventory position. Per SCHEMA.md the technology's installation and verification are recorded on the canonical record only (id 103); repeating them here would let one technology be counted as verified twice. Identity and licence are repeated because they belong to the technology, not to the install. The name first appears at id 103 (category 7, diagrams / flow / graph editors). The dual licence '(MIT OR LGPL-3.0-or-later)' is the npm registry's declared field for jsxgraph@1.13.2 \u2014 a choice, so the MIT branch is available if LGPL is unwanted."
+  },
+  {
+    "id": 181,
+    "name": "SageMath",
+    "category": "Mathematics / equations",
+    "category_number": 13,
+    "technology_id": "sagemath",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "sage",
+    "install_method": "brew",
+    "version": null,
+    "license": "GPL-3.0-only",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/sagemath/sage",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://doc.sagemath.org/html/en/index.html",
+    "notes": "Not installed, by instruction \u2014 a full CAS distribution is a multi-gigabyte toolchain, not a dependency. Reproducible: `brew install --cask sage` (Homebrew carries the cask at 10.9,10.9.0, measured via `brew info --json=v2 sage`); the source route is `pip install sagemath-standard==10.7`, which PyPI serves as a source distribution that builds against a large native stack. Neither version is in `version` because neither was installed. Licence read from the repository's COPYING.txt via the GitHub API and it is unusually explicit: 'The whole Sage software distribution is licensed under the General Public License, version 3 (no other versions!)' \u2014 hence GPL-3.0-only rather than -or-later. Original Sage library code is GPL-2.0-or-later, documentation is CC-BY-SA-3.0, and optional (non-standard) packages may carry more restrictive terms."
+  },
+  {
+    "id": 182,
+    "name": "GNU Octave",
+    "category": "Mathematics / equations",
+    "category_number": 13,
+    "technology_id": "gnu-octave",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "native",
+    "kind": "runtime",
+    "package": "octave",
+    "install_method": "brew",
+    "version": null,
+    "license": "GPL-3.0-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/gnu-octave/octave",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.octave.org/latest/",
+    "notes": "Not installed, by instruction \u2014 `command -v octave` found nothing. Reproducible: `brew install octave`; Homebrew carries the formula at 11.3.0 and declares GPL-3.0-or-later (measured via `brew info --json=v2 octave`), and the GitHub API reports GPL-3.0 for gnu-octave/octave. 11.3.0 is the formula's version, not a local measurement, so `version` stays null. Copyleft matters here in a way it does not for the BSD/MIT libraries in this range: Octave is a runtime you invoke, not a library you link, but .m code distributed with it inherits obligations worth checking."
+  },
+  {
+    "id": 183,
+    "name": "NumPy",
+    "category": "Scientific / numerical computation",
+    "category_number": 14,
+    "technology_id": "numpy",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "numpy",
+    "install_method": "pip",
+    "version": "2.5.2",
+    "license": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/numpy/numpy",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://numpy.org/doc/stable/",
+    "notes": "Installed on this machine: `pip install numpy==2.5.2` into the dedicated venv at technology-universe/runtimes/python-scientific/.venv (CPython 3.14.7). The repository's existing .venv, which the verification gates depend on, was not touched. Version measured by import. Smoke test: np.linalg.det([[1,2],[3,4]]) === -2.0000000000000004 \u2014 LAPACK is wired up, and the last digits are float64 being float64. Pins: technology-universe/runtimes/python-scientific/requirements.txt (pip freeze, 34 exact ==). Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7. The licence string is the wheel's declared SPDX expression, recorded verbatim rather than flattened to 'BSD-3-Clause': NumPy's own code is BSD-3-Clause and the other terms cover vendored components. Nothing in the expression is non-permissive."
+  },
+  {
+    "id": 184,
+    "name": "SciPy",
+    "category": "Scientific / numerical computation",
+    "category_number": 14,
+    "technology_id": "scipy",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "scipy",
+    "install_method": "pip",
+    "version": "1.18.0",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/scipy/scipy",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.scipy.org/doc/scipy/",
+    "notes": "Installed on this machine: `pip install scipy==1.18.0` into the dedicated venv at technology-universe/runtimes/python-scientific/.venv (CPython 3.14.7). The repository's existing .venv, which the verification gates depend on, was not touched. Version measured by import. Smoke test: import succeeded, scipy.__version__ === '1.18.0'. Pins: technology-universe/runtimes/python-scientific/requirements.txt (pip freeze, 34 exact ==). Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7. Licence BSD-3-Clause per the GitHub API for scipy/scipy; the installed distribution's License field is the full notice text and its classifier is 'OSI Approved :: BSD License'."
+  },
+  {
+    "id": 185,
+    "name": "pandas",
+    "category": "Scientific / numerical computation",
+    "category_number": 14,
+    "technology_id": "pandas",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "pandas",
+    "install_method": "pip",
+    "version": "3.0.5",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/pandas-dev/pandas",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://pandas.pydata.org/docs/",
+    "notes": "Installed on this machine: `pip install pandas==3.0.5` into the dedicated venv at technology-universe/runtimes/python-scientific/.venv (CPython 3.14.7). The repository's existing .venv, which the verification gates depend on, was not touched. Version measured by import. Smoke test: import succeeded, pandas.__version__ === '3.0.5'. Pins: technology-universe/runtimes/python-scientific/requirements.txt (pip freeze, 34 exact ==). Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7. Licence BSD-3-Clause: the installed distribution's License field opens 'BSD 3-Clause License' and the GitHub API agrees. Note this is the 3.x line, which changed defaults (notably string dtype and copy-on-write) \u2014 code written against 2.x is not automatically fine."
+  },
+  {
+    "id": 186,
+    "name": "Polars",
+    "category": "Scientific / numerical computation",
+    "category_number": 14,
+    "technology_id": "polars",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "polars",
+    "install_method": "pip",
+    "version": "1.43.2",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/pola-rs/polars",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.pola.rs/",
+    "notes": "Installed on this machine: `pip install polars==1.43.2` into the dedicated venv at technology-universe/runtimes/python-scientific/.venv (CPython 3.14.7). The repository's existing .venv, which the verification gates depend on, was not touched. Version measured by import. Smoke test: pl.DataFrame({'a':[1,2,3]}).select(pl.col('a').sum()).item() === 6 \u2014 the Rust engine executed a query, not just loaded. Pins: technology-universe/runtimes/python-scientific/requirements.txt (pip freeze, 34 exact ==). Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7. Licence MIT per the GitHub API and the installed distribution's classifier. The wheel is prebuilt Rust (polars-runtime-32 came along as a dependency); no Rust toolchain was needed, which is why this one installed on a machine that has no cargo."
+  },
+  {
+    "id": 187,
+    "name": "Apache Arrow",
+    "category": "Scientific / numerical computation",
+    "category_number": 14,
+    "technology_id": "apache-arrow",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "library",
+    "package": "apache-arrow",
+    "install_method": "brew",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/apache/arrow",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://arrow.apache.org/docs/",
+    "notes": "Not installed as a standalone distribution. Reproducible: `brew install apache-arrow` \u2014 Homebrew carries the formula at 25.0.1 and declares Apache-2.0 (measured via `brew info --json=v2 apache-arrow`). `version` stays null even though an Arrow runtime does exist on this machine, because it exists only transitively: the installed pyarrow 25.0.1 wheel (id 189) bundles the Arrow C++ libraries inside technology-universe/runtimes/python-scientific/.venv/lib/python3.14/site-packages/pyarrow. Claiming that as this record's version would report a standalone install that was never done. Arrow is a columnar format plus a multi-language runtime, so the language bindings are the installable artifacts: pyarrow (id 189), the `arrow` crate, org.apache.arrow on Maven, apache-arrow on npm."
+  },
+  {
+    "id": 188,
+    "name": "DuckDB",
+    "category": "Scientific / numerical computation",
+    "category_number": 14,
+    "technology_id": "duckdb",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "library",
+    "package": "duckdb",
+    "install_method": "pip",
+    "version": "1.5.5",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/duckdb/duckdb",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://duckdb.org/docs/",
+    "notes": "Installed on this machine: `pip install duckdb==1.5.5` into the dedicated venv at technology-universe/runtimes/python-scientific/.venv (CPython 3.14.7). The repository's existing .venv, which the verification gates depend on, was not touched. Version measured by import. Smoke test: duckdb.sql('select 6*7 as a').fetchone() === (42,) \u2014 the embedded engine planned and executed a query in-process. Pins: technology-universe/runtimes/python-scientific/requirements.txt (pip freeze, 34 exact ==). Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7. Licence MIT, from the installed distribution's classifier. `ecosystem` is c-cpp because the engine is C++; `install_method` is pip because the Python wheel is how it was obtained here, and that wheel embeds the whole engine \u2014 there is no separate server to run. The standalone CLI and the other bindings (Node, JDBC, Rust, WASM) are separate artifacts of the same engine. This is the canonical record; id 388 repeats the name in category 32 (Database)."
+  },
+  {
+    "id": 189,
+    "name": "PyArrow",
+    "category": "Scientific / numerical computation",
+    "category_number": 14,
+    "technology_id": "pyarrow",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "pyarrow",
+    "install_method": "pip",
+    "version": "25.0.1",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/apache/arrow",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://arrow.apache.org/docs/python/",
+    "notes": "Installed on this machine: `pip install pyarrow==25.0.1` into the dedicated venv at technology-universe/runtimes/python-scientific/.venv (CPython 3.14.7). The repository's existing .venv, which the verification gates depend on, was not touched. Version measured by import. Smoke test: import succeeded, pyarrow.__version__ === '25.0.1'. Pins: technology-universe/runtimes/python-scientific/requirements.txt (pip freeze, 34 exact ==). Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7. Licence Apache-2.0, declared by the wheel's own metadata. The Python binding for id 187, and the reason an Arrow C++ runtime is present on this machine at all."
+  },
+  {
+    "id": 190,
+    "name": "Numba",
+    "category": "Scientific / numerical computation",
+    "category_number": 14,
+    "technology_id": "numba",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "numba",
+    "install_method": "pip",
+    "version": "0.67.0",
+    "license": "BSD-2-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/numba/numba",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://numba.readthedocs.io/en/stable/",
+    "notes": "Installed on this machine: `pip install numba==0.67.0` into the dedicated venv at technology-universe/runtimes/python-scientific/.venv (CPython 3.14.7). The repository's existing .venv, which the verification gates depend on, was not touched. Version measured by import. Smoke test: import succeeded, numba.__version__ === '0.67.0'; llvmlite 0.49.0 came with it, so the LLVM backend is present. No @njit kernel was compiled and timed. Pins: technology-universe/runtimes/python-scientific/requirements.txt (pip freeze, 34 exact ==). Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7. Licence BSD-2-Clause per the GitHub API for numba/numba (PyPI only says 'BSD', which is why the repository was checked). Numba pins hard to NumPy and Python minor versions; that it resolved against NumPy 2.5.2 on CPython 3.14 is itself the useful finding here."
+  },
+  {
+    "id": 191,
+    "name": "JAX",
+    "category": "Scientific / numerical computation",
+    "category_number": 14,
+    "technology_id": "jax",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "jax",
+    "install_method": "pip",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/jax-ml/jax",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.jax.dev/en/latest/",
+    "notes": "Not installed. Reproducible: `pip install jax==0.11.1` into technology-universe/runtimes/python-scientific/.venv. 0.11.1 is the version the PyPI JSON API reported at probe time \u2014 recorded here, not in `version`, because nothing was installed or measured. Use `pip install 'jax[cpu]'==0.11.1` for the CPU build. The CUDA extras (jax[cuda12] and friends) are not installable to any purpose here: this machine has 0 NVIDIA GPUs, so platform_support and any future record must not imply CUDA. Apache-2.0 agrees between the PyPI metadata and the GitHub API for jax-ml/jax. Left at P1 by instruction as one of the heavy entries in this range."
+  },
+  {
+    "id": 192,
+    "name": "PyTorch",
+    "category": "Scientific / numerical computation",
+    "category_number": 14,
+    "technology_id": "pytorch",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "torch",
+    "install_method": "pip",
+    "version": "2.13.0",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/pytorch/pytorch",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.pytorch.org/docs/stable/index.html",
+    "notes": "Installed on this machine: `pip install torch==2.13.0` into the dedicated venv at technology-universe/runtimes/python-scientific/.venv (CPython 3.14.7). The repository's existing .venv, which the verification gates depend on, was not touched. Version measured by import. Smoke test: (torch.ones(2,2) @ torch.ones(2,2)).sum().item() === 8.0 and torch.backends.mps.is_available() === True \u2014 real tensor maths, and Apple GPU acceleration is reachable. Pins: technology-universe/runtimes/python-scientific/requirements.txt (pip freeze, 34 exact ==). Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7. Cost, measured not estimated: the wheel downloaded was torch-2.13.0-cp314-cp314-macosx_14_0_arm64.whl at 111.2 MB, and `du -sh site-packages/torch` reports 536 MB installed \u2014 well under the 2-3 GB the instruction budgeted, because the arm64 macOS wheel carries no CUDA kernels. CUDA is not merely absent but unreachable: 0 NVIDIA GPUs on this machine, so platform_support describes OS support and implies nothing about CUDA. Licence BSD-3-Clause, confirmed by reading torch-2.13.0.dist-info/licenses/LICENSE in the installed distribution (it carries the 'Neither the names' clause); PyPI's declared expression is a longer aggregate covering bundled components, and the GitHub API says NOASSERTION because of the multi-holder preamble."
+  },
+  {
+    "id": 193,
+    "name": "TensorFlow",
+    "category": "Scientific / numerical computation",
+    "category_number": 14,
+    "technology_id": "tensorflow",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "tensorflow",
+    "install_method": "pip",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/tensorflow/tensorflow",
+    "runtime_requirements": [
+      "python3<3.14"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://www.tensorflow.org/api_docs",
+    "notes": "ATTEMPTED AND FAILED on this machine. `pip install tensorflow==2.21.0` into technology-universe/runtimes/python-scientific/.venv returned, verbatim: 'ERROR: Could not find a version that satisfies the requirement tensorflow==2.21.0 (from versions: none)' followed by 'ERROR: No matching distribution found for tensorflow==2.21.0'. (The first attempt was refused by a tool-permission classifier, not by pip; it was retried and the above is pip's own answer.) 'from versions: none' means no wheel matches CPython 3.14 on macOS arm64 \u2014 TensorFlow builds wheels per Python minor version and 3.14 is ahead of them. This is an interpreter constraint, not an OS one, so macos stays in platform_support. Reproducible route: a CPython 3.12 venv, then `pip install tensorflow==2.21.0`. Apache-2.0 agrees between the PyPI metadata and the GitHub API."
+  },
+  {
+    "id": 194,
+    "name": "Keras",
+    "category": "Scientific / numerical computation",
+    "category_number": 14,
+    "technology_id": "keras",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "keras",
+    "install_method": "pip",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/keras-team/keras",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://keras.io/api/",
+    "notes": "Not installed. Reproducible: `pip install keras==3.15.1` into technology-universe/runtimes/python-scientific/.venv. 3.15.1 is the version the PyPI JSON API reported at probe time \u2014 recorded here, not in `version`, because nothing was installed or measured. Keras 3 is backend-agnostic and needs one of TensorFlow, JAX or PyTorch underneath. That matters here: TensorFlow does not install on this interpreter (id 193) and JAX was not installed (id 191), but PyTorch 2.13.0 is installed and smoke-tested (id 192), so KERAS_BACKEND=torch is the route that would actually work on this machine. Apache-2.0 agrees between the PyPI metadata and the GitHub API."
+  },
+  {
+    "id": 195,
+    "name": "XGBoost",
+    "category": "Scientific / numerical computation",
+    "category_number": 14,
+    "technology_id": "xgboost",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "xgboost",
+    "install_method": "pip",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/dmlc/xgboost",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://xgboost.readthedocs.io/en/stable/",
+    "notes": "Not installed. Reproducible: `pip install xgboost==3.4.1` into technology-universe/runtimes/python-scientific/.venv. 3.4.1 is the version the PyPI JSON API reported at probe time \u2014 recorded here, not in `version`, because nothing was installed or measured. Apache-2.0 agrees between the PyPI metadata and the GitHub API. The macOS wheel needs libomp for multithreading (`brew install libomp`) \u2014 a common first failure."
+  },
+  {
+    "id": 196,
+    "name": "LightGBM",
+    "category": "Scientific / numerical computation",
+    "category_number": 14,
+    "technology_id": "lightgbm",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "lightgbm",
+    "install_method": "pip",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/microsoft/LightGBM",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://lightgbm.readthedocs.io/en/stable/",
+    "notes": "Not installed. Reproducible: `pip install lightgbm==4.7.0` into technology-universe/runtimes/python-scientific/.venv. 4.7.0 is the version the PyPI JSON API reported at probe time \u2014 recorded here, not in `version`, because nothing was installed or measured. PyPI's license field is empty, so MIT was taken from the GitHub API for microsoft/LightGBM rather than guessed. Like XGBoost it wants libomp on macOS."
+  },
+  {
+    "id": 197,
+    "name": "CatBoost",
+    "category": "Scientific / numerical computation",
+    "category_number": 14,
+    "technology_id": "catboost",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "catboost",
+    "install_method": "pip",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/catboost/catboost",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://catboost.ai/docs/en/",
+    "notes": "Not installed. Reproducible: `pip install catboost==1.2.10` into technology-universe/runtimes/python-scientific/.venv. 1.2.10 is the version the PyPI JSON API reported at probe time \u2014 recorded here, not in `version`, because nothing was installed or measured. Apache-2.0 agrees between the PyPI metadata and the GitHub API."
+  },
+  {
+    "id": 198,
+    "name": "scikit-learn",
+    "category": "Scientific / numerical computation",
+    "category_number": 14,
+    "technology_id": "scikit-learn",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "scikit-learn",
+    "install_method": "pip",
+    "version": "1.9.0",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/scikit-learn/scikit-learn",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://scikit-learn.org/stable/",
+    "notes": "Installed on this machine: `pip install scikit-learn==1.9.0` into the dedicated venv at technology-universe/runtimes/python-scientific/.venv (CPython 3.14.7). The repository's existing .venv, which the verification gates depend on, was not touched. Version measured by import. Smoke test: import sklearn succeeded, sklearn.__version__ === '1.9.0'. Pins: technology-universe/runtimes/python-scientific/requirements.txt (pip freeze, 34 exact ==). Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7. Licence BSD-3-Clause, declared by the wheel's own metadata. Note the split between the distribution name (scikit-learn) and the import name (sklearn)."
+  },
+  {
+    "id": 199,
+    "name": "Statsmodels",
+    "category": "Scientific / numerical computation",
+    "category_number": 14,
+    "technology_id": "statsmodels",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "statsmodels",
+    "install_method": "pip",
+    "version": "0.14.6",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/statsmodels/statsmodels",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://www.statsmodels.org/stable/index.html",
+    "notes": "Installed on this machine: `pip install statsmodels==0.14.6` into the dedicated venv at technology-universe/runtimes/python-scientific/.venv (CPython 3.14.7). The repository's existing .venv, which the verification gates depend on, was not touched. Version measured by import. Smoke test: import succeeded, statsmodels.__version__ === '0.14.6'. Pins: technology-universe/runtimes/python-scientific/requirements.txt (pip freeze, 34 exact ==). Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7. Licence BSD-3-Clause per the GitHub API (the installed metadata says only 'BSD License'). Pulled in patsy as a dependency."
+  },
+  {
+    "id": 200,
+    "name": "NetworkX",
+    "category": "Scientific / numerical computation",
+    "category_number": 14,
+    "technology_id": "networkx",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "networkx",
+    "install_method": "pip",
+    "version": "3.6.1",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/networkx/networkx",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://networkx.org/documentation/stable/",
+    "notes": "Installed on this machine: `pip install networkx==3.6.1` into the dedicated venv at technology-universe/runtimes/python-scientific/.venv (CPython 3.14.7). The repository's existing .venv, which the verification gates depend on, was not touched. Version measured by import. Smoke test: import succeeded, networkx.__version__ === '3.6.1'. Pins: technology-universe/runtimes/python-scientific/requirements.txt (pip freeze, 34 exact ==). Host: macOS 26.4.1 arm64, Node v26.0.0, CPython 3.14.7. Licence BSD-3-Clause, declared by the wheel's own metadata. Pure Python, no compiled extension. This is the canonical record; id 211 repeats the name in category 16 (Knowledge graphs / graph computation)."
+  },
+  {
+    "id": 201,
+    "name": "Lean 4",
+    "category": "Symbolic / theorem / formal reasoning",
+    "category_number": 15,
+    "technology_id": "lean-4",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "lean",
+    "kind": "runtime",
+    "package": "leanprover/lean4:v4.33.0",
+    "install_method": "elan",
+    "version": "4.33.0",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/leanprover/lean4",
+    "runtime_requirements": [
+      "elan"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://lean-lang.org/documentation/",
+    "notes": "PRESENT AND VERIFIED \u2014 and nothing was installed to make it so. `command -v lean` resolves to ~/.elan/bin/lean and `lean --version` reports 'Lean (version 4.33.0, arm64-apple-darwin24.6.0, commit d8b18978322de05a8f3dba51ef03cf5461676c17, Release)'; elan 4.2.3 and Lake 5.0.0 are on PATH and the only toolchain in ~/.elan/toolchains is leanprover--lean4---v4.33.0. Smoke test (in a scratch directory outside the repository): a file proving `theorem smoke (a b : Nat) : a + b = b + a := Nat.add_comm a b` plus `#eval 6 * 7` elaborated and printed 42, exit 0 \u2014 the kernel checked a proof, which is the only smoke test that means anything for a prover. Licence Apache-2.0, read from the LICENSE file in the installed toolchain rather than from upstream. The second path matters more than the local one: this repository reaches Lean through the hosted AXLE service \u2014 axle.toml pins environment = 'lean-4.33.0' at https://axle.axiommath.ai with a 120 s timeout, and specs/*_spec.lean pair with proofs/*_proof.lean \u2014 so the reproducible route for CI is the service, at the same 4.33.0 the local toolchain reports. No install was performed by this task, by instruction."
+  },
+  {
+    "id": 202,
+    "name": "Mathlib",
+    "category": "Symbolic / theorem / formal reasoning",
+    "category_number": 15,
+    "technology_id": "mathlib",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "lean",
+    "kind": "library",
+    "package": "mathlib",
+    "install_method": "elan",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/leanprover-community/mathlib4",
+    "runtime_requirements": [
+      "lean4-toolchain",
+      "lake"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://leanprover-community.github.io/mathlib4_docs/",
+    "notes": "NOT present on this machine, and the probe was specific rather than assumed: no lakefile.lean, lakefile.toml or lean-toolchain anywhere in the repository (the ten proofs in proofs/ are checked by the AXLE service, not by a local Lake project), no ~/.cache/mathlib, and no Mathlib directory under $HOME. So `version` is null and this sits at P1. Not installed by instruction, and the instruction is right on the numbers: a Mathlib checkout plus its oleans is multiple gigabytes against a 10 GB budget already carrying PyTorch. Reproducible: in a Lake project on a matching toolchain, `require mathlib from git \"https://github.com/leanprover-community/mathlib4\"` then `lake exe cache get` to pull prebuilt oleans instead of compiling. Mathlib tracks Lean releases tightly, so the revision must match Lean 4.33.0 (id 201). Open question worth closing before anyone depends on this: whether the hosted AXLE environment 'lean-4.33.0' ships Mathlib is NOT verified \u2014 it was not probed from this machine, and the repository's proofs use core Nat lemmas that do not need it. Licence Apache-2.0 per the GitHub API for leanprover-community/mathlib4."
+  },
+  {
+    "id": 203,
+    "name": "Coq",
+    "category": "Symbolic / theorem / formal reasoning",
+    "category_number": 15,
+    "technology_id": "coq",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "ocaml",
+    "kind": "cli-tool",
+    "package": "rocq",
+    "install_method": "brew",
+    "version": "9.2",
+    "license": "LGPL-2.1-only",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/rocq-prover/rocq",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://rocq-prover.org/docs",
+    "notes": "PRESENT AND VERIFIED; already installed before this task, so nothing was downloaded. `command -v coqc` resolves to /opt/homebrew/bin/coqc and `coqc --version` reports 'The Rocq Prover, version 9.2, compiled with OCaml 5.5.0' \u2014 note the rename: Coq is now Rocq, the Homebrew formula is `rocq` (9.2.0, measured via `brew info --json=v2 rocq`), and anything searching for a formula called `coq` will come up empty. Smoke test in a scratch directory outside the repository: `coqc` compiled 'Theorem smoke : forall n : nat, n + 0 = n. Proof. induction n; simpl; auto. Qed.' with exit 0 \u2014 a proof checked, not just a binary that starts. `version` records '9.2' because that is what the binary itself prints; Homebrew's 9.2.0 is the formula's packaging version. Licence LGPL-2.1-only per Homebrew's declared field."
+  },
+  {
+    "id": 204,
+    "name": "Isabelle",
+    "category": "Symbolic / theorem / formal reasoning",
+    "category_number": 15,
+    "technology_id": "isabelle",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "native",
+    "kind": "cli-tool",
+    "package": "isabelle",
+    "install_method": "brew",
+    "version": "2025-2",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://isabelle.in.tum.de/",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "toolchain",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "desktop"
+    ],
+    "documentation": "https://isabelle.in.tum.de/documentation.html",
+    "notes": "PRESENT, VERSION MEASURED, NOT SMOKE-TESTED \u2014 P2, and the gap is deliberate. /opt/homebrew/bin/isabelle is a symlink to /Applications/Isabelle2025-2.app/bin/isabelle and `brew list --versions isabelle` reports 'isabelle 2025-2'; the two agree, which is what makes '2025-2' a measurement rather than a reading of a directory name. Worth recording: `isabelle version` prints nothing and exits 0 on this build, so the obvious probe returns no evidence \u2014 the app bundle and the Homebrew cask record are what settled it. No smoke test was run because the cheapest real one is building a session heap, which is a minutes-scale job, unlike the seconds-scale checks that earned P3 for Lean, Rocq and Z3. Licence read from the local file /Applications/Isabelle2025-2.app/COPYRIGHT: a three-clause BSD notice (Cambridge / TU Munchen, with the no-endorsement clause). The distribution also bundles contrib/ components under their own licences \u2014 Poly/ML and a JVM among them \u2014 so a redistribution review must look wider than COPYRIGHT alone. ecosystem is 'native' because Isabelle runs on Poly/ML with a Scala/JVM layer and fits no single ecosystem value."
+  },
+  {
+    "id": 205,
+    "name": "Agda",
+    "category": "Symbolic / theorem / formal reasoning",
+    "category_number": 15,
+    "technology_id": "agda",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "haskell",
+    "kind": "cli-tool",
+    "package": "agda",
+    "install_method": "brew",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/agda/agda",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://agda.readthedocs.io/en/latest/",
+    "notes": "Not installed: `command -v agda` found nothing. Not installed by instruction either \u2014 a Haskell-toolchain build is a large native install. Reproducible: `brew install agda` (formula at 2.8.0-r3, measured via `brew info --json=v2 agda`), or `cabal install Agda` if you want to pick the GHC. 2.8.0-r3 is the formula's version, not a local measurement. Licence MIT, established by reading the repository's LICENSE via the GitHub API \u2014 it is standard MIT permission text after a long authors preamble, which is why the GitHub API's own classifier says NOASSERTION. Homebrew declares 'MIT AND BSD-3-Clause' for its bottle, so the packaged build pulls in at least one BSD-3-Clause component; both are permissive, and the aggregate is worth a look before redistributing the bottle rather than the source."
+  },
+  {
+    "id": 206,
+    "name": "Z3",
+    "category": "Symbolic / theorem / formal reasoning",
+    "category_number": 15,
+    "technology_id": "z3",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "cli-tool",
+    "package": "z3",
+    "install_method": "brew",
+    "version": "5.0.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/Z3Prover/z3",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://microsoft.github.io/z3guide/",
+    "notes": "PRESENT AND VERIFIED; already installed before this task. `command -v z3` resolves to /opt/homebrew/bin/z3 and `z3 --version` reports 'Z3 version 5.0.0 - 64 bit'; `brew list --versions` independently reports 'z3 5.0.0', so the binary and the package manager agree. Flagging it rather than smoothing it: 5.0.0 is ahead of the 4.x line many references still describe, so anyone matching on a '4.' prefix will mis-detect this install. Smoke test in a scratch directory outside the repository: a QF_LIA script asserting 41 < x < 43 returned 'sat' with model '(define-fun x () Int 42)', exit 0 \u2014 the solver searched and produced a witness, not merely a version banner. Licence MIT per Homebrew's declared field for the formula. The Python binding is a separate artifact (PyPI z3-solver 5.1.0.0, not installed here)."
+  },
+  {
+    "id": 207,
+    "name": "CVC5",
+    "category": "Symbolic / theorem / formal reasoning",
+    "category_number": 15,
+    "technology_id": "cvc5",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "cli-tool",
+    "package": "cvc5",
+    "install_method": "pip",
+    "version": null,
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/cvc5/cvc5",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://cvc5.github.io/docs/latest/",
+    "notes": "Not installed: `command -v cvc5` found nothing, and Homebrew has no cvc5 formula (`brew info cvc5` returned nothing). Reproducible: `pip install cvc5==1.3.4` \u2014 PyPI serves that build, which ships the solver binary alongside the Python API \u2014 or take a binary release from the GitHub releases page. 1.3.4 is the PyPI version at probe time, not a local measurement. Licence read from the repository's COPYING file via the GitHub API: 'distribution is under the terms of the modified BSD license', i.e. BSD-3-Clause, and the file reproduces the three clauses. One conditional caveat, recorded because the licence text raises it itself: cvc5 can be configured \u2014 not by default \u2014 to link CLN and GLPK, which are GPL, and such a build 'may be restricted in non-GPL-compatible projects'. The default build is BSD-3-Clause, so the class stays OPEN_SOURCE; a custom build with those flags needs its own review. Together with id 206 this is the second SMT solver behind id 209."
+  },
+  {
+    "id": 208,
+    "name": "SymPy",
+    "category": "Symbolic / theorem / formal reasoning",
+    "category_number": 15,
+    "technology_id": "sympy",
+    "canonical": false,
+    "canonical_id": 172,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/sympy/sympy",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://docs.sympy.org/latest/index.html",
+    "notes": "Duplicate inventory position. Per SCHEMA.md the technology's installation and verification are recorded on the canonical record only (id 172); repeating them here would let one technology be counted as verified twice. Identity and licence are repeated because they belong to the technology, not to the install. The name first appears at id 172 (category 13, Mathematics / equations), where SymPy is installed at 1.14.0 and smoke-tested. Its presence in this category is about the same library used for symbolic reasoning rather than a second artifact."
+  },
+  {
+    "id": 209,
+    "name": "SMT-LIB tooling",
+    "category": "Symbolic / theorem / formal reasoning",
+    "category_number": 15,
+    "technology_id": "smt-lib-tooling",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "spec",
+    "kind": "standard",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://smt-lib.org/",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "toolchain",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://smt-lib.org/language.shtml",
+    "notes": "Names a standard and the family of tools that speak it, not an artifact \u2014 hence install_method none, package null, version null and readiness P0. `license` is null and flagged because there is nothing here to license as a unit: the SMT-LIB standard documents and logic definitions are published by the SMT-LIB initiative, and every implementation carries its own terms. The concrete resolution is already in this range and already measured: id 206 Z3 (MIT, present at 5.0.0, smoke-tested on a QF_LIA script written in SMT-LIB v2 syntax \u2014 so the standard itself is exercised on this machine) and id 207 cvc5 (BSD-3-Clause, not present). Anyone acting on this record should pick a solver; the solver, not the standard, is what gets reviewed."
+  },
+  {
+    "id": 210,
+    "name": "OpenQASM tooling",
+    "category": "Symbolic / theorem / formal reasoning",
+    "category_number": 15,
+    "technology_id": "openqasm-tooling",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "spec",
+    "kind": "standard",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://openqasm.com/",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "toolchain",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://openqasm.com/language/index.html",
+    "notes": "Names a standard and the family of tools around it, not an artifact \u2014 install_method none, package null, version null, readiness P0. `license` is null and flagged because 'tooling' has no single licence: the parsers, compilers and SDKs that read OpenQASM 3 (the openqasm3 Python parser, Qiskit, vendor toolchains) are each licensed separately and each needs its own record before use. One measurement worth carrying forward: the specification repository openqasm/openqasm is Apache-2.0 per the GitHub API \u2014 that covers the spec and its reference grammar, and says nothing about any tool. Nothing in this family was installed or probed on this machine."
+  }
+]

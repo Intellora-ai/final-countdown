@@ -23,6 +23,16 @@ A record whose `id` is not the lowest for its `technology_id` sets
 Installation and verification are recorded on the canonical record only;
 duplicating them would let the same technology be counted as verified twice.
 
+**530 distinct technologies across 550 inventory entries**, measured from the
+built registry rather than predicted from the duplicate-name count. An earlier
+draft of this file said 535, arrived at by subtracting fifteen repeated names;
+that arithmetic was wrong twice over. `Rough.js` and `Fabric.js` each appear
+three times rather than twice, so the exact-name repeats remove 17, not 15. And
+three further pairs share a technology *without* sharing a name — `Graphology`
+/ `graphology` differ in case, `Neo4j Community Edition` / `Neo4j Community` in
+wording, and `PlayCanvas Engine` / `PlayCanvas` name the same runtime. Counting
+names was the mistake; the registry counts identities.
+
 ## Fields
 
 | Field | Type | Rule |

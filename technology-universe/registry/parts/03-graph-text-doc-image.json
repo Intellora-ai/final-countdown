@@ -1,0 +1,3061 @@
+[
+  {
+    "id": 211,
+    "name": "NetworkX",
+    "category": "Knowledge graphs / graph computation",
+    "category_number": 16,
+    "technology_id": "networkx",
+    "canonical": false,
+    "canonical_id": 200,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/networkx/networkx",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://networkx.org/documentation/stable/",
+    "notes": "Non-canonical repeat of an earlier inventory position. Per SCHEMA.md, installation and verification are recorded on the canonical record only, so package, install_method and version are deliberately left empty here. Canonical record is id 200. Licence per PyPI metadata for `networkx` (BSD-3-Clause). Measured aside for the owner of id 200: networkx 3.6.1 IS now present on this machine, pulled in transitively as a scikit-image dependency in technology-universe/runtimes/python-doc. It was not installed deliberately here and, per the canonical-record rule, no version is claimed on this non-canonical entry."
+  },
+  {
+    "id": 212,
+    "name": "igraph",
+    "category": "Knowledge graphs / graph computation",
+    "category_number": 16,
+    "technology_id": "igraph",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "igraph",
+    "install_method": "pip",
+    "version": "1.0.0",
+    "license": "GPL-2.0-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/igraph/python-igraph",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ],
+    "documentation": "https://python.igraph.org/en/stable/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/python-doc (isolated venv, Python 3.14.7) at 1.0.0. Smoke test passed: built Graph.Ring(6), confirmed vcount=6 / ecount=6, and computed diameter=3. The prebuilt cp39-abi3 macosx_11_0_arm64 wheel installed without a source build.  ||  PRE-INSTALL RESEARCH: Not installed here; version deliberately null. Upstream latest on PyPI at time of probe: 0.11.x line published as `igraph` 1.0.0 (measured via pypi.org JSON API). Copyleft: PyPI metadata declares 'GNU General Public License (GPL)'; the underlying C core (igraph/igraph) is GPL-2.0-or-later. Linking igraph into a distributed product imposes GPL source-disclosure obligations — review before shipping in a closed-source binary. R and Mathematica bindings exist under the same terms."
+  },
+  {
+    "id": 213,
+    "name": "graphology",
+    "category": "Knowledge graphs / graph computation",
+    "category_number": 16,
+    "technology_id": "graphology",
+    "canonical": false,
+    "canonical_id": 94,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/graphology/graphology",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://graphology.github.io/",
+    "notes": "Non-canonical repeat of an earlier inventory position. Per SCHEMA.md, installation and verification are recorded on the canonical record only, so package, install_method and version are deliberately left empty here. Canonical record is id 94 ('Graphology'). Inventory spells this entry lowercase and id 94 capitalised; both name the same npm package `graphology`."
+  },
+  {
+    "id": 214,
+    "name": "Neo4j Community Edition",
+    "category": "Knowledge graphs / graph computation",
+    "category_number": 16,
+    "technology_id": "neo4j",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "jvm",
+    "kind": "service",
+    "package": "neo4j",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "GPL-3.0-only",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/neo4j/neo4j",
+    "runtime_requirements": [
+      "jvm",
+      "docker"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://neo4j.com/docs/",
+    "notes": "Service, not a library — run it, do not import it. Official image `neo4j` on Docker Hub; Homebrew also ships a `neo4j` formula (stable 2026.07.1 per `brew info`, not installed here). Edition-specific terms: Community Edition is GPL-3.0; Enterprise Edition is under a separate commercial/evaluation licence with different feature and clustering rights. Do not assume terms observed for one edition apply to the other. Deliberately NOT installed and NOT run: this is a database service, and standing one up would mean provisioning credentials. Docker 29.5.2 is available on this machine, so `docker compose` with the official `neo4j` image is the reproducible path when someone chooses to run it; a JDK is also present (Homebrew keg-only OpenJDK 26.0.2) for the native route. Version stays null and readiness stays P1."
+  },
+  {
+    "id": 215,
+    "name": "Memgraph Community",
+    "category": "Knowledge graphs / graph computation",
+    "category_number": 16,
+    "technology_id": "memgraph",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "service",
+    "package": "memgraph",
+    "install_method": "oci-image",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/memgraph/memgraph",
+    "runtime_requirements": [
+      "docker"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://memgraph.com/docs",
+    "notes": "Service, not a library. Official image `memgraph/memgraph` (and `memgraph/memgraph-platform`) on Docker Hub. Licence deliberately null: the repository mixes Business Source License 1.1 (source-available, converts to Apache-2.0 on a delayed date) with Apache-2.0 for other components, and the mapping between the 'Community' label and those texts has changed across releases. That is not something to guess at — read the LICENSE file of the exact tag you intend to run. Edition-specific terms: Community and Enterprise differ materially (auth, multi-tenancy, HA). Native packages are Linux-only; macOS and Windows are supported via Docker. Version left null: nothing pulled or run here. Deliberately NOT installed and NOT run: this is a database service. Docker 29.5.2 is available here, so `docker compose` with the official memgraph/memgraph image is the reproducible path. No default credentials were configured. Readiness stays P1."
+  },
+  {
+    "id": 216,
+    "name": "Apache TinkerPop",
+    "category": "Knowledge graphs / graph computation",
+    "category_number": 16,
+    "technology_id": "apache-tinkerpop",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "jvm",
+    "kind": "framework",
+    "package": "org.apache.tinkerpop:gremlin-core",
+    "install_method": "maven",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/apache/tinkerpop",
+    "runtime_requirements": [
+      "jvm"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://tinkerpop.apache.org/docs/current/reference/",
+    "notes": "Graph computing framework plus the Gremlin traversal language. Maven coordinate given for the core; `gremlin-console` and `gremlin-server` are separate artifacts. Python (`gremlinpython`) and JavaScript (`gremlin`) driver bindings exist and speak to a Gremlin Server. CORRECTION to an earlier reading in this file: a JDK IS present on this machine. `java -version` on PATH hits the macOS stub and fails, but Homebrew's keg-only OpenJDK 26.0.2 lives at /opt/homebrew/opt/openjdk/bin/java and works once JAVA_HOME points at it — proved by exercising Apache Tika at id 273. TinkerPop itself was still not installed (no Maven project was created for it), so version stays null and readiness stays P1, but the JVM blocker recorded earlier does not actually exist."
+  },
+  {
+    "id": 217,
+    "name": "RDFLib",
+    "category": "Knowledge graphs / graph computation",
+    "category_number": 16,
+    "technology_id": "rdflib",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "rdflib",
+    "install_method": "pip",
+    "version": "7.6.0",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/RDFLib/rdflib",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ],
+    "documentation": "https://rdflib.readthedocs.io/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/python-doc (isolated venv, Python 3.14.7) at 7.6.0. Smoke test passed end to end: parsed an N-Triples statement into a Graph, ran a SPARQL SELECT that returned the literal 'lit', and re-serialised to Turtle (49 chars). Parse, query and serialise all confirmed.  ||  PRE-INSTALL RESEARCH: Upstream latest on PyPI at probe time: 7.6.0 (read from pypi.org JSON API). Distinct from id 218 rdflib.js despite the shared name — different language, different package, different licence text (BSD-3-Clause here, MIT there). Parses and serialises N-Triples, Turtle, RDF/XML, JSON-LD; pairs with id 222 pySHACL for validation."
+  },
+  {
+    "id": 218,
+    "name": "rdflib.js",
+    "category": "Knowledge graphs / graph computation",
+    "category_number": 16,
+    "technology_id": "rdflib-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "rdflib",
+    "install_method": "npm",
+    "version": "2.4.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/linkeddata/rdflib.js",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "review-required",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://linkeddata.github.io/rdflib.js/doc/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 2.4.0. Smoke test passed: parsed Turtle into a store and re-serialised it (object value 'v', 31 chars out). Two findings worth carrying: (a) this build rejects mediaType 'application/n-triples' with \"Don't know how to parse ... yet\" — use 'text/turtle' or 'application/n-quads'; (b) npm audit flags it MODERATE as a DIRECT dependency: it pulls a package.json/package-json/got/git-source chain that includes parse-url (CRITICAL: XSS, SSRF, hostname spoofing), gry (HIGH: command injection) and tmp (HIGH: path traversal). The offered fix is a downgrade to 2.3.6, a semver-major move. Do not ship this without resolving that chain.  ||  PRE-INSTALL RESEARCH: npm package name is `rdflib` (not `rdflib.js`). Upstream latest at probe time: 2.4.0, licence MIT (both read via `npm view rdflib version license`). Do not confuse with the Python RDFLib at id 217."
+  },
+  {
+    "id": 219,
+    "name": "Comunica",
+    "category": "Knowledge graphs / graph computation",
+    "category_number": 16,
+    "technology_id": "comunica",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "@comunica/query-sparql",
+    "install_method": "npm",
+    "version": "5.3.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/comunica/comunica",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://comunica.dev/docs/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 5.3.0. Smoke test passed: ran a real SPARQL SELECT over an inline N-Triples source via QueryEngine.queryBindings and read back ?o = 'cq'. npm audit reports no advisories against it.  ||  PRE-INSTALL RESEARCH: Modular SPARQL query engine for the web. `@comunica/query-sparql` is the general-purpose entrypoint; `@comunica/query-sparql-file` and others cover narrower sources. Upstream latest at probe time: 5.3.0, licence MIT."
+  },
+  {
+    "id": 220,
+    "name": "N-Triples / Turtle tooling",
+    "category": "Knowledge graphs / graph computation",
+    "category_number": 16,
+    "technology_id": "ntriples-turtle-tooling",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "spec",
+    "kind": "standard",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://www.w3.org/TR/n-triples/",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://www.w3.org/TR/turtle/",
+    "notes": "This inventory line names a pair of W3C RDF serialisation standards and the family of tools that read and write them — not one installable package, hence install_method 'none' and package null. Licence is null on purpose: the specifications themselves are published under the W3C Document Licence, while each implementation carries its own separate terms (for example N3.js is MIT, Python RDFLib at id 217 is BSD-3-Clause, rdflib.js at id 218 is MIT). Pick an implementation, then record that implementation's licence. Concrete starting points measured at probe time: npm `n3` 2.2.5 (MIT); the RDFLib/rdflib.js records above already cover the other route."
+  },
+  {
+    "id": 221,
+    "name": "SHACL tooling",
+    "category": "Knowledge graphs / graph computation",
+    "category_number": 16,
+    "technology_id": "shacl-tooling",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "spec",
+    "kind": "standard",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://www.w3.org/TR/shacl/",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://www.w3.org/TR/shacl/",
+    "notes": "Names the W3C Shapes Constraint Language standard and its tool family, not a single artifact — install_method 'none', package null. Licence null on purpose: the SHACL Recommendation is under the W3C Document Licence and each validator carries its own terms. Concrete implementations measured at probe time: pySHACL (see id 222, Apache-2.0) and npm `rdf-validate-shacl` 0.6.5 (MIT). Record the chosen implementation's licence, not this line's."
+  },
+  {
+    "id": 222,
+    "name": "pySHACL",
+    "category": "Knowledge graphs / graph computation",
+    "category_number": 16,
+    "technology_id": "pyshacl",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "pyshacl",
+    "install_method": "pip",
+    "version": "0.40.1",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/RDFLib/pySHACL",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ],
+    "documentation": "https://github.com/RDFLib/pySHACL#readme",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/python-doc (isolated venv, Python 3.14.7) at 0.40.1. Smoke test passed, and it was a negative test on purpose: a NodeShape requiring sh:minCount 1 on ex:name was validated against an ex:Person node that lacks it, and pyshacl correctly reported conforms=False. A validator that only ever returns 'valid' proves nothing.  ||  PRE-INSTALL RESEARCH: Upstream latest on PyPI at probe time: 0.40.1, licence Apache-2.0. Depends on RDFLib (id 217); installing one pulls the other. Ships a `pyshacl` CLI as well as the library API."
+  },
+  {
+    "id": 223,
+    "name": "Markdown-it",
+    "category": "Text / Markdown / rich content",
+    "category_number": 17,
+    "technology_id": "markdown-it",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "markdown-it",
+    "install_method": "npm",
+    "version": "15.0.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/markdown-it/markdown-it",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://markdown-it.github.io/markdown-it/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 15.0.0. Smoke test passed: render('# hi') returned exactly '<h1>hi</h1>'. npm audit clean.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 15.0.0, MIT. The Python port `markdown-it-py` IS present in this repo's .venv at 4.2.0, but that is a different package and a different inventory technology — it is not evidence for this record, so this stays at P1. Plugin-based; untrusted input still needs sanitising (see id 237 DOMPurify) because `html: true` passes raw HTML through."
+  },
+  {
+    "id": 224,
+    "name": "unified",
+    "category": "Text / Markdown / rich content",
+    "category_number": 17,
+    "technology_id": "unified",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "unified",
+    "install_method": "npm",
+    "version": "11.0.5",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/unifiedjs/unified",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://unifiedjs.com/learn/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 11.0.5. Smoke test passed: built a full unified pipeline (remark-parse -> remark-rehype -> rehype-stringify) and processed '**b**' into '<p><strong>b</strong></p>'. Confirms the ESM-only plugin wiring works end to end. npm audit clean.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 11.0.5, MIT. ESM-only from v10 onward — a CommonJS codebase cannot `require()` it. This is the pipeline core that ids 225-230 plug into."
+  },
+  {
+    "id": 225,
+    "name": "remark",
+    "category": "Text / Markdown / rich content",
+    "category_number": 17,
+    "technology_id": "remark",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "remark",
+    "install_method": "npm",
+    "version": "15.0.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/remarkjs/remark",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://remark.js.org/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 15.0.1. Smoke test passed: remark().process('#  x') normalised the markdown to '# x'. npm audit clean.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 15.0.1, MIT. ESM-only. Markdown processor built on unified (id 224); produces mdast (id 229)."
+  },
+  {
+    "id": 226,
+    "name": "rehype",
+    "category": "Text / Markdown / rich content",
+    "category_number": 17,
+    "technology_id": "rehype",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "rehype",
+    "install_method": "npm",
+    "version": "13.0.2",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/rehypejs/rehype",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://github.com/rehypejs/rehype#readme",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 13.0.2. Smoke test passed: rehype().process('<p>hi') repaired the unclosed tag to '<p>hi</p>'. npm audit clean.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 13.0.2, MIT. ESM-only. HTML processor built on unified (id 224); produces hast (id 230)."
+  },
+  {
+    "id": 227,
+    "name": "retext",
+    "category": "Text / Markdown / rich content",
+    "category_number": 17,
+    "technology_id": "retext",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "retext",
+    "install_method": "npm",
+    "version": "9.0.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/retextjs/retext",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://github.com/retextjs/retext#readme",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 9.0.0. Smoke test passed: retext().process() round-tripped 'The quick brown fox.' through the bundled retext-latin parser and stringifier. Note the plugin model is real — the useful checks (retext-equality and friends) are separate packages and are NOT installed here. npm audit clean.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 9.0.0, MIT. ESM-only. Natural-language processor in the unified family (id 224); most value comes from its plugins, which are separate packages."
+  },
+  {
+    "id": 228,
+    "name": "micromark",
+    "category": "Text / Markdown / rich content",
+    "category_number": 17,
+    "technology_id": "micromark",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "micromark",
+    "install_method": "npm",
+    "version": "4.0.2",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/micromark/micromark",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://github.com/micromark/micromark#readme",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 4.0.2. Smoke test passed: micromark('*i*') tokenised and rendered to '<p><em>i</em></p>'. npm audit clean.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 4.0.2, MIT. ESM-only. CommonMark- and GFM-compliant low-level markdown tokeniser; this is the engine underneath remark (id 225). Use remark unless you specifically need token-level control."
+  },
+  {
+    "id": 229,
+    "name": "mdast",
+    "category": "Text / Markdown / rich content",
+    "category_number": 17,
+    "technology_id": "mdast",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "spec",
+    "kind": "standard",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/syntax-tree/mdast",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://github.com/syntax-tree/mdast#readme",
+    "notes": "mdast is the Markdown Abstract Syntax Tree *format specification* (a unist dialect), not a package — hence kind 'standard', install_method 'none', package null. This matters practically: an `mdast` package does exist on npm but it is a long-abandoned stub (latest 3.0.0, measured via `npm view`) that was renamed to remark in 2016. Installing it would be a mistake. The real artifacts are the utilities — `mdast-util-from-markdown` (9.x line, MIT; upstream latest measured 2.0.3) and its siblings — plus remark at id 225. Licence null because the specification document and each utility package carry separate terms; the utilities measured are MIT. Measured this session: the real utility package `mdast-util-from-markdown` was installed at 2.0.3 in technology-universe/runtimes/javascript-text and smoke-tested successfully — it parsed '# h' into an mdast tree whose first child is a heading of depth 1. That is evidence for the implementation, not for this specification line, so this record stays P0 with a null version."
+  },
+  {
+    "id": 230,
+    "name": "hast",
+    "category": "Text / Markdown / rich content",
+    "category_number": 17,
+    "technology_id": "hast",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "spec",
+    "kind": "standard",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/syntax-tree/hast",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://github.com/syntax-tree/hast#readme",
+    "notes": "hast is the HTML Abstract Syntax Tree *format specification* (a unist dialect), not a package — kind 'standard', install_method 'none', package null. As with mdast (id 229), a bare `hast` npm package exists but is a placeholder (latest 1.0.0, measured via `npm view`), not the thing this inventory line means. The real artifacts are `hast-util-to-html` (upstream latest measured 9.0.5, MIT) and its siblings, plus rehype at id 226. Licence null because the specification document and each utility package carry separate terms; the utilities measured are MIT. Measured this session: the real utility package `hast-util-to-html` was installed at 9.0.5 in technology-universe/runtimes/javascript-text and smoke-tested successfully — it serialised a hast element node to '<b>z</b>'. Evidence for the implementation, not for this specification line, so this record stays P0 with a null version."
+  },
+  {
+    "id": 231,
+    "name": "gray-matter",
+    "category": "Text / Markdown / rich content",
+    "category_number": 17,
+    "technology_id": "gray-matter",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "gray-matter",
+    "install_method": "npm",
+    "version": "4.0.3",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/jonschlinkert/gray-matter",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ],
+    "documentation": "https://github.com/jonschlinkert/gray-matter#readme",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 4.0.3. Smoke test passed: parsed '---\\ntitle: T\\n---\\nbody' and read back data.title === 'T'. npm audit clean.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 4.0.3, MIT. Front-matter parser. Note the security shape: by default it will evaluate JavaScript front-matter blocks, so do not run it over untrusted content without restricting the engines option."
+  },
+  {
+    "id": 232,
+    "name": "MDX",
+    "category": "Text / Markdown / rich content",
+    "category_number": 17,
+    "technology_id": "mdx",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "@mdx-js/mdx",
+    "install_method": "npm",
+    "version": "3.1.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/mdx-js/mdx",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://mdxjs.com/docs/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 3.1.1. Smoke test passed: compile() turned '# mdx\\n\\n<b>x</b>' into a 594-byte JSX module. This is exactly why MDX is code, not data — the output is an executable module. npm audit clean.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 3.1.1, MIT. ESM-only from v2. MDX compiles markdown-with-JSX to executable JavaScript — that means MDX content is code, so untrusted MDX must never be compiled or run server-side."
+  },
+  {
+    "id": 233,
+    "name": "next-mdx-remote",
+    "category": "Text / Markdown / rich content",
+    "category_number": 17,
+    "technology_id": "next-mdx-remote",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "next-mdx-remote",
+    "install_method": "npm",
+    "version": null,
+    "license": "MPL-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/hashicorp/next-mdx-remote",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://github.com/hashicorp/next-mdx-remote#readme",
+    "notes": "Upstream latest at probe time: 6.0.0, licence MPL-2.0 (via `npm view`; NOT installed, `version` null). MPL-2.0 is file-level weak copyleft: modifications to its own files must be published, but linking it into a proprietary application does not infect that application. Still a different obligation from the MIT packages around it. Requires Next.js and, like MDX (id 232), executes the content it compiles — untrusted MDX is remote code execution. Not installed: it needs a Next.js host application to be meaningful and no Next.js app exists in this runtime. MDX itself (id 232) IS installed at 3.1.1 and smoke-tested, which covers the compile path this wraps."
+  },
+  {
+    "id": 234,
+    "name": "react-markdown",
+    "category": "Text / Markdown / rich content",
+    "category_number": 17,
+    "technology_id": "react-markdown",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "react-markdown",
+    "install_method": "npm",
+    "version": "10.1.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/remarkjs/react-markdown",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://github.com/remarkjs/react-markdown#readme",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 10.1.0. Smoke test passed: server-rendered via react-dom/server (React 19.2.8 installed as a peer) and got '<h1>rm</h1>'. npm audit clean.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 10.1.0, MIT. ESM-only. Requires React as a peer dependency. Renders through hast rather than `dangerouslySetInnerHTML`, so it is the safer default for user-supplied markdown; enabling `rehype-raw` gives that safety back up."
+  },
+  {
+    "id": 235,
+    "name": "marked",
+    "category": "Text / Markdown / rich content",
+    "category_number": 17,
+    "technology_id": "marked",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "marked",
+    "install_method": "npm",
+    "version": "18.0.10",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/markedjs/marked",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://marked.js.org/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 18.0.10. Smoke test passed: marked.parse('# m') returned '<h1>m</h1>'. npm audit clean — but note it still emits unsanitised HTML by design; pair with DOMPurify (id 237).  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 18.0.10, MIT. Emits an HTML string and does no sanitising — the built-in sanitizer was removed in v5. Pair it with DOMPurify (id 237) for any untrusted input."
+  },
+  {
+    "id": 236,
+    "name": "showdown",
+    "category": "Text / Markdown / rich content",
+    "category_number": 17,
+    "technology_id": "showdown",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "showdown",
+    "install_method": "npm",
+    "version": "2.1.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/showdownjs/showdown",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "review-required",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://showdownjs.com/docs/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 2.1.0. Smoke test passed functionally: new Converter().makeHtml('# s') returned '<h1 id=\"s\">s</h1>'. It works — and you should still not use it. npm audit flags showdown MODERATE as a DIRECT dependency with THREE advisories and, critically, \"No fix available\" (fixAvailable: false) because 2.1.0 is the latest release and the project is not shipping patches: ReDoS in link/anchor parsing (GHSA-rmmh-p597-ppvv), XSS via metadata title handling (GHSA-cr32-g25g-vxjj), and stored XSS via table header ID injection (GHSA-22g5-r2x5-97cx). Working code with unpatchable XSS is worse than broken code, because it ships. Prefer markdown-it (id 223) or marked (id 235).  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 2.1.0, MIT. Release cadence is slow — 2.1.0 has been the published latest for an extended period, so treat it as stable-but-quiet rather than actively developed. Emits unsanitised HTML; pair with DOMPurify (id 237)."
+  },
+  {
+    "id": 237,
+    "name": "DOMPurify",
+    "category": "Text / Markdown / rich content",
+    "category_number": 17,
+    "technology_id": "dompurify",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "dompurify",
+    "install_method": "npm",
+    "version": "3.4.14",
+    "license": "MPL-2.0 OR Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/cure53/DOMPurify",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://github.com/cure53/DOMPurify#readme",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 3.4.14. Smoke test passed and it is the one test in this range that actually matters: sanitising '<img src=x onerror=alert(1)><script>alert(2)</script><b>keep</b>' returned '<img src=\"x\"><b>keep</b>' — the event handler and the script element were both removed while benign markup survived. Run against jsdom 30.0.1 for the DOM. npm audit reports this version CLEAN: the four open DOMPurify advisories (GHSA-c2j3-45gr-mqc4, -cmwh-pvxp-8882, -vxr8-fq34-vvx9, -55q2-fjhq-7xh7) all cap at <=3.4.12, and 3.4.14 is above that ceiling. Monaco (id 249) bundles a nested copy that is NOT.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 3.4.14, dual-licensed '(MPL-2.0 OR Apache-2.0)'. You may take either arm — Apache-2.0 avoids MPL file-level copyleft. Security-critical component: it is the XSS sanitiser the rest of category 17 depends on. Pin it exactly, watch its advisories, and upgrade deliberately — a stale DOMPurify is a live XSS hole, not a cosmetic lag. Server-side use needs a DOM implementation (jsdom)."
+  },
+  {
+    "id": 238,
+    "name": "Lexical",
+    "category": "Rich text editors",
+    "category_number": 18,
+    "technology_id": "lexical",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "lexical",
+    "install_method": "npm",
+    "version": "0.49.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/facebook/lexical",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://lexical.dev/docs/intro",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 0.49.0. Smoke test passed: created an editor with createEditor(), applied a discrete update building a paragraph + text node, and read back root text content 'lx' from the editor state. jsdom globals were installed first.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 0.49.0, MIT. Still pre-1.0 — the 0.x line has shipped breaking changes between minors, so pin exactly rather than using a caret range. Meta's successor to Draft.js (id 245)."
+  },
+  {
+    "id": 239,
+    "name": "ProseMirror",
+    "category": "Rich text editors",
+    "category_number": 18,
+    "technology_id": "prosemirror",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "prosemirror-model",
+    "install_method": "npm",
+    "version": "1.25.11",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/ProseMirror/prosemirror",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://prosemirror.net/docs/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 1.25.11. Smoke test passed: defined a Schema (doc/p/text), built a document node and read textContent 'pm'. Companion packages prosemirror-state 1.4.4 and prosemirror-view 1.42.2 were installed alongside and are what a real editor needs.  ||  PRE-INSTALL RESEARCH: Upstream latest of the core model package at probe time: prosemirror-model 1.25.11, MIT. ProseMirror is deliberately shipped as several coordinated packages (`prosemirror-model`, `-state`, `-view`, `-transform`); `prosemirror-model` is recorded here as the canonical entrypoint but a real install needs the set. TipTap (id 240) and BlockNote (id 248) are both built on it."
+  },
+  {
+    "id": 240,
+    "name": "TipTap Core",
+    "category": "Rich text editors",
+    "category_number": 18,
+    "technology_id": "tiptap-core",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "@tiptap/core",
+    "install_method": "npm",
+    "version": "3.30.2",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/ueberdosis/tiptap",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://tiptap.dev/docs",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 3.30.2. Smoke test passed: constructed a real Editor in jsdom with @tiptap/extension-document, -paragraph and -text (all 3.30.2, installed alongside) over content '<p>tt</p>' and read getText() === 'tt'. Confirms the core is unusable alone — the extensions are mandatory, not optional.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 3.30.2, MIT. Commercial caveat worth knowing before adopting: `@tiptap/core` and the standard extensions are MIT, but several first-party Pro extensions and the collaboration backend are paid products under separate terms. The MIT record here covers the core only."
+  },
+  {
+    "id": 241,
+    "name": "Slate",
+    "category": "Rich text editors",
+    "category_number": 18,
+    "technology_id": "slate",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "slate",
+    "install_method": "npm",
+    "version": "0.126.2",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/ianstormtaylor/slate",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://docs.slatejs.org/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 0.126.2. Smoke test passed: createEditor(), then Transforms.insertText at an explicit path/offset, then Editor.string() returned 'slX'. Fully headless — no DOM needed for the core model.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 0.126.2, MIT. Pre-1.0 and explicitly documented as beta by its authors; breaking changes land in minor bumps, so pin exactly. Pairs with id 242 Slate React."
+  },
+  {
+    "id": 242,
+    "name": "Slate React",
+    "category": "Rich text editors",
+    "category_number": 18,
+    "technology_id": "slate-react",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "slate-react",
+    "install_method": "npm",
+    "version": "0.126.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/ianstormtaylor/slate",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://docs.slatejs.org/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 0.126.0. Version measured from the installed package. No smoke test attempted: it is React-DOM-bound rendering glue and a meaningful test needs a mounted React tree, so it is held at P2 rather than claiming P3 on its sibling's evidence. Slate core (id 241) at 0.126.2 IS smoke-tested and the pair is lockstep-versioned.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 0.126.0, MIT. React binding layer for Slate (id 241) — the two are versioned in lockstep and must be upgraded together; a mismatched pair is a common source of silent editor breakage."
+  },
+  {
+    "id": 243,
+    "name": "Quill",
+    "category": "Rich text editors",
+    "category_number": 18,
+    "technology_id": "quill",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "quill",
+    "install_method": "npm",
+    "version": "2.0.3",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/slab/quill",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "review-required",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://quilljs.com/docs/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 2.0.3. Smoke test passed: mounted a real Quill instance on a jsdom element, setText('qu') and getText() round-tripped. npm audit flags it LOW as a DIRECT dependency: XSS via the HTML export feature (GHSA-v3m3-f69x-jf25) affecting exactly 2.0.3; the offered fix is a downgrade to 2.0.2. Relevant only if you export user content as HTML — but that is the common case.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 2.0.3, licence BSD-3-Clause. One of the few genuinely 1.0+ editors in this category — 2.x is a stable API rather than a moving 0.x target. Uses its own Delta document format, not ProseMirror's."
+  },
+  {
+    "id": 244,
+    "name": "Editor.js",
+    "category": "Rich text editors",
+    "category_number": 18,
+    "technology_id": "editorjs",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "@editorjs/editorjs",
+    "install_method": "npm",
+    "version": "2.31.6",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/codex-team/editor.js",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://editorjs.io/base-concepts/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 2.31.6. Version measured from the installed package. No smoke test attempted — Editor.js requires a live DOM holder element and its block tools are separate packages, none of which are installed. Held at P2 honestly rather than claiming verification.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 2.31.6, licence Apache-2.0. Apache-2.0 rather than MIT, so it carries a patent grant and a NOTICE obligation the MIT packages in this category do not. Block-style editor emitting clean JSON; each block type is a separate `@editorjs/*` package."
+  },
+  {
+    "id": 245,
+    "name": "Draft.js",
+    "category": "Rich text editors",
+    "category_number": 18,
+    "technology_id": "draft-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "draft-js",
+    "install_method": "npm",
+    "version": "0.11.7",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/facebookarchive/draft-js",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "review-required",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://draftjs.org/docs/getting-started",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 0.11.7. Version measured from the installed package — and 0.11.7 is the latest published release, confirming the abandonment recorded below. No smoke test attempted (React-DOM-bound). npm audit now flags draft-js HIGH as a DIRECT dependency via its `immutable` dependency, with the only offered fix being a downgrade to 0.7.0 (semver-major). An archived project with a HIGH advisory and no forward fix path is a dead end, not a dependency.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 0.11.7 — and that has been the published latest for years. security_status is 'review-required' on evidence, not suspicion: the repository now lives under `facebookarchive`, Meta has ended development, and no security patches are being issued for it. Do not choose this for new work; Lexical (id 238) is Meta's own replacement. Recorded here because it is an inventory line, not because it is advisable."
+  },
+  {
+    "id": 246,
+    "name": "Milkdown",
+    "category": "Rich text editors",
+    "category_number": 18,
+    "technology_id": "milkdown",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "@milkdown/core",
+    "install_method": "npm",
+    "version": "7.22.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/Milkdown/milkdown",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://milkdown.dev/docs/guide/getting-started",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 7.22.1. Version measured from the installed package. No smoke test attempted — Milkdown needs a DOM host plus several @milkdown/* preset packages that are not installed. Held at P2.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 7.22.1, MIT. Plugin-driven WYSIWYG markdown editor on top of ProseMirror (id 239) and remark (id 225); a working setup needs several `@milkdown/*` packages, not just the core."
+  },
+  {
+    "id": 247,
+    "name": "Remirror",
+    "category": "Rich text editors",
+    "category_number": 18,
+    "technology_id": "remirror",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "@remirror/core",
+    "install_method": "npm",
+    "version": "3.0.2",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/remirror/remirror",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://remirror.io/docs",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 3.0.2. Version measured from the installed package. No smoke test attempted — @remirror/core needs a React host and extension packages that are not installed. Held at P2.  ||  PRE-INSTALL RESEARCH: Upstream latest of the core package at probe time: 3.0.2, MIT. React-oriented wrapper over ProseMirror (id 239). Development pace has slowed relative to TipTap (id 240) and Lexical (id 238); check recent commit activity before committing to it."
+  },
+  {
+    "id": 248,
+    "name": "BlockNote",
+    "category": "Rich text editors",
+    "category_number": 18,
+    "technology_id": "blocknote",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "@blocknote/core",
+    "install_method": "npm",
+    "version": "0.54.0",
+    "license": "MPL-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/TypeCellOS/BlockNote",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://www.blocknotejs.org/docs",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 0.54.0. Version measured from the installed package. No smoke test attempted — BlockNote mounts a React component tree over ProseMirror. Held at P2.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 0.54.0, licence MPL-2.0. Two things to weigh: MPL-2.0 file-level copyleft (modifications to BlockNote's own files must be published, though linking does not infect your app), and a paid 'BlockNote Pro' tier under separate terms — the MPL record covers the open core only. Pre-1.0, so pin exactly. Built on ProseMirror (id 239)."
+  },
+  {
+    "id": 249,
+    "name": "Monaco Editor",
+    "category": "Code / programming-learning interface",
+    "category_number": 19,
+    "technology_id": "monaco-editor",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "monaco-editor",
+    "install_method": "npm",
+    "version": "0.56.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/microsoft/monaco-editor",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "review-required",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://microsoft.github.io/monaco-editor/docs.html",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 0.56.0. Version measured from the installed package. No smoke test attempted: Monaco needs a real browser with web workers, and jsdom is not sufficient. npm audit flags monaco-editor as a DIRECT dependency (LOW) because it bundles a NESTED dompurify at <=3.4.12, which carries four open advisories including an IN_PLACE hook-removal XSS (GHSA-55q2-fjhq-7xh7). The top-level dompurify at id 237 is 3.4.14 and clean; Monaco's private copy is not, and the only offered fix is a downgrade to 0.53.0 (semver-major).  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 0.56.0, MIT. The editor that powers VS Code. Heavy: it needs web workers and a bundler plugin to load language services correctly, and it does not support mobile browsers. CodeMirror (id 250) is the lighter alternative."
+  },
+  {
+    "id": 250,
+    "name": "CodeMirror",
+    "category": "Code / programming-learning interface",
+    "category_number": 19,
+    "technology_id": "codemirror",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@codemirror/state",
+    "install_method": "npm",
+    "version": "6.7.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/codemirror/dev",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://codemirror.net/docs/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 6.7.1. Smoke test passed headlessly: EditorState.create({doc:'a\\nb'}) reported 2 lines, and a change transaction produced 'Xa\\nb'. @codemirror/view 6.43.9 installed alongside (DOM-bound, not smoke-tested). Confirms the state layer is testable without a browser, which is the practical reason to prefer CodeMirror 6's split packaging.  ||  PRE-INSTALL RESEARCH: Upstream latest of the core state package at probe time: @codemirror/state 6.7.1 (companion @codemirror/view 6.43.9), MIT. CodeMirror 6 is deliberately split into many `@codemirror/*` packages; `@codemirror/state` is recorded as the canonical entrypoint but a working editor needs `-view`, `-commands` and a language package too. Parsing is done by Lezer (id 256)."
+  },
+  {
+    "id": 251,
+    "name": "Sandpack",
+    "category": "Code / programming-learning interface",
+    "category_number": 19,
+    "technology_id": "sandpack",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "@codesandbox/sandpack-react",
+    "install_method": "npm",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/codesandbox/sandpack",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://sandpack.codesandbox.io/docs",
+    "notes": "Upstream latest at probe time: 2.20.0, licence Apache-2.0 (via `npm view`; NOT installed, `version` null). Runs a bundler in the browser for live code sandboxes. Operational caveat: by default it calls out to CodeSandbox-hosted bundler assets, so an air-gapped or strict-CSP deployment must self-host those — budget for that before treating it as a drop-in. Not installed: Sandpack pulls a browser-bundler stack and by default reaches for CodeSandbox-hosted assets, neither of which is verifiable headlessly here. Readiness stays P1."
+  },
+  {
+    "id": 252,
+    "name": "Shiki",
+    "category": "Code / programming-learning interface",
+    "category_number": 19,
+    "technology_id": "shiki",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "shiki",
+    "install_method": "npm",
+    "version": "4.4.3",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/shikijs/shiki",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://shiki.style/guide/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 4.4.3. Smoke test passed: codeToHtml('const a=1', {lang:'js', theme:'nord'}) produced 282 bytes of highlighted HTML. Grammar and theme loading both worked without network access at call time.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 4.4.3, MIT. TextMate-grammar highlighter that produces VS Code-identical output. Trade-off against Prism/highlight.js: far better fidelity, much larger payload — it is normally run at build time, not in the browser."
+  },
+  {
+    "id": 253,
+    "name": "Highlight.js",
+    "category": "Code / programming-learning interface",
+    "category_number": 19,
+    "technology_id": "highlight-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "highlight.js",
+    "install_method": "npm",
+    "version": "11.12.0",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/highlightjs/highlight.js",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://highlightjs.readthedocs.io/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 11.12.0. Smoke test passed: highlight('const a=1', {language:'javascript'}) emitted hljs-prefixed token spans. npm audit clean.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 11.12.0, licence BSD-3-Clause. BSD-3-Clause, so it carries a no-endorsement clause the MIT siblings do not. Auto-detects language; ship only the grammars you need or the bundle gets large."
+  },
+  {
+    "id": 254,
+    "name": "Prism",
+    "category": "Code / programming-learning interface",
+    "category_number": 19,
+    "technology_id": "prism",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "prismjs",
+    "install_method": "npm",
+    "version": "1.30.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/PrismJS/prism",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://prismjs.com/docs/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 1.30.0. Smoke test passed: Prism.highlight() over 'var a=1' produced token-classed spans. npm audit reports no advisory against this version — but grammar-level ReDoS has been Prism's recurring failure mode, so re-check advisories for the specific languages you enable.  ||  PRE-INSTALL RESEARCH: npm package name is `prismjs`. Upstream latest at probe time: 1.30.0, MIT. The 1.x line is mature and slow-moving. Historically several ReDoS advisories have been filed against individual Prism grammars — if you accept untrusted code samples, check current advisories for the specific languages you enable."
+  },
+  {
+    "id": 255,
+    "name": "Tree-sitter",
+    "category": "Code / programming-learning interface",
+    "category_number": 19,
+    "technology_id": "tree-sitter",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "tree-sitter",
+    "install_method": "npm",
+    "version": "0.25.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/tree-sitter/tree-sitter",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://tree-sitter.github.io/tree-sitter/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 0.25.1. Smoke test passed at the binding level: the native addon compiled and loaded on macOS arm64 (this is the install step most likely to fail — it did not), and a Parser instance was constructed with a callable parse(). No grammar package is installed, so no source was actually parsed — grammars are separate npm packages and each one is another native build.  ||  PRE-INSTALL RESEARCH: Upstream latest of the Node binding at probe time: 3.x line published as `tree-sitter` 0.25.1, MIT. Tree-sitter is really a C library with several front doors: the npm `tree-sitter` native binding recorded here, `web-tree-sitter` (WASM, the browser route), the `tree-sitter` Rust crate, and the `tree-sitter` CLI. Each grammar is a further separate package. The native binding needs a compiler toolchain at install time; the WASM build does not."
+  },
+  {
+    "id": 256,
+    "name": "Lezer",
+    "category": "Code / programming-learning interface",
+    "category_number": 19,
+    "technology_id": "lezer",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@lezer/common",
+    "install_method": "npm",
+    "version": "1.5.2",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/lezer-parser/lezer",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://lezer.codemirror.net/docs/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 1.5.2. Smoke test passed: NodeType.define({id:0,name:'Doc',top:true}) returned a node type named 'Doc'. Confirms the core parser primitives load; actual parsing needs a @lezer/<language> grammar package, none of which are installed.  ||  PRE-INSTALL RESEARCH: Upstream latest of the core package at probe time: @lezer/common 1.5.2, MIT. Incremental parser system written for CodeMirror 6 (id 250) by the same author. Like CodeMirror it is split across `@lezer/*` packages, one per grammar."
+  },
+  {
+    "id": 257,
+    "name": "Acorn",
+    "category": "Code / programming-learning interface",
+    "category_number": 19,
+    "technology_id": "acorn",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "acorn",
+    "install_method": "npm",
+    "version": "8.18.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/acornjs/acorn",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://github.com/acornjs/acorn#readme",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 8.18.0. Smoke test passed: parse('let x = 1 + 2', {ecmaVersion:2023}) returned an ESTree Program with 1 statement. npm audit clean.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 8.18.0, MIT. Small, fast, ESTree-compliant JavaScript parser — the one Rollup (id 261) and much of the ecosystem embed. Parses JavaScript only; TypeScript and JSX need plugins or a different parser (id 258)."
+  },
+  {
+    "id": 258,
+    "name": "Babel parser",
+    "category": "Code / programming-learning interface",
+    "category_number": 19,
+    "technology_id": "babel-parser",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@babel/parser",
+    "install_method": "npm",
+    "version": "8.0.4",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/babel/babel/tree/main/packages/babel-parser",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://babeljs.io/docs/babel-parser",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 8.0.4. Smoke test passed: parse('const x:number=1', {plugins:['typescript']}) produced a VariableDeclaration — confirming the TypeScript plugin path that plain Acorn (id 257) cannot do. npm audit clean.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 8.0.4, MIT. Formerly Babylon; forked from Acorn (id 257) and extended to cover TypeScript, JSX, Flow and proposal-stage syntax. Choose this over Acorn when you need to parse non-standard or bleeding-edge syntax."
+  },
+  {
+    "id": 259,
+    "name": "SWC",
+    "category": "Code / programming-learning interface",
+    "category_number": 19,
+    "technology_id": "swc",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "@swc/core",
+    "install_method": "npm",
+    "version": "1.16.1",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/swc-project/swc",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ],
+    "documentation": "https://swc.rs/docs/getting-started",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 1.16.1. Smoke test passed: transformSync compiled 'const f=(x:number)=>x*2' to plain JS. The platform-specific binary (@swc/core-darwin-arm64) resolved and loaded correctly on this machine — that is the step that breaks on unusual architectures.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 1.16.1, licence Apache-2.0. Rust-implemented TypeScript/JavaScript compiler shipped as prebuilt platform-specific binaries — `@swc/core` resolves to an optional `@swc/core-<platform>` package, which is the usual cause of CI failures on unusual architectures and of broken lockfiles across platforms. Apache-2.0 brings a patent grant and NOTICE obligation. Used internally by Next.js."
+  },
+  {
+    "id": 260,
+    "name": "esbuild",
+    "category": "Code / programming-learning interface",
+    "category_number": 19,
+    "technology_id": "esbuild",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "esbuild",
+    "install_method": "npm",
+    "version": "0.28.2",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/evanw/esbuild",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ],
+    "documentation": "https://esbuild.github.io/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 0.28.2. Smoke test passed: transform() with loader:'ts' and minify:true produced 'const f=n=>n*2;' — type stripping and minification both confirmed. The Go binary resolved for darwin-arm64. npm audit: 0.28.2 is ABOVE the affected range (0.27.3-0.28.0) for the Windows dev-server file-read advisory GHSA-g7r4-m6w7-qqqr, so this copy is clean.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 0.28.2, MIT. Still 0.x after years — the author uses minor bumps for breaking changes, so pin exactly rather than with a caret. Go-implemented, distributed as platform-specific binaries (same cross-platform lockfile caveat as SWC). Deliberately does not type-check; pair with tsc (id 263)."
+  },
+  {
+    "id": 261,
+    "name": "Rollup",
+    "category": "Code / programming-learning interface",
+    "category_number": 19,
+    "technology_id": "rollup",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "rollup",
+    "install_method": "npm",
+    "version": "4.62.4",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/rollup/rollup",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ],
+    "documentation": "https://rollupjs.org/introduction/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 4.62.4. Smoke test passed: ran a real bundle through the JS API with an in-memory plugin and generated a 43-byte ESM chunk containing the expected source. The Rust-based native parser loaded on darwin-arm64. npm audit clean.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 4.62.4, MIT. Since v4 the parser is Rust (SWC-derived) and ships as platform-specific optional dependencies. The bundler underneath Vite's production build; strongest at library bundling and tree-shaking."
+  },
+  {
+    "id": 262,
+    "name": "tsup",
+    "category": "Code / programming-learning interface",
+    "category_number": 19,
+    "technology_id": "tsup",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "tsup",
+    "install_method": "npm",
+    "version": "8.5.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/egoist/tsup",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ],
+    "documentation": "https://tsup.egoist.dev/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 8.5.1. Smoke test passed: built a real TypeScript entry to ESM on disk, output '// tsup-src/e.ts\\nvar v = 7;\\nexport { v };'. Confirms the esbuild delegation works. npm audit does not flag tsup as a direct dependency in this tree.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 8.5.1, MIT. Thin opinionated wrapper over esbuild (id 260) for building TypeScript libraries; it inherits esbuild's behaviour and its limits, including no type-checking (it shells out to tsc for declaration files)."
+  },
+  {
+    "id": 263,
+    "name": "TypeScript compiler",
+    "category": "Code / programming-learning interface",
+    "category_number": 19,
+    "technology_id": "typescript-compiler",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "typescript",
+    "install_method": "npm",
+    "version": "7.0.2",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/microsoft/TypeScript",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ],
+    "documentation": "https://www.typescriptlang.org/docs/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 7.0.2. Smoke test passed via the CLI, and it surfaced a breaking change that belongs in every dependent's notes. ./node_modules/.bin/tsc reports 'Version 7.0.2' and compiled 'export const f=(x:number):string=>`${x}`' to 'export const f = (x) => `${x}`;' correctly. BUT TypeScript 7 is the Go-based native port, and the npm package's default export is now only ./lib/version.cjs exposing {version, versionMajorMinor} — ts.transpileModule, ts.ScriptTarget and ts.createProgram are GONE from the default import (measured: typeof ts.transpileModule === 'undefined'). The programmatic API moved to subpath exports under typescript/unstable/* (typescript/unstable/sync exposes 32 functions). Any tool doing `import ts from 'typescript'; ts.transpileModule(...)` breaks on 7.x. This is the single highest-impact upgrade hazard measured in this range.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 7.0.2, licence Apache-2.0. Flagged for a human: this resolves to the same npm package (`typescript`) as inventory id 5 'TypeScript'. The inventory names them differently so this record is kept canonical under its own technology_id per the instructions for this range, but if the duplicate-name rule in SCHEMA.md is later widened to duplicate *packages*, this is the record that should become non-canonical against id 5. Apache-2.0, not MIT — patent grant and NOTICE obligation apply."
+  },
+  {
+    "id": 264,
+    "name": "PDF.js",
+    "category": "PDF / document rendering",
+    "category_number": 20,
+    "technology_id": "pdf-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "pdfjs-dist",
+    "install_method": "npm",
+    "version": "6.2.108",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/mozilla/pdf.js",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://mozilla.github.io/pdf.js/getting_started/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 6.2.108. Smoke test passed: loaded the pycairo-generated fixture PDF through pdfjs-dist/legacy/build/pdf.mjs, got numPages=1 and extracted the exact text 'REGISTRY SMOKE' via getTextContent(). Note the import path — the default browser build does not work under Node; the legacy build does. npm audit clean.  ||  PRE-INSTALL RESEARCH: npm package name is `pdfjs-dist`. Upstream latest at probe time: 6.2.108, licence Apache-2.0. Mozilla's browser PDF renderer. Needs a separately-loaded worker script, and the version of the worker must match the version of the main library exactly or rendering fails at runtime. Historically a target for CVEs involving malicious PDFs — keep it current if you render untrusted files."
+  },
+  {
+    "id": 265,
+    "name": "PSPDFKit alternatives via PDF.js",
+    "category": "PDF / document rendering",
+    "category_number": 20,
+    "technology_id": "pspdfkit-alternatives-via-pdf-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "alternative-group",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/mozilla/pdf.js",
+    "runtime_requirements": [],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://mozilla.github.io/pdf.js/getting_started/",
+    "notes": "This inventory line names a class of options — 'whatever you use instead of the commercial PSPDFKit/Nutrient SDK, built on PDF.js' — not a package. Hence kind 'alternative-group', install_method 'none', package null, and no version. Licence is null because there is no single licence to record: the base renderer PDF.js (id 264) is Apache-2.0, but the viewer and annotation layers people actually assemble here carry their own separate terms, and PSPDFKit/Nutrient itself is a paid commercial product with none of these rights. Concrete substitute path: PDF.js (id 264) for rendering, pdf-lib (id 267) for writing and annotation. Decide which combination you mean, then record that combination's licences on those records. Measured this session for the concrete substitute path: PDF.js (id 264) is installed at 6.2.108 and smoke-tested (extracted 'REGISTRY SMOKE' from a real PDF), and pdf-lib (id 267) is installed at 1.17.1 and smoke-tested (wrote a structurally valid PDF). The replacement route this line names is therefore demonstrably working — but the line itself still names a class, so it stays P0 with no package and no version."
+  },
+  {
+    "id": 266,
+    "name": "OpenSeadragon",
+    "category": "PDF / document rendering",
+    "category_number": 20,
+    "technology_id": "openseadragon",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "openseadragon",
+    "install_method": "npm",
+    "version": "6.1.0",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/openseadragon/openseadragon",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://openseadragon.github.io/docs/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 6.1.0. Version measured from the installed package. No smoke test attempted — OpenSeadragon requires a canvas-backed DOM viewport and tiled image sources, neither available headlessly here. npm audit clean.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 6.1.0, licence BSD-3-Clause. Deep-zoom viewer for very large images (DZI, IIIF); it displays tiles, it does not generate them — you need a tiler such as libvips (id 278) or an IIIF server upstream."
+  },
+  {
+    "id": 267,
+    "name": "pdf-lib",
+    "category": "PDF / document rendering",
+    "category_number": 20,
+    "technology_id": "pdf-lib",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "pdf-lib",
+    "install_method": "npm",
+    "version": "1.17.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/Hopding/pdf-lib",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://pdf-lib.js.org/docs/api/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 1.17.1. Smoke test passed: created a document, embedded Helvetica, drew text, and saved an 854-byte buffer whose first two bytes are '%P' — a structurally valid PDF header. Written to pdflib-out.pdf. npm audit clean.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 1.17.1, MIT. Creates and modifies PDFs in both Node and the browser — the natural writing counterpart to PDF.js's reading (id 264). Release cadence is slow; 1.17.1 has been latest for a long stretch. Does not render or rasterise."
+  },
+  {
+    "id": 268,
+    "name": "PDFKit",
+    "category": "PDF / document rendering",
+    "category_number": 20,
+    "technology_id": "pdfkit",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "pdfkit",
+    "install_method": "npm",
+    "version": "0.19.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/foliojs/pdfkit",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ],
+    "documentation": "https://pdfkit.org/docs/getting_started.html",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 0.19.1. Smoke test passed: generated a PDF through the streaming API and collected a 1622-byte buffer beginning '%PDF'. Confirms generation-only scope — there is no open/edit path. npm audit clean.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 0.19.1, MIT. PDF *generation* library with a streaming API — it writes documents, it cannot open or edit an existing one (that is pdf-lib, id 267). Unrelated to Apple's PDFKit framework of the same name, which is a common confusion."
+  },
+  {
+    "id": 269,
+    "name": "MuPDF",
+    "category": "PDF / document rendering",
+    "category_number": 20,
+    "technology_id": "mupdf",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "native",
+    "kind": "cli-tool",
+    "package": "mupdf-tools",
+    "install_method": "brew",
+    "version": "1.28.2",
+    "license": "AGPL-3.0-or-later",
+    "license_class": "COMMERCIAL_RESTRICTIONS",
+    "official_source": "https://github.com/ArtifexSoftware/mupdf",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://mupdf.readthedocs.io/",
+    "notes": "INSTALLED AND MEASURED via Homebrew at 1.28.2. `mutool -v` reports 1.28.2 (brew formula mupdf-tools, 102 MB in Cellar). Smoke test passed: `mutool draw -F txt` extracted 'REGISTRY SMOKE' from the fixture PDF and `mutool draw -o mu-out.png -r 100` rasterised it to a 7.4K PNG. Installing it locally for measurement creates no distribution obligation — the AGPL analysis below applies the moment you ship or expose it.  ||  PRE-INSTALL RESEARCH: Homebrew formula available: `mupdf-tools` (and `mupdf`), stable 1.28.2 per `brew info` — that is the formula's advertised version, not a measurement of an install here. Licensing is the headline and it is not benign: MuPDF is dual-licensed by Artifex under AGPL-3.0-or-later OR a paid commercial licence. AGPL obligations attach and they are stronger than GPL — if MuPDF is reachable over a network by users, the AGPL section 13 network clause requires you to offer those users the complete corresponding source of your application, not just of MuPDF. This is emphatically not an unrestricted permissive dependency. If you cannot meet that, you must buy the Artifex commercial licence. Same Artifex dual-licence structure applies to PyMuPDF (id 271). Review with counsel before shipping."
+  },
+  {
+    "id": 270,
+    "name": "Poppler",
+    "category": "PDF / document rendering",
+    "category_number": 20,
+    "technology_id": "poppler",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "native",
+    "kind": "cli-tool",
+    "package": "poppler",
+    "install_method": "brew",
+    "version": "26.08.0",
+    "license": "GPL-2.0-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://gitlab.freedesktop.org/poppler/poppler",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://poppler.freedesktop.org/",
+    "notes": "INSTALLED AND MEASURED via Homebrew at 26.08.0. CORRECTED MEASUREMENT — read this before trusting an earlier value. Poppler was 26.06.0 at the start of this session and was silently upgraded to 26.08.0 as a transitive dependency of another brew install partway through. Re-measured after the fact: `pdftotext -v` and `pdftoppm -v` both report 26.08.0, /opt/homebrew/opt/poppler symlinks to Cellar/poppler/26.08.0, and both kegs are still on disk. Smoke test re-run against the NEW binary and passed: pdftotext extracted 'REGISTRY SMOKE' and pdftoppm -png -r 100 produced a valid 7.7K PNG. The lesson generalises — a measured version is only true as of its measurement, and shared package managers move underneath you.  ||  PRE-INSTALL RESEARCH: INSTALLED AND VERIFIED ON THIS MACHINE. Version 26.06.0 measured two independent ways: `pdftotext -v` and `pdftoppm -v` both report 26.06.0, and `brew list --versions` reports poppler 26.06.0. Smoke test ran and passed: a PDF was generated with pycairo, `pdftotext` extracted the exact expected string 'REGISTRY SMOKE' from it, and `pdftoppm -png -r 150` rasterised the same PDF to a valid 834x417 PNG. Both read and render paths work. Hence P3, not P2. Licence: GPL-2.0-or-later. This is copyleft and it has teeth for redistribution — parts of poppler descend from Xpdf and are GPL-2.0, so linking it into a distributed closed-source product requires legal review. Using the CLI tools as separate subprocesses is a materially different position from linking libpoppler; know which one you are doing."
+  },
+  {
+    "id": 271,
+    "name": "PyMuPDF",
+    "category": "PDF / document rendering",
+    "category_number": 20,
+    "technology_id": "pymupdf",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "PyMuPDF",
+    "install_method": "pip",
+    "version": "1.28.2",
+    "license": "AGPL-3.0-or-later",
+    "license_class": "COMMERCIAL_RESTRICTIONS",
+    "official_source": "https://github.com/pymupdf/PyMuPDF",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ],
+    "documentation": "https://pymupdf.readthedocs.io/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/python-doc (isolated venv, Python 3.14.7) at 1.28.2. Smoke test passed: opened the fixture PDF, extracted 'REGISTRY SMOKE', and rasterised page 1 to a 556x278 PNG at 100 dpi. Import name is `pymupdf` (the legacy `fitz` alias still exists). Both text and render paths confirmed. This does not soften the AGPL position below — it works, and that is precisely why the licence needs reading.  ||  PRE-INSTALL RESEARCH: Upstream latest on PyPI at probe time: 1.28.2. PyPI declares the licence as 'Dual Licensed - GNU AFFERO GPL 3.0 or Artifex Commercial Licence' — read verbatim from the package metadata, not inferred. AGPL obligations attach, including the section 13 network clause: a web service that uses PyMuPDF must offer its users the complete corresponding source. Not an unrestricted dependency. This is the Python binding over MuPDF (id 269) and inherits its terms. It is fast and capable, which is exactly why teams adopt it without reading the licence — do not repeat that. If AGPL is unacceptable, pypdf (id 272, BSD-3-Clause) and Poppler's CLI (id 270) are the usual permissive fallbacks."
+  },
+  {
+    "id": 272,
+    "name": "pypdf",
+    "category": "PDF / document rendering",
+    "category_number": 20,
+    "technology_id": "pypdf",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "pypdf",
+    "install_method": "pip",
+    "version": "6.16.1",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/py-pdf/pypdf",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ],
+    "documentation": "https://pypdf.readthedocs.io/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/python-doc (isolated venv, Python 3.14.7) at 6.16.1. Smoke test passed: read the fixture PDF, extracted 'REGISTRY SMOKE' via extract_text(), and rewrote page 1 through PdfWriter. Pure-Python, no native build.  ||  PRE-INSTALL RESEARCH: Upstream latest on PyPI at probe time: 6.16.1, licence expression BSD-3-Clause. Successor to PyPDF2, which is deprecated — new work should import `pypdf`, and old `PyPDF2` imports should be migrated. Pure Python: it reads, splits, merges and writes PDFs but does not rasterise or render, and it is slower than PyMuPDF (id 271). The trade is speed for a permissive licence, which is usually the right trade."
+  },
+  {
+    "id": 273,
+    "name": "Apache Tika",
+    "category": "PDF / document rendering",
+    "category_number": 20,
+    "technology_id": "apache-tika",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "jvm",
+    "kind": "framework",
+    "package": "tika",
+    "install_method": "brew",
+    "version": "3.3.2",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/apache/tika",
+    "runtime_requirements": [
+      "jvm"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://tika.apache.org/3.0.0/gettingstarted.html",
+    "notes": "INSTALLED AND MEASURED via Homebrew at 3.3.2. Smoke test passed, using a JDK that was already on this machine but invisible: `java -version` on PATH hits the macOS stub and fails, but Homebrew's keg-only openjdk at /opt/homebrew/opt/openjdk/bin/java is OpenJDK 26.0.2. With JAVA_HOME set to that keg, `tika --text` extracted 'REGISTRY SMOKE' from the fixture PDF and `tika --detect` returned 'application/pdf'. No JDK was installed. Installed as the brew `tika` formula (137 MB, shipping tika-app-3.3.2.jar at 63.9 MB and tika-server-standard-3.3.2.jar at 73.0 MB); for JVM integration the Maven coordinate remains org.apache.tika:tika-core.  ||  PRE-INSTALL RESEARCH: JVM project — recorded with its Maven coordinate. Java is NOT present on this machine (measured: `java -version` returns 'Unable to locate a Java Runtime'), so nothing could be exercised here and `version` is null. Homebrew also carries a `tika` formula, stable 3.3.2 per `brew info` (not installed), and `apache/tika` is an official Docker image — that image is usually the least painful route. Licence caveat worth reading before redistribution: Tika itself is Apache-2.0, but `tika-parsers` pulls in a large set of third-party format parsers whose licences vary and are not all Apache-2.0. Audit the actual dependency tree you ship. A PyPI package named `tika` (latest 3.3.2) also exists but it is only a thin REST client for a running Tika server, not the engine."
+  },
+  {
+    "id": 274,
+    "name": "OpenCV",
+    "category": "Image processing",
+    "category_number": 21,
+    "technology_id": "opencv",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "opencv-python",
+    "install_method": "pip",
+    "version": "5.0.0.93",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/opencv/opencv",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.opencv.org/4.x/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/python-doc (isolated venv, Python 3.14.7) at 5.0.0.93. Smoke test passed on arm64 — the install the coordinator flagged as at-risk did NOT fail. cv2.__version__ reports build 5.0.0; imread returned a (40,90,3) array, resize produced (20,45,3), and cvtColor produced a (20,45) grayscale. Installed from the prebuilt cp37-abi3-macosx_13_0_arm64 wheel (48.3 MB), no compilation needed. IMPORTANT: the installed major version is 5.x, comfortably inside the Apache-2.0 era, so the licence field is correct for this pin.  ||  PRE-INSTALL RESEARCH: Upstream latest on PyPI at probe time: 5.0.0.93 for `opencv-python`, PyPI licence field 'Apache 2.0'. Pin carefully, because the licence changed with the version: OpenCV is Apache-2.0 from 4.5.0 onward, but releases before that are BSD-3-Clause. Recording a bare 'OpenCV is Apache-2.0' would be wrong for any 4.4-or-earlier pin, so the licence here is only valid for 4.5+ — if you pin an older release, re-record it as BSD-3-Clause. Second trap in the same family: `opencv-python` wheels bundle third-party codecs (FFmpeg among them) with their own terms, and the `opencv-contrib-*` packages add modules that include patent-encumbered algorithms (SIFT/SURF lineage) — choose between `opencv-python`, `opencv-python-headless`, `opencv-contrib-python` deliberately. Headless is the right default for servers and containers. This record is the canonical one; id 288 repeats OpenCV in category 22 and points here."
+  },
+  {
+    "id": 275,
+    "name": "Pillow",
+    "category": "Image processing",
+    "category_number": 21,
+    "technology_id": "pillow",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "Pillow",
+    "install_method": "pip",
+    "version": "12.3.0",
+    "license": "MIT-CMU",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/python-pillow/Pillow",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ],
+    "documentation": "https://pillow.readthedocs.io/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/python-doc (isolated venv, Python 3.14.7) at 12.3.0. Smoke test passed: created a 90x40 RGB image, wrote and reopened it as PNG with size/mode intact, and resized to 30x13. Import name is `PIL`.  ||  PRE-INSTALL RESEARCH: Upstream latest on PyPI at probe time: 12.3.0, licence expression MIT-CMU. MIT-CMU (the HPND-style licence Pillow inherited from PIL) is permissive — noted precisely rather than rounded to 'MIT' because the SPDX identifier differs. Friendly fork of the dead PIL; import name is `PIL`, package name is `Pillow`. Pillow has a steady stream of CVEs in its image decoders, so keep it current wherever it touches untrusted uploads."
+  },
+  {
+    "id": 276,
+    "name": "ImageMagick",
+    "category": "Image processing",
+    "category_number": 21,
+    "technology_id": "imagemagick",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "native",
+    "kind": "cli-tool",
+    "package": "imagemagick",
+    "install_method": "brew",
+    "version": "7.1.2-29",
+    "license": "ImageMagick",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/ImageMagick/ImageMagick",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://imagemagick.org/script/command-line-processing.php",
+    "notes": "INSTALLED AND MEASURED via Homebrew at 7.1.2-29. `magick --version` reports ImageMagick 7.1.2-29 Q16-HDRI aarch64 (28 MB in Cellar). Smoke test passed: resized the fixture PNG to 40px wide and converted to grayscale, with `magick identify` confirming '40x12 Gray'. Note ImageMagick 7 uses the single `magick` binary — the old `convert` and `identify` commands are not installed as separate executables here.  ||  PRE-INSTALL RESEARCH: `version` is therefore null. Homebrew formula `imagemagick` is available, stable 7.1.2-29 per `brew info` (formula metadata, not a measurement of an install here). On Debian/Ubuntu the apt package is `imagemagick`. Licence is the ImageMagick Licence (SPDX id `ImageMagick`), a permissive Apache-2.0-derived text — permissive, but not literally Apache-2.0, so record it by its own name. Security note that matters operationally: ImageMagick has a long history of delegate-based RCE (the ImageTragick class of bugs). If it ever touches user-uploaded files, harden `policy.xml` and disable the delegates you do not need. libvips (id 278) is generally faster and lower-memory for pure resize/convert pipelines."
+  },
+  {
+    "id": 277,
+    "name": "Sharp",
+    "category": "Image processing",
+    "category_number": 21,
+    "technology_id": "sharp",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "sharp",
+    "install_method": "npm",
+    "version": "0.35.3",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/lovell/sharp",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "scanned-clean",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ],
+    "documentation": "https://sharp.pixelplumbing.com/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/javascript-text (npm, --save-exact) at 0.35.3. Smoke test passed end to end: created a 120x80 RGB surface, encoded PNG, resized to 30x20, re-encoded JPEG, and metadata confirmed 30x20 jpeg. The prebuilt darwin-arm64 binary and its bundled libvips resolved correctly. npm audit clean. Reminder from the licence note below: the bundled libvips is LGPL-2.1-or-later even though sharp itself is Apache-2.0.  ||  PRE-INSTALL RESEARCH: Upstream latest at probe time: 0.35.3, licence Apache-2.0. Node binding over libvips (id 278). Two consequences worth recording: sharp's own code is Apache-2.0 but the bundled libvips is LGPL-2.1-or-later, so the dependency you actually ship carries LGPL terms — dynamic linking keeps that manageable, static linking does not, and a redistribution review should look at the whole artifact, not just sharp's LICENSE file. Second: it installs prebuilt platform-specific binaries, so lockfiles built on macOS can fail on Linux CI and on serverless targets with a different libc — build the deployment artifact on the target platform."
+  },
+  {
+    "id": 278,
+    "name": "libvips",
+    "category": "Image processing",
+    "category_number": 21,
+    "technology_id": "libvips",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "native",
+    "kind": "library",
+    "package": "vips",
+    "install_method": "brew",
+    "version": "8.18.5",
+    "license": "LGPL-2.1-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/libvips/libvips",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://www.libvips.org/API/current/",
+    "notes": "INSTALLED AND MEASURED via Homebrew at 8.18.5. `vips --version` reports vips-8.18.5 (brew keg 8.18.5_1, 6.2 MB — by far the smallest of the image stacks measured here). Smoke test passed: `vips resize` scaled the 900x260 fixture by 0.25 and vipsheader confirmed the output as '225x65 uchar, 3 bands, srgb'.  ||  PRE-INSTALL RESEARCH: Homebrew formula `vips` is available, stable 8.18.5 per `brew info` (formula metadata, not a local measurement). Licence is LGPL-2.1-or-later — weaker copyleft than GPL, but not permissive: dynamic linking is fine for closed-source use, static linking triggers relinking obligations. This is the licence that reaches through sharp (id 277) into Node projects. Demand-driven, streaming architecture keeps memory flat on very large images, which is why it beats ImageMagick (id 276) on throughput. Also the usual tiler for OpenSeadragon (id 266)."
+  },
+  {
+    "id": 279,
+    "name": "scikit-image",
+    "category": "Image processing",
+    "category_number": 21,
+    "technology_id": "scikit-image",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "scikit-image",
+    "install_method": "pip",
+    "version": "0.26.0",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/scikit-image/scikit-image",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://scikit-image.org/docs/stable/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/python-doc (isolated venv, Python 3.14.7) at 0.26.0. Smoke test passed: rgb2gray + sobel ran over the Pillow-generated PNG and returned a (40,90) float array. Honest caveat on the assertion — the fixture is a solid colour so the sobel maximum is 0.0000; this proves the pipeline executes and returns correctly-shaped data, not that edges were detected. Pulled scipy 1.18.0 and numpy 2.5.2.  ||  PRE-INSTALL RESEARCH: Upstream latest on PyPI at probe time: 0.26.0, OSI BSD classifier. Import name is `skimage`. Scientific image-processing algorithms on NumPy arrays — segmentation, filters, morphology, registration. Complements rather than replaces OpenCV (id 274): scikit-image is more readable and NumPy-native, OpenCV is faster for real-time work. Pulls in NumPy and SciPy, so the install is not small."
+  },
+  {
+    "id": 280,
+    "name": "imageio",
+    "category": "Image processing",
+    "category_number": 21,
+    "technology_id": "imageio",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "imageio",
+    "install_method": "pip",
+    "version": "2.37.4",
+    "license": "BSD-2-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/imageio/imageio",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ],
+    "documentation": "https://imageio.readthedocs.io/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/python-doc (isolated venv, Python 3.14.7) at 2.37.4. Smoke test passed: imageio.v3.imread() returned a (40,90,3) uint8 ndarray from the PNG fixture. Note this exercised the still-image path only — the video path needs the separate imageio-ffmpeg package, which is NOT installed.  ||  PRE-INSTALL RESEARCH: Upstream latest on PyPI at probe time: 2.37.4, licence expression BSD-2-Clause. Uniform read/write front end across a wide set of image and video formats. Note the plugin model: video support requires the separate `imageio-ffmpeg` package, which downloads or wraps an FFmpeg binary carrying its own LGPL/GPL terms depending on the build — that dependency, not imageio itself, is what a redistribution review needs to look at."
+  },
+  {
+    "id": 281,
+    "name": "Wand",
+    "category": "Image processing",
+    "category_number": 21,
+    "technology_id": "wand",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "Wand",
+    "install_method": "pip",
+    "version": "0.7.2",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/emcconville/wand",
+    "runtime_requirements": [
+      "python3",
+      "imagemagick"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ],
+    "documentation": "https://docs.wand-py.org/",
+    "notes": "INSTALLED AND MEASURED in technology-universe/runtimes/python-doc (isolated venv, Python 3.14.7) at 0.7.2. Smoke test passed, and it only passed because ImageMagick (id 276) was installed first in this same session: wand.version.MAGICK_VERSION reports 'ImageMagick 7.1.2-29 Q16-HDRI aarch64' and a resize to (45,20) completed. This is the concrete demonstration of the ctypes-binding dependency described below — before the brew install, Wand had nothing to bind to.  ||  PRE-INSTALL RESEARCH: Upstream latest on PyPI at probe time: 0.7.2, licence expression MIT. This is a ctypes binding, not a bundle: it will import but fail at runtime unless MagickWand from ImageMagick (id 276) is installed on the system — and ImageMagick is Licence layering: Wand itself is MIT, but you are shipping ImageMagick alongside it under the ImageMagick Licence, and inheriting ImageMagick's delegate-based RCE exposure. Record both."
+  },
+  {
+    "id": 282,
+    "name": "torchvision",
+    "category": "Image processing",
+    "category_number": 21,
+    "technology_id": "torchvision",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "torchvision",
+    "install_method": "pip",
+    "version": null,
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/pytorch/vision",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://pytorch.org/vision/stable/index.html",
+    "notes": "Upstream latest on PyPI at probe time: 0.28.0, PyPI licence field 'BSD' (pypi.org JSON API; NOT installed, `version` null). Version coupling is strict: each torchvision release pins to a matching PyTorch release, and mismatched pairs fail at import. Install them together from the PyTorch index, not independently. Licence caveat that catches people: the BSD-3-Clause covers the *code*. Pretrained model weights are distributed under their own separate terms, some of them non-commercial — check each checkpoint you actually load before shipping a product on it. Large install (CUDA wheels run to gigabytes), so serverless deployment is usually impractical; hence docker/kubernetes rather than serverless. Not installed: torchvision requires PyTorch, and the large ML stacks were out of scope for this pass. Readiness stays P1."
+  },
+  {
+    "id": 283,
+    "name": "Kornia",
+    "category": "Image processing",
+    "category_number": 21,
+    "technology_id": "kornia",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "kornia",
+    "install_method": "pip",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/kornia/kornia",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://kornia.readthedocs.io/",
+    "notes": "Upstream latest on PyPI at probe time: 0.8.3, licence Apache-2.0 (pypi.org JSON API; NOT installed, `version` null). Differentiable computer-vision operators implemented as PyTorch modules — the point is that transforms stay in the autograd graph and run on GPU, which classical OpenCV (id 274) calls cannot do. Requires PyTorch. Still 0.x; pin exactly. Not installed: kornia requires PyTorch, same reason as id 282. Readiness stays P1."
+  },
+  {
+    "id": 284,
+    "name": "Tesseract OCR",
+    "category": "OCR / handwriting / document understanding",
+    "category_number": 22,
+    "technology_id": "tesseract-ocr",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "native",
+    "kind": "cli-tool",
+    "package": "tesseract",
+    "install_method": "brew",
+    "version": "5.5.3",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/tesseract-ocr/tesseract",
+    "runtime_requirements": [
+      "leptonica"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://tesseract-ocr.github.io/tessdoc/",
+    "notes": "INSTALLED AND MEASURED via Homebrew at 5.5.3. Smoke test passed: `tesseract smoke.png stdout` OCR'd a pycairo-rendered 900x260 PNG and returned exactly 'REGISTRY SMOKE'. Version 5.5.3 confirmed by both `tesseract --version` and `brew list --versions`. Measured runtime facts: it links leptonica-1.87.0 (id 291), and `tesseract --list-langs` shows only eng, osd and snum installed — any other language needs a separate tessdata download that is NOT present. Operational gotcha found while testing: the binary could not read fixtures under /tmp in this sandbox (Leptonica reported 'image file not found' for a file `file` could read); running from the working directory succeeded.  ||  PRE-INSTALL RESEARCH: INSTALLED AND VERIFIED ON THIS MACHINE. Version 5.5.3 measured two independent ways: `tesseract --version` and `brew list --versions` agree. Binary at /opt/homebrew/bin/tesseract. Smoke test ran and passed: a 900x260 PNG rendered with pycairo containing the text 'REGISTRY SMOKE' was OCR'd with `tesseract smoke.png stdout` and returned exactly 'REGISTRY SMOKE'. Hence P3, not P2. Measured runtime facts, not assumptions: `tesseract --version` reports it is linked against leptonica-1.87.0 (see id 291), and `tesseract --list-langs` shows only three language packs installed here — eng, osd, snum. Any non-English work needs additional tessdata files, which are a separate download and NOT present. One practical gotcha found while testing: the binary could not read fixtures placed in /tmp under this sandbox (Leptonica reported 'image file not found' for a file that `file` could read fine); running from the working directory succeeded. Licence Apache-2.0. On Debian/Ubuntu the apt packages are `tesseract-ocr` plus per-language `tesseract-ocr-<lang>`."
+  },
+  {
+    "id": 285,
+    "name": "PaddleOCR",
+    "category": "OCR / handwriting / document understanding",
+    "category_number": 22,
+    "technology_id": "paddleocr",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "paddleocr",
+    "install_method": "pip",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/PaddlePaddle/PaddleOCR",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://paddlepaddle.github.io/PaddleOCR/",
+    "notes": "Upstream latest on PyPI at probe time: 3.7.0, licence 'Apache License 2.0' (pypi.org JSON API; NOT installed, `version` null). Requires the PaddlePaddle framework, which is a separate and awkward install — the CPU and GPU builds are different packages and macOS arm64 support has historically lagged. Budget real time for this one; it is not a `pip install` and go. Licence caveat: the Apache-2.0 covers the code. Pretrained detection and recognition models are downloaded separately at first run and carry their own terms — check them before commercial use. Strongest of the OCR options in this category for Chinese and for multilingual layout. Not installed by instruction: PaddleOCR pulls the PaddlePaddle framework and downloads model weights at first run, and downloading models is out of scope. The install command is recorded above. Readiness stays P1."
+  },
+  {
+    "id": 286,
+    "name": "EasyOCR",
+    "category": "OCR / handwriting / document understanding",
+    "category_number": 22,
+    "technology_id": "easyocr",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "easyocr",
+    "install_method": "pip",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/JaidedAI/EasyOCR",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://www.jaided.ai/easyocr/documentation/",
+    "notes": "Upstream latest on PyPI at probe time: 1.7.2, licence 'Apache License 2.0' (pypi.org JSON API; NOT installed, `version` null). Requires PyTorch, so the install is large. Downloads model weights on first use — that means the first run needs network access, which breaks naive air-gapped or cold-start-sensitive deployments unless you pre-bake the model cache into the image. Model weights carry their own terms separate from the Apache-2.0 code. Easier to get working than PaddleOCR (id 285); generally slower than Tesseract (id 284) on clean printed text but much better on photographed or skewed text. Not installed by instruction: EasyOCR pulls PyTorch and downloads model weights on first use. Readiness stays P1."
+  },
+  {
+    "id": 287,
+    "name": "docTR",
+    "category": "OCR / handwriting / document understanding",
+    "category_number": 22,
+    "technology_id": "doctr",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "python-doctr",
+    "install_method": "pip",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/mindee/doctr",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://mindee.github.io/doctr/",
+    "notes": "PyPI package name is `python-doctr`, not `doctr` — installing `doctr` gets an unrelated project, which is a real and common mistake. Upstream latest at probe time: 1.0.1, Apache-2.0 classifier (pypi.org JSON API; NOT installed, `version` null). Needs a backend chosen at install time via extras — `python-doctr[torch]` or `python-doctr[tf]` — and installing it bare leaves you without one. End-to-end document text detection plus recognition, aimed at documents rather than scene text. Pretrained weights download separately and carry their own terms. Not installed by instruction: docTR pulls a PyTorch or TensorFlow backend plus downloaded weights. Readiness stays P1."
+  },
+  {
+    "id": 288,
+    "name": "OpenCV",
+    "category": "OCR / handwriting / document understanding",
+    "category_number": 22,
+    "technology_id": "opencv",
+    "canonical": false,
+    "canonical_id": 274,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/opencv/opencv",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://docs.opencv.org/4.x/",
+    "notes": "Non-canonical repeat of an earlier inventory position. Per SCHEMA.md, installation and verification are recorded on the canonical record only, so package, install_method and version are deliberately left empty here. Canonical record is id 274, in category 21 Image processing. The version-dependent licence caveat recorded there applies equally here: Apache-2.0 holds from OpenCV 4.5.0 onward, earlier releases are BSD-3-Clause. Pin before you rely on the licence field. Note for readers arriving from category 22: the canonical record at id 274 is now INSTALLED AND SMOKE-TESTED (opencv-python 5.0.0.93 on arm64). Verification lives there, not here."
+  },
+  {
+    "id": 289,
+    "name": "LayoutParser",
+    "category": "OCR / handwriting / document understanding",
+    "category_number": 22,
+    "technology_id": "layoutparser",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "layoutparser",
+    "install_method": "pip",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/Layout-Parser/layout-parser",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://layout-parser.readthedocs.io/",
+    "notes": "Upstream latest on PyPI at probe time: 0.3.4, Apache-2.0 classifier (pypi.org JSON API; NOT installed, `version` null). Maintenance signal worth weighing before adoption: 0.3.4 has been the published latest for a long stretch and the project is quiet. It also depends on Detectron2 for its strongest layout models, and Detectron2 is not pip-installable from PyPI — it needs a source build against a matching PyTorch. That is the real cost here. Licence Apache-2.0 for the code; the layout model zoo entries carry their own terms. Not installed: its strongest models need Detectron2, which is not pip-installable from PyPI and requires a source build against a matching PyTorch. Readiness stays P1."
+  },
+  {
+    "id": 290,
+    "name": "OCRmyPDF",
+    "category": "OCR / handwriting / document understanding",
+    "category_number": 22,
+    "technology_id": "ocrmypdf",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "cli-tool",
+    "package": "ocrmypdf",
+    "install_method": "brew",
+    "version": "17.10.0",
+    "license": "MPL-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/ocrmypdf/OCRmyPDF",
+    "runtime_requirements": [
+      "python3",
+      "tesseract",
+      "ghostscript"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://ocrmypdf.readthedocs.io/",
+    "notes": "INSTALLED AND MEASURED via Homebrew at 17.10.0. Smoke test passed as a genuine end-to-end pipeline, which is the only way this tool is worth verifying. An image-only PDF was produced with ImageMagick (no text layer — confirmed by pdftotext returning nothing), then `ocrmypdf --output-type pdf` added an OCR layer, and pdftotext on the result returned 'REGISTRY SMOKE'. That exercises OCRmyPDF, Tesseract (id 284) and Ghostscript together. Installed via the brew `ocrmypdf` formula (52 MB), which pulled Ghostscript 10.07.1 (129 MB) as a dependency — the pip route (`pip install ocrmypdf`) still exists and needs those binaries supplied separately. The Ghostscript AGPL exposure described below is now concrete: it is on this disk.  ||  PRE-INSTALL RESEARCH: Upstream latest on PyPI at probe time: 17.10.0, licence expression MPL-2.0; Homebrew formula `ocrmypdf` is also available at stable 17.10.0 per `brew info`. Official Docker image `jbarlow83/ocrmypdf`. Licence layering is the thing to get right here, and it is not what the MPL-2.0 field alone suggests: OCRmyPDF's own code is MPL-2.0 (file-level weak copyleft), but it invokes Ghostscript at runtime, and Ghostscript is AGPL-3.0 unless you hold an Artifex commercial licence. The MPL record is OCRmyPDF's own text, recorded verbatim; the AGPL exposure comes in through the dependency, which is why it is flagged rather than folded into the licence field. Review what you actually redistribute. Also requires Tesseract (id 284) — which IS installed here at 5.5.3 — so one of its three dependencies is already satisfied on this machine. Adds a searchable text layer to scanned PDFs without re-encoding the images."
+  },
+  {
+    "id": 291,
+    "name": "Leptonica",
+    "category": "OCR / handwriting / document understanding",
+    "category_number": 22,
+    "technology_id": "leptonica",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "native",
+    "kind": "library",
+    "package": "leptonica",
+    "install_method": "brew",
+    "version": "1.87.0",
+    "license": "BSD-2-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/DanBloomberg/leptonica",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "http://www.leptonica.org/",
+    "notes": "INSTALLED AND MEASURED via Homebrew at 1.87.0 (6.8 MB in Cellar). Confirmed two independent ways: `brew list --versions` reports leptonica 1.87.0, and `tesseract --version` independently reports linkage against leptonica-1.87.0. Deliberately held at P2, not raised to P3. It was genuinely exercised — Leptonica is the layer that read the PNG during the Tesseract smoke test at id 284, and it identified itself by name in the error output when the sandbox blocked a /tmp read ('Leptonica Error in pixRead') — but that is evidence of Tesseract's pipeline, not a test written against Leptonica's own API. Readiness is earned, and borrowing another record's evidence would be exactly the dishonesty SCHEMA.md warns about. No standalone CLI is installed; it ships as library plus headers under /opt/homebrew/opt/leptonica.  ||  PRE-INSTALL RESEARCH: INSTALLED ON THIS MACHINE AND MEASURED. Version 1.87.0 confirmed two independent ways: `brew list --versions` reports leptonica 1.87.0, and `tesseract --version` independently reports it is linked against leptonica-1.87.0. Held at P2 rather than P3 deliberately. It was exercised — Leptonica is the layer that actually read the PNG during the Tesseract smoke test at id 284, and it announced itself by name in the error output when the sandbox blocked a /tmp read ('Leptonica Error in pixRead'). But that is evidence of Tesseract's pipeline working, not of a test written against Leptonica's own API, and the schema says readiness is earned. Claiming P3 here would be borrowing id 284's evidence. No standalone CLI is installed; it ships as a library plus headers under /opt/homebrew/opt/leptonica. Licence is a BSD-2-Clause-style text. It is the image I/O and preprocessing foundation under Tesseract (id 284)."
+  },
+  {
+    "id": 292,
+    "name": "Kraken OCR",
+    "category": "OCR / handwriting / document understanding",
+    "category_number": 22,
+    "technology_id": "kraken-ocr",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "kraken",
+    "install_method": "pip",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/mittagessen/kraken",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://kraken.re/",
+    "notes": "Upstream latest on PyPI at probe time: 7.1, licence expression Apache-2.0 with an OSI Apache classifier (pypi.org JSON API; NOT installed, `version` null). Aimed at historical documents and handwriting rather than clean modern print — this is the right tool in this category for manuscripts, and the wrong one for invoices. Requires PyTorch. Models are fetched separately from a public model repository and each carries its own terms, several of them CC-BY-SA rather than Apache-2.0 — check the specific model, not just the code licence. Also usable as a `kraken` CLI. Not installed by instruction: kraken pulls PyTorch and fetches models from a public model repository. Readiness stays P1."
+  }
+]

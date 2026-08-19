@@ -1,0 +1,3890 @@
+[
+  {
+    "id": 440,
+    "name": "Playwright",
+    "category": "Testing",
+    "category_number": 37,
+    "technology_id": "playwright",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "@playwright/test",
+    "install_method": "npm",
+    "version": "1.62.1",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/microsoft/playwright",
+    "runtime_requirements": [
+      "node>=20"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ],
+    "documentation": "https://playwright.dev/docs/intro",
+    "notes": "HIGHEST READINESS IN THIS RANGE, AND THE CEILING IS P3 — NOT P4. Evidence for P3: `@playwright/test@1.62.1` is a devDependency of the repository root package.json and is installed in ./node_modules; `npx playwright --version` printed 1.62.1; and `npx playwright test` was run on this machine against tests/e2e/smoke.spec.ts and reported PASS (2) FAIL (0) in 1048 ms across the desktop-chromium and mobile-chromium projects defined in playwright.config.ts. The test launches real Chromium from ~/Library/Caches/ms-playwright/chromium-1234, starts the coverage-report web server on 127.0.0.1:4173 and asserts on semantic roles. CI: .github/workflows/e2e.yml runs the same suite on pull_request and push to main with SHA-pinned actions and `npm ci`. WHY NOT P4: SCHEMA.md requires template + CI + security scan + rollback path. Template and CI exist. The security scan does NOT cover this technology: .github/workflows/codeql.yml analyses `languages: python` and `languages: actions` only, and .github/dependabot.yml declares only the `github-actions` and `pip` ecosystems - there is no `npm` ecosystem entry, so nothing scans package-lock.json. No rollback path is recorded either. Adding an `npm` block to dependabot.yml and `javascript` to the CodeQL language matrix is the concrete gap between P3 and P4."
+  },
+  {
+    "id": 441,
+    "name": "Vitest",
+    "category": "Testing",
+    "category_number": 37,
+    "technology_id": "vitest",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "vitest",
+    "install_method": "npm",
+    "version": "4.1.11",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/vitest-dev/vitest",
+    "runtime_requirements": [
+      "node>=20"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://vitest.dev/guide/",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling with `npm install --save-exact`. `vitest --version` printed `vitest/4.1.11 darwin-arm64 node-v26.0.0`. Smoke test: an ESM spec asserting 1+1===2 ran via `vitest run` - 1 test file passed, 1 test passed. A CommonJS spec failed first because the host package.json sets \"type\":\"commonjs\" and vitest 4 requires ESM; the .mjs form passed. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 442,
+    "name": "Jest",
+    "category": "Testing",
+    "category_number": 37,
+    "technology_id": "jest",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "jest",
+    "install_method": "npm",
+    "version": "30.4.2",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/jestjs/jest",
+    "runtime_requirements": [
+      "node>=18"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://jestjs.io/docs/getting-started",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling. Package version 30.4.2 read from node_modules/jest/package.json; note that `jest --version` prints 30.4.1, which is the jest-cli version, not the jest package version - the record carries the installed package version. Smoke test: a trivial spec ran with `jest --rootDir .` - 1 suite passed, 1 test passed in 0.398 s. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 443,
+    "name": "Testing Library",
+    "category": "Testing",
+    "category_number": 37,
+    "technology_id": "testing-library-dom",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@testing-library/dom",
+    "install_method": "npm",
+    "version": "10.4.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/testing-library/dom-testing-library",
+    "runtime_requirements": [
+      "node>=18"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ],
+    "documentation": "https://testing-library.com/docs/dom-testing-library/intro",
+    "notes": "The inventory name is the family; the installable core is @testing-library/dom, which is what was installed into technology-universe/runtimes/javascript-tooling and measured. Smoke test: under vitest with the jsdom environment, getByRole(document.body, 'button', {name:'Press me'}) resolved a real DOM node - passed. jsdom@30.0.1 was installed alongside because no DOM environment was otherwise present. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 444,
+    "name": "React Testing Library",
+    "category": "Testing",
+    "category_number": 37,
+    "technology_id": "react-testing-library",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@testing-library/react",
+    "install_method": "npm",
+    "version": "16.3.2",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/testing-library/react-testing-library",
+    "runtime_requirements": [
+      "node>=18"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ],
+    "documentation": "https://testing-library.com/docs/react-testing-library/intro",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling. npm resolved its peers automatically: react@19.2.8 and react-dom@19.2.8 are present in the same tree. Smoke test: render(React.createElement('h1', null, 'Registry RTL smoke')) under vitest + jsdom, then screen.getByRole('heading', ...) - passed. JSX was avoided so no bundler plugin was needed; `@vitejs/plugin-react` was attempted and rejected by npm with ERESOLVE against the vite version vitest 4 pins. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 445,
+    "name": "Cypress",
+    "category": "Testing",
+    "category_number": 37,
+    "technology_id": "cypress",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "cypress",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/cypress-io/cypress",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "toolchain",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.cypress.io/",
+    "notes": "DELIBERATELY NOT INSTALLED. Cypress downloads a large platform binary into a global cache and duplicates the browser-automation layer that this repository already fills with Playwright (id 440), which has a passing suite and a CI workflow here. Acquisition path: `npm install --save-exact cypress` in technology-universe/runtimes/javascript-tooling; the registry's current published version at the time of probing was 15.21.0, recorded here as context only - `version` stays null because nothing was installed or measured on this machine. Licence read from the npm registry (`npm view <pkg> license`); the package was not installed here."
+  },
+  {
+    "id": 446,
+    "name": "WebdriverIO",
+    "category": "Testing",
+    "category_number": 37,
+    "technology_id": "webdriverio",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "webdriverio",
+    "install_method": "npm",
+    "version": "9.31.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/webdriverio/webdriverio",
+    "runtime_requirements": [
+      "node>=18"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "toolchain",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://webdriver.io/docs/gettingstarted",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling and measured at 9.31.1 from node_modules/webdriverio/package.json. NOT P3: the `webdriverio` package ships no `wdio` binary (that lives in the separate @wdio/cli package, which was not installed), and a genuine smoke test needs a live WebDriver session against a driver process. No browser session was started, so no functional claim is made. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 447,
+    "name": "pytest",
+    "category": "Testing",
+    "category_number": 37,
+    "technology_id": "pytest",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "pytest",
+    "install_method": "pip",
+    "version": "9.1.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/pytest-dev/pytest",
+    "runtime_requirements": [
+      "python>=3.12"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.pytest.org/en/stable/",
+    "notes": "Already present in this repository before any work here: .venv/bin/pytest reports 9.1.1, and requirements.lock pins `pytest==9.1.1` with sha256 hashes (line 1054), installed by CI with `pip install --require-hashes`. Smoke test: an isolated two-test file was run with `pytest -p no:cacheprovider -c /dev/null` - 2 passed in 0.17 s. SEPARATE FINDING, NOT A PYTEST DEFECT: running the repository's own suite with `pytest -m \"not axle\"` fails at tests/generated/test_clamp_spec.py::test_clamp_spec with hypothesis.errors.FailedHealthCheck (filter_too_much: 6 inputs generated, 50 filtered). That is a property-definition problem in the repository, and it was left untouched. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 448,
+    "name": "Hypothesis",
+    "category": "Testing",
+    "category_number": 37,
+    "technology_id": "hypothesis",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "hypothesis",
+    "install_method": "pip",
+    "version": "6.165.10",
+    "license": "MPL-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/HypothesisWorks/hypothesis",
+    "runtime_requirements": [
+      "python>=3.12"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://hypothesis.readthedocs.io/en/latest/",
+    "notes": "Already present: .venv/bin/hypothesis exists and `import hypothesis; hypothesis.__version__` printed 6.165.10; requirements.lock pins `hypothesis==6.165.10` with hashes (line 640). Smoke test: @given(st.integers(), st.integers()) asserting commutativity of addition - passed. MPL-2.0 is file-level weak copyleft: modifications to Hypothesis' own files must be published, but linking it into a larger work does not impose MPL on that work. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 449,
+    "name": "property-based testing tools",
+    "category": "Testing",
+    "category_number": 37,
+    "technology_id": "property-based-testing-tools",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "spec",
+    "kind": "alternative-group",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://en.wikipedia.org/wiki/QuickCheck",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://hypothesis.readthedocs.io/en/latest/",
+    "notes": "Names a CLASS of tools, not a package - one of the seven alternative-group ids SCHEMA.md enumerates. There is nothing to install and therefore nothing to version, and no single licence can be recorded because each member carries its own: Hypothesis (id 448, MPL-2.0) is the member actually installed here; fast-check, jsverify, proptest and QuickCheck are others. license is null and license_class is LICENSE_REVIEW_REQUIRED because the choice of member is what determines the licence, and that choice has not been made."
+  },
+  {
+    "id": 450,
+    "name": "k6",
+    "category": "Testing",
+    "category_number": 37,
+    "technology_id": "k6",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "cli-tool",
+    "package": "k6",
+    "install_method": "brew",
+    "version": "2.2.0",
+    "license": "AGPL-3.0-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/grafana/k6",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://grafana.com/docs/k6/latest/",
+    "notes": "Installed with `brew install k6`. `k6 version` printed `k6 v2.2.0 (commit/devel, go1.26.5, darwin/arm64)`. Smoke test: `k6 run` executed a 1-VU 1-iteration script - `iterations: 1  4032.258065/s`. IMPORTANT NEGATIVE FINDING about the 'JS side': the npm package literally named `k6` is version 0.0.0 and describes itself as 'Dummy package for autocompleting k6 scripts.' - it is NOT k6 and was deliberately not installed. `@types/k6@2.2.0` (the real type definitions) was installed into technology-universe/runtimes/javascript-tooling instead. k6 itself is a Go binary; its scripts are JavaScript run by an embedded runtime, so there is no npm-installable k6 runtime. AGPL-3.0-or-later is network copyleft - offering a modified k6 as a hosted service triggers source-disclosure obligations. Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine."
+  },
+  {
+    "id": 451,
+    "name": "Locust",
+    "category": "Testing",
+    "category_number": 37,
+    "technology_id": "locust",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "locust",
+    "install_method": "pip",
+    "version": "2.46.3",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/locustio/locust",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.locust.io/en/stable/",
+    "notes": "Installed into the venv at technology-universe/runtimes/python-tooling/.venv. `locust --version` printed 2.46.3 on Python 3.14.7. Smoke test: a real headless run against a local http.server - `locust --headless -u 2 -r 2 -t 5s` drove 645 GET requests with 0 (0.00%) failures and exited with code 0. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 452,
+    "name": "Artillery",
+    "category": "Testing",
+    "category_number": 37,
+    "technology_id": "artillery",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "artillery",
+    "install_method": "npm",
+    "version": null,
+    "license": "MPL-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/artilleryio/artillery",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "toolchain",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://www.artillery.io/docs",
+    "notes": "Not installed - the load-testing slot in this range is already covered by k6 (id 450, smoke-tested) and Locust (id 451, smoke-tested), so a third runner buys no new evidence. Acquisition path: `npm install --save-exact artillery` in technology-universe/runtimes/javascript-tooling. Licence read from the npm registry (`npm view <pkg> license`); the package was not installed here. MPL-2.0 is file-level weak copyleft. Artillery also sells a hosted cloud product; the MPL licence recorded here covers the open-source CLI only."
+  },
+  {
+    "id": 453,
+    "name": "axe-core",
+    "category": "Browser / accessibility / performance",
+    "category_number": 38,
+    "technology_id": "axe-core",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "axe-core",
+    "install_method": "npm",
+    "version": "4.13.0",
+    "license": "MPL-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/dequelabs/axe-core",
+    "runtime_requirements": [
+      "node>=4"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ],
+    "documentation": "https://github.com/dequelabs/axe-core/tree/develop/doc",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling. Smoke test: axe.min.js was injected into a real Chrome page driven by Puppeteer and window.axe.run() executed against a deliberately broken document. It reported testEngine.version 4.13.0 and 4 violations - image-alt, landmark-one-main, page-has-heading-one, region - i.e. it caught the missing alt attribute that was planted for it. MPL-2.0 file-level copyleft. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 454,
+    "name": "Lighthouse",
+    "category": "Browser / accessibility / performance",
+    "category_number": 38,
+    "technology_id": "lighthouse",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "lighthouse",
+    "install_method": "npm",
+    "version": "13.4.1",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/GoogleChrome/lighthouse",
+    "runtime_requirements": [
+      "node>=22.19"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ],
+    "documentation": "https://developer.chrome.com/docs/lighthouse/overview",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling; `lighthouse --version` printed 13.4.1. Smoke test: a real performance audit was run against a local static page with CHROME_PATH pointed at the Chrome for Testing binary Puppeteer had already fetched; the JSON report recorded lighthouseVersion 13.4.1 and categories.performance.score 1. Lighthouse needs a Chrome/Chromium binary at runtime - it does not ship one, which is why CHROME_PATH had to be supplied. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 455,
+    "name": "Puppeteer",
+    "category": "Browser / accessibility / performance",
+    "category_number": 38,
+    "technology_id": "puppeteer",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "puppeteer",
+    "install_method": "npm",
+    "version": "25.8.0",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/puppeteer/puppeteer",
+    "runtime_requirements": [
+      "node>=22.12"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ],
+    "documentation": "https://pptr.dev/",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling. MEASURED DOWNLOAD COST - this is the single largest artifact in the range: installing puppeteer added Chrome for Testing 152.0.7977.42 (362 MB) and chrome-headless-shell 152.0.7977.42 (193 MB) to ~/.cache/puppeteer, 555 MB total, taking that cache from 531 MB to 1.1 GB. That is roughly 3.7x the ~150 MB usually quoted, because current puppeteer fetches both the full browser and the headless shell. Smoke test: puppeteer.launch() started the browser, setContent() loaded a document, page.title() returned 'Registry Smoke' and browser.version() returned Chrome/152.0.7977.42. Note this Chromium is SEPARATE from the one Playwright (id 440) keeps in ~/Library/Caches/ms-playwright - the two tools do not share a browser cache. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 456,
+    "name": "Pa11y",
+    "category": "Browser / accessibility / performance",
+    "category_number": 38,
+    "technology_id": "pa11y",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "pa11y",
+    "install_method": "npm",
+    "version": "9.1.1",
+    "license": "LGPL-3.0-only",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/pa11y/pa11y",
+    "runtime_requirements": [
+      "node>=20"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/pa11y/pa11y#usage",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling; `pa11y --version` printed 9.1.1. Smoke test: run against a local page served on 127.0.0.1:4899, it reported 1 error - 'Img element missing an alt attribute' mapped to WCAG2AA.Principle1.Guideline1_1.1_1_1.H37 with the offending selector - which is the planted defect. LICENCE WORTH READING BEFORE SHIPPING: LGPL-3.0-only is stronger copyleft than the MIT/Apache licences most of this range carries. Using pa11y as a separate CLI process is unproblematic; statically linking or bundling it into a distributed application triggers LGPL relinking obligations. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 457,
+    "name": "WebPageTest tooling",
+    "category": "Browser / accessibility / performance",
+    "category_number": 38,
+    "technology_id": "webpagetest-tooling",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "service",
+    "package": "webpagetest",
+    "install_method": "npm",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/catchpoint/WebPageTest",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.webpagetest.org/api/",
+    "notes": "Not installed. The inventory name is a tooling family, not one artifact, and the pieces have different terms: the `webpagetest` npm API client is MIT (read from the npm registry; the published version at probe time was 0.7.6), the self-hosted WebPageTest server and agent live in the catchpoint/WebPageTest repository under their own terms, and webpagetest.org is a commercially operated service run by Catchpoint with API keys and quotas. The MIT recorded here therefore covers ONLY the npm API client; the self-hosted stack and the hosted service must be reviewed separately before either is relied on. `version` is null - nothing was installed or measured here."
+  },
+  {
+    "id": 458,
+    "name": "OpenUI",
+    "category": "Browser / accessibility / performance",
+    "category_number": 38,
+    "technology_id": "openui",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "spec",
+    "kind": "standard",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/openui/open-ui",
+    "runtime_requirements": [],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P0",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://open-ui.org/",
+    "notes": "Open UI is a W3C Community Group specification effort - it researches and specifies standardised, stylable UI controls (popover, selectmenu/customisable select, and so on) that browser engines then implement. It is not a package: there is no artifact to install and nothing to version, which is why install_method is `none`. DELIBERATE NEGATIVE FINDING: an npm package named `open-ui` does exist (published version 0.0.7 at probe time), but nothing was found to connect it to the Open UI Community Group, and recording it as this entry's package would be a guess a later reader would have to undo - so `package` is null. license is null and license_class is LICENSE_REVIEW_REQUIRED because the governing terms are W3C Community Group document/CLA terms that were not read on this machine."
+  },
+  {
+    "id": 459,
+    "name": "PerformanceObserver API",
+    "category": "Browser / accessibility / performance",
+    "category_number": 38,
+    "technology_id": "performanceobserver-api",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "browser",
+    "kind": "platform-api",
+    "package": null,
+    "install_method": "builtin",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://developer.mozilla.org/en-US/docs/Web/API/PerformanceObserver",
+    "runtime_requirements": [],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "platform-api",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://developer.mozilla.org/en-US/docs/Web/API/PerformanceObserver",
+    "notes": "A browser platform API: the engine provides it, so install_method is `builtin` and there is nothing to download, nothing to pin and no package version to measure - `version` stays null by definition, not by omission. P1 rather than P0 because the acquisition path is fully determined and reproducible (ship a document to a browser that implements the specification); P1 is the ceiling short of running a real browser feature-detection probe, which was not done here. LICENCE: a platform API has no distributable artifact and therefore no package licence. The specification text is published under W3C/WHATWG document licences that were not read on this machine, so license is null and license_class is LICENSE_REVIEW_REQUIRED rather than a fabricated SPDX id. Note that Playwright and Puppeteer are both installed and smoke-tested in this range, so a real feature-detection probe is one short script away."
+  },
+  {
+    "id": 460,
+    "name": "ResizeObserver",
+    "category": "Browser / accessibility / performance",
+    "category_number": 38,
+    "technology_id": "resizeobserver",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "browser",
+    "kind": "platform-api",
+    "package": null,
+    "install_method": "builtin",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver",
+    "runtime_requirements": [],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "platform-api",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver",
+    "notes": "A browser platform API: the engine provides it, so install_method is `builtin` and there is nothing to download, nothing to pin and no package version to measure - `version` stays null by definition, not by omission. P1 rather than P0 because the acquisition path is fully determined and reproducible (ship a document to a browser that implements the specification); P1 is the ceiling short of running a real browser feature-detection probe, which was not done here. LICENCE: a platform API has no distributable artifact and therefore no package licence. The specification text is published under W3C/WHATWG document licences that were not read on this machine, so license is null and license_class is LICENSE_REVIEW_REQUIRED rather than a fabricated SPDX id. Note that Playwright and Puppeteer are both installed and smoke-tested in this range, so a real feature-detection probe is one short script away."
+  },
+  {
+    "id": 461,
+    "name": "IntersectionObserver",
+    "category": "Browser / accessibility / performance",
+    "category_number": 38,
+    "technology_id": "intersectionobserver",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "browser",
+    "kind": "platform-api",
+    "package": null,
+    "install_method": "builtin",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver",
+    "runtime_requirements": [],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "platform-api",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver",
+    "notes": "A browser platform API: the engine provides it, so install_method is `builtin` and there is nothing to download, nothing to pin and no package version to measure - `version` stays null by definition, not by omission. P1 rather than P0 because the acquisition path is fully determined and reproducible (ship a document to a browser that implements the specification); P1 is the ceiling short of running a real browser feature-detection probe, which was not done here. LICENCE: a platform API has no distributable artifact and therefore no package licence. The specification text is published under W3C/WHATWG document licences that were not read on this machine, so license is null and license_class is LICENSE_REVIEW_REQUIRED rather than a fabricated SPDX id. Note that Playwright and Puppeteer are both installed and smoke-tested in this range, so a real feature-detection probe is one short script away."
+  },
+  {
+    "id": 462,
+    "name": "pnpm",
+    "category": "Build / dependency / monorepo",
+    "category_number": 39,
+    "technology_id": "pnpm",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "pnpm",
+    "install_method": "npm",
+    "version": "11.22.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/pnpm/pnpm",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "toolchain",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://pnpm.io/motivation",
+    "notes": "Already present on this machine at /opt/homebrew/bin/pnpm; `pnpm --version` printed 11.22.0. Provenance note: the Homebrew `pnpm` formula reports no installed versions, so this binary came from another channel (standalone installer or corepack) rather than from brew. NOT P3: pnpm's characteristic operation is installing a dependency tree, and running it would have written a second, competing node_modules layout into a directory npm already owns. Licence MIT read from the npm registry, where the published version 11.22.0 matches the measured binary."
+  },
+  {
+    "id": 463,
+    "name": "npm",
+    "category": "Build / dependency / monorepo",
+    "category_number": 39,
+    "technology_id": "npm",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "npm",
+    "install_method": "npm",
+    "version": "11.12.1",
+    "license": "Artistic-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/npm/cli",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.npmjs.com/",
+    "notes": "Already present: `npm --version` printed 11.12.1 alongside node v26.0.0. Smoke test: `npm ls --depth=0` in the repository root validated the installed tree against package-lock.json and printed `final-countdown@1.0.0 -> @playwright/test@1.62.1` with no errors; npm also performed every install recorded across this range, which is the tool doing its actual job many times over. Licence Artistic-2.0 read from /opt/homebrew/lib/node_modules/npm/package.json on this machine - note it is Artistic-2.0, not MIT, which surprises people auditing a JavaScript dependency tree."
+  },
+  {
+    "id": 464,
+    "name": "Yarn",
+    "category": "Build / dependency / monorepo",
+    "category_number": 39,
+    "technology_id": "yarn",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "yarn",
+    "install_method": "npm",
+    "version": null,
+    "license": "BSD-2-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/yarnpkg/berry",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "toolchain",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://yarnpkg.com/getting-started",
+    "notes": "Not installed - npm (id 463) and pnpm (id 462) already cover this slot, and a third package manager would only compete for the same node_modules. Acquisition path: `npm install -g yarn`, or `corepack enable` on a Node that ships corepack. Licence read from the npm registry (`npm view <pkg> license`); the package was not installed here. CAVEAT WORTH KNOWING: the npm package named `yarn` is the 1.x Classic line (published version 1.22.22 at probe time). Modern Yarn is Berry (v2+), which lives in yarnpkg/berry and is normally activated through corepack rather than installed from that package - so the recorded package name and the project's current mainline are not the same code."
+  },
+  {
+    "id": 465,
+    "name": "Bun",
+    "category": "Build / dependency / monorepo",
+    "category_number": 39,
+    "technology_id": "bun",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "runtime",
+    "package": "bun",
+    "install_method": "npm",
+    "version": "1.3.14",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/oven-sh/bun",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://bun.com/docs",
+    "notes": "Already present on this machine at ~/.bun/bin/bun; `bun --version` printed 1.3.14. Smoke test: `bun -e 'console.log(\"bun-smoke\", 2+2)'` printed `bun-smoke 4`, i.e. the runtime compiled and executed JavaScript. Licence: no LICENSE file was found under ~/.bun, so MIT was read from the npm registry entry for `bun`, whose published version 1.3.14 matches the installed binary exactly. Bun statically links third-party components (JavaScriptCore among them) that carry their own terms; if Bun is to be redistributed rather than merely used, read the in-tree LICENSE before relying on the single MIT label."
+  },
+  {
+    "id": 466,
+    "name": "Turborepo",
+    "category": "Build / dependency / monorepo",
+    "category_number": 39,
+    "technology_id": "turborepo",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "turbo",
+    "install_method": "npm",
+    "version": "2.10.11",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/vercel/turborepo",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "toolchain",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://turborepo.com/docs",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling; `turbo --version` printed 2.10.11. NOT P3: turbo's characteristic operation is running and caching tasks across a workspace graph, and no workspace exists here to run it against - a synthetic one would have proved only that a fixture can be built. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 467,
+    "name": "Nx",
+    "category": "Build / dependency / monorepo",
+    "category_number": 39,
+    "technology_id": "nx",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "nx",
+    "install_method": "npm",
+    "version": "23.1.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/nrwl/nx",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "toolchain",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://nx.dev/getting-started/intro",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling; `nx --version` printed `Nx Version: - Local: v23.1.1 - Global: Not found`, and node_modules/nx/package.json confirms 23.1.1. NOT P3 for the same reason as Turborepo: no real workspace graph exists here to execute. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 468,
+    "name": "Bazel",
+    "category": "Build / dependency / monorepo",
+    "category_number": 39,
+    "technology_id": "bazel",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "jvm",
+    "kind": "cli-tool",
+    "package": "bazel",
+    "install_method": "brew",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/bazelbuild/bazel",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "toolchain",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://bazel.build/docs",
+    "notes": "DELIBERATELY NOT INSTALLED - a heavy build system whose first real invocation also fetches a toolchain, and nothing in this repository is built with it. Acquisition path: `brew install bazel`; the formula's stable version at probe time was 9.2.0 and its declared licence is Apache-2.0. Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine. `version` stays null because nothing was installed."
+  },
+  {
+    "id": 469,
+    "name": "Pants",
+    "category": "Build / dependency / monorepo",
+    "category_number": 39,
+    "technology_id": "pants",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "cli-tool",
+    "package": "pantsbuild.pants",
+    "install_method": "pip",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/pantsbuild/pants",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://www.pantsbuild.org/docs",
+    "notes": "DELIBERATELY NOT INSTALLED - heavy build system, nothing here uses it. NEGATIVE PROBE RESULT: there is no `pants` formula in homebrew-core (`brew info pants` returned no formula), so the brew route that worked for Bazel is not available and no packager-declared licence could be read. Upstream distributes a `pantsbuild.pants` wheel and a `get-pants.sh` bootstrap script. license is null and license_class is LICENSE_REVIEW_REQUIRED because nothing licence-bearing was read on this machine and guessing would put an unchecked SPDX id into the registry."
+  },
+  {
+    "id": 470,
+    "name": "Buck2",
+    "category": "Build / dependency / monorepo",
+    "category_number": 39,
+    "technology_id": "buck2",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "rust",
+    "kind": "cli-tool",
+    "package": "buck2",
+    "install_method": "binary-release",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/facebook/buck2",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://buck2.build/docs/",
+    "notes": "DELIBERATELY NOT INSTALLED - heavy build system, nothing here uses it. NEGATIVE PROBE RESULT: no `buck2` formula exists in homebrew-core, so no packager-declared licence was available to read. Upstream ships prebuilt binaries on GitHub releases and a `cargo install --git` route. license is null and license_class is LICENSE_REVIEW_REQUIRED for the same reason as Pants: nothing licence-bearing was read here."
+  },
+  {
+    "id": 471,
+    "name": "Changesets",
+    "category": "Build / dependency / monorepo",
+    "category_number": 39,
+    "technology_id": "changesets",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "@changesets/cli",
+    "install_method": "npm",
+    "version": "3.0.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/changesets/changesets",
+    "runtime_requirements": [
+      "node>=22.11"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "toolchain",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/changesets/changesets/tree/main/docs",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling; `changeset --version` printed 3.0.1. NOT P3: its characteristic operations (`changeset add`, `changeset version`) mutate a repository's versions and changelog and expect a .changeset directory, so exercising it for real would have written state into a repository this task is not permitted to modify. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 472,
+    "name": "Renovate",
+    "category": "Build / dependency / monorepo",
+    "category_number": 39,
+    "technology_id": "renovate",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "service",
+    "package": "renovate",
+    "install_method": "npm",
+    "version": null,
+    "license": "AGPL-3.0-only",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/renovatebot/renovate",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.renovatebot.com/",
+    "notes": "Not installed. This repository already automates dependency updates with Dependabot (id 473, configured at .github/dependabot.yml), and running two bots against the same manifests produces duplicate pull requests. Acquisition path: `npm install --save-exact renovate` for the self-hosted CLI, or install the hosted Renovate GitHub App. Licence read from the npm registry (`npm view <pkg> license`); the package was not installed here. LICENCE WORTH FLAGGING: AGPL-3.0-only, which is the strongest copyleft in this whole range - self-hosting a modified Renovate and exposing it over a network triggers source-disclosure obligations to its users. Anyone choosing Renovate over Dependabot should read that clause first."
+  },
+  {
+    "id": 473,
+    "name": "Dependabot",
+    "category": "Build / dependency / monorepo",
+    "category_number": 39,
+    "technology_id": "dependabot",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "spec",
+    "kind": "service",
+    "package": null,
+    "install_method": "builtin",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/dependabot/dependabot-core",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://docs.github.com/en/code-security/dependabot",
+    "notes": "A GitHub platform feature, not an installable package - install_method is `builtin` because the platform provides it, and `version` is null because a hosted feature has no version a machine here can measure. ALREADY CONFIGURED IN THIS REPOSITORY: .github/dependabot.yml is committed, uses `version: 2`, and declares two ecosystems - `github-actions` and `pip` - both scheduled weekly on Monday 05:00 Etc/UTC with open-pull-requests-limit 5, commit-message prefixes `ci` and `deps`, and dependencies labels. That committed file IS the reproducible acquisition path, which is what earns P1. GAP FOUND WHILE READING IT: there is no `npm` ecosystem entry, so package-lock.json and the @playwright/test dependency it pins are not watched by Dependabot at all. Combined with CodeQL analysing only `python` and `actions` (id 485), nothing in this repository scans its JavaScript supply chain - this is the same gap that holds Playwright (id 440) at P3 instead of P4. license is null and license_class is LICENSE_REVIEW_REQUIRED because the hosted service runs under GitHub's terms of service rather than a software licence; the separate open-source dependabot-core repository has its own licence, which was not read here."
+  },
+  {
+    "id": 474,
+    "name": "ESLint",
+    "category": "Formatting / linting / code quality",
+    "category_number": 40,
+    "technology_id": "eslint",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "eslint",
+    "install_method": "npm",
+    "version": "10.8.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/eslint/eslint",
+    "runtime_requirements": [
+      "node>=20.19"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://eslint.org/docs/latest/",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling; `eslint --version` printed v10.8.1. Smoke test: a flat eslint.config.mjs enabling no-unused-vars was written and `eslint smoke/lintme.js` parsed and linted the file, exiting 0 with no findings for that rule - the tool loaded a config, parsed real source and produced a verdict. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 475,
+    "name": "Biome",
+    "category": "Formatting / linting / code quality",
+    "category_number": 40,
+    "technology_id": "biome",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "rust",
+    "kind": "cli-tool",
+    "package": "@biomejs/biome",
+    "install_method": "npm",
+    "version": "2.5.9",
+    "license": "MIT OR Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/biomejs/biome",
+    "runtime_requirements": [
+      "node>=14.21.3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://biomejs.dev/guides/getting-started/",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling (a Rust binary distributed through npm); `biome --version` printed `Version: 2.5.9`. Smoke test: `biome check smoke/lintme.js` analysed the file and reported `Found 1 error`, i.e. it read real source and emitted a diagnostic. The licence is a dual grant - MIT OR Apache-2.0 - so a consumer may pick either. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 476,
+    "name": "Prettier",
+    "category": "Formatting / linting / code quality",
+    "category_number": 40,
+    "technology_id": "prettier",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "prettier",
+    "install_method": "npm",
+    "version": "3.9.6",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/prettier/prettier",
+    "runtime_requirements": [
+      "node>=14"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://prettier.io/docs/en/index.html",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling; `prettier --version` printed 3.9.6. Smoke test: `prettier --check smoke/lintme.js` correctly flagged the deliberately misformatted file - `[warn] Code style issues found in the above file`. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 477,
+    "name": "Ruff",
+    "category": "Formatting / linting / code quality",
+    "category_number": 40,
+    "technology_id": "ruff",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "rust",
+    "kind": "cli-tool",
+    "package": "ruff",
+    "install_method": "pip",
+    "version": "0.16.3",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/astral-sh/ruff",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.astral.sh/ruff/",
+    "notes": "CORRECTION TO A BRIEFING ASSUMPTION: Ruff was NOT already present in this repository. `.venv/bin/` contains no ruff, `.venv/bin/python -m ruff` reports 'No module named ruff', `which ruff` finds nothing, and requirements.lock contains no `ruff==` pin - the repository's Python quality gates are pytest, pyright and bandit, not ruff. It was therefore installed fresh into the separate venv at technology-universe/runtimes/python-tooling/.venv, where `ruff --version` prints 0.16.3. Smoke test: `ruff check --isolated --select F,E` on a deliberately bad file reported `Found 2 errors. [*] 2 fixable with the --fix option.` - the unused `import os` and the spacing defect. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 478,
+    "name": "Black",
+    "category": "Formatting / linting / code quality",
+    "category_number": 40,
+    "technology_id": "black",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "cli-tool",
+    "package": "black",
+    "install_method": "pip",
+    "version": "26.5.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/psf/black",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://black.readthedocs.io/en/stable/",
+    "notes": "Installed into technology-universe/runtimes/python-tooling/.venv; `black --version` printed `black, 26.5.1 (compiled: yes)` on CPython 3.14.7. Smoke test: `black --check --diff` on a misformatted file produced the correct reformat diff (`def f( x ):` -> `def f(x):`) and reported `1 file would be reformatted`. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 479,
+    "name": "isort",
+    "category": "Formatting / linting / code quality",
+    "category_number": 40,
+    "technology_id": "isort",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "cli-tool",
+    "package": "isort",
+    "install_method": "pip",
+    "version": "8.0.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/PyCQA/isort",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://pycqa.github.io/isort/",
+    "notes": "Installed into technology-universe/runtimes/python-tooling/.venv; `isort --version-number` printed 8.0.1. Smoke test: `isort --check-only --diff` on a file with unsorted/unspaced imports produced a corrective diff. Note that Ruff (id 477) implements isort's rules as its `I` rule set, so a project adopting Ruff generally retires isort rather than running both. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 480,
+    "name": "mypy",
+    "category": "Formatting / linting / code quality",
+    "category_number": 40,
+    "technology_id": "mypy",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "cli-tool",
+    "package": "mypy",
+    "install_method": "pip",
+    "version": "2.3.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/python/mypy",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://mypy.readthedocs.io/en/stable/",
+    "notes": "Installed into technology-universe/runtimes/python-tooling/.venv; `mypy --version` printed `mypy 2.3.1 (compiled: yes)`. Smoke test: type-checking `def g(x: int) -> str: return x` produced `error: Incompatible return value type (got \"int\", expected \"str\")  [return-value]` and `Found 1 error in 1 file`. Note this repository's own type gate is Pyright (id 481), configured in pyproject.toml under [tool.pyright] at typeCheckingMode = strict - mypy is installed here as an inventory item, not as a second gate on this codebase. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 481,
+    "name": "Pyright",
+    "category": "Formatting / linting / code quality",
+    "category_number": 40,
+    "technology_id": "pyright",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "pyright",
+    "install_method": "pip",
+    "version": "1.1.411",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/microsoft/pyright",
+    "runtime_requirements": [
+      "python>=3.12",
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://microsoft.github.io/pyright/#/",
+    "notes": "Already present in this repository before any work here: .venv/bin/pyright reports 1.1.411 and requirements.lock pins `pyright==1.1.411` with sha256 hashes (line 1050). Smoke test: `pyright --outputjson` on `def f(x: int) -> str: return x` returned errorCount 1 with rule `reportReturnType`, filesAnalyzed 1, timeInSec 0.069 - no Node download was triggered, the existing runtime was reused. ECOSYSTEM NOTE: pyright is a TypeScript/Node program shipped through PyPI as a wrapper, which is why `ecosystem` is javascript while `install_method` is pip. pyproject.toml configures it with typeCheckingMode = strict, venvPath = \".\" and venv = \".venv\". Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 482,
+    "name": "Pylint",
+    "category": "Formatting / linting / code quality",
+    "category_number": 40,
+    "technology_id": "pylint",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "cli-tool",
+    "package": "pylint",
+    "install_method": "pip",
+    "version": "4.0.7",
+    "license": "GPL-2.0-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/pylint-dev/pylint",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://pylint.readthedocs.io/en/stable/",
+    "notes": "Installed into technology-universe/runtimes/python-tooling/.venv; `pylint --version` printed `pylint 4.0.7` on `astroid 4.0.4`. Smoke test: with only C0116 and W0613 enabled it reported `C0116: Missing function or method docstring` at the right line and rated the file 7.50/10. LICENCE WORTH KNOWING: GPL-2.0-or-later, the strongest copyleft among the linters in this category (ESLint, Biome, Prettier, Ruff, Black, isort, mypy and Pyright are all permissive). Running pylint as a separate analysis process does not affect the licence of the code it analyses; importing pylint as a library into a distributed product does. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 483,
+    "name": "Bandit",
+    "category": "Formatting / linting / code quality",
+    "category_number": 40,
+    "technology_id": "bandit",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "cli-tool",
+    "package": "bandit[sarif]",
+    "install_method": "pip",
+    "version": "1.9.4",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/PyCQA/bandit",
+    "runtime_requirements": [
+      "python>=3.12"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://bandit.readthedocs.io/en/latest/",
+    "notes": "Already present in this repository before any work here: .venv/bin/bandit reports 1.9.4 on CPython 3.14.7. Pin detail worth recording precisely - requirements.lock pins it as `bandit[sarif]==1.9.4` (line 201), i.e. WITH the sarif extra, so a plain `grep '^bandit=='` misses it; requirements.txt declares the intent as `bandit[sarif]>=1.8`. Smoke test: `bandit -q` on a file containing `subprocess.call(..., shell=True)` reported 3 Low-severity issues at High confidence and exited 0. pyproject.toml sets [tool.bandit] exclude_dirs = [\"tests\"]. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 484,
+    "name": "Semgrep Community",
+    "category": "Formatting / linting / code quality",
+    "category_number": 40,
+    "technology_id": "semgrep-community",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "cli-tool",
+    "package": "semgrep",
+    "install_method": "pip",
+    "version": "1.171.0",
+    "license": "LGPL-2.1-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/semgrep/semgrep",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://semgrep.dev/docs/",
+    "notes": "Already present on this machine at ~/.local/bin/semgrep, installed in a pipx venv; `semgrep --version` printed 1.171.0 (it also printed an upgrade-available notice, which is informational, not a finding). Smoke test: run fully offline with `--metrics=off` against a local rule file, `semgrep scan --config <rule>.yaml` reported `Ran 1 rule on 1 file: 1 finding.` and located the planted `eval(...)` call. No rules were fetched from the Semgrep Registry, so nothing left this machine. LICENCE AND PRODUCT SPLIT WORTH READING: the licence recorded here, LGPL-2.1-or-later, was read from the installed distribution's metadata and covers the open-source CLI - the inventory name 'Semgrep Community' is apt, because Semgrep also ships proprietary Pro rules and a hosted Semgrep AppSec Platform under commercial terms that this record does NOT cover."
+  },
+  {
+    "id": 485,
+    "name": "CodeQL",
+    "category": "Formatting / linting / code quality",
+    "category_number": 40,
+    "technology_id": "codeql",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "spec",
+    "kind": "service",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/github/codeql",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://codeql.github.com/docs/",
+    "notes": "NOT A LOCAL INSTALL - it runs in this repository's CI. .github/workflows/codeql.yml pins `github/codeql-action/init` and `github/codeql-action/analyze` to the immutable SHA ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd (tagged v4.37.7) and runs two analyses, `languages: python` and `languages: actions`, both with `build-mode: none`. That SHA pin is a pinned, reproducible way to obtain the analyser, which is what earns P1. NOT P2 or P3: nothing was installed here and no workflow run's result was observed from this machine, so there is no version to record and no passing scan to cite. COVERAGE GAP FOUND: the language matrix omits `javascript`, so the repository's own JavaScript - playwright.config.ts, tests/e2e/smoke.spec.ts - is never analysed. This is the same hole that appears from the other side in Dependabot (id 473), which watches only the `github-actions` and `pip` ecosystems. LICENCE: the CodeQL CLI and its query packs are distributed under GitHub's own CodeQL terms, which permit free use for analysing open-source code but restrict other uses; those terms are not an SPDX identifier and were not read on this machine, so license is null and license_class is LICENSE_REVIEW_REQUIRED. Anyone planning to run CodeQL against a private or commercial codebase must read them first - this is the single most consequential licence question in this range."
+  },
+  {
+    "id": 486,
+    "name": "clang-format",
+    "category": "Formatting / linting / code quality",
+    "category_number": 40,
+    "technology_id": "clang-format",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "cli-tool",
+    "package": "llvm",
+    "install_method": "brew",
+    "version": "21.0.0",
+    "license": "Apache-2.0 WITH LLVM-exception",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/llvm/llvm-project",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://clang.llvm.org/docs/ClangFormat.html",
+    "notes": "Already present, from a channel that is easy to miss: it is not on PATH and not in Homebrew, but `xcrun --find clang-format` locates it inside the Xcode toolchain at /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/. `clang-format --version` printed `Apple clang-format version 21.0.0 (clang-2100.1.1.101)`. Smoke test: `clang-format --style=LLVM` reformatted `int  main( ){int x=1;return   x;}` into correct LLVM-style output. LICENCE PROVENANCE, STATED PRECISELY: the recorded Apache-2.0 WITH LLVM-exception is the upstream LLVM project licence, read from the Homebrew `llvm` formula metadata on this machine. The BINARY measured here is Apple's Xcode build, whose redistribution is governed by the Xcode software licence agreement rather than by the upstream grant. Using it locally is fine; redistributing this particular binary is a separate question that needs the Xcode agreement read first. `package` names the `llvm` formula because that is the reproducible way to obtain an upstream clang-format independent of Xcode."
+  },
+  {
+    "id": 487,
+    "name": "Clang-Tidy",
+    "category": "Formatting / linting / code quality",
+    "category_number": 40,
+    "technology_id": "clang-tidy",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "cli-tool",
+    "package": "llvm",
+    "install_method": "brew",
+    "version": null,
+    "license": "Apache-2.0 WITH LLVM-exception",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/llvm/llvm-project",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "toolchain",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://clang.llvm.org/extra/clang-tidy/",
+    "notes": "NOT INSTALLED, and the negative probe is worth recording because it contrasts with clang-format (id 486): `xcrun --find clang-tidy` fails and /opt/homebrew/opt/llvm/bin/clang-tidy does not exist. Apple's Xcode toolchain ships clang-format but NOT clang-tidy, so the two tools are not equally available on a stock macOS developer machine. Acquisition path: `brew install llvm` (formula stable 22.1.8 at probe time), then use /opt/homebrew/opt/llvm/bin/clang-tidy - deliberately not run here because the full LLVM formula is a multi-gigabyte install and no C or C++ source in this repository needs linting. Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine."
+  },
+  {
+    "id": 488,
+    "name": "Git",
+    "category": "Git / hooks / developer workflow",
+    "category_number": 41,
+    "technology_id": "git",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "native",
+    "kind": "cli-tool",
+    "package": "git",
+    "install_method": "brew",
+    "version": "2.50.1",
+    "license": "GPL-2.0-only AND GPL-2.0-or-later AND LGPL-2.1-or-later AND BSD-3-Clause AND MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/git/git",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://git-scm.com/doc",
+    "notes": "Already present: `git --version` printed `git version 2.50.1 (Apple Git-155)` - the build shipped with the Xcode Command Line Tools, not a Homebrew build. Smoke test: in this repository `git rev-parse --short HEAD` resolved a commit and `git status --porcelain` returned a clean tree; git also backed every other probe in this range. Licence read from the Homebrew `git` formula metadata, which records the composite grant across git's source tree rather than a single SPDX id - the core is GPL-2.0-only, with LGPL and permissive components alongside. Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine."
+  },
+  {
+    "id": 489,
+    "name": "Git LFS",
+    "category": "Git / hooks / developer workflow",
+    "category_number": 41,
+    "technology_id": "git-lfs",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "cli-tool",
+    "package": "git-lfs",
+    "install_method": "brew",
+    "version": "3.7.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/git-lfs/git-lfs",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/git-lfs/git-lfs/tree/main/docs",
+    "notes": "Installed with `brew install git-lfs`; before that `git lfs version` failed with \"'lfs' is not a git command\". After install it prints `git-lfs/3.7.1 (GitHub; darwin arm64; go 1.25.3)`. Smoke test: in a throwaway repository, `git lfs track \"*.bin\"` wrote a real .gitattributes containing `*.bin filter=lfs diff=lfs merge=lfs -text`. Note that git-lfs was installed but NOT enabled globally - `git lfs install --system` was deliberately not run, because that rewrites the system git configuration. Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine."
+  },
+  {
+    "id": 490,
+    "name": "pre-commit",
+    "category": "Git / hooks / developer workflow",
+    "category_number": 41,
+    "technology_id": "pre-commit",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "cli-tool",
+    "package": "pre-commit",
+    "install_method": "pip",
+    "version": "4.6.2",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/pre-commit/pre-commit",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://pre-commit.com/",
+    "notes": "Installed into technology-universe/runtimes/python-tooling/.venv; `pre-commit --version` printed 4.6.2. Smoke test: `pre-commit sample-config` generated a valid starter configuration referencing the pre-commit-hooks repository. NOT installed into this repository's git hooks - `pre-commit install` was deliberately not run, because it rewrites .git/hooks and this repository already gates on GitHub Actions rather than on local hooks. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 491,
+    "name": "Husky",
+    "category": "Git / hooks / developer workflow",
+    "category_number": 41,
+    "technology_id": "husky",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "husky",
+    "install_method": "npm",
+    "version": "9.1.7",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/typicode/husky",
+    "runtime_requirements": [
+      "node>=18"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "toolchain",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://typicode.github.io/husky/",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling and measured at 9.1.7 from node_modules/husky/package.json. NOT P3, and the failure is recorded rather than hidden: `husky --version` printed \".git can't be found\", and `husky init` run inside a throwaway git repository crashed with a Node stack trace because that directory had no package.json. husky is designed to configure hooks in the repository that owns it; making it succeed would have meant writing core.hooksPath and a .husky directory into a real repository, which this task must not do. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 492,
+    "name": "lint-staged",
+    "category": "Git / hooks / developer workflow",
+    "category_number": 41,
+    "technology_id": "lint-staged",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "lint-staged",
+    "install_method": "npm",
+    "version": "17.3.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/lint-staged/lint-staged",
+    "runtime_requirements": [
+      "node>=22.22.1"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "toolchain",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/lint-staged/lint-staged#readme",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling; `lint-staged --version` printed 17.3.0. NOT P3: its characteristic operation is running linters over files staged in git, which requires a repository with a real staging area and a real config - exercising it would have meant staging changes in a repository this task must leave alone. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 493,
+    "name": "commitlint",
+    "category": "Git / hooks / developer workflow",
+    "category_number": 41,
+    "technology_id": "commitlint",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "@commitlint/cli",
+    "install_method": "npm",
+    "version": "21.2.2",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/conventional-changelog/commitlint",
+    "runtime_requirements": [
+      "node>=22.12"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://commitlint.js.org/",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling; `commitlint --version` printed @commitlint/cli@21.2.2. Smoke test: with a commitlint.config.mjs restricting type-enum to [feat, fix], piping the message 'nope: bad type' into commitlint produced `type must be one of [feat, fix] [type-enum]` and `found 1 problems, 0 warnings` - the rule engine loaded a config, parsed a real message and rejected it correctly. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 494,
+    "name": "Commitizen",
+    "category": "Git / hooks / developer workflow",
+    "category_number": 41,
+    "technology_id": "commitizen",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "commitizen",
+    "install_method": "npm",
+    "version": "4.3.2",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/commitizen/cz-cli",
+    "runtime_requirements": [
+      "node>=18"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "toolchain",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/commitizen/cz-cli#readme",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling and measured at 4.3.2 from node_modules/commitizen/package.json. NOT P3, with the reason measured rather than assumed: the `cz` binary is git-cz, and `cz --version` is passed through to git, which answers `error: unknown option 'version'` - so that invocation is not a version probe at all. Commitizen's real operation is an INTERACTIVE commit prompt, which cannot be exercised non-interactively without also creating a commit. Note the name collision worth avoiding: this npm `commitizen` is distinct from the Python `commitizen` project on PyPI. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 495,
+    "name": "Lefthook",
+    "category": "Git / hooks / developer workflow",
+    "category_number": 41,
+    "technology_id": "lefthook",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "cli-tool",
+    "package": "lefthook",
+    "install_method": "brew",
+    "version": "2.1.10",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/evilmartians/lefthook",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "toolchain",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://lefthook.dev/",
+    "notes": "Installed with `brew install lefthook`; `lefthook version` printed 2.1.10. NOT P3 for the same reason as Husky and lint-staged: `lefthook install` writes hook files into a repository's .git directory, and no repository here may be modified. Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine."
+  },
+  {
+    "id": 496,
+    "name": "simple-git-hooks",
+    "category": "Git / hooks / developer workflow",
+    "category_number": 41,
+    "technology_id": "simple-git-hooks",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "cli-tool",
+    "package": "simple-git-hooks",
+    "install_method": "npm",
+    "version": "2.13.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/toplenboren/simple-git-hooks",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "toolchain",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/toplenboren/simple-git-hooks#readme",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling and measured at 2.13.1 from the package's own package.json. NOT P3: the binary has no --version flag - invoking it goes straight to configuring hooks and it exited with `[ERROR] Config was not found!`, which is correct behaviour for a tool whose only action is to write .git/hooks from a `simple-git-hooks` key. That write was not performed. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 497,
+    "name": "Docker",
+    "category": "Containers / infrastructure",
+    "category_number": 42,
+    "technology_id": "docker",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "container",
+    "kind": "runtime",
+    "package": "docker",
+    "install_method": "brew",
+    "version": "29.5.2",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/moby/moby",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "toolchain",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.docker.com/",
+    "notes": "Already present - `which docker` finds /usr/local/bin/docker. `docker --version` printed `Docker version 29.5.2, build 79eb04c`, and the daemon is live: `docker info --format '{{.ServerVersion}}'` answered 29.5.2, so the client-to-daemon handshake works. Nothing was installed by this task. DELIBERATELY NOT P3: Docker's characteristic operation is running a container, and no small base image (alpine, busybox, hello-world) is present locally - `docker images` lists only 4 images belonging to an unrelated project. Running one of those would have side effects on someone else's work, and pulling a new image would be a download. A daemon that answers is not proof that a container starts, so the claim stops at version-measured. Licence read from the Homebrew `docker` formula metadata; note the Docker Desktop application that usually provides this daemon on macOS is distributed under Docker's own subscription terms, which are separate from the Apache-2.0 engine and were not read here."
+  },
+  {
+    "id": 498,
+    "name": "Docker Compose",
+    "category": "Containers / infrastructure",
+    "category_number": 42,
+    "technology_id": "docker-compose",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "container",
+    "kind": "cli-tool",
+    "package": "docker-compose",
+    "install_method": "brew",
+    "version": "5.1.4",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/docker/compose",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "toolchain",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose"
+    ],
+    "documentation": "https://docs.docker.com/compose/",
+    "notes": "Already present, and both invocation forms agree: `docker compose version` and `docker-compose --version` each printed `Docker Compose version v5.1.4`. NOT P3 for the same reason as Docker (id 497) - bringing a compose project up would require pulling images, and no suitable image is cached locally. Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine."
+  },
+  {
+    "id": 499,
+    "name": "Podman",
+    "category": "Containers / infrastructure",
+    "category_number": 42,
+    "technology_id": "podman",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "container",
+    "kind": "runtime",
+    "package": "podman",
+    "install_method": "brew",
+    "version": "6.1.0",
+    "license": "Apache-2.0 AND GPL-3.0-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/containers/podman",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "toolchain",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.podman.io/en/latest/",
+    "notes": "Installed with `brew install podman`; `podman --version` printed 6.1.0 and `podman info` reported `OS: darwin/arm64`, `buildOrigin: brew`, `provider: applehv`. NOT P3: on macOS podman runs containers inside a Linux VM, and `podman machine init` would download a VM image measured in gigabytes - deliberately not done. The CLI is installed and measured; no container was run. Licence is a composite grant (Apache-2.0 for most of the tree, GPL-3.0-or-later for some components). Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine."
+  },
+  {
+    "id": 500,
+    "name": "Kubernetes",
+    "category": "Containers / infrastructure",
+    "category_number": 42,
+    "technology_id": "kubernetes",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "container",
+    "kind": "framework",
+    "package": "kubernetes-cli",
+    "install_method": "brew",
+    "version": "1.34.1",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/kubernetes/kubernetes",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "toolchain",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "kubernetes"
+    ],
+    "documentation": "https://kubernetes.io/docs/home/",
+    "notes": "READ THE SCOPE OF THIS MEASUREMENT CAREFULLY. What is present is the CLIENT: `which kubectl` finds /usr/local/bin/kubectl and `kubectl version --client` reports Client Version v1.34.1 (with an embedded Kustomize v5.7.1). The recorded version is that client's. There is NO cluster on this machine - no control plane, no kubelet, nothing to schedule a pod - so the distributed system the inventory entry names is not running anywhere here, and no server version was contacted. Nothing was installed by this task; per instruction, Kubernetes itself was probed with `which` only. Reproducible path to an actual local cluster: k3s (id 501), Kind (id 502) or Minikube (id 503) - all three left uninstalled. Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine."
+  },
+  {
+    "id": 501,
+    "name": "k3s",
+    "category": "Containers / infrastructure",
+    "category_number": 42,
+    "technology_id": "k3s",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "runtime",
+    "package": "k3s",
+    "install_method": "binary-release",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/k3s-io/k3s",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "kubernetes"
+    ],
+    "documentation": "https://docs.k3s.io/",
+    "notes": "DELIBERATELY NOT INSTALLED - a full Kubernetes distribution, explicitly excluded as heavy. NEGATIVE PROBE RESULT: k3s has no homebrew-core formula (it targets Linux hosts and would need a VM on macOS), so unlike Kind and Minikube no packager-declared licence was available to read. Acquisition path: the upstream install script or a GitHub binary release, on a Linux host. license is null and license_class is LICENSE_REVIEW_REQUIRED because nothing licence-bearing was read on this machine."
+  },
+  {
+    "id": 502,
+    "name": "Kind",
+    "category": "Containers / infrastructure",
+    "category_number": 42,
+    "technology_id": "kind",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "cli-tool",
+    "package": "kind",
+    "install_method": "brew",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/kubernetes-sigs/kind",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "toolchain",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://kind.sigs.k8s.io/",
+    "notes": "DELIBERATELY NOT INSTALLED - explicitly excluded as heavy, and creating a cluster would also pull multi-hundred-megabyte node images through Docker. Acquisition path: `brew install kind`; the formula's stable version at probe time was 0.32.0, licence Apache-2.0. Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine. `version` stays null because nothing was installed."
+  },
+  {
+    "id": 503,
+    "name": "Minikube",
+    "category": "Containers / infrastructure",
+    "category_number": 42,
+    "technology_id": "minikube",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "cli-tool",
+    "package": "minikube",
+    "install_method": "brew",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/kubernetes/minikube",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "toolchain",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://minikube.sigs.k8s.io/docs/",
+    "notes": "DELIBERATELY NOT INSTALLED - explicitly excluded as heavy; `minikube start` provisions a VM or a large container image. Acquisition path: `brew install minikube`; the formula's stable version at probe time was 1.38.1, licence Apache-2.0. Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine. `version` stays null because nothing was installed."
+  },
+  {
+    "id": 504,
+    "name": "Helm",
+    "category": "Containers / infrastructure",
+    "category_number": 42,
+    "technology_id": "helm",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "cli-tool",
+    "package": "helm",
+    "install_method": "brew",
+    "version": "4.2.4",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/helm/helm",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "kubernetes"
+    ],
+    "documentation": "https://helm.sh/docs/",
+    "notes": "Installed with `brew install helm`; `helm version --short` printed v4.2.4+g3900f43. Smoke test that needs no cluster: `helm create` scaffolded a chart and `helm template` rendered it, producing 4 Kubernetes manifests (counted by `grep -c '^kind:'`). Templating exercises the chart loader, the values merge and the Go template engine - the parts that actually break - without contacting an API server, which matters because no cluster exists here (see id 500). Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine."
+  },
+  {
+    "id": 505,
+    "name": "Kustomize",
+    "category": "Containers / infrastructure",
+    "category_number": 42,
+    "technology_id": "kustomize",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "cli-tool",
+    "package": "kustomize",
+    "install_method": "brew",
+    "version": "5.8.1",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/kubernetes-sigs/kustomize",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "kubernetes"
+    ],
+    "documentation": "https://kubectl.docs.kubernetes.io/references/kustomize/",
+    "notes": "Installed with `brew install kustomize`; `kustomize version` printed v5.8.1. Smoke test: a kustomization.yaml with `namePrefix: reg-` over a ConfigMap resource was built with `kustomize build`, and the output correctly showed `name: reg-demo` - the overlay engine ran. VERSION SKEW WORTH NOTING: kubectl (id 500) embeds its own Kustomize at v5.7.1, so `kubectl kustomize` and this standalone `kustomize` are different builds at different versions on this machine. Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine."
+  },
+  {
+    "id": 506,
+    "name": "Terraform",
+    "category": "Containers / infrastructure",
+    "category_number": 42,
+    "technology_id": "terraform",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "cli-tool",
+    "package": "terraform",
+    "install_method": "binary-release",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/hashicorp/terraform",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://developer.hashicorp.com/terraform/docs",
+    "notes": "NOT INSTALLED, and the probe produced a licence-relevant finding worth recording exactly: `which terraform` finds nothing, AND `brew info terraform` returns 'No available formula with the name \"terraform\". Did you mean terraformer or terraform-ls?' - i.e. Terraform is no longer in homebrew-core at all, while terraform-ls still is. That removal is consistent with the reported relicensing of Terraform away from MPL-2.0 to the Business Source Licence, which is also why OpenTofu (id 507, MPL-2.0, installed and smoke-tested here) exists as a fork. license is null and license_class is LICENSE_REVIEW_REQUIRED because the current LICENSE file was NOT read on this machine - the homebrew removal is circumstantial evidence, not the licence text - and a BUSL-style grant restricts production use in competing offerings in a way no SPDX label recorded from memory should be trusted to capture. Read hashicorp/terraform's LICENSE before any commercial use. Acquisition path if it is wanted anyway: the hashicorp/tap Homebrew tap or an official binary release."
+  },
+  {
+    "id": 507,
+    "name": "OpenTofu",
+    "category": "Containers / infrastructure",
+    "category_number": 42,
+    "technology_id": "opentofu",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "cli-tool",
+    "package": "opentofu",
+    "install_method": "brew",
+    "version": "1.12.6",
+    "license": "MPL-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/opentofu/opentofu",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://opentofu.org/docs/",
+    "notes": "Installed with `brew install opentofu`; `tofu version` printed `OpenTofu v1.12.6 on darwin_arm64`. Smoke test with no provider downloads: a config with one variable and one output was checked with `tofu validate`, which answered 'Success! The configuration is valid.', and `tofu fmt -check` correctly flagged main.tf as unformatted. `tofu init` was deliberately skipped because it downloads provider plugins. This is the Linux Foundation fork of Terraform under MPL-2.0 - the practical answer to the licence question flagged at id 506, and the reason the brew formula for it exists while the one for Terraform does not. Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine."
+  },
+  {
+    "id": 508,
+    "name": "Ansible",
+    "category": "Containers / infrastructure",
+    "category_number": 42,
+    "technology_id": "ansible",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "ansible",
+    "install_method": "pip",
+    "version": "14.3.1",
+    "license": "GPL-3.0-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/ansible/ansible",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.ansible.com/",
+    "notes": "Installed into technology-universe/runtimes/python-tooling/.venv. Two versions matter and both were measured: the `ansible` community distribution is 14.3.1, and `ansible --version` reports the engine as `ansible [core 2.21.3]` - quoting only one of them is how people end up debugging the wrong changelog. Smoke test: `ansible localhost -m ping -c local` returned `localhost | SUCCESS => {\"changed\": false, \"ping\": \"pong\"}` (with the expected warning that no inventory was parsed) - a real module executed through the local connection plugin. GPL-3.0-or-later: running playbooks does not affect the licence of what they configure, but distributing a product that embeds ansible-core does. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 509,
+    "name": "MinIO",
+    "category": "Object/file storage",
+    "category_number": 43,
+    "technology_id": "minio",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "service",
+    "package": "minio",
+    "install_method": "brew",
+    "version": null,
+    "license": "AGPL-3.0-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/minio/minio",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://min.io/docs/minio/linux/index.html",
+    "notes": "Not installed - it is a storage server, and standing one up means a running daemon and a data directory, neither of which this task should leave behind. Acquisition path: `brew install minio` (formula stable 2025-10-15T17-29-55Z at probe time), or the official container image. Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine. LICENCE WORTH READING BEFORE ADOPTION: AGPL-3.0-or-later is network copyleft - operating a modified MinIO as a service you offer to others triggers source-disclosure obligations to those users. MinIO also sells a commercial licence precisely to release adopters from that, and has moved functionality between its community and commercial offerings over time, so confirm which build and which features you are entitled to before depending on them."
+  },
+  {
+    "id": 510,
+    "name": "SeaweedFS",
+    "category": "Object/file storage",
+    "category_number": 43,
+    "technology_id": "seaweedfs",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "service",
+    "package": "seaweedfs",
+    "install_method": "brew",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/seaweedfs/seaweedfs",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://github.com/seaweedfs/seaweedfs/wiki",
+    "notes": "Not installed, for the same reason as MinIO - it is a running distributed filer, not a library. Acquisition path: `brew install seaweedfs` (formula stable 4.42 at probe time). Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine. Apache-2.0 is the permissive alternative in this category: SeaweedFS carries none of the network-copyleft obligations that MinIO (id 509) and Garage (id 511) do, which is the main practical axis on which these three differ."
+  },
+  {
+    "id": 511,
+    "name": "Garage",
+    "category": "Object/file storage",
+    "category_number": 43,
+    "technology_id": "garage",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "rust",
+    "kind": "service",
+    "package": "garage",
+    "install_method": "brew",
+    "version": null,
+    "license": "AGPL-3.0-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://git.deuxfleurs.fr/Deuxfleurs/garage",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://garagehq.deuxfleurs.fr/documentation/",
+    "notes": "Not installed - a running S3-compatible object store, same reasoning as ids 509 and 510. Acquisition path: `brew install garage` (formula stable 2.3.0 at probe time). Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine. AGPL-3.0-or-later, so the same network-copyleft caution as MinIO applies. Note the canonical repository is self-hosted at git.deuxfleurs.fr rather than on GitHub, which matters if your supply-chain tooling only understands GitHub sources."
+  },
+  {
+    "id": 512,
+    "name": "S3-compatible storage APIs",
+    "category": "Object/file storage",
+    "category_number": 43,
+    "technology_id": "s3-compatible-storage-apis",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "spec",
+    "kind": "alternative-group",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html",
+    "notes": "Names a CLASS - one of the seven alternative-group ids SCHEMA.md enumerates. 'S3-compatible' is a wire protocol that many independent products implement, not something you install: the implementations sitting next to it in this same category are MinIO (id 509, AGPL), SeaweedFS (id 510, Apache-2.0) and Garage (id 511, AGPL), plus Amazon S3 itself and Ceph RGW. There is no artifact, no version and no single licence - and the licences of the members differ on exactly the axis that matters (network copyleft or not), so license_class is LICENSE_REVIEW_REQUIRED rather than any one of them. The protocol specification itself is AWS documentation published under Amazon's terms, which were not read here."
+  },
+  {
+    "id": 513,
+    "name": "Apache Commons Compress",
+    "category": "Object/file storage",
+    "category_number": 43,
+    "technology_id": "apache-commons-compress",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "jvm",
+    "kind": "library",
+    "package": "org.apache.commons:commons-compress",
+    "install_method": "maven",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/apache/commons-compress",
+    "runtime_requirements": [
+      "java"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://commons.apache.org/proper/commons-compress/",
+    "notes": "Not installed. This is the only JVM library in this range and there is no Maven or Gradle project here to resolve it into - a JVM is present (`java` resolves), but a bare JRE gives no way to fetch and verify a Maven artifact without creating a build. Acquisition path: the Maven coordinate `org.apache.commons:commons-compress`. license is null and license_class is LICENSE_REVIEW_REQUIRED strictly because no licence-bearing file or packager metadata was read on this machine. It is an Apache Software Foundation project, so Apache-2.0 is the expected answer - but 'expected' is not 'measured', and the rule for this registry is that an unread licence is recorded as unread. Reading NOTICE and LICENSE from the artifact settles it in one step."
+  },
+  {
+    "id": 514,
+    "name": "Zip.js",
+    "category": "Object/file storage",
+    "category_number": 43,
+    "technology_id": "zip-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@zip.js/zip.js",
+    "install_method": "npm",
+    "version": "2.8.53",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/gildas-lormeau/zip.js",
+    "runtime_requirements": [
+      "node>=18"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ],
+    "documentation": "https://gildas-lormeau.github.io/zip.js/",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling. Note the package name is scoped - `@zip.js/zip.js`; the unscoped `zip.js` is not this project and a plain `npm view zip.js` errors. Smoke test: a ZipWriter over a Uint8ArrayWriter added a TextReader entry and closed, producing a real 158-byte archive in memory - compression actually ran. Works in both Node and the browser. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 515,
+    "name": "Manim",
+    "category": "Scientific / educational visualization extras",
+    "category_number": 44,
+    "technology_id": "manim",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "manim",
+    "install_method": "pip",
+    "version": "0.21.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/ManimCommunity/manim",
+    "runtime_requirements": [
+      "python3",
+      "ffmpeg",
+      "cairo",
+      "pango"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.manim.community/en/stable/",
+    "notes": "INSTALLED SUCCESSFULLY, contrary to the expectation that cairo would block it. `pip install manim` into technology-universe/runtimes/python-tooling/.venv built pycairo 1.29.1, glcontext 3.0.0, srt and watchdog from source and completed - the system cairo and pango that manimpango and pycairo need were already present via Homebrew, and ffmpeg is on PATH. Smoke test - a genuine render, not an import: `manim render -ql` on a Scene that plays Create(Circle()) produced media/videos/manim_scene/480p15/Smoke.mp4, 6058 bytes, with the log line 'Rendered Smoke / Played 1 animations'. This is the Manim COMMUNITY edition (ManimCommunity/manim), which is the maintained fork; 3b1b's original manimgl is a different package. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 516,
+    "name": "VPython",
+    "category": "Scientific / educational visualization extras",
+    "category_number": 44,
+    "technology_id": "vpython",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "vpython",
+    "install_method": "pip",
+    "version": "7.6.5",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/vpython/vpython-jupyter",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://vpython.org/contents/docs/index.html",
+    "notes": "INSTALLED BUT BROKEN ON THIS INTERPRETER - recorded as a failure rather than smoothed over. `pip install vpython` succeeded into technology-universe/runtimes/python-tooling/.venv (it built a wheel from source and pulled the whole Jupyter stack), and the version 7.6.5 is measured from the installed distribution. But `import vpython` fails with: `ModuleNotFoundError: No module named 'pkg_resources'`. That is the well-known Python 3.14 consequence of setuptools no longer being present in a fresh venv - vpython still imports the deprecated pkg_resources at module load. Readiness stops at P2 because the smoke test ran and FAILED. Reproducible workaround to try: `pip install setuptools` in the same venv, or use a Python 3.12 interpreter. Licence MIT read verbatim from the LICENSE.txt shipped inside the installed vpython-7.6.5.dist-info - the distribution metadata itself only says 'LICENSE.txt', so the file had to be opened to answer the question honestly."
+  },
+  {
+    "id": 517,
+    "name": "PyVista",
+    "category": "Scientific / educational visualization extras",
+    "category_number": 44,
+    "technology_id": "pyvista",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "pyvista",
+    "install_method": "pip",
+    "version": "0.48.4",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/pyvista/pyvista",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.pyvista.org/",
+    "notes": "Installed into technology-universe/runtimes/python-tooling/.venv; it pulled VTK 9.6.2 and matplotlib 3.11.1 with it. Smoke test: `pv.Sphere()` built a real mesh with 842 points and pyvista reported vtk_version_info (9, 6, 2) - geometry generation ran through the VTK backend. No render window was opened, so this verifies the data-model path, not on-screen rendering, which on a headless machine would need osmesa or a virtual framebuffer. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 518,
+    "name": "Plotly",
+    "category": "Scientific / educational visualization extras",
+    "category_number": 44,
+    "technology_id": "plotly",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "plotly",
+    "install_method": "pip",
+    "version": "6.9.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/plotly/plotly.py",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ],
+    "documentation": "https://plotly.com/python/",
+    "notes": "THIS IS THE PYTHON LIBRARY, plotly.py - a DIFFERENT artifact from id 117 'Plotly.js', which is the JavaScript library plotly/plotly.js. They are separate packages with separate release lines and separate names, so this record is canonical in its own right rather than a repeat, and it is treated on its own terms. The relationship is that plotly.py renders through a bundled copy of plotly.js in the browser, so a deployment ships both. Installed into technology-universe/runtimes/python-tooling/.venv. Smoke test: a go.Figure with a Scatter trace serialised to 6697 bytes of JSON via to_json() - the figure model built and rendered to its wire format. Licence MIT, read from the installed distribution metadata on this machine. The licensing question people actually ask about Plotly concerns Dash Enterprise and Chart Studio, which are separate commercial products; this MIT grant covers the plotly Python package only."
+  },
+  {
+    "id": 519,
+    "name": "Bokeh",
+    "category": "Scientific / educational visualization extras",
+    "category_number": 44,
+    "technology_id": "bokeh",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "bokeh",
+    "install_method": "pip",
+    "version": "3.9.2",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/bokeh/bokeh",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ],
+    "documentation": "https://docs.bokeh.org/en/latest/",
+    "notes": "Installed into technology-universe/runtimes/python-tooling/.venv. Smoke test: a figure with a line glyph was serialised with file_html(p, CDN, 't') to 5672 bytes of standalone HTML - the model, the document and the embed path all ran. Note that embedding with CDN resources means the rendered page fetches BokehJS from a CDN at view time; use INLINE resources if the output must work offline. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 520,
+    "name": "Holoviews",
+    "category": "Scientific / educational visualization extras",
+    "category_number": 44,
+    "technology_id": "holoviews",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "holoviews",
+    "install_method": "pip",
+    "version": "1.23.1",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/holoviz/holoviews",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ],
+    "documentation": "https://holoviews.org/",
+    "notes": "Installed into technology-universe/runtimes/python-tooling/.venv (it pulled panel 1.9.4 and param 2.4.1). Smoke test: `hv.extension('bokeh')` loaded the backend and `hv.renderer('bokeh').get_plot(hv.Curve([(1,2),(2,3)]))` returned a CurvePlot - the declarative element was compiled into a concrete backend plot, which is the step that actually exercises HoloViews. It is a layer over Bokeh (id 519) and Matplotlib rather than a renderer itself. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 521,
+    "name": "Datashader",
+    "category": "Scientific / educational visualization extras",
+    "category_number": 44,
+    "technology_id": "datashader",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "datashader",
+    "install_method": "pip",
+    "version": "0.19.1",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/holoviz/datashader",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://datashader.org/",
+    "notes": "Installed into technology-universe/runtimes/python-tooling/.venv (it pulled numba 0.67.0, llvmlite 0.49.0 and xarray 2026.7.0 - the JIT stack is a real part of its footprint). Smoke test: a Canvas of 20x20 aggregated 100 points from a pandas DataFrame and the aggregate summed to exactly 100, i.e. every point landed in a bin and none were lost. That numeric identity - points in equals points binned - is a conservation check, so it fails loudly if the aggregation path is wrong. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 522,
+    "name": "Mayavi",
+    "category": "Scientific / educational visualization extras",
+    "category_number": 44,
+    "technology_id": "mayavi",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "mayavi",
+    "install_method": "pip",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/enthought/mayavi",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.enthought.com/mayavi/mayavi/",
+    "notes": "Not installed. It needs a Qt binding (PyQt or PySide) plus VTK and an actual display to do anything, so it is a heavyweight GUI install whose value on a headless machine is close to zero - and PyVista (id 517), which covers the same VTK-based 3D ground, is installed and smoke-tested instead. Acquisition path: `pip install mayavi PyQt5`. license is null and license_class is LICENSE_REVIEW_REQUIRED because no distribution metadata was read here; note that Enthought projects vary in licence, so this one genuinely should be checked rather than assumed from its neighbours in this category."
+  },
+  {
+    "id": 523,
+    "name": "VisPy",
+    "category": "Scientific / educational visualization extras",
+    "category_number": 44,
+    "technology_id": "vispy",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "vispy",
+    "install_method": "pip",
+    "version": "0.16.2",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/vispy/vispy",
+    "runtime_requirements": [
+      "python3",
+      "opengl"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://vispy.org/",
+    "notes": "Installed into technology-universe/runtimes/python-tooling/.venv and measured at 0.16.2 (a cp314 arm64 wheel, so no compilation was needed). NOT P3, stated precisely: `import vispy` succeeds, but VisPy's entire purpose is GPU rendering through OpenGL, and no GL context was created here - an import that works proves the package installed, not that the thing it exists to do works. Creating a context needs a display or an offscreen GL backend, which was out of scope. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 524,
+    "name": "Napari",
+    "category": "Scientific / educational visualization extras",
+    "category_number": 44,
+    "technology_id": "napari",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "napari",
+    "install_method": "pip",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/napari/napari",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://napari.org/stable/",
+    "notes": "Not installed. napari is a desktop n-dimensional image viewer built on Qt and VisPy - it needs a Qt binding and a display, so on a headless machine it installs a large GUI stack that cannot then be exercised. Acquisition path: `pip install \"napari[all]\"`. license is null and license_class is LICENSE_REVIEW_REQUIRED because no distribution metadata was read on this machine."
+  },
+  {
+    "id": 525,
+    "name": "Open3D",
+    "category": "Scientific / educational visualization extras",
+    "category_number": 44,
+    "technology_id": "open3d",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "open3d",
+    "install_method": "pip",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/isl-org/Open3D",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://www.open3d.org/docs/release/",
+    "notes": "DELIBERATELY NOT INSTALLED - explicitly excluded as heavy. Open3D ships large compiled wheels with bundled native dependencies and has a history of lagging on new CPython versions, and this venv runs Python 3.14.7, so a failed multi-hundred-megabyte download was the likely outcome. Trimesh (id 526, installed and smoke-tested) covers the lightweight mesh-processing need without any of that. Acquisition path: `pip install open3d`, ideally on Python 3.12. license is null and license_class is LICENSE_REVIEW_REQUIRED because nothing licence-bearing was read here."
+  },
+  {
+    "id": 526,
+    "name": "Trimesh",
+    "category": "Scientific / educational visualization extras",
+    "category_number": 44,
+    "technology_id": "trimesh",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "trimesh",
+    "install_method": "pip",
+    "version": "5.0.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/mikedh/trimesh",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://trimesh.org/",
+    "notes": "Installed into technology-universe/runtimes/python-tooling/.venv. Smoke test with an answer that can be checked by hand: `trimesh.creation.box(extents=(2,2,2)).volume` returned exactly 8.000, which is 2 cubed - so the mesh was constructed and the volume integral over its faces is correct, not merely non-crashing. Pure Python with optional accelerators, which is why it installs cleanly on Python 3.14 where the compiled 3D packages in this category do not. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 527,
+    "name": "OpenCascade",
+    "category": "Geometry / CAD / spatial math",
+    "category_number": 45,
+    "technology_id": "opencascade",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "library",
+    "package": "opencascade",
+    "install_method": "brew",
+    "version": null,
+    "license": "LGPL-2.1-only",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/Open-Cascade-SAS/OCCT",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "toolchain",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://dev.opencascade.org/doc/overview/html/",
+    "notes": "Not installed - OCCT is a large C++ CAD kernel and nothing here consumes it. Acquisition path: `brew install opencascade` (formula stable 7.9.3 at probe time). Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine. LICENCE CAVEAT THAT MATTERS: the formula records LGPL-2.1-only, but OCCT ships an ADDITIONAL exception clause alongside the LGPL text which changes what static linking obliges you to do. That exception was not read on this machine, so treat the bare SPDX id as the packager's summary rather than the whole grant, and read OCCT's own LICENSE_LGPL_21.txt plus its exception before linking it into anything distributed."
+  },
+  {
+    "id": 528,
+    "name": "OpenCascade.js",
+    "category": "Geometry / CAD / spatial math",
+    "category_number": 45,
+    "technology_id": "opencascade-js",
+    "canonical": false,
+    "canonical_id": 141,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "opencascade.js",
+    "install_method": "npm",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/donalffons/opencascade.js",
+    "runtime_requirements": [],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P0",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://ocjs.org/",
+    "notes": "NON-CANONICAL: this is the same technology as inventory id 141, 'OpenCascade.js', which is the lower id and therefore the canonical record. Identical name, identical package - the specification simply lists it in two categories. Per SCHEMA.md, installation and verification are recorded on the canonical record only, so this entry deliberately carries no version, no verification and readiness P0; duplicating them here would let one technology be counted as verified twice. Nothing about it was installed or measured at either id. license is null and license_class is LICENSE_REVIEW_REQUIRED here because no licence was read; note the licence question is genuinely non-trivial for this project, since it is an Emscripten build of OCCT and therefore inherits the LGPL-plus-exception question flagged at id 527."
+  },
+  {
+    "id": 529,
+    "name": "CGAL",
+    "category": "Geometry / CAD / spatial math",
+    "category_number": 45,
+    "technology_id": "cgal",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "library",
+    "package": "cgal",
+    "install_method": "brew",
+    "version": null,
+    "license": "GPL-3.0-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/CGAL/cgal",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "toolchain",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://doc.cgal.org/latest/Manual/index.html",
+    "notes": "Not installed - a large header-heavy C++ computational-geometry library with no consumer here. Acquisition path: `brew install cgal` (formula stable 6.2 at probe time). Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine. LICENCE WORTH READING CAREFULLY: CGAL is DUAL-LICENSED. The formula records GPL-3.0-or-later, and that is correct for the open-source track - but CGAL also sells commercial licences precisely because GPL-3.0 is unusable inside a proprietary product, and different CGAL packages within the same distribution have historically carried different terms (some LGPL). Confirm the licence of the specific CGAL packages you use, not just of the distribution as a whole."
+  },
+  {
+    "id": 530,
+    "name": "Shapely",
+    "category": "Geometry / CAD / spatial math",
+    "category_number": 45,
+    "technology_id": "shapely",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "shapely",
+    "install_method": "pip",
+    "version": "2.1.2",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/shapely/shapely",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://shapely.readthedocs.io/en/stable/",
+    "notes": "Installed into technology-universe/runtimes/python-tooling/.venv. Smoke test with a checkable answer: `Point(0,0).buffer(1.0).area` returned 3.1365, which is the area of the 64-segment polygon that approximates a unit circle - correctly just under pi (3.14159), as a straight-edged inscribed approximation must be. Getting exactly pi would have meant the number was faked rather than computed. Shapely wraps GEOS, which ships inside the wheel. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 531,
+    "name": "GeoPandas",
+    "category": "Geometry / CAD / spatial math",
+    "category_number": 45,
+    "technology_id": "geopandas",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "geopandas",
+    "install_method": "pip",
+    "version": "1.1.4",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/geopandas/geopandas",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://geopandas.org/en/stable/",
+    "notes": "Installed into technology-universe/runtimes/python-tooling/.venv. INSTALLED SUCCESSFULLY EVEN THOUGH FIONA (id 532) DID NOT, and the reason is the useful part: modern GeoPandas defaults to pyogrio (0.13.0 was pulled in, a prebuilt 24.7 MB arm64 wheel with GDAL bundled) instead of fiona, so it needs no system gdal-config. Smoke test: a GeoDataFrame holding Point(0,0).buffer(2.0) in EPSG:3857 reported area 12.546, which is four times the unit-circle approximation measured at id 530 - the expected r-squared scaling. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 532,
+    "name": "Fiona",
+    "category": "Geometry / CAD / spatial math",
+    "category_number": 45,
+    "technology_id": "fiona",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "fiona",
+    "install_method": "pip",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/Toblerity/Fiona",
+    "runtime_requirements": [
+      "python3",
+      "gdal"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://fiona.readthedocs.io/en/stable/",
+    "notes": "INSTALL ATTEMPTED AND FAILED - the exact error, verbatim, so nobody has to re-derive it: `pip install fiona` fell back to a source build (no cp314 wheel is published for this interpreter) and died at the 'Getting requirements to build wheel' stage with `WARNING:root:Failed to get options via gdal-config: [Errno 2] No such file or directory: 'gdal-config'` followed by `CRITICAL:root:A GDAL API version must be specified. Provide a path to gdal-config using a GDAL_CONFIG environment variable or use a GDAL_VERSION environment variable.` and `ERROR: Failed to build 'fiona' when getting requirements to build wheel`. ROOT CAUSE: fiona links against a SYSTEM GDAL and there is none on this machine - no gdal-config on PATH. Contrast rasterio (id 533), which installed instantly because it publishes a cp314 wheel with GDAL 3.12.4 bundled inside. FIX: `brew install gdal` first, then retry; or use Python 3.12 where fiona wheels exist; or use pyogrio, which is what GeoPandas (id 531) already does. license is null and license_class is LICENSE_REVIEW_REQUIRED because the install failed, so no distribution metadata was ever available to read."
+  },
+  {
+    "id": 533,
+    "name": "Rasterio",
+    "category": "Geometry / CAD / spatial math",
+    "category_number": 45,
+    "technology_id": "rasterio",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "rasterio",
+    "install_method": "pip",
+    "version": "1.5.1",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/rasterio/rasterio",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://rasterio.readthedocs.io/en/stable/",
+    "notes": "Installed into technology-universe/runtimes/python-tooling/.venv from a prebuilt cp314 arm64 wheel (23.2 MB) with GDAL 3.12.4 bundled - which is exactly why it succeeded where fiona (id 532) failed. Smoke test: a 4x4 uint8 GeoTIFF was written with an explicit CRS and transform, then reopened and read back; the band summed to 120, which is the sum of 0..15 - a full write-then-read round trip through the GTiff driver, not just an import. GDAL emitted a NotGeoreferencedWarning about the deliberately trivial transform, which is expected and harmless. Licence read from the installed distribution's metadata on this machine."
+  },
+  {
+    "id": 534,
+    "name": "PROJ",
+    "category": "Geometry / CAD / spatial math",
+    "category_number": 45,
+    "technology_id": "proj",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "library",
+    "package": "proj",
+    "install_method": "brew",
+    "version": "9.5.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/OSGeo/PROJ",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://proj.org/en/stable/",
+    "notes": "PRESENT AND MEASURED, BUT READ HOW: PROJ is a C library and there is no system PROJ on this machine (no `proj` binary on PATH). The copy measured here is the libproj that ships INSIDE the pyproj wheel installed at technology-universe/runtimes/python-tooling/.venv, and its version was read at runtime from `pyproj.proj_version_str` = 9.5.1. That is a genuine measurement of a real library on this machine, not a guess - but it is a vendored copy, so it is not on PATH and not available to non-Python consumers. Smoke test: transforming (10.0, 50.0) from EPSG:4326 to EPSG:3857 returned x=1113194.9, y=6446275.8 - the correct Web Mercator coordinates for 10E 50N, which is a datum transformation actually executing rather than an import succeeding. Licence MIT read from the Homebrew `proj` formula metadata (formula stable 9.8.1 at probe time - newer than the vendored 9.5.1). To get PROJ system-wide: `brew install proj`."
+  },
+  {
+    "id": 535,
+    "name": "GDAL",
+    "category": "Geometry / CAD / spatial math",
+    "category_number": 45,
+    "technology_id": "gdal",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "library",
+    "package": "gdal",
+    "install_method": "brew",
+    "version": "3.12.4",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/OSGeo/gdal",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://gdal.org/en/stable/",
+    "notes": "PRESENT AND MEASURED, WITH THE SAME IMPORTANT CAVEAT AS PROJ (id 534): there is NO system GDAL here - `gdal-config` is absent from PATH, which is precisely what made fiona's install fail at id 532. The GDAL measured here is the copy vendored inside the rasterio wheel, and 3.12.4 was read at runtime from `rasterio.__gdal_version__`. Smoke test: that GDAL wrote and read back a real GeoTIFF through the GTiff driver (see id 533), so it is a working library, not a version string. Licence MIT read from the Homebrew `gdal` formula metadata (formula stable 3.13.3 at probe time) - note GDAL moved from an X/MIT-style licence to a clean MIT grant in the 3.x line, and that some optional GDAL drivers link third-party libraries with their own terms, so a build's effective licence depends on which drivers it was compiled with. Installing `brew install gdal` would put gdal-config on PATH and unblock fiona."
+  },
+  {
+    "id": 536,
+    "name": "Turf.js",
+    "category": "Geometry / CAD / spatial math",
+    "category_number": 45,
+    "technology_id": "turf-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@turf/turf",
+    "install_method": "npm",
+    "version": "7.4.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/Turfjs/turf",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ],
+    "documentation": "https://turfjs.org/docs/",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling. Smoke test with an answer that can be checked against physical reality: `turf.distance(point([0,0]), point([0,1]), {units:'kilometers'})` returned 111.195 km - one degree of latitude, which is correct to the metre for a spherical earth model. A wrong implementation would not land on that number by accident. Pure JavaScript, so it runs identically in Node and the browser; Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 537,
+    "name": "Godot",
+    "category": "Game / simulation engines that can become learning renderers",
+    "category_number": 46,
+    "technology_id": "godot",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "framework",
+    "package": "godot",
+    "install_method": "brew",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/godotengine/godot",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "desktop",
+      "browser"
+    ],
+    "documentation": "https://docs.godotengine.org/en/stable/",
+    "notes": "DELIBERATELY NOT INSTALLED - explicitly excluded as heavy; Godot is a full desktop editor application, and exporting to the web additionally requires separate export templates. Acquisition path: `brew install godot` (formula stable 4.7.2 at probe time). LICENCE - AN HONEST NULL RATHER THAN A CONFIDENT GUESS: the Homebrew formula metadata carries NO license field for godot, so the one authoritative source available without installing came back empty. Godot is widely understood to be MIT/Expat, and that is very likely correct, but 'widely understood' is not a measurement, and this registry's rule is that an unread licence is recorded as unread. Reading LICENSE.txt from the godotengine/godot repository settles it in one step and should be done before the entry is relied on."
+  },
+  {
+    "id": 538,
+    "name": "Bevy",
+    "category": "Game / simulation engines that can become learning renderers",
+    "category_number": 46,
+    "technology_id": "bevy",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "rust",
+    "kind": "framework",
+    "package": "bevy",
+    "install_method": "cargo",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/bevyengine/bevy",
+    "runtime_requirements": [
+      "rust"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "desktop",
+      "browser"
+    ],
+    "documentation": "https://bevy.org/learn/",
+    "notes": "Not installed. NEGATIVE PROBE RESULT: there is no Rust toolchain on this machine - `cargo` is not on PATH - so Bevy could not be fetched even if it were wanted, and installing rustup plus compiling a Bevy dependency tree is a multi-gigabyte, many-minute operation well outside this range's budget. Acquisition path: install a Rust toolchain, then add `bevy` as a crate dependency. license is null and license_class is LICENSE_REVIEW_REQUIRED because no licence-bearing metadata was read on this machine - crates.io was not queried and no source was fetched."
+  },
+  {
+    "id": 539,
+    "name": "Phaser",
+    "category": "Game / simulation engines that can become learning renderers",
+    "category_number": 46,
+    "technology_id": "phaser",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "phaser",
+    "install_method": "npm",
+    "version": "4.2.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/phaserjs/phaser",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://docs.phaser.io/phaser/getting-started/what-is-phaser",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling and measured at 4.2.1 from node_modules/phaser/package.json. NOT P3, and the reason is structural rather than a shortcoming: Phaser is a browser game framework that needs a canvas and a WebGL or Canvas2D context, so booting a real Phaser.Game means driving it inside a browser. That is achievable here - Puppeteer (id 455) and Playwright (id 440) are both installed and smoke-tested - but it needs a served page and a render loop, which was beyond what a version probe justifies. Licence read from the installed package's own package.json on this machine."
+  },
+  {
+    "id": 540,
+    "name": "PixiJS",
+    "category": "Game / simulation engines that can become learning renderers",
+    "category_number": 46,
+    "technology_id": "pixijs",
+    "canonical": false,
+    "canonical_id": 82,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "pixi.js",
+    "install_method": "npm",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/pixijs/pixijs",
+    "runtime_requirements": [],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P0",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://pixijs.com/8.x/guides",
+    "notes": "NON-CANONICAL: the same technology as inventory id 82, 'PixiJS', which is the lower id and therefore canonical. Same name, same npm package `pixi.js`; the specification lists it under both 2D canvas rendering and game engines. Per SCHEMA.md, installation and verification belong to the canonical record only, so this entry carries no version and readiness P0 - recording them twice would let one technology count as verified twice. MEASUREMENT MADE HERE, RECORDED FOR THE CANONICAL RECORD'S BENEFIT: pixi.js WAS installed into technology-universe/runtimes/javascript-tooling during this work and measures 8.19.0, with licence MIT read from its own package.json. That belongs on id 82. This record's own license field is null with LICENSE_REVIEW_REQUIRED because a non-canonical entry should not be a second, independently maintained assertion about the same package - point a reader at id 82 instead."
+  },
+  {
+    "id": 541,
+    "name": "PlayCanvas",
+    "category": "Game / simulation engines that can become learning renderers",
+    "category_number": 46,
+    "technology_id": "playcanvas-engine",
+    "canonical": false,
+    "canonical_id": 131,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "playcanvas",
+    "install_method": "npm",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/playcanvas/engine",
+    "runtime_requirements": [],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P0",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://developer.playcanvas.com/",
+    "notes": "NON-CANONICAL, AND THIS ONE REQUIRED A JUDGEMENT CALL BECAUSE THE NAMES DIFFER. Inventory id 131 is 'PlayCanvas Engine'; this id 541 is 'PlayCanvas'. DECISION: same technology, so this record is canonical:false pointing at 131. REASONING: 'PlayCanvas Engine' is the project's own name for the runtime published as the npm package `playcanvas` - there is exactly one codebase, playcanvas/engine, and both inventory lines resolve to it. Category 46 asks for engines usable as learning renderers, which is that runtime, not a hosted editor. The one real argument for splitting them is that playcanvas.com also sells a proprietary hosted editor under commercial terms, so the bare word 'PlayCanvas' can mean a product family rather than a library - but reading id 541 that way would make it a service entry in a category of engines, which fits neither the heading nor its neighbours (Godot, Bevy, Phaser, PixiJS, Defold). CONSEQUENCE THE SCHEMA OWNER SHOULD SEE: SCHEMA.md states 535 distinct technology_ids, derived from fifteen NAMES appearing at more than one number. This pair shares a technology without sharing a name, so if this decision stands the true count is 534, not 535, and SCHEMA.md's arithmetic needs updating. That discrepancy is flagged rather than silently absorbed. Nothing was installed at either id; license is null here because a non-canonical record should not assert a licence independently of its canonical - see id 131."
+  },
+  {
+    "id": 542,
+    "name": "Defold",
+    "category": "Game / simulation engines that can become learning renderers",
+    "category_number": 46,
+    "technology_id": "defold",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "framework",
+    "package": "defold",
+    "install_method": "binary-release",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/defold/defold",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "desktop",
+      "browser"
+    ],
+    "documentation": "https://defold.com/manuals/introduction/",
+    "notes": "Not installed - a desktop editor distributed as a platform application, with no homebrew-core formula, and nothing here consumes it. Acquisition path: the official download from defold.com or a GitHub release. LICENCE - THE MOST GENUINELY NON-STANDARD ONE IN THIS CATEGORY, WHICH IS WHY IT IS FLAGGED RATHER THAN GUESSED: Defold's source is published, but under a bespoke 'Defold License' derived from a modified Apache-2.0 with additional conditions rather than under Apache-2.0 itself, so no SPDX identifier describes it and treating it as a standard permissive licence would be wrong. The licence text was not read on this machine, so license is null and license_class is LICENSE_REVIEW_REQUIRED. Read LICENSE.txt in defold/defold before assuming anything about redistribution or forking."
+  },
+  {
+    "id": 543,
+    "name": "Mermaid",
+    "category": "Diagram / document / visual authoring extras",
+    "category_number": 47,
+    "technology_id": "mermaid",
+    "canonical": false,
+    "canonical_id": 93,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "mermaid",
+    "install_method": "npm",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/mermaid-js/mermaid",
+    "runtime_requirements": [],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P0",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://mermaid.js.org/intro/",
+    "notes": "NON-CANONICAL: the same technology as inventory id 93, 'Mermaid', which is the lower id and therefore canonical. Per SCHEMA.md, installation and verification are recorded on the canonical record only, so this entry carries no version and readiness P0. MEASUREMENTS MADE HERE, RECORDED SO THEY CAN BE MOVED TO ID 93 RATHER THAN LOST: the npm package `mermaid` was installed into technology-universe/runtimes/javascript-tooling and measures 11.17.0, licence MIT read from its own package.json; and separately, @mermaid-js/mermaid-cli 11.15.0 was ALREADY installed globally on this machine (`mmdc --version` prints 11.15.0, `npm ls -g --depth=0` lists it under /opt/homebrew/lib). Note those are two different artifacts at two different versions - the library and the CLI. Both belong on id 93. This record's license is null with LICENSE_REVIEW_REQUIRED so it does not become a second, independent assertion about the same package."
+  },
+  {
+    "id": 544,
+    "name": "Graphviz",
+    "category": "Diagram / document / visual authoring extras",
+    "category_number": 47,
+    "technology_id": "graphviz",
+    "canonical": false,
+    "canonical_id": 98,
+    "ecosystem": "c-cpp",
+    "kind": "cli-tool",
+    "package": "graphviz",
+    "install_method": "brew",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://gitlab.com/graphviz/graphviz",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "toolchain",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://graphviz.org/documentation/",
+    "notes": "NON-CANONICAL: the same technology as inventory id 98, 'Graphviz', which is the lower id and therefore canonical. Per SCHEMA.md, installation and verification belong to id 98 only, so this entry carries no version and readiness P0. MEASUREMENTS MADE HERE, FOR ID 98'S BENEFIT: Graphviz WAS installed during this work with `brew install graphviz`; `dot -V` prints `dot - graphviz version 15.1.1 (20260805.0921)`, and a smoke test rendered `digraph G { a -> b; b -> c; }` to a 1849-byte SVG. Its Homebrew formula metadata declares the licence EPL-1.0 - the Eclipse Public Licence, which is a weak copyleft and NOT the permissive licence people tend to assume for a graph layout tool, so it is worth carrying across to id 98 deliberately. This record's own license stays null with LICENSE_REVIEW_REQUIRED so the assertion lives in exactly one place. Note the canonical upstream is on GitLab, not GitHub."
+  },
+  {
+    "id": 545,
+    "name": "PlantUML",
+    "category": "Diagram / document / visual authoring extras",
+    "category_number": 47,
+    "technology_id": "plantuml",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "jvm",
+    "kind": "cli-tool",
+    "package": "plantuml",
+    "install_method": "brew",
+    "version": "1.2026.6",
+    "license": "GPL-3.0-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/plantuml/plantuml",
+    "runtime_requirements": [
+      "java"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://plantuml.com/starting",
+    "notes": "Installed with `brew install plantuml`, which also pulled graphviz and its image dependencies. `plantuml -version` printed `PlantUML version 1.2026.6 / 6287b33 [2026-06-08 16:02:56 UTC]` and, on its own next line, `(GPL source distribution)`. Smoke test: `plantuml -tsvg` rendered a sequence diagram (`Alice -> Bob: hello`) to a 3247-byte SVG. Needs a JVM - `java` resolves to /usr/bin/java on this machine. LICENCE, TWO INDEPENDENT SOURCES AGREEING: the Homebrew formula declares GPL-3.0-or-later, and the binary itself announces '(GPL source distribution)' - so this is the GPL build. That matters because PlantUML historically offered other licensing tracks for the same code, and GPL-3.0 has real consequences if PlantUML is embedded in a distributed product rather than invoked as a separate process."
+  },
+  {
+    "id": 546,
+    "name": "Ditaa",
+    "category": "Diagram / document / visual authoring extras",
+    "category_number": 47,
+    "technology_id": "ditaa",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "jvm",
+    "kind": "cli-tool",
+    "package": "ditaa",
+    "install_method": "brew",
+    "version": "0.11.0",
+    "license": "LGPL-3.0-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/stathissideris/ditaa",
+    "runtime_requirements": [
+      "java"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/stathissideris/ditaa#readme",
+    "notes": "Installed with `brew install ditaa`; the Cellar path records 0.11.0_1, where 0.11.0 is the upstream version and _1 is Homebrew's revision - the upstream version is what this record carries. NOTE ON HOW IT WAS MEASURED: ditaa has no --version flag (passing one prints its usage banner), so the version comes from the installed package metadata rather than from the binary. Smoke test: converting a three-line ASCII box (`+---+ | A | +---+`) produced a real 791-byte PNG with the log lines 'Reading file', 'Rendering to file', 'Done in 1sec'. Needs a JVM. Licence read from the Homebrew formula metadata (`brew info --json=v2`) on this machine."
+  },
+  {
+    "id": 547,
+    "name": "Kroki",
+    "category": "Diagram / document / visual authoring extras",
+    "category_number": 47,
+    "technology_id": "kroki",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "jvm",
+    "kind": "service",
+    "package": "yuzutech/kroki",
+    "install_method": "oci-image",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/yuzutech/kroki",
+    "runtime_requirements": [
+      "java"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.kroki.io/kroki/",
+    "notes": "Not installed. Kroki is a SERVICE, not a library: it is an HTTP gateway that fronts many diagram renderers (Mermaid, PlantUML, Graphviz, BPMN and more) behind one API, and running it properly means several containers, so `docker compose up` against the upstream compose file is the realistic acquisition path. That was deliberately not done - it would pull multiple images, and the two renderers this range actually needs, PlantUML (id 545) and Graphviz (via id 544), are already installed locally and smoke-tested, which is strictly better evidence than a gateway in front of them. license is null and license_class is LICENSE_REVIEW_REQUIRED because no licence-bearing file or packager metadata was read on this machine; note that a gateway aggregating other projects' renderers also inherits THEIR licences at runtime - PlantUML's GPL-3.0 (id 545) and Graphviz's EPL-1.0 (see id 544) among them - so the composite picture needs review, not just Kroki's own file."
+  },
+  {
+    "id": 548,
+    "name": "BPMN.js",
+    "category": "Diagram / document / visual authoring extras",
+    "category_number": 47,
+    "technology_id": "bpmn-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "bpmn-js",
+    "install_method": "npm",
+    "version": "18.25.1",
+    "license": "MIT with bpmn.io watermark clause (non-SPDX)",
+    "license_class": "SPECIAL_LICENSE",
+    "official_source": "https://github.com/bpmn-io/bpmn-js",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://bpmn.io/toolkit/bpmn-js/",
+    "notes": "Installed into technology-universe/runtimes/javascript-tooling and measured at 18.25.1. NOT P3: bpmn-js is a browser BPMN modeller that requires a DOM to instantiate, and no viewer was booted in a browser here. LICENCE - THE MOST INTERESTING ONE IN THIS RANGE, AND THE REASON THIS RECORD IS SPECIAL_LICENSE RATHER THAN OPEN_SOURCE. Its package.json declares `\"license\": \"SEE LICENSE IN LICENSE\"`, which is npm's way of saying 'not an SPDX identifier'. Reading node_modules/bpmn-js/LICENSE on this machine shows standard MIT text (Copyright Camunda Services GmbH) with one added, non-optional condition, quoted here because it is the whole point: 'The source code responsible for displaying the bpmn.io project watermark that links back to https://bpmn.io as part of rendered diagrams MUST NOT be removed or changed. When this software is being used in a website or application, the watermark must stay fully visible and not visually overlapped by other elements.' That is a restriction on USE, not just on redistribution - a product built on bpmn-js must display and not obscure the bpmn.io watermark. It is recorded as its own named grant rather than forced into an SPDX id, per SCHEMA.md's instruction to record the licence text's own terms."
+  },
+  {
+    "id": 549,
+    "name": "Rough.js",
+    "category": "Diagram / document / visual authoring extras",
+    "category_number": 47,
+    "technology_id": "rough-js",
+    "canonical": false,
+    "canonical_id": 86,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "roughjs",
+    "install_method": "npm",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/rough-stuff/rough",
+    "runtime_requirements": [],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P0",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://roughjs.com/",
+    "notes": "NON-CANONICAL: the same technology as inventory id 86, 'Rough.js', which is the lower id and therefore canonical. SCHEMA.md singles this name out as its worked example - Rough.js appears at three inventory numbers (categories 6, 8 and 47), so it is one technology_id occupying three inventory positions. Per SCHEMA.md, installation and verification are recorded on the canonical record only, so this entry carries no version and readiness P0. It was not installed at this id, and license is null with LICENSE_REVIEW_REQUIRED so that this record does not become a third independent assertion about the same package - id 86 is the one to read and the one to maintain."
+  },
+  {
+    "id": 550,
+    "name": "Fabric.js",
+    "category": "Diagram / document / visual authoring extras",
+    "category_number": 47,
+    "technology_id": "fabric-js",
+    "canonical": false,
+    "canonical_id": 83,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "fabric",
+    "install_method": "npm",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/fabricjs/fabric.js",
+    "runtime_requirements": [],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P0",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "http://fabricjs.com/docs/",
+    "notes": "NON-CANONICAL: the same technology as inventory id 83, 'Fabric.js', which is the lower id and therefore canonical (it also appears at id 108, so this name occupies three inventory positions in total). Per SCHEMA.md, installation and verification belong to id 83 only, so this entry carries no version and readiness P0, and license is null with LICENSE_REVIEW_REQUIRED rather than a duplicated assertion. Nothing was installed at this id. Worth noting for whoever maintains id 83: the npm package is `fabric`, not `fabric.js`, which is a common source of a wrong install line. LAST RECORD IN THIS RANGE - id 550 is the final line of inventory.txt."
+  }
+]

@@ -1,0 +1,3302 @@
+{
+  "1": {
+    "name": "React",
+    "package": "react",
+    "version": "19.2.8",
+    "install_method": "npm"
+  },
+  "2": {
+    "name": "React DOM",
+    "package": "react-dom",
+    "version": "19.2.8",
+    "install_method": "npm"
+  },
+  "3": {
+    "name": "Next.js",
+    "package": "next",
+    "version": "16.3.1",
+    "install_method": "npm"
+  },
+  "4": {
+    "name": "Vite",
+    "package": "vite",
+    "version": "8.2.1",
+    "install_method": "npm"
+  },
+  "5": {
+    "name": "TypeScript",
+    "package": "typescript",
+    "version": "7.0.2",
+    "install_method": "npm"
+  },
+  "6": {
+    "name": "JavaScript",
+    "package": null,
+    "version": null,
+    "install_method": "builtin"
+  },
+  "7": {
+    "name": "TanStack Router",
+    "package": "@tanstack/react-router",
+    "version": "1.170.31",
+    "install_method": "npm"
+  },
+  "8": {
+    "name": "TanStack Start",
+    "package": "@tanstack/react-start",
+    "version": "1.168.48",
+    "install_method": "npm"
+  },
+  "9": {
+    "name": "Remix",
+    "package": "@remix-run/react",
+    "version": null,
+    "install_method": "npm"
+  },
+  "10": {
+    "name": "Astro",
+    "package": "astro",
+    "version": "7.2.4",
+    "install_method": "npm"
+  },
+  "11": {
+    "name": "Svelte",
+    "package": "svelte",
+    "version": "5.56.9",
+    "install_method": "npm"
+  },
+  "12": {
+    "name": "SvelteKit",
+    "package": "@sveltejs/kit",
+    "version": null,
+    "install_method": "npm"
+  },
+  "13": {
+    "name": "Vue",
+    "package": "vue",
+    "version": "3.5.41",
+    "install_method": "npm"
+  },
+  "14": {
+    "name": "Nuxt",
+    "package": "nuxt",
+    "version": "4.5.2",
+    "install_method": "npm"
+  },
+  "15": {
+    "name": "SolidJS",
+    "package": "solid-js",
+    "version": "1.9.15",
+    "install_method": "npm"
+  },
+  "16": {
+    "name": "Qwik",
+    "package": "@builder.io/qwik",
+    "version": null,
+    "install_method": "npm"
+  },
+  "17": {
+    "name": "Lit",
+    "package": "lit",
+    "version": "3.3.3",
+    "install_method": "npm"
+  },
+  "18": {
+    "name": "Preact",
+    "package": "preact",
+    "version": "10.29.8",
+    "install_method": "npm"
+  },
+  "19": {
+    "name": "Alpine.js",
+    "package": "alpinejs",
+    "version": "3.16.2",
+    "install_method": "npm"
+  },
+  "20": {
+    "name": "HTMX",
+    "package": "htmx.org",
+    "version": "2.0.10",
+    "install_method": "npm"
+  },
+  "21": {
+    "name": "Tailwind CSS",
+    "package": "tailwindcss",
+    "version": "4.3.3",
+    "install_method": "npm"
+  },
+  "22": {
+    "name": "PostCSS",
+    "package": "postcss",
+    "version": "8.5.26",
+    "install_method": "npm"
+  },
+  "23": {
+    "name": "Autoprefixer",
+    "package": "autoprefixer",
+    "version": "10.5.4",
+    "install_method": "npm"
+  },
+  "24": {
+    "name": "Radix UI",
+    "package": "radix-ui",
+    "version": "1.6.7",
+    "install_method": "npm"
+  },
+  "25": {
+    "name": "Headless UI",
+    "package": "@headlessui/react",
+    "version": "2.2.10",
+    "install_method": "npm"
+  },
+  "26": {
+    "name": "Ark UI",
+    "package": "@ark-ui/react",
+    "version": "5.38.2",
+    "install_method": "npm"
+  },
+  "27": {
+    "name": "Mantine",
+    "package": "@mantine/core",
+    "version": "9.5.1",
+    "install_method": "npm"
+  },
+  "28": {
+    "name": "Chakra UI",
+    "package": "@chakra-ui/react",
+    "version": "3.36.1",
+    "install_method": "npm"
+  },
+  "29": {
+    "name": "shadcn/ui",
+    "package": "shadcn",
+    "version": "4.18.0",
+    "install_method": "npm"
+  },
+  "30": {
+    "name": "Base UI",
+    "package": "@base-ui/react",
+    "version": "1.7.0",
+    "install_method": "npm"
+  },
+  "31": {
+    "name": "React Aria",
+    "package": "react-aria",
+    "version": "3.51.0",
+    "install_method": "npm"
+  },
+  "32": {
+    "name": "React Spectrum",
+    "package": "@adobe/react-spectrum",
+    "version": "3.47.3",
+    "install_method": "npm"
+  },
+  "33": {
+    "name": "MUI",
+    "package": "@mui/material",
+    "version": "9.3.1",
+    "install_method": "npm"
+  },
+  "34": {
+    "name": "Ant Design",
+    "package": "antd",
+    "version": "6.6.1",
+    "install_method": "npm"
+  },
+  "35": {
+    "name": "DaisyUI",
+    "package": "daisyui",
+    "version": "5.7.19",
+    "install_method": "npm"
+  },
+  "36": {
+    "name": "Lucide",
+    "package": "lucide",
+    "version": "1.33.0",
+    "install_method": "npm"
+  },
+  "37": {
+    "name": "Heroicons",
+    "package": "heroicons",
+    "version": "2.2.0",
+    "install_method": "npm"
+  },
+  "38": {
+    "name": "Tabler Icons",
+    "package": "@tabler/icons",
+    "version": "3.46.0",
+    "install_method": "npm"
+  },
+  "39": {
+    "name": "Phosphor Icons",
+    "package": "@phosphor-icons/core",
+    "version": "2.1.1",
+    "install_method": "npm"
+  },
+  "40": {
+    "name": "Floating UI",
+    "package": "@floating-ui/dom",
+    "version": "1.8.0",
+    "install_method": "npm"
+  },
+  "41": {
+    "name": "Zustand",
+    "package": "zustand",
+    "version": "5.0.15",
+    "install_method": "npm"
+  },
+  "42": {
+    "name": "Redux Toolkit",
+    "package": "@reduxjs/toolkit",
+    "version": "2.12.0",
+    "install_method": "npm"
+  },
+  "43": {
+    "name": "Jotai",
+    "package": "jotai",
+    "version": "2.20.2",
+    "install_method": "npm"
+  },
+  "44": {
+    "name": "MobX",
+    "package": "mobx",
+    "version": null,
+    "install_method": "npm"
+  },
+  "45": {
+    "name": "Valtio",
+    "package": "valtio",
+    "version": null,
+    "install_method": "npm"
+  },
+  "46": {
+    "name": "XState",
+    "package": "xstate",
+    "version": null,
+    "install_method": "npm"
+  },
+  "47": {
+    "name": "TanStack Query",
+    "package": "@tanstack/react-query",
+    "version": null,
+    "install_method": "npm"
+  },
+  "48": {
+    "name": "TanStack Store",
+    "package": "@tanstack/store",
+    "version": null,
+    "install_method": "npm"
+  },
+  "49": {
+    "name": "Immer",
+    "package": "immer",
+    "version": null,
+    "install_method": "npm"
+  },
+  "50": {
+    "name": "RxJS",
+    "package": "rxjs",
+    "version": null,
+    "install_method": "npm"
+  },
+  "51": {
+    "name": "Effector",
+    "package": "effector",
+    "version": null,
+    "install_method": "npm"
+  },
+  "52": {
+    "name": "Recoil",
+    "package": "recoil",
+    "version": null,
+    "install_method": "npm"
+  },
+  "53": {
+    "name": "Vercel SWR",
+    "package": "swr",
+    "version": null,
+    "install_method": "npm"
+  },
+  "54": {
+    "name": "Zod",
+    "package": "zod",
+    "version": null,
+    "install_method": "npm"
+  },
+  "55": {
+    "name": "Valibot",
+    "package": "valibot",
+    "version": null,
+    "install_method": "npm"
+  },
+  "56": {
+    "name": "Yup",
+    "package": "yup",
+    "version": null,
+    "install_method": "npm"
+  },
+  "57": {
+    "name": "Joi",
+    "package": "joi",
+    "version": null,
+    "install_method": "npm"
+  },
+  "58": {
+    "name": "Ajv",
+    "package": "ajv",
+    "version": null,
+    "install_method": "npm"
+  },
+  "59": {
+    "name": "TypeBox",
+    "package": "@sinclair/typebox",
+    "version": null,
+    "install_method": "npm"
+  },
+  "60": {
+    "name": "JSON Schema",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "61": {
+    "name": "React Hook Form",
+    "package": "react-hook-form",
+    "version": null,
+    "install_method": "npm"
+  },
+  "62": {
+    "name": "Final Form",
+    "package": "final-form",
+    "version": null,
+    "install_method": "npm"
+  },
+  "63": {
+    "name": "Formik",
+    "package": "formik",
+    "version": null,
+    "install_method": "npm"
+  },
+  "64": {
+    "name": "Superstruct",
+    "package": "superstruct",
+    "version": null,
+    "install_method": "npm"
+  },
+  "65": {
+    "name": "io-ts",
+    "package": "io-ts",
+    "version": null,
+    "install_method": "npm"
+  },
+  "66": {
+    "name": "Motion",
+    "package": "motion",
+    "version": null,
+    "install_method": "npm"
+  },
+  "67": {
+    "name": "Framer Motion",
+    "package": "framer-motion",
+    "version": null,
+    "install_method": "npm"
+  },
+  "68": {
+    "name": "GSAP",
+    "package": "gsap",
+    "version": null,
+    "install_method": "npm"
+  },
+  "69": {
+    "name": "Anime.js",
+    "package": "animejs",
+    "version": null,
+    "install_method": "npm"
+  },
+  "70": {
+    "name": "Popmotion",
+    "package": "popmotion",
+    "version": null,
+    "install_method": "npm"
+  },
+  "71": {
+    "name": "React Spring",
+    "package": "@react-spring/web",
+    "version": null,
+    "install_method": "npm"
+  },
+  "72": {
+    "name": "Motion One",
+    "package": "@motionone/dom",
+    "version": null,
+    "install_method": "npm"
+  },
+  "73": {
+    "name": "Auto Animate",
+    "package": "@formkit/auto-animate",
+    "version": null,
+    "install_method": "npm"
+  },
+  "74": {
+    "name": "Lottie-web",
+    "package": "lottie-web",
+    "version": null,
+    "install_method": "npm"
+  },
+  "75": {
+    "name": "Rive Runtime",
+    "package": "@rive-app/canvas",
+    "version": null,
+    "install_method": "npm"
+  },
+  "76": {
+    "name": "Theatre.js",
+    "package": "@theatre/core",
+    "version": null,
+    "install_method": "npm"
+  },
+  "77": {
+    "name": "React Transition Group",
+    "package": "react-transition-group",
+    "version": null,
+    "install_method": "npm"
+  },
+  "78": {
+    "name": "SVG",
+    "package": null,
+    "version": null,
+    "install_method": "builtin"
+  },
+  "79": {
+    "name": "HTML Canvas",
+    "package": null,
+    "version": null,
+    "install_method": "builtin"
+  },
+  "80": {
+    "name": "Konva",
+    "package": "konva",
+    "version": null,
+    "install_method": "npm"
+  },
+  "81": {
+    "name": "React Konva",
+    "package": "react-konva",
+    "version": null,
+    "install_method": "npm"
+  },
+  "82": {
+    "name": "PixiJS",
+    "package": "pixi.js",
+    "version": null,
+    "install_method": "npm"
+  },
+  "83": {
+    "name": "Fabric.js",
+    "package": "fabric",
+    "version": null,
+    "install_method": "npm"
+  },
+  "84": {
+    "name": "Paper.js",
+    "package": "paper",
+    "version": null,
+    "install_method": "npm"
+  },
+  "85": {
+    "name": "Two.js",
+    "package": "two.js",
+    "version": null,
+    "install_method": "npm"
+  },
+  "86": {
+    "name": "Rough.js",
+    "package": "roughjs",
+    "version": null,
+    "install_method": "npm"
+  },
+  "87": {
+    "name": "p5.js",
+    "package": "p5",
+    "version": null,
+    "install_method": "npm"
+  },
+  "88": {
+    "name": "regl",
+    "package": "regl",
+    "version": null,
+    "install_method": "npm"
+  },
+  "89": {
+    "name": "CairoSVG",
+    "package": "CairoSVG",
+    "version": null,
+    "install_method": "pip"
+  },
+  "90": {
+    "name": "SVG.js",
+    "package": "@svgdotjs/svg.js",
+    "version": null,
+    "install_method": "npm"
+  },
+  "91": {
+    "name": "React Flow",
+    "package": "@xyflow/react",
+    "version": null,
+    "install_method": "npm"
+  },
+  "92": {
+    "name": "Cytoscape.js",
+    "package": "cytoscape",
+    "version": null,
+    "install_method": "npm"
+  },
+  "93": {
+    "name": "Mermaid",
+    "package": "mermaid",
+    "version": null,
+    "install_method": "npm"
+  },
+  "94": {
+    "name": "Graphology",
+    "package": "graphology",
+    "version": null,
+    "install_method": "npm"
+  },
+  "95": {
+    "name": "Sigma.js",
+    "package": "sigma",
+    "version": null,
+    "install_method": "npm"
+  },
+  "96": {
+    "name": "Dagre",
+    "package": "dagre",
+    "version": null,
+    "install_method": "npm"
+  },
+  "97": {
+    "name": "ELK.js",
+    "package": "elkjs",
+    "version": null,
+    "install_method": "npm"
+  },
+  "98": {
+    "name": "Graphviz",
+    "package": "graphviz",
+    "version": null,
+    "install_method": "brew"
+  },
+  "99": {
+    "name": "Viz.js",
+    "package": "@viz-js/viz",
+    "version": null,
+    "install_method": "npm"
+  },
+  "100": {
+    "name": "JointJS Community",
+    "package": "@joint/core",
+    "version": null,
+    "install_method": "npm"
+  },
+  "101": {
+    "name": "mxGraph / maxGraph",
+    "package": "@maxgraph/core",
+    "version": null,
+    "install_method": "npm"
+  },
+  "102": {
+    "name": "GoJS alternatives via Cytoscape/React Flow",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "103": {
+    "name": "JSXGraph",
+    "package": "jsxgraph",
+    "version": null,
+    "install_method": "npm"
+  },
+  "104": {
+    "name": "Excalidraw",
+    "package": "@excalidraw/excalidraw",
+    "version": null,
+    "install_method": "npm"
+  },
+  "105": {
+    "name": "Perfect Freehand",
+    "package": "perfect-freehand",
+    "version": null,
+    "install_method": "npm"
+  },
+  "106": {
+    "name": "Rough.js",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "107": {
+    "name": "React Sketch Canvas",
+    "package": "react-sketch-canvas",
+    "version": null,
+    "install_method": "npm"
+  },
+  "108": {
+    "name": "Fabric.js",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "109": {
+    "name": "Konva",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "110": {
+    "name": "Paper.js",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "111": {
+    "name": "tldraw",
+    "package": "tldraw",
+    "version": null,
+    "install_method": "npm"
+  },
+  "112": {
+    "name": "D3",
+    "package": "d3",
+    "version": "7.9.0",
+    "install_method": "npm"
+  },
+  "113": {
+    "name": "Observable Plot",
+    "package": "@observablehq/plot",
+    "version": "0.6.17",
+    "install_method": "npm"
+  },
+  "114": {
+    "name": "Vega",
+    "package": "vega",
+    "version": null,
+    "install_method": "npm"
+  },
+  "115": {
+    "name": "Vega-Lite",
+    "package": "vega-lite",
+    "version": "6.4.3",
+    "install_method": "npm"
+  },
+  "116": {
+    "name": "Apache ECharts",
+    "package": "echarts",
+    "version": "6.1.0",
+    "install_method": "npm"
+  },
+  "117": {
+    "name": "Plotly.js",
+    "package": "plotly.js",
+    "version": null,
+    "install_method": "npm"
+  },
+  "118": {
+    "name": "Chart.js",
+    "package": "chart.js",
+    "version": "4.5.1",
+    "install_method": "npm"
+  },
+  "119": {
+    "name": "Apache Charts alternatives via ECharts/Vega",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "120": {
+    "name": "Nivo",
+    "package": "@nivo/core",
+    "version": null,
+    "install_method": "npm"
+  },
+  "121": {
+    "name": "Recharts",
+    "package": "recharts",
+    "version": null,
+    "install_method": "npm"
+  },
+  "122": {
+    "name": "Visx",
+    "package": "@visx/visx",
+    "version": null,
+    "install_method": "npm"
+  },
+  "123": {
+    "name": "Victory",
+    "package": "victory",
+    "version": null,
+    "install_method": "npm"
+  },
+  "124": {
+    "name": "uPlot",
+    "package": "uplot",
+    "version": null,
+    "install_method": "npm"
+  },
+  "125": {
+    "name": "Frappe Charts",
+    "package": "frappe-charts",
+    "version": null,
+    "install_method": "npm"
+  },
+  "126": {
+    "name": "Billboard.js",
+    "package": "billboard.js",
+    "version": null,
+    "install_method": "npm"
+  },
+  "127": {
+    "name": "Three.js",
+    "package": "three",
+    "version": "0.185.1",
+    "install_method": "npm"
+  },
+  "128": {
+    "name": "React Three Fiber",
+    "package": "@react-three/fiber",
+    "version": null,
+    "install_method": "npm"
+  },
+  "129": {
+    "name": "@react-three/drei",
+    "package": "@react-three/drei",
+    "version": null,
+    "install_method": "npm"
+  },
+  "130": {
+    "name": "Babylon.js",
+    "package": "@babylonjs/core",
+    "version": null,
+    "install_method": "npm"
+  },
+  "131": {
+    "name": "PlayCanvas Engine",
+    "package": "playcanvas",
+    "version": null,
+    "install_method": "npm"
+  },
+  "132": {
+    "name": "A-Frame",
+    "package": "aframe",
+    "version": null,
+    "install_method": "npm"
+  },
+  "133": {
+    "name": "OGL",
+    "package": "ogl",
+    "version": null,
+    "install_method": "npm"
+  },
+  "134": {
+    "name": "TresJS",
+    "package": "@tresjs/core",
+    "version": null,
+    "install_method": "npm"
+  },
+  "135": {
+    "name": "React BabylonJS",
+    "package": "react-babylonjs",
+    "version": null,
+    "install_method": "npm"
+  },
+  "136": {
+    "name": "deck.gl",
+    "package": "deck.gl",
+    "version": null,
+    "install_method": "npm"
+  },
+  "137": {
+    "name": "CesiumJS",
+    "package": "cesium",
+    "version": null,
+    "install_method": "npm"
+  },
+  "138": {
+    "name": "vtk.js",
+    "package": "@kitware/vtk.js",
+    "version": null,
+    "install_method": "npm"
+  },
+  "139": {
+    "name": "xeokit",
+    "package": "@xeokit/xeokit-sdk",
+    "version": null,
+    "install_method": "npm"
+  },
+  "140": {
+    "name": "Potree",
+    "package": null,
+    "version": null,
+    "install_method": "source-build"
+  },
+  "141": {
+    "name": "OpenCascade.js",
+    "package": "opencascade.js",
+    "version": null,
+    "install_method": "npm"
+  },
+  "142": {
+    "name": "WebGL",
+    "package": null,
+    "version": null,
+    "install_method": "builtin"
+  },
+  "143": {
+    "name": "WebGPU",
+    "package": null,
+    "version": null,
+    "install_method": "builtin"
+  },
+  "144": {
+    "name": "wgpu",
+    "package": "wgpu",
+    "version": null,
+    "install_method": "cargo"
+  },
+  "145": {
+    "name": "Three.js WebGPU renderer",
+    "package": "three",
+    "version": "0.185.1",
+    "install_method": "npm"
+  },
+  "146": {
+    "name": "regl",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "147": {
+    "name": "luma.gl",
+    "package": "@luma.gl/core",
+    "version": null,
+    "install_method": "npm"
+  },
+  "148": {
+    "name": "GPU.js",
+    "package": "gpu.js",
+    "version": null,
+    "install_method": "npm"
+  },
+  "149": {
+    "name": "gl-matrix",
+    "package": "gl-matrix",
+    "version": "3.4.4",
+    "install_method": "npm"
+  },
+  "150": {
+    "name": "twgl.js",
+    "package": "twgl.js",
+    "version": null,
+    "install_method": "npm"
+  },
+  "151": {
+    "name": "Babylon WebGPU",
+    "package": "@babylonjs/core",
+    "version": null,
+    "install_method": "npm"
+  },
+  "152": {
+    "name": "shaderc",
+    "package": "shaderc",
+    "version": null,
+    "install_method": "brew"
+  },
+  "153": {
+    "name": "Matter.js",
+    "package": "matter-js",
+    "version": "0.20.0",
+    "install_method": "npm"
+  },
+  "154": {
+    "name": "Rapier",
+    "package": "rapier3d",
+    "version": null,
+    "install_method": "cargo"
+  },
+  "155": {
+    "name": "Rapier.js",
+    "package": "@dimforge/rapier3d",
+    "version": null,
+    "install_method": "npm"
+  },
+  "156": {
+    "name": "Cannon-es",
+    "package": "cannon-es",
+    "version": null,
+    "install_method": "npm"
+  },
+  "157": {
+    "name": "Ammo.js",
+    "package": null,
+    "version": null,
+    "install_method": "source-build"
+  },
+  "158": {
+    "name": "Planck.js",
+    "package": "planck",
+    "version": null,
+    "install_method": "npm"
+  },
+  "159": {
+    "name": "Box2D",
+    "package": null,
+    "version": null,
+    "install_method": "source-build"
+  },
+  "160": {
+    "name": "Oimo.js",
+    "package": "oimo",
+    "version": null,
+    "install_method": "npm"
+  },
+  "161": {
+    "name": "Jolt Physics",
+    "package": "jolt-physics",
+    "version": null,
+    "install_method": "npm"
+  },
+  "162": {
+    "name": "Chipmunk2D",
+    "package": null,
+    "version": null,
+    "install_method": "source-build"
+  },
+  "163": {
+    "name": "PyBullet",
+    "package": "pybullet",
+    "version": null,
+    "install_method": "pip"
+  },
+  "164": {
+    "name": "Bullet Physics",
+    "package": null,
+    "version": null,
+    "install_method": "source-build"
+  },
+  "165": {
+    "name": "MuJoCo",
+    "package": "mujoco",
+    "version": "3.11.0",
+    "install_method": "pip"
+  },
+  "166": {
+    "name": "Pymunk",
+    "package": "pymunk",
+    "version": null,
+    "install_method": "pip"
+  },
+  "167": {
+    "name": "Taichi",
+    "package": "taichi",
+    "version": null,
+    "install_method": "pip"
+  },
+  "168": {
+    "name": "KaTeX",
+    "package": "katex",
+    "version": "0.18.4",
+    "install_method": "npm"
+  },
+  "169": {
+    "name": "MathJax",
+    "package": "mathjax",
+    "version": null,
+    "install_method": "npm"
+  },
+  "170": {
+    "name": "MathLive",
+    "package": "mathlive",
+    "version": null,
+    "install_method": "npm"
+  },
+  "171": {
+    "name": "Math.js",
+    "package": "mathjs",
+    "version": "15.2.0",
+    "install_method": "npm"
+  },
+  "172": {
+    "name": "SymPy",
+    "package": "sympy",
+    "version": "1.14.0",
+    "install_method": "pip"
+  },
+  "173": {
+    "name": "Nerdamer",
+    "package": "nerdamer",
+    "version": null,
+    "install_method": "npm"
+  },
+  "174": {
+    "name": "Algebrite",
+    "package": "algebrite",
+    "version": null,
+    "install_method": "npm"
+  },
+  "175": {
+    "name": "Fraction.js",
+    "package": "fraction.js",
+    "version": "5.3.4",
+    "install_method": "npm"
+  },
+  "176": {
+    "name": "decimal.js",
+    "package": "decimal.js",
+    "version": "10.6.0",
+    "install_method": "npm"
+  },
+  "177": {
+    "name": "big.js",
+    "package": "big.js",
+    "version": "7.0.1",
+    "install_method": "npm"
+  },
+  "178": {
+    "name": "numeric.js",
+    "package": "numeric",
+    "version": null,
+    "install_method": "npm"
+  },
+  "179": {
+    "name": "math-expression-evaluator",
+    "package": "math-expression-evaluator",
+    "version": null,
+    "install_method": "npm"
+  },
+  "180": {
+    "name": "JSXGraph",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "181": {
+    "name": "SageMath",
+    "package": "sage",
+    "version": null,
+    "install_method": "brew"
+  },
+  "182": {
+    "name": "GNU Octave",
+    "package": "octave",
+    "version": null,
+    "install_method": "brew"
+  },
+  "183": {
+    "name": "NumPy",
+    "package": "numpy",
+    "version": "2.5.2",
+    "install_method": "pip"
+  },
+  "184": {
+    "name": "SciPy",
+    "package": "scipy",
+    "version": "1.18.0",
+    "install_method": "pip"
+  },
+  "185": {
+    "name": "pandas",
+    "package": "pandas",
+    "version": "3.0.5",
+    "install_method": "pip"
+  },
+  "186": {
+    "name": "Polars",
+    "package": "polars",
+    "version": "1.43.2",
+    "install_method": "pip"
+  },
+  "187": {
+    "name": "Apache Arrow",
+    "package": "apache-arrow",
+    "version": null,
+    "install_method": "brew"
+  },
+  "188": {
+    "name": "DuckDB",
+    "package": "duckdb",
+    "version": "1.5.5",
+    "install_method": "pip"
+  },
+  "189": {
+    "name": "PyArrow",
+    "package": "pyarrow",
+    "version": "25.0.1",
+    "install_method": "pip"
+  },
+  "190": {
+    "name": "Numba",
+    "package": "numba",
+    "version": "0.67.0",
+    "install_method": "pip"
+  },
+  "191": {
+    "name": "JAX",
+    "package": "jax",
+    "version": null,
+    "install_method": "pip"
+  },
+  "192": {
+    "name": "PyTorch",
+    "package": "torch",
+    "version": "2.13.0",
+    "install_method": "pip"
+  },
+  "193": {
+    "name": "TensorFlow",
+    "package": "tensorflow",
+    "version": null,
+    "install_method": "pip"
+  },
+  "194": {
+    "name": "Keras",
+    "package": "keras",
+    "version": null,
+    "install_method": "pip"
+  },
+  "195": {
+    "name": "XGBoost",
+    "package": "xgboost",
+    "version": null,
+    "install_method": "pip"
+  },
+  "196": {
+    "name": "LightGBM",
+    "package": "lightgbm",
+    "version": null,
+    "install_method": "pip"
+  },
+  "197": {
+    "name": "CatBoost",
+    "package": "catboost",
+    "version": null,
+    "install_method": "pip"
+  },
+  "198": {
+    "name": "scikit-learn",
+    "package": "scikit-learn",
+    "version": "1.9.0",
+    "install_method": "pip"
+  },
+  "199": {
+    "name": "Statsmodels",
+    "package": "statsmodels",
+    "version": "0.14.6",
+    "install_method": "pip"
+  },
+  "200": {
+    "name": "NetworkX",
+    "package": "networkx",
+    "version": "3.6.1",
+    "install_method": "pip"
+  },
+  "201": {
+    "name": "Lean 4",
+    "package": "leanprover/lean4:v4.33.0",
+    "version": "4.33.0",
+    "install_method": "elan"
+  },
+  "202": {
+    "name": "Mathlib",
+    "package": "mathlib",
+    "version": null,
+    "install_method": "elan"
+  },
+  "203": {
+    "name": "Coq",
+    "package": "rocq",
+    "version": "9.2",
+    "install_method": "brew"
+  },
+  "204": {
+    "name": "Isabelle",
+    "package": "isabelle",
+    "version": "2025-2",
+    "install_method": "brew"
+  },
+  "205": {
+    "name": "Agda",
+    "package": "agda",
+    "version": null,
+    "install_method": "brew"
+  },
+  "206": {
+    "name": "Z3",
+    "package": "z3",
+    "version": "5.0.0",
+    "install_method": "brew"
+  },
+  "207": {
+    "name": "CVC5",
+    "package": "cvc5",
+    "version": null,
+    "install_method": "pip"
+  },
+  "208": {
+    "name": "SymPy",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "209": {
+    "name": "SMT-LIB tooling",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "210": {
+    "name": "OpenQASM tooling",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "211": {
+    "name": "NetworkX",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "212": {
+    "name": "igraph",
+    "package": "igraph",
+    "version": "1.0.0",
+    "install_method": "pip"
+  },
+  "213": {
+    "name": "graphology",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "214": {
+    "name": "Neo4j Community Edition",
+    "package": "neo4j",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "215": {
+    "name": "Memgraph Community",
+    "package": "memgraph",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "216": {
+    "name": "Apache TinkerPop",
+    "package": "org.apache.tinkerpop:gremlin-core",
+    "version": null,
+    "install_method": "maven"
+  },
+  "217": {
+    "name": "RDFLib",
+    "package": "rdflib",
+    "version": "7.6.0",
+    "install_method": "pip"
+  },
+  "218": {
+    "name": "rdflib.js",
+    "package": "rdflib",
+    "version": "2.4.0",
+    "install_method": "npm"
+  },
+  "219": {
+    "name": "Comunica",
+    "package": "@comunica/query-sparql",
+    "version": "5.3.0",
+    "install_method": "npm"
+  },
+  "220": {
+    "name": "N-Triples / Turtle tooling",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "221": {
+    "name": "SHACL tooling",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "222": {
+    "name": "pySHACL",
+    "package": "pyshacl",
+    "version": "0.40.1",
+    "install_method": "pip"
+  },
+  "223": {
+    "name": "Markdown-it",
+    "package": "markdown-it",
+    "version": "15.0.0",
+    "install_method": "npm"
+  },
+  "224": {
+    "name": "unified",
+    "package": "unified",
+    "version": "11.0.5",
+    "install_method": "npm"
+  },
+  "225": {
+    "name": "remark",
+    "package": "remark",
+    "version": "15.0.1",
+    "install_method": "npm"
+  },
+  "226": {
+    "name": "rehype",
+    "package": "rehype",
+    "version": "13.0.2",
+    "install_method": "npm"
+  },
+  "227": {
+    "name": "retext",
+    "package": "retext",
+    "version": "9.0.0",
+    "install_method": "npm"
+  },
+  "228": {
+    "name": "micromark",
+    "package": "micromark",
+    "version": "4.0.2",
+    "install_method": "npm"
+  },
+  "229": {
+    "name": "mdast",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "230": {
+    "name": "hast",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "231": {
+    "name": "gray-matter",
+    "package": "gray-matter",
+    "version": "4.0.3",
+    "install_method": "npm"
+  },
+  "232": {
+    "name": "MDX",
+    "package": "@mdx-js/mdx",
+    "version": "3.1.1",
+    "install_method": "npm"
+  },
+  "233": {
+    "name": "next-mdx-remote",
+    "package": "next-mdx-remote",
+    "version": null,
+    "install_method": "npm"
+  },
+  "234": {
+    "name": "react-markdown",
+    "package": "react-markdown",
+    "version": "10.1.0",
+    "install_method": "npm"
+  },
+  "235": {
+    "name": "marked",
+    "package": "marked",
+    "version": "18.0.10",
+    "install_method": "npm"
+  },
+  "236": {
+    "name": "showdown",
+    "package": "showdown",
+    "version": "2.1.0",
+    "install_method": "npm"
+  },
+  "237": {
+    "name": "DOMPurify",
+    "package": "dompurify",
+    "version": "3.4.14",
+    "install_method": "npm"
+  },
+  "238": {
+    "name": "Lexical",
+    "package": "lexical",
+    "version": "0.49.0",
+    "install_method": "npm"
+  },
+  "239": {
+    "name": "ProseMirror",
+    "package": "prosemirror-model",
+    "version": "1.25.11",
+    "install_method": "npm"
+  },
+  "240": {
+    "name": "TipTap Core",
+    "package": "@tiptap/core",
+    "version": "3.30.2",
+    "install_method": "npm"
+  },
+  "241": {
+    "name": "Slate",
+    "package": "slate",
+    "version": "0.126.2",
+    "install_method": "npm"
+  },
+  "242": {
+    "name": "Slate React",
+    "package": "slate-react",
+    "version": "0.126.0",
+    "install_method": "npm"
+  },
+  "243": {
+    "name": "Quill",
+    "package": "quill",
+    "version": "2.0.3",
+    "install_method": "npm"
+  },
+  "244": {
+    "name": "Editor.js",
+    "package": "@editorjs/editorjs",
+    "version": "2.31.6",
+    "install_method": "npm"
+  },
+  "245": {
+    "name": "Draft.js",
+    "package": "draft-js",
+    "version": "0.11.7",
+    "install_method": "npm"
+  },
+  "246": {
+    "name": "Milkdown",
+    "package": "@milkdown/core",
+    "version": "7.22.1",
+    "install_method": "npm"
+  },
+  "247": {
+    "name": "Remirror",
+    "package": "@remirror/core",
+    "version": "3.0.2",
+    "install_method": "npm"
+  },
+  "248": {
+    "name": "BlockNote",
+    "package": "@blocknote/core",
+    "version": "0.54.0",
+    "install_method": "npm"
+  },
+  "249": {
+    "name": "Monaco Editor",
+    "package": "monaco-editor",
+    "version": "0.56.0",
+    "install_method": "npm"
+  },
+  "250": {
+    "name": "CodeMirror",
+    "package": "@codemirror/state",
+    "version": "6.7.1",
+    "install_method": "npm"
+  },
+  "251": {
+    "name": "Sandpack",
+    "package": "@codesandbox/sandpack-react",
+    "version": null,
+    "install_method": "npm"
+  },
+  "252": {
+    "name": "Shiki",
+    "package": "shiki",
+    "version": "4.4.3",
+    "install_method": "npm"
+  },
+  "253": {
+    "name": "Highlight.js",
+    "package": "highlight.js",
+    "version": "11.12.0",
+    "install_method": "npm"
+  },
+  "254": {
+    "name": "Prism",
+    "package": "prismjs",
+    "version": "1.30.0",
+    "install_method": "npm"
+  },
+  "255": {
+    "name": "Tree-sitter",
+    "package": "tree-sitter",
+    "version": "0.25.1",
+    "install_method": "npm"
+  },
+  "256": {
+    "name": "Lezer",
+    "package": "@lezer/common",
+    "version": "1.5.2",
+    "install_method": "npm"
+  },
+  "257": {
+    "name": "Acorn",
+    "package": "acorn",
+    "version": "8.18.0",
+    "install_method": "npm"
+  },
+  "258": {
+    "name": "Babel parser",
+    "package": "@babel/parser",
+    "version": "8.0.4",
+    "install_method": "npm"
+  },
+  "259": {
+    "name": "SWC",
+    "package": "@swc/core",
+    "version": "1.16.1",
+    "install_method": "npm"
+  },
+  "260": {
+    "name": "esbuild",
+    "package": "esbuild",
+    "version": "0.28.2",
+    "install_method": "npm"
+  },
+  "261": {
+    "name": "Rollup",
+    "package": "rollup",
+    "version": "4.62.4",
+    "install_method": "npm"
+  },
+  "262": {
+    "name": "tsup",
+    "package": "tsup",
+    "version": "8.5.1",
+    "install_method": "npm"
+  },
+  "263": {
+    "name": "TypeScript compiler",
+    "package": "typescript",
+    "version": "7.0.2",
+    "install_method": "npm"
+  },
+  "264": {
+    "name": "PDF.js",
+    "package": "pdfjs-dist",
+    "version": "6.2.108",
+    "install_method": "npm"
+  },
+  "265": {
+    "name": "PSPDFKit alternatives via PDF.js",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "266": {
+    "name": "OpenSeadragon",
+    "package": "openseadragon",
+    "version": "6.1.0",
+    "install_method": "npm"
+  },
+  "267": {
+    "name": "pdf-lib",
+    "package": "pdf-lib",
+    "version": "1.17.1",
+    "install_method": "npm"
+  },
+  "268": {
+    "name": "PDFKit",
+    "package": "pdfkit",
+    "version": "0.19.1",
+    "install_method": "npm"
+  },
+  "269": {
+    "name": "MuPDF",
+    "package": "mupdf-tools",
+    "version": "1.28.2",
+    "install_method": "brew"
+  },
+  "270": {
+    "name": "Poppler",
+    "package": "poppler",
+    "version": "26.08.0",
+    "install_method": "brew"
+  },
+  "271": {
+    "name": "PyMuPDF",
+    "package": "PyMuPDF",
+    "version": "1.28.2",
+    "install_method": "pip"
+  },
+  "272": {
+    "name": "pypdf",
+    "package": "pypdf",
+    "version": "6.16.1",
+    "install_method": "pip"
+  },
+  "273": {
+    "name": "Apache Tika",
+    "package": "tika",
+    "version": "3.3.2",
+    "install_method": "brew"
+  },
+  "274": {
+    "name": "OpenCV",
+    "package": "opencv-python",
+    "version": "5.0.0.93",
+    "install_method": "pip"
+  },
+  "275": {
+    "name": "Pillow",
+    "package": "Pillow",
+    "version": "12.3.0",
+    "install_method": "pip"
+  },
+  "276": {
+    "name": "ImageMagick",
+    "package": "imagemagick",
+    "version": "7.1.2-29",
+    "install_method": "brew"
+  },
+  "277": {
+    "name": "Sharp",
+    "package": "sharp",
+    "version": "0.35.3",
+    "install_method": "npm"
+  },
+  "278": {
+    "name": "libvips",
+    "package": "vips",
+    "version": "8.18.5",
+    "install_method": "brew"
+  },
+  "279": {
+    "name": "scikit-image",
+    "package": "scikit-image",
+    "version": "0.26.0",
+    "install_method": "pip"
+  },
+  "280": {
+    "name": "imageio",
+    "package": "imageio",
+    "version": "2.37.4",
+    "install_method": "pip"
+  },
+  "281": {
+    "name": "Wand",
+    "package": "Wand",
+    "version": "0.7.2",
+    "install_method": "pip"
+  },
+  "282": {
+    "name": "torchvision",
+    "package": "torchvision",
+    "version": null,
+    "install_method": "pip"
+  },
+  "283": {
+    "name": "Kornia",
+    "package": "kornia",
+    "version": null,
+    "install_method": "pip"
+  },
+  "284": {
+    "name": "Tesseract OCR",
+    "package": "tesseract",
+    "version": "5.5.3",
+    "install_method": "brew"
+  },
+  "285": {
+    "name": "PaddleOCR",
+    "package": "paddleocr",
+    "version": null,
+    "install_method": "pip"
+  },
+  "286": {
+    "name": "EasyOCR",
+    "package": "easyocr",
+    "version": null,
+    "install_method": "pip"
+  },
+  "287": {
+    "name": "docTR",
+    "package": "python-doctr",
+    "version": null,
+    "install_method": "pip"
+  },
+  "288": {
+    "name": "OpenCV",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "289": {
+    "name": "LayoutParser",
+    "package": "layoutparser",
+    "version": null,
+    "install_method": "pip"
+  },
+  "290": {
+    "name": "OCRmyPDF",
+    "package": "ocrmypdf",
+    "version": "17.10.0",
+    "install_method": "brew"
+  },
+  "291": {
+    "name": "Leptonica",
+    "package": "leptonica",
+    "version": "1.87.0",
+    "install_method": "brew"
+  },
+  "292": {
+    "name": "Kraken OCR",
+    "package": "kraken",
+    "version": null,
+    "install_method": "pip"
+  },
+  "293": {
+    "name": "Web Audio API",
+    "package": null,
+    "version": null,
+    "install_method": "builtin"
+  },
+  "294": {
+    "name": "Tone.js",
+    "package": "tone",
+    "version": "15.1.22",
+    "install_method": "npm"
+  },
+  "295": {
+    "name": "Howler.js",
+    "package": "howler",
+    "version": "2.2.4",
+    "install_method": "npm"
+  },
+  "296": {
+    "name": "Wavesurfer.js",
+    "package": "wavesurfer.js",
+    "version": "7.12.11",
+    "install_method": "npm"
+  },
+  "297": {
+    "name": "AudioWorklet",
+    "package": null,
+    "version": null,
+    "install_method": "builtin"
+  },
+  "298": {
+    "name": "Essentia",
+    "package": "essentia",
+    "version": "2.1b6.dev1389",
+    "install_method": "pip"
+  },
+  "299": {
+    "name": "librosa",
+    "package": "librosa",
+    "version": "1.0.0",
+    "install_method": "pip"
+  },
+  "300": {
+    "name": "soundfile",
+    "package": "soundfile",
+    "version": "0.14.0",
+    "install_method": "pip"
+  },
+  "301": {
+    "name": "pydub",
+    "package": "pydub",
+    "version": "0.25.1",
+    "install_method": "pip"
+  },
+  "302": {
+    "name": "FFmpeg",
+    "package": "ffmpeg",
+    "version": "8.1.1",
+    "install_method": "brew"
+  },
+  "303": {
+    "name": "FFmpeg",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "304": {
+    "name": "WebCodecs",
+    "package": null,
+    "version": null,
+    "install_method": "builtin"
+  },
+  "305": {
+    "name": "Media Source Extensions",
+    "package": null,
+    "version": null,
+    "install_method": "builtin"
+  },
+  "306": {
+    "name": "MediaRecorder API",
+    "package": null,
+    "version": null,
+    "install_method": "builtin"
+  },
+  "307": {
+    "name": "Video.js",
+    "package": "video.js",
+    "version": "8.24.0",
+    "install_method": "npm"
+  },
+  "308": {
+    "name": "hls.js",
+    "package": "hls.js",
+    "version": "1.7.1",
+    "install_method": "npm"
+  },
+  "309": {
+    "name": "dash.js",
+    "package": "dashjs",
+    "version": "5.2.1",
+    "install_method": "npm"
+  },
+  "310": {
+    "name": "Plyr",
+    "package": "plyr",
+    "version": "3.8.4",
+    "install_method": "npm"
+  },
+  "311": {
+    "name": "Shaka Player",
+    "package": "shaka-player",
+    "version": "5.2.6",
+    "install_method": "npm"
+  },
+  "312": {
+    "name": "GStreamer",
+    "package": "gstreamer",
+    "version": null,
+    "install_method": "brew"
+  },
+  "313": {
+    "name": "Whisper",
+    "package": "openai-whisper",
+    "version": "20250625",
+    "install_method": "pip"
+  },
+  "314": {
+    "name": "whisper.cpp",
+    "package": "whisper-cpp",
+    "version": null,
+    "install_method": "brew"
+  },
+  "315": {
+    "name": "faster-whisper",
+    "package": "faster-whisper",
+    "version": "1.2.1",
+    "install_method": "pip"
+  },
+  "316": {
+    "name": "Vosk",
+    "package": "vosk",
+    "version": "0.3.44",
+    "install_method": "pip"
+  },
+  "317": {
+    "name": "Kaldi",
+    "package": null,
+    "version": null,
+    "install_method": "source-build"
+  },
+  "318": {
+    "name": "Piper",
+    "package": "piper-tts",
+    "version": "1.7.0",
+    "install_method": "pip"
+  },
+  "319": {
+    "name": "Coqui TTS",
+    "package": "TTS",
+    "version": null,
+    "install_method": "pip"
+  },
+  "320": {
+    "name": "eSpeak NG",
+    "package": "espeak-ng",
+    "version": "1.52.0",
+    "install_method": "brew"
+  },
+  "321": {
+    "name": "Festival",
+    "package": "festival",
+    "version": null,
+    "install_method": "apt"
+  },
+  "322": {
+    "name": "llama.cpp",
+    "package": "llama.cpp",
+    "version": null,
+    "install_method": "brew"
+  },
+  "323": {
+    "name": "Ollama",
+    "package": "ollama",
+    "version": "0.32.1",
+    "install_method": "brew"
+  },
+  "324": {
+    "name": "vLLM",
+    "package": "vllm",
+    "version": null,
+    "install_method": "pip"
+  },
+  "325": {
+    "name": "Hugging Face Transformers",
+    "package": "transformers",
+    "version": "5.15.1",
+    "install_method": "pip"
+  },
+  "326": {
+    "name": "Sentence Transformers",
+    "package": "sentence-transformers",
+    "version": "6.0.0",
+    "install_method": "pip"
+  },
+  "327": {
+    "name": "PEFT",
+    "package": "peft",
+    "version": "0.20.0",
+    "install_method": "pip"
+  },
+  "328": {
+    "name": "Accelerate",
+    "package": "accelerate",
+    "version": "1.14.0",
+    "install_method": "pip"
+  },
+  "329": {
+    "name": "bitsandbytes",
+    "package": "bitsandbytes",
+    "version": "0.50.1",
+    "install_method": "pip"
+  },
+  "330": {
+    "name": "ONNX Runtime",
+    "package": "onnxruntime",
+    "version": "1.29.0",
+    "install_method": "pip"
+  },
+  "331": {
+    "name": "OpenVINO",
+    "package": "openvino",
+    "version": "2026.3.0",
+    "install_method": "pip"
+  },
+  "332": {
+    "name": "MLX",
+    "package": "mlx",
+    "version": "0.32.1",
+    "install_method": "pip"
+  },
+  "333": {
+    "name": "TensorRT-LLM",
+    "package": "tensorrt-llm",
+    "version": null,
+    "install_method": "pip"
+  },
+  "334": {
+    "name": "llama-cpp-python",
+    "package": "llama-cpp-python",
+    "version": null,
+    "install_method": "pip"
+  },
+  "335": {
+    "name": "LangChain",
+    "package": "langchain",
+    "version": null,
+    "install_method": "pip"
+  },
+  "336": {
+    "name": "LlamaIndex",
+    "package": "llama-index",
+    "version": null,
+    "install_method": "pip"
+  },
+  "337": {
+    "name": "Haystack",
+    "package": "haystack-ai",
+    "version": null,
+    "install_method": "pip"
+  },
+  "338": {
+    "name": "DSPy",
+    "package": "dspy",
+    "version": null,
+    "install_method": "pip"
+  },
+  "339": {
+    "name": "LiteLLM",
+    "package": "litellm",
+    "version": null,
+    "install_method": "pip"
+  },
+  "340": {
+    "name": "Semantic Kernel",
+    "package": "semantic-kernel",
+    "version": null,
+    "install_method": "pip"
+  },
+  "341": {
+    "name": "AutoGen",
+    "package": "autogen-agentchat",
+    "version": null,
+    "install_method": "pip"
+  },
+  "342": {
+    "name": "smolagents",
+    "package": "smolagents",
+    "version": null,
+    "install_method": "pip"
+  },
+  "343": {
+    "name": "PydanticAI",
+    "package": "pydantic-ai",
+    "version": null,
+    "install_method": "pip"
+  },
+  "344": {
+    "name": "Guidance",
+    "package": "guidance",
+    "version": null,
+    "install_method": "pip"
+  },
+  "345": {
+    "name": "FAISS",
+    "package": "faiss-cpu",
+    "version": "1.15.0",
+    "install_method": "pip"
+  },
+  "346": {
+    "name": "hnswlib",
+    "package": "hnswlib",
+    "version": "0.8.0",
+    "install_method": "pip"
+  },
+  "347": {
+    "name": "Annoy",
+    "package": "annoy",
+    "version": "1.17.3",
+    "install_method": "pip"
+  },
+  "348": {
+    "name": "Chroma",
+    "package": "chromadb",
+    "version": "1.5.9",
+    "install_method": "pip"
+  },
+  "349": {
+    "name": "Qdrant",
+    "package": "qdrant/qdrant",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "350": {
+    "name": "Milvus",
+    "package": "milvusdb/milvus",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "351": {
+    "name": "Weaviate Community",
+    "package": "semitechnologies/weaviate",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "352": {
+    "name": "LanceDB",
+    "package": "lancedb",
+    "version": "0.37.1",
+    "install_method": "pip"
+  },
+  "353": {
+    "name": "pgvector",
+    "package": "pgvector",
+    "version": null,
+    "install_method": "brew"
+  },
+  "354": {
+    "name": "Vespa",
+    "package": "vespaengine/vespa",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "355": {
+    "name": "OpenSearch",
+    "package": "opensearchproject/opensearch",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "356": {
+    "name": "Elasticsearch",
+    "package": "docker.elastic.co/elasticsearch/elasticsearch",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "357": {
+    "name": "Meilisearch",
+    "package": "getmeili/meilisearch",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "358": {
+    "name": "Typesense",
+    "package": "typesense/typesense",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "359": {
+    "name": "Tantivy",
+    "package": "tantivy",
+    "version": null,
+    "install_method": "cargo"
+  },
+  "360": {
+    "name": "Whoosh",
+    "package": "Whoosh",
+    "version": "2.7.4",
+    "install_method": "pip"
+  },
+  "361": {
+    "name": "Apache Lucene",
+    "package": "org.apache.lucene:lucene-core",
+    "version": null,
+    "install_method": "maven"
+  },
+  "362": {
+    "name": "FastAPI",
+    "package": "fastapi",
+    "version": "0.141.1",
+    "install_method": "pip"
+  },
+  "363": {
+    "name": "Starlette",
+    "package": "starlette",
+    "version": "1.6.0",
+    "install_method": "pip"
+  },
+  "364": {
+    "name": "Uvicorn",
+    "package": "uvicorn",
+    "version": "0.52.4",
+    "install_method": "pip"
+  },
+  "365": {
+    "name": "Gunicorn",
+    "package": "gunicorn",
+    "version": "26.1.0",
+    "install_method": "pip"
+  },
+  "366": {
+    "name": "Flask",
+    "package": "flask",
+    "version": "3.1.3",
+    "install_method": "pip"
+  },
+  "367": {
+    "name": "Django",
+    "package": "django",
+    "version": "6.1",
+    "install_method": "pip"
+  },
+  "368": {
+    "name": "Litestar",
+    "package": "litestar",
+    "version": "2.24.0",
+    "install_method": "pip"
+  },
+  "369": {
+    "name": "Sanic",
+    "package": "sanic",
+    "version": "25.12.1",
+    "install_method": "pip"
+  },
+  "370": {
+    "name": "Node.js",
+    "package": "node",
+    "version": "26.0.0",
+    "install_method": "brew"
+  },
+  "371": {
+    "name": "Express",
+    "package": "express",
+    "version": "5.2.1",
+    "install_method": "npm"
+  },
+  "372": {
+    "name": "Fastify",
+    "package": "fastify",
+    "version": "5.12.1",
+    "install_method": "npm"
+  },
+  "373": {
+    "name": "Hono",
+    "package": "hono",
+    "version": "4.13.3",
+    "install_method": "npm"
+  },
+  "374": {
+    "name": "NestJS",
+    "package": "@nestjs/core",
+    "version": "11.2.1",
+    "install_method": "npm"
+  },
+  "375": {
+    "name": "OpenAPI",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "376": {
+    "name": "Swagger UI",
+    "package": "swagger-ui-dist",
+    "version": "5.32.14",
+    "install_method": "npm"
+  },
+  "377": {
+    "name": "Redoc",
+    "package": "redoc",
+    "version": "2.5.3",
+    "install_method": "npm"
+  },
+  "378": {
+    "name": "Scalar",
+    "package": "@scalar/api-reference",
+    "version": "1.65.1",
+    "install_method": "npm"
+  },
+  "379": {
+    "name": "GraphQL",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "380": {
+    "name": "GraphQL Yoga",
+    "package": "graphql-yoga",
+    "version": "5.22.0",
+    "install_method": "npm"
+  },
+  "381": {
+    "name": "Apollo Server",
+    "package": "@apollo/server",
+    "version": "5.5.1",
+    "install_method": "npm"
+  },
+  "382": {
+    "name": "tRPC",
+    "package": "@trpc/server",
+    "version": "11.18.0",
+    "install_method": "npm"
+  },
+  "383": {
+    "name": "gRPC",
+    "package": "grpcio",
+    "version": "1.83.0",
+    "install_method": "pip"
+  },
+  "384": {
+    "name": "ConnectRPC",
+    "package": "@connectrpc/connect",
+    "version": "2.1.2",
+    "install_method": "npm"
+  },
+  "385": {
+    "name": "Protocol Buffers",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "386": {
+    "name": "PostgreSQL",
+    "package": "postgresql@16",
+    "version": "16.14",
+    "install_method": "brew"
+  },
+  "387": {
+    "name": "SQLite",
+    "package": "sqlite3",
+    "version": "3.53.4",
+    "install_method": "builtin"
+  },
+  "388": {
+    "name": "DuckDB",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "389": {
+    "name": "MariaDB",
+    "package": "mariadb",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "390": {
+    "name": "MySQL Community",
+    "package": "mysql",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "391": {
+    "name": "Redis",
+    "package": "redis",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "392": {
+    "name": "Valkey",
+    "package": "valkey/valkey",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "393": {
+    "name": "MongoDB Community",
+    "package": "mongo",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "394": {
+    "name": "Neo4j Community",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "395": {
+    "name": "ClickHouse",
+    "package": "clickhouse/clickhouse-server",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "396": {
+    "name": "TimescaleDB",
+    "package": "timescale/timescaledb",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "397": {
+    "name": "CockroachDB Community",
+    "package": "cockroachdb/cockroach",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "398": {
+    "name": "Celery",
+    "package": "celery",
+    "version": "5.6.3",
+    "install_method": "pip"
+  },
+  "399": {
+    "name": "Dramatiq",
+    "package": "dramatiq",
+    "version": "2.2.0",
+    "install_method": "pip"
+  },
+  "400": {
+    "name": "RQ",
+    "package": "rq",
+    "version": "2.11.0",
+    "install_method": "pip"
+  },
+  "401": {
+    "name": "BullMQ",
+    "package": "bullmq",
+    "version": "6.1.2",
+    "install_method": "npm"
+  },
+  "402": {
+    "name": "Bull",
+    "package": "bull",
+    "version": "4.16.5",
+    "install_method": "npm"
+  },
+  "403": {
+    "name": "RabbitMQ",
+    "package": "rabbitmq",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "404": {
+    "name": "NATS",
+    "package": "nats",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "405": {
+    "name": "Apache Kafka",
+    "package": "apache/kafka",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "406": {
+    "name": "Redis Streams",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "407": {
+    "name": "Temporal",
+    "package": "temporalio/server",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "408": {
+    "name": "APScheduler",
+    "package": "APScheduler",
+    "version": "3.11.3",
+    "install_method": "pip"
+  },
+  "409": {
+    "name": "WebSocket API",
+    "package": null,
+    "version": null,
+    "install_method": "builtin"
+  },
+  "410": {
+    "name": "WebRTC",
+    "package": null,
+    "version": null,
+    "install_method": "builtin"
+  },
+  "411": {
+    "name": "Socket.IO",
+    "package": "socket.io",
+    "version": "4.8.3",
+    "install_method": "npm"
+  },
+  "412": {
+    "name": "Yjs",
+    "package": "yjs",
+    "version": "13.6.32",
+    "install_method": "npm"
+  },
+  "413": {
+    "name": "Automerge",
+    "package": "@automerge/automerge",
+    "version": "3.4.1",
+    "install_method": "npm"
+  },
+  "414": {
+    "name": "Hocuspocus",
+    "package": "@hocuspocus/server",
+    "version": "4.6.0",
+    "install_method": "npm"
+  },
+  "415": {
+    "name": "Liveblocks alternatives via Yjs/Hocuspocus",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "416": {
+    "name": "mediasoup",
+    "package": "mediasoup",
+    "version": null,
+    "install_method": "npm"
+  },
+  "417": {
+    "name": "Janus",
+    "package": "janus-gateway",
+    "version": null,
+    "install_method": "source-build"
+  },
+  "418": {
+    "name": "Jitsi Meet",
+    "package": "jitsi/web",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "419": {
+    "name": "LiveKit Community",
+    "package": "livekit/livekit-server",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "420": {
+    "name": "Auth.js",
+    "package": "@auth/core",
+    "version": "0.41.3",
+    "install_method": "npm"
+  },
+  "421": {
+    "name": "Keycloak",
+    "package": "quay.io/keycloak/keycloak",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "422": {
+    "name": "Ory Kratos",
+    "package": "oryd/kratos",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "423": {
+    "name": "Ory Keto",
+    "package": "oryd/keto",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "424": {
+    "name": "OpenFGA",
+    "package": "openfga/openfga",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "425": {
+    "name": "Casbin",
+    "package": "github.com/casbin/casbin/v2",
+    "version": "1.43.0",
+    "install_method": "go"
+  },
+  "426": {
+    "name": "Oso",
+    "package": "oso",
+    "version": null,
+    "install_method": "pip"
+  },
+  "427": {
+    "name": "Lucia alternatives",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "428": {
+    "name": "Passport.js",
+    "package": "passport",
+    "version": "0.7.0",
+    "install_method": "npm"
+  },
+  "429": {
+    "name": "Better Auth",
+    "package": "better-auth",
+    "version": "1.7.1",
+    "install_method": "npm"
+  },
+  "430": {
+    "name": "OpenTelemetry",
+    "package": "opentelemetry-sdk",
+    "version": "1.44.0",
+    "install_method": "pip"
+  },
+  "431": {
+    "name": "Prometheus",
+    "package": "prom/prometheus",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "432": {
+    "name": "Grafana",
+    "package": "grafana/grafana",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "433": {
+    "name": "Loki",
+    "package": "grafana/loki",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "434": {
+    "name": "Tempo",
+    "package": "grafana/tempo",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "435": {
+    "name": "Jaeger",
+    "package": "jaegertracing/jaeger",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "436": {
+    "name": "OpenSearch Dashboards",
+    "package": "opensearchproject/opensearch-dashboards",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "437": {
+    "name": "Sentry self-hosted",
+    "package": "getsentry/sentry",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "438": {
+    "name": "GlitchTip",
+    "package": "glitchtip/glitchtip",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "439": {
+    "name": "VictoriaMetrics",
+    "package": "victoriametrics/victoria-metrics",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "440": {
+    "name": "Playwright",
+    "package": "@playwright/test",
+    "version": "1.62.1",
+    "install_method": "npm"
+  },
+  "441": {
+    "name": "Vitest",
+    "package": "vitest",
+    "version": "4.1.11",
+    "install_method": "npm"
+  },
+  "442": {
+    "name": "Jest",
+    "package": "jest",
+    "version": "30.4.2",
+    "install_method": "npm"
+  },
+  "443": {
+    "name": "Testing Library",
+    "package": "@testing-library/dom",
+    "version": "10.4.1",
+    "install_method": "npm"
+  },
+  "444": {
+    "name": "React Testing Library",
+    "package": "@testing-library/react",
+    "version": "16.3.2",
+    "install_method": "npm"
+  },
+  "445": {
+    "name": "Cypress",
+    "package": "cypress",
+    "version": null,
+    "install_method": "npm"
+  },
+  "446": {
+    "name": "WebdriverIO",
+    "package": "webdriverio",
+    "version": "9.31.1",
+    "install_method": "npm"
+  },
+  "447": {
+    "name": "pytest",
+    "package": "pytest",
+    "version": "9.1.1",
+    "install_method": "pip"
+  },
+  "448": {
+    "name": "Hypothesis",
+    "package": "hypothesis",
+    "version": "6.165.10",
+    "install_method": "pip"
+  },
+  "449": {
+    "name": "property-based testing tools",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "450": {
+    "name": "k6",
+    "package": "k6",
+    "version": "2.2.0",
+    "install_method": "brew"
+  },
+  "451": {
+    "name": "Locust",
+    "package": "locust",
+    "version": "2.46.3",
+    "install_method": "pip"
+  },
+  "452": {
+    "name": "Artillery",
+    "package": "artillery",
+    "version": null,
+    "install_method": "npm"
+  },
+  "453": {
+    "name": "axe-core",
+    "package": "axe-core",
+    "version": "4.13.0",
+    "install_method": "npm"
+  },
+  "454": {
+    "name": "Lighthouse",
+    "package": "lighthouse",
+    "version": "13.4.1",
+    "install_method": "npm"
+  },
+  "455": {
+    "name": "Puppeteer",
+    "package": "puppeteer",
+    "version": "25.8.0",
+    "install_method": "npm"
+  },
+  "456": {
+    "name": "Pa11y",
+    "package": "pa11y",
+    "version": "9.1.1",
+    "install_method": "npm"
+  },
+  "457": {
+    "name": "WebPageTest tooling",
+    "package": "webpagetest",
+    "version": null,
+    "install_method": "npm"
+  },
+  "458": {
+    "name": "OpenUI",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "459": {
+    "name": "PerformanceObserver API",
+    "package": null,
+    "version": null,
+    "install_method": "builtin"
+  },
+  "460": {
+    "name": "ResizeObserver",
+    "package": null,
+    "version": null,
+    "install_method": "builtin"
+  },
+  "461": {
+    "name": "IntersectionObserver",
+    "package": null,
+    "version": null,
+    "install_method": "builtin"
+  },
+  "462": {
+    "name": "pnpm",
+    "package": "pnpm",
+    "version": "11.22.0",
+    "install_method": "npm"
+  },
+  "463": {
+    "name": "npm",
+    "package": "npm",
+    "version": "11.12.1",
+    "install_method": "npm"
+  },
+  "464": {
+    "name": "Yarn",
+    "package": "yarn",
+    "version": null,
+    "install_method": "npm"
+  },
+  "465": {
+    "name": "Bun",
+    "package": "bun",
+    "version": "1.3.14",
+    "install_method": "npm"
+  },
+  "466": {
+    "name": "Turborepo",
+    "package": "turbo",
+    "version": "2.10.11",
+    "install_method": "npm"
+  },
+  "467": {
+    "name": "Nx",
+    "package": "nx",
+    "version": "23.1.1",
+    "install_method": "npm"
+  },
+  "468": {
+    "name": "Bazel",
+    "package": "bazel",
+    "version": null,
+    "install_method": "brew"
+  },
+  "469": {
+    "name": "Pants",
+    "package": "pantsbuild.pants",
+    "version": null,
+    "install_method": "pip"
+  },
+  "470": {
+    "name": "Buck2",
+    "package": "buck2",
+    "version": null,
+    "install_method": "binary-release"
+  },
+  "471": {
+    "name": "Changesets",
+    "package": "@changesets/cli",
+    "version": "3.0.1",
+    "install_method": "npm"
+  },
+  "472": {
+    "name": "Renovate",
+    "package": "renovate",
+    "version": null,
+    "install_method": "npm"
+  },
+  "473": {
+    "name": "Dependabot",
+    "package": null,
+    "version": null,
+    "install_method": "builtin"
+  },
+  "474": {
+    "name": "ESLint",
+    "package": "eslint",
+    "version": "10.8.1",
+    "install_method": "npm"
+  },
+  "475": {
+    "name": "Biome",
+    "package": "@biomejs/biome",
+    "version": "2.5.9",
+    "install_method": "npm"
+  },
+  "476": {
+    "name": "Prettier",
+    "package": "prettier",
+    "version": "3.9.6",
+    "install_method": "npm"
+  },
+  "477": {
+    "name": "Ruff",
+    "package": "ruff",
+    "version": "0.16.3",
+    "install_method": "pip"
+  },
+  "478": {
+    "name": "Black",
+    "package": "black",
+    "version": "26.5.1",
+    "install_method": "pip"
+  },
+  "479": {
+    "name": "isort",
+    "package": "isort",
+    "version": "8.0.1",
+    "install_method": "pip"
+  },
+  "480": {
+    "name": "mypy",
+    "package": "mypy",
+    "version": "2.3.1",
+    "install_method": "pip"
+  },
+  "481": {
+    "name": "Pyright",
+    "package": "pyright",
+    "version": "1.1.411",
+    "install_method": "pip"
+  },
+  "482": {
+    "name": "Pylint",
+    "package": "pylint",
+    "version": "4.0.7",
+    "install_method": "pip"
+  },
+  "483": {
+    "name": "Bandit",
+    "package": "bandit[sarif]",
+    "version": "1.9.4",
+    "install_method": "pip"
+  },
+  "484": {
+    "name": "Semgrep Community",
+    "package": "semgrep",
+    "version": "1.171.0",
+    "install_method": "pip"
+  },
+  "485": {
+    "name": "CodeQL",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "486": {
+    "name": "clang-format",
+    "package": "llvm",
+    "version": "21.0.0",
+    "install_method": "brew"
+  },
+  "487": {
+    "name": "Clang-Tidy",
+    "package": "llvm",
+    "version": null,
+    "install_method": "brew"
+  },
+  "488": {
+    "name": "Git",
+    "package": "git",
+    "version": "2.50.1",
+    "install_method": "brew"
+  },
+  "489": {
+    "name": "Git LFS",
+    "package": "git-lfs",
+    "version": "3.7.1",
+    "install_method": "brew"
+  },
+  "490": {
+    "name": "pre-commit",
+    "package": "pre-commit",
+    "version": "4.6.2",
+    "install_method": "pip"
+  },
+  "491": {
+    "name": "Husky",
+    "package": "husky",
+    "version": "9.1.7",
+    "install_method": "npm"
+  },
+  "492": {
+    "name": "lint-staged",
+    "package": "lint-staged",
+    "version": "17.3.0",
+    "install_method": "npm"
+  },
+  "493": {
+    "name": "commitlint",
+    "package": "@commitlint/cli",
+    "version": "21.2.2",
+    "install_method": "npm"
+  },
+  "494": {
+    "name": "Commitizen",
+    "package": "commitizen",
+    "version": "4.3.2",
+    "install_method": "npm"
+  },
+  "495": {
+    "name": "Lefthook",
+    "package": "lefthook",
+    "version": "2.1.10",
+    "install_method": "brew"
+  },
+  "496": {
+    "name": "simple-git-hooks",
+    "package": "simple-git-hooks",
+    "version": "2.13.1",
+    "install_method": "npm"
+  },
+  "497": {
+    "name": "Docker",
+    "package": "docker",
+    "version": "29.5.2",
+    "install_method": "brew"
+  },
+  "498": {
+    "name": "Docker Compose",
+    "package": "docker-compose",
+    "version": "5.1.4",
+    "install_method": "brew"
+  },
+  "499": {
+    "name": "Podman",
+    "package": "podman",
+    "version": "6.1.0",
+    "install_method": "brew"
+  },
+  "500": {
+    "name": "Kubernetes",
+    "package": "kubernetes-cli",
+    "version": "1.34.1",
+    "install_method": "brew"
+  },
+  "501": {
+    "name": "k3s",
+    "package": "k3s",
+    "version": null,
+    "install_method": "binary-release"
+  },
+  "502": {
+    "name": "Kind",
+    "package": "kind",
+    "version": null,
+    "install_method": "brew"
+  },
+  "503": {
+    "name": "Minikube",
+    "package": "minikube",
+    "version": null,
+    "install_method": "brew"
+  },
+  "504": {
+    "name": "Helm",
+    "package": "helm",
+    "version": "4.2.4",
+    "install_method": "brew"
+  },
+  "505": {
+    "name": "Kustomize",
+    "package": "kustomize",
+    "version": "5.8.1",
+    "install_method": "brew"
+  },
+  "506": {
+    "name": "Terraform",
+    "package": "terraform",
+    "version": null,
+    "install_method": "binary-release"
+  },
+  "507": {
+    "name": "OpenTofu",
+    "package": "opentofu",
+    "version": "1.12.6",
+    "install_method": "brew"
+  },
+  "508": {
+    "name": "Ansible",
+    "package": "ansible",
+    "version": "14.3.1",
+    "install_method": "pip"
+  },
+  "509": {
+    "name": "MinIO",
+    "package": "minio",
+    "version": null,
+    "install_method": "brew"
+  },
+  "510": {
+    "name": "SeaweedFS",
+    "package": "seaweedfs",
+    "version": null,
+    "install_method": "brew"
+  },
+  "511": {
+    "name": "Garage",
+    "package": "garage",
+    "version": null,
+    "install_method": "brew"
+  },
+  "512": {
+    "name": "S3-compatible storage APIs",
+    "package": null,
+    "version": null,
+    "install_method": "none"
+  },
+  "513": {
+    "name": "Apache Commons Compress",
+    "package": "org.apache.commons:commons-compress",
+    "version": null,
+    "install_method": "maven"
+  },
+  "514": {
+    "name": "Zip.js",
+    "package": "@zip.js/zip.js",
+    "version": "2.8.53",
+    "install_method": "npm"
+  },
+  "515": {
+    "name": "Manim",
+    "package": "manim",
+    "version": "0.21.0",
+    "install_method": "pip"
+  },
+  "516": {
+    "name": "VPython",
+    "package": "vpython",
+    "version": "7.6.5",
+    "install_method": "pip"
+  },
+  "517": {
+    "name": "PyVista",
+    "package": "pyvista",
+    "version": "0.48.4",
+    "install_method": "pip"
+  },
+  "518": {
+    "name": "Plotly",
+    "package": "plotly",
+    "version": "6.9.0",
+    "install_method": "pip"
+  },
+  "519": {
+    "name": "Bokeh",
+    "package": "bokeh",
+    "version": "3.9.2",
+    "install_method": "pip"
+  },
+  "520": {
+    "name": "Holoviews",
+    "package": "holoviews",
+    "version": "1.23.1",
+    "install_method": "pip"
+  },
+  "521": {
+    "name": "Datashader",
+    "package": "datashader",
+    "version": "0.19.1",
+    "install_method": "pip"
+  },
+  "522": {
+    "name": "Mayavi",
+    "package": "mayavi",
+    "version": null,
+    "install_method": "pip"
+  },
+  "523": {
+    "name": "VisPy",
+    "package": "vispy",
+    "version": "0.16.2",
+    "install_method": "pip"
+  },
+  "524": {
+    "name": "Napari",
+    "package": "napari",
+    "version": null,
+    "install_method": "pip"
+  },
+  "525": {
+    "name": "Open3D",
+    "package": "open3d",
+    "version": null,
+    "install_method": "pip"
+  },
+  "526": {
+    "name": "Trimesh",
+    "package": "trimesh",
+    "version": "5.0.0",
+    "install_method": "pip"
+  },
+  "527": {
+    "name": "OpenCascade",
+    "package": "opencascade",
+    "version": null,
+    "install_method": "brew"
+  },
+  "528": {
+    "name": "OpenCascade.js",
+    "package": "opencascade.js",
+    "version": null,
+    "install_method": "npm"
+  },
+  "529": {
+    "name": "CGAL",
+    "package": "cgal",
+    "version": null,
+    "install_method": "brew"
+  },
+  "530": {
+    "name": "Shapely",
+    "package": "shapely",
+    "version": "2.1.2",
+    "install_method": "pip"
+  },
+  "531": {
+    "name": "GeoPandas",
+    "package": "geopandas",
+    "version": "1.1.4",
+    "install_method": "pip"
+  },
+  "532": {
+    "name": "Fiona",
+    "package": "fiona",
+    "version": null,
+    "install_method": "pip"
+  },
+  "533": {
+    "name": "Rasterio",
+    "package": "rasterio",
+    "version": "1.5.1",
+    "install_method": "pip"
+  },
+  "534": {
+    "name": "PROJ",
+    "package": "proj",
+    "version": "9.5.1",
+    "install_method": "brew"
+  },
+  "535": {
+    "name": "GDAL",
+    "package": "gdal",
+    "version": "3.12.4",
+    "install_method": "brew"
+  },
+  "536": {
+    "name": "Turf.js",
+    "package": "@turf/turf",
+    "version": "7.4.0",
+    "install_method": "npm"
+  },
+  "537": {
+    "name": "Godot",
+    "package": "godot",
+    "version": null,
+    "install_method": "brew"
+  },
+  "538": {
+    "name": "Bevy",
+    "package": "bevy",
+    "version": null,
+    "install_method": "cargo"
+  },
+  "539": {
+    "name": "Phaser",
+    "package": "phaser",
+    "version": "4.2.1",
+    "install_method": "npm"
+  },
+  "540": {
+    "name": "PixiJS",
+    "package": "pixi.js",
+    "version": null,
+    "install_method": "npm"
+  },
+  "541": {
+    "name": "PlayCanvas",
+    "package": "playcanvas",
+    "version": null,
+    "install_method": "npm"
+  },
+  "542": {
+    "name": "Defold",
+    "package": "defold",
+    "version": null,
+    "install_method": "binary-release"
+  },
+  "543": {
+    "name": "Mermaid",
+    "package": "mermaid",
+    "version": null,
+    "install_method": "npm"
+  },
+  "544": {
+    "name": "Graphviz",
+    "package": "graphviz",
+    "version": null,
+    "install_method": "brew"
+  },
+  "545": {
+    "name": "PlantUML",
+    "package": "plantuml",
+    "version": "1.2026.6",
+    "install_method": "brew"
+  },
+  "546": {
+    "name": "Ditaa",
+    "package": "ditaa",
+    "version": "0.11.0",
+    "install_method": "brew"
+  },
+  "547": {
+    "name": "Kroki",
+    "package": "yuzutech/kroki",
+    "version": null,
+    "install_method": "oci-image"
+  },
+  "548": {
+    "name": "BPMN.js",
+    "package": "bpmn-js",
+    "version": "18.25.1",
+    "install_method": "npm"
+  },
+  "549": {
+    "name": "Rough.js",
+    "package": "roughjs",
+    "version": null,
+    "install_method": "npm"
+  },
+  "550": {
+    "name": "Fabric.js",
+    "package": "fabric",
+    "version": null,
+    "install_method": "npm"
+  }
+}

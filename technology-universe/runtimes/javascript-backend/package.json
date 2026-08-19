@@ -1,0 +1,42 @@
+{
+  "name": "javascript-backend",
+  "version": "1.0.0",
+  "description": "Registry runtime for technology-universe ids 362-439 (JavaScript backend). Packages installed with --save-exact so the manifest is a pinned, reproducible acquisition record.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "private": true,
+  "dependencies": {
+    "@apollo/server": "5.5.1",
+    "@auth/core": "0.41.3",
+    "@automerge/automerge": "3.4.1",
+    "@connectrpc/connect": "2.1.2",
+    "@hocuspocus/server": "4.6.0",
+    "@nestjs/common": "11.2.1",
+    "@nestjs/core": "11.2.1",
+    "@nestjs/platform-express": "11.2.1",
+    "@scalar/api-reference": "1.65.1",
+    "@trpc/server": "11.18.0",
+    "better-auth": "1.7.1",
+    "bull": "4.16.5",
+    "bullmq": "6.1.2",
+    "express": "5.2.1",
+    "fastify": "5.12.1",
+    "graphql": "16.14.2",
+    "graphql-yoga": "5.22.0",
+    "hono": "4.13.3",
+    "passport": "0.7.0",
+    "redoc": "2.5.3",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
+    "socket.io": "4.8.3",
+    "socket.io-client": "4.8.3",
+    "swagger-ui-dist": "5.32.14",
+    "yjs": "13.6.32"
+  }
+}

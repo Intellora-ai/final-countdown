@@ -1,0 +1,23 @@
+{
+  "name": "javascript-media",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "dashjs": "5.2.1",
+    "hls.js": "1.7.1",
+    "howler": "2.2.4",
+    "plyr": "3.8.4",
+    "shaka-player": "5.2.6",
+    "tone": "15.1.22",
+    "video.js": "8.24.0",
+    "wavesurfer.js": "7.12.11"
+  }
+}

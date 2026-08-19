@@ -1,0 +1,5212 @@
+{
+  "1": {
+    "name": "React",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "2": {
+    "name": "React DOM",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "3": {
+    "name": "Next.js",
+    "kind": "framework",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "4": {
+    "name": "Vite",
+    "kind": "cli-tool",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local"
+    ]
+  },
+  "5": {
+    "name": "TypeScript",
+    "kind": "cli-tool",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local"
+    ]
+  },
+  "6": {
+    "name": "JavaScript",
+    "kind": "standard",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "7": {
+    "name": "TanStack Router",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "8": {
+    "name": "TanStack Start",
+    "kind": "framework",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "9": {
+    "name": "Remix",
+    "kind": "framework",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "10": {
+    "name": "Astro",
+    "kind": "framework",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "11": {
+    "name": "Svelte",
+    "kind": "framework",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "12": {
+    "name": "SvelteKit",
+    "kind": "framework",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "13": {
+    "name": "Vue",
+    "kind": "framework",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "14": {
+    "name": "Nuxt",
+    "kind": "framework",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "15": {
+    "name": "SolidJS",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "16": {
+    "name": "Qwik",
+    "kind": "framework",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "17": {
+    "name": "Lit",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "18": {
+    "name": "Preact",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "19": {
+    "name": "Alpine.js",
+    "kind": "framework",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "20": {
+    "name": "HTMX",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "21": {
+    "name": "Tailwind CSS",
+    "kind": "framework",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "22": {
+    "name": "PostCSS",
+    "kind": "cli-tool",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local"
+    ]
+  },
+  "23": {
+    "name": "Autoprefixer",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local"
+    ]
+  },
+  "24": {
+    "name": "Radix UI",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "25": {
+    "name": "Headless UI",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "26": {
+    "name": "Ark UI",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "27": {
+    "name": "Mantine",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "28": {
+    "name": "Chakra UI",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "29": {
+    "name": "shadcn/ui",
+    "kind": "cli-tool",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local"
+    ]
+  },
+  "30": {
+    "name": "Base UI",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "31": {
+    "name": "React Aria",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "32": {
+    "name": "React Spectrum",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "33": {
+    "name": "MUI",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "34": {
+    "name": "Ant Design",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "35": {
+    "name": "DaisyUI",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "36": {
+    "name": "Lucide",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "37": {
+    "name": "Heroicons",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "38": {
+    "name": "Tabler Icons",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "39": {
+    "name": "Phosphor Icons",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "40": {
+    "name": "Floating UI",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "41": {
+    "name": "Zustand",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "42": {
+    "name": "Redux Toolkit",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "43": {
+    "name": "Jotai",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "44": {
+    "name": "MobX",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "45": {
+    "name": "Valtio",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "46": {
+    "name": "XState",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "47": {
+    "name": "TanStack Query",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "48": {
+    "name": "TanStack Store",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "49": {
+    "name": "Immer",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "50": {
+    "name": "RxJS",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "51": {
+    "name": "Effector",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "52": {
+    "name": "Recoil",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "53": {
+    "name": "Vercel SWR",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "54": {
+    "name": "Zod",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "55": {
+    "name": "Valibot",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "56": {
+    "name": "Yup",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "57": {
+    "name": "Joi",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "58": {
+    "name": "Ajv",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "59": {
+    "name": "TypeBox",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "60": {
+    "name": "JSON Schema",
+    "kind": "standard",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "61": {
+    "name": "React Hook Form",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "62": {
+    "name": "Final Form",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "63": {
+    "name": "Formik",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "64": {
+    "name": "Superstruct",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "65": {
+    "name": "io-ts",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "66": {
+    "name": "Motion",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "67": {
+    "name": "Framer Motion",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "68": {
+    "name": "GSAP",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "69": {
+    "name": "Anime.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "70": {
+    "name": "Popmotion",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "71": {
+    "name": "React Spring",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "72": {
+    "name": "Motion One",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "73": {
+    "name": "Auto Animate",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "74": {
+    "name": "Lottie-web",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "75": {
+    "name": "Rive Runtime",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "76": {
+    "name": "Theatre.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "77": {
+    "name": "React Transition Group",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "78": {
+    "name": "SVG",
+    "kind": "platform-api",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "79": {
+    "name": "HTML Canvas",
+    "kind": "platform-api",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "80": {
+    "name": "Konva",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "81": {
+    "name": "React Konva",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "82": {
+    "name": "PixiJS",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "83": {
+    "name": "Fabric.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "84": {
+    "name": "Paper.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "85": {
+    "name": "Two.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "86": {
+    "name": "Rough.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "87": {
+    "name": "p5.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "88": {
+    "name": "regl",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "89": {
+    "name": "CairoSVG",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local"
+    ]
+  },
+  "90": {
+    "name": "SVG.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "91": {
+    "name": "React Flow",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "92": {
+    "name": "Cytoscape.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "93": {
+    "name": "Mermaid",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "94": {
+    "name": "Graphology",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "95": {
+    "name": "Sigma.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "96": {
+    "name": "Dagre",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "97": {
+    "name": "ELK.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "98": {
+    "name": "Graphviz",
+    "kind": "cli-tool",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local"
+    ]
+  },
+  "99": {
+    "name": "Viz.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "100": {
+    "name": "JointJS Community",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "101": {
+    "name": "mxGraph / maxGraph",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "102": {
+    "name": "GoJS alternatives via Cytoscape/React Flow",
+    "kind": "alternative-group",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "103": {
+    "name": "JSXGraph",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "104": {
+    "name": "Excalidraw",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "105": {
+    "name": "Perfect Freehand",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "106": {
+    "name": "Rough.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "107": {
+    "name": "React Sketch Canvas",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "108": {
+    "name": "Fabric.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "109": {
+    "name": "Konva",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "110": {
+    "name": "Paper.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "111": {
+    "name": "tldraw",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "local",
+      "browser"
+    ]
+  },
+  "112": {
+    "name": "D3",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "113": {
+    "name": "Observable Plot",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "114": {
+    "name": "Vega",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "115": {
+    "name": "Vega-Lite",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "116": {
+    "name": "Apache ECharts",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "117": {
+    "name": "Plotly.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "118": {
+    "name": "Chart.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "119": {
+    "name": "Apache Charts alternatives via ECharts/Vega",
+    "kind": "alternative-group",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "120": {
+    "name": "Nivo",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "121": {
+    "name": "Recharts",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "122": {
+    "name": "Visx",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "123": {
+    "name": "Victory",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "124": {
+    "name": "uPlot",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "125": {
+    "name": "Frappe Charts",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "126": {
+    "name": "Billboard.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "127": {
+    "name": "Three.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "128": {
+    "name": "React Three Fiber",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "129": {
+    "name": "@react-three/drei",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "130": {
+    "name": "Babylon.js",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "131": {
+    "name": "PlayCanvas Engine",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "132": {
+    "name": "A-Frame",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "133": {
+    "name": "OGL",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "134": {
+    "name": "TresJS",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "135": {
+    "name": "React BabylonJS",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "136": {
+    "name": "deck.gl",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "137": {
+    "name": "CesiumJS",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "138": {
+    "name": "vtk.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "139": {
+    "name": "xeokit",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "140": {
+    "name": "Potree",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "141": {
+    "name": "OpenCascade.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "142": {
+    "name": "WebGL",
+    "kind": "platform-api",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "143": {
+    "name": "WebGPU",
+    "kind": "platform-api",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "144": {
+    "name": "wgpu",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "145": {
+    "name": "Three.js WebGPU renderer",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "146": {
+    "name": "regl",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "147": {
+    "name": "luma.gl",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "148": {
+    "name": "GPU.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "149": {
+    "name": "gl-matrix",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "150": {
+    "name": "twgl.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "151": {
+    "name": "Babylon WebGPU",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "152": {
+    "name": "shaderc",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "153": {
+    "name": "Matter.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "154": {
+    "name": "Rapier",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "155": {
+    "name": "Rapier.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "156": {
+    "name": "Cannon-es",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "157": {
+    "name": "Ammo.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "158": {
+    "name": "Planck.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "159": {
+    "name": "Box2D",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "160": {
+    "name": "Oimo.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "161": {
+    "name": "Jolt Physics",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "162": {
+    "name": "Chipmunk2D",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "163": {
+    "name": "PyBullet",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "164": {
+    "name": "Bullet Physics",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "165": {
+    "name": "MuJoCo",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "166": {
+    "name": "Pymunk",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "167": {
+    "name": "Taichi",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "168": {
+    "name": "KaTeX",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "169": {
+    "name": "MathJax",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "170": {
+    "name": "MathLive",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "171": {
+    "name": "Math.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "172": {
+    "name": "SymPy",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "173": {
+    "name": "Nerdamer",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "174": {
+    "name": "Algebrite",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "175": {
+    "name": "Fraction.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "176": {
+    "name": "decimal.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "177": {
+    "name": "big.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "178": {
+    "name": "numeric.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "179": {
+    "name": "math-expression-evaluator",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "browser",
+      "docker"
+    ]
+  },
+  "180": {
+    "name": "JSXGraph",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "181": {
+    "name": "SageMath",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "182": {
+    "name": "GNU Octave",
+    "kind": "runtime",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "183": {
+    "name": "NumPy",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "184": {
+    "name": "SciPy",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "185": {
+    "name": "pandas",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "186": {
+    "name": "Polars",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "187": {
+    "name": "Apache Arrow",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "188": {
+    "name": "DuckDB",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "189": {
+    "name": "PyArrow",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "190": {
+    "name": "Numba",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "191": {
+    "name": "JAX",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "192": {
+    "name": "PyTorch",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "193": {
+    "name": "TensorFlow",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "194": {
+    "name": "Keras",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "195": {
+    "name": "XGBoost",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "196": {
+    "name": "LightGBM",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "197": {
+    "name": "CatBoost",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "198": {
+    "name": "scikit-learn",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "199": {
+    "name": "Statsmodels",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "200": {
+    "name": "NetworkX",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "201": {
+    "name": "Lean 4",
+    "kind": "runtime",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "202": {
+    "name": "Mathlib",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "203": {
+    "name": "Coq",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "204": {
+    "name": "Isabelle",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "desktop"
+    ]
+  },
+  "205": {
+    "name": "Agda",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "206": {
+    "name": "Z3",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "207": {
+    "name": "CVC5",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "208": {
+    "name": "SymPy",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "209": {
+    "name": "SMT-LIB tooling",
+    "kind": "standard",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "210": {
+    "name": "OpenQASM tooling",
+    "kind": "standard",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "211": {
+    "name": "NetworkX",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "212": {
+    "name": "igraph",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ]
+  },
+  "213": {
+    "name": "graphology",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "214": {
+    "name": "Neo4j Community Edition",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "215": {
+    "name": "Memgraph Community",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "216": {
+    "name": "Apache TinkerPop",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "217": {
+    "name": "RDFLib",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ]
+  },
+  "218": {
+    "name": "rdflib.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "219": {
+    "name": "Comunica",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "220": {
+    "name": "N-Triples / Turtle tooling",
+    "kind": "standard",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "221": {
+    "name": "SHACL tooling",
+    "kind": "standard",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "222": {
+    "name": "pySHACL",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ]
+  },
+  "223": {
+    "name": "Markdown-it",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "224": {
+    "name": "unified",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "225": {
+    "name": "remark",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "226": {
+    "name": "rehype",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "227": {
+    "name": "retext",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "228": {
+    "name": "micromark",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "229": {
+    "name": "mdast",
+    "kind": "standard",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "230": {
+    "name": "hast",
+    "kind": "standard",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "231": {
+    "name": "gray-matter",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ]
+  },
+  "232": {
+    "name": "MDX",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "233": {
+    "name": "next-mdx-remote",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "234": {
+    "name": "react-markdown",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "235": {
+    "name": "marked",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "236": {
+    "name": "showdown",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "237": {
+    "name": "DOMPurify",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "238": {
+    "name": "Lexical",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "239": {
+    "name": "ProseMirror",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "240": {
+    "name": "TipTap Core",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "241": {
+    "name": "Slate",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "242": {
+    "name": "Slate React",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "243": {
+    "name": "Quill",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "244": {
+    "name": "Editor.js",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "245": {
+    "name": "Draft.js",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "246": {
+    "name": "Milkdown",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "247": {
+    "name": "Remirror",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "248": {
+    "name": "BlockNote",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "249": {
+    "name": "Monaco Editor",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "250": {
+    "name": "CodeMirror",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "251": {
+    "name": "Sandpack",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "252": {
+    "name": "Shiki",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "253": {
+    "name": "Highlight.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "254": {
+    "name": "Prism",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "255": {
+    "name": "Tree-sitter",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "256": {
+    "name": "Lezer",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "257": {
+    "name": "Acorn",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "258": {
+    "name": "Babel parser",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "259": {
+    "name": "SWC",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ]
+  },
+  "260": {
+    "name": "esbuild",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ]
+  },
+  "261": {
+    "name": "Rollup",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ]
+  },
+  "262": {
+    "name": "tsup",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ]
+  },
+  "263": {
+    "name": "TypeScript compiler",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ]
+  },
+  "264": {
+    "name": "PDF.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "265": {
+    "name": "PSPDFKit alternatives via PDF.js",
+    "kind": "alternative-group",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "266": {
+    "name": "OpenSeadragon",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "267": {
+    "name": "pdf-lib",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "268": {
+    "name": "PDFKit",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser",
+      "serverless"
+    ]
+  },
+  "269": {
+    "name": "MuPDF",
+    "kind": "cli-tool",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "270": {
+    "name": "Poppler",
+    "kind": "cli-tool",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "271": {
+    "name": "PyMuPDF",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ]
+  },
+  "272": {
+    "name": "pypdf",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ]
+  },
+  "273": {
+    "name": "Apache Tika",
+    "kind": "framework",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "274": {
+    "name": "OpenCV",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "275": {
+    "name": "Pillow",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ]
+  },
+  "276": {
+    "name": "ImageMagick",
+    "kind": "cli-tool",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "277": {
+    "name": "Sharp",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ]
+  },
+  "278": {
+    "name": "libvips",
+    "kind": "library",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "279": {
+    "name": "scikit-image",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "280": {
+    "name": "imageio",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ]
+  },
+  "281": {
+    "name": "Wand",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ]
+  },
+  "282": {
+    "name": "torchvision",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "283": {
+    "name": "Kornia",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "284": {
+    "name": "Tesseract OCR",
+    "kind": "cli-tool",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "285": {
+    "name": "PaddleOCR",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "286": {
+    "name": "EasyOCR",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "287": {
+    "name": "docTR",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "288": {
+    "name": "OpenCV",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "289": {
+    "name": "LayoutParser",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "290": {
+    "name": "OCRmyPDF",
+    "kind": "cli-tool",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "291": {
+    "name": "Leptonica",
+    "kind": "library",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "292": {
+    "name": "Kraken OCR",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "293": {
+    "name": "Web Audio API",
+    "kind": "platform-api",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "294": {
+    "name": "Tone.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "295": {
+    "name": "Howler.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "296": {
+    "name": "Wavesurfer.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "297": {
+    "name": "AudioWorklet",
+    "kind": "platform-api",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "298": {
+    "name": "Essentia",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "299": {
+    "name": "librosa",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "300": {
+    "name": "soundfile",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "301": {
+    "name": "pydub",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "302": {
+    "name": "FFmpeg",
+    "kind": "cli-tool",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "303": {
+    "name": "FFmpeg",
+    "kind": "cli-tool",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "304": {
+    "name": "WebCodecs",
+    "kind": "platform-api",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "305": {
+    "name": "Media Source Extensions",
+    "kind": "platform-api",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "306": {
+    "name": "MediaRecorder API",
+    "kind": "platform-api",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "307": {
+    "name": "Video.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "308": {
+    "name": "hls.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "309": {
+    "name": "dash.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "310": {
+    "name": "Plyr",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "311": {
+    "name": "Shaka Player",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "312": {
+    "name": "GStreamer",
+    "kind": "framework",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "313": {
+    "name": "Whisper",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "314": {
+    "name": "whisper.cpp",
+    "kind": "cli-tool",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "315": {
+    "name": "faster-whisper",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "316": {
+    "name": "Vosk",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "317": {
+    "name": "Kaldi",
+    "kind": "framework",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "318": {
+    "name": "Piper",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "319": {
+    "name": "Coqui TTS",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "320": {
+    "name": "eSpeak NG",
+    "kind": "cli-tool",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "321": {
+    "name": "Festival",
+    "kind": "cli-tool",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "322": {
+    "name": "llama.cpp",
+    "kind": "runtime",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "323": {
+    "name": "Ollama",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "desktop"
+    ]
+  },
+  "324": {
+    "name": "vLLM",
+    "kind": "runtime",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "325": {
+    "name": "Hugging Face Transformers",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "326": {
+    "name": "Sentence Transformers",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "327": {
+    "name": "PEFT",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "328": {
+    "name": "Accelerate",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "329": {
+    "name": "bitsandbytes",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "330": {
+    "name": "ONNX Runtime",
+    "kind": "runtime",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "331": {
+    "name": "OpenVINO",
+    "kind": "runtime",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "332": {
+    "name": "MLX",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "desktop"
+    ]
+  },
+  "333": {
+    "name": "TensorRT-LLM",
+    "kind": "runtime",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "334": {
+    "name": "llama-cpp-python",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "335": {
+    "name": "LangChain",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "336": {
+    "name": "LlamaIndex",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "337": {
+    "name": "Haystack",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "338": {
+    "name": "DSPy",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "339": {
+    "name": "LiteLLM",
+    "kind": "library",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "340": {
+    "name": "Semantic Kernel",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "341": {
+    "name": "AutoGen",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "342": {
+    "name": "smolagents",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "343": {
+    "name": "PydanticAI",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "344": {
+    "name": "Guidance",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "345": {
+    "name": "FAISS",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "346": {
+    "name": "hnswlib",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "347": {
+    "name": "Annoy",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "348": {
+    "name": "Chroma",
+    "kind": "library",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "349": {
+    "name": "Qdrant",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "350": {
+    "name": "Milvus",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "351": {
+    "name": "Weaviate Community",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "352": {
+    "name": "LanceDB",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ]
+  },
+  "353": {
+    "name": "pgvector",
+    "kind": "library",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "354": {
+    "name": "Vespa",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "355": {
+    "name": "OpenSearch",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "356": {
+    "name": "Elasticsearch",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "357": {
+    "name": "Meilisearch",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "358": {
+    "name": "Typesense",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "359": {
+    "name": "Tantivy",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "360": {
+    "name": "Whoosh",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "361": {
+    "name": "Apache Lucene",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "362": {
+    "name": "FastAPI",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ]
+  },
+  "363": {
+    "name": "Starlette",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ]
+  },
+  "364": {
+    "name": "Uvicorn",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "365": {
+    "name": "Gunicorn",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "366": {
+    "name": "Flask",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ]
+  },
+  "367": {
+    "name": "Django",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "368": {
+    "name": "Litestar",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ]
+  },
+  "369": {
+    "name": "Sanic",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "370": {
+    "name": "Node.js",
+    "kind": "runtime",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless",
+      "desktop"
+    ]
+  },
+  "371": {
+    "name": "Express",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ]
+  },
+  "372": {
+    "name": "Fastify",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ]
+  },
+  "373": {
+    "name": "Hono",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ]
+  },
+  "374": {
+    "name": "NestJS",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "375": {
+    "name": "OpenAPI",
+    "kind": "standard",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "376": {
+    "name": "Swagger UI",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "browser"
+    ]
+  },
+  "377": {
+    "name": "Redoc",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "browser"
+    ]
+  },
+  "378": {
+    "name": "Scalar",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "browser"
+    ]
+  },
+  "379": {
+    "name": "GraphQL",
+    "kind": "standard",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "380": {
+    "name": "GraphQL Yoga",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ]
+  },
+  "381": {
+    "name": "Apollo Server",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ]
+  },
+  "382": {
+    "name": "tRPC",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ]
+  },
+  "383": {
+    "name": "gRPC",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "384": {
+    "name": "ConnectRPC",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "385": {
+    "name": "Protocol Buffers",
+    "kind": "standard",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "386": {
+    "name": "PostgreSQL",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "387": {
+    "name": "SQLite",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless",
+      "desktop"
+    ]
+  },
+  "388": {
+    "name": "DuckDB",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless",
+      "desktop"
+    ]
+  },
+  "389": {
+    "name": "MariaDB",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "390": {
+    "name": "MySQL Community",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "391": {
+    "name": "Redis",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "392": {
+    "name": "Valkey",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "393": {
+    "name": "MongoDB Community",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "394": {
+    "name": "Neo4j Community",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "395": {
+    "name": "ClickHouse",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "396": {
+    "name": "TimescaleDB",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "397": {
+    "name": "CockroachDB Community",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "398": {
+    "name": "Celery",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "399": {
+    "name": "Dramatiq",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "400": {
+    "name": "RQ",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "401": {
+    "name": "BullMQ",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "402": {
+    "name": "Bull",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "403": {
+    "name": "RabbitMQ",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "404": {
+    "name": "NATS",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "405": {
+    "name": "Apache Kafka",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "406": {
+    "name": "Redis Streams",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "407": {
+    "name": "Temporal",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "408": {
+    "name": "APScheduler",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "409": {
+    "name": "WebSocket API",
+    "kind": "platform-api",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "410": {
+    "name": "WebRTC",
+    "kind": "platform-api",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "411": {
+    "name": "Socket.IO",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "412": {
+    "name": "Yjs",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "413": {
+    "name": "Automerge",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "414": {
+    "name": "Hocuspocus",
+    "kind": "service",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "415": {
+    "name": "Liveblocks alternatives via Yjs/Hocuspocus",
+    "kind": "alternative-group",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "416": {
+    "name": "mediasoup",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "417": {
+    "name": "Janus",
+    "kind": "service",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "418": {
+    "name": "Jitsi Meet",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "419": {
+    "name": "LiveKit Community",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "420": {
+    "name": "Auth.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ]
+  },
+  "421": {
+    "name": "Keycloak",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "422": {
+    "name": "Ory Kratos",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "423": {
+    "name": "Ory Keto",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "424": {
+    "name": "OpenFGA",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "425": {
+    "name": "Casbin",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "426": {
+    "name": "Oso",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "427": {
+    "name": "Lucia alternatives",
+    "kind": "alternative-group",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "428": {
+    "name": "Passport.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ]
+  },
+  "429": {
+    "name": "Better Auth",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ]
+  },
+  "430": {
+    "name": "OpenTelemetry",
+    "kind": "framework",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "431": {
+    "name": "Prometheus",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "432": {
+    "name": "Grafana",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "433": {
+    "name": "Loki",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "434": {
+    "name": "Tempo",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "435": {
+    "name": "Jaeger",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "436": {
+    "name": "OpenSearch Dashboards",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "437": {
+    "name": "Sentry self-hosted",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "438": {
+    "name": "GlitchTip",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "439": {
+    "name": "VictoriaMetrics",
+    "kind": "service",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "440": {
+    "name": "Playwright",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "441": {
+    "name": "Vitest",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "442": {
+    "name": "Jest",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "443": {
+    "name": "Testing Library",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "444": {
+    "name": "React Testing Library",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "445": {
+    "name": "Cypress",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "446": {
+    "name": "WebdriverIO",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "447": {
+    "name": "pytest",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "448": {
+    "name": "Hypothesis",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "449": {
+    "name": "property-based testing tools",
+    "kind": "alternative-group",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "450": {
+    "name": "k6",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "451": {
+    "name": "Locust",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "452": {
+    "name": "Artillery",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "453": {
+    "name": "axe-core",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "454": {
+    "name": "Lighthouse",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "455": {
+    "name": "Puppeteer",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "456": {
+    "name": "Pa11y",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "457": {
+    "name": "WebPageTest tooling",
+    "kind": "service",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "458": {
+    "name": "OpenUI",
+    "kind": "standard",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "459": {
+    "name": "PerformanceObserver API",
+    "kind": "platform-api",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "460": {
+    "name": "ResizeObserver",
+    "kind": "platform-api",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "461": {
+    "name": "IntersectionObserver",
+    "kind": "platform-api",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "462": {
+    "name": "pnpm",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "463": {
+    "name": "npm",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "464": {
+    "name": "Yarn",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "465": {
+    "name": "Bun",
+    "kind": "runtime",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "466": {
+    "name": "Turborepo",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "467": {
+    "name": "Nx",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "468": {
+    "name": "Bazel",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "469": {
+    "name": "Pants",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "470": {
+    "name": "Buck2",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "471": {
+    "name": "Changesets",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "472": {
+    "name": "Renovate",
+    "kind": "service",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "473": {
+    "name": "Dependabot",
+    "kind": "service",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "474": {
+    "name": "ESLint",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "475": {
+    "name": "Biome",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "476": {
+    "name": "Prettier",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "477": {
+    "name": "Ruff",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "478": {
+    "name": "Black",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "479": {
+    "name": "isort",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "480": {
+    "name": "mypy",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "481": {
+    "name": "Pyright",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "482": {
+    "name": "Pylint",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "483": {
+    "name": "Bandit",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "484": {
+    "name": "Semgrep Community",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "485": {
+    "name": "CodeQL",
+    "kind": "service",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "486": {
+    "name": "clang-format",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "487": {
+    "name": "Clang-Tidy",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "488": {
+    "name": "Git",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "489": {
+    "name": "Git LFS",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "490": {
+    "name": "pre-commit",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "491": {
+    "name": "Husky",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "492": {
+    "name": "lint-staged",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "493": {
+    "name": "commitlint",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "494": {
+    "name": "Commitizen",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "495": {
+    "name": "Lefthook",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "496": {
+    "name": "simple-git-hooks",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "497": {
+    "name": "Docker",
+    "kind": "runtime",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "498": {
+    "name": "Docker Compose",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose"
+    ]
+  },
+  "499": {
+    "name": "Podman",
+    "kind": "runtime",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "500": {
+    "name": "Kubernetes",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "kubernetes"
+    ]
+  },
+  "501": {
+    "name": "k3s",
+    "kind": "runtime",
+    "container_support": "native",
+    "deployment_support": [
+      "kubernetes"
+    ]
+  },
+  "502": {
+    "name": "Kind",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "503": {
+    "name": "Minikube",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "504": {
+    "name": "Helm",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "kubernetes"
+    ]
+  },
+  "505": {
+    "name": "Kustomize",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "kubernetes"
+    ]
+  },
+  "506": {
+    "name": "Terraform",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "507": {
+    "name": "OpenTofu",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "508": {
+    "name": "Ansible",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "509": {
+    "name": "MinIO",
+    "kind": "service",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "510": {
+    "name": "SeaweedFS",
+    "kind": "service",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "511": {
+    "name": "Garage",
+    "kind": "service",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ]
+  },
+  "512": {
+    "name": "S3-compatible storage APIs",
+    "kind": "alternative-group",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "513": {
+    "name": "Apache Commons Compress",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "514": {
+    "name": "Zip.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "515": {
+    "name": "Manim",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "516": {
+    "name": "VPython",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "517": {
+    "name": "PyVista",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "518": {
+    "name": "Plotly",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "519": {
+    "name": "Bokeh",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "520": {
+    "name": "Holoviews",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "521": {
+    "name": "Datashader",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "522": {
+    "name": "Mayavi",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "523": {
+    "name": "VisPy",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "524": {
+    "name": "Napari",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "525": {
+    "name": "Open3D",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "526": {
+    "name": "Trimesh",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "527": {
+    "name": "OpenCascade",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "528": {
+    "name": "OpenCascade.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "529": {
+    "name": "CGAL",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "530": {
+    "name": "Shapely",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "531": {
+    "name": "GeoPandas",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "532": {
+    "name": "Fiona",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "533": {
+    "name": "Rasterio",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "534": {
+    "name": "PROJ",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "535": {
+    "name": "GDAL",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "536": {
+    "name": "Turf.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ]
+  },
+  "537": {
+    "name": "Godot",
+    "kind": "framework",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "desktop",
+      "browser"
+    ]
+  },
+  "538": {
+    "name": "Bevy",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "desktop",
+      "browser"
+    ]
+  },
+  "539": {
+    "name": "Phaser",
+    "kind": "framework",
+    "container_support": "native",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "540": {
+    "name": "PixiJS",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "541": {
+    "name": "PlayCanvas",
+    "kind": "framework",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "542": {
+    "name": "Defold",
+    "kind": "framework",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "desktop",
+      "browser"
+    ]
+  },
+  "543": {
+    "name": "Mermaid",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "544": {
+    "name": "Graphviz",
+    "kind": "cli-tool",
+    "container_support": "not-applicable",
+    "deployment_support": []
+  },
+  "545": {
+    "name": "PlantUML",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "546": {
+    "name": "Ditaa",
+    "kind": "cli-tool",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ]
+  },
+  "547": {
+    "name": "Kroki",
+    "kind": "service",
+    "container_support": "native",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ]
+  },
+  "548": {
+    "name": "BPMN.js",
+    "kind": "library",
+    "container_support": "native",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "549": {
+    "name": "Rough.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  },
+  "550": {
+    "name": "Fabric.js",
+    "kind": "library",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ]
+  }
+}

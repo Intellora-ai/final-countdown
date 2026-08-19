@@ -21,6 +21,19 @@ on:
   push:
     branches: [main]
 
+# Cancel a run only when a newer commit on the SAME pull request has
+# superseded it. `github.ref` is the PR ref, so runs on different PRs never
+# cancel each other.
+#
+# cancel-in-progress is deliberately conditional. On a push to main the run IS
+# the authoritative verification of a commit that is already merged -- killing
+# it would leave a merged commit with no completed verification, which is the
+# one outcome this repository exists to prevent. Superseding only happens on
+# pull_request, where a newer commit genuinely obsoletes the older result.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
@@ -34,6 +47,13 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.12'
+          # Every other Python job in this repository caches its wheels; this
+          # one did not, and it installs the same 36-package locked set. Keyed
+          # on requirements.lock, not the default requirements.txt, because the
+          # install below reads the lock -- a cache keyed on a file the install
+          # never reads goes stale without ever saying so.
+          cache: pip
+          cache-dependency-path: requirements.lock
 
       - name: Install Python dependencies
         run: pip install --require-hashes -r requirements.lock

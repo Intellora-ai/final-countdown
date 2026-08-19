@@ -25,7 +25,19 @@ axle verify-proof --environment lean-4.33.0 specs/add_spec.lean proofs/add_proof
 ```
 
 AXLE is a client for a hosted Lean 4.33.0 + Mathlib service, so **no local Lean
-install is required**. Verification of the bundled examples takes 200–320 ms.
+install is required**. Two numbers describe how long verification of the bundled
+examples takes, and they measure different things:
+
+| number | measured | what it is |
+|---|---|---|
+| **77–111 ms** (median 84 ms) | server-side | `info.total_request_time_ms` in the AXLE response: queue time plus Lean execution. This is the proof check itself. |
+| **1.03–1.20 s** (median 1.10 s) | wall clock | one `axle verify-proof` invocation, start to exit. This is what you wait for. |
+
+Measured over the 10 bundled spec/proof pairs, one invocation each, plus N=10
+repeats of `specs/add_spec.lean`. The ~1.0 s difference is connection setup, not
+proof checking: `axle --help` returns in 144 ms, and a TLS handshake to
+`axle.axiommath.ai` completes at 570–720 ms (`curl -w %{time_appconnect}`). The
+CLI opens a fresh connection per invocation, so every pair pays that once.
 
 ## Install
 

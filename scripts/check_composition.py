@@ -11,6 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from spec_source import source_for
 from spec_strength import evaluate
+from spec_to_test import SpecParseError
 from typing import Any
 
 if __name__ == "__main__":
@@ -24,8 +25,14 @@ if __name__ == "__main__":
         src = source_for(spec)
         if src is None:
             print(f"❌ {spec}: unresolvable"); sys.exit(1)
-        rep = evaluate(spec, str(src), ns.min_strength)
-        if rep is None or rep.get("verdict") in {"false", "vacuous"}:
+        # Fail closed. `evaluate` raises rather than returning None, so an
+        # unparsable spec cannot be mistaken for one with nothing to report.
+        try:
+            rep = evaluate(spec, str(src), ns.min_strength)
+        except SpecParseError as exc:
+            print(f"❌ {spec}: unparsable — the set was NOT scored: {exc}")
+            sys.exit(1)
+        if rep.get("verdict") in {"false", "vacuous"}:
             sys.exit(1)
         reports.append(rep)
 

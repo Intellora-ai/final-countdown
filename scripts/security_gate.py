@@ -30,7 +30,7 @@ import subprocess
 import sys
 from pathlib import Path
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, cast
 
 # (test_id, file) pairs eligible for verification. Eligibility is not approval:
 # each still has to pass check_subprocess_safety below.
@@ -100,7 +100,9 @@ ELIGIBLE = {("B404", "scripts/proof_gate.py"), ("B603", "scripts/proof_gate.py")
             ("B404", "scripts/correspondence_gate.py"),
             ("B603", "scripts/correspondence_gate.py"),
             ("B404", "scripts/ruleset_admin.py"),
-            ("B603", "scripts/ruleset_admin.py")}
+            ("B603", "scripts/ruleset_admin.py"),
+            ("B404", "scripts/generate_evidence.py"),
+            ("B603", "scripts/generate_evidence.py")}
 
 
 def check_subprocess_safety(path: str) -> tuple[bool, str]:
@@ -164,16 +166,46 @@ def check_subprocess_safety(path: str) -> tuple[bool, str]:
 
 
 def run_bandit(targets: Sequence[str]) -> list[dict[str, Any]]:
+    """Return bandit's findings, or exit non-zero. NO SCAN IS NOT A CLEAN SCAN.
+
+    bandit exits 0 when it scanned nothing. A target that does not exist, and a
+    file whose AST will not parse, are both recorded under "errors", dropped
+    from "results", and the process still succeeds. Reading only "results"
+    therefore printed `bandit: 0 findings` and returned PASS over code that was
+    never examined — `security_gate.py doesnotexist` was a green security gate.
+
+    So the verdict now needs three things from the report: no errors, at least
+    one file actually measured, and a results list. The keys are indexed, not
+    `.get`-with-a-default: a report missing any of them is unusable, and
+    unusable must not read as clean.
+    """
     out = subprocess.run(
         [sys.executable, "-m", "bandit", "-r", *targets, "-f", "json",
          "--severity-level", "low", "--confidence-level", "low"],
         capture_output=True, text=True, timeout=300,
     )
     try:
-        return json.loads(out.stdout).get("results", [])
-    except ValueError:
+        report = cast("dict[str, Any]", json.loads(out.stdout))
+        errors = cast("list[dict[str, Any]]", report["errors"])
+        metrics = cast("dict[str, Any]", report["metrics"])
+        results = cast("list[dict[str, Any]]", report["results"])
+    except (ValueError, KeyError, TypeError) as exc:
+        print(f"  bandit emitted no usable JSON report: {exc}", file=sys.stderr)
         print(out.stdout[:400] or out.stderr[:400], file=sys.stderr)
         sys.exit(2)
+
+    if errors:
+        for err in errors:
+            print(f"  BANDIT ERROR  {err.get('filename')}: {err.get('reason')}",
+                  file=sys.stderr)
+        print(f"\n  FAIL — bandit could not read {len(errors)} target(s); a file "
+              "it never scanned is not a file it found clean", file=sys.stderr)
+        sys.exit(2)
+    if not [name for name in metrics if name != "_totals"]:
+        print(f"\n  FAIL — bandit scanned no files under {', '.join(targets)}",
+              file=sys.stderr)
+        sys.exit(2)
+    return results
 
 
 def main(targets: Sequence[str]) -> int:

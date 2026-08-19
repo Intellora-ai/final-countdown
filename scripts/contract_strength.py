@@ -23,7 +23,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from spec_source import source_for
 from spec_strength import holds, load_module
-from spec_to_test import parse_lean_spec
+from spec_to_test import SpecParseError, parse_lean_spec
 from collections.abc import Callable, Sequence
 from typing import Any
 
@@ -73,10 +73,16 @@ def distinct(original: Callable[..., int], alt: Callable[..., int],
 
 
 def assess(spec_files: list[str]) -> dict[str, Any]:
+    """Raises SpecParseError if ANY spec fails to parse.
+
+    Dropping an unparsable spec removed a constraint from the conjunction every
+    witness has to satisfy, and left `func_name`/`arity` taken from the first
+    spec that PARSED while `src` still came from `spec_files[0]`. Both make the
+    answer about a different question than the one asked. Fail closed.
+    """
+    if not spec_files:
+        return {"sufficiency": "UNKNOWN", "reason": "no spec files given"}
     infos = [(s, parse_lean_spec(s)) for s in spec_files]
-    infos = [(s, i) for s, i in infos if i]
-    if not infos:
-        return {"sufficiency": "UNKNOWN", "reason": "no parsable specs"}
 
     src = source_for(spec_files[0])
     if src is None:
@@ -119,7 +125,11 @@ if __name__ == "__main__":
                    help="exit non-zero when sufficiency is not established")
     ns = p.parse_args()
 
-    r = assess(ns.specs)
+    try:
+        r = assess(ns.specs)
+    except SpecParseError as exc:
+        print(f"❌ unparsable spec — sufficiency was NOT assessed: {exc}")
+        sys.exit(1)
     print(f"  contract sufficiency: {r['sufficiency']}")
     print(f"  reason: {r['reason']}")
     for w in r.get("witnesses", []):

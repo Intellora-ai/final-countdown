@@ -10,11 +10,23 @@ import sys
 from pathlib import Path
 
 
+# Lean block comment, including the /-- doc form. Non-greedy: the first -/ ends it.
+BLOCK_COMMENT = re.compile(r'/-.*?-/', re.DOTALL)
+
+
 def source_for(spec_file: str) -> Path | None:
     text = Path(spec_file).read_text(encoding="utf-8")
     # Anchored to line start: an unanchored \bdef matches prose in a comment
     # ("the def is the contract's subject" -> src/is.py).
-    m = re.search(r'^def\s+(\w+)', text, re.MULTILINE)
+    #
+    # Anchoring alone was not enough. It only defeats `-- def foo`; a `/- ... -/`
+    # block can carry a line that BEGINS with def, so a spec file that was
+    # nothing but a commented-out definition resolved to a real src/*.py and
+    # exited 0. Every caller (truth_gate, mutation_gate, sufficiency_loop,
+    # contract_strength, check_vacuity, check_composition, honest_report) then
+    # verified a source file against a spec that defines nothing. A
+    # commented-out definition is not a definition, so the comments go first.
+    m = re.search(r'^def\s+(\w+)', BLOCK_COMMENT.sub('', text), re.MULTILINE)
     if not m:
         return None
     candidate = Path("src") / f"{m.group(1)}.py"

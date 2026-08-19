@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from spec_source import source_for
 from spec_strength import holds, load_module
-from spec_to_test import parse_lean_spec
+from spec_to_test import SpecParseError, parse_lean_spec
 
 if __name__ == "__main__":
     if not sys.argv[1:]:
@@ -18,9 +18,14 @@ if __name__ == "__main__":
         sys.exit(1)
     bad = False
     for spec in sys.argv[1:]:
-        info = parse_lean_spec(spec)
+        # Fail closed: no parse means no search was performed, which is not
+        # the same as "no counterexample found".
+        try:
+            info = parse_lean_spec(spec)
+        except SpecParseError as exc:
+            print(f"❌ {spec}: unparsable — {exc}"); bad = True; continue
         src = source_for(spec)
-        if info is None or src is None:
+        if src is None:
             print(f"❌ {spec}: unresolvable"); bad = True; continue
         ok, _ = holds(info, load_module(src.read_text()))
         if ok:

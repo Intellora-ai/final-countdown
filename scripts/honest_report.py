@@ -18,6 +18,7 @@ from composition import analyse
 from mutation_gate import score
 from semantic_anchor import anchor_for, strength as anchor_strength
 from spec_source import source_for
+from spec_to_test import SpecParseError
 
 def report(spec_files: list[str], threshold: float = 0.9) -> str:
     src = source_for(spec_files[0])
@@ -54,7 +55,12 @@ def report(spec_files: list[str], threshold: float = 0.9) -> str:
           f"  ({', '.join(str(p['axle_ms']) + 'ms' for p in proofs if p['axle_ms'])})")
     print(f"  Runtime property test:    {runtime}")
     print(f"  Mutation discrimination:  {mut['mutants_killed']}/{mut['mutants']}")
-    print(f"  Equivalent mutants:       {mut['equivalent_excluded']} excluded")
+    # NOT "equivalent". The exclusion means no difference was found at the
+    # sampled points — a search that found nothing, not a proof that nothing
+    # exists. Printing "equivalent" here would restate a stronger claim than
+    # scripts/mutation_gate.py established.
+    print(f"  Indistinguishable on sample: {mut['equivalent_excluded']} excluded "
+          f"(not proven equivalent)")
     print(f"  Boundary coverage:        {boundary}/{len(spec_files)} specs probed")
     print(f"  Joint strength:           {comp['joint_strength']:.2f}"
           f"   individual {[f'{v:.2f}' for v in comp['individual_strengths']]}")
@@ -90,6 +96,10 @@ if __name__ == "__main__":
     p.add_argument("--min-strength", type=float, default=0.9)
     p.add_argument("--require-sufficiency", action="store_true")
     ns = p.parse_args()
-    o = report(ns.specs, ns.min_strength)
+    try:
+        o = report(ns.specs, ns.min_strength)
+    except SpecParseError as exc:
+        print(f"❌ unparsable spec — nothing was reported: {exc}")
+        sys.exit(1)
     bad = o == "FAIL" or (ns.require_sufficiency and o != "PASS")
     sys.exit(1 if bad else 0)

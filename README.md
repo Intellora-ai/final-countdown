@@ -73,7 +73,7 @@ gate  ×10 ─┴─→ full   (needs: all, if: always())
 | `coverage` | pytest branch coverage | **95%** |
 | `pyright` | strict types | 0 errors |
 | `bandit` | LOW severity and above, `src` and `scripts` | verified safe patterns only |
-| `mutmut` | spec vs AST mutants, equivalent mutants excluded | **95%** |
+| `mutmut` | spec vs AST mutants; mutants indistinguishable at ~481 sampled points excluded, never called equivalent | **95%** |
 | `full` | finalizer: evidence set == declared set | no missing, unexpected, duplicate or foreign evidence |
 
 `pr-fast.yml` is supplementary and blocks nothing — a strict subset of

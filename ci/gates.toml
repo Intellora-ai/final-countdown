@@ -194,7 +194,8 @@ workflow = "codeql.yml"
 job = "codeql-python"
 mandatory = true
 role = "scanner"
-must_contain = ["github/codeql-action/init@v4", "github/codeql-action/analyze@v4"]
+must_contain = ["github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd",
+                "github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd"]
 evidence = "github code scanning, category /language:python"
 artifact = ""
 
@@ -203,7 +204,8 @@ workflow = "codeql.yml"
 job = "codeql-actions"
 mandatory = true
 role = "scanner"
-must_contain = ["github/codeql-action/init@v4", "github/codeql-action/analyze@v4"]
+must_contain = ["github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd",
+                "github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd"]
 evidence = "github code scanning, category /language:actions"
 artifact = ""
 

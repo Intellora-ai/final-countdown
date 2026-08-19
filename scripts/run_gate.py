@@ -30,7 +30,11 @@ SCOPE_PATTERNS = [
     (re.compile(r"Total coverage:\s*([\d.]+%)"), "coverage"),
     (re.compile(r"(\d+)\s+errors?,\s+\d+\s+warnings?"), "type_errors"),
     (re.compile(r"mutation discrimination:\s*(\d+/\d+)"), "mutants_killed"),
-    (re.compile(r"equivalent mutants:\s*(\d+)"), "equivalent_excluded"),
+    # Matches mutation_gate's current wording. The previous pattern
+    # ("equivalent mutants:") stopped matching when that gate renamed the
+    # concept, and a scope field silently stopped being populated — a dead
+    # regex reports nothing rather than failing, so nothing noticed.
+    (re.compile(r"indistinguishable on sample:\s*(\d+)"), "indistinguishable_on_sample"),
     (re.compile(r"JOINT strength:\s*([\d.]+)"), "joint_strength"),
     (re.compile(r"bandit:\s*(\d+) findings"), "security_findings"),
     (re.compile(r"PASS \(with (\d+) verified exceptions\)"), "verified_exceptions"),

@@ -277,3 +277,38 @@ role = "supplementary"
 must_contain = ["scripts/enforce_spec.py", "scripts/axle_gate.py"]
 evidence = "reports/fast.json"
 artifact = "reports-fast"
+
+
+# AI code review. Non-blocking, and NOT in required_checks — deliberately.
+# check_ruleset.py asserts CANONICAL == GITHUB_REQUIRED, so naming a check here
+# that GitHub does not yet require fails CI; adding the GitHub half needs repo
+# admin. Until then this is declared, runs, and blocks nothing.
+#
+# It is also a no-op until a human creates the CLAUDE_CODE_OAUTH_TOKEN secret.
+# The workflow reads that secret in `jobs.<id>.env` (the only place a job may)
+# and branches its steps on the resulting boolean, because the `secrets` context
+# is available in NEITHER a job-level nor a step-level `if:`.
+#
+# The blocking power does not come from this check's conclusion, which is always
+# green. It comes from the ruleset's `required_review_thread_resolution`: an
+# inline comment this reviewer posts must be resolved before merge.
+#
+# THE REVIEWER CANNOT EDIT THIS FILE, or any workflow, gate script, or the
+# adversarial suite. A reviewer that can edit its own gates is not gated, so the
+# verification system is denied to it by name in the workflow's prompt and again
+# mechanically through the action's `settings` deny rules. It has no write
+# capability at all today (`contents: read`); if it disagrees with a gate it must
+# say so in a comment and stop, and a human decides. See docs/ai-review.md.
+#
+# Its evidence is a set of pull request review comments, not a reports/*.json,
+# so `artifact` is empty — the same construction the scanner gates use. Nothing
+# reads either field for a non-mandatory gate; they are declared so the role is
+# a decision on the record rather than an omission.
+[gates.ai-review]
+workflow = "ai-review.yml"
+job = "ai-review"
+mandatory = false
+role = "supplementary"
+must_contain = ["anthropics/claude-code-action@d40ddef4c030e508327d6e35a9c45f3368482c50"]
+evidence = "pull request review comments, posted via the claude GitHub App (1236702)"
+artifact = ""

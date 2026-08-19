@@ -12,3 +12,8 @@ reports/
 node_modules/
 playwright-report/
 test-results/
+
+# Scratch git worktrees created for isolated agent runs. They are full
+# checkouts of this repository living inside it; committing one would nest the
+# tree in itself and drag whatever an agent installed there into history.
+.claude/

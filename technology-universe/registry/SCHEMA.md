@@ -16,7 +16,8 @@ Both are satisfied by separating the two ideas:
   what §32's acceptance test counts.
 - `technology_id` — a slug identifying the *technology*. Shared by every entry
   naming the same thing, so `rough-js` appears once as an identity and three
-  times as an inventory position. 535 distinct.
+  times as an inventory position. 530 distinct, measured from the built
+  registry; see the paragraph below for why an earlier draft said 535.
 
 A record whose `id` is not the lowest for its `technology_id` sets
 `canonical: false` and carries `canonical_id` pointing at the one that is.
@@ -76,7 +77,7 @@ names was the mistake; the registry counts identities.
 `library` · `framework` · `runtime` · `cli-tool` · `service` ·
 `platform-api` · `standard` · `alternative-group`
 
-`alternative-group` is for the four entries that name a class rather than a
+`alternative-group` is for the seven entries that name a class rather than a
 package: ids 102, 119, 265, 415, 427, 449, 512. Calling those "libraries"
 would be a small lie that a later reader would have to re-derive.
 
@@ -109,5 +110,26 @@ anything ambiguous is `LICENSE_REVIEW_REQUIRED` with the reason in `notes`.
 
 **Do not claim a level you have not evidenced.** A technology with a `version`
 string nobody measured is worse than one marked `P0`, because it looks checked
-and is not. Most of the 550 will sit at `P0`/`P1`, and that is the honest
-result — §29 exists precisely so the distinction is visible.
+and is not. 278 of the 550 sit at `P0`/`P1` with nothing installed, and that is
+the honest result — §29 exists precisely so the distinction is visible.
+
+### What the builder enforces, and what it does not
+
+The builder refuses `P2` or higher without a non-null `version`. That is a
+presence check, and presence is not provenance: it accepts `version: "yes"` and
+`version: "99.99.99-i-made-this-up"` as readily as a measured string. `P3` is
+enforced identically to `P2` — nothing in the build requires the smoke test that
+`P3` claims. Of the 204 records at `P3`, **18** cite a smoke-test file that
+exists on disk and can be re-run; the other 186 describe the test inline in
+`notes` and left no artifact.
+
+So the honesty of `P2`/`P3` currently rests on the parts files having been
+written truthfully, not on the gate. An independent audit cross-checked 237 of
+the 272 measured versions against `node_modules`, five `.venv` trees and brew,
+and found **zero disagreements** — the measurements are real. The gap is that
+the builder could not have caught it if they were not.
+
+Closing it at the bottleneck costs one rule: require a `P3` record to name a
+smoke-test path that resolves on disk. That fails the build on 186 records
+today, which is the point — each would have to produce its artifact or drop
+honestly to `P2`.

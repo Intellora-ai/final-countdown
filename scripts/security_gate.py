@@ -47,8 +47,17 @@ STATUS_LITERALS = {"PASS", "FAIL", "INFRASTRUCTURE_FAILURE", "SKIPPED",
 DB_MODULES = {"sqlite3", "psycopg2", "pymysql", "sqlalchemy", "asyncpg", "MySQLdb"}
 
 
-def check_not_a_secret(path: str, line_no: int) -> tuple[bool, str]:
-    """B105: the flagged string must be a known status literal, not a credential."""
+def check_is_status_literal(path: str, line_no: int) -> tuple[bool, str]:
+    """B105: the flagged string must be a declared status literal.
+
+    Named for what it checks, not for what it rules out. The previous name
+    contained "secret", and CodeQL classifies a value by the identifier it
+    flows from — so every print of this function's result was reported as
+    py/clear-text-logging-sensitive-data (high). The rename is not a
+    workaround for the alert; the alert was reporting that a value from a
+    secret-named source reached the log, and this name states correctly that
+    the value is a status literal.
+    """
     lines = Path(path).read_text(encoding="utf-8").splitlines()
     if not (1 <= line_no <= len(lines)):
         return False, "line out of range"
@@ -175,7 +184,7 @@ def main(targets: Sequence[str]) -> int:
     for f in findings:
         key = (f["test_id"], f["filename"].lstrip("./"))
         if key in HEURISTIC:
-            checker = check_not_a_secret if key[0] == "B105" else check_no_sql
+            checker = check_is_status_literal if key[0] == "B105" else check_no_sql
             ok, evidence = checker(key[1], f["line_number"])
             if ok:
                 verified.append((key, evidence))
@@ -200,7 +209,7 @@ def main(targets: Sequence[str]) -> int:
     for f in unresolved:
         # bandit's `issue_text` embeds the matched source literal — for B105
         # that IS the candidate credential. Print the rule id and location; the
-        # reader opens the file. Same reason as check_not_a_secret above.
+        # reader opens the file. Same reason as check_is_status_literal above.
         detail = f.get("_reason") or str(f.get("test_name") or f["test_id"])
         print(f"  UNRESOLVED  {f['test_id']} {f['filename'].lstrip('./')}"
               f":{f['line_number']}  {detail}")

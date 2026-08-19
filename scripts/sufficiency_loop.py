@@ -35,7 +35,7 @@ from safe_eval import UnsupportedClaim, compile_claim
 from semantic_anchor import anchor_for
 from spec_source import source_for
 from spec_strength import holds, load_module
-from spec_to_test import parse_lean_spec
+from spec_to_test import SpecParseError, parse_lean_spec
 from typing import Any
 from collections.abc import Callable, Sequence
 
@@ -91,10 +91,11 @@ def anchor_verdict(anchor: dict[str, Any], func_name: str,
 
 
 def run(spec_files: list[str], verbose: bool = True) -> dict[str, Any]:
+    """Raises SpecParseError if ANY spec fails to parse — see contract_strength.assess."""
+    if not spec_files:
+        return {"sufficiency": "UNKNOWN", "reason": "no spec files given",
+                "scope": SCOPE}
     infos = [(s, parse_lean_spec(s)) for s in spec_files]
-    infos = [(s, i) for s, i in infos if i]
-    if not infos:
-        return {"sufficiency": "UNKNOWN", "reason": "no parsable specs", "scope": SCOPE}
 
     src = source_for(spec_files[0])
     if src is None:
@@ -158,7 +159,11 @@ def run(spec_files: list[str], verbose: bool = True) -> dict[str, Any]:
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser(); p.add_argument("specs", nargs="+"); ns = p.parse_args()
-    r = run(ns.specs)
+    try:
+        r = run(ns.specs)
+    except SpecParseError as exc:
+        print(f"❌ unparsable spec — the loop did NOT run: {exc}")
+        sys.exit(1)
     sc = r["scope"]
     print(f"  Sufficiency:      {r['sufficiency']}"
           + (f" (within scope: {sc['domain']})" if r["sufficiency"] == "ESTABLISHED" else ""))

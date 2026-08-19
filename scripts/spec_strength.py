@@ -20,6 +20,20 @@ Four measurements, cheapest first, each able to reject on its own:
   3. STRENGTH — of N single-point mutants, how many does the spec reject?
      killed / total. Below the threshold the spec is too weak to be worth proving.
 
+     Mutants nothing could tell apart from the original are excluded from
+     `total`. That exclusion is decided by evaluating both at a FINITE set of
+     sampled inputs, so what it establishes is OBSERVATIONAL INDISTINGUISHABILITY
+     ON THAT SAMPLE — never SEMANTIC EQUIVALENCE. The two are not the same claim:
+     agreement at N points implies nothing at point N+1, and a real behavioural
+     change that happens to agree everywhere sampled would leave the denominator
+     and push the score UP when it should push it DOWN. It cannot be strengthened
+     into equivalence — that question is undecidable (Rice's theorem) and the
+     integer domain is infinite, so exhaustion is unavailable. The mitigation is
+     a wider search plus an honest label; see the block above
+     `indistinguishable_on_sample` for the full argument and the numbers printed.
+
+     A denominator of zero is a hard FAIL, never a vacuous 100%.
+
   4. COMPOSITION — which minimal subset of specs jointly kills every mutant that
      any of them kills. Reported so redundant specs can be dropped.
 
@@ -28,21 +42,28 @@ the property scored here is the property the proof is about.
 """
 
 import argparse
+import ast
+import functools
+import hashlib
 import importlib.util
+import itertools
 import json
 import os
 import sys
 import tempfile
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from collections.abc import Callable
 from types import ModuleType
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mutate import Mutant, generate_mutants  # noqa: E402
 from safe_eval import compile_claim  # noqa: E402
-from spec_to_test import lean_expr_to_python, parse_lean_spec  # noqa: E402
+from spec_to_test import (  # noqa: E402
+    Expr, SpecParseError, expr_to_python, parse_lean_spec,
+)
 
 from hypothesis import HealthCheck, given, settings, strategies as st  # noqa: E402
 from hypothesis import errors as hyp_errors  # noqa: E402
@@ -86,12 +107,12 @@ def build_property(info: dict[str, Any], module: ModuleType
                    ) -> tuple[Callable[..., None], dict[str, int]]:
     """Return (check, reached) — check raises on violation, reached counts hits."""
     func = getattr(module, info["function_name"])
-    args = info["args"]
-    claim = lean_expr_to_python(info["property"], info["function_name"], args)
-    guard = (
-        lean_expr_to_python(info["hypothesis"], info["function_name"], args)
-        if info["hypothesis"] else None
-    )
+    # Rendered from the parsed tree, not re-derived from text. The Lean strings
+    # in the record are for humans; scoring anything but the tree that was
+    # actually parsed is how a misparse turns into a false green.
+    claim = expr_to_python(info["property_ast"])
+    hypothesis_ast: Expr | None = info["hypothesis_ast"]
+    guard = expr_to_python(hypothesis_ast) if hypothesis_ast is not None else None
     # No eval(): safe_eval interprets the claim's AST directly (Layer 9).
     claim_code = compile_claim(claim)
     guard_code = compile_claim(guard) if guard else None
@@ -130,36 +151,246 @@ def holds(info: dict[str, Any], module: ModuleType) -> tuple[bool, dict[str, int
     return True, stats
 
 
-def is_equivalent(original: ModuleType, mutant_src: str, func_name: str,
-                  arity: int) -> bool:
-    """True if the mutant computes the same function as the original.
+# ══════════════════════════════════════════════════════════════════════════════
+# OBSERVATIONAL INDISTINGUISHABILITY ON A FINITE SAMPLE — *not* equivalence.
+#
+# WHAT IS ESTABLISHED
+#   For a specific finite set of input tuples, the original and the mutant
+#   produced the same observation (same value of the same type, or the same
+#   exception type). Nothing more.
+#
+# WHAT IS *NOT* ESTABLISHED
+#   That they compute the same function. Two programs agreeing at N points say
+#   nothing about point N+1. The label used to be "equivalent mutant", which
+#   claimed exactly the thing the check cannot show.
+#
+# WHY IT MATTERS — the false-green
+#   An excluded mutant leaves the denominator. If a mutant is a REAL behavioural
+#   change that happens to agree at every sampled point, excluding it makes the
+#   spec's score go UP when it should go DOWN. Every widening below exists to
+#   make that failure detectable, not to make the claim true.
+#
+# WHY IT CANNOT BE STRENGTHENED TO SEMANTIC EQUIVALENCE
+#   Deciding whether two arbitrary Python functions compute the same function is
+#   undecidable (Rice's theorem; the halting problem is a special case — the
+#   mutant may not even terminate). Exhaustion is not available either: Python
+#   ints are unbounded, so the input domain is infinite. A proof would need a
+#   symbolic decision procedure over the source, which this repository does not
+#   have and which does not exist in general. So the honest move is not a better
+#   check — it is a smaller claim, plus a wider search that makes a wrong
+#   exclusion likelier to be caught. What is printed is the search's size.
+# ══════════════════════════════════════════════════════════════════════════════
 
-    `a + b` mutated to `b + a` is not a bug — it is the same program. Standard
-    mutation testing calls these equivalent mutants and excludes them; counting
-    them makes a perfectly good spec look weak.
+INDISTINGUISHABLE_ON_SAMPLE = "INDISTINGUISHABLE_ON_SAMPLE"
+
+# Fixed so a run is reproducible: same seed -> same sample -> same verdicts.
+SAMPLE_SEED = 20260819
+# Boundaries and magnitudes a six-point sample around zero never reaches.
+BOUNDARY_VALUES: tuple[int, ...] = (
+    0, 1, -1, 2, -2, 3, -3, 10, -10, 1000, -1000,
+    10**6, -10**6, 10**12, -10**12,
+)
+RANDOM_MAGNITUDES: tuple[int, ...] = (8, 1000, 10**6, 10**12)
+RANDOM_SAMPLE_TUPLES = 256
+DISTINGUISHER_EXAMPLES = 300
+
+
+@dataclass(frozen=True)
+class SampleVerdict:
+    """The measured result of one indistinguishability search.
+
+    `indistinguishable` True means: no distinguishing input was FOUND in
+    `points_tested` deterministic points plus `hypothesis_examples` searched
+    examples. It does not mean none exists.
     """
-    import itertools
+
+    indistinguishable: bool
+    points_tested: int
+    seed: int
+    hypothesis_examples: int
+    distinguishing_input: tuple[int, ...] | None
+    note: str
+
+
+def _int_constants(source: str) -> set[int]:
+    """Every integer literal in `source`. Bugs cluster at the magic numbers."""
+    found: set[int] = set()
     try:
-        mutant = load_module(mutant_src)
+        tree = ast.parse(source)
+    except SyntaxError:
+        return found
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant):
+            value = node.value
+            if isinstance(value, int) and not isinstance(value, bool):
+                found.add(value)
+    return found
+
+
+def sample_values(original_source: str, mutant_source: str) -> tuple[int, ...]:
+    """The per-argument value pool: boundaries plus a band around every literal.
+
+    The mutant's source is scanned too, on purpose. An AST mutant that only
+    misbehaves at some constant carries that constant in its own text, so
+    reading it is what turns `if x == 997: return 0` from invisible into a
+    guaranteed hit.
+    """
+    pool: set[int] = set(BOUNDARY_VALUES)
+    for c in _int_constants(original_source) | _int_constants(mutant_source):
+        pool.update((c - 1, c, c + 1))
+    return tuple(sorted(pool))
+
+
+def seeded_stream(seed: int, count: int) -> list[int]:
+    """`count` reproducible pseudo-random integers derived from `seed`.
+
+    A hash chain rather than the `random` module. The requirement is
+    reproducibility — same seed, same sample, same verdicts, in any process — and
+    blake2b gives that by construction. It also avoids adding a B311
+    (pseudo-random generator) finding that scripts/security_gate.py has no
+    adjudication for; that gate fails on any finding it cannot verify, and a
+    sampling helper is not the place to spend an exception.
+    """
+    return [int.from_bytes(
+        hashlib.blake2b(f"{seed}:{i}".encode("utf-8"), digest_size=8).digest(),
+        "big") for i in range(count)]
+
+
+def sample_points(values: tuple[int, ...], arity: int) -> list[tuple[int, ...]]:
+    """Full grid over `values`, then seeded pseudo-random tuples.
+
+    The grid pins the boundaries and the literal bands; the random tail reaches
+    the ordinary values in between, which is where a mutant that is wrong over a
+    RANGE rather than at a POINT lives. Deterministic in the seed, so the count
+    printed by the gate is a number anyone can reproduce.
+    """
+    points: list[tuple[int, ...]] = list(itertools.product(values, repeat=arity))
+    draws = seeded_stream(SAMPLE_SEED, RANDOM_SAMPLE_TUPLES * arity * 3)
+    cursor = 0
+    for _ in range(RANDOM_SAMPLE_TUPLES):
+        point: list[int] = []
+        for _ in range(arity):
+            pick, index, offset = draws[cursor], draws[cursor + 1], draws[cursor + 2]
+            cursor += 3
+            if pick % 2 == 0:
+                point.append(values[index % len(values)])
+            else:
+                magnitude = RANDOM_MAGNITUDES[index % len(RANDOM_MAGNITUDES)]
+                point.append(offset % (2 * magnitude + 1) - magnitude)
+        points.append(tuple(point))
+    return points
+
+
+def observe(fn: Callable[..., object], point: tuple[int, ...]
+            ) -> tuple[str, str, object]:
+    """Everything observable at one point: kind, type name, value-or-message.
+
+    A raise is an observation, not a failure to observe — the pre-change check
+    abandoned the comparison on any exception, so a mutant that changed only the
+    error behaviour was never compared at all.
+
+    Two details each close an inflation path. The type name is compared as well
+    as the value, because `0` and `0.0` are equal and are not the same result.
+    The exception MESSAGE is compared as well as its class, because a mutated
+    integer inside an error string is a real change and would otherwise be
+    excluded from the denominator for free.
+    """
+    try:
+        out = fn(*point)
+    except Exception as exc:
+        return ("raise", type(exc).__name__, str(exc))
+    return ("value", type(out).__name__, out)
+
+
+class _Distinguished(Exception):
+    """Carries the input at which the two functions were seen to differ."""
+
+
+SEARCH = settings(
+    max_examples=DISTINGUISHER_EXAMPLES,
+    deadline=None,
+    database=None,
+    derandomize=True,  # same seed, same search: the determinism claim is testable
+    suppress_health_check=list(HealthCheck),  # pyright: ignore[reportArgumentType]
+)
+
+
+def search_for_distinguishing_input(
+    f: Callable[..., object], g: Callable[..., object],
+    values: tuple[int, ...], arity: int,
+) -> tuple[bool, tuple[int, ...] | None]:
+    """Ask Hypothesis to break the indistinguishability claim before it is made.
+
+    Returns (searched_ok, distinguishing_input). `searched_ok` False means the
+    search itself failed, which is treated as "do not exclude" — the conservative
+    direction, because a skipped search must never buy an exclusion.
+    """
+    names = [f"x{i}" for i in range(arity)]
+    ints = st.one_of(st.integers(), st.sampled_from(values))
+    found: list[tuple[int, ...]] = []
+
+    def probe(**kwargs: int) -> None:
+        point = tuple(kwargs[n] for n in names)
+        if observe(f, point) != observe(g, point):
+            found.append(point)
+            raise _Distinguished(point)
+
+    runner = SEARCH(given(**{n: ints for n in names})(probe))
+    try:
+        runner()
+    except _Distinguished:
+        pass
     except Exception:
-        return False
-    f, g = getattr(original, func_name), getattr(mutant, func_name)
-    for values in itertools.product([-7, -1, 0, 1, 3, 11], repeat=arity):
-        try:
-            a, b = f(*values), g(*values)
-        except Exception:
-            return False
-        if a != b:
-            return False
-    return True
+        return (bool(found), found[-1] if found else None)
+    return (True, found[-1] if found else None)
+
+
+@functools.lru_cache(maxsize=None)
+def indistinguishable_on_sample(original_source: str, mutant_source: str,
+                                func_name: str, arity: int) -> SampleVerdict:
+    """Did any sampled input tell the mutant apart from the original?
+
+    `a + b` mutated to `b + a` is not a bug, and no spec can kill it; counting it
+    caps every honest score. So mutants nothing could distinguish are excluded
+    from the denominator — but the exclusion is reported for what it is, an
+    absence of evidence over a stated number of points, never as equivalence.
+    """
+    try:
+        original = load_module(original_source)
+        mutant = load_module(mutant_source)
+    except Exception:
+        return SampleVerdict(False, 0, SAMPLE_SEED, 0, None,
+                             "mutant or original failed to load")
+    if not hasattr(original, func_name) or not hasattr(mutant, func_name):
+        return SampleVerdict(False, 0, SAMPLE_SEED, 0, None,
+                             f"{func_name} missing from the mutant")
+    f = cast("Callable[..., object]", getattr(original, func_name))
+    g = cast("Callable[..., object]", getattr(mutant, func_name))
+
+    values = sample_values(original_source, mutant_source)
+    tested = 0
+    for point in sample_points(values, arity):
+        tested += 1
+        if observe(f, point) != observe(g, point):
+            return SampleVerdict(False, tested, SAMPLE_SEED, 0, point,
+                                 "distinguished by the deterministic sample")
+
+    searched_ok, witness = search_for_distinguishing_input(f, g, values, arity)
+    if witness is not None:
+        return SampleVerdict(False, tested, SAMPLE_SEED, DISTINGUISHER_EXAMPLES,
+                             witness, "distinguished by hypothesis")
+    if not searched_ok:
+        return SampleVerdict(False, tested, SAMPLE_SEED, 0, None,
+                             "hypothesis search failed; not excluded")
+    return SampleVerdict(True, tested, SAMPLE_SEED, DISTINGUISHER_EXAMPLES, None,
+                         INDISTINGUISHABLE_ON_SAMPLE)
 
 
 def evaluate(spec_file: str, source_file: str, threshold: float
-             ) -> dict[str, Any] | None:
+             ) -> dict[str, Any]:
+    """Score one spec. Raises SpecParseError if the spec cannot be parsed —
+    an unparsed spec has been verified by nothing and must never be skipped."""
     info = parse_lean_spec(spec_file)
-    if info is None:
-        print(f"❌ {spec_file}: could not parse the theorem")
-        return None
     source = Path(source_file).read_text()
     original = load_module(source)
 
@@ -185,12 +416,38 @@ def evaluate(spec_file: str, source_file: str, threshold: float
     # 3. strength
     mutants = generate_mutants(source)
     live: list[Mutant] = []
+    excluded: list[tuple[str, SampleVerdict]] = []
     for mut in mutants:
-        if is_equivalent(original, mut.source, info["function_name"], len(info["args"])):
-            print(f"  – skipped:  {mut.name} (equivalent mutant, same function)")
+        verdict = indistinguishable_on_sample(
+            source, mut.source, info["function_name"], len(info["args"]))
+        if verdict.indistinguishable:
+            excluded.append((mut.name, verdict))
+            print(f"  – excluded: {mut.name} ({INDISTINGUISHABLE_ON_SAMPLE}: no "
+                  f"difference at {verdict.points_tested} sampled points + "
+                  f"{verdict.hypothesis_examples} hypothesis examples, "
+                  f"seed {verdict.seed}) — not proven equivalent")
         else:
             live.append(mut)
     mutants = live
+    report.update(indistinguishable_on_sample=len(excluded),
+                  sample_points=min((v.points_tested for _, v in excluded),
+                                    default=0),
+                  sample_seed=SAMPLE_SEED,
+                  hypothesis_examples=DISTINGUISHER_EXAMPLES,
+                  excluded_names=[n for n, _ in excluded])
+
+    # A denominator of zero is not a perfect score, it is a measurement that did
+    # not happen. Left as killed/total it would be 0/0; left to the threshold it
+    # would pass at --min-strength 0. Named and failed here instead.
+    if not mutants:
+        report.update(mutants=0, killed=0, strength=0.0, survivors=[],
+                      verdict="zero-denominator")
+        print(f"\n  spec strength: 0.00  (0/0 — nothing left to kill)")
+        print(f"❌ {spec_file}: ZERO DENOMINATOR — {len(generate_mutants(source))} "
+              f"mutants generated, {len(excluded)} excluded as "
+              f"{INDISTINGUISHABLE_ON_SAMPLE}, 0 scored. A spec that killed "
+              f"nothing scored nothing: hard FAIL, not a vacuous 100%.")
+        return report
 
     killed = 0
     survivors: list[str] = []
@@ -207,11 +464,13 @@ def evaluate(spec_file: str, source_file: str, threshold: float
             killed += 1
             print(f"  ✓ killed:   {mut.name}")
 
-    strength = killed / len(mutants) if mutants else 0.0
+    strength = killed / len(mutants)
     report.update(mutants=len(mutants), killed=killed,
                   strength=round(strength, 3), survivors=survivors)
 
-    print(f"\n  spec strength: {strength:.2f}  ({killed}/{len(mutants)} mutants killed)")
+    print(f"\n  spec strength: {strength:.2f}  ({killed}/{len(mutants)} mutants "
+          f"killed, {len(excluded)} excluded as {INDISTINGUISHABLE_ON_SAMPLE} "
+          f"at seed {SAMPLE_SEED})")
     if strength < threshold:
         print(f"❌ {spec_file} is too weak ({strength:.2f} < {threshold:.2f})")
         report["verdict"] = "weak"
@@ -260,11 +519,16 @@ if __name__ == "__main__":
     for pair in ns.pairs:
         spec_file, _, source_file = pair.partition("=")
         print(f"\n── {spec_file}  vs  {source_file} ──")
-        rep = evaluate(spec_file, source_file, ns.min_strength)
-        if rep is None or rep["verdict"] != "strong":
+        # Fail closed: a spec that will not parse is a gate failure, not a
+        # spec that quietly drops out of the set being scored.
+        try:
+            rep = evaluate(spec_file, source_file, ns.min_strength)
+        except SpecParseError as exc:
+            print(f"❌ {spec_file}: unparsable — {exc}")
+            sys.exit(1)
+        if rep["verdict"] != "strong":
             failed = True
-        if rep:
-            reports.append(rep)
+        reports.append(rep)
 
     # Joint strength: a mutant is caught if ANY spec in the set rejects it.
     # Individually, commutativity misses `return 0` and identity misses

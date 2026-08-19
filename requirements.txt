@@ -1,7 +1,30 @@
+# DIRECT dependencies only — what this repository actually imports or invokes.
+#
+# This file is INTENT, not the install set. Nothing installs from it: every
+# workflow runs `pip install --require-hashes -r requirements.lock`, which
+# pins the full transitive closure to exact versions with sha256 hashes.
+#
+# The floors below say "older than this is known not to work". They do NOT
+# decide what CI installs — requirements.lock does, and it is generated from
+# this file. So:
+#
+#   edit here  ->  regenerate requirements.lock  ->  commit both
+#
+# The regeneration command lives in the header of requirements.lock. Editing
+# this file alone changes nothing that runs.
+
 axiom-axle>=1.7.0
 pytest>=8.0
 pytest-cov>=5.0
 hypothesis>=6.100
 pyright>=1.1.390
-bandit>=1.8
-mutmut>=3.2
+bandit[sarif]>=1.8
+# mutmut REMOVED. The gate named `mutmut` runs scripts/mutation_gate.py —
+# our own AST mutation scorer — not the mutmut package, which was imported
+# nowhere. It surfaced only because `mutmut --version` crashes on this
+# interpreter, which made the evidence report list a tool as unavailable
+# that nothing used. An unused package inside a hash-pinned trusted
+# computing base is attack surface with no function. The GATE NAME stays:
+# it is a required status-check context in the live ruleset, and renaming
+# it would make that context permanently pending.
+PyYAML>=6.0

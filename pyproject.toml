@@ -8,6 +8,12 @@ requires-python = ">=3.12"
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-q --strict-markers"
+markers = [
+  # Calls the hosted AXLE service, so it needs network and takes seconds, not
+  # milliseconds. Deselect with `-m "not axle"` for a fast local loop; CI runs
+  # everything, because a correspondence nobody kernel-checks proves nothing.
+  "axle: sends a proof to the AXLE service for kernel checking",
+]
 
 [tool.coverage.run]
 source = ["src"]
@@ -19,6 +25,9 @@ show_missing = true
 exclude_lines = ["pragma: no cover", "if __name__ == .__main__.:"]
 
 [tool.pyright]
+# tests and scripts import sibling modules from scripts/ after a sys.path
+# insert; without this pyright reports every symbol from them as unknown.
+extraPaths = ["scripts"]
 # Without venvPath/venv, pyright cannot resolve hypothesis (which ships
 # py.typed). Every unresolved import makes downstream values Unknown, which is
 # where the bulk of the strict-mode errors came from - a config gap, not code.

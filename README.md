@@ -15,8 +15,10 @@ proofs/<name>_proof.lean the proof AXLE checks against the spec
 tests/test_<name>.py   Hypothesis properties mirroring the same contract
 ```
 
-`scripts/verify_with_axle.sh` pairs each `specs/<name>_spec.lean` with
-`proofs/<name>_proof.lean` and calls:
+`scripts/axle_gate.py` first proves the sets match — every spec has a proof,
+every proof has a spec, and there is at least one of each — because verifying
+every member of a set says nothing about it being the right set. Only then does
+it pair each `specs/<name>_spec.lean` with `proofs/<name>_proof.lean` and call:
 
 ```bash
 axle verify-proof --environment lean-4.33.0 specs/add_spec.lean proofs/add_proof.lean
@@ -40,22 +42,43 @@ authentication.
 ```bash
 pytest --cov=src --cov-branch --cov-fail-under=95   # tests + coverage
 python3 scripts/enforce_spec.py specs/*_spec.lean   # spec strength
-bash scripts/verify_with_axle.sh                    # AXLE proof check
+python3 scripts/axle_gate.py                        # AXLE proof check
 pyright                                             # strict types
 bandit -r src scripts --severity-level low --confidence-level low
 ```
 
 ## Gates
 
-| Workflow | Gate | Threshold |
+All of them are jobs in one workflow, `verify.yml`, and that is not tidiness.
+Separate workflows are separate runs with separate filesystems, so a finalizer
+in one cannot see evidence produced in another — an aggregate spread across
+workflows can only ever summarise its own duplicate execution of the gates.
+One workflow gives the finalizer `needs:` and `download-artifact` over the same
+run, which is the only arrangement where the aggregate is real.
+
+```
+preflight ─┐
+gate  ×10 ─┴─→ full   (needs: all, if: always())
+```
+
+| Job | Gate | Threshold |
 |---|---|---|
-| `pr-fast.yml` | spec strength + AXLE + tests | all must pass |
-| `axle-verify.yml` | spec strength + AXLE proofs | all proofs verified |
-| `coverage.yml` | pytest branch coverage | **95%** |
-| `typecheck.yml` | Pyright | strict mode |
-| `security.yml` | Bandit | LOW severity and above blocks |
-| `mutation.yml` | mutmut via `scripts/mutation_gate.py` | **95%** |
-| `full-verify.yml` | everything, on push to main | all must pass |
+| `preflight` | `scripts/gate_integrity.py` — the verification system still matches `ci/gates.toml` | no drift |
+| `axle-verify` | spec set completeness, then AXLE proofs | `SPEC_SET == PROOF_SET`, non-empty, all verified |
+| `spec-strength` | joint spec strength over the whole set | **0.90** |
+| `spec-composition` | joint strength per function | **0.90** |
+| `vacuity-check` | precondition reachability | not vacuous |
+| `counterexample-search` | spec claim against the real Python | no counterexample |
+| `honest-report` | ten dimensions, reported separately | blocks on FAIL only |
+| `coverage` | pytest branch coverage | **95%** |
+| `pyright` | strict types | 0 errors |
+| `bandit` | LOW severity and above, `src` and `scripts` | verified safe patterns only |
+| `mutmut` | spec vs AST mutants; mutants indistinguishable at ~481 sampled points excluded, never called equivalent | **95%** |
+| `full` | finalizer: evidence set == declared set | no missing, unexpected, duplicate or foreign evidence |
+
+`pr-fast.yml` is supplementary and blocks nothing — a strict subset of
+`axle-verify`, `spec-strength` and `coverage`, kept for latency feedback on a
+PR. `ci/gates.toml` records that decision rather than leaving it implicit.
 
 ## What the proof does and does not tell you
 
@@ -80,6 +103,51 @@ function is correct for every purpose".
 | `Unknown identifier 'add.comm'` | Mathlib lemma is `add_comm` | underscore, not dot |
 | spec exists but proof missing | naming mismatch | `<name>_spec.lean` pairs with `<name>_proof.lean` |
 | AXLE requests hang in CI | service unreachable | check `axle environments`, set `AXLE_API_URL` |
+
+## External dependency: the AXLE service
+
+Every proof gate calls `https://axle.axiommath.ai`. Lean never runs on your
+machine or on the GitHub runner — AXLE is a client, and the kernel check happens
+server-side.
+
+**If that host is unreachable, `axle-verify`, `pr-fast` and `full-verify` all
+fail, and nothing merges.**
+
+That is deliberate, not a gap. The alternative — skipping the proof check when
+the server is down — would mean unverified code merges during exactly the window
+when verification is impossible. A blocked merge is recoverable; a merge that
+silently skipped its proof is not.
+
+Three options were considered:
+
+| Option | Verdict |
+|---|---|
+| Self-host AXLE | Strongest, but real infrastructure to run and keep current with Mathlib |
+| **Accept the risk** | **Chosen.** An outage blocks merges; it never weakens a gate |
+| Skip when unreachable | Rejected — turns an outage into silently unverified merges |
+
+### Telling an outage apart from a bad proof
+
+`scripts/axle_health.py` runs before the proof steps and reports the service
+separately, so the CI log distinguishes the two cases:
+
+```bash
+python3 scripts/axle_health.py
+# REACHABLE: https://axle.axiommath.ai  1261ms  13 Lean environments
+```
+
+It exits non-zero when unreachable, so the gate still blocks — it just says why.
+
+### External monitoring
+
+Not configured. A hosted monitor (UptimeRobot, Better Stack, Pingdom) needs an
+account this repository cannot create. To add one, point an HTTPS monitor at
+`https://axle.axiommath.ai` and alert on non-200 or >5s latency. Until then, the
+preflight above is in-CI only: it tells you about an outage when a build runs,
+not before.
+
+Override the endpoint with `AXLE_API_URL`, and authenticate with `AXLE_API_KEY`
+if the server starts requiring it.
 
 ## License
 

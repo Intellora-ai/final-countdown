@@ -5,14 +5,20 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from spec_source import source_for
 from spec_strength import holds, load_module
-from spec_to_test import parse_lean_spec
+from spec_to_test import SpecParseError, parse_lean_spec
 from typing import Any
 
 VACUITY_FLOOR = 0.01
 
 def assess(spec_file: str) -> dict[str, Any]:
-    info = parse_lean_spec(spec_file); src = source_for(spec_file)
-    if info is None or src is None:
+    try:
+        info = parse_lean_spec(spec_file)
+    except SpecParseError as exc:
+        # UNKNOWN, never PASS: __main__ treats anything but PASS as failure.
+        return {"spec": spec_file, "truth": "UNKNOWN", "vacuity": "UNKNOWN",
+                "counterexamples": 0, "reason": f"unparsable — {exc}"}
+    src = source_for(spec_file)
+    if src is None:
         return {"spec": spec_file, "truth": "UNKNOWN", "vacuity": "UNKNOWN",
                 "counterexamples": 0, "reason": "unresolvable"}
     ok, stats = holds(info, load_module(Path(src).read_text()))

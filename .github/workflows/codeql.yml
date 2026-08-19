@@ -1,0 +1,84 @@
+name: codeql
+
+# REAL CODEQL. The analyzer runs; nothing here reports a verdict on its behalf.
+#
+# The ruleset has required CodeQL since it was created:
+#
+#   {"type":"code_scanning","parameters":{"code_scanning_tools":[
+#     {"tool":"CodeQL","security_alerts_threshold":"all","alerts_threshold":"all"}]}}
+#
+# — a rule naming a tool this repository never produced. GitHub was demanding
+# results from an analyzer that did not exist, which is why the requirement
+# could never be satisfied. This is the missing half.
+#
+# LANGUAGES ARE MEASURED, NOT ASSUMED.
+# `GET /repos/.../languages` returns Python 84055, Lean 3422, Shell 885.
+# CodeQL has no Lean or Shell analyzer, so those are outside its reach and are
+# covered by bandit and the gate suite instead. `actions` is added because this
+# repository is mostly workflow YAML, and workflow injection is a real class
+# CodeQL analyses — the security-guidance hook flags it on every edit here.
+#
+# TWO JOBS, NOT A MATRIX, ON PURPOSE.
+# A matrix makes the check context a generated string (`Analyze (python)`),
+# which is exactly the "guessed required-check name" failure. Fixed job ids
+# make the context deterministic and greppable, so ci/gates.toml, the live
+# ruleset and this file can be compared as strings.
+#
+# NO `continue-on-error`, NO `|| true`. The analyze step's own exit code is the
+# verdict. `upload: always` publishes the SARIF so GitHub records the result;
+# a failed analysis publishes nothing and the required check cannot go green.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # Alerts are computed against the default branch's baseline, so a weekly run
+  # keeps that baseline fresh when no push happens. It does not gate anything.
+  schedule:
+    - cron: '27 4 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  codeql-python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write   # required to publish results to code scanning
+      actions: read            # required to read workflow run metadata
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
+        with:
+          languages: python
+          # Python is interpreted: there is nothing to compile, and asking
+          # autobuild to find a build would only invent a failure mode.
+          build-mode: none
+      - name: Analyze
+        uses: github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
+        with:
+          category: /language:python
+          upload: always
+
+  codeql-actions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
+        with:
+          languages: actions
+          build-mode: none
+      - name: Analyze
+        uses: github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
+        with:
+          category: /language:actions
+          upload: always

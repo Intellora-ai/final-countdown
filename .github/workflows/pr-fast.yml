@@ -8,15 +8,33 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.12'
           cache: pip
-      - run: pip install --quiet axiom-axle pytest hypothesis
+          # Key the cache on what is actually installed, not on the file of
+          # floors that no longer decides anything.
+          cache-dependency-path: requirements.lock
+      # requirements.lock, not a hand-listed subset. This job broke three
+      # times from the same cause: a verifier gained a dependency (PyYAML for
+      # workflow parsing, bandit[sarif] for SARIF) and this list did not
+      # follow. A second dependency declaration drifts by construction, so
+      # there is now one. --require-hashes closes the other half of the same
+      # hole: requirements.txt pinned ranges, so the same commit verified
+      # against different dependency versions on different days.
+      - run: pip install --quiet --require-hashes -r requirements.lock
       - name: Spec strength gate
         run: python3 scripts/enforce_spec.py specs/*_spec.lean
       - name: AXLE proof gate
-        run: bash scripts/verify_with_axle.sh
+        run: python3 scripts/axle_gate.py
       - name: Unit tests
         run: pytest -q
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: reports-fast
+          path: reports/
+          retention-days: 30
+          if-no-files-found: ignore

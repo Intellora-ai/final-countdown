@@ -1,0 +1,76 @@
+# CODEOWNERS — review required on the trusted computing base.
+#
+# WHY THESE PATHS AND NOT THE WHOLE REPO.
+#
+# Every verdict this repository produces — "the spec is strong", "the proof
+# kernel-checked", "the gate passed" — is produced BY code in this repository.
+# The paths below are the code that decides what counts as verified. They are
+# not verified by anything else, because nothing else is left: the checker
+# cannot check itself, and `scripts/gate_integrity.py` says so in its own
+# docstring. That is the root of trust, and the root of trust has exactly one
+# defence, which is a human reading the diff.
+#
+# The failure this prevents is silent, not loud. Weakening a threshold in
+# ci/gates.toml, deleting a check inside a verifier, or dropping a required
+# context from a workflow does not turn anything red. It turns everything
+# green — for the wrong reason. Every downstream gate keeps reporting PASS,
+# and every PASS now means less than it did before the edit, with nothing in
+# the run output to say so. A change to any path below can silently weaken
+# every other check in the system.
+#
+# The corpus is here for the same reason. specs/, proofs/ and semantics/ are
+# the statements being proved. A spec edited to claim less is still provable,
+# still green, and no longer says what it said. That is not a code change with
+# a test to catch it; it is a change to what the tests mean.
+#
+# requirements.txt / requirements.lock are here because a verifier is only as
+# trustworthy as the tool it shells out to. Swapping the pinned bandit,
+# pyright, mutmut or axle changes the verdict without changing one line of the
+# code that reports it.
+#
+# ENFORCEMENT — READ THIS BEFORE TRUSTING THIS FILE.
+#
+# This file, on its own, enforces nothing. GitHub only blocks a merge on an
+# unreviewed owned path when the branch ruleset requires code-owner review.
+# The live ruleset for this repository ("final countdown protection",
+# id 20990225) currently sets `require_code_owner_review: false`, which makes
+# every rule below advisory: reviewers get requested, and a merge without them
+# still succeeds. Turning that flag on is an owner action against the live
+# ruleset and is deliberately not done from inside the repo — a tree that can
+# arm its own enforcement can also disarm it.
+#
+# Last matching pattern wins, so order is significant: the broad directory
+# rules come first and nothing below them narrows the set.
+
+# Fallback. Every file has an owner unless a later rule overrides.
+*                       @Intellora-ai
+
+# CI configuration and the workflows that run every gate. A deleted step, an
+# `if:` that never fires, or a `continue-on-error` leaves the job green and the
+# gate gone.
+/.github/               @Intellora-ai
+
+# Every verifier and gate, including the integrity checker that guards them.
+# The last line of defence against a weakened threshold is reading this diff.
+/scripts/               @Intellora-ai
+
+# The canonical verification topology: which gates exist, which are mandatory,
+# and which contexts GitHub must require. Four consumers read it and nothing
+# else declares the same facts.
+/ci/                    @Intellora-ai
+
+# The formal corpus — the statements being proved, and their proofs. A spec
+# edited to claim less still verifies.
+/specs/                 @Intellora-ai
+/proofs/                @Intellora-ai
+/semantics/             @Intellora-ai
+
+# Dependency surface. The verdict depends on the version of the tool that
+# produced it.
+requirements.txt        @Intellora-ai
+requirements.lock       @Intellora-ai
+
+# This file. Ownership of the ownership rules is itself a protected path;
+# without this line, the first edit to CODEOWNERS could remove every line
+# above it.
+/.github/CODEOWNERS     @Intellora-ai

@@ -1,0 +1,260 @@
+# CANONICAL VERIFICATION TOPOLOGY — one declaration, no competing truths.
+#
+# This file is the single source of truth for what the verification system is.
+# Four consumers read it and nothing else declares the same facts:
+#
+#   scripts/gate_integrity.py   asserts the workflows still match this
+#   scripts/aggregate_gates.py  asserts the evidence set equals this
+#   scripts/check_ruleset.py    asserts GitHub enforces exactly this
+#   tests/test_ci_integrity.py  attacks all three
+#
+# The invariant the whole system rests on:
+#
+#     CANONICAL_GATE_SET == GITHUB_REQUIRED_SET == EXECUTED_GATE_SET
+#
+# not "⊆" in any direction. A gate missing from GitHub runs and blocks nothing.
+# A check GitHub requires with no gate hangs every merge. Evidence for a gate
+# nobody declared is evidence for nothing.
+#
+# EVERY MANDATORY GATE IS A JOB IN verify.yml. That is not a style choice:
+# separate workflows are separate runs with separate filesystems, so a
+# finalizer in workflow C cannot see evidence produced in workflows A and B.
+# One workflow gives the finalizer `needs:` and `download-artifact` over the
+# same run, which is the only construction where the aggregate is real.
+
+[ruleset]
+id = 20990225
+name = "final countdown protection"
+repository = "Intellora-ai/final-countdown"
+# Must equal, exactly, the set of gates below with mandatory = true.
+# scripts/check_ruleset.py proves this against the live GitHub ruleset.
+# The tools the code_scanning rule must enforce. CodeQL alone left Bandit's
+# findings advisory; both now block. Thresholds are deliberately identical, so
+# one rule does not quietly enforce two standards.
+code_scanning_tools = ["CodeQL", "Bandit"]
+
+required_checks = [
+  "preflight",
+  "axle-verify", "spec-strength", "spec-composition", "vacuity-check",
+  "counterexample-search", "honest-report", "coverage", "pyright",
+  "bandit", "mutmut", "correspondence",
+  "codeql-python", "codeql-actions", "CodeQL",
+  "full",
+]
+
+[schema]
+# The report shape scripts/gate.py writes. Consumers reject an unknown major.
+version = "1.1"
+required_fields = [
+  "schema_version", "gate", "gate_version", "status", "mergeable_contribution",
+  "commit", "workflow", "job", "run_id", "run_attempt", "ref",
+  "started_at", "ended_at", "duration_ms", "tool_versions", "scope",
+  "checks_executed", "checks_passed", "checks_failed", "checks",
+  "failures", "warnings", "artifacts",
+]
+# Report fields that must equal the corresponding environment variable for the
+# evidence to belong to this run. run_attempt is here because a re-run keeps
+# the same run id: without it, attempt 1's PASS satisfies attempt 2.
+run_identity = { commit = "GITHUB_SHA", run_id = "GITHUB_RUN_ID", run_attempt = "GITHUB_RUN_ATTEMPT", workflow = "GITHUB_WORKFLOW" }
+
+# ---------------------------------------------------------------------------
+# PREFLIGHT — the guard on the guard. Mandatory, because an integrity failure
+# that does not block a merge is a diagnostic, not a gate.
+# ---------------------------------------------------------------------------
+[gates.preflight]
+workflow = "verify.yml"
+job = "preflight"
+mandatory = true
+role = "integrity"
+must_contain = ["scripts/gate_integrity.py"]
+evidence = "reports/preflight.json"
+artifact = "reports-preflight"
+
+# ---------------------------------------------------------------------------
+# GATES — one job each, all parallel, no `needs:` between them.
+# ---------------------------------------------------------------------------
+[gates.axle-verify]
+workflow = "verify.yml"
+job = "axle-verify"
+mandatory = true
+role = "gate"
+must_contain = ["scripts/axle_gate.py", "scripts/enforce_spec.py"]
+evidence = "reports/axle-verify.json"
+artifact = "reports-axle-verify"
+
+[gates.spec-strength]
+workflow = "verify.yml"
+job = "spec-strength"
+mandatory = true
+role = "gate"
+must_contain = ["scripts/check_composition.py", "--min-strength 0.9"]
+evidence = "reports/spec-strength.json"
+artifact = "reports-spec-strength"
+
+[gates.spec-composition]
+workflow = "verify.yml"
+job = "spec-composition"
+mandatory = true
+role = "gate"
+must_contain = ["scripts/check_composition.py", "--min-strength 0.9"]
+evidence = "reports/spec-composition.json"
+artifact = "reports-spec-composition"
+
+[gates.vacuity-check]
+workflow = "verify.yml"
+job = "vacuity-check"
+mandatory = true
+role = "gate"
+must_contain = ["scripts/check_vacuity.py"]
+evidence = "reports/vacuity-check.json"
+artifact = "reports-vacuity-check"
+
+[gates.counterexample-search]
+workflow = "verify.yml"
+job = "counterexample-search"
+mandatory = true
+role = "gate"
+must_contain = ["scripts/find_counterexample.py"]
+evidence = "reports/counterexample-search.json"
+artifact = "reports-counterexample-search"
+
+[gates.honest-report]
+workflow = "verify.yml"
+job = "honest-report"
+mandatory = true
+role = "gate"
+must_contain = ["scripts/honest_report.py", "--min-strength 0.9"]
+evidence = "reports/honest-report.json"
+artifact = "reports-honest-report"
+
+[gates.coverage]
+workflow = "verify.yml"
+job = "coverage"
+mandatory = true
+role = "gate"
+must_contain = ["--cov-fail-under=95"]
+evidence = "reports/coverage.json"
+artifact = "reports-coverage"
+
+[gates.pyright]
+workflow = "verify.yml"
+job = "pyright"
+mandatory = true
+role = "gate"
+# The full command, not the bare word: "pyright" alone also matches an
+# artifact name and any comment that mentions the tool.
+must_contain = ["run_gate.py --name pyright -- pyright"]
+evidence = "reports/pyright.json"
+artifact = "reports-pyright"
+
+[gates.bandit]
+workflow = "verify.yml"
+job = "bandit"
+mandatory = true
+role = "gate"
+must_contain = ["scripts/security_gate.py", "scripts/sarif_suppress.py",
+                "shellcheck"]
+evidence = "reports/bandit.json"
+artifact = "reports-bandit"
+
+[gates.mutmut]
+workflow = "verify.yml"
+job = "mutmut"
+mandatory = true
+role = "gate"
+must_contain = ["scripts/mutation_gate.py", "--min-score 0.95"]
+evidence = "reports/mutmut.json"
+artifact = "reports-mutmut"
+
+[gates.correspondence]
+workflow = "verify.yml"
+job = "correspondence"
+mandatory = true
+role = "gate"
+# The theorem must be about the Python in this tree. Freshness compares the
+# committed pair against a regeneration from source; the kernel then checks the
+# correspondence and the property. See TRUST.md for what this does NOT prove.
+must_contain = ["scripts/correspondence_gate.py", "pytest -m axle"]
+evidence = "reports/correspondence.json"
+artifact = "reports-correspondence"
+
+# ---------------------------------------------------------------------------
+# SCANNERS — CodeQL. Mandatory, and deliberately NOT in verify.yml: they need
+# `security-events: write`, and their evidence is the code-scanning database,
+# not a reports/*.json. role = "scanner" is what tells the integrity checker
+# not to demand an artifact and the finalizer not to expect a report; every
+# other structural check still applies.
+#
+# The ruleset's `code_scanning` rule already required the CodeQL TOOL. These
+# make the WORKFLOW required too, which is the difference between "GitHub will
+# read CodeQL results if they exist" and "results must exist".
+# ---------------------------------------------------------------------------
+[gates.codeql-python]
+workflow = "codeql.yml"
+job = "codeql-python"
+mandatory = true
+role = "scanner"
+must_contain = ["github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd",
+                "github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd"]
+evidence = "github code scanning, category /language:python"
+artifact = ""
+
+[gates.codeql-actions]
+workflow = "codeql.yml"
+job = "codeql-actions"
+mandatory = true
+role = "scanner"
+must_contain = ["github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd",
+                "github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd"]
+evidence = "github code scanning, category /language:actions"
+artifact = ""
+
+# The code-scanning RESULTS check. Not a workflow job — GitHub's
+# github-advanced-security app (57789) posts it once CodeQL results land, and
+# it is what turns a finding into a blocked merge. Required alongside the two
+# analysis jobs because they answer different questions: the jobs prove the
+# analysis RAN on this commit, this proves the results were CLEAN. Requiring
+# only the results check would let deleting codeql.yml pass on stale data;
+# requiring only the jobs would let a green analysis full of alerts through.
+[gates.CodeQL]
+workflow = "codeql.yml"
+job = ""
+mandatory = true
+role = "code-scanning"
+integration_id = 57789
+must_contain = []
+evidence = "github code scanning results check"
+artifact = ""
+
+# ---------------------------------------------------------------------------
+# FINALIZER — downloads every gate's artifact from THIS run and proves the
+# evidence set equals the set declared above. Mandatory: it is the only check
+# that can see a job that went green without producing evidence.
+# ---------------------------------------------------------------------------
+[gates.full]
+workflow = "verify.yml"
+job = "full"
+mandatory = true
+role = "finalizer"
+# The ONLY job-level condition allowed anywhere, declared here so it appears in
+# a diff. Without it a failing gate skips this job, the required `full` context
+# never reports, and the PR hangs pending instead of failing.
+job_if = "always()"
+must_contain = ["scripts/aggregate_gates.py", "download-artifact"]
+evidence = "reports/gate-manifest.json"
+artifact = "reports-full"
+
+# ---------------------------------------------------------------------------
+# SUPPLEMENTARY — runs, reports, blocks nothing. Declared so its role is a
+# decision on the record rather than an omission. `fast` is a strict subset of
+# axle-verify + spec-strength + coverage, so requiring it would add no blocking
+# power; it exists for latency feedback on a PR.
+# ---------------------------------------------------------------------------
+[gates.fast]
+workflow = "pr-fast.yml"
+job = "fast"
+mandatory = false
+role = "supplementary"
+must_contain = ["scripts/enforce_spec.py", "scripts/axle_gate.py"]
+evidence = "reports/fast.json"
+artifact = "reports-fast"

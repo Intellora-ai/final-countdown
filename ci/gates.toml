@@ -45,13 +45,24 @@ required_checks = [
 
 [schema]
 # The report shape scripts/gate.py writes. Consumers reject an unknown major.
-version = "1.1"
+#
+# 1.2 is a MINOR bump, deliberately. It adds five fields and removes nothing, so
+# every 1.1 consumer still reads a 1.2 report. aggregate_gates.py compares only
+# SCHEMA_MAJOR, so moving to 2.0 would make every gate's evidence unreadable in
+# the same push that added a field to it — the change would destroy the thing it
+# was documenting. Not bumping at all was also wrong: this block claims to
+# describe "the report shape scripts/gate.py writes", and the shape changed.
+version = "1.2"
 required_fields = [
   "schema_version", "gate", "gate_version", "status", "mergeable_contribution",
   "commit", "workflow", "job", "run_id", "run_attempt", "ref",
   "started_at", "ended_at", "duration_ms", "tool_versions", "scope",
   "checks_executed", "checks_passed", "checks_failed", "checks",
   "failures", "warnings", "artifacts",
+  # Added in 1.2. `environment` is what a rerun is compared against; the other
+  # four answer "which workflow, which event, which pull request, and was the
+  # tree actually the commit GitHub named".
+  "environment", "workflow_ref", "event", "pull_request", "commit_identity",
 ]
 # Report fields that must equal the corresponding environment variable for the
 # evidence to belong to this run. run_attempt is here because a re-run keeps

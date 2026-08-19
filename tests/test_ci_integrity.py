@@ -18,6 +18,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -333,7 +334,25 @@ def test_report_carries_every_required_field(sandbox: Path) -> None:
     report = json.loads((sandbox / "reports/shape.json").read_text())
     missing = [f for f in REQUIRED_FIELDS if f not in report]
     assert not missing, f"report is missing required fields: {missing}"
-    assert report["schema_version"] == "1.1"
+
+    # Read from ci/gates.toml rather than pinned to a literal. The manifest
+    # block calls itself "the report shape scripts/gate.py writes", so the two
+    # must agree; a literal here makes every additive schema bump a test edit,
+    # and a test people edit to make green stops being a check. Both directions
+    # are caught: gate.py bumping without the manifest, and the reverse.
+    declared = tomllib.loads(
+        (sandbox / "ci" / "gates.toml").read_text(encoding="utf-8"))
+    assert report["schema_version"] == declared["schema"]["version"], (
+        f"gate.py writes {report['schema_version']}, ci/gates.toml declares "
+        f"{declared['schema']['version']}")
+
+    # And the manifest's own field list must be satisfied, which is the part
+    # that was declared and never read: `required_fields` had zero consumers.
+    manifest_missing = [f for f in declared["schema"]["required_fields"]
+                        if f not in report]
+    assert not manifest_missing, (
+        f"ci/gates.toml declares fields the report does not carry: "
+        f"{manifest_missing}")
 
 
 # --------------------------------------------------------------------------

@@ -192,3 +192,54 @@ def test_a_crashing_renderer_does_not_turn_a_failure_into_a_pass(
         "a crash in rendering changed the verdict\n" + r.stdout[-800:])
     assert "blocker report unavailable" in r.stdout, (
         "the crash was swallowed without saying so")
+
+
+# --- warnings must not vanish just because nothing blocked -----------------
+
+def test_a_warning_is_visible_on_a_completely_green_run() -> None:
+    """The gap this closes: warnings reached the artifact and stopped there.
+
+    `gate.py` has recorded warnings since schema 1.0 and writes them into every
+    report, but `aggregate_gates.py` never read them back -- it had no
+    reference to the field at all. So on a green run the one log a human opens
+    said nothing about them, and a finding that exists only inside a file
+    nobody downloads is a finding the system discarded.
+
+    Policy is unchanged: a warning does not block. It must still be counted
+    and printed.
+    """
+    gates: dict[str, Any] = {
+        "spec-strength": {"status": "PASS", "duration_ms": 5,
+                          "warnings": ["sampling was truncated at 481 points"]},
+        "pyright": {"status": "PASS", "duration_ms": 5},
+    }
+    text, md = blocker_report.render(manifest(gates, [], overall="PASS"),
+                                     MERGEABLE)
+    assert "OVERALL          PASS" in text, "this must be a green run"
+    assert "WARNINGS         1" in text, "the warning was not counted"
+    assert "sampling was truncated at 481 points" in text, (
+        "the warning text never reached the log")
+    assert "spec-strength" in text
+    assert "1 warning(s)" in md, "the summary dropped the warning count"
+
+
+def test_warnings_are_counted_but_do_not_change_the_verdict() -> None:
+    """Visible is not the same as blocking. Neither promote nor discard."""
+    gates: dict[str, Any] = {
+        "a": {"status": "PASS", "warnings": ["one", "two", "three"]}}
+    text, _ = blocker_report.render(manifest(gates, [], overall="PASS"),
+                                    MERGEABLE)
+    assert "WARNINGS         3" in text
+    assert "OVERALL          PASS" in text
+    assert "BLOCKERS" not in text, "a warning was promoted to a blocker"
+
+
+def test_a_warning_with_a_real_location_becomes_a_warning_annotation() -> None:
+    """And an error annotation is never used for something that did not block."""
+    gates: dict[str, Any] = {
+        "lint": {"status": "PASS",
+                 "warnings": ["scripts/gate.py:1 unused import"]}}
+    text, _ = blocker_report.render(manifest(gates, [], overall="PASS"),
+                                    MERGEABLE)
+    assert "::warning file=scripts/gate.py,line=1" in text
+    assert "::error" not in text, "a warning was raised to an error annotation"

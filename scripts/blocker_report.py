@@ -181,11 +181,21 @@ def render(manifest: dict[str, Any], mergeable: set[str]) -> tuple[str, str]:
             f"  run      {identity.get('run_id', 'local')}"
             f"   attempt {identity.get('run_attempt', 'local')}",
             f"  workflow {identity.get('workflow', 'local')}", ""]
+    # (gate, text) for every warning any gate recorded. Warnings do not block
+    # -- that is policy and it is not changed here -- but they are counted in
+    # the header and printed in full below, because a finding that only exists
+    # inside an artifact nobody downloads is a finding the system discarded.
+    warnings: list[tuple[str, str]] = []
+    for name, gate in gates.items():
+        recorded: list[Any] = list(gate.get("warnings", []) or [])
+        warnings.extend((name, str(w)) for w in recorded)
+
     log += [f"  REQUIRED GATES   {len(gates)}",
             f"  PASS             {tally['passed']}",
             f"  FAIL             {tally['failed']}",
             f"  NEVER CONCLUDED  {tally['never_concluded']}"
             "   (missing, unknown, cancelled, infrastructure)",
+            f"  WARNINGS         {len(warnings)}   (reported, not blocking)",
             "",
             f"  OVERALL          {'PASS' if overall == 'PASS' else 'BLOCKED'}",
             ""]
@@ -224,6 +234,24 @@ def render(manifest: dict[str, Any], mergeable: set[str]) -> tuple[str, str]:
             log += ["  full tool output for the above:",
                     *(f"      {e}" for e in evidence), ""]
 
+    if warnings:
+        # Placed above the passing gates and below the blockers: a warning is
+        # not why the push was rejected, but it is a finding, and burying it
+        # under twelve green lines is how it stops being read.
+        log += [bar, f"WARNINGS ({len(warnings)}) — reported, not blocking",
+                bar, ""]
+        for name, text in warnings:
+            head, *rest = text.splitlines()
+            log.append(f"  {name:<24} {head}")
+            log.extend(f"  {'':<24} {line}" for line in rest)
+            spot = location(text)
+            if spot:
+                path, line_no, col = spot
+                where = f"file={path},line={line_no}" + (f",col={col}" if col else "")
+                flat = text.replace("\n", " ").replace("::", ":")
+                annotations.append(f"::warning {where},title={name}::{flat[:900]}")
+        log.append("")
+
     log += [bar, "PASSED" if overall == "PASS" else "PASSED (not blocking)", bar, ""]
     for name, gate in gates.items():
         if name in blocking:
@@ -243,7 +271,14 @@ def render(manifest: dict[str, Any], mergeable: set[str]) -> tuple[str, str]:
           f"run `{identity.get('run_id', 'local')}` · "
           f"attempt `{identity.get('run_attempt', 'local')}`", "",
           f"**{tally['passed']} passed · {tally['failed']} failed · "
-          f"{tally['never_concluded']} never concluded**", ""]
+          f"{tally['never_concluded']} never concluded · "
+          f"{len(warnings)} warning(s)**", ""]
+    if warnings:
+        md += ["<details><summary>Warnings (not blocking)</summary>", "",
+               "| Gate | Warning |", "|---|---|"]
+        md += [f"| `{n}` | {t.replace('|', chr(92) + '|')[:200]} |"
+               for n, t in warnings]
+        md += ["", "</details>", ""]
     if blocking:
         md += ["### Blockers", "", "| # | Gate | Where | What | Fix |",
                "|---|---|---|---|---|"]

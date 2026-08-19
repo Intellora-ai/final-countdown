@@ -243,6 +243,14 @@ def main() -> int:
             "checks_failed": r.get("checks_failed"),
             "scope": r.get("scope", {}),
             "failures": r.get("failures", []),
+            # Carried so the finalizer can show them. gate.py has recorded
+            # warnings since schema 1.0 and writes them into every report, but
+            # nothing read them back: they reached the artifact and stopped
+            # there, so the one log a human opens after a push showed none of
+            # them. A warning that only exists inside a file nobody downloads
+            # is a finding the system discarded. They do not block -- that is
+            # policy, and it is unchanged -- but they are counted and printed.
+            "warnings": r.get("warnings", []),
             "evidence": seen[name][0],
         }
 

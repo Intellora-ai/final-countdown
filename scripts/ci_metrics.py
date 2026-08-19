@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 REPO = "Intellora-ai/final-countdown"
-OURS = {"verify", "codeql", "e2e", "pr-fast"}
+OURS = {"verify", "codeql", "e2e"}
 
 
 def gh_json(path: str) -> Any:

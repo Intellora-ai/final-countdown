@@ -77,6 +77,65 @@ jobs:
       # and a one-person repository has none.
       - name: Trusted computing base
         run: python3 scripts/tcb_gate.py --base origin/${{ github.base_ref || 'main' }}
+      # The manifest agreeing with the workflows is not the manifest agreeing
+      # with GitHub. gate_integrity check 9 compares ci/gates.toml against
+      # itself; this compares it against the live ruleset, which is the only
+      # place the answer to "is this check actually REQUIRED?" exists. Until
+      # now nothing in CI ran it, so an admin edit to ruleset 20990225 —
+      # dropping a required check, unpinning a context so any actor can satisfy
+      # it — went unnoticed until someone happened to run the script by hand.
+      #
+      # DRIFT TURNS THE WHOLE RUN RED, AND THAT IS THE POINT. preflight is
+      # mandatory, so this failing fails everything. It has to: preflight is
+      # itself one of the 17 required contexts, so when an admin removes a
+      # DIFFERENT check from the ruleset, preflight going red is the only thing
+      # left blocking the merge. A drift check that merely warned would be a
+      # diagnostic, not a gate.
+      #
+      # BEFORE gate_integrity, deliberately, for the same reason the TCB gate
+      # is: gate_integrity is what writes reports/preflight.json. Running this
+      # after it would mean a drift failure left behind a preflight.json saying
+      # PASS, and aggregate_gates.py reads reports, not job conclusions — so
+      # `full` would certify a complete, all-green run while preflight was red.
+      # Failing first means no preflight evidence exists, the aggregator turns
+      # that absence into a blocking UNKNOWN, and both required checks agree.
+      #
+      # No `if:` and no `continue-on-error`: gate_integrity forbids both on a
+      # must_contain step, and a fork pull request must not become a hole. The
+      # script needs no credentials to avoid one — a public repository's
+      # rulesets are public, confirmed at HTTP 200 with no auth — so GH_TOKEN
+      # only buys the authenticated 1000/hr rate limit, and the script falls
+      # back to an anonymous read when the token is absent or refused. Exit 1
+      # is drift, exit 2 is "could not read the ruleset"; both are red, because
+      # "could not compare" is not "aligned".
+      - name: Ruleset alignment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/check_ruleset.py
+      # What the gates prove, and what they do not. ci/requirements.yml names
+      # 39 claims and which gate establishes each -- six of them nothing does,
+      # and that is the point of writing them down. ci/assumptions.yml records
+      # 16, quoted from README.md, TRUST.md and the gate docstrings rather than
+      # paraphrased, because a paraphrase of a limitation always reads weaker
+      # than the limitation.
+      #
+      # The gate does not fail on an unverified assumption. Eight of the nine
+      # high-impact ones cannot be closed by any amount of work here -- the Lean
+      # kernel is the root of trust, CPython's `ast` IS the language, and Rice's
+      # theorem closes the mutation question. A gate that failed the build for
+      # those would be edited into silence within a week, and the file it
+      # guards exists to prevent exactly that kind of quiet.
+      #
+      # It fails on the thing that IS actionable: an untested high-impact
+      # assumption, or a falsified one, with no written acceptance. Adding that
+      # acceptance edits ci/, a trusted path, so it needs a TCB: trailer in the
+      # commit message and cannot be done quietly.
+      #
+      # Before gate_integrity for the same reason as the ruleset check above:
+      # gate_integrity writes reports/preflight.json, and aggregate_gates.py
+      # reads reports rather than job conclusions.
+      - name: Requirement and assumption registries
+        run: python3 scripts/registry_gate.py
       - name: Gate integrity
         run: python3 scripts/gate_integrity.py
       - name: Upload evidence
@@ -229,13 +288,27 @@ jobs:
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
       - name: Tests + branch coverage
-        run: python3 scripts/run_gate.py --name coverage -- pytest --cov=src --cov-branch --cov-fail-under=95 -m "not axle"
+      # `--junitxml` writes the standard per-test report. The gate does NOT
+      # parse it -- it reads pytest's short summary out of captured stdout,
+      # because parsing XML in-process would mean `xml.etree`, which bandit
+      # flags (B405/B314), and clearing that would add a verified exemption to
+      # security_gate.py for a file this workflow generated seconds earlier.
+      # The XML is emitted and uploaded anyway: it costs one flag, it is the
+      # format every other tool understands, and keeping it means the gate's
+      # decision path and the interchange format are not the same dependency.
+        run: python3 scripts/run_gate.py --name coverage -- pytest --cov=src --cov-branch --cov-fail-under=95 -m "not axle" --junitxml=test-results/pytest.xml
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: reports-coverage
-          path: reports/
+          # test-results/ is listed second and the upload does not require it:
+          # a crash before pytest writes the XML must still deliver
+          # reports/coverage.json, which is the evidence the finalizer needs.
+          # `if-no-files-found: error` still fires when BOTH are missing.
+          path: |
+            reports/
+            test-results/
           retention-days: 30
           if-no-files-found: error
 
@@ -271,16 +344,66 @@ jobs:
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
-      # scripts/ is verification infrastructure and part of the trusted
-      # computing base, so it is scanned, never excluded. The gate re-derives
-      # the safe subprocess pattern from the AST rather than allowlisting a
-      # finding id: break the pattern and the exception evaporates.
-      - name: Bandit at LOW, with verified safe-pattern exceptions
-        run: python3 scripts/run_gate.py --name bandit -- python3 scripts/security_gate.py src scripts
-      # Must not fail on findings — there are always findings and the gate
-      # above owns that verdict — but MUST fail when bandit itself did not run,
-      # because then the SARIF is missing or truncated and code scanning
-      # silently keeps serving whatever it last saw. Measured on bandit 1.9.4:
+      # ONE GATE STEP, BECAUSE ONE GATE OWNS ONE REPORT.
+      #
+      # This job used to run four verification commands and wrap only the
+      # first in run_gate.py. Measured after that step alone: bandit.json
+      # carried status=PASS, scope.command="…security_gate.py src scripts" and
+      # one check, "bandit exit code". sarif_suppress, shellcheck and
+      # credential_scan appeared nowhere in it. A failure in any of those
+      # three turned the job red while the evidence — uploaded by
+      # `if: always()` — still said PASS, and reports/gate-manifest.json, the
+      # artifact this repository presents as its completeness proof, asserted
+      # PASS for a gate that had failed. Merge stayed blocked by this job's
+      # own required context, so nothing shipped that should not have. The
+      # evidence lied, and here the evidence IS the product.
+      #
+      # THE SHAPE NOT TAKEN: one `run_gate.py --name <id>` per step, each
+      # owning its own report. Every new id must be declared in ci/gates.toml,
+      # and aggregate_gates.py derives its expected set from that file — the
+      # mandatory gates whose role is not finalizer/scanner/code-scanning.
+      # Anything it finds that is NOT in that set lands in `gates_unexpected`
+      # and blocks. So a new id has to be mandatory to be admissible; and
+      # gate_integrity check 9 then requires it in required_checks, hence in
+      # ruleset 20990225. No `role` escapes that: the roles excluded from
+      # `expected` are exactly the ones whose reports become unexpected. Three
+      # more required GitHub contexts to fix a reporting bug is the wrong
+      # trade, and required_checks is not this file's to grow.
+      #
+      # Reusing `--name bandit` on every step is worse than the bug. Each step
+      # would overwrite bandit.json, so the last writer wins: a green run
+      # would attest only credential_scan, and a failure suppressed with
+      # `|| exit 0` — which gate_integrity's `|| true|echo|:` regex does not
+      # match — would be erased by the next step's PASS. That is the hole an
+      # adversarial audit named, reopened one position further along.
+      #
+      # So: ONE writer, and it runs everything it reports on. run_gate.py
+      # already wraps any command, and three other gates already use that to
+      # wrap a multi-check shell program (`bash scripts/verify_per_function.sh`).
+      # `bash -c` is that idiom without a new file. `set -e` stops at the first
+      # failure exactly as separate steps did, so at most one check can fail
+      # and the report is written once, by the process that ran all four. A
+      # `|| exit 0` bolted onto this step now fails loudly instead of hiding:
+      # the FAIL report is already on disk when the suppression runs, and the
+      # finalizer reads reports, not exit codes.
+      #
+      # WHAT IS DELIBERATELY OUTSIDE, and why it is not a hole. `Bandit SARIF`
+      # produces the file for code scanning and must NOT fail on findings; the
+      # two uploads run `if: always()`. A gate step may carry neither
+      # condition — gate_integrity rejects both — so they stay their own
+      # steps. All three sit before the gate or after it, and if one fails
+      # first no bandit.json is written at all: `if-no-files-found: error`
+      # fails the upload and aggregate_gates.py records the gate as missing,
+      # which is UNKNOWN and not mergeable. "Could not verify" is not
+      # "verified", and it blocks just the same.
+      #
+      # Runs first so bandit.sarif exists before the gate's suppression pass
+      # reads it, and so code scanning gets a SARIF whatever verdict the gate
+      # reaches. Must not fail on findings — there are always findings and the
+      # gate below owns that verdict — but MUST fail when bandit itself did
+      # not run, because then the SARIF is missing or truncated and code
+      # scanning silently keeps serving whatever it last saw. Measured on
+      # bandit 1.9.4:
       # exit 2 = never ran; exit 1 = findings OR a crash leaving a 0-byte file;
       # exit 0 = clean OR a mis-targeted scan producing an empty runs[]. So
       # neither the exit code nor the artifact check suffices alone.
@@ -317,30 +440,58 @@ jobs:
           print(f"bandit exit={rc} (0=no findings, 1=findings), "
                 f"{len(runs[0].get('results', []))} result(s) in bandit.sarif")
           PY
-      # Code scanning must not contradict the gate that already judged these
-      # findings. security_gate.py proves 21 of them safe by re-deriving the
-      # pattern from the AST; the raw SARIF opened an alert for every one, and
-      # each alert became an unresolved review thread that blocked the PR.
-      # This marks only what the gate PROVED, using the gate's own adjudication.
+      # THE GATE. Four verifications, in one report, in this order:
       #
-      # Deliberately NO `if:`. When the gate step fails this step is skipped,
-      # the upload below still runs, and the unfiltered SARIF is published —
-      # a red gate shows every finding, which is when a human most needs them.
-      - name: Mark gate-verified findings in the SARIF
-        run: python3 scripts/sarif_suppress.py --sarif bandit.sarif src scripts
-      # CodeQL has no Shell analyzer, and scripts/verify_per_function.sh is the
-      # loop three mandatory gates run. shellcheck is the tool that covers it.
-      - name: Shell analysis
-        run: shellcheck scripts/*.sh
-      # Tracked content is what a push publishes, so tracked content is what
-      # this scans. `evidence.md` carried a fine-grained PAT prefix on the
-      # public default branch; rewriting history would not have un-published
-      # it, and only rotation closes that. This is the half that CAN be closed:
-      # the same shape cannot reach a tracked file again. Findings carry a
-      # label, a location and a length -- never the matched value, because this
-      # log is public.
-      - name: Credential scan
-        run: python3 scripts/credential_scan.py
+      #   security_gate.py    scripts/ is verification infrastructure and part
+      #     of the trusted computing base, so it is scanned, never excluded.
+      #     The gate re-derives the safe subprocess pattern from the AST rather
+      #     than allowlisting a finding id: break the pattern and the exception
+      #     evaporates.
+      #
+      #   sarif_suppress.py   Code scanning must not contradict the gate that
+      #     already judged these findings. security_gate.py proves them safe by
+      #     re-deriving the pattern from the AST; the raw SARIF opened an alert
+      #     for every one, and each alert became an unresolved review thread
+      #     that blocked the PR. This marks only what the gate PROVED, using
+      #     the gate's own adjudication. It runs after security_gate.py, so
+      #     `set -e` skips it when the security gate fails — the unfiltered
+      #     SARIF is then what `Upload to code scanning` publishes, and a red
+      #     gate shows every finding, which is when a human most needs them.
+      #
+      #   shellcheck          CodeQL has no Shell analyzer, and
+      #     scripts/verify_per_function.sh is the loop three mandatory gates
+      #     run. shellcheck is the tool that covers it.
+      #
+      #   credential_scan.py  Tracked content is what a push publishes, so
+      #     tracked content is what this scans. `evidence.md` carried a
+      #     fine-grained PAT prefix on the public default branch; rewriting
+      #     history would not have un-published it, and only rotation closes
+      #     that. This is the half that CAN be closed: the same shape cannot
+      #     reach a tracked file again. Findings carry a label, a location and
+      #     a length -- never the matched value, because this log is public.
+      #
+      # The `echo`s are how the report names WHICH check failed. run_gate.py
+      # records the last six lines of stdout+stderr in failures[].why, and it
+      # concatenates stderr after stdout, so markers written to stderr land at
+      # the end of the capture and the last one is the check that was running
+      # when `set -e` stopped the chain. `echo` is a shell builtin, so this
+      # holds whatever bash does with traps: an ERR trap was tried first and
+      # measured NOT to fire on bash 3.2 when the failing command is an
+      # external program in a newline-separated script. A naming mechanism
+      # that silently depends on the bash version is worse than none.
+      - name: Security gate, SARIF suppression, shell analysis, credential scan
+        run: |
+          python3 scripts/run_gate.py --name bandit -- bash -c '
+            set -e
+            echo "== bandit gate 1/4: security gate" >&2
+            python3 scripts/security_gate.py src scripts
+            echo "== bandit gate 2/4: SARIF suppression" >&2
+            python3 scripts/sarif_suppress.py --sarif bandit.sarif src scripts
+            echo "== bandit gate 3/4: shell analysis" >&2
+            shellcheck scripts/*.sh
+            echo "== bandit gate 4/4: credential scan" >&2
+            python3 scripts/credential_scan.py
+          '
       - name: Upload to code scanning
         if: always()
         uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
@@ -391,14 +542,39 @@ jobs:
       - run: pip install --quiet --require-hashes -r requirements.lock
       - name: AXLE service health
         run: python3 scripts/axle_health.py
-      # Completeness, freshness against src/, kernel check, and the axiom audit.
-      - name: Correspondence between src/ and the proofs
-        run: python3 scripts/run_gate.py --name correspondence -- python3 scripts/correspondence_gate.py
-      # The gate proves the current tree is consistent. These prove the gate can
-      # still say no: each mutant edits src/add.py, regenerates, and must be
-      # rejected by the kernel. They live here because they need AXLE.
-      - name: Semantic mutation attacks
-        run: pytest -m axle
+      # THE GATE — same defect, same fix as `bandit` above; the reasoning in
+      # full is on that job. `pytest -m axle` used to run AFTER the reporting
+      # step, so an attack the kernel failed to reject turned this job red
+      # while reports/correspondence.json still said PASS. Both verifications
+      # now run inside the one wrapper, so the report covers both.
+      #
+      #   correspondence_gate.py  Completeness, freshness against src/, kernel
+      #     check, and the axiom audit.
+      #
+      #   pytest -m axle          The gate proves the current tree is
+      #     consistent. These prove the gate can still say no: each mutant
+      #     edits src/add.py, regenerates, and must be rejected by the kernel.
+      #     They live here because they need AXLE.
+      #
+      # `axle_health.py` stays its own step above, deliberately. A dead
+      # service is an INFRASTRUCTURE_FAILURE, not a FAIL, and run_gate.py maps
+      # every non-zero exit to FAIL — folding the health check in would
+      # publish "the correspondence does not hold" when the truth is "AXLE was
+      # unreachable", which is the same class of lie this change removes. It
+      # runs before the gate, so when it fails no report is written at all and
+      # aggregate_gates.py records the gate as missing: UNKNOWN, not
+      # mergeable. Unverifiable still does not merge.
+      #
+      # The `echo`s name which check failed; see the note on the bandit gate.
+      - name: Correspondence between src/ and the proofs, and the mutation attacks
+        run: |
+          python3 scripts/run_gate.py --name correspondence -- bash -c '
+            set -e
+            echo "== correspondence gate 1/2: correspondence" >&2
+            python3 scripts/correspondence_gate.py
+            echo "== correspondence gate 2/2: mutation attacks" >&2
+            pytest -m axle
+          '
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

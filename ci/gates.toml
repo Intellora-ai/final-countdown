@@ -45,13 +45,24 @@ required_checks = [
 
 [schema]
 # The report shape scripts/gate.py writes. Consumers reject an unknown major.
-version = "1.1"
+#
+# 1.2 is a MINOR bump, deliberately. It adds five fields and removes nothing, so
+# every 1.1 consumer still reads a 1.2 report. aggregate_gates.py compares only
+# SCHEMA_MAJOR, so moving to 2.0 would make every gate's evidence unreadable in
+# the same push that added a field to it — the change would destroy the thing it
+# was documenting. Not bumping at all was also wrong: this block claims to
+# describe "the report shape scripts/gate.py writes", and the shape changed.
+version = "1.2"
 required_fields = [
   "schema_version", "gate", "gate_version", "status", "mergeable_contribution",
   "commit", "workflow", "job", "run_id", "run_attempt", "ref",
   "started_at", "ended_at", "duration_ms", "tool_versions", "scope",
   "checks_executed", "checks_passed", "checks_failed", "checks",
   "failures", "warnings", "artifacts",
+  # Added in 1.2. `environment` is what a rerun is compared against; the other
+  # four answer "which workflow, which event, which pull request, and was the
+  # tree actually the commit GitHub named".
+  "environment", "workflow_ref", "event", "pull_request", "commit_identity",
 ]
 # Report fields that must equal the corresponding environment variable for the
 # evidence to belong to this run. run_attempt is here because a re-run keeps
@@ -67,7 +78,15 @@ workflow = "verify.yml"
 job = "preflight"
 mandatory = true
 role = "integrity"
-must_contain = ["scripts/gate_integrity.py", "scripts/tcb_gate.py"]
+# check_ruleset.py is listed here, not just called in the workflow, because
+# listing it is what makes the wiring survive. gate_integrity.py then requires
+# a preflight step that actually EXECUTES it, with no `if:`, no
+# continue-on-error and no `|| true` — so deleting the step, commenting it out
+# or conditioning it away fails preflight instead of silently restoring the
+# state this file spent its existence describing: a verification topology
+# nothing compares against the live ruleset.
+must_contain = ["scripts/gate_integrity.py", "scripts/tcb_gate.py",
+                "scripts/check_ruleset.py", "scripts/registry_gate.py"]
 evidence = "reports/preflight.json"
 artifact = "reports-preflight"
 
@@ -153,7 +172,16 @@ workflow = "verify.yml"
 job = "bandit"
 mandatory = true
 role = "gate"
-must_contain = ["scripts/security_gate.py", "scripts/sarif_suppress.py",
+# The wrapper is pinned as its own token, the way `pyright` pins its full
+# command. Four verifications run in this job and only one report may exist
+# for the gate id, so they run inside ONE run_gate.py invocation over a bash
+# program; a step outside it owns no report, and a step that owns no report
+# cannot fail in the evidence. Without this token a future edit could unwrap
+# the gate entirely — the four commands would still be "contained", no
+# reports/bandit.json would be written, and preflight would still pass. Only
+# the finalizer would notice, one job too late.
+must_contain = ["run_gate.py --name bandit -- bash -c",
+                "scripts/security_gate.py", "scripts/sarif_suppress.py",
                 "shellcheck", "scripts/credential_scan.py"]
 evidence = "reports/bandit.json"
 artifact = "reports-bandit"
@@ -175,7 +203,11 @@ role = "gate"
 # The theorem must be about the Python in this tree. Freshness compares the
 # committed pair against a regeneration from source; the kernel then checks the
 # correspondence and the property. See TRUST.md for what this does NOT prove.
-must_contain = ["scripts/correspondence_gate.py", "pytest -m axle"]
+# The wrapper token is here for the same reason as `bandit`'s: both
+# verifications must run inside the one gate invocation, because a step
+# outside it produces no evidence and so cannot fail in the report.
+must_contain = ["run_gate.py --name correspondence -- bash -c",
+                "scripts/correspondence_gate.py", "pytest -m axle"]
 evidence = "reports/correspondence.json"
 artifact = "reports-correspondence"
 
@@ -265,45 +297,25 @@ artifact = "reports-full"
 
 # ---------------------------------------------------------------------------
 # SUPPLEMENTARY — runs, reports, blocks nothing. Declared so its role is a
-# decision on the record rather than an omission. `fast` is a strict subset of
-# axle-verify + spec-strength + coverage, so requiring it would add no blocking
-# power; it exists for latency feedback on a PR.
+# decision on the record rather than an omission.
+#
+# `fast` (pr-fast.yml) was removed. It ran enforce_spec.py, axle_gate.py and
+# `pytest -q`, which this file already described as "a strict subset of
+# axle-verify + spec-strength + coverage", and its only stated purpose was
+# "latency feedback on a PR". Measured against that purpose, job-level medians:
+#
+#     fast           126s  (N=12)
+#     axle-verify     23s  (N=9)   -> fast was 5.5x SLOWER for the same answer
+#     spec-strength   26s  (N=9)
+#     coverage        98s  (N=9)   -> fast was 28s SLOWER for the same answer
+#
+# It was slower than every job it duplicated, so it delivered no feedback
+# earlier than the required checks already did, blocked nothing, and cost 126s
+# of runner time on every push. A supplementary check that is slower than the
+# blocking one it shadows is not early feedback; it is a second opinion that
+# arrives last.
 # ---------------------------------------------------------------------------
-[gates.fast]
-workflow = "pr-fast.yml"
-job = "fast"
-mandatory = false
-role = "supplementary"
-must_contain = ["scripts/enforce_spec.py", "scripts/axle_gate.py"]
-evidence = "reports/fast.json"
-artifact = "reports-fast"
 
-
-# AI code review. Non-blocking, and NOT in required_checks — deliberately.
-# check_ruleset.py asserts CANONICAL == GITHUB_REQUIRED, so naming a check here
-# that GitHub does not yet require fails CI; adding the GitHub half needs repo
-# admin. Until then this is declared, runs, and blocks nothing.
-#
-# It is also a no-op until a human creates the CLAUDE_CODE_OAUTH_TOKEN secret.
-# The workflow reads that secret in `jobs.<id>.env` (the only place a job may)
-# and branches its steps on the resulting boolean, because the `secrets` context
-# is available in NEITHER a job-level nor a step-level `if:`.
-#
-# The blocking power does not come from this check's conclusion, which is always
-# green. It comes from the ruleset's `required_review_thread_resolution`: an
-# inline comment this reviewer posts must be resolved before merge.
-#
-# THE REVIEWER CANNOT EDIT THIS FILE, or any workflow, gate script, or the
-# adversarial suite. A reviewer that can edit its own gates is not gated, so the
-# verification system is denied to it by name in the workflow's prompt and again
-# mechanically through the action's `settings` deny rules. It has no write
-# capability at all today (`contents: read`); if it disagrees with a gate it must
-# say so in a comment and stop, and a human decides. See docs/ai-review.md.
-#
-# Its evidence is a set of pull request review comments, not a reports/*.json,
-# so `artifact` is empty — the same construction the scanner gates use. Nothing
-# reads either field for a non-mandatory gate; they are declared so the role is
-# a decision on the record rather than an omission.
 [gates.ai-review]
 workflow = "ai-review.yml"
 job = "ai-review"

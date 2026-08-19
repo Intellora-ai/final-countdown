@@ -1,0 +1,392 @@
+# ASSUMPTION REGISTRY — what the verdict rests on that no gate establishes.
+#
+# ci/requirements.yml says what is verified. This says what is TAKEN ON FAITH,
+# so "all checks green" can be read with its footnotes attached instead of
+# without them.
+#
+# Every statement here is quoted or closely paraphrased from a document already
+# in this repository, named in `documented_in`. Nothing was invented and nothing
+# was strengthened in the retelling — where the source hedges, this hedges.
+#
+# FIELDS
+#   id             ASM-nnn, unique, never reused after deletion.
+#   statement      What is being assumed. Written as the thing that would have
+#                  to be TRUE for the verdict to mean what it appears to mean.
+#   impact         high | medium | low — what breaks if the assumption is false.
+#                    high    the "verified" claim itself is void or unsound.
+#                    medium  one gate's number is wrong or one property is
+#                            weaker than it reads.
+#                    low     a diagnosis is slower or a convenience is absent.
+#   how_to_test    A concrete action someone could take tomorrow. Not
+#                  "investigate". If nothing could test it, say what would have
+#                  to exist first.
+#   status         verified | falsified | unverified | not-applicable.
+#                    verified        tested, and it held.
+#                    falsified       tested, and it did not hold.
+#                    unverified      not tested. Most of these are unverified.
+#                    not-applicable  the mechanism it is about is inert today.
+#   documented_in  Where this is written down in prose today.
+#   accepted       Required by policy for `impact: high` + `unverified`, and for
+#                  any `falsified` entry. See the policy note below.
+#   note           Optional. Everything that is not the assumption itself.
+#
+# THE FAILURE POLICY, AND WHY IT IS NOT "FAIL ON HIGH + UNVERIFIED"
+#
+# Eight of the nine high-impact assumptions below are genuinely unverified and
+# most cannot be closed at all: the Lean kernel is the root of the trust chain,
+# CPython's parser IS the definition of Python's syntax, and the mutation
+# denominator question is undecidable by Rice's theorem. A gate that failed the
+# build because a true, documented, irreducible limitation exists would be
+# deleted inside a week, or — worse — every entry would quietly be edited down
+# to `impact: medium` to make it green. Either outcome destroys the honesty this
+# file exists to hold.
+#
+# So the gate does not fail on "not tested". It fails on "not tested AND nobody
+# has written down why that is acceptable". `accepted` must be a real sentence,
+# not a checkbox, and it is checked for length for the same reason
+# scripts/tcb_gate.py requires more than the bare `TCB:` trailer.
+#
+# The escape hatch is not free, and that is what makes it work: ci/ is a trusted
+# path in scripts/tcb_gate.py, so adding an `accepted:` line requires a `TCB:`
+# acknowledgement in a commit message explaining the change to the trusted base.
+# You cannot silence this gate quietly, and the count of accepted risks is
+# printed on every run.
+#
+# `impact: high` + `status: falsified` has no escape hatch and fails outright.
+# A blocking verdict resting on a claim known to be false is not a risk anyone
+# gets to accept; it is a defect.
+
+version: 1
+
+assumptions:
+
+  # -------------------------------------------------------------------------
+  # high impact — the "verified" claim itself depends on these
+  # -------------------------------------------------------------------------
+  - id: ASM-001
+    statement: >-
+      The Lean specification beside each Python function describes that
+      function. README.md states the gap directly: "AXLE does not read Python.
+      Nothing mechanically checks that the Lean spec describes the Python
+      function beside it."
+    impact: high
+    how_to_test: >-
+      For each specs/<name>_spec.lean, have an engineer who did not write it
+      read the spec next to src/<name>.py and record accept or reject against
+      the sha256 of both files, so the review expires when either changes. The
+      assumption is closed for a function only while a current review exists.
+    status: unverified
+    documented_in: README.md, "What the proof does and does not tell you"
+    accepted: >-
+      Irreducible by machine and already stated as a deliberate choice: "the
+      specs in this repo are written and reviewed by a human, deliberately. The
+      proof is the part that is automated." scripts/enforce_spec.py removes the
+      degenerate forms, and REQ-035 records that the rest is human judgement.
+      Accepting this is accepting the repository's stated scope, not hiding it.
+    note: >-
+      This is the load-bearing one. If it is false, every green gate below is
+      still green and means nothing about the Python. Tracked as REQ-035.
+
+  - id: ASM-002
+    statement: >-
+      The interpreter in scripts/pysem_lean.py agrees with CPython everywhere,
+      not only where it was sampled. TRUST.md states the limit: "The
+      correspondence is a finite sample. Twelve points, chosen to separate
+      argument positions. It refutes a wrong interpreter; it does not prove
+      equivalence."
+    impact: high
+    how_to_test: >-
+      Add sample points the existing twelve do not determine - large negatives,
+      values straddling each guard boundary - regenerate, and require the kernel
+      still to accept. That raises refutation power monotonically and can be
+      run today. It cannot close the gap: closing it needs a proof about
+      CPython, which does not exist here.
+    status: unverified
+    documented_in: TRUST.md, "The known limits, stated plainly"
+    accepted: >-
+      TRUST.md already names the exact residual risk - "A semantics that agreed
+      with CPython at all twelve and diverged at the thirteenth would survive" -
+      and the final grade B is stated as B precisely because of it. The
+      alternative is a verified CPython, which is not on this repository's
+      critical path.
+
+  - id: ASM-003
+    statement: >-
+      AXLE reports the verdict the Lean kernel actually reached. TRUST.md:
+      "a compromised or buggy AXLE could report `okay=true` for a rejected
+      proof, and nothing in this repository would notice."
+    impact: high
+    how_to_test: >-
+      Submit one known-bad proof on every run - a spec with its conclusion
+      negated - and require okay=false before trusting any okay=true from the
+      same run. One extra request; it turns a silent false-green into a failed
+      gate for the crude case. It does not detect selective compromise.
+    status: unverified
+    documented_in: TRUST.md, "Trust ledger", row 5
+    accepted: >-
+      The service is the only Lean available - "Lean never runs on your machine
+      or on the GitHub runner" - and self-hosting was considered and rejected in
+      README.md as real infrastructure to keep current with Mathlib. The
+      semantic mutation attacks under `pytest -m axle` already show the service
+      rejects specific wrong proofs, which refutes "always yes" without
+      verifying faithfulness. Tracked as REQ-036.
+
+  - id: ASM-004
+    statement: >-
+      The Lean kernel and Mathlib correctly check proof terms. TRUST.md's ledger
+      records this as row 1, checkable "no - this is the root", and what breaks
+      if it is wrong as "every theorem".
+    impact: high
+    how_to_test: >-
+      Re-check the same proof terms with an independent kernel - a second Lean
+      version, or an external proof checker reading the exported terms - and
+      require agreement. Nothing inside this repository can do better, because
+      any checker written here would be checked by the same kernel.
+    status: unverified
+    documented_in: TRUST.md, "Trust ledger", row 1
+    accepted: >-
+      Irreducible: TRUST.md classifies it as the root of the trust chain and
+      says so rather than pretending otherwise. Every formal system has one, and
+      naming it is the honest treatment available.
+
+  - id: ASM-005
+    statement: >-
+      The tree CPython's `ast` module produces is the program. TRUST.md's ledger
+      row 2 records this as checkable "no - it is Python's syntax", and what
+      breaks if it is wrong as "the tree is not the program".
+    impact: high
+    how_to_test: >-
+      Differential-parse each src/*.py with a second implementation's parser and
+      require identical trees. That would detect a CPython parser bug; it cannot
+      make the parser stop being the definition of the language.
+    status: unverified
+    documented_in: TRUST.md, "Trust ledger", row 2
+    accepted: >-
+      Irreducible for the same reason as ASM-004, and deliberately so: the whole
+      design routes around translator trust by emitting the AST as data, which
+      makes CPython's own parser the one component that cannot be moved inside
+      the proof.
+
+  - id: ASM-006
+    statement: >-
+      scripts/pysem.py serialises the AST into a Lean term that means the same
+      thing. TRUST.md's ledger row 3 records this as checkable "partly: mutation
+      tests, and the correspondence theorem must hold at 12 observed points",
+      breaking as "the tree is not the program".
+    impact: high
+    how_to_test: >-
+      Mutate the renderer rather than the source - render `.sub` as `+`, drop a
+      guard, reorder arguments - regenerate, and require the kernel to reject
+      each one. The denotation obligation is designed to fail exactly here, and
+      one such mutation is already measured in scripts/correspondence_gate.py.
+    status: unverified
+    documented_in: TRUST.md, "Trust ledger", row 3
+    accepted: >-
+      Partly attacked already: the denotation theorem is a kernel receipt that
+      fails when, and only when, the renderer and the interpreter disagree, and
+      the correspondence theorem holds it against real CPython output at twelve
+      points. The residual - that the tree is the RIGHT tree - is what TRUST.md
+      calls "a much smaller and more attackable claim", and it is open.
+
+  - id: ASM-007
+    statement: >-
+      The mutation score is not inflated by mutants wrongly excluded from its
+      denominator. scripts/mutation_gate.py states the gap: "A mutant that
+      really does change behaviour, but happens to agree with the original on
+      every witness, leaves the denominator - and the spec's score goes UP when
+      the evidence says it should go DOWN. Nothing here closes that gap".
+    impact: high
+    how_to_test: >-
+      Enlarge the derived witness set and require that no mutant leaves the
+      denominator which did not leave it before. A newly excluded mutant under a
+      larger witness set is evidence the smaller set was excluding wrongly. The
+      witness count is already printed, so the comparison is cheap.
+    status: unverified
+    documented_in: scripts/mutation_gate.py, "WHAT 'EXCLUDED' MEANS HERE, EXACTLY"; scripts/spec_strength.py
+    note: >-
+      The gate is careful never to call these mutants equivalent - it says
+      "indistinguishable on sample". The assumption registered here is about the
+      number, not about the wording.
+    accepted: >-
+      Provably irreducible: scripts/spec_strength.py records that strengthening
+      observational into semantic equivalence is undecidable by Rice's theorem.
+      The mitigation actually taken - deriving witnesses from the literals in
+      both programs rather than sampling randomly - is what makes a wrong
+      exclusion likelier to be caught, and it is measured and printed.
+
+  - id: ASM-008
+    statement: >-
+      GitHub requires the checks ci/gates.toml declares mandatory.
+      scripts/check_ruleset.py names the direction that nothing catches: a gate
+      that is mandatory here but not required by GitHub "runs, goes red, and the
+      PR merges anyway", and "It produces a repository full of working gates
+      that block nothing, which looks exactly like a repository whose gates
+      work."
+    impact: high
+    how_to_test: >-
+      Run `python3 scripts/check_ruleset.py` with a token carrying repository
+      admin scope and require exit 0. It already exists and already does this;
+      wiring it as a scheduled workflow catches drift without needing the token
+      on every pull request.
+    status: unverified
+    documented_in: scripts/check_ruleset.py module docstring; ci/gates.toml header
+    accepted: >-
+      Blocked on a credential this repository cannot mint for itself, not on
+      engineering. gate_integrity.py check 9 covers the self-consistency half
+      today, and the uncovered half is recorded as REQ-034 rather than left as
+      an omission. This is the highest-value item here that is actually closable.
+
+  - id: ASM-009
+    statement: >-
+      scripts/correspondence_gate.py can reject the defects it exists to catch.
+      TRUST.md's ledger row 6 records it as checkable only in the sense that
+      "it is the checker", breaking as "a stale pair passes".
+    impact: high
+    how_to_test: >-
+      Edit src/add.py without regenerating and require the freshness check to
+      fail; add a function with no pair and require completeness to fail; feed a
+      proof carrying a project axiom and require the axiom audit to fail. All
+      three are executed as tests today.
+    status: verified
+    documented_in: TRUST.md, "Trust ledger", row 6; scripts/correspondence_gate.py, "WHAT EACH CHECK CATCHES, MEASURED"
+    note: >-
+      What is verified is that each check rejects the defect it was built for -
+      tests/test_correspondence.py, plus the semantic mutation attacks under
+      `pytest -m axle`, where each mutant edits src/add.py, regenerates, and
+      must be rejected by the kernel. That is not the same as "rejects every
+      defect", and this row does not claim it.
+
+  # -------------------------------------------------------------------------
+  # medium impact — one number or one property is weaker than it reads
+  # -------------------------------------------------------------------------
+  - id: ASM-010
+    statement: >-
+      The `version` recorded on a technology-universe record at readiness P2 or
+      higher was measured. SCHEMA.md states what the builder actually enforces:
+      "That is a presence check, and presence is not provenance: it accepts
+      version: 'yes' and version: '99.99.99-i-made-this-up' as readily as a
+      measured string."
+    impact: medium
+    how_to_test: >-
+      Re-run the audit as a script rather than by hand: for every record at P2
+      or above, resolve `package` against node_modules, the .venv trees and
+      brew, and compare the reported version with the recorded one. A record
+      whose package does not resolve fails rather than passing silently.
+    status: unverified
+    documented_in: technology-universe/registry/SCHEMA.md, "readiness - earned, not assigned"
+    note: >-
+      Not zero evidence: an independent audit cross-checked 237 of the 272
+      measured versions and "found zero disagreements - the measurements are
+      real". That is evidence about those 237 and silence about the remaining
+      35 and about every future record. SCHEMA.md's own summary is "the builder
+      could not have caught it if they were not". Tracked as REQ-037.
+
+  - id: ASM-011
+    statement: >-
+      A technology-universe record at readiness P3 has had a functional smoke
+      test run against it.
+    impact: medium
+    how_to_test: >-
+      Require a P3 record to name a smoke-test path that resolves on disk, and
+      re-run those tests. SCHEMA.md costs it exactly: "one rule", failing 186
+      records today.
+    status: falsified
+    documented_in: technology-universe/registry/SCHEMA.md, "What the builder enforces, and what it does not"
+    accepted: >-
+      Measured and published rather than hidden: "Of the 204 records at P3, 18
+      cite a smoke-test file that exists on disk and can be re-run; the other
+      186 describe the test inline in notes and left no artifact." The remedy is
+      known and costed, the failure is loud in the source document, and no merge
+      decision in this repository currently depends on the P3 count.
+
+  - id: ASM-012
+    statement: >-
+      The `raise` guarding `lo > hi` in src/clamp.py is protected by the
+      verification system.
+    impact: medium
+    how_to_test: >-
+      Delete the raise, regenerate the pair, and run the correspondence gate. If
+      it passes, the guard is unprotected. Close it by adding a spec conditioned
+      on `lo > hi` that requires the raise.
+    status: falsified
+    documented_in: TRUST.md, "The known limits, stated plainly"
+    accepted: >-
+      TRUST.md measured this and classifies it precisely: "The theorem is
+      conditioned on lo <= hi, so deleting the raise and regenerating still
+      satisfies it - the claim simply says nothing about lo > hi. That is a
+      characterization gap, not a soundness failure: the theorem is exactly as
+      strong as it reads." Nothing false is being claimed; a true claim is
+      simply narrower than a reader might assume, and the fix is one more spec.
+
+  - id: ASM-013
+    statement: >-
+      Each property is strong enough to exclude the wrong functions that matter,
+      not only the neighbours already tried. TRUST.md: "A property is only as
+      strong as it is written... That closes the neighbours actually tried, not
+      every conceivable one."
+    impact: medium
+    how_to_test: >-
+      Generate candidate neighbours mechanically rather than by hand - the AST
+      mutants scripts/mutation_gate.py already produces are exactly this
+      population - and require the joint property set to reject each one. The
+      per-function 0.95 floor is that test; raising the floor tightens it.
+    status: unverified
+    documented_in: TRUST.md, "The known limits, stated plainly"
+    note: >-
+      Partly covered by REQ-011 and REQ-022, which are the mechanical version of
+      "try the neighbours". What stays open is the conceivable neighbour outside
+      the single-point mutation population.
+
+  - id: ASM-014
+    statement: >-
+      A Python construct outside the supported subset fails closed - it raises
+      `Unsupported`, so it "produces no correspondence and therefore no claim".
+    impact: medium
+    how_to_test: >-
+      Write a src/ function using an unsupported construct and require
+      scripts/pysem.py to raise, then require the correspondence gate to report
+      the function as having no pair rather than skipping it.
+    status: verified
+    documented_in: TRUST.md, "Only the supported subset exists"
+    note: >-
+      TRUST.md says "Fifteen such constructs are tested to fail closed". The
+      UNSUPPORTED table in tests/test_correspondence.py holds twenty today,
+      including four that shadow a Lean binder. The prose undercounts; the test
+      is the measurement. Verified against the test, not against the sentence.
+
+  # -------------------------------------------------------------------------
+  # low impact — a diagnosis is slower, or a convenience is absent
+  # -------------------------------------------------------------------------
+  - id: ASM-015
+    statement: >-
+      An outage of the AXLE service is noticed before a build depends on it.
+    impact: low
+    how_to_test: >-
+      Point an HTTPS monitor at https://axle.axiommath.ai alerting on non-200 or
+      latency above 5s, then take the endpoint out of DNS on a test account and
+      confirm the alert arrives before the next scheduled build.
+    status: unverified
+    documented_in: README.md, "External monitoring"
+    note: >-
+      README.md is explicit: "Not configured. A hosted monitor (UptimeRobot,
+      Better Stack, Pingdom) needs an account this repository cannot create."
+      Low impact because the failure mode is a blocked merge - loud, and
+      recoverable - never a weakened gate. Tracked as REQ-038.
+
+  - id: ASM-016
+    statement: >-
+      The AI reviewer adds review pressure to a pull request.
+    impact: low
+    how_to_test: >-
+      Create the reviewer's OAuth token secret, open a pull request carrying a
+      deliberate defect, and confirm both that a review comment appears and that
+      the pull request cannot merge until the thread is resolved.
+    status: not-applicable
+    documented_in: ci/gates.toml, [gates.ai-review]; docs/ai-review.md
+    note: >-
+      The mechanism is inert today, so the assumption does not currently apply
+      rather than being untested. ci/gates.toml: "It is also a no-op until a
+      human creates the CLAUDE_CODE_OAUTH_TOKEN secret", and "The blocking power
+      does not come from this check's conclusion, which is always green." When
+      the secret exists this becomes `unverified` and the test above applies.
+      Tracked as REQ-039.

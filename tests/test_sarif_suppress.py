@@ -103,3 +103,36 @@ def test_an_unverified_finding_is_never_marked(tmp_path: Path) -> None:
     suppress(w, sarif)
     assert any("danger.py" in json.dumps(r) for r in results(sarif)), (
         "a shell=True call was hidden from code scanning")
+
+
+def test_a_multiline_call_is_marked_despite_the_two_line_numbers(
+        tmp_path: Path) -> None:
+    """The two bandit emitters disagree on which line a multi-line call is on.
+
+    `bandit -f json` reports `line_number` as the line the call node is
+    attributed to; `bandit -f sarif` reports `region.startLine` as the FIRST
+    line of the statement. `sarif_suppress` reads the first and matches against
+    the second, so an exact single-line match silently failed on every call
+    written across more than one line -- publishing findings the gate had
+    already PROVED safe, which is the exact disagreement this module removes.
+
+    It stayed invisible because single-line calls match by coincidence. This
+    pins the multi-line case directly: a call the gate verifies must be
+    withheld no matter how it is formatted.
+    """
+    w = workspace(tmp_path)
+    target = w / "scripts" / "ci_metrics.py"
+    source = target.read_text(encoding="utf-8")
+    assert "subprocess.run(\n" in source, (
+        "this test is only meaningful while the call spans several lines")
+
+    sarif = w / "b.sarif"
+    bandit_sarif(w, sarif)
+    raw = [r for r in results(sarif) if "ci_metrics.py" in json.dumps(r)]
+    assert raw, "bandit reported nothing for ci_metrics.py; test proves nothing"
+
+    assert suppress(w, sarif).returncode == 0
+    left = [r for r in results(sarif) if "ci_metrics.py" in json.dumps(r)]
+    assert not left, (
+        "a gate-verified multi-line subprocess call was published anyway: "
+        f"{[r.get('ruleId') for r in left]}")

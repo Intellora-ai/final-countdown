@@ -54,8 +54,15 @@ jobs:
       - name: Install Node dependencies from the lockfile
         run: npm ci
 
+      # No `--with-deps`. That flag runs `apt-get update && apt-get install`,
+      # and on the first run here it stalled on the Azure Ubuntu mirror --
+      # repeated `Ign:` lines, then thirteen minutes of silence until the job
+      # timed out. The runner image already ships Chromium's shared libraries,
+      # so downloading the browser is all that is actually required. If a
+      # library is ever genuinely missing, Playwright says which one, and the
+      # answer is to install that one rather than to re-run a package index.
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
 
       # No `continue-on-error`: Playwright's exit code is the verdict.
       - name: Run Playwright

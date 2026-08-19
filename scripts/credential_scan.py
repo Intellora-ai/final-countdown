@@ -67,6 +67,8 @@ EXIT CODES.
 
 from __future__ import annotations
 
+import base64
+import binascii
 import re
 import struct
 import sys
@@ -124,6 +126,21 @@ _PATTERNS: Final[tuple[Pattern, ...]] = (
 # names (no lower case).
 _TOKEN_RUN: Final = re.compile(r"[A-Za-z0-9_\-]{32,}")
 
+# Subresource-Integrity digests -- `sha512-<base64>` in package-lock.json.
+# These belong to the same category as the git SHAs and the requirements.lock
+# sha256 hashes the rule above already tolerates: published checksums of public
+# artifacts, not secrets. The only reason they reach this rule at all is the
+# encoding. Hex is lowercase; base64 mixes case, so it trips `_mixed_alphabet`.
+#
+# THE EXEMPTION IS VERIFIED, NOT ASSUMED. The payload must decode as strict
+# base64 to exactly the digest size the named algorithm produces -- 32 bytes
+# for sha256, 48 for sha384, 64 for sha512. A secret pasted after `sha512-` is
+# the wrong length, or is not valid base64, and still fires. That keeps this a
+# statement about what the value provably IS rather than a prefix anyone can
+# type to opt out of scanning.
+_SRI_DIGEST_BYTES: Final = {"sha256": 32, "sha384": 48, "sha512": 64}
+_SRI: Final = re.compile(r"\b(sha256|sha384|sha512)-([A-Za-z0-9+/]+=*)")
+
 _INDEX_SIGNATURE: Final = b"DIRC"
 _SUPPORTED_INDEX_VERSIONS: Final = frozenset({2, 3})
 # ctime, mtime, dev, ino, mode, uid, gid, size, sha1, flags.
@@ -151,6 +168,26 @@ def _mixed_alphabet(run: str) -> bool:
             and any(c.isdigit() for c in run))
 
 
+def _integrity_spans(text: str) -> list[tuple[int, int]]:
+    """Character ranges covered by a PROVEN integrity digest.
+
+    A span is returned only when the payload decodes as strict base64 to the
+    exact digest length its algorithm produces. Anything that merely looks like
+    an SRI value -- wrong length, invalid alphabet, truncated -- is not
+    returned, so it stays subject to the high-entropy rule.
+    """
+    spans: list[tuple[int, int]] = []
+    for m in _SRI.finditer(text):
+        algorithm, payload = m.group(1), m.group(2)
+        try:
+            decoded = base64.b64decode(payload, validate=True)
+        except (binascii.Error, ValueError):
+            continue
+        if len(decoded) == _SRI_DIGEST_BYTES[algorithm]:
+            spans.append((m.start(), m.end()))
+    return spans
+
+
 def scan_text(text: str, path: str) -> list[Finding]:
     """Return one finding per credential-SHAPED match in `text`.
 
@@ -167,11 +204,20 @@ def scan_text(text: str, path: str) -> list[Finding]:
             findings.append(Finding(pattern.label, path, line_of(m.start()),
                                     len(m.group(0))))
 
+    # The token rule breaks a base64 payload at `+`, `/` and `=`, so a single
+    # digest arrives here as several fragments. Computing the proven spans once
+    # and testing containment keeps every fragment of one digest consistent.
+    integrity = _integrity_spans(text)
+
     for m in _TOKEN_RUN.finditer(text):
         run = m.group(0)
-        if _mixed_alphabet(run):
-            findings.append(Finding("high-entropy-token", path,
-                                    line_of(m.start()), len(run)))
+        if not _mixed_alphabet(run):
+            continue
+        if any(start <= m.start() and m.end() <= end
+               for start, end in integrity):
+            continue
+        findings.append(Finding("high-entropy-token", path,
+                                line_of(m.start()), len(run)))
 
     return sorted(findings, key=lambda f: (f.line, f.label))
 

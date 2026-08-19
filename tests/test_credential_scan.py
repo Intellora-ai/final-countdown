@@ -22,6 +22,8 @@ the exact thing this gate exists to prevent.
 from __future__ import annotations
 
 import subprocess
+import base64
+import hashlib
 import sys
 from pathlib import Path
 
@@ -51,6 +53,19 @@ ACTION_PIN = ("      - uses: actions/checkout@"
               "fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0")
 ENGLISH = ("A risk-free, task-based approach to disk-bound work: the whisky-"
            "aged, brisk-paced sort.")
+
+# A real npm lockfile integrity field: base64, so it mixes case where a hex
+# digest does not. Computed here rather than pasted, so the test states the
+# property -- a well-formed digest of the declared length -- instead of
+# hardcoding one package's hash and drifting when the lockfile changes.
+NPM_INTEGRITY = '  "integrity": "sha512-' + base64.b64encode(
+    hashlib.sha512(b"any published artifact").digest()).decode() + '",'
+
+# The same field carrying something that is NOT a digest. Right prefix, wrong
+# payload: this must still fire, or the prefix would be an opt-out anyone
+# could type to smuggle a secret past the scanner.
+FAKE_INTEGRITY = ('  "integrity": "sha512-'
+                  + "A1b2C3d4E5f6G7h8" + "I9j0K1l2M3n4O5p6Q7r8" + '",')
 
 
 def git(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -138,6 +153,25 @@ def test_fine_grained_pat_is_caught_and_never_echoed(tmp_path: Path) -> None:
     assert "notes.md" in combined
 
 
+def test_the_integrity_prefix_is_not_an_opt_out(tmp_path: Path) -> None:
+    """`sha512-` must not be a magic word that turns the scanner off.
+
+    The lockfile exemption is the one place this gate agrees to ignore a
+    high-entropy run, so it has to be earned rather than claimed. The payload
+    here carries the right prefix and the wrong contents -- not a digest of the
+    length sha512 produces. If the exemption were prefix-based, anyone could
+    hide a token by pasting it after `sha512-` and this would pass.
+    """
+    w = repo(tmp_path)
+    commit_file(w, "package-lock.json", "{\n" + FAKE_INTEGRITY + "\n}\n")
+    r = run_scan(w)
+    assert r.returncode == 1, (
+        "a non-digest payload behind the integrity prefix was not flagged; "
+        "the exemption is trusting the prefix instead of verifying the value\n"
+        + r.stdout + r.stderr)
+    assert "high-entropy-token" in r.stdout
+
+
 @pytest.mark.parametrize(("label", "planted"), [
     ("github-token", CLASSIC_TOKEN),
     ("aws-access-key-id", AWS_KEY_ID),
@@ -163,6 +197,7 @@ def test_each_credential_shape_blocks(tmp_path: Path, label: str,
     ("workflow.yml", f"jobs:\n  a:\n    steps:\n{ACTION_PIN}\n"),
     ("prose.md", f"{ENGLISH}\n"),
     ("lock.txt", "--hash=sha256:" + "abcdef0123456789" * 4 + "\n"),
+    ("package-lock.json", "{\n" + NPM_INTEGRITY + "\n}\n"),
 ])
 def test_ordinary_content_does_not_trip_the_gate(tmp_path: Path, name: str,
                                                  body: str) -> None:

@@ -15,22 +15,59 @@ Three failure modes, three checks. Each one alone leaves a hole.
                  would happily verify a pair describing last week's source.
                  Only a comparison against the source detects that.
 
-  KERNEL         AXLE checks the committed pair, so the correspondence and the
-                 property are discharged by the Lean kernel, not by this file.
+  KERNEL         AXLE checks the committed pair, so the denotation, the
+                 correspondence and the property are all discharged by the Lean
+                 kernel, not by this file.
 
-WHAT EACH CHECK CATCHES, MEASURED:
+THE THREE KERNEL OBLIGATIONS ARE NOT INTERCHANGEABLE.
 
-  edit add.py to `a - b`, do not regenerate  -> FRESHNESS fails
-  edit add.py to `a - b`, regenerate         -> KERNEL fails: the property
-                                                `f [a,b] = f [b,a]` is false of
-                                                subtraction
-  edit add.py to `a * b`, regenerate         -> KERNEL fails: commutativity
-                                                still holds, but the identity
-                                                law `f [a,0] = some a` does not
-  edit add.py to `b + a`, regenerate         -> ACCEPTED, correctly: it is the
-                                                same function
-  add an unsupported construct               -> pysem.Unsupported, hard failure,
-                                                no claim is produced
+  DENOTATION     `evalFunc <n>_ast args = <closed form>`, for ALL integers,
+                 with the closed form derived from the tree by the traversal
+                 that emitted it. Because it is derived, regenerating always
+                 makes it true again — which is exactly the point: it is a
+                 kernel receipt that scripts/pysem.py renders the tree the same
+                 way `eval` reads it. It fails when, and only when, the
+                 renderer and the interpreter disagree. Measured: rendering
+                 `.sub` as `+` leaves `⊢ a - b = a + b` unsolved.
+
+  CORRESPONDENCE 12 points where CPython was actually executed. The only
+                 obligation in the file that touches Python.
+
+  PROPERTY       hand-written intent. This is the layer that survives
+                 regeneration, so it is the layer that catches a program whose
+                 mathematics changed.
+
+WHAT EACH CHECK CATCHES, MEASURED (tests/test_correspondence.py):
+
+  any semantic edit, not regenerated          -> FRESHNESS. The committed pair
+                                                 is self-consistent, so only a
+                                                 comparison against src/ sees it.
+  `a - b`, regenerated                        -> KERNEL, property: `f [a,b] =
+                                                 f [b,a]` is false of subtraction
+  `a * b`, regenerated                        -> KERNEL, property: commutativity
+                                                 survives, `f [a,0] = some a` does
+                                                 not
+  `if a == 99991: return 0`, regenerated      -> KERNEL, property. Agrees with
+                                                 addition at all 12 sampled
+                                                 points; the mutation is visible
+                                                 in the residual goal because the
+                                                 denotation reduced the tree to
+                                                 `if a = 99991 then some 0 else
+                                                 some (a + b)`.
+  `a + b if a != 99991 else 0`                -> UNSUPPORTED. A conditional
+                                                 expression has no semantics
+                                                 here, so no claim is produced.
+  a renderer that emits `+` for `.sub`        -> KERNEL, denotation
+  `b + a`, regenerated                        -> ACCEPTED, correctly: it is the
+                                                 same function
+
+WHAT NONE OF THIS CATCHES, STATED PLAINLY. A mechanically derived obligation
+cannot fail once it has been regenerated from the mutated source — the
+denotation and the recorded CPython outputs both move with the program. After a
+regeneration the only obligation that can still refute is the hand-written
+PROPERTY. What the denotation changed is the strength of that refutation: the
+property is now checked against a closed form covering every integer instead of
+against twelve sampled points.
 
 This gate does not itself decide whether the mathematics is true. It decides
 whether the mathematics is ABOUT the program in this working tree.
@@ -227,11 +264,58 @@ def main() -> None:
                                f"--function {name}, then review the diff.")
                     continue
 
+                # THE THEOREM CARRYING THE PYTHON CLAIM MUST BE PRESENT BY NAME.
+                #
+                # Neither check above can notice its absence. The axiom audit
+                # inspects the axioms of the theorems that ARE there — a theorem
+                # that was never emitted reports nothing, so there is nothing to
+                # flag. And freshness compares the committed file against a fresh
+                # render from the same generator, so an omission in the generator
+                # reproduces identically on both sides and compares equal.
+                #
+                # `_denotes` is the only universally quantified statement here:
+                # `_matches_cpython` is a finite sample, which refutes but never
+                # proves. Losing `_denotes` would silently reduce this gate to
+                # sampling while every check stayed green — so it is asserted by
+                # name, and so is its `#print axioms` line, without which the
+                # audit would not cover it either.
+                denotes = f"{name}_ast_denotes"
+                stated = f"theorem {denotes}" in on_disk_proof
+                audited = f"#print axioms {denotes}" in on_disk_proof
+                has_denotation = stated and audited
+                g.check(f"{name}: proof states the quantified denotation",
+                        has_denotation,
+                        denotes if has_denotation
+                        else f"theorem={stated} axiom_report={audited}")
+                if not has_denotation:
+                    rejected.append(name)
+                    print(f"❌ {name}: no quantified denotation")
+                    g.fail(what=f"{name}: the proof carries no universally "
+                                f"quantified denotation",
+                           where=str(proof_path),
+                           why="the sampled correspondence can refute a wrong "
+                               "model but cannot prove a right one, so without "
+                               f"{denotes} this gate asserts nothing about "
+                               "src/ beyond a finite set of points"
+                               + ("" if stated else
+                                  f"; `theorem {denotes}` is absent")
+                               + ("" if audited else
+                                  f"; `#print axioms {denotes}` is absent, so "
+                                  "the axiom audit does not cover it"),
+                           requirement="Every covered function must carry a "
+                                       "quantified Python-to-Lean denotation, "
+                                       "and it must be in the axiom report.",
+                           fix=f"python3 scripts/gen_correspondence.py "
+                               f"--function {name}")
+                    continue
+
                 ok, detail = verify_with_axle(spec_path, proof_path)
-                g.check(f"{name}: kernel accepts correspondence + property", ok,
+                g.check(f"{name}: kernel accepts denotation + correspondence + property",
+                        ok,
                         detail or "okay")
                 if ok:
-                    print(f"✓ {name}: correspondence and property kernel-checked")
+                    print(f"✓ {name}: denotation, correspondence and property "
+                          "kernel-checked")
                 elif detail.startswith("UNAVAILABLE"):
                     unavailable.append(name)
                     print(f"⚠ {name}: {detail}")
@@ -244,12 +328,17 @@ def main() -> None:
                     print(f"❌ {name}: kernel rejected")
                     g.fail(what=f"{name}: the kernel rejected the file",
                            where=f"{spec_path} + {proof_path}", why=detail,
-                           requirement="The correspondence and the property must "
-                                       "both hold of this program.",
-                           fix="Either the property is false of the new code, or "
-                               "the recorded CPython outputs no longer match. "
-                               "Read the Lean error; do not weaken the theorem "
-                               "to make it pass.")
+                           requirement="The denotation, the correspondence and "
+                                       "the property must all hold of this "
+                                       "program.",
+                           fix="Read the Lean error and note WHICH theorem "
+                               "failed. `_denotes` means scripts/pysem.py "
+                               "renders the tree differently from how `eval` "
+                               "reads it. `_matches_cpython` means the "
+                               "interpreter disagrees with CPython at a point "
+                               "that was actually executed. Anything else means "
+                               "the property is false of the new code. Do not "
+                               "weaken the theorem to make it pass.")
 
         g.set_scope(stale=len(stale), rejected=len(rejected),
                     unavailable=len(unavailable))

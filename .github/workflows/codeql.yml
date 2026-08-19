@@ -37,6 +37,19 @@ on:
   schedule:
     - cron: '27 4 * * 1'
 
+# Cancel a run only when a newer commit on the SAME pull request has
+# superseded it. `github.ref` is the PR ref, so runs on different PRs never
+# cancel each other.
+#
+# cancel-in-progress is deliberately conditional. On a push to main the run IS
+# the authoritative verification of a commit that is already merged -- killing
+# it would leave a merged commit with no completed verification, which is the
+# one outcome this repository exists to prevent. Superseding only happens on
+# pull_request, where a newer commit genuinely obsoletes the older result.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 

@@ -1,0 +1,657 @@
+# AUTHORITATIVE INVENTORY — the specification, transcribed verbatim.
+#
+# This file is the source of truth for the technology universe. Every other
+# artifact in technology-universe/ is derived from it, and the acceptance test
+# is that the derived registry holds exactly one record per line below.
+#
+# Format: `<n>. <name>` under a `## <n>. <category>` heading. Numbering and
+# wording are the specification's, including the entries that name a class of
+# alternatives rather than a single package -- those are inventory items too,
+# and dropping them would make the count disagree with the spec.
+#
+# DO NOT reorder, renumber, or "tidy" this file. A registry that no longer
+# matches the specification is a registry nobody can check.
+
+## 1. Core frontend / application runtime
+1. React
+2. React DOM
+3. Next.js
+4. Vite
+5. TypeScript
+6. JavaScript
+7. TanStack Router
+8. TanStack Start
+9. Remix
+10. Astro
+11. Svelte
+12. SvelteKit
+13. Vue
+14. Nuxt
+15. SolidJS
+16. Qwik
+17. Lit
+18. Preact
+19. Alpine.js
+20. HTMX
+
+## 2. Styling / UI system
+21. Tailwind CSS
+22. PostCSS
+23. Autoprefixer
+24. Radix UI
+25. Headless UI
+26. Ark UI
+27. Mantine
+28. Chakra UI
+29. shadcn/ui
+30. Base UI
+31. React Aria
+32. React Spectrum
+33. MUI
+34. Ant Design
+35. DaisyUI
+36. Lucide
+37. Heroicons
+38. Tabler Icons
+39. Phosphor Icons
+40. Floating UI
+
+## 3. State / application data
+41. Zustand
+42. Redux Toolkit
+43. Jotai
+44. MobX
+45. Valtio
+46. XState
+47. TanStack Query
+48. TanStack Store
+49. Immer
+50. RxJS
+51. Effector
+52. Recoil
+53. Vercel SWR
+
+## 4. Forms / validation / schemas
+54. Zod
+55. Valibot
+56. Yup
+57. Joi
+58. Ajv
+59. TypeBox
+60. JSON Schema
+61. React Hook Form
+62. Final Form
+63. Formik
+64. Superstruct
+65. io-ts
+
+## 5. Animation / motion
+66. Motion
+67. Framer Motion
+68. GSAP
+69. Anime.js
+70. Popmotion
+71. React Spring
+72. Motion One
+73. Auto Animate
+74. Lottie-web
+75. Rive Runtime
+76. Theatre.js
+77. React Transition Group
+
+## 6. 2D rendering / graphics
+78. SVG
+79. HTML Canvas
+80. Konva
+81. React Konva
+82. PixiJS
+83. Fabric.js
+84. Paper.js
+85. Two.js
+86. Rough.js
+87. p5.js
+88. regl
+89. CairoSVG
+90. SVG.js
+
+## 7. Diagrams / flow / graph editors
+91. React Flow
+92. Cytoscape.js
+93. Mermaid
+94. Graphology
+95. Sigma.js
+96. Dagre
+97. ELK.js
+98. Graphviz
+99. Viz.js
+100. JointJS Community
+101. mxGraph / maxGraph
+102. GoJS alternatives via Cytoscape/React Flow
+103. JSXGraph
+
+## 8. Whiteboard / drawing / spatial interaction
+104. Excalidraw
+105. Perfect Freehand
+106. Rough.js
+107. React Sketch Canvas
+108. Fabric.js
+109. Konva
+110. Paper.js
+111. tldraw
+
+## 9. Charts / data visualization
+112. D3
+113. Observable Plot
+114. Vega
+115. Vega-Lite
+116. Apache ECharts
+117. Plotly.js
+118. Chart.js
+119. Apache Charts alternatives via ECharts/Vega
+120. Nivo
+121. Recharts
+122. Visx
+123. Victory
+124. uPlot
+125. Frappe Charts
+126. Billboard.js
+
+## 10. 3D / immersive visualization
+127. Three.js
+128. React Three Fiber
+129. @react-three/drei
+130. Babylon.js
+131. PlayCanvas Engine
+132. A-Frame
+133. OGL
+134. TresJS
+135. React BabylonJS
+136. deck.gl
+137. CesiumJS
+138. vtk.js
+139. xeokit
+140. Potree
+141. OpenCascade.js
+
+## 11. WebGPU / GPU / shaders
+142. WebGL
+143. WebGPU
+144. wgpu
+145. Three.js WebGPU renderer
+146. regl
+147. luma.gl
+148. GPU.js
+149. gl-matrix
+150. twgl.js
+151. Babylon WebGPU
+152. shaderc
+
+## 12. Physics / simulation
+153. Matter.js
+154. Rapier
+155. Rapier.js
+156. Cannon-es
+157. Ammo.js
+158. Planck.js
+159. Box2D
+160. Oimo.js
+161. Jolt Physics
+162. Chipmunk2D
+163. PyBullet
+164. Bullet Physics
+165. MuJoCo
+166. Pymunk
+167. Taichi
+
+## 13. Mathematics / equations
+168. KaTeX
+169. MathJax
+170. MathLive
+171. Math.js
+172. SymPy
+173. Nerdamer
+174. Algebrite
+175. Fraction.js
+176. decimal.js
+177. big.js
+178. numeric.js
+179. math-expression-evaluator
+180. JSXGraph
+181. SageMath
+182. GNU Octave
+
+## 14. Scientific / numerical computation
+183. NumPy
+184. SciPy
+185. pandas
+186. Polars
+187. Apache Arrow
+188. DuckDB
+189. PyArrow
+190. Numba
+191. JAX
+192. PyTorch
+193. TensorFlow
+194. Keras
+195. XGBoost
+196. LightGBM
+197. CatBoost
+198. scikit-learn
+199. Statsmodels
+200. NetworkX
+
+## 15. Symbolic / theorem / formal reasoning
+201. Lean 4
+202. Mathlib
+203. Coq
+204. Isabelle
+205. Agda
+206. Z3
+207. CVC5
+208. SymPy
+209. SMT-LIB tooling
+210. OpenQASM tooling
+
+## 16. Knowledge graphs / graph computation
+211. NetworkX
+212. igraph
+213. graphology
+214. Neo4j Community Edition
+215. Memgraph Community
+216. Apache TinkerPop
+217. RDFLib
+218. rdflib.js
+219. Comunica
+220. N-Triples / Turtle tooling
+221. SHACL tooling
+222. pySHACL
+
+## 17. Text / Markdown / rich content
+223. Markdown-it
+224. unified
+225. remark
+226. rehype
+227. retext
+228. micromark
+229. mdast
+230. hast
+231. gray-matter
+232. MDX
+233. next-mdx-remote
+234. react-markdown
+235. marked
+236. showdown
+237. DOMPurify
+
+## 18. Rich text editors
+238. Lexical
+239. ProseMirror
+240. TipTap Core
+241. Slate
+242. Slate React
+243. Quill
+244. Editor.js
+245. Draft.js
+246. Milkdown
+247. Remirror
+248. BlockNote
+
+## 19. Code / programming-learning interface
+249. Monaco Editor
+250. CodeMirror
+251. Sandpack
+252. Shiki
+253. Highlight.js
+254. Prism
+255. Tree-sitter
+256. Lezer
+257. Acorn
+258. Babel parser
+259. SWC
+260. esbuild
+261. Rollup
+262. tsup
+263. TypeScript compiler
+
+## 20. PDF / document rendering
+264. PDF.js
+265. PSPDFKit alternatives via PDF.js
+266. OpenSeadragon
+267. pdf-lib
+268. PDFKit
+269. MuPDF
+270. Poppler
+271. PyMuPDF
+272. pypdf
+273. Apache Tika
+
+## 21. Image processing
+274. OpenCV
+275. Pillow
+276. ImageMagick
+277. Sharp
+278. libvips
+279. scikit-image
+280. imageio
+281. Wand
+282. torchvision
+283. Kornia
+
+## 22. OCR / handwriting / document understanding
+284. Tesseract OCR
+285. PaddleOCR
+286. EasyOCR
+287. docTR
+288. OpenCV
+289. LayoutParser
+290. OCRmyPDF
+291. Leptonica
+292. Kraken OCR
+
+## 23. Audio
+293. Web Audio API
+294. Tone.js
+295. Howler.js
+296. Wavesurfer.js
+297. AudioWorklet
+298. Essentia
+299. librosa
+300. soundfile
+301. pydub
+302. FFmpeg
+
+## 24. Video / media
+303. FFmpeg
+304. WebCodecs
+305. Media Source Extensions
+306. MediaRecorder API
+307. Video.js
+308. hls.js
+309. dash.js
+310. Plyr
+311. Shaka Player
+312. GStreamer
+
+## 25. Speech recognition / TTS
+313. Whisper
+314. whisper.cpp
+315. faster-whisper
+316. Vosk
+317. Kaldi
+318. Piper
+319. Coqui TTS
+320. eSpeak NG
+321. Festival
+
+## 26. Local LLM / AI inference
+322. llama.cpp
+323. Ollama
+324. vLLM
+325. Hugging Face Transformers
+326. Sentence Transformers
+327. PEFT
+328. Accelerate
+329. bitsandbytes
+330. ONNX Runtime
+331. OpenVINO
+332. MLX
+333. TensorRT-LLM
+334. llama-cpp-python
+
+## 27. AI orchestration / agents
+335. LangChain
+336. LlamaIndex
+337. Haystack
+338. DSPy
+339. LiteLLM
+340. Semantic Kernel
+341. AutoGen
+342. smolagents
+343. PydanticAI
+344. Guidance
+
+## 28. Embeddings / retrieval
+345. FAISS
+346. hnswlib
+347. Annoy
+348. Chroma
+349. Qdrant
+350. Milvus
+351. Weaviate Community
+352. LanceDB
+353. pgvector
+354. Vespa
+
+## 29. Search
+355. OpenSearch
+356. Elasticsearch
+357. Meilisearch
+358. Typesense
+359. Tantivy
+360. Whoosh
+361. Apache Lucene
+
+## 30. Backend / APIs
+362. FastAPI
+363. Starlette
+364. Uvicorn
+365. Gunicorn
+366. Flask
+367. Django
+368. Litestar
+369. Sanic
+370. Node.js
+371. Express
+372. Fastify
+373. Hono
+374. NestJS
+
+## 31. API schemas / RPC
+375. OpenAPI
+376. Swagger UI
+377. Redoc
+378. Scalar
+379. GraphQL
+380. GraphQL Yoga
+381. Apollo Server
+382. tRPC
+383. gRPC
+384. ConnectRPC
+385. Protocol Buffers
+
+## 32. Database
+386. PostgreSQL
+387. SQLite
+388. DuckDB
+389. MariaDB
+390. MySQL Community
+391. Redis
+392. Valkey
+393. MongoDB Community
+394. Neo4j Community
+395. ClickHouse
+396. TimescaleDB
+397. CockroachDB Community
+
+## 33. Queues / events / background work
+398. Celery
+399. Dramatiq
+400. RQ
+401. BullMQ
+402. Bull
+403. RabbitMQ
+404. NATS
+405. Apache Kafka
+406. Redis Streams
+407. Temporal
+408. APScheduler
+
+## 34. Real-time / collaboration
+409. WebSocket API
+410. WebRTC
+411. Socket.IO
+412. Yjs
+413. Automerge
+414. Hocuspocus
+415. Liveblocks alternatives via Yjs/Hocuspocus
+416. mediasoup
+417. Janus
+418. Jitsi Meet
+419. LiveKit Community
+
+## 35. Authentication / authorization
+420. Auth.js
+421. Keycloak
+422. Ory Kratos
+423. Ory Keto
+424. OpenFGA
+425. Casbin
+426. Oso
+427. Lucia alternatives
+428. Passport.js
+429. Better Auth
+
+## 36. Observability / measurement
+430. OpenTelemetry
+431. Prometheus
+432. Grafana
+433. Loki
+434. Tempo
+435. Jaeger
+436. OpenSearch Dashboards
+437. Sentry self-hosted
+438. GlitchTip
+439. VictoriaMetrics
+
+## 37. Testing
+440. Playwright
+441. Vitest
+442. Jest
+443. Testing Library
+444. React Testing Library
+445. Cypress
+446. WebdriverIO
+447. pytest
+448. Hypothesis
+449. property-based testing tools
+450. k6
+451. Locust
+452. Artillery
+
+## 38. Browser / accessibility / performance
+453. axe-core
+454. Lighthouse
+455. Puppeteer
+456. Pa11y
+457. WebPageTest tooling
+458. OpenUI
+459. PerformanceObserver API
+460. ResizeObserver
+461. IntersectionObserver
+
+## 39. Build / dependency / monorepo
+462. pnpm
+463. npm
+464. Yarn
+465. Bun
+466. Turborepo
+467. Nx
+468. Bazel
+469. Pants
+470. Buck2
+471. Changesets
+472. Renovate
+473. Dependabot
+
+## 40. Formatting / linting / code quality
+474. ESLint
+475. Biome
+476. Prettier
+477. Ruff
+478. Black
+479. isort
+480. mypy
+481. Pyright
+482. Pylint
+483. Bandit
+484. Semgrep Community
+485. CodeQL
+486. clang-format
+487. Clang-Tidy
+
+## 41. Git / hooks / developer workflow
+488. Git
+489. Git LFS
+490. pre-commit
+491. Husky
+492. lint-staged
+493. commitlint
+494. Commitizen
+495. Lefthook
+496. simple-git-hooks
+
+## 42. Containers / infrastructure
+497. Docker
+498. Docker Compose
+499. Podman
+500. Kubernetes
+501. k3s
+502. Kind
+503. Minikube
+504. Helm
+505. Kustomize
+506. Terraform
+507. OpenTofu
+508. Ansible
+
+## 43. Object/file storage
+509. MinIO
+510. SeaweedFS
+511. Garage
+512. S3-compatible storage APIs
+513. Apache Commons Compress
+514. Zip.js
+
+## 44. Scientific / educational visualization extras
+515. Manim
+516. VPython
+517. PyVista
+518. Plotly
+519. Bokeh
+520. Holoviews
+521. Datashader
+522. Mayavi
+523. VisPy
+524. Napari
+525. Open3D
+526. Trimesh
+
+## 45. Geometry / CAD / spatial math
+527. OpenCascade
+528. OpenCascade.js
+529. CGAL
+530. Shapely
+531. GeoPandas
+532. Fiona
+533. Rasterio
+534. PROJ
+535. GDAL
+536. Turf.js
+
+## 46. Game / simulation engines that can become learning renderers
+537. Godot
+538. Bevy
+539. Phaser
+540. PixiJS
+541. PlayCanvas
+542. Defold
+
+## 47. Diagram / document / visual authoring extras
+543. Mermaid
+544. Graphviz
+545. PlantUML
+546. Ditaa
+547. Kroki
+548. BPMN.js
+549. Rough.js
+550. Fabric.js

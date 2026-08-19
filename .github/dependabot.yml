@@ -25,10 +25,18 @@
 # genuinely must move (a yanked release, an advisory on the floor itself)
 # still surfaces as a PR rather than as nothing at all.
 #
-# ALSO: repository-level `dependabot_security_updates` is DISABLED on
-# Intellora-ai/final-countdown. That is a repository setting, not a file, so
-# it cannot be fixed here. Version updates below run regardless; security
-# updates do not.
+# ALSO: repository-level `dependabot_security_updates` is now ENABLED on
+# Intellora-ai/final-countdown, alongside automated-security-fixes. Those are
+# repository settings, not files, so they cannot be asserted from here and
+# tests/test_supply_chain.py does not try — it guards this file. Confirm them
+# with:
+#
+#   gh api repos/Intellora-ai/final-countdown \
+#       --jq .security_and_analysis.dependabot_security_updates.status
+#   gh api repos/Intellora-ai/final-countdown/automated-security-fixes
+#
+# The two halves are complementary: the version updates configured below run
+# on the weekly schedule, security updates fire out-of-band on an advisory.
 
 version: 2
 

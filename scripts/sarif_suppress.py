@@ -75,6 +75,29 @@ def verified_locations(targets: list[str]) -> tuple[set[tuple[str, str, int]], b
         path = str(finding["filename"]).lstrip("./")
         key = (str(finding["test_id"]), path)
         line = int(finding["line_number"])
+        # THE TWO BANDIT FORMATTERS DISAGREE ABOUT WHICH LINE A MULTI-LINE
+        # STATEMENT IS ON, and this function reads one while result_location()
+        # reads the other. For a `subprocess.run(...)` broken across four
+        # lines, the JSON emitter reports `line_number` as the line the call
+        # node is attributed to, while the SARIF emitter reports
+        # `region.startLine` as the FIRST line of the statement. Measured on
+        # this repository:
+        #
+        #   scripts/ci_metrics.py  B603  JSON 45  SARIF 43  range [43,44,45,46]
+        #   scripts/tcb_gate.py    B603  JSON 52  SARIF 50  range [50,51,52,53]
+        #
+        # An exact single-line match therefore missed both, and two findings
+        # the gate had PROVED safe were published as alerts anyway -- which is
+        # the disagreement this whole file exists to remove. Single-line calls
+        # were unaffected, so it stayed invisible until a call was reformatted.
+        #
+        # The fix records every line bandit itself attributes to the statement.
+        # This does not widen what is suppressed: the (rule, file) pair must
+        # still match exactly, and the line must still fall inside the single
+        # statement the gate adjudicated. It only stops the two representations
+        # of ONE finding from being treated as two different findings.
+        span = finding.get("line_range") or [line]
+        lines = {int(n) for n in cast("list[Any]", span)} | {line}
 
         if key in security_gate.HEURISTIC:
             checker = (security_gate.check_is_status_literal
@@ -86,7 +109,7 @@ def verified_locations(targets: list[str]) -> tuple[set[tuple[str, str, int]], b
             good = False
 
         if good:
-            ok_locations.add((key[0], path, line))
+            ok_locations.update((key[0], path, n) for n in lines)
         else:
             unresolved += 1
 

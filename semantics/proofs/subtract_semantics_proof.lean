@@ -84,7 +84,7 @@ def evalFunc (f : PyFunc) (args : List Int) : Option Int :=
   else none
 
 /-!
-CORRESPONDENCE AND PROPERTY FOR `src/subtract.py`.
+DENOTATION, CORRESPONDENCE AND PROPERTY FOR `src/subtract.py`.
 
   function      subtract(a, b)
   source sha256 8b6b0f137c3d5da39106207d63442312c1db91a335f8a23b5f19419666a6042e
@@ -95,8 +95,25 @@ scripts/pysem.py. Every theorem here is about `evalFunc subtract_ast` — the
 meaning the semantics above assigns to that tree — so no translation has to be
 trusted to preserve behaviour between Python and Lean.
 
-The sha256 pins WHICH BYTES were parsed. It says nothing about meaning; the
-correspondence theorem is what ties the tree to observed behaviour.
+THE CHAIN NEEDS BOTH KERNEL LINKS, AND THEY DO DIFFERENT JOBS.
+
+  DENOTATION      `evalFunc subtract_ast args = <closed form>` for ALL integers.
+                  The closed form is derived from this tree, by the traversal
+                  that emitted it. It says what the program MEANS, everywhere,
+                  not at a sample. What it cannot say is anything about Python:
+                  a tree and a formula are both Lean objects.
+
+  CORRESPONDENCE  `evalFunc subtract_ast [pt] = <observed>` at 12 points, by
+                  `rfl`, where <observed> is what CPython printed when the real
+                  function was run. This is the only obligation in the file
+                  that crosses the language boundary. Composed with the
+                  denotation it reads `<closed form> = CPython's output`.
+
+Neither is the chain. A denotation with no correspondence proves a formula
+about a data structure nobody checked against Python; a correspondence with no
+denotation pins 12 inputs and leaves every other integer unclaimed.
+
+The sha256 pins WHICH BYTES were parsed. It says nothing about meaning.
 -/
 
 def subtract_ast : PyFunc :=
@@ -104,10 +121,21 @@ def subtract_ast : PyFunc :=
   , guards := []
   , ret := (.sub (.var "a") (.var "b")) }
 
+/-- DENOTATION. Universally quantified: this is the primary Python↔Lean link,
+and it holds at every integer, not at a sample. The right-hand side is derived
+from `subtract_ast` itself, so it is not a second hand-written model that could
+drift — and it is not trusted either, because the kernel is what closes the
+gap between it and `eval`. -/
+theorem subtract_ast_denotes (a b : Int) :
+    evalFunc subtract_ast [a, b] = some (a - b) := by
+  simp [evalFunc, subtract_ast, runGuards, eval, lookupVar]
+
 /-- CORRESPONDENCE. Each conjunct is a point where the real CPython function
 was executed and its output recorded. The kernel must agree by `rfl`, so a
 disagreement between Lean's `evalFunc` and CPython at any sampled point makes
-this file fail to compile. A finite sample refutes; it does not prove. -/
+this file fail to compile. A finite sample refutes; it does not prove — which
+is why the denotation above carries the quantified claim and this carries the
+contact with Python. -/
 theorem subtract_ast_matches_cpython :
     evalFunc subtract_ast [(-7 : Int), (0 : Int)] = some (-7 : Int)
     ∧
@@ -139,5 +167,6 @@ written Lean function — that is the whole difference. -/
 theorem subtract_ast_is_subtraction (a b : Int) : evalFunc subtract_ast [a, b] = some (a - b) := by
   simp [evalFunc, subtract_ast, runGuards, eval, lookupVar]
 
+#print axioms subtract_ast_denotes
 #print axioms subtract_ast_matches_cpython
 #print axioms subtract_ast_is_subtraction

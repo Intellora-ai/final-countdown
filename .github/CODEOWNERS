@@ -23,8 +23,9 @@
 # still green, and no longer says what it said. That is not a code change with
 # a test to catch it; it is a change to what the tests mean.
 #
-# requirements.txt / requirements.lock are here because a verifier is only as
-# trustworthy as the tool it shells out to. Swapping the pinned bandit,
+# requirements.txt, requirements.lock and requirements-preflight.lock are here
+# because a verifier is only as trustworthy as the tool it shells out to.
+# Swapping the pinned bandit,
 # pyright, mutmut or axle changes the verdict without changing one line of the
 # code that reports it.
 #
@@ -69,6 +70,7 @@
 # produced it.
 requirements.txt        @Intellora-ai
 requirements.lock       @Intellora-ai
+requirements-preflight.lock  @Intellora-ai
 
 # This file. Ownership of the ownership rules is itself a protected path;
 # without this line, the first edit to CODEOWNERS could remove every line

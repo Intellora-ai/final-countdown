@@ -1,0 +1,2484 @@
+[
+  {
+    "id": 293,
+    "name": "Web Audio API",
+    "category": "Audio",
+    "category_number": 23,
+    "technology_id": "web-audio-api",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "browser",
+    "kind": "platform-api",
+    "package": null,
+    "install_method": "builtin",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://www.w3.org/TR/webaudio/",
+    "runtime_requirements": [
+      "browser with Web Audio API support"
+    ],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "platform-api",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API",
+    "notes": "Spec 17: this is a browser capability, not an install. Ship a capability check and a fallback, not an install step. Detection: `typeof (window.AudioContext || window.webkitAudioContext) === 'function'`. Fallback: HTMLAudioElement playback for straight playback, and disable synthesis/analysis features when absent. An AudioContext starts suspended until a user gesture resumes it, so treat that resume as part of the capability path. A browser platform API has no distributable artefact and therefore no package licence; license_class is LICENSE_REVIEW_REQUIRED only because the enum has no not-applicable value. No licence review is actually needed to call the API."
+  },
+  {
+    "id": 294,
+    "name": "Tone.js",
+    "category": "Audio",
+    "category_number": 23,
+    "technology_id": "tone-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "tone",
+    "install_method": "npm",
+    "version": "15.1.22",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/Tonejs/Tone.js",
+    "runtime_requirements": [
+      "node",
+      "browser with Web Audio API support"
+    ],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://tonejs.github.io/docs/",
+    "notes": "Measured in technology-universe/runtimes/javascript-media (npm install --save-exact, Node 26). Licence read from the installed package.json (MIT). Smoke test: `Tone.Frequency('A4').toFrequency()` returned 440 under Node. Audio output itself still requires a real AudioContext (id 293), so schedule browser verification before production use."
+  },
+  {
+    "id": 295,
+    "name": "Howler.js",
+    "category": "Audio",
+    "category_number": 23,
+    "technology_id": "howler-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "howler",
+    "install_method": "npm",
+    "version": "2.2.4",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/goldfire/howler.js",
+    "runtime_requirements": [
+      "browser with Web Audio API support"
+    ],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://github.com/goldfire/howler.js#documentation",
+    "notes": "Measured in technology-universe/runtimes/javascript-media (npm install --save-exact, Node 26). Licence read from the installed package.json (MIT). Smoke test: module loaded, `Howl` resolved as a constructor and `Howler.usingWebAudio` was true. Falls back to HTML5 Audio automatically when Web Audio is unavailable, which is why it loads outside a browser."
+  },
+  {
+    "id": 296,
+    "name": "Wavesurfer.js",
+    "category": "Audio",
+    "category_number": 23,
+    "technology_id": "wavesurfer-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "wavesurfer.js",
+    "install_method": "npm",
+    "version": "7.12.11",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/katspaugh/wavesurfer.js",
+    "runtime_requirements": [
+      "browser with Web Audio API support",
+      "DOM"
+    ],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://wavesurfer.xyz/docs/",
+    "notes": "Measured in technology-universe/runtimes/javascript-media (npm install --save-exact, Node 26). Licence read from the installed package.json (BSD-3-Clause). Smoke test: module loaded and `WaveSurfer.create` resolved as a function. Rendering needs a DOM container, so the waveform path itself is browser-only."
+  },
+  {
+    "id": 297,
+    "name": "AudioWorklet",
+    "category": "Audio",
+    "category_number": 23,
+    "technology_id": "audioworklet",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "browser",
+    "kind": "platform-api",
+    "package": null,
+    "install_method": "builtin",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://www.w3.org/TR/webaudio/#AudioWorklet",
+    "runtime_requirements": [
+      "browser with Web Audio API support",
+      "secure context (HTTPS or localhost)"
+    ],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "platform-api",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://developer.mozilla.org/en-US/docs/Web/API/AudioWorklet",
+    "notes": "Spec 17: this is a browser capability, not an install. Ship a capability check and a fallback, not an install step. Detection: `typeof AudioWorkletNode !== 'undefined' && 'audioWorklet' in AudioContext.prototype`. Fallback: the deprecated ScriptProcessorNode, or move processing off the audio thread entirely. Requires a secure context and a separately served processor module, so the worklet file must be a real same-origin URL, not an inline string. A browser platform API has no distributable artefact and therefore no package licence; license_class is LICENSE_REVIEW_REQUIRED only because the enum has no not-applicable value. No licence review is actually needed to call the API."
+  },
+  {
+    "id": 298,
+    "name": "Essentia",
+    "category": "Audio",
+    "category_number": 23,
+    "technology_id": "essentia",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "library",
+    "package": "essentia",
+    "install_method": "pip",
+    "version": "2.1b6.dev1389",
+    "license": "AGPL-3.0-only",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/MTG/essentia",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://essentia.upf.edu/documentation.html",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Installed from a prebuilt macOS arm64 wheel; the library reports its own version as '2.1-beta6-dev' while the distribution version is 2.1b6.dev1389. Smoke test: a 1024-sample 440 Hz frame through Windowing+Spectrum produced 513 bins with the peak at bin 10 (~430 Hz at 44.1 kHz), which is correct. Licence AGPL-3.0-only, read from the installed distribution metadata: network copyleft applies, so serving this over a network triggers source obligations. UPF offers a separate commercial licence; take that route before embedding in a closed hosted service. Windows is not covered by the published wheels."
+  },
+  {
+    "id": 299,
+    "name": "librosa",
+    "category": "Audio",
+    "category_number": 23,
+    "technology_id": "librosa",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "librosa",
+    "install_method": "pip",
+    "version": "1.0.0",
+    "license": "ISC",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/librosa/librosa",
+    "runtime_requirements": [
+      "python3",
+      "numpy",
+      "scipy",
+      "soundfile"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://librosa.org/doc/latest/index.html",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Licence ISC, read from the installed distribution metadata. Smoke test: a synthetic 440 Hz tone produced a (13, 9) MFCC matrix. Audio file I/O is delegated to soundfile (id 300) and therefore to libsndfile; numba is pulled in for the JIT paths and dominates first-call latency."
+  },
+  {
+    "id": 300,
+    "name": "soundfile",
+    "category": "Audio",
+    "category_number": 23,
+    "technology_id": "soundfile",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "soundfile",
+    "install_method": "pip",
+    "version": "0.14.0",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/bastibe/python-soundfile",
+    "runtime_requirements": [
+      "python3",
+      "libsndfile"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://python-soundfile.readthedocs.io/",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Licence BSD-3-Clause for the Python binding, read from the installed distribution metadata. Smoke test: wrote and re-read a 1000-sample 16 kHz WAV; the bundled libsndfile reported version 1.2.2. That bundled libsndfile is LGPL-2.1-or-later, a different licence from the binding, so redistribution of the wheel carries LGPL obligations for the native library."
+  },
+  {
+    "id": 301,
+    "name": "pydub",
+    "category": "Audio",
+    "category_number": 23,
+    "technology_id": "pydub",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "pydub",
+    "install_method": "pip",
+    "version": "0.25.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/jiaaro/pydub",
+    "runtime_requirements": [
+      "python3",
+      "ffmpeg (for any format other than WAV)"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/jiaaro/pydub/blob/master/API.markdown",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Licence MIT, read from the installed distribution metadata. Smoke test: exported and re-read a 100 ms silent WAV, which exercises only the pure-Python path. Everything except WAV shells out to FFmpeg (id 302), so pydub inherits FFmpeg's licence and codec constraints at runtime and fails at call time, not import time, when FFmpeg is missing."
+  },
+  {
+    "id": 302,
+    "name": "FFmpeg",
+    "category": "Audio",
+    "category_number": 23,
+    "technology_id": "ffmpeg",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "native",
+    "kind": "cli-tool",
+    "package": "ffmpeg",
+    "install_method": "brew",
+    "version": "8.1.1",
+    "license": "GPL-3.0-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://ffmpeg.org/",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://ffmpeg.org/documentation.html",
+    "notes": "Already present on this machine at /opt/homebrew/bin/ffmpeg; not installed by this registry work. Version 8.1.1 measured from `ffmpeg -version`. Licence is build-dependent and was measured, not assumed: the configuration string of this build contains --enable-gpl and --enable-version3 (it links x264 and x265), which makes this binary GPL-3.0-or-later rather than FFmpeg's LGPL-2.1-or-later default. A differently configured build carries a different licence, so the licence must be re-derived per build. Smoke test: `ffmpeg -f lavfi -i sine=frequency=440:duration=0.1 -f null -` exited 0 with no output file. ffprobe 8.1.1 is present alongside it. No official upstream container image exists; the widely used images are community-maintained."
+  },
+  {
+    "id": 303,
+    "name": "FFmpeg",
+    "category": "Video / media",
+    "category_number": 24,
+    "technology_id": "ffmpeg",
+    "canonical": false,
+    "canonical_id": 302,
+    "ecosystem": "native",
+    "kind": "cli-tool",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://ffmpeg.org/",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "toolchain",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://ffmpeg.org/documentation.html",
+    "notes": "Duplicate inventory position: FFmpeg is listed at both id 302 (category 23) and id 303 (category 24). This record is non-canonical and points at id 302. Per SCHEMA.md, installation, version and verification are recorded on the canonical record only, so duplicating them here would let one technology be counted as verified twice. Licence is deliberately not restated: FFmpeg's effective licence is build-dependent, and the measured value belongs to the specific build recorded at id 302."
+  },
+  {
+    "id": 304,
+    "name": "WebCodecs",
+    "category": "Video / media",
+    "category_number": 24,
+    "technology_id": "webcodecs",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "browser",
+    "kind": "platform-api",
+    "package": null,
+    "install_method": "builtin",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://www.w3.org/TR/webcodecs/",
+    "runtime_requirements": [
+      "browser with WebCodecs support",
+      "secure context (HTTPS or localhost)"
+    ],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "platform-api",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API",
+    "notes": "Spec 17: this is a browser capability, not an install. Ship a capability check and a fallback, not an install step. Detection is two-stage and both stages matter: `typeof VideoDecoder !== 'undefined'` for the API, then `await VideoDecoder.isConfigSupported(config)` for the specific codec, because the object existing says nothing about H.264 or AV1 being available. Fallback: a WebAssembly decoder, or Media Source Extensions (id 305) for plain playback. Browser coverage is uneven across engines and platforms, so treat the per-codec probe as required, not optional. A browser platform API has no distributable artefact and therefore no package licence; license_class is LICENSE_REVIEW_REQUIRED only because the enum has no not-applicable value. No licence review is actually needed to call the API."
+  },
+  {
+    "id": 305,
+    "name": "Media Source Extensions",
+    "category": "Video / media",
+    "category_number": 24,
+    "technology_id": "media-source-extensions",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "browser",
+    "kind": "platform-api",
+    "package": null,
+    "install_method": "builtin",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://www.w3.org/TR/media-source-2/",
+    "runtime_requirements": [
+      "browser with Media Source Extensions support"
+    ],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "platform-api",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://developer.mozilla.org/en-US/docs/Web/API/Media_Source_Extensions_API",
+    "notes": "Spec 17: this is a browser capability, not an install. Ship a capability check and a fallback, not an install step. Detection: `'MediaSource' in window` plus `MediaSource.isTypeSupported(mime)` for the codec, and `'ManagedMediaSource' in window` for iOS Safari, which withheld plain MediaSource on iPhone for years. Fallback: native HLS via a plain `<video src>` on Safari, or progressive download. This is the substrate hls.js (id 308) and dash.js (id 309) are built on, which is why both report unsupported outside a browser. A browser platform API has no distributable artefact and therefore no package licence; license_class is LICENSE_REVIEW_REQUIRED only because the enum has no not-applicable value. No licence review is actually needed to call the API."
+  },
+  {
+    "id": 306,
+    "name": "MediaRecorder API",
+    "category": "Video / media",
+    "category_number": 24,
+    "technology_id": "mediarecorder-api",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "browser",
+    "kind": "platform-api",
+    "package": null,
+    "install_method": "builtin",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://www.w3.org/TR/mediastream-recording/",
+    "runtime_requirements": [
+      "browser with MediaStream Recording support",
+      "secure context (HTTPS or localhost)",
+      "user permission for getUserMedia when recording capture devices"
+    ],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "platform-api",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder",
+    "notes": "Spec 17: this is a browser capability, not an install. Ship a capability check and a fallback, not an install step. Detection: `typeof MediaRecorder !== 'undefined'` then `MediaRecorder.isTypeSupported(mime)`, because the supported container/codec set differs sharply between engines (WebM/Opus versus MP4/AAC). Fallback: capture raw frames through an AudioWorklet (id 297) or canvas and encode client-side or server-side. Requires a secure context, and a user permission prompt whenever the stream comes from a microphone or camera. A browser platform API has no distributable artefact and therefore no package licence; license_class is LICENSE_REVIEW_REQUIRED only because the enum has no not-applicable value. No licence review is actually needed to call the API."
+  },
+  {
+    "id": 307,
+    "name": "Video.js",
+    "category": "Video / media",
+    "category_number": 24,
+    "technology_id": "video-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "video.js",
+    "install_method": "npm",
+    "version": "8.24.0",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/videojs/video.js",
+    "runtime_requirements": [
+      "browser",
+      "DOM"
+    ],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://videojs.com/guides/",
+    "notes": "Measured in technology-universe/runtimes/javascript-media (npm install --save-exact, Node 26). Licence read from the installed package.json (Apache-2.0). Smoke test: module loaded under Node, the export was callable and reported VERSION 8.24.0. Attaching a player needs a DOM `<video>` element, so player behaviour still requires browser verification."
+  },
+  {
+    "id": 308,
+    "name": "hls.js",
+    "category": "Video / media",
+    "category_number": 24,
+    "technology_id": "hls-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "hls.js",
+    "install_method": "npm",
+    "version": "1.7.1",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/video-dev/hls.js",
+    "runtime_requirements": [
+      "browser with Media Source Extensions support"
+    ],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://github.com/video-dev/hls.js/blob/master/docs/API.md",
+    "notes": "Measured in technology-universe/runtimes/javascript-media (npm install --save-exact, Node 26). Licence read from the installed package.json (Apache-2.0). Smoke test: module loaded and reported version 1.7.1; `Hls.isSupported()` returned false under Node, which is the correct answer because Media Source Extensions (id 305) do not exist outside a browser. Safari on iOS plays HLS natively and does not need this library, so gate on `Hls.isSupported()` and fall back to a native `<video src>`."
+  },
+  {
+    "id": 309,
+    "name": "dash.js",
+    "category": "Video / media",
+    "category_number": 24,
+    "technology_id": "dash-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "dashjs",
+    "install_method": "npm",
+    "version": "5.2.1",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/Dash-Industry-Forum/dash.js",
+    "runtime_requirements": [
+      "browser with Media Source Extensions support",
+      "browser with Encrypted Media Extensions for DRM"
+    ],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://github.com/Dash-Industry-Forum/dash.js#readme",
+    "notes": "Measured in technology-universe/runtimes/javascript-media (npm install --save-exact, Node 26). Licence read from the installed package.json (BSD-3-Clause). Smoke test FAILED under Node with the exact error `window is not defined`: the bundle touches browser globals at module load, so it cannot be exercised headlessly without a DOM shim. Readiness stays at P2 (installed and version-measured) rather than P3 until it is loaded in a browser or jsdom harness. The npm package name is `dashjs`, not `dash.js`."
+  },
+  {
+    "id": 310,
+    "name": "Plyr",
+    "category": "Video / media",
+    "category_number": 24,
+    "technology_id": "plyr",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "plyr",
+    "install_method": "npm",
+    "version": "3.8.4",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/sampotts/plyr",
+    "runtime_requirements": [
+      "browser",
+      "DOM"
+    ],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://github.com/sampotts/plyr#readme",
+    "notes": "Measured in technology-universe/runtimes/javascript-media (npm install --save-exact, Node 26). Licence read from the installed package.json (MIT). Smoke test FAILED under Node with the exact error `document is not defined`: Plyr is a DOM-first player UI and reads `document` at module load. Readiness stays at P2 until it is loaded in a browser or jsdom harness."
+  },
+  {
+    "id": 311,
+    "name": "Shaka Player",
+    "category": "Video / media",
+    "category_number": 24,
+    "technology_id": "shaka-player",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "shaka-player",
+    "install_method": "npm",
+    "version": "5.2.6",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/shaka-project/shaka-player",
+    "runtime_requirements": [
+      "browser with Media Source Extensions support",
+      "browser with Encrypted Media Extensions for DRM"
+    ],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://shaka-project.github.io/shaka-player/docs/api/index.html",
+    "notes": "Measured in technology-universe/runtimes/javascript-media (npm install --save-exact, Node 26). Licence read from the installed package.json (Apache-2.0). Smoke test FAILED under Node with the exact error `self is not defined`: the compiled bundle assumes a worker/window global. Readiness stays at P2 until it is loaded in a browser harness. DRM playback additionally depends on Encrypted Media Extensions and a licence server, neither of which is in scope here."
+  },
+  {
+    "id": 312,
+    "name": "GStreamer",
+    "category": "Video / media",
+    "category_number": 24,
+    "technology_id": "gstreamer",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "framework",
+    "package": "gstreamer",
+    "install_method": "brew",
+    "version": null,
+    "license": "LGPL-2.0-or-later AND LGPL-2.1-or-later AND MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://gstreamer.freedesktop.org/",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "toolchain",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://gstreamer.freedesktop.org/documentation/",
+    "notes": "Not installed on this machine: `gst-launch-1.0` and `gst-inspect-1.0` are both absent from PATH. Not installed here; version unmeasured, so no version pin is recorded. The licence string is the composite Homebrew declares for the core formula (gstreamer 1.28.6), read from the local formula metadata rather than assumed. That covers the core only: the plugin sets are licensed separately, and gst-plugins-ugly in particular carries GPL-licensed and patent-encumbered codecs, so the effective licence of a deployment depends on which plugin packages ship with it and must be re-derived per bundle."
+  },
+  {
+    "id": 313,
+    "name": "Whisper",
+    "category": "Speech recognition / TTS",
+    "category_number": 25,
+    "technology_id": "whisper",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "openai-whisper",
+    "install_method": "pip",
+    "version": "20250625",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/openai/whisper",
+    "runtime_requirements": [
+      "python3",
+      "PyTorch",
+      "ffmpeg"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/openai/whisper#readme",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Licence MIT for the code, read from the installed distribution metadata. Spec 16: this record covers the runtime only. Model weights are separate artefacts with their own licences and sizes; none were fetched. Smoke test was chosen specifically to avoid a download: `whisper.available_models()` listed 14 checkpoint names and fetched none of them. The checkpoints range from roughly 75 MB (tiny) to several GB (large) and are pulled from a CDN on first transcription, not at install; ~/.cache/whisper does not exist on this machine, which is the evidence that nothing was fetched. The repository states MIT for the weights as well, but weights are a separate artefact and their licence should be confirmed at download time. Runtime transcoding is delegated to FFmpeg (id 302)."
+  },
+  {
+    "id": 314,
+    "name": "whisper.cpp",
+    "category": "Speech recognition / TTS",
+    "category_number": 25,
+    "technology_id": "whisper-cpp",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "cli-tool",
+    "package": "whisper-cpp",
+    "install_method": "brew",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/ggml-org/whisper.cpp",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "toolchain",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/ggml-org/whisper.cpp#readme",
+    "notes": "Not installed on this machine: neither `whisper-cli` nor `whisper-cpp` is on PATH. Not installed here; version unmeasured, so no version pin is recorded. Licence MIT, read from the local Homebrew formula metadata (formula `whisper-cpp`, stable 1.9.2) rather than assumed. Spec 16: this record covers the runtime only. Model weights are separate artefacts with their own licences and sizes; none were fetched. Models are GGUF/GGML files converted from Whisper checkpoints and are downloaded separately by the project's own scripts."
+  },
+  {
+    "id": 315,
+    "name": "faster-whisper",
+    "category": "Speech recognition / TTS",
+    "category_number": 25,
+    "technology_id": "faster-whisper",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "faster-whisper",
+    "install_method": "pip",
+    "version": "1.2.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/SYSTRAN/faster-whisper",
+    "runtime_requirements": [
+      "python3",
+      "ctranslate2"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/SYSTRAN/faster-whisper#readme",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Licence MIT, read from the installed distribution metadata. Pulled CTranslate2 4.8.1 and av 18.1.0 as the inference and demuxing backends. Spec 16: this record covers the runtime only. Model weights are separate artefacts with their own licences and sizes; none were fetched. Smoke test was import plus API-surface check only (`WhisperModel` resolved); instantiating a model downloads CTranslate2 weights from the Hugging Face Hub, which was deliberately not done. ~/.cache/huggingface gained zero files during this work."
+  },
+  {
+    "id": 316,
+    "name": "Vosk",
+    "category": "Speech recognition / TTS",
+    "category_number": 25,
+    "technology_id": "vosk",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "vosk",
+    "install_method": "pip",
+    "version": "0.3.44",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/alphacep/vosk-api",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://alphacephei.com/vosk/",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Licence recorded as Apache-2.0 from the wheel's OSI classifier; note that the wheel's own `License:` metadata field literally says UNKNOWN and no LICENSE file ships in the distribution, so the classifier is the only in-artefact evidence. Smoke test: the bundled native libvosk loaded and `SetLogLevel` executed. Spec 16: this record covers the runtime only. Model weights are separate artefacts with their own licences and sizes; none were fetched. Vosk models are downloaded separately from alphacephei.com and carry their own per-model licences, which must be checked individually; none were fetched."
+  },
+  {
+    "id": 317,
+    "name": "Kaldi",
+    "category": "Speech recognition / TTS",
+    "category_number": 25,
+    "technology_id": "kaldi",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "framework",
+    "package": null,
+    "install_method": "source-build",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/kaldi-asr/kaldi",
+    "runtime_requirements": [
+      "C++ toolchain",
+      "BLAS/LAPACK implementation"
+    ],
+    "platform_support": [
+      "linux",
+      "macos"
+    ],
+    "readiness": "P0",
+    "production_status": "toolchain",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://kaldi-asr.org/doc/",
+    "notes": "Not installed, and readiness is P0 rather than P1 because there is no packaged artefact to record: Kaldi ships no PyPI distribution and no Homebrew formula, and the supported route is a source build of the repository plus its own tools/ dependency bootstrap. Recording a P1 acquisition path would mean pinning a specific commit, which was not done here. Kaldi is also a research toolkit organised around per-corpus recipes rather than a library with a stable API; most current work uses its successors. Vosk (id 316) is the pragmatic packaged path to Kaldi models."
+  },
+  {
+    "id": 318,
+    "name": "Piper",
+    "category": "Speech recognition / TTS",
+    "category_number": 25,
+    "technology_id": "piper",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "piper-tts",
+    "install_method": "pip",
+    "version": "1.7.0",
+    "license": "GPL-3.0-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/OHF-voice/piper1-gpl",
+    "runtime_requirements": [
+      "python3",
+      "onnxruntime",
+      "espeak-ng phonemisation data"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/OHF-voice/piper1-gpl#readme",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). The licence here is a measured correction worth flagging: Piper is widely remembered as the MIT-licensed rhasspy/piper project, but the `piper-tts` 1.7.0 distribution actually installed declares `License: GPL-3.0-or-later` and a home page of github.com/OHF-voice/piper1-gpl. The maintained package is the Open Home Foundation GPL rebuild, so anything linking it inherits GPL obligations. Confirm which lineage a downstream project depends on before assuming MIT. Spec 16: this record covers the runtime only. Model weights are separate artefacts with their own licences and sizes; none were fetched. Smoke test was import plus API-surface check (`PiperVoice` resolved); synthesis requires an ONNX voice model that was deliberately not downloaded, and individual voices carry their own licences."
+  },
+  {
+    "id": 319,
+    "name": "Coqui TTS",
+    "category": "Speech recognition / TTS",
+    "category_number": 25,
+    "technology_id": "coqui-tts",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "TTS",
+    "install_method": "pip",
+    "version": null,
+    "license": "MPL-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/coqui-ai/TTS",
+    "runtime_requirements": [
+      "python3",
+      "PyTorch",
+      "python<3.12"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/coqui-ai/TTS#readme",
+    "notes": "Install attempted once in the python-ai venv (Python 3.12.14) and it FAILED. Exact errors: pip reported `Ignored the following versions that require a different python version: ... 0.22.0 Requires-Python >=3.9.0,<3.12`, then `ERROR: Could not find a version that satisfies the requirement TTS (from versions: none)` and `ERROR: No matching distribution found for TTS`. Every published release caps Python below 3.12, so this needs a separate 3.11-or-older interpreter. Version is therefore null. Licence MPL-2.0 for the toolkit code, but that is not the whole picture: several pretrained voices, XTTS in particular, ship under the Coqui Public Model Licence, which restricts commercial use, so model licences must be reviewed per voice and separately from the code. Coqui the company wound down; a community fork is published as `coqui-tts`. Spec 16: this record covers the runtime only. Model weights are separate artefacts with their own licences and sizes; none were fetched."
+  },
+  {
+    "id": 320,
+    "name": "eSpeak NG",
+    "category": "Speech recognition / TTS",
+    "category_number": 25,
+    "technology_id": "espeak-ng",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "cli-tool",
+    "package": "espeak-ng",
+    "install_method": "brew",
+    "version": "1.52.0",
+    "license": "GPL-3.0-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/espeak-ng/espeak-ng",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/espeak-ng/espeak-ng/blob/master/docs/index.md",
+    "notes": "Already present on this machine at /opt/homebrew/bin/espeak-ng; not installed by this registry work. Version 1.52.0 measured from `espeak-ng --version`, which also reported its data directory. Licence GPL-3.0-or-later: the installed Cellar tree ships COPYING containing the GPLv3 text, and the Homebrew formula metadata agrees. Copyleft matters here because eSpeak NG is usually linked as a library for phonemisation rather than shelled out to. Smoke test: `espeak-ng -q -x` converted text to phonemes and exited 0 without producing audio. `espeak` on this machine is the same 1.52.0 binary under a compatibility name."
+  },
+  {
+    "id": 321,
+    "name": "Festival",
+    "category": "Speech recognition / TTS",
+    "category_number": 25,
+    "technology_id": "festival",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "cli-tool",
+    "package": "festival",
+    "install_method": "apt",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "http://www.cstr.ed.ac.uk/projects/festival/",
+    "runtime_requirements": [
+      "C++ toolchain when building from source"
+    ],
+    "platform_support": [
+      "linux"
+    ],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "http://www.cstr.ed.ac.uk/projects/festival/manual/",
+    "notes": "Not installed, and not readily installable here: `festival` is absent from PATH and Homebrew reports `Error: No available formula with the name \"festival\"`, so on macOS the route is a source build. Debian/Ubuntu package it as `festival`, which is why install_method is apt and platform_support lists linux only. Readiness is P0 because no reproducible acquisition path was pinned for this machine. Licence is left undetermined on purpose: the Festival core carries a permissive Edinburgh/CSTR licence, but the voices, lexicons and dictionaries shipped alongside it have separate terms, some of them non-commercial, so the effective licence depends on which voice data is distributed and needs a per-component review rather than a single label."
+  },
+  {
+    "id": 322,
+    "name": "llama.cpp",
+    "category": "Local LLM / AI inference",
+    "category_number": 26,
+    "technology_id": "llama-cpp",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "runtime",
+    "package": "llama.cpp",
+    "install_method": "brew",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/ggml-org/llama.cpp",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "toolchain",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/ggml-org/llama.cpp#readme",
+    "notes": "Not installed on this machine: `llama-cli` and `llama-server` are absent from PATH. Not installed here; version unmeasured, so no version pin is recorded. Licence MIT, read from the local Homebrew formula metadata (formula `llama.cpp`) rather than assumed. Spec 16: this record covers the runtime only. Model weights are separate artefacts with their own licences and sizes; none were fetched. Weights are GGUF files obtained separately, and their licences are per-model and frequently not open source (Llama Community Licence, Gemma Terms and similar). On this Apple silicon machine the Metal backend is the relevant one; Ollama (id 323) is already installed here and embeds this runtime."
+  },
+  {
+    "id": 323,
+    "name": "Ollama",
+    "category": "Local LLM / AI inference",
+    "category_number": 26,
+    "technology_id": "ollama",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "service",
+    "package": "ollama",
+    "install_method": "brew",
+    "version": "0.32.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/ollama/ollama",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "desktop"
+    ],
+    "documentation": "https://github.com/ollama/ollama/tree/main/docs",
+    "notes": "Already present on this machine; not installed by this registry work. `which ollama` resolves to /opt/homebrew/bin/ollama, a symlink into /Applications/Ollama.app, installed via the `ollama-app` cask. The cask records 0.30.6 but the CLI reports 0.32.1, because the desktop app self-updates past the version Homebrew recorded; 0.32.1 is the measured value and the cask number is stale. Smoke test: `ollama list` reached the local daemon and returned its model inventory, exit 0. Spec 16: this record covers the runtime only. Model weights are separate artefacts with their own licences and sizes; none were fetched. No `ollama pull` was run: the local store already held four models from prior user activity, and file-mtime checks confirm zero blobs under ~/.ollama/models were created or modified during this work. Licence MIT per the upstream repository; note that the installed app bundle ships no LICENSE file, so this one is not evidenced from a local artefact."
+  },
+  {
+    "id": 324,
+    "name": "vLLM",
+    "category": "Local LLM / AI inference",
+    "category_number": 26,
+    "technology_id": "vllm",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "runtime",
+    "package": "vllm",
+    "install_method": "pip",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/vllm-project/vllm",
+    "runtime_requirements": [
+      "python3",
+      "NVIDIA GPU with CUDA",
+      "linux"
+    ],
+    "platform_support": [
+      "linux"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.vllm.ai/",
+    "notes": "Not installed, and not installable on this machine: vLLM's supported configuration is Linux with an NVIDIA CUDA GPU, and this host is Apple silicon macOS with zero NVIDIA GPUs. macOS is deliberately excluded from platform_support rather than listed with a caveat. A resolver dry-run offered vllm 0.19.1, but that resolves to a source distribution whose build expects CUDA toolchain components that are absent here, so a real install was not attempted; version is therefore null. Spec 16: this record covers the runtime only. Model weights are separate artefacts with their own licences and sizes; none were fetched. Serving is normally done from the project's official container image on GPU nodes rather than a local pip install."
+  },
+  {
+    "id": 325,
+    "name": "Hugging Face Transformers",
+    "category": "Local LLM / AI inference",
+    "category_number": 26,
+    "technology_id": "huggingface-transformers",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "transformers",
+    "install_method": "pip",
+    "version": "5.15.1",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/huggingface/transformers",
+    "runtime_requirements": [
+      "python3",
+      "PyTorch"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://huggingface.co/docs/transformers/",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Installed transitively as a dependency of sentence-transformers (id 326) rather than requested directly, but genuinely present and measured. Licence Apache-2.0 for the library, read from the installed distribution metadata. Spec 16: this record covers the runtime only. Model weights are separate artefacts with their own licences and sizes; none were fetched. This separation is the single most important thing on this record: the library is Apache-2.0, the weights on the Hub are not. Llama Community Licence, Gemma Terms and various non-commercial research licences all travel through the same `from_pretrained` call, so model licences must be reviewed per checkpoint. Smoke test was import plus API-surface check (`AutoModel` resolved) with HF_HUB_OFFLINE=1; ~/.cache/huggingface gained zero files. Pulled torch 2.13.0 and tokenizers 0.22.2."
+  },
+  {
+    "id": 326,
+    "name": "Sentence Transformers",
+    "category": "Local LLM / AI inference",
+    "category_number": 26,
+    "technology_id": "sentence-transformers",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "sentence-transformers",
+    "install_method": "pip",
+    "version": "6.0.0",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/UKPLab/sentence-transformers",
+    "runtime_requirements": [
+      "python3",
+      "PyTorch",
+      "transformers"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://sbert.net/",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Licence Apache-2.0, read from the installed distribution metadata. Spec 16: this record covers the runtime only. Model weights are separate artefacts with their own licences and sizes; none were fetched. Smoke test was import plus API-surface check (`SentenceTransformer` resolved) with HF_HUB_OFFLINE=1; constructing a model downloads an embedding checkpoint from the Hub, which was deliberately not done, and ~/.cache/huggingface gained zero files. Embedding-model licences are per-checkpoint and independent of this Apache-2.0 library."
+  },
+  {
+    "id": 327,
+    "name": "PEFT",
+    "category": "Local LLM / AI inference",
+    "category_number": 26,
+    "technology_id": "peft",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "peft",
+    "install_method": "pip",
+    "version": "0.20.0",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/huggingface/peft",
+    "runtime_requirements": [
+      "python3",
+      "PyTorch",
+      "transformers"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://huggingface.co/docs/peft/",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Licence Apache-2.0, read from the installed distribution metadata. Smoke test: built a `LoraConfig(r=8, lora_alpha=16)` offline, which exercises the configuration path without touching a base model. Spec 16: this record covers the runtime only. Model weights are separate artefacts with their own licences and sizes; none were fetched. PEFT only ever produces adapters on top of a base model, so the base model's licence governs what may be done with the fine-tuned result."
+  },
+  {
+    "id": 328,
+    "name": "Accelerate",
+    "category": "Local LLM / AI inference",
+    "category_number": 26,
+    "technology_id": "accelerate",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "accelerate",
+    "install_method": "pip",
+    "version": "1.14.0",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/huggingface/accelerate",
+    "runtime_requirements": [
+      "python3",
+      "PyTorch"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://huggingface.co/docs/accelerate/",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Licence Apache-2.0, read from the installed distribution metadata. Smoke test: `Accelerator()` initialised and selected device `mps`, confirming it detects the Apple silicon Metal backend rather than falling back to CPU. Multi-GPU and distributed paths are untested here because this host has a single Apple GPU."
+  },
+  {
+    "id": 329,
+    "name": "bitsandbytes",
+    "category": "Local LLM / AI inference",
+    "category_number": 26,
+    "technology_id": "bitsandbytes",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "bitsandbytes",
+    "install_method": "pip",
+    "version": "0.50.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/bitsandbytes-foundation/bitsandbytes",
+    "runtime_requirements": [
+      "python3",
+      "PyTorch"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://huggingface.co/docs/bitsandbytes/",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). This one contradicts the usual assumption and the contradiction is measured, not argued: bitsandbytes is remembered as CUDA-only, but pip resolved and installed bitsandbytes-0.50.1-py3-none-macosx_14_0_arm64.whl, a real Apple silicon wheel, and the multi-backend build works. Smoke test: `bitsandbytes.functional.quantize_4bit` on a 64x64 float tensor returned a (2048, 1) uint8 tensor. Licence MIT, read from the installed distribution metadata. What is genuinely absent here is the CUDA backend and therefore the GPU-accelerated 8-bit optimiser and inference paths that motivate the library on NVIDIA hardware; only the CPU path was exercised."
+  },
+  {
+    "id": 330,
+    "name": "ONNX Runtime",
+    "category": "Local LLM / AI inference",
+    "category_number": 26,
+    "technology_id": "onnx-runtime",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "runtime",
+    "package": "onnxruntime",
+    "install_method": "pip",
+    "version": "1.29.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/microsoft/onnxruntime",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows",
+      "browser"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "browser"
+    ],
+    "documentation": "https://onnxruntime.ai/docs/",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Licence MIT, read from the installed distribution metadata. Smoke test: `get_available_providers()` returned ['CoreMLExecutionProvider', 'AzureExecutionProvider', 'CPUExecutionProvider'] and `get_device()` returned CPU, so the Apple CoreML accelerator is available on this host while CUDA and TensorRT providers are not. Browser and Node targets are separate npm packages (onnxruntime-web, onnxruntime-node), not this wheel, which is why platform_support includes browser but the measured artefact does not cover it."
+  },
+  {
+    "id": 331,
+    "name": "OpenVINO",
+    "category": "Local LLM / AI inference",
+    "category_number": 26,
+    "technology_id": "openvino",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "runtime",
+    "package": "openvino",
+    "install_method": "pip",
+    "version": "2026.3.0",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/openvinotoolkit/openvino",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.openvino.ai/",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Installed and working on Apple silicon, which is more than expected for an Intel-oriented runtime, so the hardware constraint is recorded precisely rather than as a blanket exclusion. Smoke test: `Core().available_devices` returned exactly ['CPU'] — the generic ARM CPU plugin. No GPU and no NPU plugin is present, so the Intel iGPU and NPU acceleration paths that are the main reason to choose OpenVINO are unavailable on this machine; on this host it is a portable CPU inference runtime and nothing more. The build string reported is '2026.3.0-22451-8a17657b995-releases/2026/3'. Licence Apache-2.0, read from the installed distribution metadata."
+  },
+  {
+    "id": 332,
+    "name": "MLX",
+    "category": "Local LLM / AI inference",
+    "category_number": 26,
+    "technology_id": "mlx",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "mlx",
+    "install_method": "pip",
+    "version": "0.32.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/ml-explore/mlx",
+    "runtime_requirements": [
+      "python3",
+      "Apple silicon (arm64) Mac"
+    ],
+    "platform_support": [
+      "macos"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "desktop"
+    ],
+    "documentation": "https://ml-explore.github.io/mlx/build/html/index.html",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Apple silicon only, and the architecture requirement is hard, not a preference: MLX is built on Metal and the unified memory model, so there is no Linux, Windows or Intel-Mac target and platform_support is macos alone. Smoke test: a 64x64 `mlx.core` matmul evaluated on `Device(gpu, 0)`, confirming the Metal GPU backend is live rather than a CPU fallback. Installed alongside mlx-metal 0.32.1. Licence MIT, read from the installed distribution metadata. Spec 16: this record covers the runtime only. Model weights are separate artefacts with their own licences and sizes; none were fetched. Model weights are separate MLX-format artefacts on the Hugging Face Hub."
+  },
+  {
+    "id": 333,
+    "name": "TensorRT-LLM",
+    "category": "Local LLM / AI inference",
+    "category_number": 26,
+    "technology_id": "tensorrt-llm",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "runtime",
+    "package": "tensorrt-llm",
+    "install_method": "pip",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/NVIDIA/TensorRT-LLM",
+    "runtime_requirements": [
+      "python3",
+      "NVIDIA GPU (Volta or newer)",
+      "CUDA toolkit",
+      "linux"
+    ],
+    "platform_support": [
+      "linux"
+    ],
+    "readiness": "P1",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://nvidia.github.io/TensorRT-LLM/",
+    "notes": "Not installed and not installable here: NVIDIA GPUs are required and this host has zero. macOS is deliberately excluded from platform_support. Install attempted once and it FAILED at metadata resolution with the exact error `RuntimeError: Didn't find wheel for {distribution} {version}` during `Preparing metadata (pyproject.toml)`; version is therefore null. Licence is left undetermined on purpose. The repository itself is published under Apache-2.0, but a working install links NVIDIA TensorRT and CUDA libraries distributed under the NVIDIA Software Licence Agreement, which is not open source and restricts redistribution. The effective licence of a deployed stack therefore cannot be derived from the repository licence alone and needs legal review. Spec 16: this record covers the runtime only. Model weights are separate artefacts with their own licences and sizes; none were fetched."
+  },
+  {
+    "id": 334,
+    "name": "llama-cpp-python",
+    "category": "Local LLM / AI inference",
+    "category_number": 26,
+    "technology_id": "llama-cpp-python",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "llama-cpp-python",
+    "install_method": "pip",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/abetlen/llama-cpp-python",
+    "runtime_requirements": [
+      "python3",
+      "C/C++ toolchain",
+      "cmake"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://llama-cpp-python.readthedocs.io/",
+    "notes": "Not installed. The macOS arm64 path compiles llama.cpp from source through scikit-build-core, and `cmake` is absent from this machine, so the build would fail at configure time; a real attempt was not completed because package installation was withdrawn partway through this work. Not installed here; version unmeasured, so no version pin is recorded. Spec 16: this record covers the runtime only. Model weights are separate artefacts with their own licences and sizes; none were fetched. These are Python bindings over llama.cpp (id 322) and inherit its GGUF weight handling and per-model licences."
+  },
+  {
+    "id": 335,
+    "name": "LangChain",
+    "category": "AI orchestration / agents",
+    "category_number": 27,
+    "technology_id": "langchain",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "langchain",
+    "install_method": "pip",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/langchain-ai/langchain",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://python.langchain.com/docs/",
+    "notes": "Licence MIT per the upstream repository; not verified against a local artefact. Not installed here. Package installation was withdrawn by the environment's permission layer partway through this work, before the orchestration group was reached, so no version was measured and none is guessed. The `langchain` distribution is a thin meta-package: the substance lives in langchain-core and per-provider packages, so pinning `langchain` alone does not pin the integration surface. A separate JavaScript distribution exists on npm under the same name."
+  },
+  {
+    "id": 336,
+    "name": "LlamaIndex",
+    "category": "AI orchestration / agents",
+    "category_number": 27,
+    "technology_id": "llamaindex",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "llama-index",
+    "install_method": "pip",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/run-llama/llama_index",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.llamaindex.ai/",
+    "notes": "Licence MIT per the upstream repository; not verified against a local artefact. Not installed here. Package installation was withdrawn by the environment's permission layer partway through this work, before the orchestration group was reached, so no version was measured and none is guessed. Like LangChain, `llama-index` is an umbrella distribution over llama-index-core plus many integration packages, each versioned independently."
+  },
+  {
+    "id": 337,
+    "name": "Haystack",
+    "category": "AI orchestration / agents",
+    "category_number": 27,
+    "technology_id": "haystack",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "haystack-ai",
+    "install_method": "pip",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/deepset-ai/haystack",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.haystack.deepset.ai/",
+    "notes": "Licence Apache-2.0 per the upstream repository; not verified against a local artefact. Not installed here. Package installation was withdrawn by the environment's permission layer partway through this work, before the orchestration group was reached, so no version was measured and none is guessed. The distribution name is `haystack-ai` for Haystack 2.x; the older `farm-haystack` name is the 1.x line and is not the same package."
+  },
+  {
+    "id": 338,
+    "name": "DSPy",
+    "category": "AI orchestration / agents",
+    "category_number": 27,
+    "technology_id": "dspy",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "dspy",
+    "install_method": "pip",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/stanfordnlp/dspy",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://dspy.ai/",
+    "notes": "Licence MIT per the upstream repository; not verified against a local artefact. Not installed here. Package installation was withdrawn by the environment's permission layer partway through this work, before the orchestration group was reached, so no version was measured and none is guessed. Published as `dspy`; the earlier `dspy-ai` name still exists on PyPI and points at the same project, so a dependency file may reference either."
+  },
+  {
+    "id": 339,
+    "name": "LiteLLM",
+    "category": "AI orchestration / agents",
+    "category_number": 27,
+    "technology_id": "litellm",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "litellm",
+    "install_method": "pip",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/BerriAI/litellm",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.litellm.ai/",
+    "notes": "Licence MIT for the core library per the upstream repository; not verified against a local artefact. Not installed here. Package installation was withdrawn by the environment's permission layer partway through this work, before the orchestration group was reached, so no version was measured and none is guessed. One licensing caveat worth carrying forward: the repository also contains an enterprise directory covering parts of the proxy/gateway under separate commercial terms, so redistributing the repository wholesale is not the same as depending on the MIT library, and the proxy deployment path should be licence-reviewed on its own."
+  },
+  {
+    "id": 340,
+    "name": "Semantic Kernel",
+    "category": "AI orchestration / agents",
+    "category_number": 27,
+    "technology_id": "semantic-kernel",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "semantic-kernel",
+    "install_method": "pip",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/microsoft/semantic-kernel",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://learn.microsoft.com/en-us/semantic-kernel/",
+    "notes": "Licence MIT per the upstream repository; not verified against a local artefact. Not installed here. Package installation was withdrawn by the environment's permission layer partway through this work, before the orchestration group was reached, so no version was measured and none is guessed. Microsoft ships this for .NET, Python and Java from one repository; the .NET line is the most mature and is consumed as the NuGet package Microsoft.SemanticKernel, so the ecosystem recorded here reflects the Python distribution specifically."
+  },
+  {
+    "id": 341,
+    "name": "AutoGen",
+    "category": "AI orchestration / agents",
+    "category_number": 27,
+    "technology_id": "autogen",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "autogen-agentchat",
+    "install_method": "pip",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/microsoft/autogen",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://microsoft.github.io/autogen/",
+    "notes": "Licence MIT per the upstream repository; not verified against a local artefact. Not installed here. Package installation was withdrawn by the environment's permission layer partway through this work, before the orchestration group was reached, so no version was measured and none is guessed. The package identity here is genuinely ambiguous and a downstream reader must resolve it deliberately: Microsoft's current line is `autogen-agentchat` (v0.4 and later, a rewrite), while the original `pyautogen` name continues under the community AG2 fork. The two are not drop-in compatible, so 'AutoGen' alone does not identify a dependency."
+  },
+  {
+    "id": 342,
+    "name": "smolagents",
+    "category": "AI orchestration / agents",
+    "category_number": 27,
+    "technology_id": "smolagents",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "smolagents",
+    "install_method": "pip",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/huggingface/smolagents",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://huggingface.co/docs/smolagents/",
+    "notes": "Licence Apache-2.0 per the upstream repository; not verified against a local artefact. Not installed here. Package installation was withdrawn by the environment's permission layer partway through this work, before the orchestration group was reached, so no version was measured and none is guessed. Its default agent style executes model-generated Python, so a sandbox is a deployment prerequisite rather than a hardening extra."
+  },
+  {
+    "id": 343,
+    "name": "PydanticAI",
+    "category": "AI orchestration / agents",
+    "category_number": 27,
+    "technology_id": "pydantic-ai",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "pydantic-ai",
+    "install_method": "pip",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/pydantic/pydantic-ai",
+    "runtime_requirements": [
+      "python3",
+      "pydantic"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://ai.pydantic.dev/",
+    "notes": "Licence MIT per the upstream repository; not verified against a local artefact. Not installed here. Package installation was withdrawn by the environment's permission layer partway through this work, before the orchestration group was reached, so no version was measured and none is guessed. Pydantic 2.13.4 is already present in the python-ai venv as a transitive dependency, so the validation substrate this builds on is available even though the framework itself is not."
+  },
+  {
+    "id": 344,
+    "name": "Guidance",
+    "category": "AI orchestration / agents",
+    "category_number": 27,
+    "technology_id": "guidance",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "guidance",
+    "install_method": "pip",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/guidance-ai/guidance",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/guidance-ai/guidance#readme",
+    "notes": "Licence MIT per the upstream repository; not verified against a local artefact. Not installed here. Package installation was withdrawn by the environment's permission layer partway through this work, before the orchestration group was reached, so no version was measured and none is guessed. Constrained-decoding features need token-level access to the model, so the full feature set applies to local runtimes rather than to remote chat APIs."
+  },
+  {
+    "id": 345,
+    "name": "FAISS",
+    "category": "Embeddings / retrieval",
+    "category_number": 28,
+    "technology_id": "faiss",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "library",
+    "package": "faiss-cpu",
+    "install_method": "pip",
+    "version": "1.15.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/facebookresearch/faiss",
+    "runtime_requirements": [
+      "python3",
+      "numpy"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/facebookresearch/faiss/wiki",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Licence MIT, read from the installed distribution metadata. Smoke test: an `IndexFlatL2(8)` took 10 vectors and returned a correctly shaped 3-nearest-neighbour result. Packaging is worth noting: the upstream project publishes conda packages, and the PyPI wheels `faiss-cpu`/`faiss-gpu` are community-built, so the PyPI artefact is not a first-party release even though the code is. GPU support is a different distribution and requires CUDA, which this host does not have. FAISS is an in-process index library with no server, no persistence layer and no access control of its own."
+  },
+  {
+    "id": 346,
+    "name": "hnswlib",
+    "category": "Embeddings / retrieval",
+    "category_number": 28,
+    "technology_id": "hnswlib",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "library",
+    "package": "hnswlib",
+    "install_method": "pip",
+    "version": "0.8.0",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/nmslib/hnswlib",
+    "runtime_requirements": [
+      "python3",
+      "C++ toolchain (wheel builds from source)"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/nmslib/hnswlib#readme",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Licence Apache-2.0, read from the Apache licence text shipped inside the installed distribution; the distribution declares no licence in its metadata fields, so the bundled LICENSE file is the evidence. Built from source during install rather than fetched as a prebuilt wheel, which means a working C++ toolchain is an install-time requirement. Smoke test: built an l2 index over 10 eight-dimensional vectors and ran a k=3 query."
+  },
+  {
+    "id": 347,
+    "name": "Annoy",
+    "category": "Embeddings / retrieval",
+    "category_number": 28,
+    "technology_id": "annoy",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "library",
+    "package": "annoy",
+    "install_method": "pip",
+    "version": "1.17.3",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/spotify/annoy",
+    "runtime_requirements": [
+      "python3",
+      "C++ toolchain (wheel builds from source)"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://github.com/spotify/annoy#readme",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Licence Apache-2.0, read from the installed distribution metadata. Built from source during install (a cp312 arm64 wheel was produced locally). Smoke test: built a 4-tree euclidean index over 10 vectors and ran `get_nns_by_item`. Annoy indexes are immutable once built and are memory-mapped from disk, which is the trade it makes against hnswlib's incremental inserts."
+  },
+  {
+    "id": 348,
+    "name": "Chroma",
+    "category": "Embeddings / retrieval",
+    "category_number": 28,
+    "technology_id": "chroma",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "chromadb",
+    "install_method": "pip",
+    "version": "1.5.9",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/chroma-core/chroma",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.trychroma.com/",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Licence Apache-2.0, read from the installed distribution metadata. Smoke test: an `EphemeralClient` created a collection, added two records and returned the expected nearest id. Embeddings were supplied explicitly on purpose — Chroma's default embedding function would download an ONNX model on first use, and no model artefacts were fetched during this work. Runs embedded in-process as tested here, and also as a standalone server from the project's official container image, which is the deployment shape to use when more than one process needs the store."
+  },
+  {
+    "id": 349,
+    "name": "Qdrant",
+    "category": "Embeddings / retrieval",
+    "category_number": 28,
+    "technology_id": "qdrant",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "rust",
+    "kind": "service",
+    "package": "qdrant/qdrant",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/qdrant/qdrant",
+    "runtime_requirements": [
+      "container runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://qdrant.tech/documentation/",
+    "notes": "Service, deliberately not run during this work; no port was bound and no data directory created, so no version was measured. Acquisition is the official container image `qdrant/qdrant`, deployed via docker, compose or the community Helm chart. Licence Apache-2.0 for the open-source engine; Qdrant Cloud and some managed features are commercial and separate. Operational note for whoever deploys it: the default configuration exposes the REST and gRPC APIs without an API key, so an API key or network policy must be set before the container is reachable from anything but localhost. Never deploy it with the shipped defaults."
+  },
+  {
+    "id": 350,
+    "name": "Milvus",
+    "category": "Embeddings / retrieval",
+    "category_number": 28,
+    "technology_id": "milvus",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "service",
+    "package": "milvusdb/milvus",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/milvus-io/milvus",
+    "runtime_requirements": [
+      "container runtime",
+      "etcd",
+      "object storage (MinIO or S3-compatible)"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://milvus.io/docs",
+    "notes": "Service, deliberately not run during this work; no version measured. Acquisition is the official container image `milvusdb/milvus`, normally via the project's compose file or Helm chart. Licence Apache-2.0. The important deployment fact is that Milvus is not a single process: even the standalone mode expects etcd for metadata and an S3-compatible object store for segments, and the distributed mode adds several more components, so the compose or Kubernetes path is the realistic one and resource requirements are substantially higher than the other engines in this category. Set credentials explicitly; do not ship the sample stack's default MinIO keys."
+  },
+  {
+    "id": 351,
+    "name": "Weaviate Community",
+    "category": "Embeddings / retrieval",
+    "category_number": 28,
+    "technology_id": "weaviate-community",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "service",
+    "package": "semitechnologies/weaviate",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/weaviate/weaviate",
+    "runtime_requirements": [
+      "container runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://weaviate.io/developers/weaviate",
+    "notes": "Service, deliberately not run during this work; no version measured. Acquisition is the official container image `semitechnologies/weaviate`, via compose or the official Helm chart. The inventory name says Community, and that distinction is the licensing one: the community edition is BSD-3-Clause open source, while Weaviate Cloud and the enterprise offering are commercial products under separate terms. Operational note: anonymous access is enabled in the default configuration, so an authentication scheme must be configured before exposure beyond localhost."
+  },
+  {
+    "id": 352,
+    "name": "LanceDB",
+    "category": "Embeddings / retrieval",
+    "category_number": 28,
+    "technology_id": "lancedb",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "rust",
+    "kind": "library",
+    "package": "lancedb",
+    "install_method": "pip",
+    "version": "0.37.1",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/lancedb/lancedb",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "serverless"
+    ],
+    "documentation": "https://lancedb.github.io/lancedb/",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Licence Apache-2.0, read from the installed distribution metadata. Smoke test: connected to a temporary directory, created a table from two eight-dimensional vectors and returned one search hit. Embedded and file-based rather than a server: the store is a directory of Lance-format files, which is why it also works against object storage and in serverless shapes where a long-running database process is not available. The Rust core is also published as a crate and as an npm package for Node."
+  },
+  {
+    "id": 353,
+    "name": "pgvector",
+    "category": "Embeddings / retrieval",
+    "category_number": 28,
+    "technology_id": "pgvector",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "library",
+    "package": "pgvector",
+    "install_method": "brew",
+    "version": null,
+    "license": "PostgreSQL License",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/pgvector/pgvector",
+    "runtime_requirements": [
+      "PostgreSQL server (see id 386)",
+      "C toolchain and PostgreSQL development headers when building"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://github.com/pgvector/pgvector#readme",
+    "notes": "Not standalone: pgvector is a PostgreSQL extension, so it has no version or lifecycle of its own and depends entirely on PostgreSQL, inventory id 386. It is installed into an existing server and then enabled per database with `CREATE EXTENSION vector`, which means an install without a running PostgreSQL of a matching major version is meaningless. Not installed here; no PostgreSQL server was provisioned for this work, so no version was measured. Acquisition options are the Homebrew formula `pgvector`, distribution packages such as postgresql-16-pgvector, a source build against pg_config, or the prebuilt `pgvector/pgvector` container image which bundles both. Licence is the PostgreSQL License, a permissive licence in the BSD family. Note also that the PyPI package named `pgvector` is only a client-side type adapter, not the extension itself."
+  },
+  {
+    "id": 354,
+    "name": "Vespa",
+    "category": "Embeddings / retrieval",
+    "category_number": 28,
+    "technology_id": "vespa",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "jvm",
+    "kind": "service",
+    "package": "vespaengine/vespa",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/vespa-engine/vespa",
+    "runtime_requirements": [
+      "container runtime",
+      "JVM (bundled in the image)"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.vespa.ai/",
+    "notes": "Service, deliberately not run during this work; no version measured. Acquisition is the official container image `vespaengine/vespa`. Licence Apache-2.0. Vespa is the heaviest engine in this category by a wide margin: it is a distributed serving platform with its own application-package deployment model and configuration server, so it needs several GB of RAM even for a single-node trial and cannot be treated as a drop-in vector store. Budget for the operational model, not just the image pull."
+  },
+  {
+    "id": 355,
+    "name": "OpenSearch",
+    "category": "Search",
+    "category_number": 29,
+    "technology_id": "opensearch",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "jvm",
+    "kind": "service",
+    "package": "opensearchproject/opensearch",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/opensearch-project/OpenSearch",
+    "runtime_requirements": [
+      "container runtime",
+      "JVM (bundled in the image)"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://opensearch.org/docs/latest/",
+    "notes": "Service, deliberately not run during this work; no version measured. Acquisition is the official container image `opensearchproject/opensearch`; a Homebrew formula also exists and its local metadata confirms the Apache-2.0 licence (formula `opensearch`, stable 3.8.0), which is the evidence used here rather than an assumption. This is the fork of Elasticsearch 7.10 that stayed Apache-2.0 after Elastic's relicensing, and that licence difference is the main reason to choose it over id 356. Operational note: recent versions require a strong admin password to be supplied at first start and will refuse to boot with the old default credentials — set it explicitly and never carry a sample password into a deployment."
+  },
+  {
+    "id": 356,
+    "name": "Elasticsearch",
+    "category": "Search",
+    "category_number": 29,
+    "technology_id": "elasticsearch",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "jvm",
+    "kind": "service",
+    "package": "docker.elastic.co/elasticsearch/elasticsearch",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Elastic License 2.0 / SSPL-1.0 (dual; AGPL-3.0 offered as a third option in recent 8.x releases)",
+    "license_class": "SOURCE_AVAILABLE",
+    "official_source": "https://github.com/elastic/elasticsearch",
+    "runtime_requirements": [
+      "container runtime",
+      "JVM (bundled in the image)"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html",
+    "notes": "Licensing is the load-bearing fact on this record, and it is not plain open source. Since 7.11 Elasticsearch has been distributed under a dual Elastic License 2.0 / SSPL-1.0 scheme; neither is an OSI-approved open-source licence, and the SSPL in particular imposes source obligations on anyone offering the software as a service. Recent 8.x releases add AGPL-3.0 as a third option, so which terms apply depends on the exact version — verify per release rather than assuming. license_class is SOURCE_AVAILABLE for that reason, and production_status is review-required: redistribution or managed-service use needs legal sign-off before deployment. OpenSearch (id 355) is the Apache-2.0 fork if those terms are unacceptable. Service, deliberately not run during this work; no version measured. Acquisition is the official image from docker.elastic.co. Set the elastic user's password explicitly at first boot."
+  },
+  {
+    "id": 357,
+    "name": "Meilisearch",
+    "category": "Search",
+    "category_number": 29,
+    "technology_id": "meilisearch",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "rust",
+    "kind": "service",
+    "package": "getmeili/meilisearch",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/meilisearch/meilisearch",
+    "runtime_requirements": [
+      "container runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://www.meilisearch.com/docs",
+    "notes": "Service, deliberately not run during this work; no version measured. Acquisition is the official container image `getmeili/meilisearch`; a Homebrew formula also exists and its local metadata confirms the MIT licence (formula `meilisearch`, stable 1.53.1), which is the evidence used here rather than an assumption. Single binary with no JVM and no external dependencies, which makes it by far the lightest engine in this category. Operational note: a master key must be supplied for production mode, and without one the instance runs unauthenticated — set MEILI_MASTER_KEY explicitly and never reuse a sample value."
+  },
+  {
+    "id": 358,
+    "name": "Typesense",
+    "category": "Search",
+    "category_number": 29,
+    "technology_id": "typesense",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "service",
+    "package": "typesense/typesense",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "GPL-3.0-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/typesense/typesense",
+    "runtime_requirements": [
+      "container runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://typesense.org/docs/",
+    "notes": "Service, deliberately not run during this work; no version measured. Acquisition is the official container image `typesense/typesense`. Licence note that matters for anyone embedding rather than deploying: the Typesense server is GPL-3.0-or-later, unlike the MIT/Apache-2.0 engines elsewhere in this category, while the client libraries are permissively licensed. Running it as a separate service over HTTP is the normal shape and does not create obligations for the calling application, but linking or bundling the server does. Operational note: an API key must be supplied at start-up via --api-key; choose a real secret rather than a sample value."
+  },
+  {
+    "id": 359,
+    "name": "Tantivy",
+    "category": "Search",
+    "category_number": 29,
+    "technology_id": "tantivy",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "rust",
+    "kind": "library",
+    "package": "tantivy",
+    "install_method": "cargo",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/quickwit-oss/tantivy",
+    "runtime_requirements": [
+      "rust toolchain"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://docs.rs/tantivy/",
+    "notes": "Not installed: no Rust toolchain is present on this machine (no ~/.cargo), so the crate could not be built or measured. Not installed here; version unmeasured, so no version pin is recorded. A PyPI distribution also named `tantivy` exists and resolves on this platform, but it packages Python bindings rather than the crate, and recording its wheel version as the crate's version would be a measurement of a different artefact — so it was deliberately not used as a substitute. Tantivy is an embedded library in the Lucene mould, not a server; Quickwit is the distributed search engine built on top of it."
+  },
+  {
+    "id": 360,
+    "name": "Whoosh",
+    "category": "Search",
+    "category_number": 29,
+    "technology_id": "whoosh",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "Whoosh",
+    "install_method": "pip",
+    "version": "2.7.4",
+    "license": "BSD-2-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/mchaput/whoosh",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://whoosh.readthedocs.io/en/latest/",
+    "notes": "Measured in a dedicated venv at technology-universe/runtimes/python-ai (Python 3.12.14, macOS arm64). Licence recorded as BSD-2-Clause from the installed distribution metadata, which states 'Two-clause BSD license'. Smoke test: built a RAM-backed index, added a document and got one hit back through the query parser. Maintenance status is the thing to weigh here, not capability: version 2.7.4 is the last release, from 2016, and the project is unmaintained, so it carries no security-fix path. A community fork is published as `whoosh-reloaded` for projects that need ongoing maintenance. Pure Python with no native dependencies, which is its main appeal."
+  },
+  {
+    "id": 361,
+    "name": "Apache Lucene",
+    "category": "Search",
+    "category_number": 29,
+    "technology_id": "apache-lucene",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "jvm",
+    "kind": "library",
+    "package": "org.apache.lucene:lucene-core",
+    "install_method": "maven",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/apache/lucene",
+    "runtime_requirements": [
+      "jvm"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker"
+    ],
+    "documentation": "https://lucene.apache.org/core/documentation.html",
+    "notes": "Not installed: a JDK is present on this machine (/usr/bin/java) but no Maven or Gradle build was run and no jar was resolved, so no version was measured; the local Maven repository contains no Lucene artefacts. Not installed here; version unmeasured, so no version pin is recorded. Licence Apache-2.0. Lucene is the indexing library underneath Elasticsearch (id 356), OpenSearch (id 355) and Solr, so most projects consume it indirectly through one of those rather than as a direct dependency. Recent major versions require a current JDK; check the target release's own requirement rather than assuming the JDK on the build host suffices."
+  }
+]

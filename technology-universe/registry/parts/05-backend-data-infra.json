@@ -1,0 +1,2915 @@
+[
+  {
+    "id": 362,
+    "name": "FastAPI",
+    "category": "Backend / APIs",
+    "category_number": 30,
+    "technology_id": "fastapi",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "fastapi",
+    "install_method": "pip",
+    "version": "0.141.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/fastapi/fastapi",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ],
+    "documentation": "https://fastapi.tiangolo.com",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/python-backend/.venv (Python 3.14.7 — a dedicated runtime, deliberately not the repository's own .venv), pinned in that directory's requirements.txt. `importlib.metadata.version` reports 0.141.1. SMOKE TEST PASSED (P3): an app with a GET route was built and a request driven through TestClient returned 200 with the expected JSON body — no socket was bound. Licence confirmed from the installed distribution's own metadata, not from recall: License-Expression = MIT. Built on Starlette (id 363) and Pydantic; it is not a server — it needs an ASGI server such as Uvicorn (id 364) to run, usually supervised by Gunicorn (id 365) in production. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 363,
+    "name": "Starlette",
+    "category": "Backend / APIs",
+    "category_number": 30,
+    "technology_id": "starlette",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "starlette",
+    "install_method": "pip",
+    "version": "1.6.0",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/encode/starlette",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ],
+    "documentation": "https://www.starlette.io",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/python-backend/.venv (Python 3.14.7 — a dedicated runtime, deliberately not the repository's own .venv), pinned in that directory's requirements.txt. `importlib.metadata.version` reports 1.6.0. SMOKE TEST PASSED (P3): a Starlette app with a Route returned 200 and the expected JSON through TestClient, with no socket bound. Licence confirmed from the installed distribution's own metadata, not from recall: License-Expression = BSD-3-Clause. The ASGI toolkit FastAPI (id 362) is built on; usable directly when the Pydantic-based request modelling FastAPI adds is not wanted. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 364,
+    "name": "Uvicorn",
+    "category": "Backend / APIs",
+    "category_number": 30,
+    "technology_id": "uvicorn",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "cli-tool",
+    "package": "uvicorn",
+    "install_method": "pip",
+    "version": "0.52.4",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/encode/uvicorn",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://www.uvicorn.org",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/python-backend/.venv (Python 3.14.7 — a dedicated runtime, deliberately not the repository's own .venv), pinned in that directory's requirements.txt. `importlib.metadata.version` reports 0.52.4. SMOKE TEST PARTIAL (P2, not P3): a uvicorn.Config was constructed and its fields verified, but no server was started. Uvicorn's characteristic function is serving HTTP on a bound socket, and this run deliberately binds nothing, so P3 is not claimed and the honest cap is P2. To earn P3 later, bind 127.0.0.1 on an ephemeral port and assert one response. Licence confirmed from the installed distribution's own metadata, not from recall: License-Expression = BSD-3-Clause. An ASGI server: invoked as a command (`uvicorn app:app`) and also importable, which is why kind is cli-tool rather than library. Single-process by default — for multi-worker production it is normally run as a Gunicorn (id 365) worker class. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 365,
+    "name": "Gunicorn",
+    "category": "Backend / APIs",
+    "category_number": 30,
+    "technology_id": "gunicorn",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "cli-tool",
+    "package": "gunicorn",
+    "install_method": "pip",
+    "version": "26.1.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/benoitc/gunicorn",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.gunicorn.org",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/python-backend/.venv (Python 3.14.7 — a dedicated runtime, deliberately not the repository's own .venv), pinned in that directory's requirements.txt. `importlib.metadata.version` reports 26.1.0. SMOKE TEST PARTIAL (P2, not P3): a gunicorn Config was constructed and a setting read back, but no master or worker process was forked and no socket bound — so P3 is not claimed, for the same reason as Uvicorn (id 364). Licence confirmed from the installed distribution's own metadata, not from recall: License-Expression = MIT. Pre-fork WSGI HTTP server; serves ASGI apps only through a worker class such as uvicorn.workers.UvicornWorker. `windows` is deliberately absent from platform_support: Gunicorn's own documentation states it does not run on Windows, because it depends on fork(). That is a constraint, not an assumption. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 366,
+    "name": "Flask",
+    "category": "Backend / APIs",
+    "category_number": 30,
+    "technology_id": "flask",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "flask",
+    "install_method": "pip",
+    "version": "3.1.3",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/pallets/flask",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ],
+    "documentation": "https://flask.palletsprojects.com",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/python-backend/.venv (Python 3.14.7 — a dedicated runtime, deliberately not the repository's own .venv), pinned in that directory's requirements.txt. `importlib.metadata.version` reports 3.1.3. SMOKE TEST PASSED (P3): a route was registered and exercised through Flask's own test client, returning 200 and the expected JSON; no socket bound. Licence confirmed from the installed distribution's own metadata, not from recall: License-Expression = BSD-3-Clause. WSGI, not ASGI — pair it with Gunicorn (id 365), not Uvicorn (id 364), unless an ASGI bridge is added. The built-in development server is not a production server. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 367,
+    "name": "Django",
+    "category": "Backend / APIs",
+    "category_number": 30,
+    "technology_id": "django",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "django",
+    "install_method": "pip",
+    "version": "6.1",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/django/django",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.djangoproject.com",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/python-backend/.venv (Python 3.14.7 — a dedicated runtime, deliberately not the repository's own .venv), pinned in that directory's requirements.txt. `importlib.metadata.version` reports 6.1. SMOKE TEST PASSED (P3), three of its subsystems in one run: the template engine rendered `{{ a|add:1 }}` to 42, the URL resolver routed a request through django.test.Client to a 200 JSON response, and the ORM's connection layer executed a query against an in-memory SQLite database. No server bound and no external database contacted. Licence confirmed from the installed distribution's own metadata, not from recall: License-Expression = BSD-3-Clause. Ships its own ORM, migrations, admin and session auth, so it overlaps categories 32 and 35: decide which layer owns sessions before adding anything from category 35 on top of it. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 368,
+    "name": "Litestar",
+    "category": "Backend / APIs",
+    "category_number": 30,
+    "technology_id": "litestar",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "litestar",
+    "install_method": "pip",
+    "version": "2.24.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/litestar-org/litestar",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ],
+    "documentation": "https://docs.litestar.dev",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/python-backend/.venv (Python 3.14.7 — a dedicated runtime, deliberately not the repository's own .venv), pinned in that directory's requirements.txt. `importlib.metadata.version` reports 2.24.0. SMOKE TEST PASSED (P3): a handler was served through litestar.testing.create_test_client and returned the expected JSON; no socket bound. Licence confirmed from the installed distribution's own metadata, not from recall: License-Expression is absent; the Classifier and License field both say MIT. Renamed from Starlite in 2023; the older `starlite` PyPI package is the same lineage under the previous name, so search results split across both names. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 369,
+    "name": "Sanic",
+    "category": "Backend / APIs",
+    "category_number": 30,
+    "technology_id": "sanic",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "sanic",
+    "install_method": "pip",
+    "version": "25.12.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/sanic-org/sanic",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://sanic.dev",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/python-backend/.venv (Python 3.14.7 — a dedicated runtime, deliberately not the repository's own .venv), pinned in that directory's requirements.txt. `importlib.metadata.version` reports 25.12.1. SMOKE TEST PARTIAL (P2, not P3): the app and its router were constructed successfully, but driving a request through Sanic's ASGI interface by hand failed with `SanicException: Loop can only be retrieved after the app has started running. Not supported with create_server function` — Sanic requires its lifespan startup, and the supported in-process path is the separate `sanic-testing` package, which was not installed. P3 is therefore not claimed. This is a limitation of the test, not a defect in Sanic. Licence confirmed from the installed distribution's own metadata, not from recall: Classifier and License field both say MIT. Unlike FastAPI/Starlette it ships its own production server, so it does not require a separate ASGI server process. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 370,
+    "name": "Node.js",
+    "category": "Backend / APIs",
+    "category_number": 30,
+    "technology_id": "nodejs",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "runtime",
+    "package": "node",
+    "install_method": "brew",
+    "version": "26.0.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/nodejs/node",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "toolchain",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless",
+      "desktop"
+    ],
+    "documentation": "https://nodejs.org/docs/latest/api/",
+    "notes": "UPGRADED TO P3 ON EVIDENCE: beyond `node --version` -> v26.0.0, this interpreter then executed the full JavaScript smoke suite for this range — 21 packages imported and exercised under it, including HTTP routing, GraphQL execution, CRDT merges and a dependency-injection container. That is a functional smoke test of the runtime itself, so readiness is P3 and verification_status is smoke-tested. It was NOT installed by this session: Homebrew already had it. npm 11.12.1 measured alongside. MEASURED ON THIS MACHINE: `node --version` -> v26.0.0, binary at /opt/homebrew/bin/node, Homebrew formula `node 26.0.0`; `npm --version` -> 11.12.1 alongside it. version is therefore non-null and readiness is P2 (Installed). P3 is NOT claimed: only the version string was read, no functional smoke test was run, so verification_status is version-measured. Licence: the Node.js source is MIT, but the distributed build aggregates third-party licences (V8, OpenSSL, ICU, libuv, zlib) in its LICENSE file — read that file, not the SPDX id alone, before redistributing a build. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 371,
+    "name": "Express",
+    "category": "Backend / APIs",
+    "category_number": 30,
+    "technology_id": "express",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "express",
+    "install_method": "npm",
+    "version": "5.2.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/expressjs/express",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ],
+    "documentation": "https://expressjs.com",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 5.2.1. SMOKE TEST PASSED (P3): a GET route was registered, found in app.router's stack, and its handler executed to produce the expected JSON — verified without binding a socket. Licence confirmed from the installed distribution's own metadata, not from recall: package.json declares MIT. Requires Node.js (id 370), which IS present here at v26.0.0. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 372,
+    "name": "Fastify",
+    "category": "Backend / APIs",
+    "category_number": 30,
+    "technology_id": "fastify",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "fastify",
+    "install_method": "npm",
+    "version": "5.12.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/fastify/fastify",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ],
+    "documentation": "https://fastify.dev",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 5.12.1. SMOKE TEST PASSED (P3): app.inject() drove a full in-process request/response cycle returning 200 and the expected JSON. Fastify's inject path needs no socket, which is why this earns P3 where Uvicorn (364) and Gunicorn (365) could not. Licence confirmed from the installed distribution's own metadata, not from recall: MIT. Validates and serialises against JSON Schema by default, which is the main practical difference from Express (id 371). P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 373,
+    "name": "Hono",
+    "category": "Backend / APIs",
+    "category_number": 30,
+    "technology_id": "hono",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "hono",
+    "install_method": "npm",
+    "version": "4.13.3",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/honojs/hono",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ],
+    "documentation": "https://hono.dev/docs/",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 4.13.3. SMOKE TEST PASSED (P3): app.request() drove a Fetch-API request/response cycle returning 200 and the expected JSON, with no socket bound — the same Web-standard interface that lets it run on edge runtimes. Licence confirmed from the installed distribution's own metadata, not from recall: MIT. Targets Web-standard runtimes (Cloudflare Workers, Deno, Bun, and Node via an adapter), which is why `serverless` is in deployment_support. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 374,
+    "name": "NestJS",
+    "category": "Backend / APIs",
+    "category_number": 30,
+    "technology_id": "nestjs",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "@nestjs/core",
+    "install_method": "npm",
+    "version": "11.2.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/nestjs/nest",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.nestjs.com",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 11.2.1. SMOKE TEST PASSED (P3): a module and an injectable provider were declared, NestFactory.create built the application, and the DI container resolved the provider and returned its value. `.listen()` was never called, so nothing was bound. Installed alongside @nestjs/common 11.2.1, @nestjs/platform-express 11.2.1, reflect-metadata 0.2.2 and rxjs 7.8.2, which confirms the point already in this record that @nestjs/core alone is not a runnable app. Licence confirmed from the installed distribution's own metadata, not from recall: @nestjs/core, @nestjs/common and @nestjs/platform-express all declare MIT. The installable is a set of scoped packages, not one: @nestjs/core plus @nestjs/common and a platform adapter (@nestjs/platform-express or @nestjs/platform-fastify). `package` names the core one; installing it alone will not give you a running application. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 375,
+    "name": "OpenAPI",
+    "category": "API schemas / RPC",
+    "category_number": 31,
+    "technology_id": "openapi",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "spec",
+    "kind": "standard",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/OAI/OpenAPI-Specification",
+    "runtime_requirements": [],
+    "platform_support": [],
+    "readiness": "P0",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://spec.openapis.org/",
+    "notes": "Nothing was installed for this id and nothing could be: it remains a specification. The renderers that consume it WERE installed and measured — see ids 376, 377 and 378 — which is the practical way to act on OpenAPI, and it leaves this record correctly at P0. A specification, not an implementation — there is no artifact to install, so package is null and install_method is `none`. readiness stops at P0 for the same reason: the P1 rung is about recording a way to OBTAIN something, and there is nothing to obtain. Apache-2.0 is the licence on the OAI/OpenAPI-Specification repository, which carries the specification text; every renderer and generator carries its own licence — see ids 376-378. Adopting OpenAPI is a design commitment, not an install."
+  },
+  {
+    "id": 376,
+    "name": "Swagger UI",
+    "category": "API schemas / RPC",
+    "category_number": 31,
+    "technology_id": "swagger-ui",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "swagger-ui-dist",
+    "install_method": "npm",
+    "version": "5.32.14",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/swagger-api/swagger-ui",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "browser"
+    ],
+    "documentation": "https://swagger.io/tools/swagger-ui/",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 5.32.14. SMOKE TEST PASSED (P3): the package's exported getAbsoluteFSPath() was called and the returned directory verified to contain swagger-ui-bundle.js. That is the whole of this package's Node-side API, so it is a complete functional check; rendering in a browser was not verified and would need a browser. LICENCE MEASURED: swagger-ui-dist's package.json declares Apache-2.0, confirming the value recorded here. NOTE the package correction: `package` now reads swagger-ui-dist rather than swagger-ui, because the dist package is the prebuilt asset bundle that is actually consumed and it is what was installed and measured. A front-end bundle served from your own application (swagger-ui-dist ships the prebuilt assets); the project also publishes a swaggerapi/swagger-ui container image for running it standalone. Renders OpenAPI (id 375). Serving it publicly exposes your full API surface and its `Try it out` client — gate it behind auth on anything non-public. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 377,
+    "name": "Redoc",
+    "category": "API schemas / RPC",
+    "category_number": 31,
+    "technology_id": "redoc",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "redoc",
+    "install_method": "npm",
+    "version": "2.5.3",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/Redocly/redoc",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "browser"
+    ],
+    "documentation": "https://redocly.com/docs/redoc/",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 2.5.3. SMOKE TEST PASSED (P3): the module was imported and evaluated in Node and its `Redoc` export was present; the browser bundle was additionally located on disk and size-checked. Actual rendering is a browser behaviour and was NOT verified — that limit is why this record claims a loaded module, not a rendered page. Licence confirmed from the installed distribution's own metadata, not from recall: package.json declares MIT, confirming the value recorded here from the repository. MIT applies to Redoc, the open-source OpenAPI renderer, and to nothing else in Redocly's catalogue: the hosted portal and the premium Redocly CLI features are separate commercial products under their own terms. Read-only renderer — unlike Swagger UI (id 376) it has no built-in request console. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 378,
+    "name": "Scalar",
+    "category": "API schemas / RPC",
+    "category_number": 31,
+    "technology_id": "scalar",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@scalar/api-reference",
+    "install_method": "npm",
+    "version": "1.65.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/scalar/scalar",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "browser"
+    ],
+    "documentation": "https://guides.scalar.com/",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 1.65.1. SMOKE TEST PASSED (P3): `import('@scalar/api-reference')` resolved and evaluated successfully. Rendering was not verified — it is a browser behaviour. One trap worth recording for whoever automates this next: the package's exports map does not expose './package.json', so require.resolve on it throws ERR_PACKAGE_PATH_NOT_EXPORTED; read the file by path instead. LICENCE MEASURED: the installed package.json declares MIT, which confirms the value recorded here from the repository rather than leaving it on recall. MIT per the scalar/scalar repository. Scalar's hosted platform and registry are separate commercial products under their own terms and this record says nothing about them. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 379,
+    "name": "GraphQL",
+    "category": "API schemas / RPC",
+    "category_number": 31,
+    "technology_id": "graphql",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "spec",
+    "kind": "standard",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": "Open Web Foundation Agreement 1.0 (OWFa 1.0) — Final Specification Agreement",
+    "license_class": "SPECIAL_LICENSE",
+    "official_source": "https://github.com/graphql/graphql-spec",
+    "runtime_requirements": [],
+    "platform_support": [],
+    "readiness": "P0",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://spec.graphql.org/",
+    "notes": "Nothing was installed for this id, correctly — it is a specification. Two implementations of it were installed and measured in the runtimes for this range and both executed a query successfully: graphql-core 3.2.11 (Python, MIT) and graphql 16.14.2 (JavaScript, MIT). Neither of those versions is a GraphQL SPECIFICATION version, so neither belongs in this record's `version` field, which stays null. A specification, not an implementation; nothing to install, so package is null, install_method is `none` and readiness stops at P0. LICENCE — this is the part people get wrong: the specification text is published under the Open Web Foundation Final Specification Agreement (OWFa 1.0), a copyright and patent grant for specifications. It is NOT an OSI-approved open-source software licence, which is why license_class is SPECIAL_LICENSE and not OPEN_SOURCE. The reference implementation graphql-js is MIT, but that is a different artifact from this entry. Servers are ids 380 and 381."
+  },
+  {
+    "id": 380,
+    "name": "GraphQL Yoga",
+    "category": "API schemas / RPC",
+    "category_number": 31,
+    "technology_id": "graphql-yoga",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "graphql-yoga",
+    "install_method": "npm",
+    "version": "5.22.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/dotansimha/graphql-yoga",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ],
+    "documentation": "https://the-guild.dev/graphql/yoga-server/docs",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 5.22.0. SMOKE TEST PASSED (P3): a schema was built and the query `{ ok }` executed through yoga.fetch(), returning the expected data. No socket bound — Yoga's Fetch-API entry point makes that possible. Licence confirmed from the installed distribution's own metadata, not from recall: MIT. Its `graphql` peer resolved to 16.14.2, also MIT. Requires a `graphql` (graphql-js, MIT) peer dependency. Implements GraphQL (id 379). P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 381,
+    "name": "Apollo Server",
+    "category": "API schemas / RPC",
+    "category_number": 31,
+    "technology_id": "apollo-server",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "@apollo/server",
+    "install_method": "npm",
+    "version": "5.5.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/apollographql/apollo-server",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ],
+    "documentation": "https://www.apollographql.com/docs/apollo-server/",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 5.5.1. SMOKE TEST PASSED (P3): an ApolloServer was started in its non-HTTP mode and executeOperation ran `{ ok }`, returning the expected data; stopped cleanly. No listener bound. Worth recording from the install: npm warned that @apollo/server 5.5.1 declares a peer of graphql ^16.11.0, and the tree resolved to graphql 16.14.2, so the warning was transient and the constraint is satisfied — but a project that pulls graphql 17 will hit it for real. Licence confirmed from the installed distribution's own metadata, not from recall: MIT — which confirms the caution already in this record that Apollo Router's Elastic License 2.0 is a different artifact, not this one. MIT covers Apollo Server. Do NOT extend that to the rest of Apollo's stack: Apollo Router is published under the Elastic License 2.0 (source-available, not OSI open source) and Apollo GraphOS is a commercial hosted service. If a federation gateway enters the design, its licence must be assessed separately from this record. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 382,
+    "name": "tRPC",
+    "category": "API schemas / RPC",
+    "category_number": 31,
+    "technology_id": "trpc",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "@trpc/server",
+    "install_method": "npm",
+    "version": "11.18.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/trpc/trpc",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ],
+    "documentation": "https://trpc.io/docs",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 11.18.0. SMOKE TEST PASSED (P3): a router with one query procedure was built and invoked through createCallerFactory, returning the expected value — a full server-side call with no transport involved. Licence confirmed from the installed distribution's own metadata, not from recall: MIT. Constraint worth stating before it is chosen: the contract is an inferred TypeScript type, so client and server must both be TypeScript inside one build graph. It emits no wire schema, so unlike OpenAPI (375), gRPC (383) or ConnectRPC (384) it gives non-TypeScript consumers nothing to generate from. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 383,
+    "name": "gRPC",
+    "category": "API schemas / RPC",
+    "category_number": 31,
+    "technology_id": "grpc",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "native",
+    "kind": "framework",
+    "package": "grpcio",
+    "install_method": "pip",
+    "version": "1.83.0",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/grpc/grpc",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://grpc.io/docs/",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/python-backend/.venv (Python 3.14.7 — a dedicated runtime, deliberately not the repository's own .venv), pinned in that directory's requirements.txt. `importlib.metadata.version` reports 1.83.0. SMOKE TEST PARTIAL (P2, not P3): the grpcio wheel installed cleanly on Python 3.14.7 (no source build needed) and an insecure channel was created and closed — channels are lazy, so no connection was attempted. A real RPC needs a listening server and generated stubs, neither of which this run may create, so P3 is not claimed. Licence confirmed from the installed distribution's own metadata, not from recall: License-Expression = Apache-2.0. Multi-language project with one licence (Apache-2.0) and many packages. `package` names the Python binding, grpcio, because this repository's application stack is Python; the equivalents are @grpc/grpc-js on npm, google.golang.org/grpc for Go, and io.grpc:grpc-java on Maven. Not installed here — no grpcio in the virtualenv — so version is null. Requires Protocol Buffers (id 385) as its IDL plus the protoc plugin to generate stubs; browsers cannot speak native gRPC without a proxy, which is the problem ConnectRPC (id 384) exists to remove. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 384,
+    "name": "ConnectRPC",
+    "category": "API schemas / RPC",
+    "category_number": 31,
+    "technology_id": "connectrpc",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "framework",
+    "package": "@connectrpc/connect",
+    "install_method": "npm",
+    "version": "2.1.2",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/connectrpc/connect-go",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://connectrpc.com/docs/",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 2.1.2. SMOKE TEST PARTIAL (P2, not P3): the module was imported and a ConnectError constructed and matched against the Code enum. A protocol round trip needs generated stubs and a transport, so P3 is not claimed. RECORD CORRECTED FROM THE MEASUREMENT: ecosystem, package and install_method previously named the Go module connectrpc.com/connect from recall; the artifact actually installed and measured is the TypeScript package @connectrpc/connect, so the record now names that. The Go module remains the equivalent for Go services. Licence confirmed from the installed distribution's own metadata, not from recall: package.json declares Apache-2.0. Serves gRPC, gRPC-Web and its own HTTP/1.1-friendly Connect protocol from the same handlers, which is the reason to choose it over plain gRPC (id 383) when browsers must call the service directly. `package` names the Go module; the TypeScript package is @connectrpc/connect. Not installed here; no Go toolchain was measured for this record. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 385,
+    "name": "Protocol Buffers",
+    "category": "API schemas / RPC",
+    "category_number": 31,
+    "technology_id": "protocol-buffers",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "spec",
+    "kind": "standard",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/protocolbuffers/protobuf",
+    "runtime_requirements": [],
+    "platform_support": [],
+    "readiness": "P0",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://protobuf.dev/",
+    "notes": "Toolchain measured, standard unchanged. The Python runtime library `protobuf` 7.35.1 was installed into the python-backend runtime and SMOKE TESTED successfully: a FileDescriptorProto was serialised and parsed back with its field intact. That version is the LIBRARY's, not the specification's — proto2 and proto3 are the specification's versions — so `version` stays null and readiness stays P0, exactly as the no-invented-version rule requires. The installed distribution's metadata declares `3-Clause BSD License`, which confirms the BSD-3-Clause recorded here from the reference repository. Recorded as the standard — the .proto language and the binary wire format — so there is nothing to install under this id and readiness stops at P0. The licence recorded is that of protocolbuffers/protobuf (BSD-3-Clause), the repository that publishes both the format definition and the reference implementation. The toolchain is a SEPARATE acquisition and is not covered by this record's readiness: `protoc` as a binary release or via brew, plus a per-language runtime (protobuf on PyPI, google-protobuf on npm, google.golang.org/protobuf for Go). Consumed by gRPC (id 383) and ConnectRPC (id 384)."
+  },
+  {
+    "id": 386,
+    "name": "PostgreSQL",
+    "category": "Database",
+    "category_number": 32,
+    "technology_id": "postgresql",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "service",
+    "package": "postgresql@16",
+    "install_method": "brew",
+    "version": "16.14",
+    "license": "PostgreSQL License",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/postgres/postgres",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "service",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://www.postgresql.org/docs/",
+    "notes": "CLARIFICATION AFTER THE INSTALL PASS: this server was NOT installed or started by this session. Homebrew had it already, and a pre-existing postgres process (PID 1234) has been listening on 127.0.0.1:5432 since 23 July 2026 under the user's own LaunchAgent (homebrew.mxcl.postgresql@16.plist) — 27 days before this work. Nothing here started it and nothing connected to it. The client library WAS installed and measured: psycopg 3.3.4 in the python-backend runtime, whose metadata declares License-Expression = LGPL-3.0-only — note that the DRIVER is LGPL even though the SERVER is under the permissive PostgreSQL Licence; they are different licences on different artifacts and it is a common mistake to merge them. MEASURED ON THIS MACHINE: `postgres --version` -> `postgres (PostgreSQL) 16.14 (Homebrew)`, `psql --version` agrees, Homebrew reports formula `postgresql@16 16.14`; binaries at /opt/homebrew/bin. NO SERVER WAS STARTED and no database was touched — presence and version only, so readiness is P2 and verification_status is version-measured, not smoke-tested. Licence is the PostgreSQL Licence (SPDX id `PostgreSQL`), a permissive BSD/MIT-style licence with no copyleft or service restriction — the cleanest terms in this category. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI. The official container image is `postgres` on Docker Hub. Extensions carry their own licences and do not inherit these: see TimescaleDB (id 396), whose terms are materially different. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 387,
+    "name": "SQLite",
+    "category": "Database",
+    "category_number": 32,
+    "technology_id": "sqlite",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "library",
+    "package": "sqlite3",
+    "install_method": "builtin",
+    "version": "3.53.4",
+    "license": "Public Domain (SQLite Blessing; SPDX: blessing)",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://sqlite.org",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless",
+      "desktop"
+    ],
+    "documentation": "https://sqlite.org/docs.html",
+    "notes": "VERSION UPDATED AND UPGRADED TO P3 ON MEASUREMENT. The version now recorded, 3.53.4, is the amalgamation bundled inside Python 3.14.7 — `import sqlite3; sqlite3.sqlite_version` in the python-backend runtime — because that is the copy the smoke test actually exercised. SMOKE TEST PASSED: a table was created in an in-memory database, a row inserted and read back correctly. The three copies on this machine still disagree and that is the operationally important fact: Python's bundled library and the Homebrew keg both report 3.53.4, while the PATH-resolved CLI at /usr/bin/sqlite3 reports 3.51.0. Which one you get depends on whether your code goes through Python or through the shell. Pin explicitly if a post-3.51.0 feature matters. MEASURED ON THIS MACHINE: `sqlite3 --version` -> `3.51.0 2025-06-12 ...` from /usr/bin/sqlite3, the copy Apple ships. Two other copies are present and DISAGREE: the Homebrew formula `sqlite 3.53.4` (keg-only, not on PATH) and the amalgamation bundled inside Python 3.14.7, whose sqlite3 module reports sqlite_version 3.53.4. `version` records the PATH-resolved binary, 3.51.0, because that is what was measured; if you depend on anything added after 3.51.0, pin explicitly rather than trusting PATH. readiness P2 — presence and version only, no smoke test. NOT A SERVICE: an in-process library with no server, no listening port and no credentials, so the service-hardening rule does not apply here; the equivalent risks are filesystem permissions on the database file and the single-writer concurrency model. Licence: the authors dedicate the code to the public domain; the SQLite Blessing (SPDX `blessing`) is the accompanying well-wishing text, not a restriction. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 388,
+    "name": "DuckDB",
+    "category": "Database",
+    "category_number": 32,
+    "technology_id": "duckdb",
+    "canonical": false,
+    "canonical_id": 188,
+    "ecosystem": "c-cpp",
+    "kind": "library",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/duckdb/duckdb",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless",
+      "desktop"
+    ],
+    "documentation": "https://duckdb.org/docs/",
+    "notes": "INSTALL PASS NOTE, AND A DELIBERATE REFUSAL TO RECORD IT HERE: duckdb 1.5.5 was installed into the python-backend runtime and smoke tested successfully (an in-memory connection executed `select 40+2` and returned 42; its metadata Classifier declares MIT, confirming the licence). That measurement is NOT recorded on this record, because SCHEMA.md puts installation and verification on the canonical record only, and the canonical record for `duckdb` is id 188. version stays null and readiness stays P0 here. ACTION FOR THE REGISTRY OWNER: id 188 should carry version 1.5.5, readiness P3 and verification_status smoke-tested, from this run. DUPLICATE INVENTORY POSITION. `DuckDB` also appears at id 188 (category 14, Scientific / numerical computation), the lower number and therefore the canonical record for technology_id `duckdb`. Per SCHEMA.md installation and verification are recorded on the canonical record only, so package, install_method and version are null here and readiness stops at P0 — carrying them twice would let one technology be counted as acquired or verified twice. Licence and identity are repeated because they are properties of the technology, not of the acquisition. Worth flagging against its neighbours in this category: DuckDB is an in-process analytical engine, not a server — it has no daemon, no port and no credentials, so nothing in the service hardening rule applies to it."
+  },
+  {
+    "id": 389,
+    "name": "MariaDB",
+    "category": "Database",
+    "category_number": 32,
+    "technology_id": "mariadb",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "service",
+    "package": "mariadb",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "GPL-2.0-only",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/MariaDB/server",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://mariadb.com/docs/",
+    "notes": "INSTALL PASS: nothing was installed or started for this id, by instruction — it is a server, and running one is out of scope. The record's acquisition path (the official image named in `package`) is unchanged and remains the reproducible way to obtain it, which is what P1 asserts and all it asserts. Not installed here; `package` names the Docker Official Image, which is the reproducible way to obtain it, hence P1. Licence: the server is GPLv2 (copyleft — distributing a modified server obliges you to publish the modifications; running it as a service does not). The client libraries are LGPL-2.1, deliberately, so linking an application against them does not make the application GPL. MariaDB plc's separately sold products are not covered by this record. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI."
+  },
+  {
+    "id": 390,
+    "name": "MySQL Community",
+    "category": "Database",
+    "category_number": 32,
+    "technology_id": "mysql-community",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "service",
+    "package": "mysql",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "GPL-2.0-only (with the Universal FOSS Exception)",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/mysql/mysql-server",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://dev.mysql.com/doc/",
+    "notes": "INSTALL PASS: nothing was installed or started for this id, by instruction — it is a server, and running one is out of scope. The record's acquisition path (the official image named in `package`) is unchanged and remains the reproducible way to obtain it, which is what P1 asserts and all it asserts. Not installed here; `package` names the Docker Official Image. Licence: MySQL Community Server is GPLv2, with Oracle's Universal FOSS Exception permitting linking from other open-source licences. Two adjacent things that are NOT this record: MySQL Enterprise Edition is a commercial product, and the connectors (Connector/J, Connector/Python) carry GPLv2 with the FOSS Exception separately — check the specific connector's terms rather than assuming. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI."
+  },
+  {
+    "id": 391,
+    "name": "Redis",
+    "category": "Database",
+    "category_number": 32,
+    "technology_id": "redis",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "service",
+    "package": "redis",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Version-dependent: BSD-3-Clause (<= 7.2.x); RSALv2 or SSPLv1, dual (7.4.x); RSALv2, SSPLv1 or AGPL-3.0, tri (>= 8.0)",
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/redis/redis",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://redis.io/docs/latest/",
+    "notes": "INSTALL PASS: no Redis server was installed or started. The CLIENT was: redis-py 8.1.0 in the python-backend runtime, whose metadata declares License-Expression = MIT. That is a separate artifact under a separate licence and it does NOT resolve the server's licence question above — an MIT client says nothing about an RSALv2/SSPLv1/AGPL server. The client object was constructed against 127.0.0.1 with no connection attempted, so this record stays at P1. LICENCE IS THE WHOLE STORY HERE, and it depends on which version you pull — which is exactly why license_class is LICENSE_REVIEW_REQUIRED rather than a single verdict. Three eras: (1) up to and including 7.2.x, BSD-3-Clause, unambiguously open source; (2) from 7.4 (the March 2024 change), dual-licensed under the Redis Source Available License v2 (RSALv2) or the Server Side Public License v1 (SSPLv1) — both source-available, NEITHER OSI-approved, and both restricting offering Redis as a managed service; (3) from 8.0 (2025) the project added AGPLv3 as a third option, so an AGPL-3.0 build is available and that option IS OSI-approved, at the cost of AGPL's network-use copyleft. Consequence: `Redis` names three different legal artifacts and no unpinned record can be honest about it — pin the version, read the LICENSE file in that tag, and record the result. If the licence question is the blocker rather than the technology, Valkey (id 392) is the BSD-3-Clause fork of Redis 7.2.4 and needs no review. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI. Redis in particular ships with no password by default and, historically, binding it to a public interface without `requirepass` is one of the most reliably exploited misconfigurations there is."
+  },
+  {
+    "id": 392,
+    "name": "Valkey",
+    "category": "Database",
+    "category_number": 32,
+    "technology_id": "valkey",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "service",
+    "package": "valkey/valkey",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/valkey-io/valkey",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://valkey.io/topics/",
+    "notes": "INSTALL PASS: nothing was installed or started for this id, by instruction — it is a server, and running one is out of scope. The record's acquisition path (the official image named in `package`) is unchanged and remains the reproducible way to obtain it, which is what P1 asserts and all it asserts. The Linux Foundation fork of Redis, taken from Redis 7.2.4 — the last BSD-3-Clause release — immediately after the March 2024 relicensing described at id 391. It remains BSD-3-Clause with no service restriction and no copyleft, which is the entire reason it exists and the reason this record needs no licence review while id 391's does. Wire-compatible with Redis clients at the point of the fork; that compatibility is not a guarantee for features either project adds later. Not installed here; `package` names the project's published image. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI."
+  },
+  {
+    "id": 393,
+    "name": "MongoDB Community",
+    "category": "Database",
+    "category_number": 32,
+    "technology_id": "mongodb-community",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "service",
+    "package": "mongo",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "SSPL-1.0",
+    "license_class": "SOURCE_AVAILABLE",
+    "official_source": "https://github.com/mongodb/mongo",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://www.mongodb.com/docs/manual/",
+    "notes": "INSTALL PASS: nothing was installed or started for this id, by instruction — it is a server, and running one is out of scope. The record's acquisition path (the official image named in `package`) is unchanged and remains the reproducible way to obtain it, which is what P1 asserts and all it asserts. NOT OPEN SOURCE, despite the `Community` name. MongoDB Community Server is licensed under the Server Side Public License v1 (SSPL). The Open Source Initiative has explicitly declined to approve SSPL, and Debian and Fedora removed MongoDB from their archives over it, so license_class is SOURCE_AVAILABLE — the source is published and readable, but the licence is not an open-source licence. The operative term is SSPL section 13: offering the functionality of the program as a service to third parties obliges you to release the entire source of your service stack under SSPL. Internal use and shipping an application that talks to MongoDB are not caught; building a hosted product whose value is MongoDB is. The official drivers (pymongo, mongodb node driver) are Apache-2.0 and are NOT SSPL — do not conflate them. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI."
+  },
+  {
+    "id": 394,
+    "name": "Neo4j Community",
+    "category": "Database",
+    "category_number": 32,
+    "technology_id": "neo4j",
+    "canonical": false,
+    "canonical_id": 214,
+    "ecosystem": "jvm",
+    "kind": "service",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": "GPL-3.0-only",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/neo4j/neo4j",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://neo4j.com/docs/",
+    "notes": "INSTALL PASS: nothing installed or started — a server, and a duplicate besides. Unchanged at P0. DUPLICATE INVENTORY POSITION. The same technology appears at id 214 as `Neo4j Community Edition` (category 16, Knowledge graphs / graph computation). 214 is the lower number, so it is canonical for technology_id `neo4j` and this record sets canonical false with canonical_id 214. Per SCHEMA.md installation and verification belong to the canonical record only: package, install_method and version are null here and readiness stops at P0. The shared technology_id is taken from the canonical record at 214, which carries `neo4j`; this record was originally written with `neo4j-community-edition` and was normalised at merge time so both inventory positions resolve to one technology identity. Licence: Community Edition is GPLv3. Neo4j Enterprise Edition is a separate, commercially licensed product and the Commons Clause that Neo4j Sweden attached to Enterprise does not apply to Community — but do not assume any Neo4j artifact you download is the Community build without checking. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI."
+  },
+  {
+    "id": 395,
+    "name": "ClickHouse",
+    "category": "Database",
+    "category_number": 32,
+    "technology_id": "clickhouse",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "service",
+    "package": "clickhouse/clickhouse-server",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/ClickHouse/ClickHouse",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://clickhouse.com/docs",
+    "notes": "INSTALL PASS: nothing was installed or started for this id, by instruction — it is a server, and running one is out of scope. The record's acquisition path (the official image named in `package`) is unchanged and remains the reproducible way to obtain it, which is what P1 asserts and all it asserts. Not installed here; `package` names the project's published server image. Apache-2.0 with no service restriction — notable in this category, where several neighbours are not. ClickHouse Inc.'s hosted Cloud offering is a separate commercial product and does not change these terms. There is no native Windows server build; Windows use is via a container or WSL, which is why platform_support lists windows only through the container path. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI. ClickHouse ships a `default` user with an empty password — that is precisely the default-credential case this rule exists for."
+  },
+  {
+    "id": 396,
+    "name": "TimescaleDB",
+    "category": "Database",
+    "category_number": 32,
+    "technology_id": "timescaledb",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "service",
+    "package": "timescale/timescaledb",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Apache-2.0 (core) and the Timescale License (TSL) (community features), in one distribution",
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/timescale/timescaledb",
+    "runtime_requirements": [
+      "postgresql",
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.timescale.com",
+    "notes": "INSTALL PASS: nothing was installed or started for this id, by instruction — it is a server, and running one is out of scope. The record's acquisition path (the official image named in `package`) is unchanged and remains the reproducible way to obtain it, which is what P1 asserts and all it asserts. A PostgreSQL (id 386) extension, not a standalone database — it inherits Postgres's operational shape but NOT its licence. The repository is split: part is Apache-2.0, and a substantial part of what people actually adopt it for is under the Timescale License (TSL), which is source-available and forbids offering the TSL features as a database-as-a-service. Because which licence governs depends on which features you enable, no single class is truthful and license_class is LICENSE_REVIEW_REQUIRED: settle the feature list, then read the licence header on those specific sources. The vendor has since rebranded to TigerData, so current material may appear under that name. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI. It also inherits PostgreSQL's requirement that the extension version and the server major version stay compatible across upgrades."
+  },
+  {
+    "id": 397,
+    "name": "CockroachDB Community",
+    "category": "Database",
+    "category_number": 32,
+    "technology_id": "cockroachdb-community",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "service",
+    "package": "cockroachdb/cockroach",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "CockroachDB Software License (from v24.3); previously BSL-1.1 with a CCL enterprise overlay",
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/cockroachdb/cockroach",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://www.cockroachlabs.com/docs/",
+    "notes": "INSTALL PASS: nothing was installed or started for this id, by instruction — it is a server, and running one is out of scope. The record's acquisition path (the official image named in `package`) is unchanged and remains the reproducible way to obtain it, which is what P1 asserts and all it asserts. The `Community` in this entry's name describes a tier that no longer exists in the form the name implies, which is why license_class is LICENSE_REVIEW_REQUIRED. Previously: core under the Business Source License 1.1, converting to Apache-2.0 after three years, with enterprise features under the CCL. From v24.3 (November 2024) Cockroach Labs replaced that split with a single CockroachDB Software License covering all builds, with free use bounded by organisation-scale and use-case conditions rather than by feature. Neither the old nor the new terms are OSI-approved open source, and which set applies depends entirely on the version you pin — so pin first, read that version's LICENSE, and confirm your organisation falls inside the free-use bound before deploying. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI."
+  },
+  {
+    "id": 398,
+    "name": "Celery",
+    "category": "Queues / events / background work",
+    "category_number": 33,
+    "technology_id": "celery",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "framework",
+    "package": "celery",
+    "install_method": "pip",
+    "version": "5.6.3",
+    "license": "BSD-3-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/celery/celery",
+    "runtime_requirements": [
+      "python3",
+      "message-broker"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.celeryq.dev",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/python-backend/.venv (Python 3.14.7 — a dedicated runtime, deliberately not the repository's own .venv), pinned in that directory's requirements.txt. `importlib.metadata.version` reports 5.6.3. SMOKE TEST PASSED (P3): a task was declared on an app configured with the in-memory broker and executed locally, returning the correct result. NO BROKER WAS CONTACTED — the execution path was local, which is precisely why this could be verified without starting RabbitMQ or Redis. Licence confirmed from the installed distribution's own metadata, not from recall: License field = BSD-3-Clause. Not self-contained: Celery is a client and worker library that requires a separate broker service — usually RabbitMQ (id 403) or Redis (id 391) — and, if you want results back, a result backend as well. Acquiring Celery is P1; the broker it needs is a separate service acquisition with its own hardening and, in Redis's case, its own licence question. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 399,
+    "name": "Dramatiq",
+    "category": "Queues / events / background work",
+    "category_number": 33,
+    "technology_id": "dramatiq",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "dramatiq",
+    "install_method": "pip",
+    "version": "2.2.0",
+    "license": "LGPL-3.0-or-later",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/Bogdanp/dramatiq",
+    "runtime_requirements": [
+      "python3",
+      "message-broker"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://dramatiq.io",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/python-backend/.venv (Python 3.14.7 — a dedicated runtime, deliberately not the repository's own .venv), pinned in that directory's requirements.txt. `importlib.metadata.version` reports 2.2.0. SMOKE TEST PASSED (P3), and it is a real round trip rather than a function call: a message was enqueued with .send() onto a StubBroker, consumed by an actual dramatiq Worker, and the actor executed and produced the expected value. No network broker involved. LICENCE CORRECTED FROM THE MEASUREMENT: this record previously said `LGPL-3.0` and asked for the variant to be confirmed. It is now confirmed from the installed distribution's own Classifier: `GNU Lesser General Public License v3 or later (LGPLv3+)`, so the licence is LGPL-3.0-or-later. The copyleft caution above stands unchanged. LICENCE DIFFERS FROM ITS PEERS: Dramatiq is LGPLv3, not MIT or BSD like the rest of this category. Weak copyleft — using it as a library from an unmodified distribution is fine, but modifying Dramatiq itself, or static linking, brings obligations that Celery (id 398) and RQ (id 400) do not carry. Like Celery it requires a broker (RabbitMQ id 403 or Redis id 391). P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 400,
+    "name": "RQ",
+    "category": "Queues / events / background work",
+    "category_number": 33,
+    "technology_id": "rq",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "rq",
+    "install_method": "pip",
+    "version": "2.11.0",
+    "license": "BSD-2-Clause",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/rq/rq",
+    "runtime_requirements": [
+      "python3",
+      "redis"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://python-rq.org",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/python-backend/.venv (Python 3.14.7 — a dedicated runtime, deliberately not the repository's own .venv), pinned in that directory's requirements.txt. `importlib.metadata.version` reports 2.11.0. SMOKE TEST PARTIAL (P2, not P3): the package imported and its Queue and Job types resolved, but RQ's characteristic function is enqueuing to Redis and this run may not start one. No connection was attempted. P3 here is blocked by a service dependency, not by the library — that is the honest reason for the cap. LICENCE CORRECTED FROM THE MEASUREMENT: this record previously said BSD-3-Clause from recall. The installed distribution declares License-Expression = BSD-2-Clause. Two clauses, not three — corrected to match the artifact. Redis-only by design — there is no other broker option, so adopting RQ means adopting Redis (id 391) and inheriting its version-dependent licence question, or substituting Valkey (id 392). Simpler than Celery (id 398) and correspondingly less capable: no native workflow primitives beyond dependency chaining. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 401,
+    "name": "BullMQ",
+    "category": "Queues / events / background work",
+    "category_number": 33,
+    "technology_id": "bullmq",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "bullmq",
+    "install_method": "npm",
+    "version": "6.1.2",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/taskforcesh/bullmq",
+    "runtime_requirements": [
+      "node",
+      "redis"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.bullmq.io",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 6.1.2. SMOKE TEST PARTIAL (P2, not P3): the module imported and Queue, Worker, QueueEvents and FlowProducer all resolved as constructors. No Queue was instantiated, deliberately — doing so opens a Redis connection, and no Redis may be started here. Same service-dependency cap as RQ (id 400). Licence confirmed from the installed distribution's own metadata, not from recall: MIT. Requires Redis (id 391) and uses Lua scripting on the server for atomicity, so the Redis licence question at id 391 propagates to any deployment of BullMQ. The successor to Bull (id 402) and the one to pick for new work. Taskforce.sh sells a hosted dashboard separately; MIT covers the library. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 402,
+    "name": "Bull",
+    "category": "Queues / events / background work",
+    "category_number": 33,
+    "technology_id": "bull",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "bull",
+    "install_method": "npm",
+    "version": "4.16.5",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/OptimalBits/bull",
+    "runtime_requirements": [
+      "node",
+      "redis"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 4.16.5. SMOKE TEST PARTIAL (P2, not P3): the module imported and the Queue constructor and its prototype resolved; no instance created, for the same Redis reason as id 401. Install note supporting the maintenance-status point above: npm reported deprecated transitive dependencies in this package's tree (cron-parser@4.9.0, uuid@8.3.2), which BullMQ (id 401) did not. Licence confirmed from the installed distribution's own metadata, not from recall: MIT. The predecessor of BullMQ (id 401) from the same maintainers, in maintenance rather than active development. It is in the inventory as its own item, so it gets its own record, but choosing it for new work needs a reason beyond familiarity. Same Redis dependency and therefore the same inherited licence question from id 391. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 403,
+    "name": "RabbitMQ",
+    "category": "Queues / events / background work",
+    "category_number": 33,
+    "technology_id": "rabbitmq",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "native",
+    "kind": "service",
+    "package": "rabbitmq",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "MPL-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/rabbitmq/rabbitmq-server",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://www.rabbitmq.com/docs",
+    "notes": "INSTALL PASS: nothing installed or started — this is a server and starting one is out of scope for this run. The official image named in `package` remains the reproducible acquisition path, which is what keeps this at P1. Not installed here; `package` names the Docker Official Image. Runs on the Erlang/OTP VM, which is why ecosystem is `native` rather than one of the language ecosystems in the enum — the operational consequence is that a native install pulls in an Erlang runtime you must also patch. MPL-2.0 is file-level weak copyleft: modifications to RabbitMQ's own files must be published, your application is unaffected. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI. RabbitMQ ships a guest/guest account that is restricted to localhost by default; the failure mode is a deployment that widens that restriction without replacing the account."
+  },
+  {
+    "id": 404,
+    "name": "NATS",
+    "category": "Queues / events / background work",
+    "category_number": 33,
+    "technology_id": "nats",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "service",
+    "package": "nats",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/nats-io/nats-server",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.nats.io",
+    "notes": "INSTALL PASS: nothing installed or started — this is a server and starting one is out of scope for this run. The official image named in `package` remains the reproducible acquisition path, which is what keeps this at P1. Not installed here; `package` names the Docker Official Image of nats-server. CNCF project, Apache-2.0, no service restriction. Core NATS is fire-and-forget with no persistence — durability requires enabling JetStream, and a NATS deployment without JetStream has nothing to back up, which changes what the persistence and backup part of the service rule means here. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI."
+  },
+  {
+    "id": 405,
+    "name": "Apache Kafka",
+    "category": "Queues / events / background work",
+    "category_number": 33,
+    "technology_id": "apache-kafka",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "jvm",
+    "kind": "service",
+    "package": "apache/kafka",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/apache/kafka",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://kafka.apache.org/documentation/",
+    "notes": "INSTALL PASS: nothing installed or started — this is a server and starting one is out of scope for this run. The official image named in `package` remains the reproducible acquisition path, which is what keeps this at P1. Not installed here; `package` names the Apache project's own image. Apache-2.0. Note what is and is not covered: the Apache Kafka broker and its bundled clients are Apache-2.0, whereas several widely used surrounding components from vendors (Confluent's Schema Registry and ksqlDB under the Confluent Community License, for example) are not, and are separate records if they enter the design. Modern versions run in KRaft mode without ZooKeeper. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI. Kafka's default listener configuration has no authentication and no TLS; SASL and TLS are opt-in."
+  },
+  {
+    "id": 406,
+    "name": "Redis Streams",
+    "category": "Queues / events / background work",
+    "category_number": 33,
+    "technology_id": "redis-streams",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "service",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": "Version-dependent, identical to Redis (id 391): BSD-3-Clause (<= 7.2.x); RSALv2 or SSPLv1 (7.4.x); RSALv2, SSPLv1 or AGPL-3.0 (>= 8.0)",
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/redis/redis",
+    "runtime_requirements": [
+      "redis"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://redis.io/docs/latest/develop/data-types/streams/",
+    "notes": "INSTALL PASS: nothing to install, as the record already says — it is a feature of the Redis server, and no Redis server was installed or started. Unchanged at P0. NOT A SEPARATE INSTALL. Redis Streams is a data type built into the Redis server (id 391) since Redis 5.0 — there is no package, no image and no process of its own, which is why package is null, install_method is `none` and readiness stops at P0: recording an acquisition path here would double-count Redis's. Obtain it by deploying Redis 5.0 or later and using the XADD / XREADGROUP command family. Everything at id 391 applies unchanged, including the version-dependent licence, which is why this record also carries LICENSE_REVIEW_REQUIRED. Valkey (id 392) implements the same stream commands under BSD-3-Clause and is the way to get this capability without the licence review. Operationally distinct from Kafka (id 405) in one way that decides most designs: stream length is bounded by memory unless trimmed, so retention is a memory-budget decision, not a disk one."
+  },
+  {
+    "id": 407,
+    "name": "Temporal",
+    "category": "Queues / events / background work",
+    "category_number": 33,
+    "technology_id": "temporal",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "service",
+    "package": "temporalio/server",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/temporalio/temporal",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.temporal.io",
+    "notes": "INSTALL PASS: nothing installed or started — this is a server and starting one is out of scope for this run. The official image named in `package` remains the reproducible acquisition path, which is what keeps this at P1. Not installed here; `package` names the project's published server image. MIT for the self-hosted server; Temporal Cloud is a separate commercial service and this record says nothing about it. Not a queue — a durable workflow engine that persists execution history, so it REQUIRES a backing database (Cassandra, PostgreSQL id 386, or MySQL id 390) plus, for visibility search, OpenSearch or Elasticsearch. That dependency is the real cost of adopting it and it must be acquired and hardened separately. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI."
+  },
+  {
+    "id": 408,
+    "name": "APScheduler",
+    "category": "Queues / events / background work",
+    "category_number": 33,
+    "technology_id": "apscheduler",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "APScheduler",
+    "install_method": "pip",
+    "version": "3.11.3",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/agronholm/apscheduler",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://apscheduler.readthedocs.io",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/python-backend/.venv (Python 3.14.7 — a dedicated runtime, deliberately not the repository's own .venv), pinned in that directory's requirements.txt. `importlib.metadata.version` reports 3.11.3. SMOKE TEST PARTIAL (P2, not P3): a BackgroundScheduler was built, a job added on a CronTrigger and retrieved back by id — but the scheduler was never started, so no job ever fired. Firing on schedule is APScheduler's characteristic function, so P3 is not claimed. APScheduler logged `Adding job tentatively -- it will be properly scheduled when the scheduler starts`, which is exactly the boundary being described. Licence confirmed from the installed distribution's own metadata, not from recall: Classifier and License field both say MIT. In-process scheduler, not a distributed queue: with the default memory job store it loses every scheduled job when the process restarts, and running two replicas with a shared persistent job store needs explicit coordination or jobs fire twice. If the requirement is 'exactly once across replicas', this is the wrong tool and Celery beat (id 398) or Temporal (id 407) is the right one. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 409,
+    "name": "WebSocket API",
+    "category": "Real-time / collaboration",
+    "category_number": 34,
+    "technology_id": "websocket-api",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "browser",
+    "kind": "platform-api",
+    "package": null,
+    "install_method": "builtin",
+    "version": null,
+    "license": null,
+    "license_class": "SPECIAL_LICENSE",
+    "official_source": "https://websockets.spec.whatwg.org/",
+    "runtime_requirements": [
+      "browser"
+    ],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "platform-api",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API",
+    "notes": "READINESS SET TO P1, and the reasoning is worth keeping because it is not obvious: there is no artifact to install, so at first reading P1 ('a pinned, reproducible way to obtain it is recorded') looks inapplicable. It is not — for a builtin, the reproducible way to obtain it is to target a browser baseline that ships it, and that is recorded here. Nothing was installed and nothing could be. P2 remains unreachable by definition, since there is no version on this machine to measure; P3 would require a smoke test across a defined browser matrix, which this environment cannot run. A browser platform API: the runtime provides it, so install_method is `builtin`, package is null and there is nothing to acquire — readiness stops at P0 because the P1 rung assumes an artifact to obtain. LICENCE: no software is licensed to you here, which is why license is null and license_class is SPECIAL_LICENSE rather than an SPDX id. The wire protocol is IETF RFC 6455 and the JavaScript API is a WHATWG Living Standard (specification text under CC BY 4.0); the implementation ships inside the browser under the browser vendor's own terms. To earn P3 this would need a smoke test across a defined browser matrix, not a single-browser check. Server side is a separate acquisition — Socket.IO (id 411) or a raw WebSocket server library."
+  },
+  {
+    "id": 410,
+    "name": "WebRTC",
+    "category": "Real-time / collaboration",
+    "category_number": 34,
+    "technology_id": "webrtc",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "browser",
+    "kind": "platform-api",
+    "package": null,
+    "install_method": "builtin",
+    "version": null,
+    "license": null,
+    "license_class": "SPECIAL_LICENSE",
+    "official_source": "https://www.w3.org/TR/webrtc/",
+    "runtime_requirements": [
+      "browser"
+    ],
+    "platform_support": [
+      "browser"
+    ],
+    "readiness": "P1",
+    "production_status": "platform-api",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [
+      "browser"
+    ],
+    "documentation": "https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API",
+    "notes": "READINESS SET TO P1, and the reasoning is worth keeping because it is not obvious: there is no artifact to install, so at first reading P1 ('a pinned, reproducible way to obtain it is recorded') looks inapplicable. It is not — for a builtin, the reproducible way to obtain it is to target a browser baseline that ships it, and that is recorded here. Nothing was installed and nothing could be. P2 remains unreachable by definition, since there is no version on this machine to measure; P3 would require a smoke test across a defined browser matrix, which this environment cannot run. A browser platform API — builtin, nothing to install, package null, readiness P0 for the same reason as id 409. LICENCE: null with SPECIAL_LICENSE because no artifact is licensed to you; the API is a W3C Recommendation under the W3C document licence, the protocols are IETF RFCs, and the libwebrtc reference implementation that browsers embed is BSD-3-Clause — but that implementation is a different artifact from this entry. The honest caveat for planning: a peer-to-peer WebRTC call still needs server infrastructure to work in the real world — STUN always, TURN whenever NAT traversal fails (a large minority of connections), and an SFU such as mediasoup (id 416), Janus (id 417) or LiveKit (id 419) for anything beyond a handful of participants. Those are separate acquisitions and separate services to harden."
+  },
+  {
+    "id": 411,
+    "name": "Socket.IO",
+    "category": "Real-time / collaboration",
+    "category_number": 34,
+    "technology_id": "socket-io",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "socket.io",
+    "install_method": "npm",
+    "version": "4.8.3",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/socketio/socket.io",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://socket.io/docs/v4/",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 4.8.3. SMOKE TEST PARTIAL (P2, not P3): a Server was constructed with no HTTP server attached and its default namespace resolved. socket.io-client 4.8.3 was installed alongside and its io and Manager exports verified. No connection was opened and nothing was bound, so the characteristic function — a client and server exchanging events — was not exercised and P3 is not claimed. Licence confirmed from the installed distribution's own metadata, not from recall: socket.io and socket.io-client both declare MIT. `package` is the server; browsers need socket.io-client separately, and the two must be protocol-compatible — a Socket.IO client cannot talk to a plain WebSocket server, and a plain WebSocket client cannot talk to a Socket.IO server. It is a protocol on top of the WebSocket API (id 409), not a wrapper around it, which buys automatic reconnection, rooms and an HTTP long-polling fallback. Horizontal scaling needs a broadcast adapter, usually backed by Redis (id 391). P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 412,
+    "name": "Yjs",
+    "category": "Real-time / collaboration",
+    "category_number": 34,
+    "technology_id": "yjs",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "yjs",
+    "install_method": "npm",
+    "version": "13.6.32",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/yjs/yjs",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.yjs.dev",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 13.6.32. SMOKE TEST PASSED (P3), and it exercises the thing that actually matters: two independent Y.Docs each inserted text, exchanged state vectors through encodeStateAsUpdate and applyUpdate, and CONVERGED to the same string. That is the CRDT guarantee itself, verified, not an import check. Licence confirmed from the installed distribution's own metadata, not from recall: MIT. A CRDT library, not a server: it makes concurrent edits converge without a central arbiter, but it does not move bytes between peers. That needs a provider — y-websocket for the simple case, Hocuspocus (id 414) for a maintained server with persistence and auth hooks. Yjs keeps document history to resolve merges, so document size grows with edit count unless snapshots are taken; that is the usual production surprise. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 413,
+    "name": "Automerge",
+    "category": "Real-time / collaboration",
+    "category_number": 34,
+    "technology_id": "automerge",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@automerge/automerge",
+    "install_method": "npm",
+    "version": "3.4.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/automerge/automerge",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://automerge.org/docs/",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 3.4.1. SMOKE TEST PASSED (P3): a document was created, cloned, mutated concurrently on both copies, and merged — the merged document retained all three list entries, so no concurrent write was lost. The WebAssembly core loaded correctly under Node v26.0.0, which is the part most likely to fail on a new runtime. Licence confirmed from the installed distribution's own metadata, not from recall: MIT. The alternative CRDT to Yjs (id 412), with a Rust core compiled to WebAssembly — `package` names the JavaScript binding; the Rust crate is `automerge` on crates.io under the same licence. The wasm build affects bundling and any strict Content-Security-Policy that forbids wasm-unsafe-eval. Automerge and Yjs are not interoperable: their document formats differ, so this is a one-way decision. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 414,
+    "name": "Hocuspocus",
+    "category": "Real-time / collaboration",
+    "category_number": 34,
+    "technology_id": "hocuspocus",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "service",
+    "package": "@hocuspocus/server",
+    "install_method": "npm",
+    "version": "4.6.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/ueberdosis/hocuspocus",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "service",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://tiptap.dev/docs/hocuspocus/introduction",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 4.6.0. SMOKE TEST PARTIAL (P2, not P3): a Hocuspocus instance was constructed with its configuration resolved, and .listen() was never called. API note recorded because it cost time here: in 4.6.0 the server is the exported `Hocuspocus` class — `Server.configure()` from older documentation is not a function on this version. Licence confirmed from the installed distribution's own metadata, not from recall: @hocuspocus/server declares MIT. A backend server for Yjs (id 412) documents, distributed as npm packages rather than as a first-party container image — container_support is `native`, meaning you build your own image around the package; do not record `official-image` for it without verifying one exists. From the makers of TipTap; TipTap's own paid Collaboration cloud is a separate commercial product and MIT does not extend to it. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI. Concretely for this service that means: persist documents to a real database rather than the default in-memory store, and implement the onAuthenticate hook — with it unimplemented, any client that can reach the port can open any document. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 415,
+    "name": "Liveblocks alternatives via Yjs/Hocuspocus",
+    "category": "Real-time / collaboration",
+    "category_number": 34,
+    "technology_id": "liveblocks-alternatives-via-yjs-hocuspocus",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "alternative-group",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/yjs/yjs",
+    "runtime_requirements": [],
+    "platform_support": [],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://docs.yjs.dev",
+    "notes": "INSTALL PASS: nothing installed for the group itself, which is correct — a class has no artifact. Both named members WERE installed and smoke tested in the javascript-backend runtime and both passed: Yjs 13.6.32 (id 412, P3) and Hocuspocus 4.6.0 (id 414, P2). Their measured licences are both MIT, taken from the installed package.json files. That is evidence about the members, not about the group, so this record stays at P0 with a null licence. NAMES A CLASS, NOT A PACKAGE — per SCHEMA.md this is an alternative-group: package is null, install_method is `none`, readiness is P0 and production_status is review-required, because nothing here can be shipped until a member is chosen. The class is 'self-hosted replacements for Liveblocks', and the two members the inventory names are Yjs (id 412, MIT) and Hocuspocus (id 414, MIT). LICENCE: null with LICENSE_REVIEW_REQUIRED, because a class has no licence — the licence is whichever member is selected, and recording MIT here would be a claim about unnamed future members too. Liveblocks itself is a commercial hosted product and is NOT what this entry selects; it is the thing being replaced. What the substitution actually costs, and the reason this is a group rather than a drop-in: Liveblocks supplies presence, storage, webhooks and a dashboard as a managed service, whereas Yjs plus Hocuspocus supplies the CRDT and a sync server and leaves persistence, auth, presence UI and operations to you."
+  },
+  {
+    "id": 416,
+    "name": "mediasoup",
+    "category": "Real-time / collaboration",
+    "category_number": 34,
+    "technology_id": "mediasoup",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "mediasoup",
+    "install_method": "npm",
+    "version": null,
+    "license": "ISC",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/versatica/mediasoup",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos"
+    ],
+    "readiness": "P1",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://mediasoup.org/documentation/",
+    "notes": "INSTALL PASS: deliberately NOT installed. mediasoup compiles a native C++ worker at install time, and it sits on the do-not-install list for this run. Stays at P1 on its recorded npm acquisition path. An SFU (selective forwarding unit) delivered as a library you embed in your own Node.js server, not as a standalone service — that is the main difference from LiveKit (id 419), and it means signalling, rooms and auth are entirely your code. Ships a native C++ worker binary per CPU core, so it needs a build toolchain (or prebuilt binaries) at install time and a wide UDP port range open at run time. No native Windows support is claimed here."
+  },
+  {
+    "id": 417,
+    "name": "Janus",
+    "category": "Real-time / collaboration",
+    "category_number": 34,
+    "technology_id": "janus",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "c-cpp",
+    "kind": "service",
+    "package": "janus-gateway",
+    "install_method": "source-build",
+    "version": null,
+    "license": "GPL-3.0-only",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/meetecho/janus-gateway",
+    "runtime_requirements": [],
+    "platform_support": [
+      "linux",
+      "macos"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "community-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://janus.conf.meetecho.com/docs/",
+    "notes": "INSTALL PASS: nothing installed or started — a media server, out of scope for this run. Acquisition path unchanged, readiness stays P1. Not installed here. LICENCE MATTERS MORE THAN USUAL: Janus is GPLv3 (with an OpenSSL linking exception) — strong copyleft, unlike every other WebRTC option in this category (mediasoup ISC id 416, Jitsi Meet Apache-2.0 id 418, LiveKit Apache-2.0 id 419). Distributing a modified Janus, or a product that links it, triggers source obligations; Meetecho sells alternative commercial terms for exactly that case. Acquisition is a source build (or a distro package) — no first-party container image was verified for this record, so container_support is community-image and any third-party image should be inspected before use rather than trusted. General-purpose gateway with pluggable modules rather than a turnkey conferencing product. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI."
+  },
+  {
+    "id": 418,
+    "name": "Jitsi Meet",
+    "category": "Real-time / collaboration",
+    "category_number": 34,
+    "technology_id": "jitsi-meet",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "jvm",
+    "kind": "service",
+    "package": "jitsi/web",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/jitsi/jitsi-meet",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://jitsi.github.io/handbook/",
+    "notes": "INSTALL PASS: nothing installed or started — a media server, out of scope for this run. Acquisition path unchanged, readiness stays P1. Not installed here. A complete conferencing product, not a component: `package` names one of four images the official docker-jitsi-meet compose stack runs — jitsi/web, jitsi/prosody, jitsi/jicofo and jitsi/jvb — so acquiring it means acquiring the stack, and the P1 acquisition path is that compose file, not a single image. ecosystem is `jvm` because the components that carry the load (Jitsi Videobridge and Jicofo) are Java; the web client is JavaScript and the signalling server (Prosody) is Lua. Apache-2.0 throughout — Jitsi relicensed from LGPL years ago. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI. The specific default-credential hazard here is the JWT/auth configuration: an unconfigured deployment allows anonymous room creation by anyone who can reach it."
+  },
+  {
+    "id": 419,
+    "name": "LiveKit Community",
+    "category": "Real-time / collaboration",
+    "category_number": 34,
+    "technology_id": "livekit-community",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "service",
+    "package": "livekit/livekit-server",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/livekit/livekit",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.livekit.io",
+    "notes": "INSTALL PASS: nothing installed or started — a media server, out of scope for this run. Acquisition path unchanged, readiness stays P1. Not installed here; `package` names the project's published server image. Apache-2.0 for the self-hosted server and the SDKs; LiveKit Cloud is a separate commercial service and nothing in this record applies to it. A standalone SFU service with its own signalling, room model and token-based auth — the opposite trade to mediasoup (id 416), which gives you a library and expects you to build all of that. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI. Two specifics for this service: the API key and secret pair signs every access token, so it is a credential that must come from a secret store and never from a config file in the repository; and media needs a wide UDP range plus a TURN path, which is a firewall design decision rather than an afterthought."
+  },
+  {
+    "id": 420,
+    "name": "Auth.js",
+    "category": "Authentication / authorization",
+    "category_number": 35,
+    "technology_id": "auth-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "@auth/core",
+    "install_method": "npm",
+    "version": "0.41.3",
+    "license": "ISC",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/nextauthjs/next-auth",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ],
+    "documentation": "https://authjs.dev",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 0.41.3. SMOKE TEST PARTIAL (P2, not P3): the module imported and its `Auth` export resolved as a function. Authenticating anything needs a configured provider, a request and a session store, so the characteristic function was not exercised and P3 is not claimed — and note that no secret of any kind was created to attempt it. LICENCE CONFIRMED FROM THE ARTIFACT: @auth/core's package.json declares ISC, which verifies the ISC recorded here rather than the MIT that is usually assumed for this package. ISC, not MIT — functionally equivalent permissive terms, but record it accurately. The project is the renamed and framework-agnostic continuation of NextAuth.js; `next-auth` on npm remains the Next.js adapter, and `@auth/core` (named here) is the framework-independent core, with @auth/sveltekit, @auth/express and others on top. It is a library inside your application, not an identity provider — if you need one of those to exist as a service, that is Keycloak (id 421) or Ory Kratos (id 422). Session secrets and OAuth client secrets are credentials and must come from a secret store; a build-time default is the same failure as a default password. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 421,
+    "name": "Keycloak",
+    "category": "Authentication / authorization",
+    "category_number": 35,
+    "technology_id": "keycloak",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "jvm",
+    "kind": "service",
+    "package": "quay.io/keycloak/keycloak",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/keycloak/keycloak",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://www.keycloak.org/documentation",
+    "notes": "INSTALL PASS: nothing installed or started — this is a server, out of scope for this run, and starting it would have meant materialising the exact default credentials this record warns about. Acquisition path unchanged, readiness stays P1. Not installed here; `package` names the project's published image on quay.io. Apache-2.0, CNCF-adjacent and Red Hat-sponsored; Red Hat build of Keycloak is a supported commercial distribution of the same code and does not change these terms. A full OIDC/SAML identity provider — the heaviest option in this category and the right one when you need federation, user federation to LDAP, or standards compliance rather than a login form. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI. The default-credential rule is not theoretical here: the container's documented quickstart sets KEYCLOAK_ADMIN/KEYCLOAK_ADMIN_PASSWORD to admin/admin, and Keycloak's start-dev mode also disables TLS and uses an ephemeral in-memory database. Neither belongs anywhere but a throwaway local run."
+  },
+  {
+    "id": 422,
+    "name": "Ory Kratos",
+    "category": "Authentication / authorization",
+    "category_number": 35,
+    "technology_id": "ory-kratos",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "service",
+    "package": "oryd/kratos",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/ory/kratos",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://www.ory.sh/docs/kratos",
+    "notes": "INSTALL PASS: nothing installed or started — this is a server, out of scope for this run, and starting it would have meant materialising the exact default credentials this record warns about. Acquisition path unchanged, readiness stays P1. Not installed here; `package` names the project's published image. Apache-2.0; Ory Network is a separate commercial hosted offering. Identity and user management (registration, login, recovery, MFA) with a deliberate omission: Kratos has NO user interface — you must build and host the self-service UI yourself, and underestimating that is the usual reason adoption stalls. Pairs with Keto (id 423) for permissions; the two are separate services and separate acquisitions. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI. Its cookie and cipher secrets are credentials: rotating them invalidates sessions, so the rotation path needs designing before launch, not after."
+  },
+  {
+    "id": 423,
+    "name": "Ory Keto",
+    "category": "Authentication / authorization",
+    "category_number": 35,
+    "technology_id": "ory-keto",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "service",
+    "package": "oryd/keto",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/ory/keto",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://www.ory.sh/docs/keto",
+    "notes": "INSTALL PASS: nothing installed or started — this is a server, out of scope for this run, and starting it would have meant materialising the exact default credentials this record warns about. Acquisition path unchanged, readiness stays P1. Not installed here; `package` names the project's published image. Apache-2.0. An implementation of Google's Zanzibar relationship-based access control model — it answers 'may this subject do this to this object' from stored relation tuples, which is a different model from Casbin's (id 425) policy matching and from Oso's (id 426) policy language. Its closest peer is OpenFGA (id 424), also Zanzibar-derived. Authorization only: it holds no identities, so it needs Kratos (id 422) or another identity source beside it. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI."
+  },
+  {
+    "id": 424,
+    "name": "OpenFGA",
+    "category": "Authentication / authorization",
+    "category_number": 35,
+    "technology_id": "openfga",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "service",
+    "package": "openfga/openfga",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/openfga/openfga",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://openfga.dev/docs",
+    "notes": "INSTALL PASS: nothing installed or started — this is a server, out of scope for this run, and starting it would have meant materialising the exact default credentials this record warns about. Acquisition path unchanged, readiness stays P1. Not installed here; `package` names the project's published image. Apache-2.0, a CNCF project originating from Auth0/Okta's fine-grained authorization work. Zanzibar-derived like Ory Keto (id 423) — choosing between them is a support-and-ecosystem decision more than a model one. Requires a backing datastore (PostgreSQL id 386 or MySQL id 390) in any real deployment; the in-memory store is for experiments and loses every tuple on restart. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI. An authorization service is on the request path for everything: its latency budget and its availability target are those of the services that call it, not of a background component."
+  },
+  {
+    "id": 425,
+    "name": "Casbin",
+    "category": "Authentication / authorization",
+    "category_number": 35,
+    "technology_id": "casbin",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "library",
+    "package": "github.com/casbin/casbin/v2",
+    "install_method": "go",
+    "version": "1.43.0",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/casbin/casbin",
+    "runtime_requirements": [
+      "go"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://casbin.org/docs/overview",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/python-backend/.venv (Python 3.14.7 — a dedicated runtime, deliberately not the repository's own .venv), pinned in that directory's requirements.txt. `importlib.metadata.version` reports 1.43.0. SMOKE TEST PASSED (P3), and both directions were asserted, which matters for an authorization engine: a model and a policy granting alice read on data1 were loaded into an Enforcer, which then returned True for (alice, data1, read) AND False for (bob, data1, read). A policy engine that only ever returns True passes a one-sided test, so the deny case is the half worth keeping. Licence confirmed from the installed distribution's own metadata, not from recall: License field = Apache 2.0. Not installed here; no Go toolchain was measured for this record. An in-process authorization library, not a service — no port, no deployment of its own, which is the trade against Keto (id 423) and OpenFGA (id 424): lower latency and one less thing to run, at the cost of every replica needing the policy and of policy changes having to propagate. `package` names the Go module; the same project ships pycasbin (PyPI `casbin`) and node-casbin (npm `casbin`) under the same Apache-2.0 licence. Its model/policy split (PERM metamodel) is genuinely flexible and genuinely easy to get subtly wrong — a policy file needs the same review as code. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 426,
+    "name": "Oso",
+    "category": "Authentication / authorization",
+    "category_number": 35,
+    "technology_id": "oso",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "library",
+    "package": "oso",
+    "install_method": "pip",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/osohq/oso",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P0",
+    "production_status": "available",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://www.osohq.com/docs",
+    "notes": "READINESS DOWNGRADED P1 -> P0 ON MEASURED EVIDENCE, and this is the most consequential finding in this range. `pip install oso` FAILED in the python-backend runtime with the exact error: `ERROR: Could not find a version that satisfies the requirement oso (from versions: none)` followed by `ERROR: No matching distribution found for oso`. `pip index versions oso` and `pip download oso --no-deps` both reproduce it. 'from versions: none' means no distribution was offered for this interpreter at all. P1 asserts that a reproducible way to OBTAIN the technology is recorded; the recorded way was tried and it does not work, so P1 is not earned and the honest level is P0. This is independent evidence for the concern already stated above — the open-source library is no longer the artifact the vendor maintains — and it turns that from a licensing caution into a blocking acquisition failure. Anyone planning on Oso should settle the Oso Cloud question first, because the library route did not install here. FLAGGED, and the flag is about which artifact `Oso` now means rather than about the licence text. The open-source library at osohq/oso — the embedded policy engine with the Polar language — is Apache-2.0, and that is the licence recorded. But the vendor's active product is Oso Cloud, a commercial hosted authorization service, and the open-source library was moved to maintenance status; documentation at osohq.com now leads with the commercial product. So license_class is LICENSE_REVIEW_REQUIRED: settle WHICH Oso is being adopted, then read the licence on that artifact. If it is the library, note also that a maintenance-status dependency on the authorization path is a support risk independent of licensing. `package` names the Python binding; the engine core is Rust with Node, Go, Java and Ruby bindings. Not installed here."
+  },
+  {
+    "id": 427,
+    "name": "Lucia alternatives",
+    "category": "Authentication / authorization",
+    "category_number": 35,
+    "technology_id": "lucia-alternatives",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "alternative-group",
+    "package": null,
+    "install_method": "none",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/lucia-auth/lucia",
+    "runtime_requirements": [],
+    "platform_support": [],
+    "readiness": "P0",
+    "production_status": "review-required",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "not-applicable",
+    "deployment_support": [],
+    "documentation": "https://lucia-auth.com",
+    "notes": "INSTALL PASS: nothing installed for the group, correctly. Two candidate members were installed and measured in the javascript-backend runtime — Better Auth 1.7.1 (id 429) and Auth.js @auth/core 0.41.3 (id 420), MIT and ISC respectively from their own package.json files. Evidence about members is not evidence about the class, so this stays P0 with a null licence. NAMES A CLASS, NOT A PACKAGE — alternative-group per SCHEMA.md: package null, install_method `none`, readiness P0, production_status review-required, because nothing ships until a member is chosen. LICENCE: null with LICENSE_REVIEW_REQUIRED, since a class has no licence and the members have different ones. Why this entry reads as it does: Lucia, the session-management library, was deprecated by its author, who converted the project into a learning resource on implementing sessions yourself rather than continuing to maintain a dependency — so the inventory names the replacement class, not the library. Candidate members already in this registry are Better Auth (id 429, MIT), Auth.js (id 420, ISC) and, if a service rather than a library is acceptable, Ory Kratos (id 422) or Keycloak (id 421); the remaining member is the one Lucia now documents, which is hand-rolled session handling with no dependency at all. Selecting that last option means owning session fixation, rotation and revocation yourself — a real cost, and the honest reason not to treat this group as a drop-in swap."
+  },
+  {
+    "id": 428,
+    "name": "Passport.js",
+    "category": "Authentication / authorization",
+    "category_number": 35,
+    "technology_id": "passport-js",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "passport",
+    "install_method": "npm",
+    "version": "0.7.0",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/jaredhanson/passport",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ],
+    "documentation": "https://www.passportjs.org/docs/",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 0.7.0. SMOKE TEST PARTIAL (P2, not P3): a Passport instance was created, a minimal custom strategy registered under a name, and authenticate() returned a middleware function — so the strategy registry works. No request was actually authenticated and no real strategy package was installed, which is deliberate: the point made above is that each strategy is its own supply-chain decision, and pulling one in to reach P3 would have made that decision by accident. Licence confirmed from the installed distribution's own metadata, not from recall: MIT. Authentication middleware for Express (id 371) and compatible frameworks. The core package does almost nothing on its own: each mechanism is a separate strategy package (passport-local, passport-jwt, passport-google-oauth20 and several hundred others) with its own maintainer, its own licence and its own maintenance status. MIT applies to `passport` itself; every strategy you add is a separate supply-chain and licence decision, and that — not the core library — is where the risk in a Passport deployment actually sits. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 429,
+    "name": "Better Auth",
+    "category": "Authentication / authorization",
+    "category_number": 35,
+    "technology_id": "better-auth",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "library",
+    "package": "better-auth",
+    "install_method": "npm",
+    "version": "1.7.1",
+    "license": "MIT",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/better-auth/better-auth",
+    "runtime_requirements": [
+      "node"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P2",
+    "production_status": "available",
+    "verification_status": "version-measured",
+    "security_status": "unscanned",
+    "container_support": "native",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes",
+      "serverless"
+    ],
+    "documentation": "https://www.better-auth.com/docs",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/javascript-backend, installed with `npm install --save-exact` so package.json is itself the pinned acquisition record, and executed on the Node.js v26.0.0 measured at id 370. package.json pins 1.7.1. SMOKE TEST PARTIAL (P2, not P3): the module imported and its betterAuth export resolved as a function. Instantiating it requires a database and would generate schema, which is the constraint already recorded above and the reason P3 was not pursued here. Licence confirmed from the installed distribution's own metadata, not from recall: MIT. A framework-agnostic TypeScript auth library that owns its own database schema (users, sessions, accounts) and generates migrations for it — which is the practical difference from Auth.js (id 420), and the practical constraint: adopting it is a schema decision, not just a dependency. One of the named candidates for the class at id 427. Younger than its alternatives here; weigh that against the ergonomics before putting it on the login path. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 430,
+    "name": "OpenTelemetry",
+    "category": "Observability / measurement",
+    "category_number": 36,
+    "technology_id": "opentelemetry",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "native",
+    "kind": "framework",
+    "package": "opentelemetry-sdk",
+    "install_method": "pip",
+    "version": "1.44.0",
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/open-telemetry",
+    "runtime_requirements": [
+      "python3"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P3",
+    "production_status": "available",
+    "verification_status": "smoke-tested",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://opentelemetry.io/docs/",
+    "notes": "MEASURED AND INSTALLED: present in technology-universe/runtimes/python-backend/.venv (Python 3.14.7 — a dedicated runtime, deliberately not the repository's own .venv), pinned in that directory's requirements.txt. `importlib.metadata.version` reports 1.44.0. SMOKE TEST PASSED (P3), end to end through the SDK's real pipeline: a TracerProvider with a SimpleSpanProcessor and an InMemorySpanExporter was configured, a span started and ended, and exactly one finished span was recovered from the exporter. That is instrumentation actually producing telemetry, not an import. opentelemetry-api 1.44.0 installed alongside; nothing was exported over the network and no collector was started. Licence confirmed from the installed distribution's own metadata, not from recall: License-Expression = Apache-2.0. Not installed here — no opentelemetry distribution in the virtualenv — so version is null. One CNCF project with one licence (Apache-2.0) and many artifacts: `package` names the Python SDK because this repository's application stack is Python, and the equivalents are @opentelemetry/sdk-node on npm, go.opentelemetry.io/otel for Go, and the Collector, which ships as the otel/opentelemetry-collector-contrib image (hence container_support official-image). The reason it belongs at the head of this category: OTLP is the vendor-neutral wire format that lets Prometheus (431), Loki (433), Tempo (434), Jaeger (435) and Sentry (437) be swapped without re-instrumenting the application. Instrument once against OpenTelemetry, route in the Collector. P3 rule applied throughout this range: P3 is claimed only where the artifact performed its characteristic function and the result was asserted. Import-only, config-object-only or export-presence checks stop at P2."
+  },
+  {
+    "id": 431,
+    "name": "Prometheus",
+    "category": "Observability / measurement",
+    "category_number": 36,
+    "technology_id": "prometheus",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "service",
+    "package": "prom/prometheus",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/prometheus/prometheus",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://prometheus.io/docs/",
+    "notes": "INSTALL PASS: the Prometheus SERVER was not installed or started, so this record stays at P1 on its image acquisition path. The Python instrumentation client WAS installed and SMOKE TESTED in the python-backend runtime: prometheus-client 0.26.0 — a Counter was registered against a private CollectorRegistry, incremented, and the expected `smoke_total 1.0` found in generate_latest() output. Its metadata declares License-Expression = `Apache-2.0 AND BSD-2-Clause`, a compound expression worth noting: the client is not under a single licence. Instrumenting an application is not the same as running the server that scrapes it, and only the former was verified. Not installed here; `package` names the project's published image. Apache-2.0, CNCF graduated. Pull-based metrics with local storage: local storage is explicitly not durable long-term storage, so the persistence part of the service rule means either accepting a bounded retention window or adding remote-write to something that is durable — VictoriaMetrics (id 439), Thanos or Mimir. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI. Prometheus ships with NO authentication on its HTTP API by default and its admin API can delete series; put it behind an authenticating proxy rather than assuming the network is private."
+  },
+  {
+    "id": 432,
+    "name": "Grafana",
+    "category": "Observability / measurement",
+    "category_number": 36,
+    "technology_id": "grafana",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "service",
+    "package": "grafana/grafana",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "AGPL-3.0-only",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/grafana/grafana",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://grafana.com/docs/grafana/latest/",
+    "notes": "INSTALL PASS: nothing installed or started — this is a server, out of scope for this run. The image reference in `package` remains the reproducible acquisition path and readiness stays P1. Not installed here; `package` names the project's published image. LICENCE — READ BEFORE ASSUMING: Grafana was Apache-2.0 until 2021 and is now AGPLv3. AGPL is OSI-approved open source, so license_class is OPEN_SOURCE, but it is the strongest copyleft in this registry: modifying Grafana and offering it over a network obliges you to make your modified source available to those users. Running an unmodified Grafana internally is unaffected. Embedding a modified Grafana in a product you offer to others is a legal decision, not a technical one. The same 2021 relicensing covers Loki (id 433) and Tempo (id 434); Grafana Enterprise is a separate commercial product. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI. Its documented default login is admin/admin and it prompts for a change on first login — a prompt is not a control, so set GF_SECURITY_ADMIN_PASSWORD from a secret store at deploy time."
+  },
+  {
+    "id": 433,
+    "name": "Loki",
+    "category": "Observability / measurement",
+    "category_number": 36,
+    "technology_id": "loki",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "service",
+    "package": "grafana/loki",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "AGPL-3.0-only",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/grafana/loki",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://grafana.com/docs/loki/latest/",
+    "notes": "INSTALL PASS: nothing installed or started — this is a server, out of scope for this run. The image reference in `package` remains the reproducible acquisition path and readiness stays P1. Not installed here; `package` names the project's published image. AGPLv3 since Grafana Labs' 2021 relicensing — same terms and the same reasoning as id 432. Indexes only labels, not log content, which is what makes it cheap and what makes high-cardinality labels the standard way to destroy a Loki cluster. Real deployments store chunks in object storage, so the persistence and backup part of the service rule is a bucket policy and lifecycle rule, not a volume. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI."
+  },
+  {
+    "id": 434,
+    "name": "Tempo",
+    "category": "Observability / measurement",
+    "category_number": 36,
+    "technology_id": "tempo",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "service",
+    "package": "grafana/tempo",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "AGPL-3.0-only",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/grafana/tempo",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://grafana.com/docs/tempo/latest/",
+    "notes": "INSTALL PASS: nothing installed or started — this is a server, out of scope for this run. The image reference in `package` remains the reproducible acquisition path and readiness stays P1. Not installed here; `package` names the project's published image. AGPLv3, same 2021 relicensing as ids 432 and 433. Distributed tracing backend that accepts OTLP (id 430) among other protocols and stores traces in object storage with no index beyond trace ID — finding a trace therefore usually starts from a log or metric exemplar, which is why it is deployed beside Loki (433) and Prometheus (431) rather than instead of them. Overlaps Jaeger (id 435) in purpose; pick one backend. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI."
+  },
+  {
+    "id": 435,
+    "name": "Jaeger",
+    "category": "Observability / measurement",
+    "category_number": 36,
+    "technology_id": "jaeger",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "service",
+    "package": "jaegertracing/jaeger",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/jaegertracing/jaeger",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://www.jaegertracing.io/docs/",
+    "notes": "INSTALL PASS: nothing installed or started — this is a server, out of scope for this run. The image reference in `package` remains the reproducible acquisition path and readiness stays P1. Not installed here. Apache-2.0, CNCF graduated — the permissive alternative to Tempo (id 434), which is AGPL, and that licence difference is often the deciding factor between them. ACQUISITION CAVEAT: image naming changed across major versions — Jaeger v2 is distributed as jaegertracing/jaeger, while v1 used jaegertracing/all-in-one plus separate collector and query images. `package` records the v2 name; confirm it against the release notes for the tag you pin. Do not run the all-in-one image in production under any version: it stores traces in memory and loses them on restart. Storage is Cassandra, Elasticsearch or OpenSearch. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI."
+  },
+  {
+    "id": 436,
+    "name": "OpenSearch Dashboards",
+    "category": "Observability / measurement",
+    "category_number": 36,
+    "technology_id": "opensearch-dashboards",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "javascript",
+    "kind": "service",
+    "package": "opensearchproject/opensearch-dashboards",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/opensearch-project/OpenSearch-Dashboards",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.opensearch.org/docs/latest/dashboards/",
+    "notes": "INSTALL PASS: nothing installed or started — this is a server, out of scope for this run. The image reference in `package` remains the reproducible acquisition path and readiness stays P1. Not installed here; `package` names the project's published image. Apache-2.0 — the fork of Kibana taken at 7.10.2, before Elastic's move to SSPL/Elastic License, and now under the Linux Foundation. That licence history is the point of the fork and the reason it is here rather than Kibana. A visualisation front end with NO datastore of its own: it is useless without OpenSearch (id 355), so acquiring this is acquiring both. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI. Its own specifics: the security plugin ships documented demo users (admin and others) with published passwords, and the demo TLS certificates are self-signed and public. Both must be replaced before anything reachable by anyone else."
+  },
+  {
+    "id": 437,
+    "name": "Sentry self-hosted",
+    "category": "Observability / measurement",
+    "category_number": 36,
+    "technology_id": "sentry-self-hosted",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "container",
+    "kind": "service",
+    "package": "getsentry/sentry",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Functional Source License 1.1 with Apache-2.0 future grant (FSL-1.1-Apache-2.0)",
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://github.com/getsentry/self-hosted",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://develop.sentry.dev/self-hosted/",
+    "notes": "INSTALL PASS: nothing installed or started, and for this id that is doubly deliberate — the self-hosted stack is roughly twenty containers and its licence is the open question flagged above. Nothing in this run resolves that flag; it still needs a human to read the LICENSE at a pinned tag. INSTALL PASS: nothing installed or started — this is a server, out of scope for this run. The image reference in `package` remains the reproducible acquisition path and readiness stays P1. FLAGGED FOR REVIEW, as instructed, and the reason is that three different licences hide behind the one word 'Sentry'. (1) The Sentry server code (getsentry/sentry) is under the Functional Source License — FSL-1.1-Apache-2.0 — adopted in late 2023 after a period under the Business Source License. FSL is source-available, NOT OSI-approved: it permits use, modification and redistribution except for a competing offering, and each release converts to Apache-2.0 two years after publication. (2) The self-hosted DISTRIBUTION at getsentry/self-hosted — the install script and compose stack this entry actually names — carries its own terms, which are not automatically the same as the server's. (3) The client SDKs (sentry-python, sentry-javascript) are MIT and are a different thing again; an MIT SDK says nothing about the server you point it at. Settle which of the three you are adopting, read that repository's LICENSE at the tag you pin, and only then assign a class. Also weigh the operational cost: the self-hosted stack is roughly twenty containers (Postgres, Redis, Kafka, ClickHouse, Snuba, Relay and more), so it is a platform, not a service. GlitchTip (id 438) exists as a lighter API-compatible alternative. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI."
+  },
+  {
+    "id": 438,
+    "name": "GlitchTip",
+    "category": "Observability / measurement",
+    "category_number": 36,
+    "technology_id": "glitchtip",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "python",
+    "kind": "service",
+    "package": "glitchtip/glitchtip",
+    "install_method": "oci-image",
+    "version": null,
+    "license": null,
+    "license_class": "LICENSE_REVIEW_REQUIRED",
+    "official_source": "https://gitlab.com/glitchtip/glitchtip-backend",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://glitchtip.com/documentation",
+    "notes": "INSTALL PASS: nothing installed or started. The licence remains UNDETERMINED — this run produced no new evidence about it, because nothing was fetched from the GlitchTip repository. It stays null with LICENSE_REVIEW_REQUIRED, which is the accurate state, not a placeholder. INSTALL PASS: nothing installed or started — this is a server, out of scope for this run. The image reference in `package` remains the reproducible acquisition path and readiness stays P1. LICENCE NOT DETERMINED HERE — license is null and license_class is LICENSE_REVIEW_REQUIRED for that reason, not because the terms are known to be complicated. GlitchTip is a Sentry-API-compatible error tracker whose lineage includes code from Sentry's earlier releases, and Sentry's own terms moved from BSD to BSL to FSL over that period (see id 437). Which licence the current GlitchTip carries, and how it treats that inherited code, was NOT verified in this environment, and guessing MIT because that is the common answer for a project of this shape would be exactly the invented fact this registry is built to avoid. Resolve it by reading the LICENSE file in gitlab.com/glitchtip/glitchtip-backend at the tag you intend to pin. Everything else about the record stands: it is a self-hosted service, dramatically lighter than Sentry self-hosted (Django plus PostgreSQL plus Redis rather than a twenty-container stack), and it accepts existing Sentry SDKs unchanged, which is what makes it a genuine alternative rather than a migration. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI."
+  },
+  {
+    "id": 439,
+    "name": "VictoriaMetrics",
+    "category": "Observability / measurement",
+    "category_number": 36,
+    "technology_id": "victoriametrics",
+    "canonical": true,
+    "canonical_id": null,
+    "ecosystem": "go",
+    "kind": "service",
+    "package": "victoriametrics/victoria-metrics",
+    "install_method": "oci-image",
+    "version": null,
+    "license": "Apache-2.0",
+    "license_class": "OPEN_SOURCE",
+    "official_source": "https://github.com/VictoriaMetrics/VictoriaMetrics",
+    "runtime_requirements": [
+      "container-runtime"
+    ],
+    "platform_support": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "readiness": "P1",
+    "production_status": "service",
+    "verification_status": "unverified",
+    "security_status": "unscanned",
+    "container_support": "official-image",
+    "deployment_support": [
+      "local",
+      "docker",
+      "compose",
+      "kubernetes"
+    ],
+    "documentation": "https://docs.victoriametrics.com",
+    "notes": "INSTALL PASS: nothing installed or started — this is a server, out of scope for this run. The image reference in `package` remains the reproducible acquisition path and readiness stays P1. Not installed here; `package` names the project's published single-node image. Apache-2.0 for the open-source single-node and cluster components. LICENCE BOUNDARY WORTH RECORDING: VictoriaMetrics Enterprise is a separate commercially licensed product, and several features people expect to find — downsampling, multi-tenant access control, vmbackupmanager — live there rather than in the Apache-2.0 build. Verify that the specific feature you are planning around is in the open-source component before treating this as a free swap. Drop-in Prometheus (id 431) remote-write target and PromQL-compatible query API, which is the usual reason to reach for it: durable long-term storage behind Prometheus's non-durable local one. Service hardening (spec 15 and 22): needs a health check wired to the orchestrator, persistence on a durable volume, a backup that has been restored at least once, and credentials supplied from a secret store. MUST NEVER be run with default credentials, in any environment, including local and CI."
+  }
+]

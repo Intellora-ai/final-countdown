@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -929,12 +930,56 @@ def test_attack_continue_on_error_on_codeql_is_caught(sandbox: Path) -> None:
     assert "continue-on-error" in result.stdout
 
 
+# `github.event.<path>` is the attacker-controlled payload — issue titles, PR
+# bodies, branch names — and `github.head_ref` is attacker-chosen text. Both
+# belong in this pattern. `github.event_name` does not: it is a GitHub-set enum
+# from a closed set (`push`, `pull_request`, `schedule`, …) with no attacker
+# input anywhere in it.
+#
+# The earlier pattern was `github\.(event|head_ref)`, which matched
+# `github.event_name` because `event` prefixes it. That is a false positive, and
+# false positives are how a security gate gets switched off: the first person to
+# hit one has to choose between a legitimate change and a red build, and the
+# gate loses that argument eventually. Requiring the dot makes the pattern say
+# what its docstring already said.
+_UNTRUSTED_INTERPOLATION = re.compile(r"\$\{\{\s*github\.(event\.|head_ref)")
+
+
 def test_codeql_workflow_has_no_untrusted_interpolation(sandbox: Path) -> None:
     """A workflow that interpolates event text into a shell is the injection
     class CodeQL's `actions` pack exists to find. Not in our own file."""
-    import re
     text = (sandbox / CODEQL).read_text(encoding="utf-8")
-    assert not re.search(r"\$\{\{\s*github\.(event|head_ref)", text)
+    assert not _UNTRUSTED_INTERPOLATION.search(text)
+
+
+@pytest.mark.parametrize("dangerous", [
+    "run: echo ${{ github.event.issue.title }}",
+    "run: echo ${{ github.event.pull_request.body }}",
+    "run: echo ${{ github.event.comment.body }}",
+    "run: echo ${{ github.event.head_commit.message }}",
+    "ref: refs/heads/${{ github.head_ref }}",
+    "run: echo ${{  github.event.issue.title  }}",          # extra whitespace
+])
+def test_the_injection_shapes_still_fire(dangerous: str) -> None:
+    """The narrowing above must not have bought quiet by going blind.
+
+    Every one of these is real attacker-controlled text reaching a workflow.
+    If a change to the pattern ever stops one of them matching, that change
+    weakened a security check rather than corrected it, and this goes red.
+    """
+    assert _UNTRUSTED_INTERPOLATION.search(dangerous), (
+        f"injection shape no longer detected: {dangerous}")
+
+
+@pytest.mark.parametrize("safe", [
+    "cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
+    "group: ${{ github.workflow }}-${{ github.ref }}",
+    "if: ${{ github.repository == 'Intellora-ai/final-countdown' }}",
+])
+def test_github_set_values_are_not_flagged(safe: str) -> None:
+    """The values GitHub sets itself carry no attacker input and must pass."""
+    assert not _UNTRUSTED_INTERPOLATION.search(safe), (
+        f"false positive on a GitHub-set value: {safe}")
 
 
 def test_scanner_role_is_exempt_only_from_the_artifact_check(sandbox: Path) -> None:

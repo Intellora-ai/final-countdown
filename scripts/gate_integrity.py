@@ -74,7 +74,7 @@ def steps_of(job: dict[str, Any]) -> list[dict[str, Any]]:
 # execution" failure this checker exists to catch. An allowlist rather than a
 # denylist of printers, because an unknown launcher must fail closed.
 LAUNCHERS = {"python", "python3", "bash", "sh", "pytest", "pyright", "bandit",
-             "coverage", "mutmut"}
+             "coverage", "mutmut", "npm", "npx"}
 
 
 def executes(run: str, token: str) -> bool:

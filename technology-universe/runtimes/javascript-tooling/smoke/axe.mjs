@@ -1,0 +1,12 @@
+import puppeteer from 'puppeteer';
+import { createRequire } from 'node:module';
+import fs from 'node:fs';
+const require = createRequire(import.meta.url);
+const axePath = require.resolve('axe-core/axe.min.js');
+const b = await puppeteer.launch({headless:true});
+const p = await b.newPage();
+await p.setContent('<html lang="en"><head><title>t</title></head><body><img src="x.png"></body></html>');
+await p.addScriptTag({content: fs.readFileSync(axePath,'utf8')});
+const r = await p.evaluate(async () => await window.axe.run());
+console.log('AXE ok version=', r.testEngine.version, 'violations=', r.violations.length, 'ids=', r.violations.map(v=>v.id).join(','));
+await b.close();

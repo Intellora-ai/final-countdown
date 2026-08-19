@@ -13,7 +13,11 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-      - run: pip install --quiet axiom-axle pytest hypothesis
+      # PyYAML is not optional here: the adversarial tests run
+      # gate_integrity.py, which parses workflow YAML. A hand-listed
+      # subset drifts from requirements.txt every time a verifier gains
+      # a dependency — that is exactly how this job broke.
+      - run: pip install --quiet axiom-axle pytest hypothesis PyYAML
       - name: Spec strength gate
         run: python3 scripts/enforce_spec.py specs/*_spec.lean
       - name: AXLE proof gate

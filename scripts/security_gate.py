@@ -56,7 +56,14 @@ def check_not_a_secret(path: str, line_no: int) -> tuple[bool, str]:
     hits = [lit for lit in STATUS_LITERALS if f'"{lit}"' in line]
     if not hits:
         return False, "flagged string is not a known status literal"
-    return True, f"status constant {hits[0]!r}, not a credential; no secret material"
+    # The literal itself is deliberately NOT echoed. CodeQL flagged this as
+    # py/clear-text-logging-sensitive-data (high) and it was right: B105 fires
+    # on candidate credentials, so quoting the matched value would print a real
+    # secret into the logs of a public repository the one time it mattered.
+    # Naming which known status constant matched carries the same information
+    # without the value.
+    return True, ("matched a declared status constant, not a credential; "
+                  "value withheld from logs")
 
 
 def check_no_sql(path: str, line_no: int) -> tuple[bool, str]:
@@ -82,7 +89,9 @@ ELIGIBLE = {("B404", "scripts/proof_gate.py"), ("B603", "scripts/proof_gate.py")
             ("B404", "scripts/axle_gate.py"), ("B603", "scripts/axle_gate.py"),
             ("B404", "scripts/check_ruleset.py"), ("B603", "scripts/check_ruleset.py"),
             ("B404", "scripts/correspondence_gate.py"),
-            ("B603", "scripts/correspondence_gate.py")}
+            ("B603", "scripts/correspondence_gate.py"),
+            ("B404", "scripts/ruleset_admin.py"),
+            ("B603", "scripts/ruleset_admin.py")}
 
 
 def check_subprocess_safety(path: str) -> tuple[bool, str]:
@@ -189,8 +198,12 @@ def main(targets: Sequence[str]) -> int:
         print(f"  verified exception  {test_id} {path}")
         print(f"      {evidence}")
     for f in unresolved:
-        print(f"  UNRESOLVED  {f['test_id']} {f['filename'].lstrip('./')}:{f['line_number']}"
-              f"  {f.get('_reason', f['issue_text'][:80])}")
+        # bandit's `issue_text` embeds the matched source literal — for B105
+        # that IS the candidate credential. Print the rule id and location; the
+        # reader opens the file. Same reason as check_not_a_secret above.
+        detail = f.get("_reason") or str(f.get("test_name") or f["test_id"])
+        print(f"  UNRESOLVED  {f['test_id']} {f['filename'].lstrip('./')}"
+              f":{f['line_number']}  {detail}")
 
     if unresolved:
         print(f"\n  FAIL — {len(unresolved)} finding(s) not covered by a verified safe pattern")

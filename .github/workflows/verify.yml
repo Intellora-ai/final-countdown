@@ -44,7 +44,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: {python-version: '3.12'}
+        with: {python-version: '3.12', cache: pip}
+      # gate_integrity.py parses workflow YAML rather than searching it, so it
+      # needs a YAML parser. Only that: preflight must stay fast, and it must
+      # not depend on the toolchain it is checking.
+      - run: pip install --quiet PyYAML
       - name: Gate integrity
         run: python3 scripts/gate_integrity.py
       - name: Upload evidence

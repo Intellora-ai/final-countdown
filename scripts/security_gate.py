@@ -14,8 +14,11 @@ An exception is granted only when ALL of these hold at the call site:
   1. shell=False  (never shell=True, explicit or defaulted)
   2. argv is a list literal, not a joined or interpolated string
   3. argv[0] is an absolute path the process resolved itself — either a variable
-     assigned from shutil.which, or sys.executable (the running interpreter).
-     A bare name like "axle" is rejected: PATH decides what runs.
+     EVERY binding of which comes from shutil.which, or sys.executable (the
+     running interpreter). A bare name like "axle" is rejected: PATH decides
+     what runs. "Every binding", not "some binding": a name bound once from
+     shutil.which and then reassigned holds whatever it was reassigned to, and
+     an exception granted on the first binding is an exception nobody checked.
   4. a timeout is passed
 
 If proof_gate.py is ever edited so one of these stops holding, the exception
@@ -29,7 +32,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Any, cast
 
 # (test_id, file) pairs eligible for verification. Eligibility is not approval:
@@ -109,36 +112,208 @@ ELIGIBLE = {("B404", "scripts/proof_gate.py"), ("B603", "scripts/proof_gate.py")
             ("B603", "scripts/ci_metrics.py")}
 
 
+def target_names(node: ast.expr | None) -> list[str]:
+    """Every plain name a binding target binds, unpacking tuples and stars."""
+    if isinstance(node, ast.Name):
+        return [node.id]
+    if isinstance(node, ast.Starred):
+        return target_names(node.value)
+    if isinstance(node, ast.Tuple | ast.List):
+        return [n for e in node.elts for n in target_names(e)]
+    return []
+
+
+# A name means different things in different functions, so the analysis has
+# to be scoped. scripts/generate_evidence.py is the proof: `_git()` binds a
+# local `git` from shutil.which, and `main()` binds an unrelated local `git`
+# from `git_facts(...)`. Module-wide, one name looks like two conflicting
+# bindings and the legitimate exception evaporates — a false positive on the
+# repository's own source, which is how a security gate gets switched off.
+SCOPES = (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda,
+          ast.ClassDef)
+
+Bindings = dict[int, dict[str, list[ast.expr | None]]]
+
+
+def enclosing_scopes(tree: ast.AST) -> tuple[dict[int, ast.AST],
+                                             dict[int, ast.AST | None]]:
+    """(scope each node belongs to, parent of each scope).
+
+    A function node itself belongs to the scope AROUND it — that is where its
+    name is bound — while everything inside it belongs to the function.
+    """
+    owner: dict[int, ast.AST] = {id(tree): tree}
+    parent: dict[int, ast.AST | None] = {id(tree): None}
+
+    def descend(node: ast.AST, scope: ast.AST) -> None:
+        for child in ast.iter_child_nodes(node):
+            owner[id(child)] = scope
+            if isinstance(child, SCOPES):
+                parent[id(child)] = scope
+                descend(child, child)
+            else:
+                descend(child, scope)
+
+    descend(tree, tree)
+    return owner, parent
+
+
+def bindings_by_scope(tree: ast.AST) -> tuple[Bindings, dict[int, ast.AST],
+                                              dict[int, ast.AST | None]]:
+    """Every binding of every name, filed under the scope it happens in.
+
+    `None` marks a binding whose value this checker cannot read as an
+    expression — a parameter, a for or with or except target, an augmented
+    assignment, an import alias, a def or class, a global/nonlocal
+    declaration. Those can hold anything, so they can never establish that a
+    name holds a resolved path.
+
+    A bare `x: str` annotation is not listed: it binds nothing at runtime.
+    A comprehension target is filed in the enclosing scope even though Python
+    keeps it in its own — that direction only ever disqualifies a name, and a
+    checker that must fail closed should round that way.
+    """
+    owner, parent = enclosing_scopes(tree)
+    table: Bindings = {}
+
+    def bind(scope: ast.AST, name: str, value: ast.expr | None) -> None:
+        table.setdefault(id(scope), {}).setdefault(name, []).append(value)
+
+    def bind_args(scope: ast.AST, args: ast.arguments) -> None:
+        for arg in (*args.posonlyargs, *args.args, *args.kwonlyargs,
+                    args.vararg, args.kwarg):
+            if arg is not None:
+                bind(scope, arg.arg, None)
+
+    for node in ast.walk(tree):
+        here = owner[id(node)]
+        if isinstance(node, ast.Assign):
+            for tgt in node.targets:
+                for name in target_names(tgt):
+                    bind(here, name, node.value)
+        elif isinstance(node, ast.AnnAssign):
+            if node.value is not None:
+                for name in target_names(node.target):
+                    bind(here, name, node.value)
+        elif isinstance(node, ast.NamedExpr):
+            for name in target_names(node.target):
+                bind(here, name, node.value)
+        elif isinstance(node, ast.AugAssign):
+            for name in target_names(node.target):
+                bind(here, name, None)
+        elif isinstance(node, ast.For | ast.AsyncFor | ast.comprehension):
+            for name in target_names(node.target):
+                bind(here, name, None)
+        elif isinstance(node, ast.withitem):
+            for name in target_names(node.optional_vars):
+                bind(here, name, None)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            bind(here, node.name, None)
+        elif isinstance(node, ast.Import | ast.ImportFrom):
+            for alias in node.names:
+                bind(here, (alias.asname or alias.name).split(".")[0], None)
+        elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            bind(here, node.name, None)     # the name binds OUTSIDE the body
+            bind_args(node, node.args)      # the parameters bind INSIDE it
+        elif isinstance(node, ast.Lambda):
+            bind_args(node, node.args)
+        elif isinstance(node, ast.ClassDef):
+            bind(here, node.name, None)
+        elif isinstance(node, ast.Global | ast.Nonlocal):
+            # A `global x` / `nonlocal x` assignment binds x in an OUTER
+            # scope, so filing it only under the declaring scope leaves the
+            # outer name looking untouched — measured: a module-level
+            # `exe = shutil.which("git")` plus a `global exe; exe = user`
+            # inside a function still returned a verified exception. Poison
+            # both. `nonlocal` reaches an enclosing function rather than the
+            # module, and a checker that must fail closed rounds outwards.
+            for name in node.names:
+                bind(here, name, None)
+                bind(tree, name, None)
+    return table, owner, parent
+
+
+def unwrap_cast(value: ast.expr | None) -> ast.expr | None:
+    """`typing.cast(T, X)` is a type-level assertion with no runtime effect."""
+    while (isinstance(value, ast.Call) and len(value.args) == 2
+           and ast.unparse(value.func).split(".")[-1] == "cast"):
+        value = value.args[1]
+    return value
+
+
+def resolves_a_path(value: ast.expr | None) -> bool:
+    """Is this expression a path the PROCESS resolved, not one PATH chose?"""
+    inner = unwrap_cast(value)
+    if inner is None:
+        return False
+    if isinstance(inner, ast.Call):
+        return ast.unparse(inner.func).endswith("shutil.which")
+    return ast.unparse(inner) == "sys.executable"
+
+
+def make_resolver(tree: ast.AST) -> tuple[
+        Callable[[ast.AST, str], bool], dict[int, ast.AST]]:
+    """Build `is_resolved(scope, name)` — does that name ALWAYS hold a path
+    the process resolved itself, as seen from that scope?
+
+    A name qualifies only if EVERY binding of it in its own binding scope
+    comes from shutil.which(...), sys.executable, a typing.cast around one of
+    those, or another name that already qualifies.
+
+    The previous version collected names bound from shutil.which at least
+    ONCE, file-wide, which is a set of names and not a dataflow. After
+
+        exe = shutil.which("git")
+        exe = user_supplied
+
+    `exe` was still reported as "from shutil.which", and every
+    subprocess.run([exe, ...]) below it received a verified exception it had
+    not earned — measured: check_subprocess_safety returned
+    (True, 'argv[0]=exe from shutil.which') for exactly that file. Verified in
+    form, false in substance: the same defect class as the `# nosec` comments
+    this gate exists to replace.
+
+    Deliberately NOT "bound at most once". scripts/generate_evidence.py binds
+    one name from shutil.which twice — once with an explicit search path, once
+    without — and both bindings resolve, so the name holds a resolved path
+    either way. What disqualifies a name is a binding this checker cannot
+    account for, never the number of them.
+    """
+    table, owner, parent = bindings_by_scope(tree)
+
+    def binding_scope(scope: ast.AST, name: str) -> ast.AST | None:
+        """The innermost scope from `scope` outwards that binds `name`."""
+        here: ast.AST | None = scope
+        while here is not None:
+            if name in table.get(id(here), {}):
+                return here
+            here = parent.get(id(here))
+        return None
+
+    def is_resolved(scope: ast.AST, name: str,
+                    seen: frozenset[tuple[int, str]] = frozenset()) -> bool:
+        home = binding_scope(scope, name)
+        if home is None:
+            return False                    # never bound here: nothing proven
+        key = (id(home), name)
+        if key in seen:
+            return False                    # an alias cycle proves nothing
+        values = table[id(home)][name]
+        # Aliasing: `narrowed = exe` is still a resolved path when every
+        # binding of `exe` is. Narrowing a value for the type checker must not
+        # cost the security exception.
+        return bool(values) and all(
+            resolves_a_path(v)
+            or (isinstance(v, ast.Name) and is_resolved(home, v.id, seen | {key}))
+            for v in values)
+
+    return is_resolved, owner
+
+
 def check_subprocess_safety(path: str) -> tuple[bool, str]:
     """Re-derive the safe pattern from source. Returns (ok, evidence)."""
     tree = ast.parse(Path(path).read_text(encoding="utf-8"))
-    # Both `x = shutil.which(..)` and `x: str | None = shutil.which(..)` count;
-    # an annotation does not make the call less resolved.
-    which_vars: set[str] = set()
-    for node in ast.walk(tree):
-        value = getattr(node, "value", None)
-        # typing.cast(T, shutil.which(..)) is a type-level assertion with no
-        # runtime effect, so unwrap it: the value is still a resolved path.
-        if (isinstance(value, ast.Call)
-                and ast.unparse(value.func) == "cast" and len(value.args) == 2):
-            value = value.args[1]
-        if not (isinstance(value, ast.Call)
-                and ast.unparse(value.func).endswith("shutil.which")):
-            continue
-        targets = node.targets if isinstance(node, ast.Assign) else (
-            [node.target] if isinstance(node, ast.AnnAssign) else [])
-        which_vars.update(t.id for t in targets if isinstance(t, ast.Name))
-
-    # Follow one level of aliasing: `resolved = exe` where exe came from
-    # shutil.which is still a resolved absolute path. Narrowing a value for the
-    # type checker must not cost the security exception.
-    for node in ast.walk(tree):
-        value = getattr(node, "value", None)
-        if not (isinstance(value, ast.Name) and value.id in which_vars):
-            continue
-        targets = node.targets if isinstance(node, ast.Assign) else (
-            [node.target] if isinstance(node, ast.AnnAssign) else [])
-        which_vars.update(t.id for t in targets if isinstance(t, ast.Name))
+    is_resolved, scope_of = make_resolver(tree)
 
     calls = [
         n for n in ast.walk(tree)
@@ -156,14 +331,22 @@ def check_subprocess_safety(path: str) -> tuple[bool, str]:
             return False, "argv is not a list literal"
         head = call.args[0].elts[0]
         head_src = ast.unparse(head)
-        resolved = (isinstance(head, ast.Name) and head.id in which_vars) or \
-                   head_src == "sys.executable"
+        resolved = (isinstance(head, ast.Name)
+                    and is_resolved(scope_of[id(call)], head.id)) \
+            or head_src == "sys.executable"
         if not resolved:
+            if isinstance(head, ast.Name):
+                return False, (
+                    f"argv[0] is {head_src!r}, and that name is bound in its "
+                    "scope by something other than shutil.which(...) or "
+                    "sys.executable — what it holds at the call is not decided "
+                    "here")
             return False, (f"argv[0] is {head_src!r} — not shutil.which(...) "
                            "and not sys.executable")
         if "timeout" not in kw:
             return False, "no timeout"
-        origin = "sys.executable" if head_src == "sys.executable" else f"{head_src} from shutil.which"
+        origin = "sys.executable" if head_src == "sys.executable" else (
+            f"{head_src}, every binding in its scope from shutil.which")
         evidence.append(
             f"shell=False, argv list literal, argv[0]={origin}, timeout set")
     return True, "; ".join(evidence)

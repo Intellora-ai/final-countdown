@@ -56,8 +56,28 @@ from gate import Gate  # noqa: E402
 
 MANIFEST = Path("ci/gates.toml")
 WORKFLOWS = Path(".github/workflows")
-SUPPRESSION = re.compile(r"\|\|\s*(true|echo|:)")
 DOCS = (Path("README.md"), Path("evidence.md"))
+
+# Shell control operators after which the gate no longer decides the step's
+# exit status. This replaced `re.compile(r"\|\|\s*(true|echo|:)")`, which
+# enumerated three right-hand sides: measured on this repository, `|| true`
+# was caught while `|| exit 0`, `|| /bin/true`, `; true` and `| cat` each left
+# gate_integrity at exit 0 with zero findings. What follows the operator was
+# never the point — the operator is.
+#
+# `&&` is deliberately absent. `gate && next` still fails the step when the
+# gate fails, so it does not suppress anything; treating it as suppression
+# would be a false positive, and a false positive is how a check gets deleted.
+SUPPRESSORS = frozenset({"||", ";", "|", "&"})
+
+# `${{ … }}` is evaluated by GitHub before any shell exists, so operators
+# inside one are not shell operators. The repository's own
+# `--base origin/${{ github.base_ref || 'main' }}` is a default value, not a
+# suppressed command, and flagging it would be exactly the false positive
+# above. NOTE the limit: this masks the expression, it does not judge it.
+# Whether attacker-controlled text may be interpolated into a `run:` at all is
+# CodeQL's `actions` pack and tests/test_ci_integrity.py's job, not this one's.
+GITHUB_EXPR = re.compile(r"\$\{\{.*?\}\}", re.DOTALL)
 
 
 def steps_of(job: dict[str, Any]) -> list[dict[str, Any]]:
@@ -77,37 +97,243 @@ LAUNCHERS = {"python", "python3", "bash", "sh", "pytest", "pyright", "bandit",
              "coverage", "mutmut", "npm", "npx"}
 
 
-def executes(run: str, token: str) -> bool:
-    """Does `run` actually EXECUTE something containing `token`?
+Word = tuple[str, bool]          # (text, any of it came from inside quotes)
+Segment = list[Word]
 
-    Splits the script into command segments and requires the segment holding
-    the token to begin with the token itself or with a known launcher.
-    Comment lines are skipped: a comment naming a script is documentation, not
-    an invocation, and treating it as one would let a comment satisfy a gate.
+
+def mask_expressions(text: str) -> str:
+    """Blank the contents of every `${{ … }}`, keeping it one word."""
+    return GITHUB_EXPR.sub("${{}}", text)
+
+
+def lex(line: str) -> tuple[list[Segment], list[str]]:
+    """Split ONE shell line into command segments and the operators between.
+
+    Quoting is tracked, because the two things this checker gets wrong when it
+    ignores quotes are both fatal:
+
+      * a `#` INSIDE quotes is not a comment, and a `#` outside them starts one
+        that reaches the end of the line. The previous version skipped only
+        lines that BEGAN with `#`, so `pytest --cov-fail-under=0 # was
+        --cov-fail-under=95` satisfied the coverage gate at a 0% floor.
+      * a token inside quotes is an argument's text, never something the shell
+        will execute: `python3 -c "print('scripts/axle_gate.py')"` runs no gate.
+
+    Each word carries whether any of its characters came from inside quotes,
+    so command matching can refuse the quoted ones.
     """
-    for line in run.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        if token not in line:
-            continue
-        for sep in ("&&", "||", ";", "|"):
-            line = line.replace(sep, "\n")
-        for segment in line.split("\n"):
-            if token not in segment:
-                continue
-            words = segment.strip().split()
-            if not words:
-                continue
-            head = words[0]
-            # `VAR=x cmd ...` — step past leading environment assignments.
-            i = 0
-            while i < len(words) and "=" in words[i] and not words[i].startswith("-"):
+    segments: list[Segment] = [[]]
+    operators: list[str] = []
+    word = ""
+    quoted = False          # some of this word came from inside quotes
+    started = False         # a word is being accumulated right now
+    single = double = False
+    i, n = 0, len(line)
+
+    def flush() -> None:
+        nonlocal word, quoted, started
+        if started:
+            segments[-1].append((word, quoted))
+        word, quoted, started = "", False, False
+
+    while i < n:
+        ch = line[i]
+        if single:
+            started, quoted = True, True
+            single = ch != "'"
+            word += "" if ch == "'" else ch
+        elif double:
+            started, quoted = True, True
+            if ch == '"':
+                double = False
+            elif ch == "\\" and i + 1 < n:
                 i += 1
-            head = words[i] if i < len(words) else head
-            if head == token or token in head or head in LAUNCHERS:
-                return True
-    return False
+                word += line[i]
+            else:
+                word += ch
+        elif ch == "'":
+            single = started = quoted = True
+        elif ch == '"':
+            double = started = quoted = True
+        elif ch == "\\" and i + 1 < n:
+            i += 1
+            word += line[i]
+            started = True
+        elif ch.isspace():
+            flush()
+        elif ch == "#" and not started:
+            break                       # unquoted comment: nothing after it runs
+        elif ch in ";|&":
+            flush()
+            operator = ch
+            if ch in "|&" and i + 1 < n and line[i + 1] == ch:
+                i += 1
+                operator = ch * 2
+            operators.append(operator)
+            segments.append([])
+        else:
+            word += ch
+            started = True
+        i += 1
+    flush()
+    return segments, operators
+
+
+def word_satisfies(argv_word: str, token_word: str) -> bool:
+    """Does one argv word supply one word of the token?
+
+    Equality, or — only for a token word carrying no path of its own — that
+    word reached by a path. `scripts/run_gate.py` supplies `run_gate.py`,
+    which is how ci/gates.toml spells the pyright token, and
+    `/usr/bin/shellcheck` supplies `shellcheck`.
+
+    A token word that already names a path must match exactly, because the
+    relaxation would otherwise accept a DIFFERENT file with the same tail:
+    `evil/scripts/axle_gate.py` is not `scripts/axle_gate.py`, and check 8
+    would not notice — it only asserts that `scripts/axle_gate.py` exists,
+    which it does.
+
+    Both ends are anchored either way, so `print('scripts/axle_gate.py')`
+    supplies nothing: containment is not execution, and that includes
+    containment inside a longer word.
+    """
+    if argv_word == token_word:
+        return True
+    return "/" not in token_word and argv_word.endswith("/" + token_word)
+
+
+def segment_runs(segment: Segment, token_words: list[str]) -> bool:
+    """Does this one command run the token, in COMMAND POSITION?
+
+    Two requirements, and the second is the one that was missing. The command
+    word must be the token itself or a known launcher — that part is old. The
+    token must then appear as a contiguous run of UNQUOTED words inside that
+    command's own argv. The previous version required only that the line begin
+    with a launcher and that the token appear somewhere on it, which is how a
+    trailing comment and a quoted string both counted as invocations.
+    """
+    if not segment or not token_words:
+        return False
+    # `VAR=x cmd …` — step past leading environment assignments.
+    i = 0
+    while (i < len(segment) and "=" in segment[i][0]
+           and not segment[i][0].startswith("-")):
+        i += 1
+    if i >= len(segment):
+        return False
+    head, head_quoted = segment[i]
+    if head_quoted or not (word_satisfies(head, token_words[0])
+                           or head in LAUNCHERS):
+        return False
+    argv = segment[i:]
+    return any(
+        all(not argv[start + k][1]
+            and word_satisfies(argv[start + k][0], token_words[k])
+            for k in range(len(token_words)))
+        for start in range(len(argv) - len(token_words) + 1))
+
+
+def logical_lines(run: str) -> list[str]:
+    """Physical lines joined across trailing backslash continuations.
+
+    The shell sees `echo \\` and the line under it as ONE command. Judging
+    them separately hands the second line its own command position, and its
+    first word is then whatever the attacker put there:
+
+        echo \\
+          --cov-fail-under=95
+
+    satisfied the coverage gate while running `echo`. Joining is also the
+    conservative direction for the legitimate case — a wrapped
+    `python3 … pytest \\ / --cov-fail-under=95` keeps `python3` as its head.
+    """
+    joined: list[str] = []
+    pending = ""
+    for line in run.splitlines():
+        stripped = line.rstrip()
+        # An ODD number of trailing backslashes continues the line; an even
+        # number is escaped backslashes and ends it.
+        trailing = len(stripped) - len(stripped.rstrip("\\"))
+        if trailing % 2 == 1:
+            pending += stripped[:-1] + " "
+            continue
+        joined.append(pending + line)
+        pending = ""
+    if pending:
+        joined.append(pending)
+    return joined
+
+
+def line_executes(line: str, token_words: list[str]) -> bool:
+    return any(segment_runs(seg, token_words)
+               for seg in lex(mask_expressions(line))[0])
+
+
+def executes(run: str, token: str) -> bool:
+    """Does `run` actually EXECUTE something containing `token`?"""
+    token_words = token.split()
+    if not token_words:
+        return False
+    return any(line_executes(line, token_words) for line in logical_lines(run))
+
+
+def suppressors(line: str) -> list[str]:
+    """Operators on `line` that take the verdict away from the gate command.
+
+    Positional, not lexical. The gate must be the last thing on its line that
+    can decide the step's exit status, so what matters is that an operator is
+    there at all — never the spelling of whatever follows it.
+    """
+    return [op for op in lex(mask_expressions(line))[1] if op in SUPPRESSORS]
+
+
+def errexit_change(words: list[str]) -> bool | None:
+    """True if this command turns errexit on, False off, None if unrelated."""
+    if not words or words[0] != "set":
+        return None
+    state: bool | None = None
+    i = 1
+    while i < len(words):
+        word = words[i]
+        if word in {"-o", "+o"} and i + 1 < len(words):
+            if words[i + 1] == "errexit":
+                state = word == "-o"
+            i += 2
+            continue
+        if word[:1] in {"-", "+"} and "e" in word[1:]:
+            state = word.startswith("-")
+        i += 1
+    return state
+
+
+def errexit_off_at(run: str, token_words: list[str]) -> str | None:
+    """The `set +e` still in force when the gate's line runs, if any.
+
+    The operators on the gate's own line are not the whole story: the line
+    ABOVE it can disable the mechanism that makes its failure count. GitHub
+    runs a `run:` block as `bash -e {0}`, so a failing gate normally aborts
+    the step; `set +e` removes that, and the step's status becomes whatever
+    runs last. Measured under `bash -e` against a command that exits 1:
+
+        gate / exit 0            -> step exits 1   (errexit aborted first)
+        set +e / gate / exit 0   -> step exits 0   SUPPRESSED
+        set +e / gate / set -e   -> step exits 0   SUPPRESSED
+
+    which is why this looks for the `set +e` rather than for the `exit 0`:
+    without errexit disabled the trailing line never runs, and with it
+    disabled almost any trailing line will do.
+    """
+    off: str | None = None
+    for line in logical_lines(run):
+        if line_executes(line, token_words):
+            return off
+        for segment in lex(mask_expressions(line))[0]:
+            change = errexit_change([w for w, _quoted in segment])
+            if change is False:
+                off = line.strip()[:70]
+            elif change is True:
+                off = None
+    return None
 
 
 def step_text(step: dict[str, Any]) -> str:
@@ -251,16 +477,38 @@ def main() -> None:
                                requirement="Never convert a gate failure into success.",
                                fix="Remove continue-on-error.")
                     run = str(step.get("run", ""))
-                    for line in run.splitlines():
-                        if token in line and SUPPRESSION.search(line):
+                    token_words = token.split()
+                    disabled = errexit_off_at(run, token_words)
+                    if disabled is not None:
+                        ok = False
+                        g.check(f"{name}: errexit in force", False, disabled)
+                        g.fail(what=f"errexit disabled around the gate in '{name}'",
+                               where=f"{wf} -> {label}", why=disabled,
+                               requirement="A `run:` block is `bash -e`, so a "
+                                           "failing gate aborts the step. With "
+                                           "`set +e` the step's status becomes "
+                                           "whatever runs last instead, and the "
+                                           "gate's failure decides nothing.",
+                               fix="Remove `set +e`, or move the gate command "
+                                   "into its own step.")
+                    for line in logical_lines(run):
+                        if not line_executes(line, token_words):
+                            continue
+                        found = suppressors(line)
+                        if found:
                             ok = False
-                            g.check(f"{name}: no suppression", False, line.strip()[:70])
+                            g.check(f"{name}: no suppression", False,
+                                    f"{' '.join(sorted(set(found)))} :: "
+                                    f"{line.strip()[:60]}")
                             g.fail(what=f"failure suppressed in '{name}'",
                                    where=f"{wf} -> {label}", why=line.strip()[:120],
-                                   requirement="Never convert a gate failure into "
-                                               "success.",
-                                   fix="Remove `|| true` / `|| echo` from the "
-                                       "gate command.")
+                                   requirement="The gate command must be the last "
+                                               "thing on its line that can decide "
+                                               "the step's exit status. `"
+                                               + "`, `".join(sorted(set(found)))
+                                               + "` takes that away from it.",
+                                   fix="Put the gate command last and alone. Split "
+                                       "anything else onto its own line.")
 
             # 7. evidence must be uploaded, and its absence must be loud.
             # A scanner is exempt from THIS check only: CodeQL's result is a

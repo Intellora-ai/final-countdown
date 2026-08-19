@@ -1061,3 +1061,436 @@ def test_only_app_posted_roles_are_exempt_from_reporting(sandbox: Path) -> None:
             continue
         assert s.get("job"), f"{name} must name the job that produces its report"
         assert s.get("artifact"), f"{name} must declare an artifact"
+
+
+# --------------------------------------------------------------------------
+# Attack 27 — the token is present, and nothing in command position runs it
+#
+# `executes()` returned True for any line whose FIRST word was a known
+# launcher and whose token appeared ANYWHERE on that line. Two places the
+# token can sit while running nothing:
+#
+#   * a trailing `#` comment. Only lines STARTING with `#` were skipped, and
+#     inside a `run: |` block scalar YAML hands the `#` through as shell text.
+#   * a quoted string: `python3 -c "print('scripts/axle_gate.py')"`.
+#
+# Measured on this repository before the fix: each sabotage below left
+# gate_integrity at `passed=80 failed=0`, exit 0 — the threshold lowered or
+# the gate replaced by a no-op, and preflight still green.
+# --------------------------------------------------------------------------
+E2E = ".github/workflows/e2e.yml"
+
+COVERAGE_STEP = ('run: python3 scripts/run_gate.py --name coverage -- pytest '
+                 '--cov=src --cov-branch --cov-fail-under=95 -m "not axle"')
+MUTMUT_STEP = ('run: python3 scripts/run_gate.py --name mutmut -- bash '
+               'scripts/verify_per_function.sh scripts/mutation_gate.py '
+               '--min-score 0.95')
+ENFORCE_STEP = "run: python3 scripts/enforce_spec.py specs/*_spec.lean"
+SHELLCHECK_STEP = "run: shellcheck scripts/*.sh"
+
+
+def sabotage(sandbox: Path, workflow: str, old: str, new: str) -> None:
+    """Swap one step, asserting the target really was there to swap."""
+    p = sandbox / workflow
+    text = p.read_text(encoding="utf-8")
+    assert old in text, f"sabotage target not present in {workflow}: {old!r}"
+    p.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+
+@pytest.mark.parametrize(("workflow", "old", "new"), [
+    # coverage floor dropped to 0; the real threshold demoted to a comment
+    (VERIFY, COVERAGE_STEP,
+     'run: |\n          python3 scripts/run_gate.py --name coverage -- pytest '
+     '--cov=src --cov-branch --cov-fail-under=0 -m "not axle"   '
+     '# was --cov-fail-under=95'),
+    # mutation score floor dropped from 0.95 to 0.10 the same way
+    (VERIFY, MUTMUT_STEP,
+     'run: |\n          python3 scripts/run_gate.py --name mutmut -- bash '
+     'scripts/verify_per_function.sh scripts/mutation_gate.py --min-score 0.10'
+     '   # was --min-score 0.95'),
+    # the e2e suite replaced by a no-op that merely names it
+    (E2E, "run: npm run test:e2e",
+     "run: |\n          npm --version   # npm run test:e2e"),
+], ids=["coverage-threshold", "mutation-threshold", "e2e-noop"])
+def test_attack_token_demoted_to_a_trailing_comment(sandbox: Path,
+                                                    workflow: str,
+                                                    old: str, new: str) -> None:
+    """A `#` comment naming the gate is documentation, not an invocation —
+    wherever on the line it sits."""
+    sabotage(sandbox, workflow, old, new)
+    result = integrity(sandbox)
+    assert result.returncode != 0, (
+        "the threshold was lowered and the old value parked in a comment; "
+        "gate_integrity passed")
+    assert "no longer invokes its command" in result.stdout, result.stdout[-800:]
+
+
+def test_attack_token_only_inside_a_quoted_string(sandbox: Path) -> None:
+    """`python3 -c "print('...')"` starts with a launcher and runs nothing."""
+    sabotage(sandbox, VERIFY, "run: python3 scripts/axle_gate.py",
+             "run: |\n          python3 -c \"print('scripts/axle_gate.py')\"")
+    result = integrity(sandbox)
+    assert result.returncode != 0, "a quoted mention satisfied the gate"
+    assert "no longer invokes its command" in result.stdout, result.stdout[-800:]
+
+
+def test_executes_rejects_mentions_that_run_nothing() -> None:
+    """Unit level, against the live function. Every one of these returned
+    True before the fix."""
+    import sys as _s
+    _s.path.insert(0, str(SCRIPTS))
+    from gate_integrity import executes
+    assert not executes('python3 -c "print(\'scripts/axle_gate.py\')"',
+                        "scripts/axle_gate.py")
+    assert not executes("pytest -q  # shellcheck scripts/*.sh", "shellcheck")
+    assert not executes("npm run something-else  # npm run test:e2e",
+                        "npm run test:e2e")
+    assert not executes("pytest --cov-fail-under=0  # was --cov-fail-under=95",
+                        "--cov-fail-under=95")
+    assert not executes("bash x.sh --min-score 0.10  # was --min-score 0.95",
+                        "--min-score 0.95")
+    # a token buried inside a quoted argument is data, not a command
+    assert not executes('pytest -m "not --cov-fail-under=95 x"',
+                        "--cov-fail-under=95")
+
+
+def test_every_mandatory_token_is_still_found_in_the_real_workflows() -> None:
+    """The strictness must not have been bought by going blind.
+
+    Every `must_contain` token in the shipped manifest has to resolve against
+    the shipped workflows, or the fix broke the repository it guards.
+    """
+    import sys as _s
+    import tomllib
+
+    import yaml
+    _s.path.insert(0, str(SCRIPTS))
+    from gate_integrity import executes, steps_of
+    data = tomllib.loads((REPO / "ci" / "gates.toml").read_text(encoding="utf-8"))
+    checked = 0
+    for name, spec in cast_dict(data["gates"]).items():
+        s = cast_dict(spec)
+        if not s.get("mandatory") or s.get("role") == "code-scanning":
+            continue
+        wf = REPO / ".github" / "workflows" / str(s["workflow"])
+        doc = cast_dict(yaml.safe_load(wf.read_text(encoding="utf-8")) or {})
+        job = cast_dict(doc["jobs"]).get(str(s["job"]))
+        assert job is not None, f"{name}: job {s['job']} missing"
+        steps = steps_of(cast_dict(job))
+        for token in [str(t) for t in cast_list(s.get("must_contain", []))]:
+            found = any(token in str(st.get("uses", ""))
+                        or executes(str(st.get("run", "")), token)
+                        for st in steps)
+            assert found, f"{name}: token {token!r} no longer resolves in {wf.name}"
+            checked += 1
+    assert checked >= 25, f"only {checked} tokens checked — the walk found nothing"
+
+
+# --------------------------------------------------------------------------
+# Attack 28 — suppression the enumerated regex did not spell
+#
+# `SUPPRESSION = re.compile(r"\|\|\s*(true|echo|:)")` names three spellings.
+# Measured before the fix: `|| true` failed correctly, while `|| exit 0`,
+# `|| /bin/true`, `; true` and `| cat` each left gate_integrity at exit 0
+# with zero findings. On the steps that own no report — enforce_spec.py,
+# tcb_gate.py, shellcheck, credential_scan.py, `pytest -m axle`, `npm ci` —
+# nothing downstream catches that either.
+#
+# The rule is now positional, not lexical: the gate command must be the last
+# thing on its line that can decide the step's exit status.
+# --------------------------------------------------------------------------
+@pytest.mark.parametrize("tail", [
+    " || true",          # the one spelling the old regex caught
+    " || exit 0",
+    " || /bin/true",
+    " || :",
+    "; true",
+    "; exit 0",
+    " | cat",
+    " &",
+])
+def test_attack_any_exit_status_discarding_operator_is_caught(sandbox: Path,
+                                                              tail: str) -> None:
+    sabotage(sandbox, VERIFY, ENFORCE_STEP, ENFORCE_STEP + tail)
+    result = integrity(sandbox)
+    assert result.returncode != 0, (
+        f"`{tail.strip()}` after a gate command was not detected")
+    # A trailing `|| :` makes `run:` invalid YAML, so it is caught one step
+    # earlier. Either detection is correct; going green is the only failure.
+    assert ("suppress" in result.stdout
+            or "not valid YAML" in result.stdout), result.stdout[-800:]
+
+
+@pytest.mark.parametrize("tail", [" || exit 0", "; true", " | cat"])
+def test_attack_suppression_on_a_step_that_owns_no_report(sandbox: Path,
+                                                          tail: str) -> None:
+    """shellcheck writes no reports/*.json, so the finalizer cannot notice.
+    gate_integrity is the only thing standing between it and a green PR."""
+    sabotage(sandbox, VERIFY, SHELLCHECK_STEP, SHELLCHECK_STEP + tail)
+    result = integrity(sandbox)
+    assert result.returncode != 0, f"`{tail.strip()}` on shellcheck went green"
+    assert "suppress" in result.stdout, result.stdout[-800:]
+
+
+def test_a_github_expression_is_not_a_shell_operator(sandbox: Path) -> None:
+    """`${{ github.base_ref || 'main' }}` is a GitHub default, evaluated
+    before any shell sees it. Flagging it would be the false positive that
+    gets the whole check switched off."""
+    text = (sandbox / VERIFY).read_text(encoding="utf-8")
+    assert "github.base_ref || 'main'" in text, "the guarded line is gone"
+    assert integrity(sandbox).returncode == 0
+
+
+def test_an_and_chain_is_not_suppression(sandbox: Path) -> None:
+    """`gate && next` is NOT suppression and must not be reported as one.
+
+    Measured with `bash -e` (what GitHub runs a `run:` block as) against a
+    command that exits 1:  `gate && true` -> step exits 1. The gate still
+    decides. A checker that flagged this would be raising a false positive,
+    and a false positive is how a check gets switched off.
+    """
+    sabotage(sandbox, VERIFY, ENFORCE_STEP, ENFORCE_STEP + " && true")
+    assert integrity(sandbox).returncode == 0
+
+
+@pytest.mark.parametrize("disable", ["set +e", "set +o errexit", "set +ex"])
+def test_attack_errexit_disabled_around_the_gate_is_caught(sandbox: Path,
+                                                           disable: str) -> None:
+    """The operators on the gate's OWN line are not the whole story.
+
+    Measured under `bash -e` against a command that exits 1:
+        gate / exit 0           -> step exits 1   (errexit aborted first)
+        set +e / gate / exit 0  -> step exits 0   SUPPRESSED
+        set +e / gate / set -e  -> step exits 0   SUPPRESSED
+    """
+    sabotage(sandbox, VERIFY, ENFORCE_STEP,
+             f"run: |\n          {disable}\n          python3 "
+             "scripts/enforce_spec.py specs/*_spec.lean\n          exit 0")
+    result = integrity(sandbox)
+    assert result.returncode != 0, f"`{disable}` around a gate went green"
+    assert "errexit disabled" in result.stdout, result.stdout[-800:]
+
+
+def test_errexit_restored_before_the_gate_is_not_flagged(sandbox: Path) -> None:
+    """`set +e` that is turned back off again before the gate runs leaves the
+    gate's failure deciding the step, so it must not be reported."""
+    sabotage(sandbox, VERIFY, ENFORCE_STEP,
+             "run: |\n          set +e\n          true\n          set -e\n"
+             "          python3 scripts/enforce_spec.py specs/*_spec.lean")
+    assert integrity(sandbox).returncode == 0
+
+
+def test_a_token_word_naming_a_path_must_match_exactly() -> None:
+    """The path-suffix relaxation exists for `run_gate.py`, which ci/gates.toml
+    spells without its directory. It must not let a DIFFERENT file with the
+    same tail satisfy a token that already names a path: check 8 asserts only
+    that `scripts/axle_gate.py` exists, which it still would."""
+    import sys as _s
+    _s.path.insert(0, str(SCRIPTS))
+    from gate_integrity import executes
+    assert not executes("python3 evil/scripts/axle_gate.py",
+                        "scripts/axle_gate.py")
+    assert executes("python3 scripts/axle_gate.py", "scripts/axle_gate.py")
+    # slash-free token words keep the relaxation: an absolute path to the tool
+    # and the repo's own `scripts/run_gate.py` spelling both still count
+    assert executes("/usr/bin/shellcheck scripts/*.sh", "shellcheck")
+    assert executes("python3 scripts/run_gate.py --name pyright -- pyright",
+                    "run_gate.py --name pyright -- pyright")
+
+
+def test_a_backslash_continuation_does_not_open_a_command_position() -> None:
+    """Found by attacking the fix. The shell reads a trailing `\\` and the
+    line under it as ONE command; judging them separately gave the second
+    line its own command position, and `echo \\` / `--cov-fail-under=95`
+    satisfied the coverage gate while running `echo`."""
+    import sys as _s
+    _s.path.insert(0, str(SCRIPTS))
+    from gate_integrity import executes
+    assert not executes("echo \\\n  --cov-fail-under=95", "--cov-fail-under=95")
+    assert not executes("echo \\\n  python3 scripts/axle_gate.py",
+                        "scripts/axle_gate.py")
+    # the legitimate wrap keeps its real head and must still count
+    assert executes(
+        "python3 scripts/run_gate.py --name coverage -- pytest \\\n"
+        "  --cov-fail-under=95", "--cov-fail-under=95")
+
+
+def test_a_token_must_match_whole_words_not_prefixes() -> None:
+    """`--cov-fail-under=950` is not `--cov-fail-under=95`, and
+    `npm run test:e2e-disabled` is not `npm run test:e2e`."""
+    import sys as _s
+    _s.path.insert(0, str(SCRIPTS))
+    from gate_integrity import executes
+    assert not executes("pytest --cov-fail-under=950", "--cov-fail-under=95")
+    assert executes("pytest --cov-fail-under=95", "--cov-fail-under=95")
+    assert not executes("npm run test:e2e-disabled", "npm run test:e2e")
+    assert executes("npm   run    test:e2e", "npm run test:e2e")
+
+
+# --------------------------------------------------------------------------
+# Attack 29 — a verified exception granted to a reassigned argv[0]
+#
+# `which_vars` was a set of NAMES. Once any name was ever bound from
+# shutil.which, every later `subprocess.run([name, ...])` in that file was
+# reported "verified" no matter what the name held by then. Measured before
+# the fix, all four files below returned
+#   (True, 'shell=False, argv list literal, argv[0]=exe from shutil.which, ...')
+# --------------------------------------------------------------------------
+REASSIGNED = '''
+import shutil
+import subprocess
+
+
+def go(user_supplied: str) -> None:
+    exe = shutil.which("git")
+    exe = user_supplied
+    subprocess.run([exe, "status"], capture_output=True, timeout=30)
+'''
+
+DEAD_BRANCH = '''
+import shutil
+import subprocess
+
+
+def go(user_supplied: str) -> None:
+    if False:
+        exe = shutil.which("git")
+    exe = user_supplied
+    subprocess.run([exe, "status"], capture_output=True, timeout=30)
+'''
+
+PARAMETER = '''
+import shutil
+import subprocess
+
+
+def seed() -> None:
+    exe = shutil.which("git")
+    subprocess.run([exe, "status"], capture_output=True, timeout=30)
+
+
+def go(exe: str) -> None:
+    subprocess.run([exe, "status"], capture_output=True, timeout=30)
+'''
+
+LOOP_TARGET = '''
+import shutil
+import subprocess
+
+
+def go(candidates: list[str]) -> None:
+    exe = shutil.which("git")
+    for exe in candidates:
+        subprocess.run([exe, "status"], capture_output=True, timeout=30)
+'''
+
+# Legitimate and must keep passing: scripts/generate_evidence.py binds `exe`
+# from shutil.which twice, once with an explicit search path and once without.
+REBOUND_FROM_WHICH = '''
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+
+def go(name: str, flag: str) -> None:
+    exe = shutil.which(name, path=str(Path(sys.executable).parent))
+    if exe is None:
+        exe = shutil.which(name)
+    if exe is None:
+        return
+    subprocess.run([exe, flag], capture_output=True, timeout=30)
+'''
+
+
+def _safety(tmp_path: Path, source: str) -> tuple[bool, str]:
+    import sys as _s
+    _s.path.insert(0, str(SCRIPTS))
+    from security_gate import check_subprocess_safety
+    f = tmp_path / "subject.py"
+    f.write_text(source, encoding="utf-8")
+    return check_subprocess_safety(str(f))
+
+
+@pytest.mark.parametrize(("source", "why"), [
+    (REASSIGNED, "plainly reassigned from a parameter"),
+    (DEAD_BRANCH, "bound from shutil.which only on a branch never taken"),
+    (PARAMETER, "the name is a function parameter elsewhere in the file"),
+    (LOOP_TARGET, "the name is rebound by a for-loop target"),
+], ids=["reassigned", "dead-branch", "parameter", "loop-target"])
+def test_attack_argv0_name_no_longer_holds_a_resolved_path(tmp_path: Path,
+                                                           source: str,
+                                                           why: str) -> None:
+    ok, evidence = _safety(tmp_path, source)
+    assert not ok, (
+        f"exception granted to an argv[0] that is {why}: {evidence}")
+
+
+GLOBAL_REBIND = '''
+import shutil
+import subprocess
+
+exe = shutil.which("git")
+
+
+def poison(user_supplied: str) -> None:
+    global exe
+    exe = user_supplied
+
+
+def go() -> None:
+    subprocess.run([exe, "status"], capture_output=True, timeout=30)
+'''
+
+
+def test_attack_a_global_rebinds_the_name_in_an_outer_scope(tmp_path: Path) -> None:
+    """Found by attacking the scope-aware fix. `global exe; exe = user`
+    assigns the MODULE's name, so filing that assignment under the declaring
+    function left the module binding looking untouched and the exception was
+    granted."""
+    ok, evidence = _safety(tmp_path, GLOBAL_REBIND)
+    assert not ok, f"a global rebinding kept the exception: {evidence}"
+
+
+@pytest.mark.parametrize("source", [
+    # a ternary is not a shutil.which call
+    'import shutil\nimport subprocess\n\n\ndef f(u: str) -> None:\n'
+    '    exe = shutil.which("g") if u else u\n'
+    '    subprocess.run([exe, "s"], timeout=1)\n',
+    # the environment is not a resolver
+    'import os\nimport subprocess\n\n\ndef f() -> None:\n'
+    '    exe = os.environ["X"]\n'
+    '    subprocess.run([exe, "s"], timeout=1)\n',
+    # a walrus in argv[0] is not a Name bound anywhere checkable
+    'import shutil\nimport subprocess\n\n\ndef f(u: str) -> None:\n'
+    '    exe = shutil.which("g")\n'
+    '    subprocess.run([(exe := u), "s"], timeout=1)\n',
+], ids=["ternary", "environ", "walrus"])
+def test_argv0_from_an_unresolvable_expression_is_rejected(tmp_path: Path,
+                                                           source: str) -> None:
+    ok, evidence = _safety(tmp_path, source)
+    assert not ok, f"exception granted to an unresolved argv[0]: {evidence}"
+
+
+def test_rebinding_from_shutil_which_is_still_verified(tmp_path: Path) -> None:
+    """Two shutil.which bindings of one name still leave it resolved.
+    scripts/generate_evidence.py does exactly this, and it is correct."""
+    ok, evidence = _safety(tmp_path, REBOUND_FROM_WHICH)
+    assert ok, f"a legitimate double shutil.which binding was rejected: {evidence}"
+
+
+def test_every_eligible_file_still_verifies() -> None:
+    """The strictness must not have been bought by rejecting the real code.
+
+    Every file the security gate is willing to verify must still verify; if
+    one stops, the gate goes red on the repository's own source.
+    """
+    import sys as _s
+    _s.path.insert(0, str(SCRIPTS))
+    from security_gate import ELIGIBLE, check_subprocess_safety
+    for _test_id, rel in sorted(ELIGIBLE):
+        path = REPO / rel
+        if not path.is_file():
+            continue
+        ok, evidence = check_subprocess_safety(str(path))
+        assert ok, f"{rel} lost its verified exception: {evidence}"

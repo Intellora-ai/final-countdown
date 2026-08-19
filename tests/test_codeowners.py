@@ -56,7 +56,7 @@ def rule_lines(text: str) -> list[tuple[int, str]]:
 
     Numbered from 1 so a failure names the line you open in an editor.
     """
-    out = []
+    out: list[tuple[int, str]] = []
     for number, line in enumerate(text.splitlines(), start=1):
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
@@ -78,7 +78,7 @@ def owners_are_valid(rule: str) -> tuple[bool, str]:
 
 def test_every_rule_line_is_wellformed() -> None:
     """The check that would have caught the malformed line."""
-    broken = []
+    broken: list[str] = []
     for number, rule in rule_lines(CODEOWNERS.read_text(encoding="utf-8")):
         ok, why = owners_are_valid(rule)
         if not ok:

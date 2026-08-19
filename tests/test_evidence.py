@@ -83,23 +83,23 @@ def test_output_is_not_a_stale_copy_of_the_old_hand_written_file(
 # SECRET SAFETY
 # ---------------------------------------------------------------------------
 def test_no_credential_pattern_in_real_output(generated: str) -> None:
-    assert gen.scan_for_secrets(generated) == []
+    assert gen.scan_for_disclosure_shapes(generated) == []
 
 
 def test_scanner_catches_each_known_prefix() -> None:
     """Every literal prefix must actually be wired in, not just listed."""
     for prefix in gen._LITERAL_PREFIXES:  # pyright: ignore[reportPrivateUsage]
         planted = f"harmless text {prefix}AbC123deadbeefXY more text"
-        assert gen.scan_for_secrets(planted), f"{prefix} not detected"
+        assert gen.scan_for_disclosure_shapes(planted), f"{prefix} not detected"
 
 
 def test_scanner_catches_high_entropy_token() -> None:
-    assert gen.scan_for_secrets("token=" + "aB3" * 12 + " end")
+    assert gen.scan_for_disclosure_shapes("token=" + "aB3" * 12 + " end")
 
 
 def test_scanner_reports_position_but_never_echoes_the_secret() -> None:
     """A scanner that prints the match into a CI log has moved the leak."""
-    findings = gen.scan_for_secrets(f"leak: {FAKE_TOKEN} here")
+    findings = gen.scan_for_disclosure_shapes(f"leak: {FAKE_TOKEN} here")
     assert findings
     for finding in findings:
         assert FAKE_TOKEN not in finding
@@ -111,13 +111,13 @@ def test_scanner_does_not_fire_on_a_git_sha() -> None:
 
     ci/gates.toml pins actions by SHA, so these reach the output legitimately.
     """
-    assert gen.scan_for_secrets("commit 94c59675f78aae22137e65ea1c4ae9c01d9f9416") == []
-    assert gen.scan_for_secrets(
+    assert gen.scan_for_disclosure_shapes("commit 94c59675f78aae22137e65ea1c4ae9c01d9f9416") == []
+    assert gen.scan_for_disclosure_shapes(
         "github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd") == []
 
 
 def test_scanner_does_not_fire_on_english_containing_sk_dash() -> None:
-    assert gen.scan_for_secrets("a risk-free, task-based, disk-bound design") == []
+    assert gen.scan_for_disclosure_shapes("a risk-free, task-based, disk-bound design") == []
 
 
 def test_planted_secret_aborts_the_generator_and_writes_nothing(

@@ -18,10 +18,10 @@ document nothing guards.
 
 | Field | Value |
 |---|---|
-| Commit | `94c59675f78aae22137e65ea1c4ae9c01d9f9416` |
+| Commit | `973446d26b3feeaec502ffeeb067485fbb1f8e0c` |
 | Branch | `fix/full-verify-on-prs` |
-| Working tree | dirty -- 27 path(s) differ from HEAD |
-| Generated (UTC) | 2026-08-19T06:32:41+00:00 |
+| Working tree | dirty -- 2 path(s) differ from HEAD |
+| Generated (UTC) | 2026-08-19T06:41:36+00:00 |
 | Generator | `scripts/generate_evidence.py` |
 | Python | 3.14.7 |
 | Platform | macOS-26.4.1-arm64-arm-64bit-Mach-O |
@@ -59,7 +59,7 @@ claim about what such a gate would have done. Reports present in this tree:
 
 | Gate | Declared invocation | Status | Duration (ms) |
 |---|---|---|---|
-| `preflight` | `scripts/gate_integrity.py` | PASS | 12 |
+| `preflight` | `scripts/gate_integrity.py` | PASS | 20 |
 | `axle-verify` | `scripts/axle_gate.py scripts/enforce_spec.py` | NOT_RUN | -- |
 | `spec-strength` | `scripts/check_composition.py --min-strength 0.9` | NOT_RUN | -- |
 | `spec-composition` | `scripts/check_composition.py --min-strength 0.9` | NOT_RUN | -- |

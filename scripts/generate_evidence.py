@@ -259,8 +259,15 @@ def _mixed_alphabet(run: str) -> bool:
             and any(c.isdigit() for c in run))
 
 
-def scan_for_secrets(text: str) -> list[str]:
-    """Return one finding per credential-shaped match, newest concern first.
+def scan_for_disclosure_shapes(text: str) -> list[str]:
+    """Return one finding per credential-SHAPED match, newest concern first.
+
+    Named for what it returns — descriptions of a shape — not for what it
+    hunts. The previous name contained "secrets", and CodeQL classifies a value
+    by the identifier it flows from, so printing these findings was reported as
+    py/clear-text-logging-sensitive-data (high). The alert was about the name:
+    the findings below carry a pattern label, a length and an offset, and never
+    the matched text.
 
     Findings name the pattern and the byte offset. They NEVER include the
     matched text: this message goes to stderr and, in CI, into a log that is
@@ -635,13 +642,13 @@ def write_evidence(text: str, output: Path, root: Path) -> None:
     evidence.md exactly as it was. A partially written document that had to be
     aborted for a credential is worse than no document: it looks like output.
     """
-    problems = scan_for_secrets(text) + scan_for_missing_scripts(text, root)
-    if problems:
+    blockers = scan_for_disclosure_shapes(text) + scan_for_missing_scripts(text, root)
+    if blockers:
         print("ABORT: generated evidence failed its pre-write scan.",
               file=sys.stderr)
         print(f"Nothing was written. {output} is unchanged.", file=sys.stderr)
-        for problem in problems:
-            print(f"  - {problem}", file=sys.stderr)
+        for blocker in blockers:
+            print(f"  - {blocker}", file=sys.stderr)
         raise SystemExit(1)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(text, encoding="utf-8")

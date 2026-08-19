@@ -47,6 +47,26 @@ pyright                                             # strict types
 bandit -r src scripts --severity-level low --confidence-level low
 ```
 
+### Browser smoke test
+
+There is no web frontend here, so Playwright opens the one artifact this
+project renders: the coverage report, regenerated from `.coverage` and served
+on `127.0.0.1:4173`. A placeholder page would prove only that a browser can
+load a file this repository does not ship.
+
+```bash
+npm ci                      # install exactly what package-lock.json pins
+npx playwright install chromium
+npm run test:e2e            # both viewports, headless
+npm run test:e2e:headed     # watch it run
+npm run test:e2e:debug      # step through with the inspector
+npm run test:e2e:report     # open the HTML report from the last run
+```
+
+The suite is two runs of one spec — desktop and a phone viewport. On failure
+Playwright keeps a trace, a screenshot and the HTML report; CI uploads them as
+the `playwright-report` artifact and keeps them for seven days.
+
 ## Gates
 
 All of them are jobs in one workflow, `verify.yml`, and that is not tidiness.

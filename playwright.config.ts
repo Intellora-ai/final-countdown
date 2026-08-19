@@ -40,8 +40,17 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
 
+  // Two viewports, one spec. A separate mobile spec would be the same
+  // assertions pasted twice and would drift; running the existing one at a
+  // phone viewport asks the only question worth asking here — does the page
+  // still render and stay reachable when the screen is small.
+  //
+  // Both are Chromium. Firefox and WebKit are not added because nothing in
+  // this repository ships to a browser, so a second engine would multiply
+  // runtime without testing a claim anyone is making.
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'desktop-chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'mobile-chromium', use: { ...devices['Pixel 7'] } },
   ],
 
   webServer: {

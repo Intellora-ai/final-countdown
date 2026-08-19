@@ -66,7 +66,7 @@ workflow = "verify.yml"
 job = "preflight"
 mandatory = true
 role = "integrity"
-must_contain = ["scripts/gate_integrity.py"]
+must_contain = ["scripts/gate_integrity.py", "scripts/tcb_gate.py"]
 evidence = "reports/preflight.json"
 artifact = "reports-preflight"
 
@@ -153,7 +153,7 @@ job = "bandit"
 mandatory = true
 role = "gate"
 must_contain = ["scripts/security_gate.py", "scripts/sarif_suppress.py",
-                "shellcheck"]
+                "shellcheck", "scripts/credential_scan.py"]
 evidence = "reports/bandit.json"
 artifact = "reports-bandit"
 

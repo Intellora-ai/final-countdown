@@ -4,11 +4,30 @@ These do not check that the proofs exist. They check that a semantically
 different Python program CANNOT keep the claim — which is the only property
 that makes the phrase "a theorem about this program" mean anything.
 
+There are four places a bad claim can be stopped, and each test below names the
+one that actually fired:
+
+  UNSUPPORTED       scripts/pysem.py refuses to give the program semantics
+  FRESHNESS         the committed pair describes different Python than src/
+  KERNEL-DENOTATION `evalFunc <n>_ast args = <closed form>` fails, i.e. the
+                    renderer and the interpreter disagree
+  KERNEL-PROPERTY   the hand-written mathematical claim is false of the program
+
+The honest reading of the measurements below: a DERIVED obligation cannot fail
+once it has been regenerated from the mutated source, because it moves with the
+program. That is true of the denotation and of the recorded CPython outputs
+alike. After a regeneration the layer that refutes is KERNEL-PROPERTY — and
+what the denotation bought is the strength of that refutation, which now runs
+against a closed form covering every integer instead of twelve sampled points.
+
 Network-free by default: only the tests marked `axle` call the hosted kernel.
 """
 
 from __future__ import annotations
 
+import json
+import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -51,6 +70,17 @@ UNSUPPORTED = {
     "decorator": "import functools\n@functools.cache\ndef add(a: int, b: int) -> int:\n    return a + b\n",
     "falls_off_end": "def add(a: int, b: int) -> int:\n    if a > 0:\n        return a\n",
     "try_except": "def add(a: int, b: int) -> int:\n    try:\n        return a + b\n    except Exception:\n        return 0\n",
+    # A conditional expression is the shortest way to write a function that
+    # agrees with addition everywhere the 12-point sample looks and is a
+    # different function. It has no semantics here, so it gets no claim.
+    "conditional_expression": "def add(a: int, b: int) -> int:\n    return a + b if a != 99991 else 0\n",
+    # A parameter becomes a BINDER in the denotation theorem. These four would
+    # each capture something the statement or its tactic depends on, silently
+    # changing what the theorem says while it still reads correctly.
+    "parameter_is_a_lean_keyword": "def add(fun: int, b: int) -> int:\n    return fun + b\n",
+    "parameter_shadows_max": "def add(max: int, b: int) -> int:\n    return max + b\n",
+    "parameter_shadows_guard_hypothesis": "def add(hguard0: int, b: int) -> int:\n    return hguard0 + b\n",
+    "parameter_shadows_the_tree": "def add(add_ast: int, b: int) -> int:\n    return add_ast + b\n",
 }
 
 
@@ -100,6 +130,83 @@ def test_raise_becomes_a_partial_guard() -> None:
     assert e.guards == 1
 
 
+# --------------------------------------------------------------------------
+# The denotation: the closed form is a SECOND walk over the SAME tree.
+#
+# These are pure renderer tests. They say nothing about whether the closed form
+# agrees with `eval` — only the Lean kernel decides that, and
+# test_a_renderer_that_lies_is_caught_by_the_kernel is where it is measured.
+# --------------------------------------------------------------------------
+@pytest.mark.parametrize("source,closed_form", [
+    ("def add(a: int, b: int) -> int:\n    return a + b\n", "some (a + b)"),
+    ("def add(a: int, b: int) -> int:\n    return a - b\n", "some (a - b)"),
+    ("def add(a: int, b: int) -> int:\n    return a * b\n", "some (a * b)"),
+    ("def add(a: int, b: int) -> int:\n    return max(a, b)\n",
+     "some (max a b)"),
+    ("def add(a: int, b: int) -> int:\n    return min(a, b)\n",
+     "some (min a b)"),
+    ("def add(a: int, b: int) -> int:\n    return 0\n", "some (0 : Int)"),
+    ("def add(a: int, b: int) -> int:\n    return -a\n", "some ((0 : Int) - a)"),
+    ("def add(a: int, b: int) -> int:\n    return a + b * a\n",
+     "some (a + (b * a))"),
+])
+def test_the_closed_form_follows_the_tree(source: str, closed_form: str) -> None:
+    assert emit(source).denotation == closed_form
+
+
+def test_a_guard_makes_the_denotation_conditional() -> None:
+    """`raise` is `none` in the closed form: partiality is in the formula."""
+    e = emit("def clamp(lo: int, hi: int, x: int) -> int:\n"
+             "    if lo > hi:\n        raise ValueError('bad')\n"
+             "    return max(lo, min(hi, x))\n", "clamp")
+    assert e.denotation == (
+        "(if lo > hi then none else some (max lo (min hi x)))")
+    assert e.guard_props == ["lo > hi"]
+
+
+def test_guards_nest_in_source_order() -> None:
+    """Python short-circuits top to bottom; so must the closed form."""
+    e = emit("def f(a: int, b: int) -> int:\n"
+             "    if a > 0:\n        return a\n"
+             "    if b == 3:\n        raise ValueError('x')\n"
+             "    return a + b\n", "f")
+    assert e.denotation == (
+        "(if a > (0 : Int) then some a "
+        "else (if b = (3 : Int) then none else some (a + b)))")
+    assert e.guard_props == ["a > (0 : Int)", "b = (3 : Int)"]
+
+
+def test_truthiness_of_a_non_comparison_guard_is_not_zero() -> None:
+    """Python's rule for ints, written as the Prop it actually is."""
+    e = emit("def f(a: int, b: int) -> int:\n"
+             "    if a:\n        return b\n    return a\n", "f")
+    assert e.guard_props == ["a ≠ (0 : Int)"]
+
+
+def test_every_proof_carries_a_universally_quantified_denotation() -> None:
+    """Dropping the denotation from the generator would leave freshness green."""
+    for name in ("add", "multiply", "subtract", "clamp"):
+        text = (REPO / f"semantics/proofs/{name}_semantics_proof.lean").read_text(
+            encoding="utf-8")
+        assert f"theorem {name}_ast_denotes" in text, name
+        assert f"#print axioms {name}_ast_denotes" in text, name
+
+
+def test_the_four_real_denotations_are_the_expected_mathematics() -> None:
+    """A reader must be able to check the closed form against the source."""
+    expected = {
+        "add": "some (a + b)",
+        "multiply": "some (a * b)",
+        "subtract": "some (a - b)",
+        "clamp": "(if lo > hi then none else some (max lo (min hi x)))",
+    }
+    for name, closed_form in expected.items():
+        assert pysem.emit(REPO / f"src/{name}.py", name).denotation == closed_form
+
+
+# --------------------------------------------------------------------------
+# Observations come from RUNNING the real function.
+# --------------------------------------------------------------------------
 def test_observed_ground_truth_comes_from_running_the_real_function() -> None:
     """The obligations the kernel discharges are CPython's actual outputs."""
     with tempfile.TemporaryDirectory() as d:
@@ -126,72 +233,276 @@ def test_a_raising_function_records_undefined_not_a_value() -> None:
 # --------------------------------------------------------------------------
 # The gate: editing Python must break the claim. This is the whole point.
 # --------------------------------------------------------------------------
-def worktree(tmp_path: Path, source: str, regenerate: bool) -> subprocess.CompletedProcess[str]:
-    import shutil
+IGNORE = shutil.ignore_patterns(".git", ".venv", "reports", "evidence",
+                                "__pycache__", ".hypothesis", ".pytest_cache")
+
+
+def worktree(tmp_path: Path, source: str, regenerate: bool,
+             func: str = "add") -> subprocess.CompletedProcess[str]:
     w = tmp_path / "w"
-    shutil.copytree(REPO, w, symlinks=True,
-                    ignore=shutil.ignore_patterns(".git", ".venv", "reports",
-                                                  "evidence", "__pycache__",
-                                                  ".hypothesis", ".pytest_cache"))
-    (w / "src/add.py").write_text(source, encoding="utf-8")
+    shutil.copytree(REPO, w, symlinks=True, ignore=IGNORE)
+    (w / f"src/{func}.py").write_text(source, encoding="utf-8")
     (w / "reports").mkdir(exist_ok=True)
     if regenerate:
-        subprocess.run([PY, "scripts/gen_correspondence.py", "--function", "add"],
+        subprocess.run([PY, "scripts/gen_correspondence.py", "--function", func],
                        cwd=w, capture_output=True, text=True, timeout=120)
     return subprocess.run([PY, "scripts/correspondence_gate.py"], cwd=w,
-                          capture_output=True, text=True, timeout=600)
+                          capture_output=True, text=True, timeout=900)
 
 
-SEMANTIC_MUTANTS = {
-    "subtraction": "def add(a: int, b: int) -> int:\n    return a - b\n",
-    "multiplication": "def add(a: int, b: int) -> int:\n    return a * b\n",
-    "off_by_one": "def add(a: int, b: int) -> int:\n    return a + 1\n",
-    "constant": "def add(a: int, b: int) -> int:\n    return 0\n",
-    "branch": "def add(a: int, b: int) -> int:\n    if a > 0:\n        return a + b\n    return a - b\n",
+def layer(result: subprocess.CompletedProcess[str]) -> str:
+    """Which defence stopped this, read off the gate's own report."""
+    out = result.stdout + result.stderr
+    if "outside the supported subset" in out:
+        return "UNSUPPORTED"
+    if "describes different Python" in out:
+        return "FRESHNESS"
+    if "kernel rejected" in out:
+        return "KERNEL"
+    if result.returncode == 0:
+        return "ACCEPTED"
+    return f"OTHER(rc={result.returncode})"
+
+
+def mutate(text: str, old: str, new: str) -> str:
+    """A replacement that silently matched nothing would test nothing."""
+    assert old in text, f"clamp source no longer contains {old!r}"
+    return text.replace(old, new)
+
+
+CLAMP = (REPO / "src/clamp.py").read_text(encoding="utf-8")
+
+# Six mutations, each in a different category, with the layer that was measured
+# to catch it once the pair has been REGENERATED from the mutant. Without
+# regenerating, every one of them is caught by FRESHNESS instead — that case is
+# checked separately below.
+NEGATIVE: dict[str, tuple[str, str, str]] = {
+    # 1. THE MINIMUM ACCEPTANCE TEST, in the form the brief states it. Agrees
+    #    with addition at all 12 sampled points and is a different function.
+    #    Caught before any theorem exists: `IfExp` has no semantics here.
+    "1a_min_acceptance_conditional_expression": (
+        "add",
+        "def add(a: int, b: int) -> int:\n"
+        "    return a + b if a != 99991 else 0\n",
+        "UNSUPPORTED"),
+    # 1b. The same mathematics, written INSIDE the subset so that a full pair is
+    #     generated and the kernel is the thing that has to refuse it. All 12
+    #     ground-truth points still hold; the property does not.
+    "1b_min_acceptance_inside_the_subset": (
+        "add",
+        "def add(a: int, b: int) -> int:\n"
+        "    if a == 99991:\n        return 0\n"
+        "    return a + b\n",
+        "KERNEL"),
+    # 2. Arithmetic mutation, both directions asked for.
+    "2a_arithmetic_add_to_sub": (
+        "add", "def add(a: int, b: int) -> int:\n    return a - b\n", "KERNEL"),
+    "2b_arithmetic_mul_to_add": (
+        "multiply",
+        "def multiply(a: int, b: int) -> int:\n    return a + b\n", "KERNEL"),
+    # 3. Comparison mutation in clamp's guard: `>` to `>=`.
+    "3_comparison_gt_to_ge_in_guard": (
+        "clamp", mutate(CLAMP, "if lo > hi:", "if lo >= hi:"), "KERNEL"),
+    # 4. Constant mutation.
+    "4_constant_off_by_one": (
+        "add", "def add(a: int, b: int) -> int:\n    return a + b + 1\n",
+        "KERNEL"),
+    # 5. Nested branch: a SECOND guard, chosen so that it too agrees at all 12
+    #    sampled points. The denotation is what makes the change legible — the
+    #    residual goal carries `x = 99991`.
+    "5_nested_second_guard": (
+        "clamp",
+        mutate(CLAMP, "    return max(lo, min(hi, x))",
+               "    if x == 99991:\n        return lo\n"
+               "    return max(lo, min(hi, x))"),
+        "KERNEL"),
+    # 6. Comparison direction swapped: the guard now fires on the valid range.
+    "6_comparison_direction_swapped": (
+        "clamp", mutate(CLAMP, "if lo > hi:", "if lo < hi:"), "KERNEL"),
 }
 
 
-@pytest.mark.parametrize("name", sorted(SEMANTIC_MUTANTS))
-def test_edited_python_without_regenerating_is_caught(tmp_path: Path,
-                                                      name: str) -> None:
-    """The committed pair is self-consistent, so only a source comparison sees it."""
-    result = worktree(tmp_path, SEMANTIC_MUTANTS[name], regenerate=False)
+@pytest.mark.parametrize("name", sorted(NEGATIVE))
+def test_mutant_without_regenerating_is_caught(tmp_path: Path,
+                                               name: str) -> None:
+    """The committed pair is self-consistent, so only a source comparison sees it.
+
+    Not marked `axle`: the gate stops at freshness (or at the subset check) for
+    the mutated function, so the assertion does not depend on the kernel.
+    """
+    func, source, _ = NEGATIVE[name]
+    result = worktree(tmp_path, source, regenerate=False, func=func)
+    caught = layer(result)
+    print(f"\n{name} (not regenerated) -> {caught}")
     assert result.returncode != 0, f"{name} kept the claim without regenerating"
-    assert "describes different Python" in result.stdout
+    expected = "UNSUPPORTED" if "conditional_expression" in name else "FRESHNESS"
+    assert caught == expected, result.stdout[-2000:]
 
 
 @pytest.mark.axle
-@pytest.mark.parametrize("name", sorted(SEMANTIC_MUTANTS))
-def test_edited_python_after_regenerating_is_rejected_by_the_kernel(
-        tmp_path: Path, name: str) -> None:
-    """Regenerating is not an escape: the property is then false of the program."""
-    result = worktree(tmp_path, SEMANTIC_MUTANTS[name], regenerate=True)
+@pytest.mark.parametrize("name", sorted(NEGATIVE))
+def test_mutant_after_regenerating_is_still_refused(tmp_path: Path,
+                                                    name: str) -> None:
+    """Regenerating is not an escape, and the layer that refuses is recorded."""
+    func, source, expected = NEGATIVE[name]
+    result = worktree(tmp_path, source, regenerate=True, func=func)
+    caught = layer(result)
+    print(f"\n{name} (regenerated) -> {caught}")
     assert result.returncode != 0, (
         f"{name} regenerated into an accepted proof — the theorem would be "
         "claimed of a program that does not satisfy it")
+    assert caught == expected, result.stdout[-2000:]
+
+
+# --------------------------------------------------------------------------
+# Attribution: WHICH kernel obligation refused, and which ones could not.
+# --------------------------------------------------------------------------
+def theorem_containing(proof: str, line: int) -> str:
+    """The last `theorem` declared at or before `line`."""
+    name = "<none>"
+    for i, text in enumerate(proof.splitlines(), start=1):
+        if i > line:
+            break
+        m = re.match(r"theorem (\S+)", text)
+        if m:
+            name = m.group(1)
+    return name
+
+
+def axle(spec: Path, proof: Path) -> dict[str, Any]:
+    out = subprocess.run(
+        ["axle", "verify-proof", "--environment", "lean-4.33.0",
+         str(spec), str(proof)], capture_output=True, text=True, timeout=300)
+    return cast("dict[str, Any]", json.loads(out.stdout))
+
+
+def failing_theorems(payload: dict[str, Any], proof: str) -> set[str]:
+    messages = payload.get("lean_messages")
+    errors: list[Any] = []
+    if isinstance(messages, dict):
+        raw = cast("dict[str, Any]", messages).get("errors")
+        if isinstance(raw, list):
+            errors = cast("list[Any]", raw)
+    found: set[str] = set()
+    for e in errors:
+        m = re.search(r"-:(\d+):", str(e))
+        if m:
+            found.add(theorem_containing(proof, int(m.group(1))))
+    return found
 
 
 @pytest.mark.axle
-def test_semantically_identical_rewrite_is_accepted(tmp_path: Path) -> None:
-    """`b + a` IS addition. Rejecting it would mean the gate tracks bytes, not meaning."""
-    result = worktree(tmp_path, "def add(a: int, b: int) -> int:\n    return b + a\n",
-                      regenerate=True)
+def test_the_min_acceptance_mutant_is_refused_by_the_property(
+        tmp_path: Path) -> None:
+    """Which obligation refuses `if a == 99991: return 0`, measured not assumed.
+
+    The derived obligations cannot refuse it: regenerating rebuilt both the
+    closed form and the recorded CPython outputs from the mutant, so both are
+    true of the mutant. The hand-written property is what survives regeneration
+    and it is what refuses. The denotation still did work — it is why the
+    residual goal reads `if a = 99991 then some 0 else some (a + b)` instead of
+    an unfolded interpreter.
+    """
+    w = tmp_path / "w"
+    shutil.copytree(REPO, w, symlinks=True, ignore=IGNORE)
+    (w / "src/add.py").write_text(
+        "def add(a: int, b: int) -> int:\n"
+        "    if a == 99991:\n        return 0\n    return a + b\n",
+        encoding="utf-8")
+    gen = subprocess.run([PY, "scripts/gen_correspondence.py",
+                          "--function", "add"], cwd=w, capture_output=True,
+                         text=True, timeout=120)
+    assert gen.returncode == 0, gen.stderr
+
+    spec = w / "semantics/specs/add_semantics_spec.lean"
+    proof = w / "semantics/proofs/add_semantics_proof.lean"
+    text = proof.read_text(encoding="utf-8")
+    # Compare the mathematics, not the elaboration. Lean needs `(99991 : Int)`
+    # to fix the literal's type, so the rendered denotation carries ascriptions
+    # the idealised form does not:
+    #
+    #   rendered  = (if a = (99991 : Int) then some (0 : Int) else some (a + b))
+    #   idealised =  if a = 99991 then some 0 else some (a + b)
+    #
+    # Pinning the exact rendering would fail this test on a cosmetic change to
+    # the generator while a real change to the mathematics slipped past, which
+    # inverts what the test is for. Strip the ascriptions and collapse
+    # whitespace, then assert the shape.
+    idealised = re.sub(r"\((-?\w+) : Int\)", r"\1", text)
+    idealised = re.sub(r"\s+", " ", idealised)
+    assert "if a = 99991 then some 0 else some (a + b)" in idealised, (
+        "the denotation must show the mutation as readable mathematics; "
+        f"rendered form was: {text[text.find('add_ast_denotes'):][:200]!r}")
+
+    payload = axle(spec, proof)
+    assert payload.get("okay") is not True, "the kernel accepted the mutant"
+    failed = failing_theorems(payload, text)
+    assert failed == {"add_ast_is_addition"}, failed
+    assert "add_ast_denotes" not in failed, (
+        "a derived obligation cannot refute a program it was derived from")
+    assert "add_ast_matches_cpython" not in failed, (
+        "the mutant agrees with CPython at all 12 sampled points, which is "
+        "exactly why point sampling could not be the primary link")
+
+
+@pytest.mark.axle
+def test_a_renderer_that_lies_is_caught_by_the_kernel(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The denotation layer is load-bearing, and this is where it bears.
+
+    Nothing in Python checks that `render_value` agrees with Lean's `eval`.
+    Make it disagree — render `.sub` as `+` — and the kernel refuses the
+    denotation theorem, while the 12-point correspondence, which never mentions
+    the closed form, still holds. Two layers, independently.
+    """
+    import gen_correspondence as gen
+
+    monkeypatch.setitem(pysem.VALUE_INFIX, "sub", "+")
+    src = REPO / "src/subtract.py"
+    e = pysem.emit(src, "subtract")
+    e.ground_truth = pysem.observe(src, "subtract", e.params)
+    assert e.denotation == "some (a + b)", "the sabotage did not take"
+
+    spec_text, proof_text = gen.render(e)
+    spec = tmp_path / "spec.lean"
+    proof = tmp_path / "proof.lean"
+    spec.write_text(spec_text, encoding="utf-8")
+    proof.write_text(proof_text, encoding="utf-8")
+
+    payload = axle(spec, proof)
+    assert payload.get("okay") is not True, (
+        "the kernel accepted a closed form that disagrees with `eval`")
+    failed = failing_theorems(payload, proof_text)
+    assert failed == {"subtract_ast_denotes"}, failed
+
+
+# --------------------------------------------------------------------------
+# The gate must track MEANING, not bytes.
+# --------------------------------------------------------------------------
+@pytest.mark.axle
+@pytest.mark.parametrize("func,source", [
+    ("add", "def add(a: int, b: int) -> int:\n    return b + a\n"),
+    # The same guard, written the other way round. The closed form changes text
+    # (`hi < lo` instead of `lo > hi`) and the kernel still accepts, because the
+    # denotation is checked against `eval`, not against a stored string.
+    ("clamp", mutate(CLAMP, "if lo > hi:", "if hi < lo:")),
+])
+def test_semantically_identical_rewrite_is_accepted(tmp_path: Path, func: str,
+                                                    source: str) -> None:
+    """Rejecting these would mean the gate tracks bytes, not meaning."""
+    result = worktree(tmp_path, source, regenerate=True, func=func)
     assert result.returncode == 0, result.stdout[-2000:]
 
 
 def test_a_source_with_no_correspondence_pair_is_caught(tmp_path: Path) -> None:
     """A new function must not slip outside the proof system unnoticed."""
-    import shutil
     w = tmp_path / "w"
-    shutil.copytree(REPO, w, symlinks=True,
-                    ignore=shutil.ignore_patterns(".git", ".venv", "reports",
-                                                  "evidence", "__pycache__",
-                                                  ".hypothesis", ".pytest_cache"))
+    shutil.copytree(REPO, w, symlinks=True, ignore=IGNORE)
     (w / "src/negate.py").write_text(
         "def negate(a: int) -> int:\n    return -a\n", encoding="utf-8")
     (w / "reports").mkdir(exist_ok=True)
     result = subprocess.run([PY, "scripts/correspondence_gate.py"], cwd=w,
-                            capture_output=True, text=True, timeout=600)
+                            capture_output=True, text=True, timeout=900)
     assert result.returncode != 0, "an uncovered function was allowed"
     assert "no correspondence pair" in result.stdout
 
@@ -207,10 +518,14 @@ def test_no_proof_contains_sorry_or_native_decide() -> None:
             assert forbidden not in text, f"{p.name} contains {forbidden!r}"
 
 
-def test_every_proof_requests_its_axiom_report() -> None:
+def test_every_proof_requests_an_axiom_report_for_every_theorem() -> None:
     """Without `#print axioms` the audit silently stops running."""
     for p in sorted((REPO / "semantics/proofs").glob("*.lean")):
-        assert "#print axioms" in p.read_text(encoding="utf-8"), p.name
+        text = p.read_text(encoding="utf-8")
+        declared = re.findall(r"^theorem (\S+)", text, flags=re.MULTILINE)
+        assert declared, p.name
+        for name in declared:
+            assert f"#print axioms {name}" in text, f"{p.name}: {name}"
 
 
 def test_the_semantics_text_is_identical_in_every_generated_file() -> None:
@@ -230,14 +545,11 @@ def test_a_sorry_in_a_proof_is_caught_twice(tmp_path: Path) -> None:
     would still not get an incomplete proof past the gate — measured, not
     assumed.
     """
-    import json
-    import re
-
     spec = REPO / "semantics/specs/add_semantics_spec.lean"
     proof = (REPO / "semantics/proofs/add_semantics_proof.lean").read_text(
         encoding="utf-8")
     i = proof.index("theorem add_ast_is_addition")
-    j = proof.index("#print axioms add_ast_matches_cpython")
+    j = proof.index("#print axioms add_ast_denotes")
     sabotaged = (
         proof[:i]
         + "theorem add_ast_is_addition (a b : Int) :\n"
@@ -247,11 +559,7 @@ def test_a_sorry_in_a_proof_is_caught_twice(tmp_path: Path) -> None:
     bad = tmp_path / "sorry_proof.lean"
     bad.write_text(sabotaged, encoding="utf-8")
 
-    out = subprocess.run(
-        ["axle", "verify-proof", "--environment", "lean-4.33.0",
-         str(spec), str(bad)], capture_output=True, text=True, timeout=300)
-    payload = cast("dict[str, Any]", json.loads(out.stdout))
-
+    payload = axle(spec, bad)
     assert payload.get("okay") is not True, "AXLE accepted a proof with `sorry`"
 
     messages = payload.get("lean_messages")

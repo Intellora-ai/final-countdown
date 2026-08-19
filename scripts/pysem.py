@@ -29,6 +29,26 @@ Then the theorem is not about a translated function. It is about
 be trusted to preserve semantics across the boundary, because nothing crosses
 the boundary except data.
 
+ONE TREE, TWO RENDERERS.
+CPython's `ast` is lowered exactly once into the `Node` type below. Two
+renderers walk that same structure:
+
+    render_ast      the Lean `PyExpr` VALUE — `(.add (.var "a") (.var "b"))`,
+                    which is what `evalFunc` consumes.
+    render_value    the Lean EXPRESSION the tree denotes — `(a + b)`.
+
+The second one is NOT trusted, and does not have to be. `denotation()`
+assembles it into the right-hand side of
+
+    theorem add_ast_denotes (a b : Int) :
+        evalFunc add_ast [a, b] = some (a + b)
+
+which the Lean kernel proves or rejects over ALL integers. A renderer that
+disagreed with `eval` at any input would stop typechecking there. That is what
+makes it safe to read the closed form as "what this Python means" — the
+alternative, sampling the function at a handful of points, leaves every other
+input unclaimed.
+
 This shrinks the trusted base to three things, all stated in TRUST.md:
 CPython's `ast` module, this file's faithfulness in serialising that AST, and
 the claim that Lean's `evalFunc` agrees with CPython on the supported subset.
@@ -47,10 +67,11 @@ import ast
 import hashlib
 import importlib.util
 import json
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeAlias
 
 
 class Unsupported(Exception):
@@ -59,6 +80,52 @@ class Unsupported(Exception):
     Raised, never swallowed. A program that cannot be given semantics must not
     acquire a formal claim by default.
     """
+
+
+# --------------------------------------------------------------------------
+# The parsed expression, lowered exactly once.
+#
+# Everything downstream — the Lean AST data, the closed-form denotation, the
+# guard conditions the proof tactic splits on — is a walk over THIS. Two
+# representations of the same program that are built by two separate passes
+# over CPython's `ast` are two representations that drift.
+# --------------------------------------------------------------------------
+@dataclass(frozen=True)
+class Lit:
+    """An integer literal. Python ints are unbounded, so this is a Lean `Int`."""
+
+    value: int
+
+
+@dataclass(frozen=True)
+class Var:
+    """A parameter reference. Nothing else in scope has semantics here."""
+
+    name: str
+
+
+@dataclass(frozen=True)
+class Op:
+    """A binary node. `op` is the Lean `PyExpr` constructor name, verbatim."""
+
+    op: str
+    left: Node
+    right: Node
+
+
+Node: TypeAlias = "Lit | Var | Op"
+
+
+@dataclass(frozen=True)
+class Guard:
+    """One `if` at the top of a body.
+
+    `action is None` is `raise`: the function is undefined there, which is
+    `none` in the semantics, not an error value.
+    """
+
+    cond: Node
+    action: Node | None
 
 
 # Python binary operators with a defined meaning in the Lean semantics.
@@ -73,6 +140,22 @@ CMPOPS: dict[type[ast.cmpop], str] = {
 }
 BUILTINS = {"max": "pmax", "min": "pmin"}
 
+# Lean surface syntax per `PyExpr` constructor. A node can stand in two
+# positions and they are not the same rendering:
+#
+#   VALUE      it denotes an `Int`             `(a + b)`
+#   CONDITION  its truthiness denotes a `Prop`  `a > b`
+#
+# `eval` sends `.gt a b` to `some (if a > b then 1 else 0)` and `runGuards`
+# tests `≠ 0`, so `(if a > b then 1 else 0) ≠ 0` IS `a > b`. That equivalence
+# is why a comparison guard renders as a bare proposition, and why the kernel
+# accepts the result instead of choking on an arithmetic encoding.
+VALUE_INFIX: dict[str, str] = {"add": "+", "sub": "-", "mul": "*"}
+VALUE_PREFIX: dict[str, str] = {"pmax": "max", "pmin": "min"}
+COMPARISONS: dict[str, str] = {
+    "lt": "<", "le": "≤", "gt": ">", "ge": "≥", "eq": "=", "ne": "≠",
+}
+
 
 GroundTruth = list[tuple[list[int], "int | None"]]
 
@@ -85,25 +168,144 @@ def _no_observations() -> GroundTruth:
 @dataclass
 class Emitted:
     """Everything needed to state a theorem about this exact source file."""
+
     name: str
     source_path: str
     source_sha256: str
     params: list[str]
     lean_ast: str
     guards: int
+    denotation: str
+    guard_props: list[str]
     ground_truth: GroundTruth = field(default_factory=_no_observations)
+
+
+# --------------------------------------------------------------------------
+# The two renderers
+# --------------------------------------------------------------------------
+def render_ast(node: Node) -> str:
+    """The Lean `PyExpr` VALUE. This is the tree every theorem is about."""
+    if isinstance(node, Lit):
+        return f"(.lit ({node.value}))"
+    if isinstance(node, Var):
+        return f'(.var "{node.name}")'
+    return f"(.{node.op} {render_ast(node.left)} {render_ast(node.right)})"
+
+
+def render_value(node: Node) -> str:
+    """The Lean EXPRESSION the tree denotes, as an `Int`.
+
+    Not trusted. The denotation theorem hands this to the kernel to check
+    against `eval` over every integer, so a mistake here is a compile error,
+    not a wrong claim.
+    """
+    if isinstance(node, Lit):
+        return f"({node.value} : Int)"
+    if isinstance(node, Var):
+        return node.name
+    left, right = render_value(node.left), render_value(node.right)
+    infix = VALUE_INFIX.get(node.op)
+    if infix is not None:
+        return f"({left} {infix} {right})"
+    prefix = VALUE_PREFIX.get(node.op)
+    if prefix is not None:
+        return f"({prefix} {left} {right})"
+    # A comparison used as a value: Python's bool, as the semantics encodes it.
+    return f"(if {left} {COMPARISONS[node.op]} {right} then (1 : Int) else (0 : Int))"
+
+
+def render_prop(node: Node) -> str:
+    """The Lean PROP a node means in CONDITION position — Python truthiness."""
+    if isinstance(node, Op) and node.op in COMPARISONS:
+        return (f"{render_value(node.left)} {COMPARISONS[node.op]} "
+                f"{render_value(node.right)}")
+    return f"{render_value(node)} ≠ (0 : Int)"
+
+
+def render_guard(g: Guard) -> str:
+    """One entry of the Lean `guards` list, as data."""
+    if g.action is None:
+        return f"({render_ast(g.cond)}, none)"
+    return f"({render_ast(g.cond)}, some {render_ast(g.action)})"
+
+
+def denotation(guards: list[Guard], ret: Node) -> str:
+    """The closed form of the WHOLE function, as one Lean `Option Int` term.
+
+    Guards short-circuit in source order, so they nest as `if`s with the final
+    `return` at the bottom. `raise` is `none`: partiality is in the formula,
+    not swept aside.
+    """
+    if not guards:
+        return f"some {render_value(ret)}"
+    head = guards[0]
+    taken = ("none" if head.action is None
+             else f"some {render_value(head.action)}")
+    return (f"(if {render_prop(head.cond)} then {taken} "
+            f"else {denotation(guards[1:], ret)})")
+
+
+# --------------------------------------------------------------------------
+# Parameter names
+#
+# A parameter becomes a BINDER in the denotation theorem, so its name has to be
+# a Lean identifier that captures nothing the statement or its tactic refers
+# to. A parameter called `max` would silently rebind `max lo (min hi x)` to an
+# integer; one called `hguard0` would collide with the generated case split.
+# Both are rejected rather than renamed: a theorem whose binders do not match
+# the Python parameter names is a theorem a reader has to decode before they
+# can check it.
+# --------------------------------------------------------------------------
+LEAN_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+GENERATED_HYPOTHESIS = re.compile(r"^hguard[0-9]+$")
+LEAN_RESERVED = frozenset({
+    # Lean 4 keywords and command heads.
+    "abbrev", "at", "attribute", "axiom", "by", "calc", "catch", "class",
+    "def", "deriving", "do", "else", "end", "example", "exists", "extends",
+    "finally", "for", "forall", "from", "fun", "have", "if", "import", "in",
+    "inductive", "instance", "let", "macro", "match", "mutual", "namespace",
+    "noncomputable", "notation", "open", "partial", "private", "protected",
+    "rec", "return", "section", "set_option", "show", "sorry", "structure",
+    "syntax", "then", "theorem", "this", "try", "universe", "unless", "unsafe",
+    "variable", "where", "while", "with",
+    # Everything the fixed semantics defines, plus what the generated
+    # statements and proofs name. Shadowing any of these changes what the
+    # theorem says without changing how it reads.
+    "PyExpr", "PyEnv", "PyFunc", "lookupVar", "eval", "evalFunc", "runGuards",
+    "lit", "var", "add", "sub", "mul", "pmax", "pmin", "lt", "le", "gt", "ge",
+    "eq", "ne", "params", "guards", "ret", "env", "fallback", "args",
+    "max", "min", "some", "none", "Option", "Int", "List", "String", "Prop",
+    "Type", "Nat", "Bool", "Decidable",
+})
+
+
+def check_param_name(name: str, func_name: str) -> None:
+    """Reject a parameter that cannot be a binder in the denotation theorem."""
+    if name == "_" or not LEAN_IDENTIFIER.match(name):
+        raise Unsupported(f"parameter {name!r} is not a Lean identifier, so it "
+                          "cannot be bound in the denotation theorem")
+    if name in LEAN_RESERVED:
+        raise Unsupported(f"parameter {name!r} is a Lean keyword or an "
+                          "identifier the semantics defines; binding it would "
+                          "change what the theorem means")
+    if GENERATED_HYPOTHESIS.match(name):
+        raise Unsupported(f"parameter {name!r} collides with the hypothesis "
+                          "names the generated guard split introduces")
+    if name == f"{func_name}_ast":
+        raise Unsupported(f"parameter {name!r} shadows the syntax tree the "
+                          "theorem is about")
 
 
 # --------------------------------------------------------------------------
 # Expressions
 # --------------------------------------------------------------------------
-def expr(node: ast.expr, params: set[str]) -> str:
-    """One Python expression as a Lean `PyExpr` term. Total or raises."""
+def expr(node: ast.expr, params: set[str]) -> Node:
+    """One Python expression, lowered. Total or raises."""
     if isinstance(node, ast.Constant):
         if isinstance(node.value, bool) or not isinstance(node.value, int):
             raise Unsupported(f"only int literals are supported, got "
                               f"{type(node.value).__name__}")
-        return f"(.lit ({node.value}))"
+        return Lit(node.value)
 
     if isinstance(node, ast.Name):
         if node.id not in params:
@@ -111,11 +313,11 @@ def expr(node: ast.expr, params: set[str]) -> str:
             # of those have semantics here, so none of them may enter a proof.
             raise Unsupported(f"name {node.id!r} is not a parameter; globals, "
                               "closures and builtins are outside the subset")
-        return f'(.var "{node.id}")'
+        return Var(node.id)
 
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
         # -x is sugar for 0 - x, which the semantics already defines.
-        return f'(.sub (.lit (0)) {expr(node.operand, params)})'
+        return Op("sub", Lit(0), expr(node.operand, params))
 
     if isinstance(node, ast.BinOp):
         op = BINOPS.get(type(node.op))
@@ -124,17 +326,17 @@ def expr(node: ast.expr, params: set[str]) -> str:
             # float. Neither is modelled, so neither is admitted.
             raise Unsupported(f"operator {type(node.op).__name__} has no "
                               "defined semantics in this subset")
-        return f"(.{op} {expr(node.left, params)} {expr(node.right, params)})"
+        return Op(op, expr(node.left, params), expr(node.right, params))
 
     if isinstance(node, ast.Compare):
         if len(node.ops) != 1 or len(node.comparators) != 1:
             raise Unsupported("chained comparison (a < b < c) is not modelled")
-        op = CMPOPS.get(type(node.ops[0]))
-        if op is None:
+        cmp = CMPOPS.get(type(node.ops[0]))
+        if cmp is None:
             raise Unsupported(f"comparison {type(node.ops[0]).__name__} is "
                               "outside the subset")
-        return (f"(.{op} {expr(node.left, params)} "
-                f"{expr(node.comparators[0], params)})")
+        return Op(cmp, expr(node.left, params),
+                  expr(node.comparators[0], params))
 
     if isinstance(node, ast.Call):
         if not isinstance(node.func, ast.Name) or node.func.id not in BUILTINS:
@@ -142,8 +344,8 @@ def expr(node: ast.expr, params: set[str]) -> str:
         if node.keywords or len(node.args) != 2:
             raise Unsupported(f"{node.func.id} is modelled only with exactly "
                               "two positional arguments")
-        return (f"(.{BUILTINS[node.func.id]} {expr(node.args[0], params)} "
-                f"{expr(node.args[1], params)})")
+        return Op(BUILTINS[node.func.id], expr(node.args[0], params),
+                  expr(node.args[1], params))
 
     raise Unsupported(f"expression {type(node).__name__} is outside the "
                       "formally supported subset")
@@ -163,7 +365,7 @@ def expr(node: ast.expr, params: set[str]) -> str:
 # No loops, no assignment, no nesting, no else. Those are not "hard"; they are
 # simply not defined, and anything undefined must not acquire a proof.
 # --------------------------------------------------------------------------
-def guard(stmt: ast.stmt, params: set[str]) -> str:
+def guard(stmt: ast.stmt, params: set[str]) -> Guard:
     if not isinstance(stmt, ast.If):
         raise Unsupported(f"statement {type(stmt).__name__} is outside the "
                           "subset; only `if` guards and a final `return`")
@@ -175,9 +377,9 @@ def guard(stmt: ast.stmt, params: set[str]) -> str:
     inner = stmt.body[0]
     if isinstance(inner, ast.Raise):
         # A raise makes the function partial: the semantics is `none` there.
-        return f"({cond}, none)"
+        return Guard(cond, None)
     if isinstance(inner, ast.Return) and inner.value is not None:
-        return f"({cond}, some {expr(inner.value, params)})"
+        return Guard(cond, expr(inner.value, params))
     raise Unsupported("a guard body must be `raise ...` or `return <expr>`")
 
 
@@ -200,6 +402,8 @@ def emit(path: Path, func_name: str) -> Emitted:
     params = [p.arg for p in a.args]
     if len(set(params)) != len(params):
         raise Unsupported("duplicate parameter names")
+    for p in params:
+        check_param_name(p, func_name)
     pset = set(params)
 
     body = list(fn.body)
@@ -215,29 +419,35 @@ def emit(path: Path, func_name: str) -> Emitted:
         raise Unsupported("the last statement must be `return <expr>`; a "
                           "function that can fall off the end returns None, "
                           "which is not an Int")
-    guards = [guard(s, pset) for s in body[:-1]]
+    guard_list = [guard(s, pset) for s in body[:-1]]
     ret = expr(final.value, pset)
 
     lean = ("{ params := [" + ", ".join(f'"{p}"' for p in params) + "]\n"
-            "  , guards := [" + ", ".join(guards) + "]\n"
-            "  , ret := " + ret + " }")
+            "  , guards := [" + ", ".join(render_guard(g) for g in guard_list)
+            + "]\n"
+            "  , ret := " + render_ast(ret) + " }")
 
     return Emitted(name=func_name, source_path=str(path),
                    source_sha256=hashlib.sha256(source.encode()).hexdigest(),
-                   params=params, lean_ast=lean, guards=len(guards))
+                   params=params, lean_ast=lean, guards=len(guard_list),
+                   denotation=denotation(guard_list, ret),
+                   guard_props=[render_prop(g.cond) for g in guard_list])
 
 
 # --------------------------------------------------------------------------
 # Ground truth — the machine-checked link to CPython's ACTUAL behaviour
 #
-# Emitting the AST proves nothing about what Lean's `evalFunc` does with it.
-# A wrong interpreter would still prove commutativity of something. So the
-# REAL function is executed here, and its observed outputs become obligations
-# the Lean kernel has to discharge by `rfl`. If `evalFunc` disagrees with
-# CPython at any sampled point, the proof does not typecheck.
+# The denotation theorem relates the tree to a formula, and both of those live
+# inside Lean. Neither has touched Python. So the REAL function is executed
+# here, and its observed outputs become obligations the Lean kernel has to
+# discharge by `rfl`. If `evalFunc` disagrees with CPython at any sampled
+# point, the proof does not typecheck.
 #
 # This is a finite sample, so it is refutation, not equivalence. Stated as such
-# in TRUST.md rather than dressed up.
+# in TRUST.md rather than dressed up. What the denotation changed is which job
+# the sample has to do: it no longer has to stand in for "what the program
+# means" — that is now quantified over all integers — only for "and Python
+# really does that".
 # --------------------------------------------------------------------------
 SAMPLES = [-7, -3, -1, 0, 1, 2, 3, 5, 8, 17]
 
@@ -293,6 +503,7 @@ def main() -> int:
             "name": e.name, "source_path": e.source_path,
             "source_sha256": e.source_sha256, "params": e.params,
             "guards": e.guards, "lean_ast": e.lean_ast,
+            "denotation": e.denotation, "guard_props": e.guard_props,
             "ground_truth": [{"args": a, "result": r} for a, r in e.ground_truth],
         }
         print(json.dumps(payload, indent=2))

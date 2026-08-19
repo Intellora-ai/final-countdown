@@ -84,7 +84,7 @@ def evalFunc (f : PyFunc) (args : List Int) : Option Int :=
   else none
 
 /-!
-CORRESPONDENCE AND PROPERTY FOR `src/clamp.py`.
+DENOTATION, CORRESPONDENCE AND PROPERTY FOR `src/clamp.py`.
 
   function      clamp(lo, hi, x)
   source sha256 0c83870f895651d2ff5d7c53871a2389712d495dfa66bde9d21f83168d97c689
@@ -95,8 +95,25 @@ scripts/pysem.py. Every theorem here is about `evalFunc clamp_ast` — the
 meaning the semantics above assigns to that tree — so no translation has to be
 trusted to preserve behaviour between Python and Lean.
 
-The sha256 pins WHICH BYTES were parsed. It says nothing about meaning; the
-correspondence theorem is what ties the tree to observed behaviour.
+THE CHAIN NEEDS BOTH KERNEL LINKS, AND THEY DO DIFFERENT JOBS.
+
+  DENOTATION      `evalFunc clamp_ast args = <closed form>` for ALL integers.
+                  The closed form is derived from this tree, by the traversal
+                  that emitted it. It says what the program MEANS, everywhere,
+                  not at a sample. What it cannot say is anything about Python:
+                  a tree and a formula are both Lean objects.
+
+  CORRESPONDENCE  `evalFunc clamp_ast [pt] = <observed>` at 12 points, by
+                  `rfl`, where <observed> is what CPython printed when the real
+                  function was run. This is the only obligation in the file
+                  that crosses the language boundary. Composed with the
+                  denotation it reads `<closed form> = CPython's output`.
+
+Neither is the chain. A denotation with no correspondence proves a formula
+about a data structure nobody checked against Python; a correspondence with no
+denotation pins 12 inputs and leaves every other integer unclaimed.
+
+The sha256 pins WHICH BYTES were parsed. It says nothing about meaning.
 -/
 
 def clamp_ast : PyFunc :=
@@ -104,10 +121,22 @@ def clamp_ast : PyFunc :=
   , guards := [((.gt (.var "lo") (.var "hi")), none)]
   , ret := (.pmax (.var "lo") (.pmin (.var "hi") (.var "x"))) }
 
+/-- DENOTATION. Universally quantified: this is the primary Python↔Lean link,
+and it holds at every integer, not at a sample. The right-hand side is derived
+from `clamp_ast` itself, so it is not a second hand-written model that could
+drift — and it is not trusted either, because the kernel is what closes the
+gap between it and `eval`. -/
+theorem clamp_ast_denotes (lo hi x : Int) :
+    evalFunc clamp_ast [lo, hi, x]
+      = (if lo > hi then none else some (max lo (min hi x))) := by
+  sorry
+
 /-- CORRESPONDENCE. Each conjunct is a point where the real CPython function
 was executed and its output recorded. The kernel must agree by `rfl`, so a
 disagreement between Lean's `evalFunc` and CPython at any sampled point makes
-this file fail to compile. A finite sample refutes; it does not prove. -/
+this file fail to compile. A finite sample refutes; it does not prove — which
+is why the denotation above carries the quantified claim and this carries the
+contact with Python. -/
 theorem clamp_ast_matches_cpython :
     evalFunc clamp_ast [(-7 : Int), (0 : Int), (3 : Int)] = some (0 : Int)
     ∧

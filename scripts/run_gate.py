@@ -39,6 +39,55 @@ REPO = Path(__file__).resolve().parent.parent
 _POSITION = re.compile(r"(/?[\w./-]+\.[A-Za-z]{1,6}):(\d+)\b")
 
 
+# pytest's short summary: `FAILED tests/x.py::test_y - AssertionError: msg`.
+# The `- msg` half is optional; a collection error prints the id alone.
+_PYTEST_FAILED = re.compile(
+    r"^(?:FAILED|ERROR)\s+(?P<file>[\w./-]+\.py)(?:::(?P<test>[\w\[\].:-]+))?"
+    r"(?:\s+-\s+(?P<message>.*))?$", re.MULTILINE)
+
+
+def per_test_failures(text: str) -> list[dict[str, str]]:
+    """One structured record per failing test, from pytest's short summary.
+
+    WHY THIS IS PARSED FROM STDOUT AND NOT FROM JUNIT XML.
+
+    The XML is richer -- durations, skips, per-test capture -- and this gate
+    emits it as an artifact for exactly that reason. It is not PARSED here,
+    because parsing it in-process means `xml.etree`, which bandit flags as B405
+    and B314, and clearing those would mean a new verified exemption in
+    security_gate.py for a parser handling a file this repository generated
+    seconds earlier. That is real trusted-computing-base surface bought to
+    re-read data already present in captured stdout.
+
+    So the standard artifact is produced for anything downstream that wants it,
+    and the gate's own decision path stays dependency-free.
+
+    WHAT THIS BUYS. Before, a failing test run produced ONE failure record --
+    "coverage failed" -- with the last six lines of output as prose. Twenty
+    failing tests and one failing test were indistinguishable in the finalizer,
+    and neither carried a location the report could annotate. Each failing test
+    is now its own record with its own file, so the log lists them and the
+    annotations land on the right files.
+    """
+    out: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for match in _PYTEST_FAILED.finditer(text):
+        path = match.group("file")
+        if not (REPO / path).is_file():
+            # pytest prints repository-relative paths. Anything else is not a
+            # test in this tree, and a location that cannot be opened is worse
+            # than none -- same rule the annotator applies.
+            continue
+        test = match.group("test") or "(collection)"
+        key = (path, test)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"test": test, "file": path,
+                    "message": (match.group("message") or "").strip()})
+    return out
+
+
 def first_location(text: str) -> str:
     """The first `path:line` in tool output that names a file that exists.
 
@@ -149,11 +198,28 @@ def main() -> None:
             # annotation this repository could emit was silently empty.
             # Falls back to the command when the output names no real file, so
             # a gate whose failure has no position is unchanged.
-            g.fail(what=f"{ns.name} failed",
-                   where=first_location(combined) or " ".join(cmd[:3]),
-                   why="\n".join(tail)[:500],
-                   requirement="This gate is required by the ruleset; it must exit 0.",
-                   fix="Read reports/ and the log above; fix the code, not the gate.")
+            per_test = per_test_failures(combined)
+            for failure in per_test:
+                # One record per failing test rather than one for the whole
+                # run. Twenty failures and one failure used to look identical
+                # in the finalizer, and neither carried a file to annotate.
+                g.fail(what=f"{failure['test']} failed",
+                       where=failure["file"],
+                       why=failure["message"] or "see the captured output above",
+                       requirement="Every test in this suite must pass.",
+                       fix=f"Reproduce with: pytest {failure['file']}"
+                           + (f"::{failure['test']}"
+                              if failure["test"] != "(collection)" else ""))
+            if not per_test:
+                # Not a test-suite failure, or a shape the summary did not
+                # print -- a crash before collection, a threshold miss, a tool
+                # that is not pytest at all. The single record is kept for
+                # those, so a failure is never recorded as zero failures.
+                g.fail(what=f"{ns.name} failed",
+                       where=first_location(combined) or " ".join(cmd[:3]),
+                       why="\n".join(tail)[:500],
+                       requirement="This gate is required by the ruleset; it must exit 0.",
+                       fix="Read reports/ and the log above; fix the code, not the gate.")
         g.artifact(f"reports/{ns.name}.json")
 
 

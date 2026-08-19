@@ -97,20 +97,56 @@ def test_the_counts_separate_ran_and_failed_from_never_concluded() -> None:
 
 @pytest.mark.parametrize("where", [
     "scripts/does_not_exist_at_all.py:12",   # file is not in the tree
-    "scripts/gate.py:999999",                # past the end of a real file
-    "scripts/gate.py:0",                     # lines are 1-based
+    "scripts/does_not_exist_at_all.py",      # bare path, still not in the tree
     "somewhere in the coverage report",      # not a location at all
+    "specs/a_spec.lean + proofs/a_proof.lean",  # two files; neither is "the" one
     "",                                      # nothing recorded
 ])
-def test_an_unprovable_location_is_never_annotated(where: str) -> None:
+def test_an_unprovable_file_is_never_annotated(where: str) -> None:
     """`::error file=` is a claim a reader acts on. Wrong is worse than absent."""
     f = one_failure(where=where)
     text, _ = blocker_report.render(
         manifest({"g": {"status": "FAIL", "failures": [f]}}, ["g"]), MERGEABLE)
     assert "::error file=" not in text, (
-        f"annotated a location it could not verify: {where!r}")
+        f"annotated a file it could not verify: {where!r}")
     # ...but the finding itself must still be fully reported.
     assert f["what"] in text and f["how_to_fix"] in text
+
+
+@pytest.mark.parametrize("where", [
+    "scripts/gate.py:999999",   # past the end of a real file
+    "scripts/gate.py:0",        # lines are 1-based
+])
+def test_a_real_file_with_an_unprovable_line_is_annotated_without_one(
+        where: str) -> None:
+    """File and line are two separate claims, and they fail separately.
+
+    The file is real and the reader can open it; only the position is wrong.
+    Dropping the annotation entirely would discard something true to avoid
+    something false, when omitting just the false half costs nothing.
+    """
+    f = one_failure(where=where)
+    text, _ = blocker_report.render(
+        manifest({"g": {"status": "FAIL", "failures": [f]}}, ["g"]), MERGEABLE)
+    assert "::error file=scripts/gate.py," in text, (
+        "the real file was not annotated at all")
+    assert "line=" not in text, (
+        f"claimed a line it could not prove: {where!r}")
+
+
+def test_a_bare_path_that_exists_is_annotated_without_a_line() -> None:
+    """Most gates record a bare path -- a spec, a proof, a test file.
+
+    Requiring `file:line` meant every one of those produced no annotation.
+    GitHub attaches a line-less annotation to the file, which is true and
+    useful, so it is emitted.
+    """
+    text, _ = blocker_report.render(
+        manifest({"axle-verify": {"status": "FAIL",
+                                  "failures": [one_failure(where="scripts/gate.py")]}},
+                 ["axle-verify"]), MERGEABLE)
+    assert "::error file=scripts/gate.py,title=axle-verify" in text
+    assert "line=" not in text
 
 
 def test_a_real_location_is_annotated() -> None:

@@ -63,6 +63,11 @@ REPO = Path(__file__).resolve().parent.parent
 # carry a position; anything else is printed as-is and never annotated.
 _FILE_LINE = re.compile(r"^(?P<file>[\w./\-]+?):(?P<line>\d+)(?::(?P<col>\d+))?")
 
+# A path on its own, with a real extension. Anchored at both ends so a field
+# naming two files ("spec.lean + proof.lean") does not match: neither of them
+# is "the" location, and picking the first would be a guess.
+_BARE_PATH = re.compile(r"\.?/?[\w./\-]+\.[A-Za-z]{1,6}")
+
 # Terminal states, split by what they tell a human. A gate that ran and said no
 # is a defect in the change; a gate that never produced a verdict is a defect
 # in the verification, and conflating them costs the reader the more urgent of
@@ -83,27 +88,45 @@ def failure_id(gate: str, failure: dict[str, Any]) -> str:
     return hashlib.sha256(basis.encode("utf-8")).hexdigest()[:6].upper()
 
 
-def location(where: str) -> tuple[str, int, int | None] | None:
-    """(file, line, column) when `where` names a real position, else None.
+def location(where: str) -> tuple[str, int | None, int | None] | None:
+    """(file, line, column) when `where` names a real place, else None.
 
-    Verified against the working tree rather than trusted: an annotation is a
-    claim that the reader will act on, and a wrong one wastes the trip.
+    The line is optional. Most gates in this repository record a bare path --
+    `axle_gate.py` records the spec file, `correspondence_gate.py` the proof,
+    and run_gate records the test file pytest named -- and requiring a line
+    meant every one of those produced no annotation at all. GitHub accepts
+    `::error file=X` without a line and attaches it to the file, which is a
+    true and useful claim; refusing to make it bought nothing.
+
+    Verified against the working tree rather than trusted, in both forms: an
+    annotation is a claim the reader will act on, and one pointing at a file
+    that is not there wastes the trip.
     """
-    match = _FILE_LINE.match(where.strip())
-    if match is None:
+    text = where.strip()
+    match = _FILE_LINE.match(text)
+    if match is not None:
+        path = REPO / match.group("file")
+        if path.is_file():
+            line = int(match.group("line"))
+            try:
+                total = sum(1 for _ in
+                            path.open("r", encoding="utf-8", errors="replace"))
+            except OSError:
+                return None
+            if 1 <= line <= total:
+                col = int(match.group("col")) if match.group("col") else None
+                return (match.group("file"), line, col)
+            # A real file with an out-of-range line: fall through and annotate
+            # the file. The position is wrong; the file still is not.
+            return (match.group("file"), None, None)
         return None
-    path = REPO / match.group("file")
-    if not path.is_file():
-        return None
-    line = int(match.group("line"))
-    try:
-        total = sum(1 for _ in path.open("r", encoding="utf-8", errors="replace"))
-    except OSError:
-        return None
-    if not 1 <= line <= total:
-        return None
-    col = int(match.group("col")) if match.group("col") else None
-    return (match.group("file"), line, col)
+
+    # A bare path. Must be the whole field -- `spec.lean + proof.lean` names
+    # two files and neither is "the" location, so it is left unannotated
+    # rather than arbitrarily attributed to the first.
+    if _BARE_PATH.fullmatch(text) and (REPO / text.lstrip("./")).is_file():
+        return (text.lstrip("./"), None, None)
+    return None
 
 
 def annotate(gate: str, fid: str, failure: dict[str, Any]) -> str | None:
@@ -125,7 +148,9 @@ def annotate(gate: str, fid: str, failure: dict[str, Any]) -> str | None:
     # Newlines terminate an annotation command, so the message is flattened.
     # `::` would open a second command inside this one.
     body = body.replace("\n", " ").replace("::", ":").strip()
-    where = f"file={path},line={line}" + (f",col={col}" if col else "")
+    where = f"file={path}"
+    if line is not None:
+        where += f",line={line}" + (f",col={col}" if col else "")
     return f"::error {where},title={gate} [{fid}]::{body[:900]}"
 
 
@@ -150,13 +175,19 @@ def counts(gates: dict[str, Any], mergeable: set[str]) -> dict[str, int]:
     return tally
 
 
+def _spot_text(spot: tuple[str, int | None, int | None]) -> str:
+    """`file:line` when there is a line, otherwise just the file."""
+    path, line, _ = spot
+    return f"{path}:{line}" if line is not None else path
+
+
 def _blocker_block(index: int, gate: str, fid: str,
                    failure: dict[str, Any]) -> list[str]:
     """One numbered blocker, every field the gate recorded."""
     out = [f"[{index}] {fid}  {gate}"]
     spot = location(str(failure.get("where", "")))
     shown = [
-        ("WHERE", f"{spot[0]}:{spot[1]}" if spot else
+        ("WHERE", _spot_text(spot) if spot else
          str(failure.get("where", "")) or "(no location recorded)"),
         ("WHAT", failure.get("what", "")),
         ("WHY", failure.get("why", "")),
@@ -324,7 +355,7 @@ def render(manifest: dict[str, Any], mergeable: set[str]) -> tuple[str, str]:
                 fid = failure_id(gate, failure) if failure else "—"
                 spot = location(str(failure.get("where", "")))
                 raw_where = str(failure.get("where", ""))
-                pos = (f"`{spot[0]}:{spot[1]}`" if spot
+                pos = (f"`{_spot_text(spot)}`" if spot
                        else (f"`{raw_where}`" if raw_where else "—"))
                 what = str(failure.get("what")
                            or record.get("status", "")).replace("|", "\\|")

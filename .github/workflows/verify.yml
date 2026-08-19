@@ -228,14 +228,28 @@ jobs:
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
+      # `--junitxml` writes the standard per-test report. The gate does NOT
+      # parse it -- it reads pytest's short summary out of captured stdout,
+      # because parsing XML in-process would mean `xml.etree`, which bandit
+      # flags (B405/B314), and clearing that would add a verified exemption to
+      # security_gate.py for a file this workflow generated seconds earlier.
+      # The XML is emitted and uploaded anyway: it costs one flag, it is the
+      # format every other tool understands, and keeping it means the gate's
+      # decision path and the interchange format are not the same dependency.
       - name: Tests + branch coverage
-        run: python3 scripts/run_gate.py --name coverage -- pytest --cov=src --cov-branch --cov-fail-under=95 -m "not axle"
+        run: python3 scripts/run_gate.py --name coverage -- pytest --cov=src --cov-branch --cov-fail-under=95 -m "not axle" --junitxml=test-results/pytest.xml
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: reports-coverage
-          path: reports/
+          # test-results/ is listed second and the upload does not require it:
+          # a crash before pytest writes the XML must still deliver
+          # reports/coverage.json, which is the evidence the finalizer needs.
+          # `if-no-files-found: error` still fires when BOTH are missing.
+          path: |
+            reports/
+            test-results/
           retention-days: 30
           if-no-files-found: error
 

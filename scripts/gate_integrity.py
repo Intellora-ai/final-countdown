@@ -414,19 +414,64 @@ def main() -> None:
                 continue
             job = cast("dict[str, Any]", job_obj)
 
-            # 2. job-level condition, only where the manifest declares one
+            # 2. job-level condition — checked in BOTH directions.
+            #
+            # This was `(job_if is None) or (job_if == allowed_if)`, which read
+            # an absent condition as always acceptable. For every job that is
+            # correct: unconditional is what a mandatory job should be. For the
+            # ONE job the manifest declares a condition for it was a hole, and
+            # ci/gates.toml already spells out the damage:
+            #
+            #   "Without it a failing gate skips this job, the required `full`
+            #    context never reports, and the PR hangs pending instead of
+            #    failing."
+            #
+            # Measured before this change, with `if: always()` deleted from the
+            # `full` job and nothing else touched:
+            #
+            #     $ python3 scripts/gate_integrity.py ; echo $?
+            #     0
+            #
+            # So one deleted line disabled the finalizer and the guard on the
+            # guard called it fine. A declared condition is now REQUIRED to be
+            # present, which is the direction the manifest was always making a
+            # claim about.
             allowed_if = spec.get("job_if")
             job_if = job.get("if")
-            if_ok = (job_if is None) or (str(job_if).strip() == str(allowed_if).strip())
+            if allowed_if is None:
+                if_ok = job_if is None
+            else:
+                if_ok = (job_if is not None
+                         and str(job_if).strip() == str(allowed_if).strip())
             g.check(f"{name}: job condition", if_ok,
                     f"if: {job_if}" if job_if else "unconditional")
             if not if_ok:
                 ok = False
-                g.fail(what=f"job '{job_id}' runs conditionally", where=str(wf),
-                       why=f"if: {job_if}",
-                       requirement="A mandatory job must run every time, unless "
-                                   f"{MANIFEST} declares the condition.",
-                       fix=f"Remove the condition, or declare job_if in {MANIFEST}.")
+                if allowed_if is not None and job_if is None:
+                    g.fail(
+                        what=f"job '{job_id}' lost its declared condition",
+                        where=str(wf),
+                        why=f"{MANIFEST} declares job_if = \"{allowed_if}\" for "
+                            f"this job and the workflow carries no `if:`",
+                        requirement="A job the manifest declares a condition "
+                                    "for must carry exactly that condition. "
+                                    "Dropping `if: always()` from the finalizer "
+                                    "makes it skip whenever a gate is red, so "
+                                    "the required check never reports and the "
+                                    "pull request hangs pending instead of "
+                                    "failing.",
+                        fix=f"Restore `if: {allowed_if}` on job `{job_id}`, or "
+                            f"remove job_if from {MANIFEST} if the condition "
+                            f"genuinely no longer belongs there.")
+                else:
+                    g.fail(what=f"job '{job_id}' runs conditionally",
+                           where=str(wf),
+                           why=f"if: {job_if}",
+                           requirement="A mandatory job must run every time, "
+                                       f"unless {MANIFEST} declares the "
+                                       "condition.",
+                           fix="Remove the condition, or declare job_if in "
+                               f"{MANIFEST}.")
 
             # 3. job-level continue-on-error
             if job.get("continue-on-error"):

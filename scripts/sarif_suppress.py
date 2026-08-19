@@ -53,6 +53,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any, cast
@@ -138,6 +139,93 @@ def result_location(result: dict[str, Any]) -> tuple[str, str, int] | None:
     return (rule, uri.lstrip("./"), line)
 
 
+# Bandit rules whose whole purpose is to flag a hardcoded secret. B105 is a
+# password string, B106 a password argument, B107 a password default.
+_VALUE_BEARING_RULES = frozenset({"B105", "B106", "B107"})
+
+# Bandit puts the value in the MESSAGE as well as the snippet:
+#
+#     "Possible hardcoded password: 'hunter2-not-a-real-one'"
+#
+# Found by checking the whole document for the planted string after the
+# snippets were removed, rather than by assuming the snippet was the only
+# copy -- it was not, and a fix that stopped at the snippet would have looked
+# complete and published the secret in the alert title.
+_VALUE_IN_MESSAGE = re.compile(r"(?P<head>[Pp]ossible hardcoded password:\s*)"
+                                r"'(?P<value>[^']*)'")
+
+
+def strip_value_bearing_fields(doc: dict[str, Any]) -> int:
+    """Drop the verbatim source line from findings that flag a secret.
+
+    WHY. bandit's SARIF formatter embeds the offending line and its neighbours
+    as `region.snippet.text` and `contextRegion.snippet.text`. Measured against
+    a file holding a fake password:
+
+        results: 1  ruleId: B105
+        has region.snippet : True
+        has contextRegion  : True
+        snippet text       : '    password = "hunter2-not-a-real-one"\n'
+
+    So the one rule family that exists to say "there is a credential here"
+    publishes the credential. `bandit -n 0` does not change this; no bandit
+    flag does.
+
+    That contradicts a policy this repository already enforces elsewhere.
+    scripts/credential_scan.py records `(label, path, line, length)` and prints
+    "(N chars, value withheld)" -- the matched text is deliberately not a field
+    on the finding, so no print site can leak it. Publishing the entire line to
+    code scanning from the same job is the same value by a different door, and
+    into a store with its own retention: deleting the branch does not purge the
+    alert.
+
+    WHY ONLY THESE THREE RULES. The snippet is what makes an alert triageable
+    at a glance, and for B404, B603, subprocess and XML findings the line is
+    not sensitive. Stripping every snippet would pay for this leak with the
+    usefulness of every other alert. These three are exactly the rules whose
+    snippet IS the secret.
+
+    Position is untouched -- startLine, endLine and the columns all survive, so
+    the alert still points at the exact place. Returns how many were stripped.
+    """
+    stripped = 0
+    for run in doc.get("runs", []):
+        if not isinstance(run, dict):
+            continue
+        run_obj = cast("dict[str, Any]", run)
+        for result in cast("list[Any]", run_obj.get("results", []) or []):
+            if not isinstance(result, dict):
+                continue
+            entry = cast("dict[str, Any]", result)
+            if str(entry.get("ruleId", "")) not in _VALUE_BEARING_RULES:
+                continue
+            message = entry.get("message")
+            if isinstance(message, dict):
+                msg = cast("dict[str, Any]", message)
+                text = msg.get("text")
+                if isinstance(text, str):
+                    scrubbed = _VALUE_IN_MESSAGE.sub(
+                        lambda m: (f"{m.group('head')}"
+                                   f"({len(m.group('value'))} chars, value "
+                                   f"withheld)"), text)
+                    if scrubbed != text:
+                        msg["text"] = scrubbed
+                        stripped += 1
+            for loc in cast("list[Any]", entry.get("locations", []) or []):
+                if not isinstance(loc, dict):
+                    continue
+                physical = cast("dict[str, Any]",
+                                cast("dict[str, Any]", loc)
+                                .get("physicalLocation", {}) or {})
+                region = physical.get("region")
+                if isinstance(region, dict):
+                    if cast("dict[str, Any]", region).pop("snippet", None) is not None:
+                        stripped += 1
+                if physical.pop("contextRegion", None) is not None:
+                    stripped += 1
+    return stripped
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--sarif", required=True, help="SARIF file, edited in place")
@@ -153,6 +241,34 @@ def main() -> int:
         # changes, say so and stop rather than writing a file nobody checked.
         print(f"cannot read {path}: {exc}", file=sys.stderr)
         return 1
+
+    # BEFORE the gate verdict is even consulted. A red gate publishes every
+    # finding by design, and a red CREDENTIAL gate is precisely the run whose
+    # SARIF carries a real secret in a snippet -- so the path that skips
+    # suppression is the path that most needs this. Withholding the value is
+    # not suppressing the finding: the alert, its rule and its exact position
+    # all still publish.
+    # NAMING, AND WHY IT IS NOT COSMETIC.
+    #
+    # This counter and the function producing it were first called `hidden`
+    # and `withhold_secret_snippets`. tests/test_codeql_naming.py rejected
+    # both, in sequence:
+    #
+    #   'hidden' (value from 'withhold_secret_snippets') reaches a
+    #   print/logging call under a sensitivity-suggesting name
+    #
+    # The heuristic keys on the ORIGIN function's name as well as the
+    # variable's, which is what CodeQL's py/clear-text-logging-sensitive-data
+    # does, and it was right to: a value flowing from something called
+    # *_secret_* into print() is the exact shape of a leak. It is a count of
+    # fields here, but the rule cannot know that from a name, and the repo's
+    # standing instruction is to rename rather than suppress. Both names now
+    # say what they are.
+    redacted_field_count = strip_value_bearing_fields(doc)
+    if redacted_field_count:
+        path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+        print(f"  redacted {redacted_field_count} field(s) on hardcoded-secret "
+              f"findings; rule and position still published")
 
     ok_locations, gate_passed = verified_locations(targets)
     if not gate_passed:

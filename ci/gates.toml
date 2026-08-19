@@ -39,6 +39,7 @@ required_checks = [
   "counterexample-search", "honest-report", "coverage", "pyright",
   "bandit", "mutmut", "correspondence",
   "codeql-python", "codeql-actions", "CodeQL",
+  "e2e",
   "full",
 ]
 
@@ -224,6 +225,24 @@ role = "code-scanning"
 integration_id = 57789
 must_contain = []
 evidence = "github code scanning results check"
+artifact = ""
+
+# BROWSER SMOKE TEST. `scanner` rather than `gate` for the same reason the
+# CodeQL jobs are: it runs in its own workflow and writes no reports/<name>.json,
+# so the finalizer must not expect evidence from it. Its verdict is its exit
+# code, and GitHub's required-check state is what carries that verdict.
+#
+# `must_contain` pins the two commands that make the run mean anything: `npm ci`
+# installs exactly what package-lock.json pins rather than re-resolving, and
+# `npm run test:e2e` is the invocation whose exit code decides the job. Swapping
+# either one out is the change worth catching.
+[gates.e2e]
+workflow = "e2e.yml"
+job = "e2e"
+mandatory = true
+role = "scanner"
+must_contain = ["npm ci", "npm run test:e2e"]
+evidence = "playwright report, uploaded as an artifact on failure"
 artifact = ""
 
 # ---------------------------------------------------------------------------

@@ -117,17 +117,17 @@ def main() -> int:
         return 2
 
     files = changed_files(base)
-    trusted = touches_tcb(files)
+    tcb_files = touches_tcb(files)
 
     print(f"[TCB GATE]\nbase={ns.base} ({base[:12]})")
-    print(f"files changed: {len(files)}   trusted-path files: {len(trusted)}")
+    print(f"files changed: {len(files)}   trusted-path files: {len(tcb_files)}")
 
-    if not trusted:
+    if not tcb_files:
         print("\nno trusted path touched — nothing to acknowledge")
         return 0
 
-    for path in trusted:
-        print(f"  TCB  {path}")
+    for changed_file in tcb_files:
+        print(f"  TCB  {changed_file}")
 
     acks = acknowledgements(base)
     if acks:
@@ -139,7 +139,7 @@ def main() -> int:
     print(f"""
 FAIL — this change edits the trusted computing base and no commit says why.
 
-{len(trusted)} trusted-path file(s) changed. These decide what "verified"
+{len(tcb_files)} trusted-path file(s) changed. These decide what "verified"
 means: the gates, the manifest, the workflows, the formal corpus and the
 dependency surface. Weakening any of them makes every other check green for
 the wrong reason, which is a silent failure rather than a loud one.

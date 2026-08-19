@@ -203,6 +203,27 @@ def render(manifest: dict[str, Any], mergeable: set[str]) -> tuple[str, str]:
     annotations: list[str] = []
     if blocking:
         log += [bar, "BLOCKERS — FIX THESE", bar, ""]
+        if len(blocking) > 1:
+            # WHY THERE IS NO CASCADE ANALYSIS HERE, AND WHY THAT IS NOT A GAP.
+            #
+            # A cascade needs a dependency, and in this workflow the gates have
+            # none: every gate job declares `needs: (none)` and only the
+            # finalizer declares `needs: [every gate]`. They run in parallel,
+            # against the same commit, in separate runners with separate
+            # filesystems. So one gate cannot fail *because* another did, and
+            # ranking these by "likely root cause" would be inventing an order
+            # the topology says does not exist.
+            #
+            # Saying so is worth a line, because the reader's instinct on
+            # seeing five red gates is to look for the one that caused the
+            # rest. Here there isn't one: five red gates are five problems.
+            #
+            # tests/test_blocker_report.py parses the real workflow and asserts
+            # this is still true, so if a `needs:` is ever added between gates
+            # the claim fails loudly instead of quietly becoming false.
+            log += [f"  {len(blocking)} gates are blocking. They are independent:",
+                    "  no gate job declares `needs:` on another, so none of these",
+                    "  is downstream of any other. Each is its own defect.", ""]
         index = 0
         for gate in blocking:
             record = gates.get(gate, {})

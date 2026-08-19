@@ -243,3 +243,53 @@ def test_a_warning_with_a_real_location_becomes_a_warning_annotation() -> None:
                                     MERGEABLE)
     assert "::warning file=scripts/gate.py,line=1" in text
     assert "::error" not in text, "a warning was raised to an error annotation"
+
+
+# --- the independence claim must match the real dependency graph ------------
+
+def test_no_gate_job_depends_on_another_gate_job() -> None:
+    """The report tells a reader that multiple blockers are independent.
+
+    That claim is only true while the workflow has no gate-to-gate `needs:`.
+    Measured on the real file: every gate job declares no `needs:` at all, and
+    only `full` declares one, on all twelve. So a gate cannot fail because
+    another did, and there is nothing for a cascade analysis to find.
+
+    If someone adds a dependency between gates, that sentence in the log
+    becomes false and a reader will mis-triage a red run. This is the check
+    that makes that change loud instead of silent -- either the dependency is
+    removed, or the report's wording has to change with it.
+    """
+    yaml = pytest.importorskip("yaml")
+    spec = yaml.safe_load(
+        (REPO / ".github" / "workflows" / "verify.yml").read_text(encoding="utf-8"))
+    jobs: dict[str, Any] = spec["jobs"]
+    finalizers = {"full"}
+    offenders = {
+        name: job.get("needs")
+        for name, job in jobs.items()
+        if name not in finalizers and job.get("needs")
+    }
+    assert not offenders, (
+        "a gate job now depends on another gate, so blockers are no longer "
+        f"independent and blocker_report.py says something false: {offenders}")
+
+    # ...and the control: the finalizer MUST depend on all of them, or the
+    # aggregate is summarising a run it did not wait for.
+    full_needs = set(jobs["full"].get("needs") or [])
+    gate_jobs = set(jobs) - finalizers
+    assert gate_jobs <= full_needs, (
+        "the finalizer does not wait for every gate: "
+        f"{sorted(gate_jobs - full_needs)}")
+
+
+def test_the_independence_note_appears_only_for_multiple_blockers() -> None:
+    """One blocker needs no explanation of how it relates to the others."""
+    one: dict[str, Any] = {"a": {"status": "FAIL", "failures": [one_failure()]}}
+    text_one, _ = blocker_report.render(manifest(one, ["a"]), MERGEABLE)
+    assert "They are independent" not in text_one
+
+    two: dict[str, Any] = {"a": {"status": "FAIL", "failures": [one_failure()]},
+                           "b": {"status": "FAIL", "failures": [one_failure()]}}
+    text_two, _ = blocker_report.render(manifest(two, ["a", "b"]), MERGEABLE)
+    assert "2 gates are blocking. They are independent:" in text_two

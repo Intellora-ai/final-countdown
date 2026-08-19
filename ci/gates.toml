@@ -161,7 +161,16 @@ workflow = "verify.yml"
 job = "bandit"
 mandatory = true
 role = "gate"
-must_contain = ["scripts/security_gate.py", "scripts/sarif_suppress.py",
+# The wrapper is pinned as its own token, the way `pyright` pins its full
+# command. Four verifications run in this job and only one report may exist
+# for the gate id, so they run inside ONE run_gate.py invocation over a bash
+# program; a step outside it owns no report, and a step that owns no report
+# cannot fail in the evidence. Without this token a future edit could unwrap
+# the gate entirely — the four commands would still be "contained", no
+# reports/bandit.json would be written, and preflight would still pass. Only
+# the finalizer would notice, one job too late.
+must_contain = ["run_gate.py --name bandit -- bash -c",
+                "scripts/security_gate.py", "scripts/sarif_suppress.py",
                 "shellcheck", "scripts/credential_scan.py"]
 evidence = "reports/bandit.json"
 artifact = "reports-bandit"
@@ -183,7 +192,11 @@ role = "gate"
 # The theorem must be about the Python in this tree. Freshness compares the
 # committed pair against a regeneration from source; the kernel then checks the
 # correspondence and the property. See TRUST.md for what this does NOT prove.
-must_contain = ["scripts/correspondence_gate.py", "pytest -m axle"]
+# The wrapper token is here for the same reason as `bandit`'s: both
+# verifications must run inside the one gate invocation, because a step
+# outside it produces no evidence and so cannot fail in the report.
+must_contain = ["run_gate.py --name correspondence -- bash -c",
+                "scripts/correspondence_gate.py", "pytest -m axle"]
 evidence = "reports/correspondence.json"
 artifact = "reports-correspondence"
 

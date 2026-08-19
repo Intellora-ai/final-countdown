@@ -1086,7 +1086,13 @@ MUTMUT_STEP = ('run: python3 scripts/run_gate.py --name mutmut -- bash '
                'scripts/verify_per_function.sh scripts/mutation_gate.py '
                '--min-score 0.95')
 ENFORCE_STEP = "run: python3 scripts/enforce_spec.py specs/*_spec.lean"
-SHELLCHECK_STEP = "run: shellcheck scripts/*.sh"
+# shellcheck is no longer a standalone step. It runs inside the bandit gate's
+# single `run_gate.py --name bandit -- bash -c` chain, so it now DOES own a
+# report -- that was the point of wrapping it. The attack still matters: `set -e`
+# stops the chain at the first non-zero exit, and a suppressor on this line
+# discards that exit, so the chain continues and the gate records a PASS over a
+# check that failed. Anchored on the indented in-chain form.
+SHELLCHECK_STEP = "            shellcheck scripts/*.sh"
 
 
 def sabotage(sandbox: Path, workflow: str, old: str, new: str) -> None:
@@ -1224,8 +1230,16 @@ def test_attack_any_exit_status_discarding_operator_is_caught(sandbox: Path,
 @pytest.mark.parametrize("tail", [" || exit 0", "; true", " | cat"])
 def test_attack_suppression_on_a_step_that_owns_no_report(sandbox: Path,
                                                           tail: str) -> None:
-    """shellcheck writes no reports/*.json, so the finalizer cannot notice.
-    gate_integrity is the only thing standing between it and a green PR."""
+    """A suppressor inside the gate's own chain still hides a failed check.
+
+    shellcheck used to be a standalone step that wrote no reports/*.json, so
+    the finalizer could not notice it failing at all. It now runs inside the
+    bandit gate's single wrapped chain, which fixed that -- but not this: the
+    chain relies on `set -e` stopping at the first non-zero exit, and an
+    operator that discards shellcheck's exit code lets the chain run on and the
+    gate record a PASS over a check that failed. gate_integrity is what stands
+    between that and a green PR.
+    """
     sabotage(sandbox, VERIFY, SHELLCHECK_STEP, SHELLCHECK_STEP + tail)
     result = integrity(sandbox)
     assert result.returncode != 0, f"`{tail.strip()}` on shellcheck went green"

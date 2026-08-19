@@ -876,10 +876,43 @@ def generate_hypothesis_test(spec_info: dict[str, Any]) -> str:
     if hypothesis_ast is not None:
         guard = f"    assume({expr_to_python(hypothesis_ast)})\n"
 
+    # A GUARDED TEST REJECTS MOST OF WHAT IT DRAWS, AND THAT IS ARITHMETIC.
+    #
+    # `assume` discards an example rather than failing it, so a precondition
+    # over independent draws has an acceptance rate fixed by the shape of the
+    # constraint. clamp's `lo <= x and x <= hi` needs x to be the middle of
+    # three uniform draws: exactly one of the 3! orderings qualifies, so 1 in 6
+    # is kept. Hypothesis's `filter_too_much` health check reads that as a test
+    # that might be exercising nothing and raises FailedHealthCheck.
+    #
+    # It is not exercising nothing -- it finds its 100 examples -- but it does
+    # so on most seeds and not on all. MEASURED on this repository:
+    # tests/generated/test_clamp_spec.py failed 1 run in 20 in isolation, and
+    # it runs inside the mandatory `coverage` gate, so that was a 5% chance per
+    # push of a red required check with nothing wrong with the code.
+    #
+    # A random red is worse than no check: the first response to one is to
+    # re-run, and the second is to stop reading them.
+    #
+    # ONLY `filter_too_much` IS SUPPRESSED, and only on a test that has a
+    # guard. Every other health check still fires. Suppressing the whole list
+    # would take `too_slow` and `data_too_large` with it, which are about the
+    # test being wrong rather than about a constant this file can compute.
+    #
+    # `max_examples` is raised to 500 so the discard budget is not the binding
+    # constraint either: at 1-in-6 acceptance the engine needs roughly 600
+    # draws to reach 100 kept examples, and the default budget leaves no room.
+    # This makes the guarded test do MORE work, not less -- the opposite of
+    # what silencing a warning usually buys.
+    settings = ""
+    if guard:
+        settings = ("@settings(max_examples=500,\n"
+                    "          suppress_health_check=[HealthCheck.filter_too_much])\n")
+
     # Parameters are annotated and `assume` is imported only when a
     # precondition exists: pyright strict rejects untyped params and unused
     # imports, and generated files are checked like any other source.
-    imports = "assume, given" if guard else "given"
+    imports = ("HealthCheck, assume, given, settings" if guard else "given")
     params = ", ".join(f"{a}: int" for a in args)
     return f'''"""Auto-generated from specs/{func}_spec.lean by scripts/spec_to_test.py.
 
@@ -891,7 +924,7 @@ from hypothesis import {imports}, strategies as st
 from src.{func} import {func}
 
 
-@given({', '.join(strategy for _ in args)})
+{settings}@given({', '.join(strategy for _ in args)})
 def test_{func}_spec({params}) -> None:
 {guard}    assert {assertion}
 '''

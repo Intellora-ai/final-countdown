@@ -48,6 +48,9 @@ QUERY = ('[.rules[] | select(.type=="required_status_checks") '
          '| .parameters.required_status_checks[] '
          '| {context: .context, integration_id: .integration_id}]')
 
+TOOLS_QUERY = ('[.rules[] | select(.type=="code_scanning") '
+               '| .parameters.code_scanning_tools[] | .tool]')
+
 
 def live_checks(repo: str, ruleset_id: int) -> list[dict[str, Any]]:
     """What GitHub actually requires. Raises RuntimeError if it cannot say."""
@@ -133,6 +136,29 @@ def main() -> int:
         print("CONTEXTS NOT PINNED TO AN APP (any actor may satisfy them):")
         for name in unpinned:
             print(f"  {name}")
+
+    # The code_scanning rule is enforcement too: a tool the manifest declares
+    # but GitHub does not run means those findings block nothing.
+    declared_tools = sorted(str(t) for t in ruleset.get("code_scanning_tools", []))
+    if declared_tools:
+        try:
+            raw_tools = subprocess.run(
+                [str(shutil.which("gh")), "api",
+                 f"repos/{repo}/rulesets/{ruleset_id}", "--jq", TOOLS_QUERY],
+                capture_output=True, text=True, timeout=60)
+            live_tools = sorted(str(t) for t in json.loads(raw_tools.stdout))
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
+            print(f"CANNOT COMPARE code-scanning tools: {exc}")
+            return 1
+        if live_tools != declared_tools:
+            ok = False
+            print("CODE-SCANNING TOOL MISMATCH:")
+            for t in sorted(set(declared_tools) - set(live_tools)):
+                print(f"  declared but GitHub does not enforce: {t}")
+            for t in sorted(set(live_tools) - set(declared_tools)):
+                print(f"  GitHub enforces but manifest omits:   {t}")
+        else:
+            print(f"  code-scanning tools enforced: {', '.join(live_tools)}")
 
     if ok:
         print(f"ALIGNED: {len(live_contexts)} required checks, all pinned, "

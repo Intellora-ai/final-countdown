@@ -14,6 +14,7 @@ that the state is what you intended.
     python3 scripts/ruleset_admin.py show
     python3 scripts/ruleset_admin.py probe          # no-op PUT: permission test
     python3 scripts/ruleset_admin.py add CONTEXT... # add required checks
+    python3 scripts/ruleset_admin.py add-tool TOOL  # add a code-scanning tool
 
 `probe` exists because "can this token write the ruleset" must be answered
 before the answer matters, and answering it by attempting the real change
@@ -198,6 +199,55 @@ def main() -> int:
         print(f"context set as intended: {ok}")
         print(f"other rules preserved:   {preserved}")
         return 0 if (ok and preserved) else 1
+
+    if action == "add-tool":
+        # Add a tool to the code_scanning rule. Thresholds match the tools
+        # already there rather than being invented, so one rule does not
+        # quietly enforce two different standards.
+        tool = sys.argv[2] if len(sys.argv) > 2 else ""
+        if not tool:
+            print("add-tool needs a tool name", file=sys.stderr)
+            return 2
+        rules = cast("list[Any]", before["rules"])
+        scanning = next((cast("dict[str, Any]", r) for r in rules
+                         if isinstance(r, dict)
+                         and cast("dict[str, Any]", r).get("type") == "code_scanning"),
+                        None)
+        if scanning is None:
+            print("no code_scanning rule to amend", file=sys.stderr)
+            return 1
+        params = cast("dict[str, Any]", scanning["parameters"])
+        tools = cast("list[Any]", params["code_scanning_tools"])
+        names = {str(cast("dict[str, Any]", t).get("tool")) for t in tools}
+        if tool in names:
+            print(f"{tool} is already a code-scanning tool: {sorted(names)}")
+            return 0
+        template = cast("dict[str, Any]", tools[0])
+        tools.append({
+            "tool": tool,
+            "security_alerts_threshold": template["security_alerts_threshold"],
+            "alerts_threshold": template["alerts_threshold"],
+        })
+        put(body_from(before))
+        after = fetch()
+        got = next((cast("dict[str, Any]", r) for r in cast("list[Any]", after["rules"])
+                    if isinstance(r, dict)
+                    and cast("dict[str, Any]", r).get("type") == "code_scanning"), None)
+        live_tools = sorted(
+            str(cast("dict[str, Any]", t).get("tool"))
+            for t in cast("list[Any]", (got or {})
+                          .get("parameters", {}).get("code_scanning_tools", []))) if got else []
+        preserved = (
+            before.get("enforcement") == after.get("enforcement")
+            and before.get("bypass_actors") == after.get("bypass_actors")
+            and sorted(contexts(before)) == sorted(contexts(after))
+            and sorted(str(cast("dict[str, Any]", r).get("type"))
+                       for r in cast("list[Any]", before["rules"]))
+            == sorted(str(cast("dict[str, Any]", r).get("type"))
+                      for r in cast("list[Any]", after["rules"])))
+        print(f"code-scanning tools now: {live_tools}")
+        print(f"required checks unchanged, other rules preserved: {preserved}")
+        return 0 if (tool in live_tools and preserved) else 1
 
     print(f"unknown action {action!r}", file=sys.stderr)
     return 2

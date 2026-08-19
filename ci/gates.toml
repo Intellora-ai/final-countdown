@@ -28,6 +28,11 @@ name = "final countdown protection"
 repository = "Intellora-ai/final-countdown"
 # Must equal, exactly, the set of gates below with mandatory = true.
 # scripts/check_ruleset.py proves this against the live GitHub ruleset.
+# The tools the code_scanning rule must enforce. CodeQL alone left Bandit's
+# findings advisory; both now block. Thresholds are deliberately identical, so
+# one rule does not quietly enforce two standards.
+code_scanning_tools = ["CodeQL", "Bandit"]
+
 required_checks = [
   "preflight",
   "axle-verify", "spec-strength", "spec-composition", "vacuity-check",

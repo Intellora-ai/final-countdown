@@ -43,7 +43,11 @@ def git(*args: str) -> tuple[int, str]:
     exe = shutil.which("git")
     if exe is None:
         raise SystemExit("git is not on PATH")
-    out = subprocess.run(  # nosec B603: fixed executable, list argv, shell disabled
+    # No `# nosec`. scripts/security_gate.py clears B603 for this file by
+    # re-deriving the safe pattern from this AST every run; suppressing the
+    # finding here would delete it before that check runs, turning a verified
+    # exemption into an asserted one.
+    out = subprocess.run(
         [exe, *args], capture_output=True, text=True, timeout=60,
         stdin=subprocess.DEVNULL, shell=False,
     )

@@ -12,7 +12,7 @@ import datetime as dt
 import json
 import shutil
 import statistics
-import subprocess  # nosec B404: required for fixed local `gh` CLI invocation; shell disabled and argv is fixed/validated
+import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -31,7 +31,16 @@ def gh_json(path: str) -> Any:
     gh = shutil.which("gh")
     if gh is None:
         raise SystemExit("gh is not on PATH, so GitHub cannot be consulted")
-    out = subprocess.run(  # nosec B603: fixed executable, list argv, shell disabled
+    # No `# nosec`. B404 and B603 are cleared for this file by
+    # scripts/security_gate.py, which re-derives the safe pattern from this
+    # AST on every run -- shell=False, argv a list literal, argv[0] from
+    # shutil.which, timeout set. A `# nosec` deletes the finding before the
+    # gate ever sees it, which swaps that re-derivation for an assertion.
+    # Measured: with `# nosec B603` here, replacing argv[0] with a
+    # caller-supplied string and dropping the timeout still reported
+    # `PASS (with 27 verified exceptions)`; without it, the same edit reports
+    # `FAIL -- no timeout` and `argv[0] is 'path' -- not shutil.which(...)`.
+    out = subprocess.run(
         [gh, "api", path], capture_output=True, text=True, timeout=120,
         stdin=subprocess.DEVNULL, shell=False,
     )

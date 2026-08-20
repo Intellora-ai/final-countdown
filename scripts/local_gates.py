@@ -156,6 +156,190 @@ def requires_network(spec: dict[str, Any]) -> bool:
     return bool(spec.get("requires_network"))
 
 
+def load_deep_checks(path: Path = MANIFEST) -> dict[str, dict[str, Any]]:
+    """The `[deep_checks]` table — the deep verification lane (Milestone 5).
+
+    A third table for the same reason `[local_checks]` got the second one:
+    `[contexts.*]` is exactly the seventeen required GitHub contexts, and a deep check
+    must never be able to look like one. Namespaces are proven disjoint at load time
+    rather than left to convention.
+    """
+    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    checks = cast("dict[str, dict[str, Any]]", data.get("deep_checks") or {})
+    contexts = cast("dict[str, dict[str, Any]]", data.get("contexts") or {})
+    local = cast("dict[str, dict[str, Any]]", data.get("local_checks") or {})
+
+    collisions = sorted(set(checks) & (set(contexts) | set(local)))
+    if collisions:
+        raise ManifestError(
+            f"deep check(s) {collisions} share a name with a required GitHub context or "
+            "a local check. A deep check may not borrow another lane's identity."
+        )
+
+    for name, spec in checks.items():
+        if not str(spec.get("category", "")).strip():
+            raise ManifestError(f"deep check {name}: no category")
+        if not str(spec.get("requirement", "")).strip():
+            raise ManifestError(
+                f"deep check {name}: no requirement. A check that cannot say what it "
+                "proves is a command, not a check."
+            )
+        if not spec.get("evidence"):
+            raise ManifestError(f"deep check {name}: no evidence identifier")
+        if not isinstance(spec.get("timeout_seconds"), int):
+            raise ManifestError(f"deep check {name}: no integer timeout_seconds")
+
+        probes = spec.get("probes")
+        command = spec.get("command")
+        if probes is None and command is None:
+            raise ManifestError(
+                f"deep check {name}: neither a command nor probes. A category with "
+                "nothing to run and nothing to prove absent is an empty claim."
+            )
+        if probes is not None and command is not None:
+            raise ManifestError(
+                f"deep check {name}: both a command and probes; one of the two is a lie "
+                "about how this category is evaluated"
+            )
+        if probes is not None:
+            rows = cast("list[Any]", probes)
+            if not rows:
+                raise ManifestError(
+                    f"deep check {name}: an empty probe list proves nothing and would "
+                    "report NOT_APPLICABLE vacuously"
+                )
+            for probe in rows:
+                entry = cast("dict[str, Any]", probe)
+                if not str(entry.get("name", "")).strip():
+                    raise ManifestError(f"deep check {name}: a probe has no name")
+                argv = entry.get("argv")
+                if not isinstance(argv, list) or not argv:
+                    raise ManifestError(f"deep check {name}: a probe has no argv")
+        elif not isinstance(command, list) or not command:
+            raise ManifestError(f"deep check {name}: command is not an argv array")
+        if requires_network(spec) and not str(spec.get("network_reason", "")).strip():
+            raise ManifestError(f"deep check {name}: requires_network with no reason")
+    return checks
+
+
+def run_probe(argv: list[str], timeout: int) -> dict[str, Any]:
+    """One absence probe. Output means the thing exists; silence means it does not.
+
+    The raw stdout is retained either way. A probe whose result is recorded only as a
+    boolean cannot be re-checked by a reader, and "I ran a search and it was fine" is
+    the kind of claim this repository replaces with the search's actual output.
+    """
+    env = dict(os.environ)
+    env["PATH"] = f"{REPO_ROOT / '.venv' / 'bin'}{os.pathsep}{env.get('PATH', '')}"
+    exe = shutil.which(argv[0], path=env["PATH"])
+    if exe is None:
+        return {
+            "argv": argv,
+            "exit_code": None,
+            "stdout": "",
+            "matched": False,
+            "usable": False,
+            "note": f"{argv[0]!r} is not on PATH, so this probe proved nothing",
+        }
+    try:
+        out = subprocess.run(  # noqa: S603 - argv only, no shell
+            [exe, *argv[1:]],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            stdin=subprocess.DEVNULL,
+            shell=False,
+            env=env,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return {
+            "argv": argv,
+            "exit_code": None,
+            "stdout": "",
+            "matched": False,
+            "usable": False,
+            "note": f"no result within {timeout}s",
+        }
+    text = out.stdout.strip()
+    return {
+        "argv": argv,
+        "exit_code": out.returncode,
+        "stdout": text[:4000],
+        "matched": bool(text),
+        "usable": True,
+    }
+
+
+def run_absence_check(
+    name: str, spec: dict[str, Any], evidence_dir: Path
+) -> dict[str, Any]:
+    """A category proven not to apply, or a category that turns out to apply after all.
+
+    NOT_APPLICABLE is earned by every probe coming back empty AND usable. A probe that
+    could not run does not count as evidence of absence -- that is UNKNOWN, because
+    "the search did not work" and "the search found nothing" are different facts and
+    only one of them supports the claim.
+    """
+    started = time.time()
+    probes = [
+        {**run_probe([str(t) for t in cast("list[Any]", p["argv"])], int(spec["timeout_seconds"])), "name": str(p["name"])}
+        for p in cast("list[dict[str, Any]]", spec["probes"])
+    ]
+    found = [p for p in probes if p["matched"]]
+    unusable = [p for p in probes if not p["usable"]]
+
+    if found:
+        status = "FAIL"
+        what = f"{len(found)} probe(s) found a mechanism this check claims does not exist"
+        why = "the NOT_APPLICABLE claim is false on this commit; see probe output"
+        action = "INVESTIGATE — record what was found, then ask what evidence this category now needs"
+    elif unusable:
+        status = "UNKNOWN"
+        what = f"{len(unusable)} probe(s) could not run"
+        why = "UNKNOWN — a search that did not work is not a search that found nothing"
+        action = "INVESTIGATE — make the probe runnable, then re-run"
+    else:
+        status = str(spec.get("expect", "NOT_APPLICABLE"))
+        what = ""
+        why = f"every probe returned no output; {len(probes)} searches, all empty"
+        action = "NONE — the category has nothing to verify on this commit"
+
+    record: dict[str, Any] = {
+        "context": name,
+        "category": str(spec["category"]),
+        "requirement": str(spec["requirement"]),
+        "status": status,
+        "probes": probes,
+        "start": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)),
+        "end": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "duration_seconds": round(time.time() - started, 2),
+        "observed_why": why,
+        "next_safe_action": action,
+    }
+    if what:
+        record["what_failed"] = what
+    path = evidence_dir / f"{name}.json"
+    path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    record["evidence_path"] = str(path)
+    return record
+
+
+#: `N passed`, `N failed`, `N skipped` in pytest's summary line. Parsed so the
+#: integration record carries counts rather than a wall of output a reader has to
+#: count by hand.
+PYTEST_COUNT = re.compile(r"(\d+)\s+(passed|failed|skipped|error|errors)")
+
+
+def pytest_counts(text: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for number, word in PYTEST_COUNT.findall(text):
+        key = "errors" if word.startswith("error") else word
+        counts[key] = counts.get(key, 0) + int(number)
+    return counts
+
+
 def github_only(contexts: dict[str, dict[str, Any]]) -> list[tuple[str, str]]:
     """Contexts the manifest says cannot run here at all.
 
@@ -732,17 +916,25 @@ def _git_sha() -> str:
     return out.stdout.strip() if out.returncode == 0 and out.stdout.strip() else "UNKNOWN"
 
 
-def _render_markdown(quality: dict[str, Any]) -> str:
+def render_markdown(quality: dict[str, Any]) -> str:
     """summary.md carries the same fields as summary.json, in the order the contract lists them.
 
     Not a prettier restatement: it is the file a human opens after a blocked push, so
     every field the JSON carries appears here too. A markdown summary that showed less
     than the JSON would send the reader to the JSON, which makes it worthless.
     """
+    # Two lanes write through here and they name their commit differently: the quality
+    # gate records SHA, the deep lane records SOURCE_SHA because on a pull_request run
+    # GITHUB_SHA is a test-merge commit and the two must stay distinguishable. Reading
+    # both with a fallback keeps one renderer instead of two that drift apart, and an
+    # absent key renders as UNKNOWN rather than crashing a run whose gates all passed.
+    lane = str(quality.get("LANE", "quality gate"))
+    sha = quality.get("SOURCE_SHA") or quality.get("SHA") or "UNKNOWN"
     lines = [
-        f"# Local quality gate — {quality['STATUS']}",
+        f"# Local {lane} — {quality.get('STATUS', 'UNKNOWN')}",
         "",
-        f"`{quality['SHA']}` · run `{quality['RUN_ID']}` · {quality['TOTAL_SECONDS']}s",
+        f"`{sha}` · run `{quality.get('RUN_ID', 'UNKNOWN')}` · "
+        f"{quality.get('TOTAL_SECONDS', 'UNKNOWN')}s",
         "",
         "| field | value |",
         "|---|---|",
@@ -769,6 +961,144 @@ def _render_markdown(quality: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+#: Deep-lane verdicts that do not block. NOT_APPLICABLE is a result, not a gap: a
+#: category proven to have nothing to verify has been verified.
+DEEP_ACCEPTABLE = {"PASS", "NOT_APPLICABLE"}
+
+
+def cmd_deep(run_id: str) -> int:
+    """The deep verification lane. Every component runs; none is skipped on a prior failure.
+
+    sandbox-fast stops at the first non-PASS because its job is to answer "may I push".
+    This lane's job is different: it produces EVIDENCE for five categories, and stopping
+    early would leave four of them unmeasured while reporting a verdict about the tree.
+    A reader would then have no way to tell "this category passed" from "this category
+    never ran".
+    """
+    try:
+        checks = load_deep_checks()
+    except ManifestError as exc:
+        print(f"BLOCK: {exc}", file=sys.stderr)
+        return 2
+
+    evidence_dir = EVIDENCE_ROOT / "deep-verify" / run_id
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    started = time.time()
+    start_time = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started))
+    source_sha = _git_sha()
+
+    network = sorted(n for n, s in checks.items() if requires_network(s))
+    print("=== deep verification lane ===")
+    print(f"SOURCE_SHA         {source_sha}")
+    print(f"COMPONENTS         {len(checks)}")
+    print(f"NETWORK_COMPONENTS {', '.join(network) if network else '(none)'}")
+    print(
+        "NOTE               this lane is the only one authorised to reach the network. "
+        "`make sandbox-fast` excludes every network-requiring check in select()."
+    )
+    print()
+
+    results: list[dict[str, Any]] = []
+    for name in sorted(checks):
+        spec = checks[name]
+        if "probes" in spec:
+            record = run_absence_check(name, spec, evidence_dir)
+        else:
+            record = run_one(name, spec, evidence_dir)
+            record["category"] = str(spec["category"])
+            record["requirement"] = str(spec["requirement"])
+            counts = pytest_counts(
+                str(record.get("stdout_tail", "")) + str(record.get("stderr_tail", ""))
+            )
+            if counts:
+                record["test_counts"] = counts
+            if requires_network(spec):
+                record["endpoint"] = str(spec.get("endpoint", ""))
+                record["network_reason"] = str(spec.get("network_reason", ""))
+        record["source_sha"] = source_sha
+        # run_one() wrote this file before the enrichment above existed, so the copy on
+        # disk would carry none of it. Milestone 5 requires the endpoint, the source SHA
+        # and the test counts to be IN the evidence -- a summary that has them while the
+        # per-component file does not is two records disagreeing about one run.
+        evidence_path = record.get("evidence_path")
+        if isinstance(evidence_path, str):
+            Path(evidence_path).write_text(
+                json.dumps(record, indent=2) + "\n", encoding="utf-8"
+            )
+        results.append(record)
+        counts = cast("dict[str, int]", record.get("test_counts") or {})
+        detail = (
+            "  " + " ".join(f"{k}={v}" for k, v in sorted(counts.items())) if counts else ""
+        )
+        print(
+            f"  {record['status']:<15} {name:<22} "
+            f"{record['duration_seconds']:>7.1f}s{detail}"
+        )
+
+    blocking = [r for r in results if r["status"] not in DEEP_ACCEPTABLE]
+    status = "PASS" if not blocking else str(blocking[0]["status"])
+    total_seconds = round(time.time() - started, 2)
+
+    by_status: dict[str, list[str]] = {}
+    for record in results:
+        by_status.setdefault(str(record["status"]), []).append(str(record["context"]))
+
+    grouped: dict[str, list[str]] = {
+        k: sorted(v) for k, v in sorted(by_status.items())
+    }
+    identity: dict[str, Any] = {
+        "sha": source_sha,
+        "run_id": run_id,
+        "lane": "deep-verify",
+        "status": status,
+        "components": sorted(checks),
+        "by_status": grouped,
+    }
+    checksum = hashlib.sha256(
+        json.dumps(identity, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+    summary = {
+        "LANE": "deep-verify",
+        "SOURCE_SHA": source_sha,
+        "RUN_ID": run_id,
+        "START_TIME": start_time,
+        "END_TIME": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "TOTAL_SECONDS": total_seconds,
+        "COMPONENTS_SELECTED": sorted(checks),
+        "BY_STATUS": grouped,
+        "CATEGORIES": sorted({str(s["category"]) for s in checks.values()}),
+        "NETWORK_COMPONENTS": network,
+        "EXACT_FAILED_ARGV": (blocking[0].get("argv", []) if blocking else []),
+        "EXIT_CODE": 0 if not blocking else 1,
+        "EVIDENCE_PATHS": [str(evidence_dir)],
+        "STATUS": status,
+        "NEXT_SAFE_ACTION": (
+            "NONE — every deep component reported PASS or a proven NOT_APPLICABLE."
+            if not blocking
+            else str(blocking[0].get("next_safe_action", "INVESTIGATE"))
+        ),
+        "RESULT_CHECKSUM": checksum,
+        "RESULTS": results,
+    }
+    (evidence_dir / "summary.json").write_text(
+        json.dumps(summary, indent=2) + "\n", encoding="utf-8"
+    )
+    (evidence_dir / "summary.md").write_text(
+        render_markdown({k: v for k, v in summary.items() if k != "RESULTS"}),
+        encoding="utf-8",
+    )
+
+    print()
+    for state, names in sorted(grouped.items()):
+        print(f"{state:<15} {', '.join(names)}")
+    print()
+    print(f"STATUS: {status}")
+    print(f"EVIDENCE: {evidence_dir}")
+    print(f"NEXT_SAFE_ACTION: {summary['NEXT_SAFE_ACTION']}")
+    return 0 if not blocking else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tier", choices=("fast", "full"), default="fast")
@@ -778,6 +1108,7 @@ def main() -> int:
     parser.add_argument("--doctor", action="store_true")
     parser.add_argument("--bootstrap", action="store_true")
     parser.add_argument("--determinism", action="store_true")
+    parser.add_argument("--deep", action="store_true")
     args = parser.parse_args()
 
     if args.doctor:
@@ -786,6 +1117,8 @@ def main() -> int:
         return cmd_bootstrap()
     if args.determinism:
         return cmd_determinism(args.run_id)
+    if args.deep:
+        return cmd_deep(args.run_id)
 
     try:
         contexts = load_manifest()
@@ -929,7 +1262,7 @@ def main() -> int:
     (quality_dir / "summary.json").write_text(
         json.dumps(quality, indent=2) + "\n", encoding="utf-8"
     )
-    (quality_dir / "summary.md").write_text(_render_markdown(quality), encoding="utf-8")
+    (quality_dir / "summary.md").write_text(render_markdown(quality), encoding="utf-8")
 
     if failed is not None:
         print(f"\nWHAT_FAILED: {failed.get('what_failed')}")

@@ -323,3 +323,107 @@ evidence = "regression-push-chain.json"
 tier = "full"
 requires_network = false
 tier_reason = "It invokes `make sandbox-fast` inside a temporary repository. Placing it in the fast tier would make the fast tier invoke itself -- unbounded recursion, not a slow test. The tier assignment is a correctness constraint here, not a budget one."
+
+# ===========================================================================
+# DEEP CHECKS — the deep verification lane (Milestone 5).
+#
+# A THIRD TABLE, AND THE REASON IS THE SAME ONE THAT PUT [local_checks] IN ITS
+# OWN: `[contexts.*]` is exactly the seventeen required GitHub contexts and
+# nothing else. A deep check is not a GitHub context and must never be able to
+# look like one.
+#
+# WHAT MAKES THIS LANE DIFFERENT FROM sandbox-fast. It is the ONE place a real
+# network call is legitimate. `sandbox-fast` selects only checks with
+# requires_network = false and that exclusion is enforced in
+# local_gates.select(), not annotated -- so AXLE being reachable from here does
+# not make it reachable from the pre-push loop.
+#
+# CATEGORIES. Milestone 5 names five. Four have real commands. The fifth,
+# migration, has no command because this repository has no migration system,
+# and the honest way to record that is a set of probes that must ALL come back
+# empty -- not a hardcoded NOT_APPLICABLE that nobody re-derives. If any probe
+# finds a migration mechanism, the check FAILS rather than quietly keeps
+# claiming the category does not apply.
+# ===========================================================================
+
+[deep_checks."full-regression"]
+category = "full regression"
+requirement = "Every test in the suite that does not require the hosted AXLE service passes on this exact commit."
+command = ["python3", "-m", "pytest", "-m", "not axle", "-n", "auto", "--dist", "loadfile"]
+timeout_seconds = 1800
+evidence = "full-regression.json"
+requires_network = false
+
+[deep_checks."integration-axle"]
+category = "integration"
+requirement = "The correspondence between src/ and the Lean proofs holds against the hosted AXLE kernel-checking service -- the only external system this repository talks to. These tests are excluded from every other lane by the `axle` marker."
+command = ["python3", "-m", "pytest", "-m", "axle"]
+timeout_seconds = 1800
+evidence = "integration-axle.json"
+requires_network = true
+network_reason = "Calls the hosted AXLE service at axle.axiommath.ai. There is no local Lean kernel in this repository, so the integration boundary cannot be exercised offline."
+endpoint = "axle.axiommath.ai"
+
+[deep_checks."security-gate"]
+category = "security"
+requirement = "Bandit over src/ and scripts/, plus AST re-derivation of the subprocess safe pattern for every file granted a B404/B603 exception. No `# nosec` anywhere."
+command = ["python3", "scripts/security_gate.py"]
+timeout_seconds = 900
+evidence = "security-gate.json"
+requires_network = false
+
+[deep_checks."credential-scan"]
+category = "security"
+requirement = "No credential-shaped string is committed to the tracked tree."
+command = ["python3", "scripts/credential_scan.py"]
+timeout_seconds = 900
+evidence = "credential-scan.json"
+requires_network = false
+
+[deep_checks."determinism"]
+category = "determinism"
+requirement = "Two consecutive runs of the verification contract agree once only the allowlisted sources -- run id, timestamps, absolute paths -- are normalized."
+command = ["python3", "scripts/local_gates.py", "--determinism", "--run-id", "deep"]
+timeout_seconds = 1800
+evidence = "determinism.json"
+requires_network = false
+
+# MIGRATION — no command, because there is nothing to run.
+#
+# Five probes, each of which must return NOTHING. A single grep would not be
+# proof: a repository can lack the word "alembic" and still have a schema
+# evolution mechanism under another name, so the probes look for directories,
+# commands, dependencies, database configuration and database services
+# separately. Their raw output is recorded in the evidence, so the claim is
+# re-derived on every run rather than asserted once in a document.
+#
+# If ANY probe returns output, this check FAILS. It does not degrade to a
+# quieter NOT_APPLICABLE: a migration mechanism that appeared after this entry
+# was written is exactly the thing the probes exist to catch.
+[deep_checks."migration"]
+category = "migration"
+requirement = "This repository has no migration framework, migration directory, migration command, schema-evolution system, database service, or deployment database contract, so migration verification has nothing to verify."
+expect = "NOT_APPLICABLE"
+timeout_seconds = 300
+evidence = "migration.json"
+requires_network = false
+
+[[deep_checks."migration".probes]]
+name = "no migration directories"
+argv = ["bash", "-c", "find . -type d \\( -name migrations -o -name migrate -o -name alembic \\) -not -path './technology-universe/*' -not -path './.claude/*' -not -path './node_modules/*' -not -path './.venv/*' -print"]
+
+[[deep_checks."migration".probes]]
+name = "no migration command in Makefile, package scripts, or workflows"
+argv = ["bash", "-c", "grep -rInE '(alembic|flyway|liquibase|knex|prisma migrate|sequelize db:migrate|manage\\.py migrate|db upgrade)' Makefile package.json .github/workflows/ || true"]
+
+[[deep_checks."migration".probes]]
+name = "no migration dependency in Python or Node manifests"
+argv = ["bash", "-c", "grep -rInE '(alembic|flyway|liquibase|knex|prisma|sequelize|django|sqlalchemy-migrate|yoyo-migrations)' requirements.txt requirements.lock package.json package-lock.json || true"]
+
+[[deep_checks."migration".probes]]
+name = "no database connection config or schema-evolution artifact"
+argv = ["bash", "-c", "git grep -InE '(postgres://|mysql://|mongodb://|sqlite:///|DATABASE_URL|CREATE TABLE|ALTER TABLE)' -- . ':!technology-universe' ':!.claude' ':!ci/local-execution.toml' || true"]
+
+[[deep_checks."migration".probes]]
+name = "no database service in any workflow"
+argv = ["bash", "-c", "grep -rInE '^\\s*services:|image:\\s*(postgres|mysql|mariadb|mongo|redis)' .github/workflows/ || true"]

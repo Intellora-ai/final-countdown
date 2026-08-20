@@ -1068,14 +1068,52 @@ def test_no_checkout_overrides_the_ref_the_identity_check_assumes() -> None:
     `ref: ${{ github.event.pull_request.head.sha }}`, HEAD becomes the branch
     head while GITHUB_SHA stays the merge commit, and the check would redden
     all twelve gates on every PR. This fails first, and says why.
+
+    SCOPE, DERIVED RATHER THAN SCANNED BLINDLY. The assumption belongs to
+    gate.py's commit_identity(), so it exists in exactly the workflows that
+    invoke gate.py or run_gate.py -- measured, not assumed: verify.yml (20
+    references) and ai-review.yml (7). codeql.yml and e2e.yml have none and
+    never produce a gate report, so a ref override there could not break an
+    identity check that never runs.
+
+    This narrows WHERE the rule applies, not WHAT it forbids. The set is
+    computed from each file's contents, so a workflow that starts invoking
+    run_gate.py tomorrow is covered the same day, and adding `ref:` to
+    verify.yml still fails exactly as before. A guard that forbids something it
+    was never about teaches people to route around it, and a routed-around
+    guard protects nothing.
+
+    deep-verify.yml is the case that surfaced this. It deliberately checks out
+    the pull request HEAD, because binding a verification bundle to
+    github.sha would bind it to a generated test-merge commit that exists in no
+    branch. It runs no gate.py report at all.
     """
     for workflow in sorted((REPO / ".github" / "workflows").glob("*.yml")):
         text = workflow.read_text(encoding="utf-8")
+        if "run_gate.py" not in text and "scripts/gate.py" not in text:
+            continue
         assert not re.search(r"^\s+ref:", text, re.MULTILINE), (
-            f"{workflow.name} overrides the checkout ref; gate.py's "
-            "commit_identity() assumes HEAD == GITHUB_SHA and must be "
+            f"{workflow.name} overrides the checkout ref AND produces gate.py "
+            "reports; commit_identity() assumes HEAD == GITHUB_SHA and must be "
             "revisited before this lands"
         )
+
+
+def test_the_identity_guard_still_covers_every_workflow_that_runs_a_gate() -> None:
+    """The control for the narrowing above. If the scope filter ever excluded a
+    workflow that does produce gate reports, the guard would pass vacuously."""
+    workflows = sorted((REPO / ".github" / "workflows").glob("*.yml"))
+    covered = [
+        w.name
+        for w in workflows
+        if "run_gate.py" in w.read_text(encoding="utf-8")
+        or "scripts/gate.py" in w.read_text(encoding="utf-8")
+    ]
+    assert "verify.yml" in covered, (
+        "verify.yml produces every mandatory gate report; if it is not covered "
+        "the identity guard is checking nothing that matters"
+    )
+    assert covered, "no workflow is covered; the guard would pass vacuously"
 
 
 # ---------------------------------------------------------------------------

@@ -26,3 +26,9 @@ test-results/
 # checkouts of this repository living inside it; committing one would nest the
 # tree in itself and drag whatever an agent installed there into history.
 .claude/
+
+# Local sandbox evidence. Every `make sandbox-*` run writes argv, exit codes, durations
+# and captured output here. It is generated, machine-local, and regenerated on demand;
+# committing it would put a second copy of run results under review alongside the
+# authoritative GitHub evidence.
+.evidence/

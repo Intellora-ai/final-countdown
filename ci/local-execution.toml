@@ -1,0 +1,245 @@
+# LOCAL EXECUTION MANIFEST — what of GitHub's required verification can honestly run here.
+#
+# SCOPE, STATED NARROWLY. This file is authoritative for LOCAL EXECUTION ELIGIBILITY and LOCAL
+# COMMANDS only. `ci/gates.toml` remains authoritative for which contexts GitHub requires, and the
+# live ruleset remains the final merge proof. This file makes no claim that a local command is
+# equivalent to the workflow command; that cannot be proven and is not asserted.
+#
+# WHY IT EXISTS. On 2026-08-20 four consecutive CI runs went red. The first was pyright: it is one
+# of the 17 required contexts and it was simply not in the set of checks run before pushing. There
+# was no artifact in this repository that answered "run what CI runs", so the local set was
+# assembled from memory, and memory dropped one.
+#
+# `ci/gates.toml` cannot answer that question. It stores identity and FINGERPRINTS -- `must_contain`
+# substrings -- never commands. `spec-strength` and `spec-composition` carry byte-identical
+# fingerprints while running different commands, which proves a fingerprint cannot reconstruct a
+# command. The real argv lives only in .github/workflows/verify.yml `run:` strings.
+#
+# HOW THE COMMANDS BELOW WERE OBTAINED. Extracted from verify.yml, not retyped. Retyping is the
+# failure this file exists to prevent.
+#
+# EVERY required context appears here exactly once, with locally_runnable = "yes" or "no". A "no"
+# carries an exact reason. Nothing is silently omitted, and no GitHub-only context is ever reported
+# as having passed locally. tests/test_local_execution_manifest.py enforces all of that.
+
+[contexts."preflight"]
+required_context = "preflight"
+locally_runnable = "no"
+reason = "Chains scripts/check_ruleset.py, which queries the live GitHub ruleset API at api.github.com, and scripts/tcb_gate.py, which needs an origin/<base> ref. Neither runs offline, so the context cannot honestly complete in the default local loop."
+
+[contexts."axle-verify"]
+required_context = "axle-verify"
+locally_runnable = "no"
+reason = "Calls the hosted AXLE service at https://axle.axiommath.ai for kernel proof checking. There is no local Lean kernel in this repository."
+
+[contexts."spec-strength"]
+required_context = "spec-strength"
+locally_runnable = "yes"
+command = [
+  "python3",
+  "scripts/run_gate.py",
+  "--name",
+  "spec-strength",
+  "--",
+  "python3",
+  "scripts/check_composition.py",
+  "specs/add_spec.lean",
+  "specs/addid_spec.lean",
+  "specs/addsucc_spec.lean",
+  "specs/clamp_spec.lean",
+  "specs/clampid_spec.lean",
+  "specs/mulid_spec.lean",
+  "specs/multiply_spec.lean",
+  "specs/subpred_spec.lean",
+  "specs/subself_spec.lean",
+  "specs/subtract_spec.lean",
+  "--min-strength",
+  "0.9",
+]
+timeout_seconds = 300
+evidence = "spec-strength.json"
+in_fast = true
+
+[contexts."spec-composition"]
+required_context = "spec-composition"
+locally_runnable = "yes"
+command = [
+  "python3",
+  "scripts/run_gate.py",
+  "--name",
+  "spec-composition",
+  "--",
+  "bash",
+  "scripts/verify_per_function.sh",
+  "scripts/check_composition.py",
+  "--min-strength",
+  "0.9",
+]
+timeout_seconds = 600
+evidence = "spec-composition.json"
+in_fast = false
+
+[contexts."vacuity-check"]
+required_context = "vacuity-check"
+locally_runnable = "yes"
+command = [
+  "python3",
+  "scripts/run_gate.py",
+  "--name",
+  "vacuity-check",
+  "--",
+  "python3",
+  "scripts/check_vacuity.py",
+  "specs/add_spec.lean",
+  "specs/addid_spec.lean",
+  "specs/addsucc_spec.lean",
+  "specs/clamp_spec.lean",
+  "specs/clampid_spec.lean",
+  "specs/mulid_spec.lean",
+  "specs/multiply_spec.lean",
+  "specs/subpred_spec.lean",
+  "specs/subself_spec.lean",
+  "specs/subtract_spec.lean",
+]
+timeout_seconds = 300
+evidence = "vacuity-check.json"
+in_fast = true
+
+[contexts."counterexample-search"]
+required_context = "counterexample-search"
+locally_runnable = "yes"
+command = [
+  "python3",
+  "scripts/run_gate.py",
+  "--name",
+  "counterexample-search",
+  "--",
+  "python3",
+  "scripts/find_counterexample.py",
+  "specs/add_spec.lean",
+  "specs/addid_spec.lean",
+  "specs/addsucc_spec.lean",
+  "specs/clamp_spec.lean",
+  "specs/clampid_spec.lean",
+  "specs/mulid_spec.lean",
+  "specs/multiply_spec.lean",
+  "specs/subpred_spec.lean",
+  "specs/subself_spec.lean",
+  "specs/subtract_spec.lean",
+]
+timeout_seconds = 300
+evidence = "counterexample-search.json"
+in_fast = true
+
+[contexts."honest-report"]
+required_context = "honest-report"
+locally_runnable = "yes"
+command = [
+  "python3",
+  "scripts/run_gate.py",
+  "--name",
+  "honest-report",
+  "--",
+  "bash",
+  "scripts/verify_per_function.sh",
+  "scripts/honest_report.py",
+  "--min-strength",
+  "0.9",
+]
+timeout_seconds = 600
+evidence = "honest-report.json"
+in_fast = false
+
+[contexts."coverage"]
+required_context = "coverage"
+locally_runnable = "yes"
+command = [
+  "python3",
+  "scripts/run_gate.py",
+  "--name",
+  "coverage",
+  "--",
+  "pytest",
+  "-n",
+  "auto",
+  "--dist",
+  "loadfile",
+  "--cov=src",
+  "--cov-branch",
+  "--cov-fail-under=95",
+  "-m",
+  "not axle",
+  "--junitxml=test-results/pytest.xml",
+]
+timeout_seconds = 600
+evidence = "coverage.json"
+in_fast = false
+
+[contexts."pyright"]
+required_context = "pyright"
+locally_runnable = "yes"
+command = [
+  "python3",
+  "scripts/run_gate.py",
+  "--name",
+  "pyright",
+  "--",
+  "pyright",
+]
+timeout_seconds = 300
+evidence = "pyright.json"
+in_fast = true
+
+[contexts."bandit"]
+required_context = "bandit"
+locally_runnable = "no"
+reason = "The gate step consumes bandit.sarif produced by a preceding workflow step, and runs shellcheck, which is not installed by requirements.lock or package-lock.json."
+
+[contexts."mutmut"]
+required_context = "mutmut"
+locally_runnable = "yes"
+command = [
+  "python3",
+  "scripts/run_gate.py",
+  "--name",
+  "mutmut",
+  "--",
+  "bash",
+  "scripts/verify_per_function.sh",
+  "scripts/mutation_gate.py",
+  "--min-score",
+  "0.95",
+]
+timeout_seconds = 900
+evidence = "mutmut.json"
+in_fast = false
+
+[contexts."correspondence"]
+required_context = "correspondence"
+locally_runnable = "no"
+reason = "Runs scripts/axle_health.py and pytest -m axle, both of which require the hosted AXLE service."
+
+[contexts."codeql-python"]
+required_context = "codeql-python"
+locally_runnable = "no"
+reason = "Produced by github/codeql-action running on GitHub-hosted infrastructure."
+
+[contexts."codeql-actions"]
+required_context = "codeql-actions"
+locally_runnable = "no"
+reason = "Produced by github/codeql-action running on GitHub-hosted infrastructure."
+
+[contexts."CodeQL"]
+required_context = "CodeQL"
+locally_runnable = "no"
+reason = "A GitHub code-scanning analysis status, not a workflow job. It has no run steps and is created by the platform on pull requests only."
+
+[contexts."e2e"]
+required_context = "e2e"
+locally_runnable = "no"
+reason = "Requires a Chromium binary fetched by `npx playwright install`, which is not pinned by any repository lockfile, plus a generated htmlcov/ fixture. Not reproducible from lockfiles alone."
+
+[contexts."full"]
+required_context = "full"
+locally_runnable = "no"
+reason = "Aggregates every other gate's evidence via actions/download-artifact from the same GitHub run. There is no local multi-job run to aggregate."

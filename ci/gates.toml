@@ -46,13 +46,20 @@ required_checks = [
 [schema]
 # The report shape scripts/gate.py writes. Consumers reject an unknown major.
 #
-# 1.2 is a MINOR bump, deliberately. It adds five fields and removes nothing, so
+# 1.3 is a MINOR bump for the same reason 1.2 was. It adds fields to each entry
+# in `failures[]` -- finding_id, severity, code, file, line, column, root_cause,
+# reproduction_command, is_root_cause, dependent_on, merge_blocking -- and
+# removes none, so every 1.2 consumer still reads a 1.3 report. The top-level
+# `required_fields` below are unchanged, because none of the new fields is
+# top-level: they live inside a finding.
+#
+# 1.2 was a MINOR bump, deliberately. It adds five fields and removes nothing, so
 # every 1.1 consumer still reads a 1.2 report. aggregate_gates.py compares only
 # SCHEMA_MAJOR, so moving to 2.0 would make every gate's evidence unreadable in
 # the same push that added a field to it — the change would destroy the thing it
 # was documenting. Not bumping at all was also wrong: this block claims to
 # describe "the report shape scripts/gate.py writes", and the shape changed.
-version = "1.2"
+version = "1.3"
 required_fields = [
   "schema_version", "gate", "gate_version", "status", "mergeable_contribution",
   "commit", "workflow", "job", "run_id", "run_attempt", "ref",

@@ -24,6 +24,7 @@ blocks the merge instead of vanishing from the report.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import platform
@@ -48,7 +49,7 @@ REPORTS = Path("reports")
 # keeps reading every 1.x report. A major bump would have been wrong and
 # expensive: SCHEMA_MAJOR is "1" there, so 2.0 would make every gate's
 # evidence unreadable in the same push that added a field to it.
-SCHEMA_VERSION = "1.2"  # 1.1 added run_attempt; 1.2 added environment+provenance
+SCHEMA_VERSION = "1.3"  # 1.1 run_attempt; 1.2 environment+provenance; 1.3 finding fields
 
 # Status names are constants, not credentials; bandit's B105 heuristic keys
 # on the variable name, so they are namespaced to keep the scan signal clean.
@@ -446,10 +447,74 @@ class Gate:
         return ok
 
     def fail(self, what: str, where: str = "", why: str = "",
-             requirement: str = "", fix: str = "") -> None:
-        """Record an actionable failure: what, where, why, requirement, fix."""
-        self.failures.append({"what": what, "where": where, "why": why,
-                              "requirement": requirement, "how_to_fix": fix})
+             requirement: str = "", fix: str = "", *,
+             severity: str = "ERROR", code: str | None = None,
+             file: str | None = None, line: int | None = None,
+             column: int | None = None, root_cause: str | None = None,
+             reproduction: str | None = None,
+             is_root_cause: bool = True,
+             dependent_on: str | None = None) -> None:
+        """Record one actionable failure.
+
+        The five positional fields are the original shape and every one of the
+        twenty-six existing call sites still reads exactly as it did. The
+        keyword-only additions are what turns a finding from prose into
+        something a machine can route.
+
+        WHAT EACH ADDS, AND WHY IT IS NOT ALREADY THERE.
+
+        `severity`   defaults to ERROR because that is what a recorded failure
+                     has always meant here. A verifier that genuinely
+                     distinguishes -- bandit has HIGH/MEDIUM/LOW -- can now say
+                     so instead of flattening it.
+        `code`       the tool's own rule id (B105, reportUnknownMemberType).
+                     `what` is a sentence; a code is a key you can search a
+                     tool's documentation with.
+        `file`/`line`/`column`
+                     the MACHINE form of `where`. `where` stays free text
+                     because gates use it for things that are not positions at
+                     all ("specs/a.lean + proofs/a.lean"), and
+                     blocker_report.location() has to re-parse it to annotate.
+                     Given these, it does not have to guess.
+        `root_cause` why the finding exists, as distinct from `why`, which is
+                     what the tool printed.
+        `reproduction`
+                     a command to paste. Exactly one call site in the whole
+                     repository emitted one before this, buried inside
+                     `how_to_fix` as prose; everything else said "fix the code,
+                     not the gate", which is advice, not a command.
+        `is_root_cause` / `dependent_on`
+                     within one gate, several verifiers run under `set -e`, so
+                     the first failure prevents the rest from running at all.
+                     Those are not independent defects and must not be counted
+                     as such.
+
+        `finding_id` is derived rather than passed: a caller free to choose it
+        could give two different defects the same handle. Same basis as
+        blocker_report.failure_id -- (gate, what, where) -- so an id printed by
+        the finalizer and one stored in the report are the same string.
+        """
+        basis = f"{self.name}\x00{what}\x00{where}"
+        self.failures.append({
+            "finding_id": hashlib.sha256(
+                basis.encode("utf-8")).hexdigest()[:6].upper(),
+            "what": what, "where": where, "why": why,
+            "requirement": requirement, "how_to_fix": fix,
+            "severity": severity,
+            "code": code,
+            "file": file,
+            "line": line,
+            "column": column,
+            "root_cause": root_cause,
+            "reproduction_command": reproduction,
+            "is_root_cause": is_root_cause,
+            "dependent_on": dependent_on,
+            # Every failure recorded by a gate blocks: a gate with failures is
+            # not PASS, and only PASS and NOT_APPLICABLE are mergeable. Stated
+            # per finding rather than left to be inferred from the gate status
+            # two files away.
+            "merge_blocking": True,
+        })
 
     def warn(self, message: str) -> None:
         self.warnings.append(message)
@@ -678,9 +743,18 @@ class Gate:
             print(f"\n[SUMMARY]\npassed={passed}\nfailed={len(self.checks) - passed}")
         for f in self.failures:
             print("\n[FAILURE]")
-            for k in ("what", "where", "why", "requirement", "how_to_fix"):
-                if f.get(k):
-                    print(f"{k}={f[k]}")
+            # Order matters: a reader scanning a log wants the handle and the
+            # severity before the prose. Fields whose value is None or empty
+            # are omitted rather than printed as `field=None`, so an absent
+            # measurement reads as absent instead of as a value.
+            for k in ("finding_id", "severity", "code", "what", "where",
+                      "file", "line", "column", "why", "root_cause",
+                      "requirement", "how_to_fix", "reproduction_command",
+                      "is_root_cause", "dependent_on", "merge_blocking"):
+                v = f.get(k)
+                if v is None or v == "":
+                    continue
+                print(f"{k}={v}")
         for w in self.warnings:
             print(f"\n[WARNING] {w}")
         print(f"\n[GATE RESULT]\n{self.result}")
@@ -707,12 +781,21 @@ class Gate:
         if self.failures:
             lines += ["", "**Failures**", ""]
             for f in self.failures:
-                lines.append(f"- **{f['what']}**"
+                head = f"- `{f.get('finding_id', '')}` " if f.get("finding_id") else "- "
+                sev = f"**{f['severity']}** " if f.get("severity") else ""
+                code = f"`{f['code']}` " if f.get("code") else ""
+                lines.append(f"{head}{sev}{code}**{f['what']}**"
                              + (f" — `{f['where']}`" if f.get("where") else ""))
                 if f.get("why"):
                     lines.append(f"  - why: {f['why']}")
+                if f.get("root_cause"):
+                    lines.append(f"  - root cause: {f['root_cause']}")
+                if f.get("dependent_on"):
+                    lines.append(f"  - blocked by: `{f['dependent_on']}`")
                 if f.get("how_to_fix"):
                     lines.append(f"  - fix: {f['how_to_fix']}")
+                if f.get("reproduction_command"):
+                    lines.append(f"  - reproduce: `{f['reproduction_command']}`")
         lines.append("")
         try:
             with open(target, "a", encoding="utf-8") as fh:

@@ -703,3 +703,70 @@ jobs:
           path: reports/
           retention-days: 30
           if-no-files-found: error
+
+  # MERGE EVIDENCE — the numbers in the pull request body, checked against the
+  # logs that produced them.
+  #
+  # WHY THIS RUNS AFTER `full`. Every other gate here proves something about the
+  # tree. This one proves something about the *description* of the tree: that a
+  # measured figure written in the pull request is the figure GitHub recorded.
+  # Pull request #28 merged with "42 AXLE calls before, 13 after" when the real
+  # figures were 9 and 3, and the measurement refuting it -- 22.27s against
+  # 14.17s -- was already sitting in a `correspondence` job log of that same run.
+  # Seventeen checks were green. Nothing was reading the arithmetic.
+  #
+  # ADVISORY, DELIBERATELY, FOR NOW. `mandatory = false` in ci/gates.toml, and it
+  # is not one of the 17 required contexts, so a red result here blocks nothing
+  # yet. That is the point of this first pull request: measure the real overhead,
+  # confirm the token can read what it needs, and see the false-block rate on
+  # live bodies BEFORE anything depends on it. Promoting it is a separate,
+  # deliberate ruleset change. See docs/merge-evidence.md.
+  #
+  # `if: always()` because the failure dossier is worth most in exactly the case
+  # `needs: [full]` would otherwise skip: when something already went red.
+  #
+  # It cannot join `full`'s `needs:` -- `full` is its dependency, and a cycle is
+  # not a verification order. It waits on `e2e` and the three CodeQL contexts by
+  # polling the check-runs API, because cross-workflow `needs:` does not exist.
+  # It excludes its own context from that wait: a gate that waits for itself to
+  # become terminal never becomes terminal.
+  merge-evidence:
+    needs: [full]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Narrower than it looks: the workflow grants `contents: read` and these two
+    # additions are scoped to this job alone, so the other thirteen keep exactly
+    # the privileges they had. `actions: read` reads runs, jobs and logs;
+    # `checks: read` reads the conclusions of the contexts this job waits on.
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
+      # No pip install. This gate reads ci/gates.toml with the standard-library
+      # tomllib and talks to GitHub through the `gh` already on the runner, so
+      # the 36-package locked set it does not use is 36 packages of latency.
+      - name: Check the PR's measured claims against this run's evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          python3 scripts/merge_evidence_gate.py --pr "$PR_NUMBER" --sha "$HEAD_SHA"
+
+      - name: Upload the evidence dossier
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: reports-merge-evidence
+          path: reports/
+          retention-days: 14
+          if-no-files-found: warn

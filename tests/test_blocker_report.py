@@ -300,7 +300,19 @@ def test_no_gate_job_depends_on_another_gate_job() -> None:
     spec = yaml.safe_load(
         (REPO / ".github" / "workflows" / "verify.yml").read_text(encoding="utf-8"))
     jobs: dict[str, Any] = spec["jobs"]
-    finalizers = {"full"}
+    # `merge-evidence` joins `full` here, and the distinction it is joining is
+    # real rather than convenient. The property this test protects is that no
+    # BLOCKER depends on another blocker, so a reader triaging a red run can
+    # treat multiple failures as separate defects. `blocking` in the manifest is
+    # built by aggregate_gates.py from the MANDATORY gate set; `merge-evidence`
+    # is `mandatory = false` in ci/gates.toml and can therefore never appear in
+    # it -- exactly as `ai-review` never does. It reports on the run rather than
+    # gating it, which is what makes it a finalizer and not a gate.
+    #
+    # The control assertion below still binds: `full` must wait for every job
+    # that is not a finalizer, so a real gate cannot slip out of the aggregate
+    # by being listed here.
+    finalizers = {"full", "merge-evidence"}
     offenders = {
         name: job.get("needs")
         for name, job in jobs.items()

@@ -109,7 +109,16 @@ ELIGIBLE = {("B404", "scripts/proof_gate.py"), ("B603", "scripts/proof_gate.py")
             ("B404", "scripts/tcb_gate.py"),
             ("B603", "scripts/tcb_gate.py"),
             ("B404", "scripts/ci_metrics.py"),
-            ("B603", "scripts/ci_metrics.py")}
+            ("B603", "scripts/ci_metrics.py"),
+            # merge_evidence_gate.py shells out to `gh` three times: the API
+            # reader, the job-log reader, and the pull request body reader. Being
+            # listed here buys it nothing on its own -- check_subprocess_safety
+            # re-derives the safe pattern from its AST on every run, so the entry
+            # is a claim that gets re-proven, not a suppression that gets
+            # remembered. Delete a `shutil.which` guard or a `timeout=` from that
+            # file and this line stops covering it in the same run.
+            ("B404", "scripts/merge_evidence_gate.py"),
+            ("B603", "scripts/merge_evidence_gate.py")}
 
 
 def target_names(node: ast.expr | None) -> list[str]:

@@ -343,3 +343,33 @@ role = "supplementary"
 must_contain = ["anthropics/claude-code-action@d40ddef4c030e508327d6e35a9c45f3368482c50"]
 evidence = "pull request review comments, posted via the claude GitHub App (1236702)"
 artifact = ""
+
+# ---------------------------------------------------------------------------
+# MERGE EVIDENCE — advisory, deliberately, and only for now.
+#
+# It checks a different kind of thing from every gate above. Those prove
+# properties of the tree; this one proves that a measured number written in the
+# pull request body is the number GitHub's own logs and API recorded. #28 merged
+# claiming "42 AXLE calls before, 13 after" when the truth was 9 and 3, and the
+# refuting measurement was already in a `correspondence` log of the same run.
+#
+# `mandatory = false` is not timidity, it is sequencing. Promoting this to an
+# 18th required context is a live ruleset edit, and doing that before measuring
+# the real overhead, the token's actual permissions, and the false-block rate on
+# real pull request bodies would be requiring a check nobody has evidence about
+# -- which is the exact failure mode this gate exists to prevent. It reports
+# first. It blocks after the numbers say it should.
+#
+# While false, `scripts/gate_integrity.py` applies none of its per-gate
+# structural checks (it filters on mandatory), and required_checks stays at 17,
+# so `scripts/check_ruleset.py` keeps proving the same equality it proved before.
+# ---------------------------------------------------------------------------
+
+[gates.merge-evidence]
+workflow = "verify.yml"
+job = "merge-evidence"
+mandatory = false
+role = "supplementary"
+must_contain = ["scripts/merge_evidence_gate.py"]
+evidence = "reports/merge-evidence.json"
+artifact = "reports-merge-evidence"

@@ -33,6 +33,7 @@ NO NETWORK. The remote is a path on disk.
 
 from __future__ import annotations
 
+import os
 import shlex
 import shutil
 import subprocess
@@ -68,6 +69,31 @@ RESULT: int = add_one(41)
 '''
 
 
+def _sandbox_env() -> dict[str, str]:
+    """The environment for the sandbox repository, with CI run identity removed.
+
+    WHY, MEASURED ON RUN 32404879117. `run_gate.py` records the SHA checked out in
+    its working directory and compares it against `GITHUB_SHA`. Inside this test the
+    working directory is a temporary repository whose commit is, correctly, not the
+    commit GitHub named, so on a runner the gate reported:
+
+        checked_out_sha=070b71f1...   the temporary repository
+        expected_sha=e0a34b38...      GITHUB_SHA
+        identity_verified=False
+
+    and exited non-zero while pyright itself reported `0 errors`. The identity check
+    was right and the test was wrong: it was letting a foreign tree inherit CI's claim
+    about which commit it is. Stripping the identity variables makes the sandbox
+    declare itself a local run, which is what it actually is.
+
+    This weakens nothing. run_gate.py's identity check is untouched and still applies
+    to every real gate; only this temporary repository stops claiming an identity that
+    was never its own. Removed rather than overwritten -- inventing a plausible SHA
+    would be the same lie with better spelling.
+    """
+    return {k: v for k, v in os.environ.items() if not k.startswith("GITHUB_")}
+
+
 def _git(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
     exe = shutil.which("git")
     assert exe is not None, "git is not on PATH"
@@ -78,6 +104,7 @@ def _git(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
         text=True,
         timeout=600,
         shell=False,
+        env=_sandbox_env(),
     )
 
 

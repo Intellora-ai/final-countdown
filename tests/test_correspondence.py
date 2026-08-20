@@ -267,11 +267,86 @@ IGNORE = shutil.ignore_patterns(".git", ".venv", "reports", "evidence",
                                 "test-results", ".claude")
 
 
+def scope_to(w: Path, func: str) -> list[str]:
+    """Reduce the worktree to the one function this test mutates.
+
+    THE DUPLICATE THIS REMOVES. A mutation test edits exactly one file --
+    `src/<func>.py` -- and then runs the full gate, which verifies EVERY source
+    in the tree. correspondence_gate.py:99-102 globs `src/*.py`, and each one
+    costs a kernel call to the hosted AXLE service
+    (correspondence_gate.py:312).
+
+    COUNTED, NOT ESTIMATED. Two tests in this file build a worktree and run the
+    gate; a third calls `axle()` once directly and is unaffected. Four sources
+    per gate run gives 2*4 + 1 = 9 calls, and scoping to one gives 2*1 + 1 = 3.
+    Six calls removed -- every one of them a re-verification of a committed
+    pair the test did not touch and the `correspondence` gate had already
+    verified once, in the same job, before pytest ran.
+
+    An earlier note here read "42 calls, of which 29" -- it assumed thirteen
+    worktree-building tests when there are two. The GitHub measurement is what
+    caught it: the axle suite went 22.27s -> 14.17s (runs 32371336445 and
+    32374048401, `13 passed` in both), and 8.10s over six calls is 1.35s each
+    against an 863ms AXLE health round trip. Twenty-nine removed calls could
+    not have cost eight seconds.
+
+    Re-verifying an unchanged committed pair proves nothing the gate has not
+    already proven, and it does it on someone else's server.
+
+    WHY REMOVAL RATHER THAN A CACHE. Reuse would need every identity field to
+    match -- source hash, configuration, exact command, tool version, mutation
+    identity, schema version -- and a cache that is wrong about any one of them
+    reports a verification that never happened. Not running the redundant
+    verification has no such failure mode: there is no stored result to be
+    stale, mismatched, or forged.
+
+    COMPLETENESS STAYS SATISFIED because both sides go together.
+    correspondence_gate.py:192-193 compares the set of `src/*.py` stems against
+    the set of `semantics/specs/*_semantics_spec.lean` stems and fails on any
+    difference in either direction. Removing a source without its pair would
+    trip `missing`; removing a pair without its source would trip `orphans`.
+    They are removed as pairs, so the sets stay equal and the check still runs
+    for real.
+
+    Returns the names removed, so a caller can assert what was scoped away.
+    """
+    removed: list[str] = []
+    for src in sorted((w / "src").glob("*.py")):
+        if src.stem.startswith("_") or src.stem == func:
+            continue
+        spec = w / "semantics" / "specs" / f"{src.stem}_semantics_spec.lean"
+        proof = w / "semantics" / "proofs" / f"{src.stem}_semantics_proof.lean"
+        # FAIL CLOSED. Scope away a source only when its whole pair is present
+        # and removable. A half-removed set would fail COMPLETENESS for a
+        # reason that has nothing to do with the mutation under test, and a
+        # test that fails for the wrong reason is worse than a slow one.
+        if not (spec.is_file() and proof.is_file()):
+            continue
+        src.unlink()
+        spec.unlink()
+        proof.unlink()
+        removed.append(src.stem)
+    return removed
+
+
 def worktree(tmp_path: Path, source: str, regenerate: bool,
-             func: str = "add") -> subprocess.CompletedProcess[str]:
+             func: str = "add", scoped: bool = True) -> subprocess.CompletedProcess[str]:
     w = tmp_path / "w"
     shutil.copytree(REPO, w, symlinks=True, ignore=IGNORE)
     (w / f"src/{func}.py").write_text(source, encoding="utf-8")
+
+    # `scoped=False` runs the gate over the whole tree, which is what every
+    # caller did before. Kept as the escape hatch and as the control the
+    # equivalence test below compares against.
+    if scoped:
+        # FAIL CLOSED on the mutated function itself: if its own pair is not
+        # there, scope nothing and let the full gate run. Its absence is
+        # exactly what some of these tests are checking for.
+        own_spec = w / "semantics" / "specs" / f"{func}_semantics_spec.lean"
+        own_proof = w / "semantics" / "proofs" / f"{func}_semantics_proof.lean"
+        if own_spec.is_file() and own_proof.is_file():
+            scope_to(w, func)
+
     (w / "reports").mkdir(exist_ok=True)
     if regenerate:
         subprocess.run([PY, "scripts/gen_correspondence.py", "--function", func],
@@ -684,3 +759,105 @@ def test_excluded_directories_do_not_change_the_verdict(tmp_path: Path) -> None:
 
     assert stable(bare_out) == stable(planted_out), (
         "planting the excluded directories changed the gate's output")
+
+
+# --------------------------------------------------------------------------
+# Scoping the worktree to the mutated function
+#
+# Each kernel check costs one call to the hosted AXLE service, one per source
+# in the tree. A mutation test edits one file, so verifying the other three
+# re-proves committed pairs the `correspondence` gate already verified in the
+# same job. These assert the scoping is correct WITHOUT calling AXLE: the call
+# count is exactly the source count, so counting sources counts calls.
+# --------------------------------------------------------------------------
+def _scoped_tree(tmp_path: Path, func: str = "clamp") -> Path:
+    w = tmp_path / "w"
+    shutil.copytree(REPO, w, symlinks=True, ignore=IGNORE)
+    scope_to(w, func)
+    return w
+
+
+def test_scoping_leaves_exactly_the_mutated_function(tmp_path: Path) -> None:
+    """One source in, one kernel call out. This is the whole saving."""
+    w = _scoped_tree(tmp_path, "clamp")
+
+    sources = sorted(p.stem for p in (w / "src").glob("*.py")
+                     if not p.stem.startswith("_"))
+    assert sources == ["clamp"], f"expected only clamp, got {sources}"
+
+    specs = sorted(p.stem.removesuffix("_semantics_spec")
+                   for p in (w / "semantics" / "specs").glob("*_semantics_spec.lean"))
+    assert specs == ["clamp"], f"pairs not scoped with their sources: {specs}"
+
+
+def test_scoping_keeps_the_completeness_sets_equal(tmp_path: Path) -> None:
+    """The check that would catch a half-removed set, asserted directly.
+
+    correspondence_gate.py:192-193 fails on any difference in either
+    direction. Removing a source without its pair trips `missing`; removing a
+    pair without its source trips `orphans`. This is the invariant that makes
+    scoping safe rather than merely smaller.
+    """
+    w = _scoped_tree(tmp_path, "add")
+
+    srcs = {p.stem for p in (w / "src").glob("*.py") if not p.stem.startswith("_")}
+    specs = {p.stem.removesuffix("_semantics_spec")
+             for p in (w / "semantics" / "specs").glob("*_semantics_spec.lean")}
+    proofs = {p.stem.removesuffix("_semantics_proof")
+              for p in (w / "semantics" / "proofs").glob("*_semantics_proof.lean")}
+
+    assert srcs == specs == proofs, (
+        f"scoping left the sets unequal: sources={srcs} specs={specs} proofs={proofs}; "
+        "the gate would fail COMPLETENESS for a reason unrelated to the mutation")
+    assert srcs, "scoping emptied the tree; the gate would fail 'nothing to verify'"
+
+
+def test_a_source_whose_pair_is_missing_is_never_scoped_away(tmp_path: Path) -> None:
+    """Fail closed. A half-present pair is left alone rather than half-removed.
+
+    Removing a source but not its proof, or the reverse, would trip
+    COMPLETENESS and fail the test for a reason that has nothing to do with the
+    mutation under test.
+    """
+    w = tmp_path / "w"
+    shutil.copytree(REPO, w, symlinks=True, ignore=IGNORE)
+    victim = w / "semantics" / "proofs" / "multiply_semantics_proof.lean"
+    assert victim.is_file(), "fixture assumption: multiply has a committed proof"
+    victim.unlink()
+
+    removed = scope_to(w, "add")
+
+    assert "multiply" not in removed, (
+        "a source with an incomplete pair was scoped away; the remaining half "
+        "would trip COMPLETENESS")
+    assert (w / "src" / "multiply.py").is_file(), "multiply.py was removed anyway"
+
+
+def test_the_mutated_function_is_always_verified(tmp_path: Path) -> None:
+    """The saving must never come from skipping the thing under test."""
+    for func in ("add", "clamp", "multiply", "subtract"):
+        w = _scoped_tree(tmp_path / func, func)
+        assert (w / "src" / f"{func}.py").is_file(), f"{func} was scoped away"
+        assert (w / "semantics" / "specs" / f"{func}_semantics_spec.lean").is_file()
+        assert (w / "semantics" / "proofs" / f"{func}_semantics_proof.lean").is_file()
+
+
+def test_scoped_and_unscoped_reach_the_same_verdict(tmp_path: Path) -> None:
+    """Equivalence, on a mutation that is refused before the kernel is reached.
+
+    Uses an UNSUPPORTED construct so the gate returns its verdict from
+    pysem.emit without a single AXLE call -- the property under test is that
+    scoping does not change the answer, and proving that costs nothing on
+    someone else's server.
+    """
+    bad = "def clamp(lo: int, hi: int, x: int) -> int:\n    return lo / hi\n"
+
+    scoped = worktree(tmp_path / "scoped", bad, regenerate=False,
+                      func="clamp", scoped=True)
+    whole = worktree(tmp_path / "whole", bad, regenerate=False,
+                     func="clamp", scoped=False)
+
+    assert layer(scoped) == layer(whole), (
+        f"scoping changed the verdict: scoped={layer(scoped)} whole={layer(whole)}")
+    assert scoped.returncode == whole.returncode, (
+        f"scoping changed the exit code: {scoped.returncode} vs {whole.returncode}")

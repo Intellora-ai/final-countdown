@@ -1,9 +1,32 @@
 # pytest-xdist benchmark — measured on GitHub runners
 
-Seven samples on PR #25. The lockfile was constant across all of them, so the
-only variable was the pytest configuration in the `coverage` job.
+> **STATUS: COMPLETED EXPERIMENT.** This is a record of a finished measurement,
+> not a procedure. The configuration below is already in force. Nothing here
+> asks anyone to reproduce it.
+>
+> **CURRENT ACCEPTED CONFIGURATION**
+>
+>     pytest -n auto --dist loadfile
+>
+> **NORMAL DEVELOPMENT**
+>
+>     one logical change set
+>       -> fast-check
+>       -> one final push
+>       -> one current required PR workflow run
+>
+> **RE-BENCHMARK ONLY WHEN** test topology, fixture behavior, the dependency
+> lockfile, the runner class, external-service behavior, test selection, or
+> workflow topology materially changes. Absent one of those, the numbers below
+> stand and re-running the comparison measures runner weather.
 
-## Why seven samples and not three
+Seven samples were taken on PR #25. The lockfile was constant across all of
+them, so the only variable was the pytest configuration in the `coverage` job.
+
+## Why this experiment took seven samples
+
+This section explains the sample count that was used; it is not a threshold
+anyone must meet again.
 
 `coverage` is an unchanged job that measured 111s, 129s and 148s across three
 runs before this benchmark began — a 37-second spread, larger than any effect
@@ -53,3 +76,10 @@ serial tails that bound the run; the measurements show they did not.
 765 progress-dot characters in both serial and parallel local runs — identical
 execution count. Coverage 100.00% against a 95% threshold in every sample. All
 17 required contexts passed on all seven.
+
+## Where the benchmark sits against the contract
+
+The objective is `TOTAL_GITHUB_REQUIRED_PR_SECONDS <= 900`. The measured figure
+on the current configuration is **182s**, leaving 718s of headroom. An earlier
+93s figure appeared in working notes and was wrong — it measured a push run and
+omitted a workflow. It is withdrawn; 182s is the number.

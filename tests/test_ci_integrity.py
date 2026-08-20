@@ -1114,7 +1114,9 @@ def test_only_app_posted_roles_are_exempt_from_reporting(sandbox: Path) -> None:
 E2E = ".github/workflows/e2e.yml"
 
 COVERAGE_STEP = ('run: python3 scripts/run_gate.py --name coverage -- pytest '
-                 '--cov=src --cov-branch --cov-fail-under=95 -m "not axle"')
+                 '-n auto --dist loadfile --cov=src --cov-branch '
+                 '--cov-fail-under=95 '
+                 '-m "not axle"')
 MUTMUT_STEP = ('run: python3 scripts/run_gate.py --name mutmut -- bash '
                'scripts/verify_per_function.sh scripts/mutation_gate.py '
                '--min-score 0.95')

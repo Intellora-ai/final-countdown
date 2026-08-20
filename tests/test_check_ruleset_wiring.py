@@ -199,7 +199,9 @@ def test_deleting_the_step_fails_gate_integrity(tmp_path: Path) -> None:
 
     workflow = sandbox / ".github" / "workflows" / "verify.yml"
     text = workflow.read_text(encoding="utf-8")
-    sabotaged = text.replace(f"        run: python3 {GATE_STEP}\n", "", 1)
+    # In-chain form: check_ruleset.py moved inside the
+    # `run_gate.py --name preflight -- bash -c` wrapper.
+    sabotaged = text.replace(f"            python3 {GATE_STEP}\n", "", 1)
     assert sabotaged != text, "the step this test deletes was not found"
     workflow.write_text(sabotaged, encoding="utf-8")
 

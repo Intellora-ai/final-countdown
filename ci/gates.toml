@@ -92,7 +92,14 @@ role = "integrity"
 # or conditioning it away fails preflight instead of silently restoring the
 # state this file spent its existence describing: a verification topology
 # nothing compares against the live ruleset.
-must_contain = ["scripts/gate_integrity.py", "scripts/tcb_gate.py",
+#
+# The wrapper is pinned as its own token, the way bandit's and
+# correspondence's are. Without it a future edit could unwrap the chain
+# entirely: all four scripts would still be "contained" and would still run,
+# but a failure in any of the first three would again leave no report at all
+# and no detail of what drifted.
+must_contain = ["run_gate.py --name preflight -- bash -c",
+                "scripts/gate_integrity.py", "scripts/tcb_gate.py",
                 "scripts/check_ruleset.py", "scripts/registry_gate.py"]
 evidence = "reports/preflight.json"
 artifact = "reports-preflight"
@@ -105,7 +112,12 @@ workflow = "verify.yml"
 job = "axle-verify"
 mandatory = true
 role = "gate"
-must_contain = ["scripts/axle_gate.py", "scripts/enforce_spec.py"]
+# The wrapper is pinned as its own token; see the preflight entry above.
+# enforce_spec.py owned no report until it moved inside this chain, so a spec
+# that broke a syntactic rule turned the job red with every detail of which
+# spec and which rule living only in the job log.
+must_contain = ["run_gate.py --name axle-verify -- bash -c",
+                "scripts/axle_gate.py", "scripts/enforce_spec.py"]
 evidence = "reports/axle-verify.json"
 artifact = "reports-axle-verify"
 

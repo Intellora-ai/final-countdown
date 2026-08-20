@@ -72,11 +72,67 @@ jobs:
       # guard on the guard ran against an unpinned dependency resolved fresh
       # each day. One install path, one set of hashes, no exceptions.
       - run: pip install --quiet --require-hashes -r requirements-preflight.lock
+      # THE GATE — three verifications that owned no report, plus the one that
+      # writes it, now in a single wrapper. The reasoning per verification is
+      # kept below, unchanged; what follows is why they are one step.
+      #
+      # BEFORE: gate_integrity.py runs LAST and is what writes
+      # reports/preflight.json, so a failure in any earlier step meant no
+      # report existed at all. That is fail-closed and was deliberate --
+      # aggregate_gates.py turns the absence into a blocking UNKNOWN, so the
+      # merge stays blocked and both required checks agree. It is still true
+      # here; nothing about the verdict changes.
+      #
+      # What was missing is every DETAIL of that verdict. The finalizer could
+      # only say "no evidence was produced for this gate" -- never which
+      # trusted path drifted, which required check the ruleset had dropped, or
+      # which assumption went unaccepted. That detail existed only in the job
+      # log, which is the thing this repository is removing.
+      #
+      # WHY THE WRAPPER DOES NOT COST THE 84 CHECKS. gate_integrity.py writes
+      # the same reports/preflight.json the wrapper writes, so wrapping used to
+      # mean overwriting: measured, that report carries 84 structured checks
+      # and a bare wrapper report carries one. run_gate.py now MERGES an inner
+      # report it finds -- checks, scope and warnings -- while the wrapper's
+      # STATUS stays the verdict, because the chain's exit code is what saw the
+      # whole chain and the inner script only ever saw its own step. A report
+      # older than this run's command is refused rather than folded.
+      #
+      # The `echo`s name which verification failed, and run_gate.py records the
+      # ones after it as never having run: "could not check" is not "checked
+      # and fine". See the note on the bandit gate.
+      # THE BASE REF ARRIVES AS AN ENVIRONMENT VARIABLE, NOT INLINE. Written
+      # as `${{ github.base_ref || 'main' }}` inside this single-quoted
+      # `bash -c`, the fallback needs the '"'"' escaping dance -- and that
+      # breaks the `${{ ... }}` stripper in ci_integrity's suppression
+      # detector, which then sees a bare `||` and correctly reports the gate
+      # as having its failure suppressed. The expression belongs where it does
+      # not have to survive two levels of quoting.
+      - name: Trusted base, ruleset, registries, and gate integrity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_REF: ${{ github.base_ref || 'main' }}
+        run: |
+          python3 scripts/run_gate.py --name preflight -- bash -c '
+            set -e
+            echo "== preflight gate 1/4: trusted computing base" >&2
+            python3 scripts/tcb_gate.py --base "origin/$BASE_REF"
+            echo "== preflight gate 2/4: ruleset alignment" >&2
+            python3 scripts/check_ruleset.py
+            echo "== preflight gate 3/4: requirement and assumption registries" >&2
+            python3 scripts/registry_gate.py
+            echo "== preflight gate 4/4: gate integrity" >&2
+            python3 scripts/gate_integrity.py
+          '
+      # The per-verification reasoning below is unchanged. Each of these ran as
+      # its own step until the wrapper above absorbed them.
+      #
+      # TRUSTED COMPUTING BASE
       # A trusted-path change must say why, in a commit message. See the
       # module docstring: CODEOWNERS cannot enforce this without a reviewer,
       # and a one-person repository has none.
-      - name: Trusted computing base
-        run: python3 scripts/tcb_gate.py --base origin/${{ github.base_ref || 'main' }}
+      #
+      # RULESET ALIGNMENT
       # The manifest agreeing with the workflows is not the manifest agreeing
       # with GitHub. gate_integrity check 9 compares ci/gates.toml against
       # itself; this compares it against the live ruleset, which is the only
@@ -108,10 +164,8 @@ jobs:
       # back to an anonymous read when the token is absent or refused. Exit 1
       # is drift, exit 2 is "could not read the ruleset"; both are red, because
       # "could not compare" is not "aligned".
-      - name: Ruleset alignment
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/check_ruleset.py
+      #
+      # REQUIREMENT AND ASSUMPTION REGISTRIES
       # What the gates prove, and what they do not. ci/requirements.yml names
       # 39 claims and which gate establishes each -- six of them nothing does,
       # and that is the point of writing them down. ci/assumptions.yml records
@@ -134,10 +188,6 @@ jobs:
       # Before gate_integrity for the same reason as the ruleset check above:
       # gate_integrity writes reports/preflight.json, and aggregate_gates.py
       # reads reports rather than job conclusions.
-      - name: Requirement and assumption registries
-        run: python3 scripts/registry_gate.py
-      - name: Gate integrity
-        run: python3 scripts/gate_integrity.py
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -160,13 +210,37 @@ jobs:
       # failures. It exits non-zero either way: unverifiable must not merge.
       - name: AXLE service health
         run: python3 scripts/axle_health.py
-      - name: Enforce strong specs (syntactic)
-        run: python3 scripts/enforce_spec.py specs/*_spec.lean
-      # Proves SPEC_SET == PROOF_SET and that the set is non-empty before
-      # submitting any proof, then owns the verdict: `axle verify-proof` exits
-      # 0 on "okay": false, so the exit code is not the answer.
-      - name: Verify all proofs with AXLE
-        run: python3 scripts/axle_gate.py
+      # THE GATE — same defect and same fix as `bandit` and `correspondence`;
+      # the reasoning in full is on the preflight job below.
+      #
+      # `enforce_spec.py` used to be a bare step and owned no report, so a spec
+      # that broke a syntactic rule turned this job red while every detail of
+      # WHICH spec broke WHICH rule existed only in the job log. axle_gate.py
+      # is what writes reports/axle-verify.json, and it never ran.
+      #
+      #   enforce_spec.py  the syntactic rules, per spec.
+      #   axle_gate.py     proves SPEC_SET == PROOF_SET and that the set is
+      #     non-empty before submitting any proof, then owns the verdict:
+      #     `axle verify-proof` exits 0 on "okay": false, so the exit code is
+      #     not the answer.
+      #
+      # run_gate.py MERGES rather than overwrites, so axle_gate.py's own
+      # checks and scope survive being wrapped. The chain's exit code is still
+      # the verdict; an inner report saying PASS never survives a chain that
+      # failed after it.
+      #
+      # `axle_health.py` stays its own step above, deliberately, for the same
+      # reason it does on the correspondence job: a dead service is an
+      # INFRASTRUCTURE_FAILURE, and run_gate maps every non-zero exit to FAIL.
+      - name: Enforce specs, then verify all proofs with AXLE
+        run: |
+          python3 scripts/run_gate.py --name axle-verify -- bash -c '
+            set -e
+            echo "== axle-verify gate 1/2: syntactic spec rules" >&2
+            python3 scripts/enforce_spec.py specs/*_spec.lean
+            echo "== axle-verify gate 2/2: AXLE proof verification" >&2
+            python3 scripts/axle_gate.py
+          '
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

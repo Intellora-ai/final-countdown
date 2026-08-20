@@ -747,8 +747,20 @@ def aggregate_root(cwd: Path, root: Path) -> subprocess.CompletedProcess[str]:
 def test_attack_gate_step_conditioned_away_is_caught(sandbox: Path) -> None:
     wf = sandbox / VERIFY
     text = wf.read_text()
-    line = next(l for l in text.splitlines() if "scripts/axle_gate.py" in l)
-    indent = " " * (len(line) - len(line.lstrip()))
+    # The STEP that runs axle_gate.py, not the first line that mentions it.
+    # Since the gate moved inside a `bash -c` chain, the workflow also carries
+    # COMMENT lines naming the script -- and `if:` after a comment is inert, so
+    # anchoring on a mention would sabotage nothing and the attack would look
+    # defeated when it had never been mounted.
+    line = next(l for l in text.splitlines()
+                if l.lstrip().startswith("- name:")
+                and "verify all proofs with AXLE" in l)
+    # `+ 2` because the `- ` of the list item occupies two columns: a sibling
+    # key of `name:` sits two further in. At the dash's own indent the file
+    # stops being valid YAML, and gate_integrity then rejects it for parsing
+    # rather than for the conditional -- which is a different check passing,
+    # not this attack being caught.
+    indent = " " * (len(line) - len(line.lstrip()) + 2)
     wf.write_text(text.replace(line, f"{line}\n{indent}if: false", 1))
     result = integrity(sandbox)
     assert result.returncode != 0, "a conditioned-away gate step was NOT detected"
@@ -1023,10 +1035,14 @@ def test_scanner_role_is_exempt_only_from_the_artifact_check(sandbox: Path) -> N
 @pytest.mark.parametrize("prefix", ["echo", "printf", "cat", "true", ":"])
 def test_attack_gate_command_is_only_printed_not_run(sandbox: Path,
                                                      prefix: str) -> None:
-    wf = sandbox / VERIFY
-    wf.write_text(wf.read_text().replace(
-        "        run: python3 scripts/axle_gate.py",
-        f"        run: {prefix} python3 scripts/axle_gate.py", 1))
+    # In-chain form: axle_gate.py moved inside the
+    # `run_gate.py --name axle-verify -- bash -c` wrapper, so the old bare
+    # `run:` line no longer exists. The attack is unchanged -- a launcher that
+    # only prints the command still runs no verification -- and `sabotage`
+    # asserts the target is present, so this cannot silently swap nothing.
+    sabotage(sandbox, VERIFY, AXLE_GATE_STEP,
+             AXLE_GATE_STEP.replace("python3 scripts/axle_gate.py",
+                                    f"{prefix} python3 scripts/axle_gate.py"))
     result = integrity(sandbox)
     assert result.returncode != 0, (
         f"`{prefix} <gate command>` satisfied the gate — it runs nothing")
@@ -1038,10 +1054,8 @@ def test_attack_gate_command_is_only_printed_not_run(sandbox: Path,
 
 def test_attack_gate_command_only_in_a_comment(sandbox: Path) -> None:
     """A comment naming a verifier is documentation, not an invocation."""
-    wf = sandbox / VERIFY
-    wf.write_text(wf.read_text().replace(
-        "        run: python3 scripts/axle_gate.py",
-        "        run: |\n          # python3 scripts/axle_gate.py\n          true", 1))
+    sabotage(sandbox, VERIFY, AXLE_GATE_STEP,
+             "            # python3 scripts/axle_gate.py\n            true")
     result = integrity(sandbox)
     assert result.returncode != 0, "a commented-out gate satisfied the gate"
 
@@ -1104,7 +1118,17 @@ COVERAGE_STEP = ('run: python3 scripts/run_gate.py --name coverage -- pytest '
 MUTMUT_STEP = ('run: python3 scripts/run_gate.py --name mutmut -- bash '
                'scripts/verify_per_function.sh scripts/mutation_gate.py '
                '--min-score 0.95')
-ENFORCE_STEP = "run: python3 scripts/enforce_spec.py specs/*_spec.lean"
+# ANCHORED ON THE IN-CHAIN FORM, for the same reason SHELLCHECK_STEP below is.
+# enforce_spec.py used to be a bare `run:` step that owned no report: a spec
+# breaking a syntactic rule turned axle-verify red with every detail of WHICH
+# spec and WHICH rule living only in the job log, because axle_gate.py -- what
+# writes reports/axle-verify.json -- never ran. It now runs inside the
+# `run_gate.py --name axle-verify -- bash -c` chain.
+#
+# The attack these tests model still lands on the in-chain form: `set -e` stops
+# at the first non-zero exit, so a suppressor on this line discards it and the
+# chain runs on to record a PASS over a failed check. Re-anchored, not deleted.
+ENFORCE_STEP = "            python3 scripts/enforce_spec.py specs/*_spec.lean"
 # shellcheck is no longer a standalone step. It runs inside the bandit gate's
 # single `run_gate.py --name bandit -- bash -c` chain, so it now DOES own a
 # report -- that was the point of wrapping it. The attack still matters: `set -e`
@@ -1117,6 +1141,13 @@ ENFORCE_STEP = "run: python3 scripts/enforce_spec.py specs/*_spec.lean"
 # position. Dropping the flag would silently collapse every shell finding back
 # into one record, so the sabotage target names the whole invocation.
 SHELLCHECK_STEP = "            shellcheck -f gcc scripts/*.sh"
+
+# axle_gate.py runs inside the `run_gate.py --name axle-verify -- bash -c`
+# chain, not as a bare `run:` step. Same re-anchoring as ENFORCE_STEP above and
+# SHELLCHECK_STEP here: the attacks these tests model all still land on the
+# in-chain form, because `set -e` stops at the first non-zero exit and a
+# suppressor on this line discards it.
+AXLE_GATE_STEP = "            python3 scripts/axle_gate.py"
 
 
 def sabotage(sandbox: Path, workflow: str, old: str, new: str) -> None:
@@ -1157,8 +1188,8 @@ def test_attack_token_demoted_to_a_trailing_comment(sandbox: Path,
 
 def test_attack_token_only_inside_a_quoted_string(sandbox: Path) -> None:
     """`python3 -c "print('...')"` starts with a launcher and runs nothing."""
-    sabotage(sandbox, VERIFY, "run: python3 scripts/axle_gate.py",
-             "run: |\n          python3 -c \"print('scripts/axle_gate.py')\"")
+    sabotage(sandbox, VERIFY, AXLE_GATE_STEP,
+             "            python3 -c \"print('scripts/axle_gate.py')\"")
     result = integrity(sandbox)
     assert result.returncode != 0, "a quoted mention satisfied the gate"
     assert "no longer invokes its command" in result.stdout, result.stdout[-800:]
@@ -1301,9 +1332,13 @@ def test_attack_errexit_disabled_around_the_gate_is_caught(sandbox: Path,
         set +e / gate / exit 0  -> step exits 0   SUPPRESSED
         set +e / gate / set -e  -> step exits 0   SUPPRESSED
     """
+    # Injected INSIDE the `bash -c` chain, which is where errexit now lives:
+    # the wrapper runs `set -e` as the chain's first line, so disabling it
+    # mid-chain is the same attack against the same mechanism.
     sabotage(sandbox, VERIFY, ENFORCE_STEP,
-             f"run: |\n          {disable}\n          python3 "
-             "scripts/enforce_spec.py specs/*_spec.lean\n          exit 0")
+             f"            {disable}\n"
+             "            python3 scripts/enforce_spec.py specs/*_spec.lean\n"
+             "            exit 0")
     result = integrity(sandbox)
     assert result.returncode != 0, f"`{disable}` around a gate went green"
     assert "errexit disabled" in result.stdout, result.stdout[-800:]
@@ -1313,8 +1348,8 @@ def test_errexit_restored_before_the_gate_is_not_flagged(sandbox: Path) -> None:
     """`set +e` that is turned back off again before the gate runs leaves the
     gate's failure deciding the step, so it must not be reported."""
     sabotage(sandbox, VERIFY, ENFORCE_STEP,
-             "run: |\n          set +e\n          true\n          set -e\n"
-             "          python3 scripts/enforce_spec.py specs/*_spec.lean")
+             "            set +e\n            true\n            set -e\n"
+             "            python3 scripts/enforce_spec.py specs/*_spec.lean")
     assert integrity(sandbox).returncode == 0
 
 

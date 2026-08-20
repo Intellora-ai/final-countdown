@@ -43,11 +43,9 @@ SCRIPTS = REPO / "scripts"
 PY = sys.executable
 sys.path.insert(0, str(SCRIPTS))
 
-import pytest  # noqa: E402
-
 import gate as gate_mod  # noqa: E402
+import pytest  # noqa: E402
 import run_gate  # noqa: E402
-
 
 # The identity fields gate.py stamps on every report from the environment, and
 # that `absorb` now checks before folding anything. A fixture that omits them
@@ -289,7 +287,7 @@ def test_an_inner_pass_does_not_survive_a_failing_chain(tmp_path: Path) -> None:
 
 
 def test_a_report_from_another_run_is_refused_even_when_it_is_fresh(
-    tmp_path: Path, monkeypatch: "pytest.MonkeyPatch"
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """mtime answers "written recently", not "written by THIS run".
 
@@ -317,7 +315,7 @@ def test_a_report_from_another_run_is_refused_even_when_it_is_fresh(
 
 
 def test_a_report_carrying_this_run_is_folded(
-    tmp_path: Path, monkeypatch: "pytest.MonkeyPatch"
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The control. The guard must not refuse the case it exists to allow."""
     monkeypatch.setenv("GITHUB_SHA", "1111111111111111111111111111111111111111")

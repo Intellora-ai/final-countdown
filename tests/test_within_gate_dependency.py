@@ -49,7 +49,6 @@ import blocker_report  # noqa: E402
 import gate as gate_mod  # noqa: E402
 import run_gate  # noqa: E402
 
-
 BANDIT_CHAIN_STOPPED_AT_ONE = """\
 == bandit gate 1/4: security gate
   bandit: 2 findings over src scripts

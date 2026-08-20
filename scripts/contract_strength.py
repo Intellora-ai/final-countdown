@@ -21,11 +21,12 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from collections.abc import Callable, Sequence
+from typing import Any
+
 from spec_source import source_for
 from spec_strength import holds, load_module
 from spec_to_test import SpecParseError, parse_lean_spec
-from collections.abc import Callable, Sequence
-from typing import Any
 
 # Alternatives are plausible whole functions, not mutations. Each must be
 # behaviourally distinct from the original to count as a witness.

@@ -41,9 +41,9 @@ import subprocess
 import sys
 import time
 import tomllib
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from collections.abc import Callable
 from typing import Any, Protocol, cast
 
 SCRIPTS = Path(__file__).resolve().parent
@@ -425,7 +425,7 @@ def _row_from(cells: list[str], line_no: int) -> Row:
 def unsupported_claims(body: str, rows: list[Row]) -> list[tuple[int, str]]:
     """Measured-looking claims sitting outside the table with no provenance nearby."""
     match = HEADING.search(body)
-    table_span = range(0, 0)
+    table_span = range(0)
     if match is not None:
         end = body.find("\n#", match.end())
         table_span = range(

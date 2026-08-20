@@ -833,9 +833,8 @@ def test_environment_collector_that_raises_does_not_destroy_a_recorded_fail(
         raise Boom("collector exploded")
 
     monkeypatch.setattr(gate_mod, "environment_fingerprint", explode)
-    with pytest.raises(SystemExit) as excinfo:
-        with gate_mod.Gate("collectorboom") as g:
-            g.failed()
+    with pytest.raises(SystemExit) as excinfo, gate_mod.Gate("collectorboom") as g:
+        g.failed()
 
     assert excinfo.value.code == 1, "a FAIL stopped blocking"
     report = read_report(tmp_path, "collectorboom")
@@ -857,9 +856,8 @@ def test_provenance_collector_that_raises_does_not_destroy_the_report(
         raise Boom("provenance exploded")
 
     monkeypatch.setattr(gate_mod, "provenance", explode)
-    with pytest.raises(SystemExit) as excinfo:
-        with gate_mod.Gate("provboom") as g:
-            g.failed()
+    with pytest.raises(SystemExit) as excinfo, gate_mod.Gate("provboom") as g:
+        g.failed()
 
     assert excinfo.value.code == 1
     report = read_report(tmp_path, "provboom")
@@ -991,9 +989,8 @@ def test_a_sha_mismatch_downgrades_a_passing_gate_to_infrastructure_failure(
     monkeypatch.setenv("GITHUB_SHA", SHA_A)
     monkeypatch.setattr(gate_mod, "checked_out_sha", lambda: SHA_B)
 
-    with pytest.raises(SystemExit) as excinfo:
-        with gate_mod.Gate("mismatch") as g:
-            g.passed()
+    with pytest.raises(SystemExit) as excinfo, gate_mod.Gate("mismatch") as g:
+        g.passed()
 
     assert excinfo.value.code == 1, "a mismatched tree merged"
     report = read_report(tmp_path, "mismatch")
@@ -1424,7 +1421,7 @@ def test_the_step_summary_is_bounded_and_says_what_it_left_out(tmp_path: Path) -
     assert "70 further finding(s) not shown" in body, (
         "findings were dropped without saying so"
     )
-    assert f"reports/probe.json" in body, "the complete record is not pointed at"
+    assert "reports/probe.json" in body, "the complete record is not pointed at"
     assert len(body) < 100_000, f"digest is {len(body)} bytes"
 
     # The job log is deliberately NOT capped: it truncates gracefully and keeps

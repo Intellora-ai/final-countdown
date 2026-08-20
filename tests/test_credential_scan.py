@@ -21,9 +21,9 @@ the exact thing this gate exists to prevent.
 
 from __future__ import annotations
 
-import subprocess
 import base64
 import hashlib
+import subprocess
 import sys
 from pathlib import Path
 

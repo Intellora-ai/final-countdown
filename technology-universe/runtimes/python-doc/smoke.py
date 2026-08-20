@@ -1,4 +1,5 @@
-import importlib.metadata as md, traceback, os
+import importlib.metadata as md
+import traceback
 
 R = []
 
@@ -11,7 +12,7 @@ def run(id, dist, fn):
         return
     try:
         R.append((True, id, dist, v, fn()))
-    except Exception as e:
+    except Exception:
         R.append((False, id, dist, v, traceback.format_exc().strip().split("\n")[-1]))
 
 
@@ -98,10 +99,9 @@ def t_imageio():
 
 
 def t_skimage():
-    import skimage, numpy as np
-    from skimage.filters import sobel
-    from skimage.color import rgb2gray
     import imageio.v3 as iio
+    from skimage.color import rgb2gray
+    from skimage.filters import sobel
 
     g = rgb2gray(iio.imread("pillow-out.png"))
     e = sobel(g)
@@ -109,7 +109,7 @@ def t_skimage():
 
 
 def t_cv2():
-    import cv2, numpy as np
+    import cv2
 
     img = cv2.imread("pillow-out.png")
     assert img is not None and img.shape == (40, 90, 3), getattr(img, "shape", None)

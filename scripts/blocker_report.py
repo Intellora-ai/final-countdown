@@ -418,7 +418,7 @@ def render(manifest: dict[str, Any], mergeable: set[str]) -> tuple[str, str]:
         if name in blocking:
             continue
         dur = f"{gate['duration_ms']} ms" if gate.get("duration_ms") else "—"
-        log.append(f"  {str(gate.get('status', '?')):<22} {name:<24} {dur}")
+        log.append(f"  {gate.get('status', '?')!s:<22} {name:<24} {dur}")
     log.append("")
 
     # Annotations last in the text stream but they attach to the diff, not to

@@ -68,11 +68,7 @@ def percentile(values: list[float], fraction: float) -> float:
 def collect(
     pages: int, since: str | None, include_failures: bool
 ) -> dict[str, list[float]]:
-    cutoff = (
-        dt.datetime.fromisoformat(since).replace(tzinfo=dt.timezone.utc)
-        if since
-        else None
-    )
+    cutoff = dt.datetime.fromisoformat(since).replace(tzinfo=dt.UTC) if since else None
     durations: dict[str, list[float]] = defaultdict(list)
     for page in range(1, pages + 1):
         data = gh_json(f"repos/{REPO}/actions/runs?per_page=100&page={page}")

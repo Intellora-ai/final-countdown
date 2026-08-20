@@ -133,7 +133,7 @@ def fetcher(*, all_green: bool = True, missing: str = "") -> FakeFetcher:
                 "name": name,
                 "status": "completed",
                 "conclusion": conclusion,
-                "details_url": f"https://github.com/x/y/actions/runs/222/job/1",
+                "details_url": "https://github.com/x/y/actions/runs/222/job/1",
                 "_sha": HEAD,
             }
         )

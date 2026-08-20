@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """LAYER 7 — COMPOSITION. Smallest complementary set, scored jointly."""
 
-import argparse, sys
+import argparse
+import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mutation_gate import score
 from typing import Any
+
+from mutation_gate import score
 
 
 def analyse(

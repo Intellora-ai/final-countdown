@@ -10,15 +10,18 @@ PASS only when sufficiency is established too; otherwise it is
 PASS_WITH_LIMITATIONS, and what is unknown is named.
 """
 
-import argparse, sys
+import argparse
+import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import proof_gate, truth_gate
+import proof_gate
 import sufficiency_loop
+import truth_gate
 from composition import analyse
 from mutation_gate import score
-from semantic_anchor import anchor_for, strength as anchor_strength
+from semantic_anchor import anchor_for
+from semantic_anchor import strength as anchor_strength
 from spec_source import source_for
 from spec_to_test import SpecParseError
 
@@ -102,7 +105,7 @@ def report(spec_files: list[str], threshold: float = 0.9) -> str:
     print(f"  Witnesses excluded:       {suff['witnesses_excluded']}")
     print(f"  Overall:                  {overall}")
     if overall == "PASS_WITH_LIMITATIONS":
-        print(f"\n  NOT CLAIMED: the contract does not pin down the behaviour.")
+        print("\n  NOT CLAIMED: the contract does not pin down the behaviour.")
         print(f"  {suff['reason']}")
         for d in suff.get("derivations", []):
             i = d["diverges_at"]

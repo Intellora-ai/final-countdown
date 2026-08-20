@@ -51,7 +51,7 @@ import json
 import os
 import sys
 import tomllib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
@@ -370,7 +370,7 @@ def main() -> int:
         "evidence_root": str(root),
         "repository": os.environ.get("GITHUB_REPOSITORY", "local"),
         "ref": os.environ.get("GITHUB_REF", "local"),
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "run_identity": identity,
         "gates_expected": expected,
         "gates_reported": sorted(found),

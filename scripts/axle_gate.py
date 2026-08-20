@@ -53,7 +53,7 @@ from pathlib import Path
 from typing import Any, cast
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from gate import Gate, INFRASTRUCTURE_FAILURE  # noqa: E402
+from gate import INFRASTRUCTURE_FAILURE, Gate  # noqa: E402
 
 SPECS = Path("specs")
 PROOFS = Path("proofs")

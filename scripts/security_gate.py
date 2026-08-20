@@ -31,8 +31,8 @@ import ast
 import json
 import subprocess
 import sys
-from pathlib import Path
 from collections.abc import Callable, Sequence
+from pathlib import Path
 from typing import Any, cast
 
 # (test_id, file) pairs eligible for verification. Eligibility is not approval:

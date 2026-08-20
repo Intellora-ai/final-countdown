@@ -32,9 +32,9 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
-from typing import Any, cast
 
 REPO = Path(__file__).resolve().parent.parent
 SCRIPTS = REPO / "scripts"

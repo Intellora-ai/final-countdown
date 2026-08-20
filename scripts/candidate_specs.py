@@ -7,12 +7,15 @@ confidence at birth is what stops "the generator produced it" from being
 mistaken for "it is true".
 """
 
-import argparse, json, sys
+import argparse
+import json
+import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from semantic_anchor import anchor_for
 from typing import Any
+
+from semantic_anchor import anchor_for
 
 BY_ARITY = {
     2: ["commutativity", "associativity", "identity", "self_inverse"],

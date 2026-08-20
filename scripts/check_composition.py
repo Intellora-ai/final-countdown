@@ -11,10 +11,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from typing import Any
+
 from spec_source import source_for
 from spec_strength import evaluate
 from spec_to_test import SpecParseError
-from typing import Any
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()

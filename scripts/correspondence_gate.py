@@ -87,7 +87,7 @@ from typing import Any, cast
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import gen_correspondence as gen  # noqa: E402
 import pysem  # noqa: E402
-from gate import Gate, INFRASTRUCTURE_FAILURE  # noqa: E402
+from gate import INFRASTRUCTURE_FAILURE, Gate  # noqa: E402
 
 SRC = Path("src")
 SPECS = Path("semantics/specs")

@@ -52,7 +52,7 @@ import shutil
 import subprocess
 import sys
 import tomllib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final, cast
 
@@ -635,7 +635,7 @@ document nothing guards.
 | Commit | `{git["commit"]}` |
 | Branch | `{git["branch"]}` |
 | Working tree | {git["tree"]} |
-| {TIMESTAMP_LABEL} | {datetime.now(timezone.utc).isoformat(timespec="seconds")} |
+| {TIMESTAMP_LABEL} | {datetime.now(UTC).isoformat(timespec="seconds")} |
 | Generator | `scripts/generate_evidence.py` |
 | Python | {platform.python_version()} |
 | Platform | {platform.platform()} |

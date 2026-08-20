@@ -30,6 +30,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from collections.abc import Callable, Sequence
+from typing import Any
+
 from contract_strength import (
     ALTERNATIVES_2,
     ALTERNATIVES_3,
@@ -42,8 +45,6 @@ from semantic_anchor import anchor_for
 from spec_source import source_for
 from spec_strength import holds, load_module
 from spec_to_test import SpecParseError, parse_lean_spec
-from typing import Any
-from collections.abc import Callable, Sequence
 
 SCOPE = {
     "domain": "integers [-1000, 1000]",

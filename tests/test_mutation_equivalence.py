@@ -37,8 +37,9 @@ import itertools
 import re
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, cast
+from typing import cast
 
 import pytest
 
@@ -295,9 +296,9 @@ def test_adversarial_mutant_is_not_classified_indistinguishable(name: str) -> No
     )
     point = verdict.distinguishing_input
     assert observe(
-        cast("Callable[..., object]", getattr(load_module(ORIGINAL), "f")), point
+        cast("Callable[..., object]", load_module(ORIGINAL).f), point
     ) != observe(
-        cast("Callable[..., object]", getattr(load_module(ADVERSARIAL[name]), "f")),
+        cast("Callable[..., object]", load_module(ADVERSARIAL[name]).f),
         point,
     ), "the reported distinguishing input does not actually distinguish"
 

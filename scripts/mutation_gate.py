@@ -70,10 +70,13 @@ nothing scored nothing. The excluded count is printed next to the score always,
 so an inflated-looking score can never hide the exclusions that produced it.
 """
 
-import argparse, sys
+import argparse
+import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from typing import Any
+
 from mutate import Mutant, generate_mutants
 from spec_source import source_for
 from spec_strength import (
@@ -87,7 +90,6 @@ from spec_strength import (
     observationally_equivalent_under_witness_set,
 )
 from spec_to_test import SpecParseError, parse_lean_spec
-from typing import Any
 
 
 def score(spec_files: list[str], threshold: float = 0.9) -> dict[str, Any]:
@@ -256,8 +258,8 @@ if __name__ == "__main__":
     if r["fail_reason"]:
         print(f"  ZERO DENOMINATOR — {r['fail_reason']}.")
         print(
-            f"  A spec that killed nothing scored nothing: hard FAIL, "
-            f"independent of --min-score."
+            "  A spec that killed nothing scored nothing: hard FAIL, "
+            "independent of --min-score."
         )
     if r["survivors"]:
         print(f"  survivors: {', '.join(r['survivors'])}")

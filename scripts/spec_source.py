@@ -10,7 +10,6 @@ import re
 import sys
 from pathlib import Path
 
-
 # Lean block comment, including the /-- doc form. Non-greedy: the first -/ ends it.
 BLOCK_COMMENT = re.compile(r"/-.*?-/", re.DOTALL)
 

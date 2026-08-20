@@ -35,7 +35,7 @@ import sys
 import time
 import traceback
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from types import TracebackType
 from typing import Any, TypeVar, cast
@@ -107,7 +107,7 @@ SUMMARY_FAILURE_LIMIT = 50
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def tool_version(cmd: list[str]) -> str:
@@ -654,7 +654,7 @@ class Gate:
         self.artifacts.append(path)
 
     # ---- lifecycle -------------------------------------------------------
-    def __enter__(self) -> "Gate":
+    def __enter__(self) -> Gate:
         self._start = time.monotonic()
         self.started_at = _now()
         self.tools = {k: tool_version(v) for k, v in self.tools_spec.items()}
@@ -936,7 +936,7 @@ class Gate:
         lines = [
             f"### {icon} {self.name} — {self.result}",
             "",
-            f"| | |",
+            "| | |",
             "|---|---|",
             f"| duration | {duration_ms} ms |",
             f"| checks | {sum(1 for c in self.checks if c['result'] == PASS)}"

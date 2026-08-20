@@ -5,10 +5,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from spec_source import source_for
-from spec_strength import build_property, load_module, RUN, INTS, SpecViolation
-from spec_to_test import SpecParseError, parse_lean_spec
 from hypothesis import given
+from spec_source import source_for
+from spec_strength import INTS, RUN, SpecViolation, build_property, load_module
+from spec_to_test import SpecParseError, parse_lean_spec
 
 FLOOR = 0.01
 

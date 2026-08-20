@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """LAYER 3 — TRUTH GATE. Refute before proving: counterexample, then vacuity."""
 
-import argparse, sys
+import argparse
+import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from typing import Any
+
 from spec_source import source_for
 from spec_strength import holds, load_module
 from spec_to_test import SpecParseError, parse_lean_spec
-from typing import Any
 
 VACUITY_FLOOR = 0.01
 

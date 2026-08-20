@@ -1,7 +1,8 @@
 """Tests for src.clamp — mirrors specs/clamp_spec.lean."""
 
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from src.clamp import clamp
 

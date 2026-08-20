@@ -57,13 +57,16 @@ import os
 import sys
 import tempfile
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, NamedTuple, cast
-from collections.abc import Callable
 from types import ModuleType
+from typing import Any, NamedTuple, cast
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from hypothesis import HealthCheck, given, settings  # noqa: E402
+from hypothesis import errors as hyp_errors  # noqa: E402
+from hypothesis import strategies as st
 from mutate import Mutant, generate_mutants  # noqa: E402
 from safe_eval import compile_claim  # noqa: E402
 from spec_to_test import (  # noqa: E402
@@ -72,9 +75,6 @@ from spec_to_test import (  # noqa: E402
     expr_to_python,
     parse_lean_spec,
 )
-
-from hypothesis import HealthCheck, given, settings, strategies as st  # noqa: E402
-from hypothesis import errors as hyp_errors  # noqa: E402
 
 INTS = st.integers(min_value=-1000, max_value=1000)
 RUN = settings(
@@ -575,7 +575,7 @@ def seeded_stream(seed: int, count: int) -> list[int]:
     """
     return [
         int.from_bytes(
-            hashlib.blake2b(f"{seed}:{i}".encode("utf-8"), digest_size=8).digest(),
+            hashlib.blake2b(f"{seed}:{i}".encode(), digest_size=8).digest(),
             "big",
         )
         for i in range(count)
@@ -583,7 +583,7 @@ def seeded_stream(seed: int, count: int) -> list[int]:
 
 
 # ── the union ─────────────────────────────────────────────────────────────────
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def witness_set(original_source: str, mutant_source: str) -> tuple[Witness, ...]:
     """Every strategy's witnesses, unioned, deduplicated, most-specific label wins.
 
@@ -753,7 +753,7 @@ def search_for_distinguishing_input(
     return (True, found[-1] if found else None)
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def observationally_equivalent_under_witness_set(
     original_source: str, mutant_source: str, func_name: str, arity: int
 ) -> SampleVerdict:
@@ -867,7 +867,7 @@ def evaluate(spec_file: str, source_file: str, threshold: float) -> dict[str, An
         )
         report["verdict"] = "false"
         return report
-    print(f"  ✓ no counterexample against the real function")
+    print("  ✓ no counterexample against the real function")
 
     # 2. vacuity
     rate = stats["reached"] / stats["total"] if stats["total"] else 0.0
@@ -923,7 +923,7 @@ def evaluate(spec_file: str, source_file: str, threshold: float) -> dict[str, An
         report.update(
             mutants=0, killed=0, strength=0.0, survivors=[], verdict="zero-denominator"
         )
-        print(f"\n  spec strength: 0.00  (0/0 — nothing left to kill)")
+        print("\n  spec strength: 0.00  (0/0 — nothing left to kill)")
         print(
             f"❌ {spec_file}: ZERO DENOMINATOR — {len(generate_mutants(source))} "
             f"mutants generated, {len(excluded)} excluded as "

@@ -17,3 +17,10 @@ test-results/
 # checkouts of this repository living inside it; committing one would nest the
 # tree in itself and drag whatever an agent installed there into history.
 .claude/
+
+# macOS Finder metadata. Created by the OS whenever a directory is browsed,
+# so it appears in `git status` for reasons unrelated to the repository. The
+# evidence generator measures `git status --porcelain`, and two of these
+# arriving between its two runs is what first surfaced as "non-determinism"
+# in tests/test_evidence.py under parallel execution.
+.DS_Store

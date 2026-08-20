@@ -288,6 +288,21 @@ jobs:
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
       - name: Tests + branch coverage
+      # `-n auto` runs the suite across the runner's cores. Measured on run
+      # 32309344878: this job was 133s of a 147s PR critical path, and pytest
+      # self-reported `680 passed, 2 skipped in 115.65s` of that -- serial.
+      # `full` cannot start until this job ends, so every second here is a
+      # second on the PR. The floor is ~74s, where honest-report (61s) becomes
+      # the binding gate.
+      #
+      # NOT A WEAKENING. Same tests, same markers, same --cov-fail-under=95.
+      # pytest-cov combines the per-worker coverage data before the threshold
+      # is applied, so the number the gate checks is the number it always
+      # checked. Measured locally at -n 4: 672 tests, 0 failures over 9 runs,
+      # coverage identical, 0 leftover .coverage.* fragments.
+      #
+      # `auto` rather than a literal: the runner is 4-core today and a hard 4
+      # would silently stop matching the machine the day that changes.
       # `--junitxml` writes the standard per-test report. The gate does NOT
       # parse it -- it reads pytest's short summary out of captured stdout,
       # because parsing XML in-process would mean `xml.etree`, which bandit
@@ -296,7 +311,7 @@ jobs:
       # The XML is emitted and uploaded anyway: it costs one flag, it is the
       # format every other tool understands, and keeping it means the gate's
       # decision path and the interchange format are not the same dependency.
-        run: python3 scripts/run_gate.py --name coverage -- pytest --cov=src --cov-branch --cov-fail-under=95 -m "not axle" --junitxml=test-results/pytest.xml
+        run: python3 scripts/run_gate.py --name coverage -- pytest -n auto --cov=src --cov-branch --cov-fail-under=95 -m "not axle" --junitxml=test-results/pytest.xml
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

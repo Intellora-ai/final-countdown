@@ -523,3 +523,65 @@ def test_every_exit_path_declares_a_verdict() -> None:
         assert verdict_call in called, (
             f"main() never calls {verdict_call}(); a gate that exits without "
             "declaring a result is recorded UNKNOWN, and UNKNOWN blocks")
+
+
+# --------------------------------------------------------------------------
+# Waiting for contexts that live in other workflows
+# --------------------------------------------------------------------------
+class SlowFetcher(FakeFetcher):
+    """A check-run that is `in_progress` for the first `turns` reads.
+
+    Models the thing that actually broke: `e2e` and the CodeQL contexts are in
+    separate workflows, so when this job starts they may not be terminal yet.
+    """
+
+    def __init__(self, turns: int, late: str = "e2e") -> None:
+        base = fetcher()
+        super().__init__(base._runs, base._jobs, base._logs, base._checks)
+        self.turns, self.late, self.reads = turns, late, 0
+
+    def check_runs(self, sha: str) -> list[dict[str, Any]]:
+        self.reads += 1
+        out: list[dict[str, Any]] = []
+        for check in super().check_runs(sha):
+            if check["name"] == self.late and self.reads <= self.turns:
+                pending = dict(check)
+                pending["status"] = "in_progress"
+                pending["conclusion"] = None
+                out.append(pending)
+            else:
+                out.append(check)
+        return out
+
+
+def test_the_gate_waits_for_a_context_in_another_workflow() -> None:
+    """Read-once was the defect. PR #29 passed it on timing luck -- 11 seconds
+    of gap -- and the same code failed on main, where CodeQL was still running."""
+    slow = SlowFetcher(turns=3)
+    slept: list[float] = []
+    ticks = iter([0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0])
+    _, missing = meg.collect_status(
+        slow, HEAD, REQUIRED, "merge-evidence",
+        wait_budget=60.0, sleep=slept.append, clock=lambda: next(ticks))
+    assert missing == [], missing
+    assert slept, "the gate returned without ever waiting"
+    assert slow.reads == 4, f"expected three pending reads then a terminal one, got {slow.reads}"
+
+
+def test_waiting_is_bounded_and_fails_closed() -> None:
+    """A gate that gave up waiting has not observed a pass."""
+    slow = SlowFetcher(turns=99)
+    ticks = iter([0.0, 30.0, 61.0, 90.0])
+    _, missing = meg.collect_status(
+        slow, HEAD, REQUIRED, "merge-evidence",
+        wait_budget=60.0, sleep=lambda _: None, clock=lambda: next(ticks))
+    assert any("e2e" in m for m in missing), missing
+
+
+def test_zero_budget_does_not_wait_at_all() -> None:
+    slow = SlowFetcher(turns=1)
+    slept: list[float] = []
+    _, missing = meg.collect_status(slow, HEAD, REQUIRED, "merge-evidence",
+                                    wait_budget=0.0, sleep=slept.append)
+    assert slept == []
+    assert any("e2e" in m for m in missing), missing

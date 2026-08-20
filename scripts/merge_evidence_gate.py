@@ -43,6 +43,7 @@ import time
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
+from collections.abc import Callable
 from typing import Any, Protocol, cast
 
 SCRIPTS = Path(__file__).resolve().parent
@@ -81,6 +82,18 @@ MAX_FORMULA_DEPTH = 12
 FETCH_TIMEOUT_S = 30
 FETCH_RETRIES = 1
 TOTAL_BUDGET_S = 120
+
+#: WAITING IS NOT FETCHING, AND THE TWO NEED SEPARATE BUDGETS. This job starts
+#: when `full` finishes, but `e2e` and the three CodeQL contexts live in other
+#: workflows -- cross-workflow `needs:` does not exist, so the only way to know
+#: they are terminal is to ask repeatedly. Run 32382... on main proved why: the
+#: first version read the check-runs once, found CodeQL still running, and
+#: recorded NOT_FETCHED. Pull request #29 had passed the identical code purely
+#: because it happened to finish 11 seconds after the last other job.
+#:
+#: 420 + 120 stays inside the job's 10-minute timeout with room to spare.
+WAIT_BUDGET_S = 420
+POLL_INTERVAL_S = 5
 
 HEADING = re.compile(r"^\s{0,3}#{1,6}\s+Measured\s+Evidence\s*$", re.IGNORECASE | re.MULTILINE)
 
@@ -458,7 +471,13 @@ class GitHubFetcher:
         return out.stdout
 
     def check_runs(self, sha: str) -> list[dict[str, Any]]:
-        payload: dict[str, Any] = self._gh(f"repos/{self.repository}/commits/{sha}/check-runs?per_page=100")
+        # Deliberately uncached. Run and job payloads are immutable once
+        # terminal, but a check-run's status is the thing being waited on -- a
+        # cached "in_progress" never becomes "completed", so caching this call
+        # turns the poll loop into a spin that can only time out.
+        path = f"repos/{self.repository}/commits/{sha}/check-runs?per_page=100"
+        self._cache.pop(path, None)
+        payload: dict[str, Any] = self._gh(path)
         return cast("list[dict[str, Any]]", payload.get("check_runs") or [])
 
     def runs_for_sha(self, sha: str) -> list[dict[str, Any]]:
@@ -654,13 +673,30 @@ class StatusEvidence:
     sha: str
 
 
-def collect_status(fetcher: Fetcher, sha: str, contexts: list[str],
-                   exclude: str) -> tuple[list[StatusEvidence], list[str]]:
-    """Status evidence for every required context on this exact SHA.
+def collect_status(fetcher: Fetcher, sha: str, contexts: list[str], exclude: str,
+                   wait_budget: float = 0.0,
+                   sleep: Callable[[float], None] = time.sleep,
+                   clock: Callable[[], float] = time.monotonic,
+                   ) -> tuple[list[StatusEvidence], list[str]]:
+    """Wait for every required context on this SHA to become terminal, then read it.
 
     `exclude` is this gate's own context. A gate that waits for itself to become
     terminal never becomes terminal.
+
+    Waiting is bounded and fails closed: when the budget runs out, whatever is
+    still not terminal comes back as missing, and missing blocks. A gate that
+    gave up waiting has not observed a pass.
     """
+    deadline = clock() + wait_budget
+    while True:
+        evidence, missing = _snapshot(fetcher, sha, contexts, exclude)
+        if not missing or wait_budget <= 0 or clock() >= deadline:
+            return evidence, missing
+        sleep(POLL_INTERVAL_S)
+
+
+def _snapshot(fetcher: Fetcher, sha: str, contexts: list[str],
+              exclude: str) -> tuple[list[StatusEvidence], list[str]]:
     seen = {str(c.get("name")): c for c in fetcher.check_runs(sha)}
     evidence: list[StatusEvidence] = []
     missing: list[str] = []
@@ -687,14 +723,15 @@ def collect_status(fetcher: Fetcher, sha: str, contexts: list[str],
 # Entry point
 # --------------------------------------------------------------------------
 def evaluate(body: str, sha: str, fetcher: Fetcher, contexts: list[str],
-             pr: str = "", self_context: str = "merge-evidence") -> tuple[bool, list[str]]:
+             pr: str = "", self_context: str = "merge-evidence",
+             wait_budget: float = 0.0) -> tuple[bool, list[str]]:
     """The whole decision, offline-testable. Returns (allowed, reasons)."""
     reasons: list[str] = []
 
     if len(body.encode("utf-8")) > MAX_BODY_BYTES:
         return False, [f"MALFORMED: PR body exceeds {MAX_BODY_BYTES} bytes"]
 
-    status, missing = collect_status(fetcher, sha, contexts, self_context)
+    status, missing = collect_status(fetcher, sha, contexts, self_context, wait_budget)
     for gap in missing:
         reasons.append(f"NOT_FETCHED: no completed check-run for required context {gap} on {sha}")
     for item in status:
@@ -776,6 +813,9 @@ def main() -> int:
     parser.add_argument("--sha", default=os.environ.get("GITHUB_SHA", ""))
     parser.add_argument("--body-file", default="")
     parser.add_argument("--self-context", default="merge-evidence")
+    parser.add_argument("--wait", type=float, default=float(
+        os.environ.get("MERGE_EVIDENCE_WAIT", WAIT_BUDGET_S)),
+        help="seconds to wait for required contexts to become terminal")
     args = parser.parse_args()
 
     with Gate("merge-evidence", "1.0.0") as gate:
@@ -787,8 +827,9 @@ def main() -> int:
                    "and for cited evidence rows only",
             does_not_check="complete raw logs of successful jobs")
 
-        deadline = time.monotonic() + TOTAL_BUDGET_S
-        fetcher = GitHubFetcher(deadline=deadline)
+        # The fetch budget starts after the wait, not before it: a gate that
+        # waited legitimately must not then be told it has no time to read.
+        fetcher = GitHubFetcher(deadline=time.monotonic() + WAIT_BUDGET_S + TOTAL_BUDGET_S)
 
         try:
             if args.body_file:
@@ -798,7 +839,8 @@ def main() -> int:
             else:
                 body = ""
             allowed, reasons = evaluate(body, args.sha, fetcher, required_contexts(),
-                                        args.pr, args.self_context)
+                                        args.pr, args.self_context,
+                                        wait_budget=args.wait)
         except EvidenceError as exc:
             gate.fail(what=f"evidence could not be collected ({exc.state})",
                       where=f"{REPOSITORY}@{args.sha}", why=exc.detail,

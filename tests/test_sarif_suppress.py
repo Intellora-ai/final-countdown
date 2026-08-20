@@ -78,7 +78,10 @@ def test_a_failing_gate_marks_nothing(tmp_path: Path) -> None:
     w = workspace(tmp_path)
     target = w / "scripts" / "axle_health.py"
     text = target.read_text(encoding="utf-8")
-    broken = text.replace(", timeout=timeout)", ")", 1)
+    # Drop the kwarg alone, not the kwarg plus its closing paren. The paren
+    # sits on its own line whenever the call is wrapped, which made the old
+    # match silently inapplicable; the guard below is what caught it.
+    broken = text.replace(", timeout=timeout", "", 1)
     assert broken != text, "could not break the safe pattern"
     target.write_text(broken, encoding="utf-8")
 

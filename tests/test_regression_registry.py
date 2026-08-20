@@ -244,7 +244,13 @@ def test_an_excluded_network_check_is_reported_with_its_reason_and_opt_in() -> N
     assert "needs-net" in rows, "an excluded check vanished from the not-run report"
     row = rows["needs-net"]
     assert row["category"] == "NETWORK_REQUIRED_EXCLUDED_FROM_DEFAULT"
-    assert "api.github.com" in row["reason"]
+    # EQUALITY, NOT SUBSTRING. The declared reason must be carried through verbatim;
+    # a substring check would also pass if the reason were rewritten around the
+    # fragment. CodeQL flagged the earlier `"api.github.com" in ...` form as
+    # py/incomplete-url-substring-sanitization -- correctly, as a pattern, even though
+    # nothing here sanitizes a URL. Equality is both the stronger assertion and not
+    # that pattern.
+    assert row["reason"] == NETWORK_SPEC["network_reason"]
     assert row["opt_in_command"] == "make sandbox-network"
 
 

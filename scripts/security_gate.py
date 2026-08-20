@@ -146,6 +146,15 @@ ELIGIBLE = {
     # the same run that deleted them.
     ("B404", "scripts/local_gates.py"),
     ("B603", "scripts/local_gates.py"),
+    # build_bundle.py calls git three times -- cat-file to prove the SHA names a
+    # real commit, show to read that commit's timestamp, and archive to produce
+    # the source snapshot. All three go through one helper whose argv[0] is bound
+    # exactly once, from shutil.which("git"). Listing it here buys it nothing on
+    # its own: check_subprocess_safety re-derives the pattern from this file's AST
+    # every run, so removing the `which` guard or the timeout stops this line
+    # covering it in the same run that removed them.
+    ("B404", "scripts/build_bundle.py"),
+    ("B603", "scripts/build_bundle.py"),
 }
 
 

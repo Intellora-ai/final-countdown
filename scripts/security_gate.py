@@ -118,7 +118,16 @@ ELIGIBLE = {("B404", "scripts/proof_gate.py"), ("B603", "scripts/proof_gate.py")
             # remembered. Delete a `shutil.which` guard or a `timeout=` from that
             # file and this line stops covering it in the same run.
             ("B404", "scripts/merge_evidence_gate.py"),
-            ("B603", "scripts/merge_evidence_gate.py")}
+            ("B603", "scripts/merge_evidence_gate.py"),
+            # local_gates.py runs the required checks that can honestly run offline. It
+            # takes argv arrays from ci/local-execution.toml and never a shell string,
+            # and it resolves argv[0] through shutil.which so PATH cannot decide which
+            # binary executes. Listing it here proves nothing on its own:
+            # check_subprocess_safety re-derives that pattern from its AST every run, so
+            # deleting the `which` guard or the timeout stops this line covering it in
+            # the same run that deleted them.
+            ("B404", "scripts/local_gates.py"),
+            ("B603", "scripts/local_gates.py")}
 
 
 def target_names(node: ast.expr | None) -> list[str]:

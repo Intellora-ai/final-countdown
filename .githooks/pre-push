@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# PRE-PUSH — run the locally runnable required checks before a normal push.
+#
+# WHY. On 2026-08-20 four CI runs went red in a row. The first was `pyright`, one of the seventeen
+# required contexts, absent from the set of checks run before pushing. Documenting `make
+# sandbox-fast` as mandatory is what already failed; this makes it structural.
+#
+# HONEST LIMIT, printed on every block rather than buried in a document: this is not a security
+# boundary. `git push --no-verify`, the GitHub web UI, a direct API call, or another machine all
+# bypass it. GitHub's seventeen required contexts remain the final merge proof.
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+if [ ! -f Makefile ]; then
+  echo "pre-push BLOCKED: no Makefile at $ROOT; cannot run the local gate set." >&2
+  exit 1
+fi
+
+START=$(date +%s)
+echo "pre-push: running 'make sandbox-fast' (local required checks)" >&2
+
+set +e
+OUTPUT="$(make sandbox-fast 2>&1)"
+STATUS=$?
+set -e
+
+END=$(date +%s)
+printf '%s\n' "$OUTPUT"
+
+if [ "$STATUS" -ne 0 ]; then
+  cat >&2 <<EOF
+
+==================================================
+PUSH BLOCKED
+==================================================
+FAILED_COMMAND: make sandbox-fast
+EXIT_CODE:      $STATUS
+DURATION:       $((END - START))s
+EVIDENCE:       $(ls -td "$ROOT"/.evidence/fast/* 2>/dev/null | head -1 || echo "none written")
+
+The failing gate's exact argv, exit code and captured output are in the run above and in
+the evidence directory.
+
+Required contexts that do NOT run locally are listed at the TOP of that output, with the
+exact reason for each. They were not evaluated here and are not implied to pass.
+
+--------------------------------------------------
+A local pre-push hook prevents ordinary local pushes from skipping the sandbox.
+
+It is not a security boundary:
+git push --no-verify, GitHub web UI, direct API changes, or another machine can bypass it.
+
+GitHub's 17 required contexts remain the final merge proof.
+--------------------------------------------------
+EOF
+  exit 1
+fi
+
+echo "pre-push: local gates passed in $((END - START))s. GitHub still runs what only GitHub can prove." >&2
+exit 0

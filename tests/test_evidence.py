@@ -187,20 +187,98 @@ def _gate_row(text: str, gate: str) -> str:
     raise AssertionError(f"gate {gate!r} missing from the evidence table")
 
 
-def test_missing_report_is_not_run_never_pass(generated: str) -> None:
+def isolated_tree(root: Path, reports: dict[str, str]) -> Path:
+    """A tracked-files copy of this repository with a CONTROLLED reports/ dir.
+
+    The generator resolves `reports/` against its working directory, so the
+    only way to decide what it sees is to give it a working directory of our
+    own. `git ls-files` is the copy list: 194 tracked files, which is what a
+    fresh checkout is, and it excludes every generated directory by
+    construction rather than by an exclusion list that can drift.
+    """
+    tracked = subprocess.run(["git", "ls-files"], cwd=REPO, capture_output=True,
+                             text=True, check=True).stdout.splitlines()
+    for rel in tracked:
+        src, dst = REPO / rel, root / rel
+        if not src.is_file():
+            continue
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_bytes(src.read_bytes())
+
+    # The generator reads git for the commit identity and the working-tree
+    # state, so the copy has to be a repository.
+    subprocess.run(["git", "init", "-q", "."], cwd=root, check=True)
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "-c", "user.email=t@example.invalid",
+                    "-c", "user.name=t", "commit", "-qm", "isolated"],
+                   cwd=root, check=True, capture_output=True)
+
+    (root / "reports").mkdir(exist_ok=True)
+    for gate, body in reports.items():
+        (root / "reports" / f"{gate}.json").write_text(body, encoding="utf-8")
+    return root
+
+
+def test_missing_report_is_not_run_never_pass(tmp_path: Path) -> None:
     """No reports/<gate>.json means the gate did not run here.
 
     Rendering that as PASS is the single worst thing an evidence file can do,
     because it is indistinguishable from a real pass at the point of reading.
+
+    ISOLATED, because the previous version read the LIVE repository-root
+    `reports/` directory and asserted something was missing from it. That made
+    the test's ability to discriminate depend on what the developer had run
+    last: it passes in CI only because a fresh runner starts with the directory
+    empty, and fails locally after any real gate run has filled it. Under
+    pytest-xdist it is worse -- another worker can create a report between the
+    listing and the assertion.
+
+    The property is unchanged and the assertion is not weakened. What changed
+    is that the test now CREATES the condition it needs instead of hoping to
+    find it.
     """
-    absent = [g for g in ("axle-verify", "mutmut", "coverage", "full")
-              if not (REPO / "reports" / f"{g}.json").is_file()]
-    assert absent, "no gate is missing a report; test cannot discriminate"
+    present = "present-gate"
+    absent = ["axle-verify", "mutmut", "coverage", "full"]
+    root = isolated_tree(tmp_path / "iso", {present: json.dumps({
+        "gate": present, "status": "PASS", "schema_version": "1.3",
+        "checks": [], "failures": [],
+    })})
+
+    out = root / "evidence.md"
+    proc = subprocess.run([sys.executable, str(SCRIPT), "--output", str(out)],
+                          cwd=root, capture_output=True, text=True, timeout=300)
+    assert proc.returncode == 0, f"generator failed in the isolated tree:\n{proc.stderr}"
+    rendered = out.read_text(encoding="utf-8")
 
     for gate in absent:
-        row = _gate_row(generated, gate)
+        row = _gate_row(rendered, gate)
         assert gen.NOT_RUN in row, f"{gate} lacks a report but reads {row!r}"
         assert "PASS" not in row, f"{gate} has no report and renders PASS"
+
+
+def test_the_isolated_tree_ignores_repository_root_reports(tmp_path: Path) -> None:
+    """Regression guard: pre-existing repo-root reports cannot change the result.
+
+    This is the defect the test above used to have. If the isolation ever
+    regresses -- someone reverts to `cwd=REPO`, or the generator starts
+    resolving reports/ against something other than its working directory --
+    a real report sitting in the repository root would silently make the
+    assertion vacuous, and nothing would say so.
+    """
+    root = isolated_tree(tmp_path / "iso", {})
+    out = root / "evidence.md"
+    subprocess.run([sys.executable, str(SCRIPT), "--output", str(out)],
+                   cwd=root, capture_output=True, text=True, timeout=300,
+                   check=True)
+    rendered = out.read_text(encoding="utf-8")
+
+    # Whatever the real repository happens to hold right now, every gate is
+    # NOT_RUN in a tree whose reports/ is empty.
+    for gate in ("axle-verify", "mutmut", "coverage", "full"):
+        assert gen.NOT_RUN in _gate_row(rendered, gate), (
+            f"{gate} did not render NOT_RUN in a tree with an empty reports/; "
+            "the generator is reading a directory other than its own")
 
 
 def test_every_mandatory_gate_appears(generated: str) -> None:

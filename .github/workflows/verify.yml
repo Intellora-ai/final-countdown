@@ -63,7 +63,7 @@ jobs:
           # tcb_gate.py diffs against the merge base; a shallow clone
           # has no base to compare with and the gate cannot run at all.
           fetch-depth: 0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements-preflight.lock}
       # gate_integrity.py parses workflow YAML rather than searching it, so it
@@ -202,7 +202,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
@@ -255,7 +255,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
@@ -275,7 +275,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
@@ -295,7 +295,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
@@ -315,7 +315,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
@@ -335,7 +335,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
@@ -357,7 +357,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
@@ -411,7 +411,7 @@ jobs:
       # tests/test_problem_matchers.py pins both regexes against sample lines.
       - name: register problem matchers
         run: echo "::add-matcher::.github/matchers/tools.json"
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
@@ -454,7 +454,7 @@ jobs:
       # tests/test_problem_matchers.py pins both regexes against sample lines.
       - name: register problem matchers
         run: echo "::add-matcher::.github/matchers/tools.json"
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
@@ -626,7 +626,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
@@ -650,7 +650,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
@@ -724,7 +724,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: '3.12'}
       # No `name:` filter: every artifact this run produced, each into its own
       # directory. A gate whose upload failed simply is not here, which is the
@@ -805,7 +805,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
 

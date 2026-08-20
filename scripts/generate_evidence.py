@@ -229,13 +229,13 @@ cannot shrink because the results were good.
 # Literal prefixes. These are unambiguous: none occur in English, so a plain
 # substring match carries no false-positive cost and needs no context guard.
 _LITERAL_PREFIXES: Final = (
-    "github_pat_",   # GitHub fine-grained PAT
-    "ghp_",          # GitHub personal access token (classic)
-    "gho_",          # GitHub OAuth token
-    "ghs_",          # GitHub App server-to-server token
-    "ghu_",          # GitHub App user-to-server token
-    "AKIA",          # AWS access key id
-    "-----BEGIN",    # PEM block: private key, certificate, anything
+    "github_pat_",  # GitHub fine-grained PAT
+    "ghp_",  # GitHub personal access token (classic)
+    "gho_",  # GitHub OAuth token
+    "ghs_",  # GitHub App server-to-server token
+    "ghu_",  # GitHub App user-to-server token
+    "AKIA",  # AWS access key id
+    "-----BEGIN",  # PEM block: private key, certificate, anything
 )
 
 # `sk-` is the one prefix that DOES occur in English -- "risk-free",
@@ -254,9 +254,11 @@ _TOKEN_RUN: Final = re.compile(r"[A-Za-z0-9_\-]{32,}")
 
 
 def _mixed_alphabet(run: str) -> bool:
-    return (any(c.isupper() for c in run)
-            and any(c.islower() for c in run)
-            and any(c.isdigit() for c in run))
+    return (
+        any(c.isupper() for c in run)
+        and any(c.islower() for c in run)
+        and any(c.isdigit() for c in run)
+    )
 
 
 def scan_for_disclosure_shapes(text: str) -> list[str]:
@@ -283,20 +285,23 @@ def scan_for_disclosure_shapes(text: str) -> list[str]:
                 break
             findings.append(
                 f"credential prefix {prefix!r} at offset {idx} "
-                f"(line {text.count(chr(10), 0, idx) + 1})")
+                f"(line {text.count(chr(10), 0, idx) + 1})"
+            )
             start = idx + 1
 
     for m in _SK_KEY.finditer(text):
         findings.append(
             f"api-key shape 'sk-' + {len(m.group(0)) - 3} chars at offset "
-            f"{m.start()} (line {text.count(chr(10), 0, m.start()) + 1})")
+            f"{m.start()} (line {text.count(chr(10), 0, m.start()) + 1})"
+        )
 
     for m in _TOKEN_RUN.finditer(text):
         if _mixed_alphabet(m.group(0)):
             findings.append(
                 f"high-entropy token, {len(m.group(0))} chars, mixed alphabet, "
                 f"at offset {m.start()} "
-                f"(line {text.count(chr(10), 0, m.start()) + 1})")
+                f"(line {text.count(chr(10), 0, m.start()) + 1})"
+            )
 
     return findings
 
@@ -305,7 +310,8 @@ def scan_for_disclosure_shapes(text: str) -> list[str]:
 # rather than imported so that this file's guarantee does not depend on
 # importing the gate it is trying not to break.
 _DOC_INVOCATION: Final = re.compile(
-    r"(?:python3?|bash|sh)\s+(scripts/[\w./-]+\.(?:py|sh))")
+    r"(?:python3?|bash|sh)\s+(scripts/[\w./-]+\.(?:py|sh))"
+)
 
 
 def scan_for_missing_scripts(text: str, root: Path) -> list[str]:
@@ -315,9 +321,11 @@ def scan_for_missing_scripts(text: str, root: Path) -> list[str]:
     document legitimately names scripts that do not exist and says so, and
     flagging that would punish the honesty it is here to preserve.
     """
-    return [f"invocation names a missing script: {name}"
-            for name in sorted(set(_DOC_INVOCATION.findall(text)))
-            if not (root / name).is_file()]
+    return [
+        f"invocation names a missing script: {name}"
+        for name in sorted(set(_DOC_INVOCATION.findall(text)))
+        if not (root / name).is_file()
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -336,9 +344,14 @@ def _git(*args: str, cwd: Path | None = None) -> tuple[int, str]:
     if git is None:
         return -1, ""
     try:
-        proc = subprocess.run([git, *args], cwd=cwd, capture_output=True,
-                              text=True, timeout=SUBPROCESS_TIMEOUT,
-                              check=False)
+        proc = subprocess.run(
+            [git, *args],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=SUBPROCESS_TIMEOUT,
+            check=False,
+        )
     except (OSError, subprocess.SubprocessError):
         return -1, ""
     return proc.returncode, proc.stdout.strip()
@@ -358,8 +371,13 @@ def _ask_version(name: str, flag: str) -> tuple[int, str]:
     if exe is None:
         return -2, ""
     try:
-        proc = subprocess.run([exe, flag], capture_output=True, text=True,
-                              timeout=SUBPROCESS_TIMEOUT, check=False)
+        proc = subprocess.run(
+            [exe, flag],
+            capture_output=True,
+            text=True,
+            timeout=SUBPROCESS_TIMEOUT,
+            check=False,
+        )
     except (OSError, subprocess.SubprocessError):
         return -1, ""
     return proc.returncode, proc.stdout.strip()
@@ -373,10 +391,13 @@ def _collect_tests(root: Path) -> tuple[int, str]:
     """
     try:
         proc = subprocess.run(
-            [sys.executable, "-m", "pytest", "--collect-only", "-q",
-             "-o", "addopts="],
-            cwd=root, capture_output=True, text=True,
-            timeout=SUBPROCESS_TIMEOUT, check=False)
+            [sys.executable, "-m", "pytest", "--collect-only", "-q", "-o", "addopts="],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=SUBPROCESS_TIMEOUT,
+            check=False,
+        )
     except (OSError, subprocess.SubprocessError):
         return -1, ""
     return proc.returncode, proc.stdout.strip()
@@ -412,8 +433,9 @@ def git_facts(root: Path, output: Path) -> dict[str, str]:
             ignore = ""
         entries = [ln for ln in status.splitlines() if ln.strip()]
         entries = [ln for ln in entries if not ln[3:].strip().strip('"') == ignore]
-        tree = (f"dirty -- {len(entries)} path(s) differ from HEAD"
-                if entries else "clean")
+        tree = (
+            f"dirty -- {len(entries)} path(s) differ from HEAD" if entries else "clean"
+        )
 
     return {"commit": commit, "branch": branch_name, "tree": tree}
 
@@ -466,8 +488,7 @@ def mandatory_gates(root: Path) -> list[tuple[str, str, str, str]]:
     manifest_path = root / MANIFEST
     if not manifest_path.is_file():
         return []
-    manifest: dict[str, Any] = tomllib.loads(
-        manifest_path.read_text(encoding="utf-8"))
+    manifest: dict[str, Any] = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
     gates: dict[str, Any] = manifest.get("gates", {})
 
     rows: list[tuple[str, str, str, str]] = []
@@ -479,8 +500,9 @@ def mandatory_gates(root: Path) -> list[tuple[str, str, str, str]]:
             continue
 
         tokens: list[str] = [str(t) for t in spec.get("must_contain", [])]
-        invocation = " ".join(tokens) if tokens else str(
-            spec.get("evidence", "")) or "--"
+        invocation = (
+            " ".join(tokens) if tokens else str(spec.get("evidence", "")) or "--"
+        )
 
         report = root / REPORTS / f"{gate_id}.json"
         if not report.is_file():
@@ -500,8 +522,14 @@ def mandatory_gates(root: Path) -> list[tuple[str, str, str, str]]:
             continue
         status = str(payload.get("status", "UNKNOWN"))
         duration = payload.get("duration_ms")
-        rows.append((gate_id, invocation, status,
-                     f"{duration}" if isinstance(duration, int) else "--"))
+        rows.append(
+            (
+                gate_id,
+                invocation,
+                status,
+                f"{duration}" if isinstance(duration, int) else "--",
+            )
+        )
     return rows
 
 
@@ -510,34 +538,48 @@ def _count_functions(path: Path) -> int:
         tree = ast.parse(path.read_text(encoding="utf-8"))
     except (OSError, SyntaxError):
         return 0
-    return sum(1 for node in tree.body
-               if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)))
+    return sum(
+        1
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    )
 
 
 def corpus_counts(root: Path) -> list[tuple[str, str, str]]:
     """(what, count, how it was counted)."""
-    modules = [p for p in sorted((root / SRC).glob("*.py"))
-               if not p.name.startswith("_")]
+    modules = [
+        p for p in sorted((root / SRC).glob("*.py")) if not p.name.startswith("_")
+    ]
     functions = sum(_count_functions(p) for p in modules)
     specs = list((root / SPECS).glob("*_spec.lean"))
     proofs = list((root / PROOFS).glob("*_proof.lean"))
 
-    sem_spec_names = {p.name[: -len("_semantics_spec.lean")]
-                      for p in (root / SEM_SPECS).glob("*_semantics_spec.lean")}
-    sem_proof_names = {p.name[: -len("_semantics_proof.lean")]
-                       for p in (root / SEM_PROOFS).glob("*_semantics_proof.lean")}
+    sem_spec_names = {
+        p.name[: -len("_semantics_spec.lean")]
+        for p in (root / SEM_SPECS).glob("*_semantics_spec.lean")
+    }
+    sem_proof_names = {
+        p.name[: -len("_semantics_proof.lean")]
+        for p in (root / SEM_PROOFS).glob("*_semantics_proof.lean")
+    }
     pairs = sem_spec_names & sem_proof_names
 
     collected = collected_tests(root)
 
     return [
         ("source modules", str(len(modules)), "`src/*.py`, excluding `_`-prefixed"),
-        ("source functions", str(functions),
-         "top-level `def` in those modules, via `ast`"),
+        (
+            "source functions",
+            str(functions),
+            "top-level `def` in those modules, via `ast`",
+        ),
         ("specs", str(len(specs)), "`specs/*_spec.lean`"),
         ("proofs", str(len(proofs)), "`proofs/*_proof.lean`"),
-        ("semantics pairs", str(len(pairs)),
-         "names with BOTH a semantics spec and a semantics proof"),
+        (
+            "semantics pairs",
+            str(len(pairs)),
+            "names with BOTH a semantics spec and a semantics proof",
+        ),
         ("tests collected", collected, "`pytest --collect-only`"),
     ]
 
@@ -554,8 +596,10 @@ def collected_tests(root: Path) -> str:
 # ASSEMBLY
 # ---------------------------------------------------------------------------
 def _table(headers: tuple[str, ...], rows: list[tuple[str, ...]]) -> str:
-    out = ["| " + " | ".join(headers) + " |",
-           "|" + "|".join("---" for _ in headers) + "|"]
+    out = [
+        "| " + " | ".join(headers) + " |",
+        "|" + "|".join("---" for _ in headers) + "|",
+    ]
     out.extend("| " + " | ".join(cells) + " |" for cells in rows)
     return "\n".join(out)
 
@@ -588,10 +632,10 @@ document nothing guards.
 
 | Field | Value |
 |---|---|
-| Commit | `{git['commit']}` |
-| Branch | `{git['branch']}` |
-| Working tree | {git['tree']} |
-| {TIMESTAMP_LABEL} | {datetime.now(timezone.utc).isoformat(timespec='seconds')} |
+| Commit | `{git["commit"]}` |
+| Branch | `{git["branch"]}` |
+| Working tree | {git["tree"]} |
+| {TIMESTAMP_LABEL} | {datetime.now(timezone.utc).isoformat(timespec="seconds")} |
 | Generator | `scripts/generate_evidence.py` |
 | Python | {platform.python_version()} |
 | Platform | {platform.platform()} |
@@ -606,8 +650,10 @@ whether this script had already run.""")
         "What answered when asked, not what `requirements.txt` pins. A tool "
         f"that is missing or fails to report is `{UNAVAILABLE}`; a version is "
         "never inferred from a lockfile, an import, or a previous run.\n\n"
-        + _table(("Tool", "Version", "Measured by"),
-                 [tuple(r) for r in tool_versions()]))
+        + _table(
+            ("Tool", "Version", "Measured by"), [tuple(r) for r in tool_versions()]
+        )
+    )
 
     parts.append(f"""\
 ## Mandatory gates
@@ -619,15 +665,22 @@ its declared invocation and whatever `reports/<gate>.json` recorded.
 claim about what such a gate would have done. Reports present in this tree:
 {ran} of {len(gates)} mandatory gates.
 
-{_table(("Gate", "Declared invocation", "Status", "Duration (ms)"),
-        [(f"`{g}`", f"`{inv}`", s, d) for g, inv, s, d in gates])}
+{
+        _table(
+            ("Gate", "Declared invocation", "Status", "Duration (ms)"),
+            [(f"`{g}`", f"`{inv}`", s, d) for g, inv, s, d in gates],
+        )
+    }
 
 Reports are restated, not re-derived. Binding a report to a commit, a run and an
 attempt is `scripts/aggregate_gates.py`'s job, and it only holds in CI.""")
 
-    parts.append("## Corpus\n\n"
-                 + _table(("What", "Count", "How counted"),
-                          [tuple(r) for r in corpus_counts(root)]))
+    parts.append(
+        "## Corpus\n\n"
+        + _table(
+            ("What", "Count", "How counted"), [tuple(r) for r in corpus_counts(root)]
+        )
+    )
 
     parts.append(NARRATIVE.rstrip())
     parts.append(LIMITATIONS.rstrip())
@@ -644,8 +697,7 @@ def write_evidence(text: str, output: Path, root: Path) -> None:
     """
     blockers = scan_for_disclosure_shapes(text) + scan_for_missing_scripts(text, root)
     if blockers:
-        print("ABORT: generated evidence failed its pre-write scan.",
-              file=sys.stderr)
+        print("ABORT: generated evidence failed its pre-write scan.", file=sys.stderr)
         print(f"Nothing was written. {output} is unchanged.", file=sys.stderr)
         for blocker in blockers:
             print(f"  - {blocker}", file=sys.stderr)
@@ -654,8 +706,10 @@ def write_evidence(text: str, output: Path, root: Path) -> None:
     output.write_text(text, encoding="utf-8")
 
 
-USAGE: Final = ("usage: generate_evidence.py [--output PATH]\n"
-                "  --output PATH   write here instead of evidence.md")
+USAGE: Final = (
+    "usage: generate_evidence.py [--output PATH]\n"
+    "  --output PATH   write here instead of evidence.md"
+)
 
 
 def parse_args(argv: list[str]) -> Path:

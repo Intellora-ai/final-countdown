@@ -76,6 +76,7 @@ verifying 4 source file(s)
 # WHAT DID NOT RUN
 # ---------------------------------------------------------------------------
 
+
 def test_the_three_bandit_steps_that_never_ran_are_each_recorded() -> None:
     """Stopping at 1 of 4 leaves three verifications unexamined, not passing."""
     missed = run_gate.unreached("", BANDIT_CHAIN_STOPPED_AT_ONE)
@@ -118,10 +119,13 @@ def test_no_label_is_invented_for_a_step_that_never_printed_one() -> None:
 
 def test_a_chain_that_ran_to_its_last_step_reports_nothing_unreached() -> None:
     """The control. A gate that failed on its final check missed nothing."""
-    assert run_gate.unreached(
-        "  CREDENTIAL SHAPE  aws-key-id  a.txt:1  (20 chars, value withheld)\n",
-        "== bandit gate 4/4: credential scan\n",
-    ) == []
+    assert (
+        run_gate.unreached(
+            "  CREDENTIAL SHAPE  aws-key-id  a.txt:1  (20 chars, value withheld)\n",
+            "== bandit gate 4/4: credential scan\n",
+        )
+        == []
+    )
 
 
 def test_a_gate_that_is_not_a_chain_reports_nothing_unreached() -> None:
@@ -140,11 +144,16 @@ def test_the_per_function_loop_records_the_sources_it_never_reached() -> None:
 
 def test_a_loop_that_completed_reports_nothing_unreached() -> None:
     """The control: two sources announced, two reached."""
-    assert run_gate.unreached(
-        "verifying 2 source file(s)\n"
-        "── src/add.py ← specs/add_spec.lean\n"
-        "── src/clamp.py ← specs/clamp_spec.lean\n"
-        "  JOINT strength: 0.80\n", "") == []
+    assert (
+        run_gate.unreached(
+            "verifying 2 source file(s)\n"
+            "── src/add.py ← specs/add_spec.lean\n"
+            "── src/clamp.py ← specs/clamp_spec.lean\n"
+            "  JOINT strength: 0.80\n",
+            "",
+        )
+        == []
+    )
 
 
 def test_the_two_lines_the_loop_detector_keys_on_are_still_printed() -> None:
@@ -157,28 +166,36 @@ def test_the_two_lines_the_loop_detector_keys_on_are_still_printed() -> None:
     """
     source = (SCRIPTS / "verify_per_function.sh").read_text(encoding="utf-8")
 
-    assert 'source file(s)"' in source, \
+    assert 'source file(s)"' in source, (
         "verify_per_function.sh no longer announces the size of its loop"
-    assert 'echo "── $src ← $specs"' in source, \
+    )
+    assert 'echo "── $src ← $specs"' in source, (
         "verify_per_function.sh no longer names each source as it reaches it"
+    )
 
 
 def test_the_chain_marker_the_step_detector_keys_on_is_still_printed() -> None:
     """Same guard for the two gates whose chain lives in the workflow."""
     workflow = (REPO / ".github" / "workflows" / "verify.yml").read_text(
-        encoding="utf-8")
+        encoding="utf-8"
+    )
 
-    for marker in ('== bandit gate 1/4:', '== bandit gate 4/4:',
-                   '== correspondence gate 1/2:',
-                   '== correspondence gate 2/2:'):
+    for marker in (
+        "== bandit gate 1/4:",
+        "== bandit gate 4/4:",
+        "== correspondence gate 1/2:",
+        "== correspondence gate 2/2:",
+    ):
         assert marker in workflow, (
             f"verify.yml no longer prints {marker!r}; run_gate.unreached can "
-            "no longer tell which verifications this gate skipped")
+            "no longer tell which verifications this gate skipped"
+        )
 
 
 # ---------------------------------------------------------------------------
 # THE ROOT THEY POINT AT
 # ---------------------------------------------------------------------------
+
 
 def test_the_id_a_gate_will_derive_can_be_asked_for_in_advance() -> None:
     """`dependent_on` must name a handle that another `fail` really produces.
@@ -196,12 +213,14 @@ def test_the_id_a_gate_will_derive_can_be_asked_for_in_advance() -> None:
 def test_the_predicted_id_matches_the_one_the_finalizer_prints() -> None:
     """Two ids for one defect is two defects to anyone comparing runs."""
     failure = {"what": "B602 not covered", "where": "scripts/gate.py:3"}
-    assert (gate_mod.finding_id("bandit", failure["what"], failure["where"])
-            == blocker_report.failure_id("bandit", failure))
+    assert gate_mod.finding_id(
+        "bandit", failure["what"], failure["where"]
+    ) == blocker_report.failure_id("bandit", failure)
 
 
 def test_every_consequence_points_at_the_first_defect_the_chain_hit(
-        tmp_path: Path) -> None:
+    tmp_path: Path,
+) -> None:
     """End to end, through the wrapper, on a real report."""
     work = tmp_path / "run"
     (work / "reports").mkdir(parents=True)
@@ -211,16 +230,28 @@ def test_every_consequence_points_at_the_first_defect_the_chain_hit(
         'echo "== bandit gate 1/4: security gate" >&2\n'
         'echo "  UNRESOLVED  B602 scripts/gate.py:3  shell is true"\n'
         'echo "  UNRESOLVED  B605 scripts/gate.py:9  a shell again"\n'
-        "exit 1\n", encoding="utf-8")
+        "exit 1\n",
+        encoding="utf-8",
+    )
 
     result = subprocess.run(
-        [PY, str(SCRIPTS / "run_gate.py"), "--name", "bandit", "--",
-         "bash", str(script)],
-        cwd=work, capture_output=True, text=True, timeout=600)
+        [
+            PY,
+            str(SCRIPTS / "run_gate.py"),
+            "--name",
+            "bandit",
+            "--",
+            "bash",
+            str(script),
+        ],
+        cwd=work,
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
     assert result.returncode != 0, result.stdout + result.stderr
 
-    report = json.loads((work / "reports" / "bandit.json").read_text(
-        encoding="utf-8"))
+    report = json.loads((work / "reports" / "bandit.json").read_text(encoding="utf-8"))
     failures = report["failures"]
     roots = [f for f in failures if f["is_root_cause"]]
     consequences = [f for f in failures if not f["is_root_cause"]]
@@ -232,7 +263,8 @@ def test_every_consequence_points_at_the_first_defect_the_chain_hit(
 
 
 def test_a_failure_no_extractor_recognises_still_carries_its_consequences(
-        tmp_path: Path) -> None:
+    tmp_path: Path,
+) -> None:
     """The case the first draft of this got wrong.
 
     When no extractor matches, the single fallback record is written -- and
@@ -247,15 +279,29 @@ def test_a_failure_no_extractor_recognises_still_carries_its_consequences(
         "set -e\n"
         'echo "== correspondence gate 1/2: correspondence" >&2\n'
         'echo "Segmentation fault"\n'
-        "exit 139\n", encoding="utf-8")
+        "exit 139\n",
+        encoding="utf-8",
+    )
 
     subprocess.run(
-        [PY, str(SCRIPTS / "run_gate.py"), "--name", "correspondence", "--",
-         "bash", str(script)],
-        cwd=work, capture_output=True, text=True, timeout=600)
+        [
+            PY,
+            str(SCRIPTS / "run_gate.py"),
+            "--name",
+            "correspondence",
+            "--",
+            "bash",
+            str(script),
+        ],
+        cwd=work,
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
 
-    report = json.loads((work / "reports" / "correspondence.json").read_text(
-        encoding="utf-8"))
+    report = json.loads(
+        (work / "reports" / "correspondence.json").read_text(encoding="utf-8")
+    )
     failures = report["failures"]
     assert len(failures) == 2, json.dumps(failures, indent=2)
     assert failures[0]["is_root_cause"] is True
@@ -267,6 +313,7 @@ def test_a_failure_no_extractor_recognises_still_carries_its_consequences(
 # WHAT THE READER ACTUALLY SEES
 # ---------------------------------------------------------------------------
 
+
 def manifest(failures: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     """The shape aggregate_gates.py hands the renderer.
 
@@ -276,22 +323,33 @@ def manifest(failures: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     silence that would mean annotating test data instead of writing it.
     """
     return {
-        "run_identity": {"commit": "abc123def456", "run_id": "1",
-                         "run_attempt": "1", "workflow": "verify"},
+        "run_identity": {
+            "commit": "abc123def456",
+            "run_id": "1",
+            "run_attempt": "1",
+            "workflow": "verify",
+        },
         "overall": "BLOCKED",
         "mergeable": False,
         "blocking": ["bandit"],
-        "gates": {"bandit": {"status": "FAIL", "duration_ms": 10,
-                             "failures": failures}},
+        "gates": {
+            "bandit": {"status": "FAIL", "duration_ms": 10, "failures": failures}
+        },
     }
 
 
-ROOT = {"what": "B602 not covered by a safe pattern",
-        "where": "scripts/gate.py:3", "why": "shell is true",
-        "requirement": "Every bandit finding is fixed or covered.",
-        "how_to_fix": "Fix the code.", "severity": "ERROR", "code": "B602",
-        "reproduction_command": "python3 scripts/security_gate.py src scripts",
-        "is_root_cause": True, "dependent_on": None}
+ROOT = {
+    "what": "B602 not covered by a safe pattern",
+    "where": "scripts/gate.py:3",
+    "why": "shell is true",
+    "requirement": "Every bandit finding is fixed or covered.",
+    "how_to_fix": "Fix the code.",
+    "severity": "ERROR",
+    "code": "B602",
+    "reproduction_command": "python3 scripts/security_gate.py src scripts",
+    "is_root_cause": True,
+    "dependent_on": None,
+}
 
 # Derived, not written down. The renderer recomputes the handle it prints from
 # (gate, what, where), so a fixture that invents one would let DEPENDS ON name
@@ -299,12 +357,17 @@ ROOT = {"what": "B602 not covered by a safe pattern",
 # which is the one thing this pairing has to rule out.
 ROOT_ID = gate_mod.finding_id("bandit", str(ROOT["what"]), str(ROOT["where"]))
 
-CONSEQUENCE = {"what": "verification 2 of 4 did not run",
-               "where": "step 2/4", "why": "the chain stopped at step 1/4.",
-               "requirement": "Every verification must run.",
-               "how_to_fix": "Fix the failure above.", "severity": "UNKNOWN",
-               "code": "NOT_RUN", "is_root_cause": False,
-               "dependent_on": ROOT_ID}
+CONSEQUENCE = {
+    "what": "verification 2 of 4 did not run",
+    "where": "step 2/4",
+    "why": "the chain stopped at step 1/4.",
+    "requirement": "Every verification must run.",
+    "how_to_fix": "Fix the failure above.",
+    "severity": "UNKNOWN",
+    "code": "NOT_RUN",
+    "is_root_cause": False,
+    "dependent_on": ROOT_ID,
+}
 
 
 def test_the_report_says_which_findings_are_consequences() -> None:
@@ -334,8 +397,9 @@ def test_the_root_is_not_labelled_a_consequence() -> None:
     text, _ = blocker_report.render(manifest([ROOT]), set())
 
     assert "(consequence)" not in text
-    assert "root causes" not in text, \
+    assert "root causes" not in text, (
         "with nothing to distinguish, the split is noise and is not printed"
+    )
 
 
 def test_the_rule_id_and_the_reproduction_command_reach_the_log() -> None:
@@ -362,7 +426,8 @@ def test_a_default_severity_is_not_printed_as_though_it_were_measured() -> None:
     assert "SEVERITY" not in text
 
     louder, _ = blocker_report.render(
-        manifest([{**ROOT, "severity": "CRITICAL"}]), set())
+        manifest([{**ROOT, "severity": "CRITICAL"}]), set()
+    )
     assert "SEVERITY     CRITICAL" in louder
 
 
@@ -372,13 +437,19 @@ def test_a_finding_recorded_before_schema_1_3_still_renders() -> None:
     A 1.2 report has none of these keys, and the renderer must treat their
     absence as "not recorded" rather than as "False".
     """
-    old = {"what": "coverage failed", "where": "scripts/x.py:1",
-           "why": "below threshold", "requirement": "95%", "how_to_fix": "test"}
+    old = {
+        "what": "coverage failed",
+        "where": "scripts/x.py:1",
+        "why": "below threshold",
+        "requirement": "95%",
+        "how_to_fix": "test",
+    }
     text, _ = blocker_report.render(manifest([old]), set())
 
     assert "coverage failed" in text
-    assert "(consequence)" not in text, \
+    assert "(consequence)" not in text, (
         "a finding that never declared is_root_cause is not a consequence"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -392,6 +463,7 @@ def test_a_finding_recorded_before_schema_1_3_still_renders() -> None:
 # these tests hold the split in place.
 # ---------------------------------------------------------------------------
 
+
 def test_chain_markers_echoed_on_stdout_fabricate_nothing() -> None:
     """The contamination case, and it is not hypothetical.
 
@@ -400,11 +472,14 @@ def test_chain_markers_echoed_on_stdout_fabricate_nothing() -> None:
     output quotes a log -- would invent NOT_RUN findings for a gate that has
     no chain at all. Measured before the streams were split: 4 fabricated.
     """
-    echoed = ("  scripts/gate.py:1:1 - error: bad\n"
-              "== bandit gate 1/4: security gate\n"
-              "verifying 4 source file(s)\n")
-    steps = [f for f in run_gate.unreached(echoed, "")
-             if str(f["where"]).startswith("step ")]
+    echoed = (
+        "  scripts/gate.py:1:1 - error: bad\n"
+        "== bandit gate 1/4: security gate\n"
+        "verifying 4 source file(s)\n"
+    )
+    steps = [
+        f for f in run_gate.unreached(echoed, "") if str(f["where"]).startswith("step ")
+    ]
     assert steps == [], "a chain marker on stdout must not fabricate a step"
 
 
@@ -414,7 +489,8 @@ def test_loop_markers_echoed_on_stderr_fabricate_nothing() -> None:
 
 
 def test_the_wrapper_does_not_glue_stderr_onto_an_unterminated_stdout(
-        tmp_path: Path) -> None:
+    tmp_path: Path,
+) -> None:
     """The defect that silently disabled this entire mechanism.
 
     Every pattern here is anchored with `^` under re.MULTILINE. A tool whose
@@ -436,19 +512,34 @@ def test_the_wrapper_does_not_glue_stderr_onto_an_unterminated_stdout(
         'printf "  FAIL - 2 finding(s) not covered"\n'
         'echo "== bandit gate 1/4: security gate" >&2\n'
         'echo "  UNRESOLVED  B602 scripts/gate.py:3  shell is true"\n'
-        "exit 1\n", encoding="utf-8")
+        "exit 1\n",
+        encoding="utf-8",
+    )
 
     subprocess.run(
-        [PY, str(SCRIPTS / "run_gate.py"), "--name", "bandit", "--",
-         "bash", str(script)],
-        cwd=work, capture_output=True, text=True, timeout=600)
+        [
+            PY,
+            str(SCRIPTS / "run_gate.py"),
+            "--name",
+            "bandit",
+            "--",
+            "bash",
+            str(script),
+        ],
+        cwd=work,
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
 
-    failures = json.loads((work / "reports" / "bandit.json").read_text(
-        encoding="utf-8"))["failures"]
+    failures = json.loads(
+        (work / "reports" / "bandit.json").read_text(encoding="utf-8")
+    )["failures"]
     skipped = [f for f in failures if f["code"] == "NOT_RUN"]
     assert len(skipped) == 3, (
         "the three checks after the failing one were not recorded; the first "
-        f"marker was probably glued onto stdout. Got: {json.dumps(failures, indent=2)}")
+        f"marker was probably glued onto stdout. Got: {json.dumps(failures, indent=2)}"
+    )
 
 
 def test_the_chain_markers_are_written_to_stderr() -> None:
@@ -459,12 +550,14 @@ def test_the_chain_markers_are_written_to_stderr() -> None:
     recorded. That is the dead-regex failure mode again, so it fails here.
     """
     workflow = (REPO / ".github" / "workflows" / "verify.yml").read_text(
-        encoding="utf-8")
+        encoding="utf-8"
+    )
 
     for line in workflow.splitlines():
-        if "gate " in line and "/" in line and line.strip().startswith("echo \"=="):
-            assert line.rstrip().endswith(">&2"), \
+        if "gate " in line and "/" in line and line.strip().startswith('echo "=='):
+            assert line.rstrip().endswith(">&2"), (
                 f"chain marker not written to stderr: {line.strip()!r}"
+            )
 
 
 def test_the_loop_markers_are_written_to_stdout() -> None:
@@ -474,13 +567,15 @@ def test_the_loop_markers_are_written_to_stdout() -> None:
     for line in source.splitlines():
         stripped = line.strip()
         if stripped.startswith('echo "──') or "source file(s)" in stripped:
-            assert not stripped.endswith(">&2"), \
+            assert not stripped.endswith(">&2"), (
                 f"loop marker moved to stderr: {stripped!r}"
+            )
 
 
 # ---------------------------------------------------------------------------
 # WHICH FINDING IS THE ROOT
 # ---------------------------------------------------------------------------
+
 
 def test_the_root_is_the_first_defect_in_the_OUTPUT_not_in_the_table() -> None:
     """`main` calls findings[0] "the first defect the chain hit".
@@ -491,18 +586,22 @@ def test_the_root_is_the_first_defect_in_the_OUTPUT_not_in_the_table() -> None:
     the mutant is printed FIRST and pyright second, while pyright_diagnostics
     sits earlier in EXTRACTORS than surviving_mutants.
     """
-    text = ("  survivors: add_to_sub\n"
-            "  scripts/gate.py:1:1 - error: later (reportGeneralTypeIssues)\n")
+    text = (
+        "  survivors: add_to_sub\n"
+        "  scripts/gate.py:1:1 - error: later (reportGeneralTypeIssues)\n"
+    )
     findings = run_gate.extract_findings(text)
 
-    assert findings[0]["what"].startswith("mutant add_to_sub"), \
+    assert findings[0]["what"].startswith("mutant add_to_sub"), (
         f"root came from EXTRACTORS order, not text order: {findings[0]['what']}"
+    )
 
 
 def test_the_ordering_key_never_reaches_the_report() -> None:
     """`_at` is bookkeeping. Gate.fail would reject it and a reader cannot use it."""
     findings = run_gate.extract_findings(
-        "  scripts/gate.py:1:1 - error: bad (reportGeneralTypeIssues)\n")
+        "  scripts/gate.py:1:1 - error: bad (reportGeneralTypeIssues)\n"
+    )
     assert findings
     assert all("_at" not in f for f in findings)
 
@@ -510,6 +609,7 @@ def test_the_ordering_key_never_reaches_the_report() -> None:
 # ---------------------------------------------------------------------------
 # THE FIELDS CARRY BITS
 # ---------------------------------------------------------------------------
+
 
 def test_a_consequence_does_not_claim_to_block_on_its_own_account() -> None:
     """`merge_blocking` was a hardcoded True, so it carried no information.
@@ -587,8 +687,7 @@ def test_every_severity_the_gates_produce_is_in_the_vocabulary() -> None:
         for node in _ast.walk(tree):
             if isinstance(node, _ast.Dict):
                 for key, value in zip(node.keys, node.values):
-                    if (isinstance(key, _ast.Constant)
-                            and key.value == "severity"):
+                    if isinstance(key, _ast.Constant) and key.value == "severity":
                         used |= severity_values(value)
             elif isinstance(node, _ast.Call):
                 for kw in node.keywords:
@@ -598,14 +697,17 @@ def test_every_severity_the_gates_produce_is_in_the_vocabulary() -> None:
     assert used, "no severity value found; this test has gone blind"
     assert "WARNING" in used, (
         "the conditional-expression producers are no longer being seen; this "
-        "test has regressed to the blind spot it was written for")
-    assert used <= gate_mod.SEVERITIES, \
+        "test has regressed to the blind spot it was written for"
+    )
+    assert used <= gate_mod.SEVERITIES, (
         f"gates produce severities the vocabulary refuses: {used - gate_mod.SEVERITIES}"
+    )
 
 
 # ---------------------------------------------------------------------------
 # PATHS UNDER DOT-DIRECTORIES
 # ---------------------------------------------------------------------------
+
 
 def test_a_path_under_a_dot_directory_survives_normalisation() -> None:
     """`lstrip("./")` strips a character SET, not a prefix.
@@ -616,8 +718,10 @@ def test_a_path_under_a_dot_directory_survives_normalisation() -> None:
     The same call appeared in six places across four files, including the key
     security_gate.py matches a verified exception on.
     """
-    assert run_gate.repo_relative(".github/workflows/verify.yml") == \
-        ".github/workflows/verify.yml"
+    assert (
+        run_gate.repo_relative(".github/workflows/verify.yml")
+        == ".github/workflows/verify.yml"
+    )
     assert run_gate.repo_relative("./scripts/gate.py") == "scripts/gate.py"
     assert run_gate.repo_relative("scripts/gate.py") == "scripts/gate.py"
 
@@ -637,17 +741,21 @@ def test_no_script_normalises_a_path_with_lstrip() -> None:
     quietly dead. `ast` sees calls only.
     """
     import ast as _ast
+
     offenders: list[str] = []
     for path in sorted(SCRIPTS.glob("*.py")):
         tree = _ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in _ast.walk(tree):
-            if (isinstance(node, _ast.Call)
-                    and isinstance(node.func, _ast.Attribute)
-                    and node.func.attr == "lstrip"
-                    and len(node.args) == 1
-                    and isinstance(node.args[0], _ast.Constant)
-                    and node.args[0].value == "./"):
+            if (
+                isinstance(node, _ast.Call)
+                and isinstance(node.func, _ast.Attribute)
+                and node.func.attr == "lstrip"
+                and len(node.args) == 1
+                and isinstance(node.args[0], _ast.Constant)
+                and node.args[0].value == "./"
+            ):
                 offenders.append(f"{path.name}:{node.lineno}")
     assert not offenders, (
         "use .removeprefix('./') -- .lstrip('./') strips a character set and "
-        f"mangles dot-directories: {offenders}")
+        f"mangles dot-directories: {offenders}"
+    )

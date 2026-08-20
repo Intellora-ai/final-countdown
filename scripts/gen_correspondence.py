@@ -122,6 +122,7 @@ PROPERTIES: dict[str, tuple[str, str, str]] = {
     ),
 }
 
+
 # The lemmas that unfold the semantics down to arithmetic. Every generated
 # tactic starts from exactly this set, so a proof that needs more than the
 # definitions is visible as an addition rather than hidden in a blob.
@@ -144,9 +145,11 @@ def denotes(e: pysem.Emitted, ast_name: str) -> tuple[str, str]:
     binder = f"({' '.join(e.params)} : Int) " if e.params else ""
     arglist = "[" + ", ".join(e.params) + "]"
     one_line = f"    evalFunc {ast_name} {arglist} = {e.denotation}"
-    claim = (one_line if len(one_line) <= LINE_BUDGET
-             else f"    evalFunc {ast_name} {arglist}\n"
-                  f"      = {e.denotation}")
+    claim = (
+        one_line
+        if len(one_line) <= LINE_BUDGET
+        else f"    evalFunc {ast_name} {arglist}\n      = {e.denotation}"
+    )
     statement = f"{binder}:\n{claim}"
 
     if not e.guard_props:
@@ -155,10 +158,10 @@ def denotes(e: pysem.Emitted, ast_name: str) -> tuple[str, str]:
     # Splitting on the same condition the closed form branches on reduces both
     # sides to the same normal form; `simp` finishes the arithmetic.
     names = [f"hguard{i}" for i in range(len(e.guard_props))]
-    splits = " <;> ".join(f"by_cases {n} : {p}"
-                          for n, p in zip(names, e.guard_props))
-    return statement, (f"  {splits} <;>\n"
-                       f"    simp [{simp_set(ast_name)}, {', '.join(names)}]\n")
+    splits = " <;> ".join(f"by_cases {n} : {p}" for n, p in zip(names, e.guard_props))
+    return statement, (
+        f"  {splits} <;>\n    simp [{simp_set(ast_name)}, {', '.join(names)}]\n"
+    )
 
 
 def obligations(e: pysem.Emitted, ast_name: str) -> tuple[str, str]:
@@ -177,8 +180,10 @@ def obligations(e: pysem.Emitted, ast_name: str) -> tuple[str, str]:
 def render(e: pysem.Emitted) -> tuple[str, str]:
     ast_name = f"{e.name}_ast"
     if e.name not in PROPERTIES:
-        raise SystemExit(f"no property declared for {e.name!r}; a function with "
-                         "no stated property gets no proof")
+        raise SystemExit(
+            f"no property declared for {e.name!r}; a function with "
+            "no stated property gets no proof"
+        )
     thm_name, thm_sig, thm_proof = PROPERTIES[e.name]
     thm_name = thm_name.format(f=ast_name)
     thm_sig = thm_sig.format(f=ast_name)
@@ -191,7 +196,7 @@ def render(e: pysem.Emitted) -> tuple[str, str]:
 /-!
 DENOTATION, CORRESPONDENCE AND PROPERTY FOR `{e.source_path}`.
 
-  function      {e.name}({', '.join(e.params)})
+  function      {e.name}({", ".join(e.params)})
   source sha256 {e.source_sha256}
   guards        {e.guards}
 
@@ -252,13 +257,32 @@ theorem {thm_name} {thm_sig} := by
     # `sorryAx`, and a custom axiom that simply assumes the result shows up by
     # name. scripts/correspondence_gate.py reads these lines and fails on
     # anything outside Lean's three foundational axioms.
-    audit = (f"\n#print axioms {ast_name}_denotes\n"
-             f"#print axioms {ast_name}_matches_cpython\n"
-             f"#print axioms {thm_name}\n")
-    spec = (SEMANTICS + header + denot + "  sorry\n" + corr + "  sorry\n"
-            + prop + "  sorry\n")
-    proof = (SEMANTICS + header + denot + denot_proof + corr + corr_proof
-             + prop + thm_proof + audit)
+    audit = (
+        f"\n#print axioms {ast_name}_denotes\n"
+        f"#print axioms {ast_name}_matches_cpython\n"
+        f"#print axioms {thm_name}\n"
+    )
+    spec = (
+        SEMANTICS
+        + header
+        + denot
+        + "  sorry\n"
+        + corr
+        + "  sorry\n"
+        + prop
+        + "  sorry\n"
+    )
+    proof = (
+        SEMANTICS
+        + header
+        + denot
+        + denot_proof
+        + corr
+        + corr_proof
+        + prop
+        + thm_proof
+        + audit
+    )
     return spec, proof
 
 

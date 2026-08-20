@@ -37,25 +37,36 @@ import run_gate  # noqa: E402
 
 # --- shapes the real tools in this repository actually print ---------------
 
-@pytest.mark.parametrize(("output", "expected"), [
-    ("  UNRESOLVED  B603 scripts/ci_metrics.py:43  subprocess_without_shell",
-     "scripts/ci_metrics.py:43"),
-    ("FAILED tests/test_codeowners.py:64: AssertionError",
-     "tests/test_codeowners.py:64"),
-    ("  ./scripts/gate.py:12: something", "scripts/gate.py:12"),
-])
+
+@pytest.mark.parametrize(
+    ("output", "expected"),
+    [
+        (
+            "  UNRESOLVED  B603 scripts/ci_metrics.py:43  subprocess_without_shell",
+            "scripts/ci_metrics.py:43",
+        ),
+        (
+            "FAILED tests/test_codeowners.py:64: AssertionError",
+            "tests/test_codeowners.py:64",
+        ),
+        ("  ./scripts/gate.py:12: something", "scripts/gate.py:12"),
+    ],
+)
 def test_a_real_relative_position_is_recovered(output: str, expected: str) -> None:
     assert run_gate.first_location(output) == expected
 
 
-@pytest.mark.parametrize("output", [
-    "Total coverage: 91.2%",                      # a percentage is not a line
-    "duration 1:30",                              # nor is a clock
-    "scripts/definitely_not_a_real_file.py:9",    # file is not in the tree
-    "mutation discrimination: 19/20",             # nor is a ratio
-    "no position anywhere in this line",
-    "",
-])
+@pytest.mark.parametrize(
+    "output",
+    [
+        "Total coverage: 91.2%",  # a percentage is not a line
+        "duration 1:30",  # nor is a clock
+        "scripts/definitely_not_a_real_file.py:9",  # file is not in the tree
+        "mutation discrimination: 19/20",  # nor is a ratio
+        "no position anywhere in this line",
+        "",
+    ],
+)
 def test_nothing_is_returned_when_there_is_no_provable_position(output: str) -> None:
     """Silence is the correct answer. The caller falls back to the command."""
     assert run_gate.first_location(output) == ""
@@ -63,15 +74,19 @@ def test_nothing_is_returned_when_there_is_no_provable_position(output: str) -> 
 
 def test_the_first_real_position_wins_over_an_earlier_unreal_one() -> None:
     """Tool output interleaves. A bogus path must not consume the match."""
-    text = ("scripts/not_a_file_at_all.py:5 noise\n"
-            "  UNRESOLVED B603 scripts/gate.py:31 real")
+    text = (
+        "scripts/not_a_file_at_all.py:5 noise\n"
+        "  UNRESOLVED B603 scripts/gate.py:31 real"
+    )
     assert run_gate.first_location(text) == "scripts/gate.py:31"
 
 
 # --- absolute paths, which is how pyright reports -------------------------
 
+
 def test_an_absolute_path_inside_the_repository_is_made_relative(
-        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """pyright prints absolute paths; an annotation needs the relative form.
 
     Built against a temporary tree rather than this repository on purpose:
@@ -93,7 +108,8 @@ def test_an_absolute_path_inside_the_repository_is_made_relative(
 
 
 def test_an_absolute_path_outside_the_repository_is_skipped(
-        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """A warning from site-packages is a real file, but not one in this diff.
 
     Annotating it would point a reader at a dependency they cannot edit here.
@@ -109,7 +125,8 @@ def test_an_absolute_path_outside_the_repository_is_skipped(
 
 
 def test_a_position_is_only_returned_for_a_file_that_exists(
-        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The control for the two tests above: existence is what is checked."""
     root = tmp_path / "repo"
     (root / "scripts").mkdir(parents=True)

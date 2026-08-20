@@ -16,9 +16,9 @@ import sys
 
 def is_trivial(spec_content: str) -> bool:
     """Check for reflexivity: a = a"""
-    if re.search(r':\s*(\w+)\s*=\s*\1', spec_content):
+    if re.search(r":\s*(\w+)\s*=\s*\1", spec_content):
         return True
-    if re.search(r':\s*(\w+\s*\+\s*\w+)\s*=\s*\1', spec_content):
+    if re.search(r":\s*(\w+\s*\+\s*\w+)\s*=\s*\1", spec_content):
         return True
     return False
 
@@ -29,7 +29,7 @@ def theorem_body(spec_content: str) -> str:
     Checking the whole file is useless: the theorem is named `<func>_spec`, so
     the function name is always present and the check can never fail.
     """
-    match = re.search(r'theorem\s+\w+[^:]*?:\s*(.+?):=', spec_content, re.DOTALL)
+    match = re.search(r"theorem\s+\w+[^:]*?:\s*(.+?):=", spec_content, re.DOTALL)
     return match.group(1) if match else spec_content
 
 
@@ -44,14 +44,14 @@ def models_function(spec_content: str, function_name: str) -> bool:
     Without it Lean rejects the statement outright:
       error: Function expected at `add` ... The identifier `add` is unknown
     """
-    return re.search(rf'\bdef\s+{re.escape(function_name)}\b', spec_content) is not None
+    return re.search(rf"\bdef\s+{re.escape(function_name)}\b", spec_content) is not None
 
 
 def is_vacuous(spec_content: str) -> bool:
     """Check for vacuous specs (True, ∀ x, x = x)"""
-    if re.search(r':\s*True\s*:=', spec_content):
+    if re.search(r":\s*True\s*:=", spec_content):
         return True
-    if re.search(r':\s*∀\s*\w+,\s*\w+\s*=\s*\w+', spec_content):
+    if re.search(r":\s*∀\s*\w+,\s*\w+\s*=\s*\w+", spec_content):
         return True
     return False
 
@@ -72,7 +72,7 @@ def has_min_word_count(spec_content: str, min_count: int = 10) -> bool:
 
 def is_tautology(spec_content: str) -> bool:
     """Check for obvious tautologies"""
-    if re.search(r':\s*∀\s*\w+,\s*\w+\s*≤\s*\w+\s*→\s*\w+\s*≤\s*\w+', spec_content):
+    if re.search(r":\s*∀\s*\w+,\s*\w+\s*≤\s*\w+\s*→\s*\w+\s*≤\s*\w+", spec_content):
         return True
     return False
 
@@ -83,15 +83,15 @@ def unbound_vars(spec_content: str) -> set[str]:
     Lean's autoImplicit turns them into implicit arguments instead of erroring,
     so AXLE returns okay=True for a theorem nobody intended to state.
     """
-    thm = re.search(r'theorem\s+\w+\s*\(([^)]*)\)(.*?):=', spec_content, re.DOTALL)
+    thm = re.search(r"theorem\s+\w+\s*\(([^)]*)\)(.*?):=", spec_content, re.DOTALL)
     if not thm:
         return set()
-    declared = set(thm.group(1).split(':')[0].split())
-    for extra in re.findall(r'\(\s*\w+\s*:\s*[^)]*\)', thm.group(2)):
-        declared.update(extra.strip('()').split(':')[0].split())
+    declared = set(thm.group(1).split(":")[0].split())
+    for extra in re.findall(r"\(\s*\w+\s*:\s*[^)]*\)", thm.group(2)):
+        declared.update(extra.strip("()").split(":")[0].split())
     body = theorem_body(spec_content)
-    defs = set(re.findall(r'\bdef\s+(\w+)', spec_content))
-    used = set(re.findall(r'\b([a-z])\b', body))
+    defs = set(re.findall(r"\bdef\s+(\w+)", spec_content))
+    used = set(re.findall(r"\b([a-z])\b", body))
     return used - declared - defs
 
 
@@ -99,12 +99,14 @@ def enforce_spec(spec_file: str) -> bool:
     # The subject comes from the `def` line, not the filename. A function may
     # carry several specs (add_spec.lean, addid_spec.lean), and deriving the
     # name from the filename makes "addid"/"mulid" look like missing functions.
-    with open(spec_file, 'r') as _f:
+    with open(spec_file, "r") as _f:
         _head = _f.read()
-    _def = re.search(r'^def\s+(\w+)', _head, re.MULTILINE)
-    function_name = _def.group(1) if _def else spec_file.split('/')[-1].replace('_spec.lean', '')
+    _def = re.search(r"^def\s+(\w+)", _head, re.MULTILINE)
+    function_name = (
+        _def.group(1) if _def else spec_file.split("/")[-1].replace("_spec.lean", "")
+    )
 
-    with open(spec_file, 'r') as f:
+    with open(spec_file, "r") as f:
         spec = f.read()
 
     checks = [

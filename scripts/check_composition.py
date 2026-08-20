@@ -5,9 +5,11 @@ Scored as a set on purpose. add's commutativity misses `return 0`; its identity
 spec misses `Add->Sub`. Each scores 0.50 and would be rejected alone, yet
 together they kill every mutant. Gating per-spec throws away correct sets.
 """
+
 import argparse
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from spec_source import source_for
 from spec_strength import evaluate
@@ -24,7 +26,8 @@ if __name__ == "__main__":
     for spec in ns.specs:
         src = source_for(spec)
         if src is None:
-            print(f"❌ {spec}: unresolvable"); sys.exit(1)
+            print(f"❌ {spec}: unresolvable")
+            sys.exit(1)
         # Fail closed. `evaluate` raises rather than returning None, so an
         # unparsable spec cannot be mistaken for one with nothing to report.
         try:
@@ -38,14 +41,17 @@ if __name__ == "__main__":
 
     scored: list[dict[str, Any]] = [r for r in reports if "mutants" in r]
     if not scored:
-        print("❌ nothing scored"); sys.exit(1)
+        print("❌ nothing scored")
+        sys.exit(1)
     survivor_sets: list[set[str]] = [set(r["survivors"]) for r in scored]
     survivors: set[str] = survivor_sets[0].copy()
     for extra in survivor_sets[1:]:
         survivors &= extra
     total = max(r["mutants"] for r in scored)
     joint = (total - len(survivors)) / total if total else 0.0
-    print(f"\nJOINT strength: {joint:.2f} ({total - len(survivors)}/{total} killed by the set)")
+    print(
+        f"\nJOINT strength: {joint:.2f} ({total - len(survivors)}/{total} killed by the set)"
+    )
     if survivors:
         print(f"survives the whole set: {', '.join(sorted(survivors))}")
     sys.exit(0 if joint >= ns.min_strength else 1)

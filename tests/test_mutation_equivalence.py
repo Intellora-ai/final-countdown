@@ -83,8 +83,9 @@ from spec_strength import (  # noqa: E402
 LEGACY_SAMPLE = (-7, -1, 0, 1, 3, 11)
 
 
-def legacy_indistinguishable(original_src: str, mutant_src: str,
-                             func_name: str, arity: int) -> bool:
+def legacy_indistinguishable(
+    original_src: str, mutant_src: str, func_name: str, arity: int
+) -> bool:
     """The pre-change check: six values per argument, any exception => False."""
     try:
         original = load_module(original_src)
@@ -105,10 +106,12 @@ def legacy_indistinguishable(original_src: str, mutant_src: str,
 
 def guarded(condition: str, body: str = "return 0") -> str:
     """`a + b`, with one guard in front of it. The guard is the whole mutant."""
-    return (f"def f(a: int, b: int) -> int:\n"
-            f"    if {condition}:\n"
-            f"        {body}\n"
-            f"    return a + b\n")
+    return (
+        f"def f(a: int, b: int) -> int:\n"
+        f"    if {condition}:\n"
+        f"        {body}\n"
+        f"    return a + b\n"
+    )
 
 
 ORIGINAL = "def f(a: int, b: int) -> int:\n    return a + b\n"
@@ -116,8 +119,7 @@ COMMUTED = "def f(a: int, b: int) -> int:\n    return b + a\n"
 
 
 def verdict_for(mutant_source: str):  # type: ignore[no-untyped-def]
-    return observationally_equivalent_under_witness_set(
-        ORIGINAL, mutant_source, "f", 2)
+    return observationally_equivalent_under_witness_set(ORIGINAL, mutant_source, "f", 2)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -137,12 +139,14 @@ def test_the_computed_square_point_is_derived_not_stumbled_on() -> None:
 
     assert not verdict.indistinguishable, (
         "the mutant left the denominator — the spec's score went UP for a bug "
-        "it never caught")
+        "it never caught"
+    )
     assert verdict.distinguishing_input is not None
     assert verdict.distinguishing_input[0] == 9999, verdict.distinguishing_input
     assert verdict.witness_provenance == PROV_ISQRT, (
         f"caught, but by {verdict.witness_provenance} — if the isqrt rule is "
-        f"not what found it, the derivation is not what is being tested")
+        f"not what found it, the derivation is not what is being tested"
+    )
     # 9999 is nowhere in either file: it cannot have come from the literal band.
     assert "9999" not in ORIGINAL and "9999\n" not in mutant
     assert Witness(9999, PROV_ISQRT) in witness_set(ORIGINAL, mutant)
@@ -173,12 +177,13 @@ def test_a_non_square_emits_no_isqrt_witness() -> None:
     exclude it.
     """
     mutant = guarded("a * a == 99980002")
-    assert not [w for w in predicate_witnesses(mutant)
-                if w.provenance == PROV_ISQRT], (
-        "the isqrt rule fired on a value that is not a perfect square")
+    assert not [w for w in predicate_witnesses(mutant) if w.provenance == PROV_ISQRT], (
+        "the isqrt rule fired on a value that is not a perfect square"
+    )
     verdict = verdict_for(mutant)
     assert verdict.indistinguishable, (
-        "no integer satisfies the guard, so nothing can distinguish this mutant")
+        "no integer satisfies the guard, so nothing can distinguish this mutant"
+    )
 
 
 def test_an_exact_divisor_is_solved_for_the_variable() -> None:
@@ -226,8 +231,7 @@ def test_the_constant_may_sit_on_either_side() -> None:
 
 def test_a_negative_threshold_is_read_as_a_constant() -> None:
     """`-100000` parses as UnaryOp(USub, Constant), not Constant."""
-    assert Witness(-100000, PROV_LITERAL) in literal_witnesses(
-        guarded("a < -100000"))
+    assert Witness(-100000, PROV_LITERAL) in literal_witnesses(guarded("a < -100000"))
     verdict = verdict_for(guarded("a < -100000"))
     assert not verdict.indistinguishable
 
@@ -248,31 +252,24 @@ ADVERSARIAL: dict[str, str] = {
     "both_arguments_large": guarded("a > 500 and b > 500"),
     # Same value, different type. `0 == 0.0` is True, so comparing values alone
     # calls these the same function; they are not.
-    "returns_a_float": (
-        "def f(a: int, b: int) -> float:\n"
-        "    return float(a + b)\n"
-    ),
+    "returns_a_float": ("def f(a: int, b: int) -> float:\n    return float(a + b)\n"),
     # Raises where the original returns. An exception is an observation.
-    "raises_at_a_far_point": guarded("a == 1000001",
-                                     "raise ValueError('boom')"),
+    "raises_at_a_far_point": guarded("a == 1000001", "raise ValueError('boom')"),
 }
 
 # Same exception class, different message. The old rule abandoned the comparison
 # on any exception, so this was never compared at all; comparing the class alone
 # would still call it the same function.
-RAISER = (
-    "def f(a: int, b: int) -> int:\n"
-    "    raise ValueError(f'bad {a}')\n"
-)
+RAISER = "def f(a: int, b: int) -> int:\n    raise ValueError(f'bad {a}')\n"
 RAISER_MUTATED_MESSAGE = (
-    "def f(a: int, b: int) -> int:\n"
-    "    raise ValueError(f'bad {a + 1}')\n"
+    "def f(a: int, b: int) -> int:\n    raise ValueError(f'bad {a + 1}')\n"
 )
 
 
 def test_a_changed_error_message_is_a_difference() -> None:
     verdict = observationally_equivalent_under_witness_set(
-        RAISER, RAISER_MUTATED_MESSAGE, "f", 2)
+        RAISER, RAISER_MUTATED_MESSAGE, "f", 2
+    )
     assert not verdict.indistinguishable
     assert verdict.distinguishing_input is not None
 
@@ -288,11 +285,14 @@ def test_adversarial_mutant_is_not_classified_indistinguishable(name: str) -> No
     verdict = verdict_for(ADVERSARIAL[name])
     assert not verdict.indistinguishable, (
         f"{name} was excluded from the denominator — a spec that never caught "
-        f"this bug would score higher for it")
+        f"this bug would score higher for it"
+    )
     assert verdict.distinguishing_input is not None, (
-        "a rejected mutant must name the input that rejected it")
+        "a rejected mutant must name the input that rejected it"
+    )
     assert verdict.witness_provenance is not None, (
-        "a rejected mutant must name the strategy that rejected it")
+        "a rejected mutant must name the strategy that rejected it"
+    )
     point = verdict.distinguishing_input
     assert observe(
         cast("Callable[..., object]", getattr(load_module(ORIGINAL), "f")), point
@@ -312,13 +312,13 @@ def test_the_old_six_point_sample_was_fooled_by_these(name: str) -> None:
     """
     assert legacy_indistinguishable(ORIGINAL, ADVERSARIAL[name], "f", 2), (
         f"{name} no longer fools the six-point sample, so it no longer "
-        f"demonstrates that the sample needed widening")
+        f"demonstrates that the sample needed widening"
+    )
 
 
 def test_the_old_six_point_sample_was_fooled_by_the_computed_square() -> None:
     """And so was the widened-sample version this generator replaced."""
-    assert legacy_indistinguishable(
-        ORIGINAL, guarded("a * a == 99980001"), "f", 2)
+    assert legacy_indistinguishable(ORIGINAL, guarded("a * a == 99980001"), "f", 2)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -343,7 +343,8 @@ def test_the_verdict_does_not_claim_equivalence() -> None:
     verdict = verdict_for(COMMUTED)
     assert not hasattr(verdict, "equivalent")
     assert OBSERVATIONALLY_EQUIVALENT_UNDER_WITNESS_SET == (
-        "OBSERVATIONALLY_EQUIVALENT_UNDER_WITNESS_SET")
+        "OBSERVATIONALLY_EQUIVALENT_UNDER_WITNESS_SET"
+    )
     assert "WITNESS_SET" in verdict.note
 
 
@@ -368,8 +369,9 @@ def test_strategy_3_branch_makes_every_if_test_true_and_false() -> None:
     assert {w.value for w in derived} >= {4095, 4096, 4097}
     assert all(w.provenance == PROV_BRANCH for w in derived)
 
-    truthy = branch_witnesses("def f(a: int) -> int:\n    if a:\n        return 0\n"
-                              "    return 1\n")
+    truthy = branch_witnesses(
+        "def f(a: int) -> int:\n    if a:\n        return 0\n    return 1\n"
+    )
     assert {w.value for w in truthy} >= {0, 1}
 
 
@@ -381,7 +383,8 @@ def test_strategy_4_adversarial_covers_word_boundaries_and_magnitudes() -> None:
     assert all(2**e in values and -(2**e) in values for e in range(40))
     assert set(BOUNDARY_VALUES) <= values, (
         "the cartesian grid must be a subset of the adversarial set, or a grid "
-        "value would have no provenance at all")
+        "value would have no provenance at all"
+    )
 
 
 def test_strategy_5_random_leg_is_seed_stable_and_leaves_the_grid() -> None:
@@ -395,7 +398,8 @@ def test_strategy_5_random_leg_is_seed_stable_and_leaves_the_grid() -> None:
     assert all(prov == "random" for _, prov in tail)
     cells = set(itertools.product(grid, repeat=2))
     assert {p for p, _ in tail} - cells, (
-        "the random leg contributed nothing beyond the grid")
+        "the random leg contributed nothing beyond the grid"
+    )
 
 
 def test_strategy_6_hypothesis_finds_what_the_grid_cannot() -> None:
@@ -408,9 +412,9 @@ def test_strategy_6_hypothesis_finds_what_the_grid_cannot() -> None:
         return 0 if a >= 4 else a
 
     pool = (0, 1, -1)
-    assert all(observe(f, p) == observe(g, p)
-               for p in itertools.product(pool, repeat=1)), (
-        "this grid must be blind to the difference, or the test proves nothing")
+    assert all(
+        observe(f, p) == observe(g, p) for p in itertools.product(pool, repeat=1)
+    ), "this grid must be blind to the difference, or the test proves nothing"
 
     searched, witness = search_for_distinguishing_input(f, g, pool, 1)
     assert searched and witness is not None, "hypothesis missed a wide difference"
@@ -444,8 +448,9 @@ def test_provenance_resolves_most_specific_first() -> None:
     assert provenance_rank("predicate:divisor") < provenance_rank(PROV_ADVERSARIAL)
     assert provenance_rank(PROV_BRANCH) < provenance_rank(PROV_LITERAL)
     assert provenance_rank(PROV_LITERAL) < provenance_rank(PROV_ADVERSARIAL)
-    merged = {w.value: w.provenance for w in
-              witness_set(ORIGINAL, guarded("a * 3 == 30000"))}
+    merged = {
+        w.value: w.provenance for w in witness_set(ORIGINAL, guarded("a * 3 == 30000"))
+    }
     assert merged[10000] == "predicate:divisor"
     assert 10000 in {w.value for w in adversarial_witnesses()}
 
@@ -455,11 +460,11 @@ def test_the_witness_set_is_deduplicated_and_ordered_derived_first() -> None:
     values = [w.value for w in merged]
     assert len(values) == len(set(values)), "a duplicated witness is wasted budget"
     derived = [i for i, w in enumerate(merged) if w.provenance == PROV_ISQRT]
-    adversarial = [i for i, w in enumerate(merged)
-                   if w.provenance == PROV_ADVERSARIAL]
+    adversarial = [i for i, w in enumerate(merged) if w.provenance == PROV_ADVERSARIAL]
     assert max(derived) < min(adversarial), (
         "derived witnesses must be tried first, or the reported strategy is "
-        "whichever leg ran first rather than the one that earned it")
+        "whichever leg ran first rather than the one that earned it"
+    )
 
 
 def test_the_axis_sweep_pins_a_witness_into_every_argument_position() -> None:
@@ -474,8 +479,7 @@ def test_the_axis_sweep_pins_a_witness_into_every_argument_position() -> None:
     assert verdict.distinguishing_input[1] == 9999
     assert verdict.witness_provenance == PROV_ISQRT
 
-    points = {p for p, _ in witness_points(
-        (Witness(4242, PROV_LITERAL),), (0,), 2)}
+    points = {p for p, _ in witness_points((Witness(4242, PROV_LITERAL),), (0,), 2)}
     for companion in AXIS_COMPANIONS:
         assert (4242, companion) in points
         assert (companion, 4242) in points
@@ -484,7 +488,8 @@ def test_the_axis_sweep_pins_a_witness_into_every_argument_position() -> None:
 def test_a_mutant_missing_the_function_is_not_excluded() -> None:
     """Nothing observed is not the same as no difference observed."""
     verdict = observationally_equivalent_under_witness_set(
-        ORIGINAL, "def g(x: int) -> int:\n    return x\n", "f", 2)
+        ORIGINAL, "def g(x: int) -> int:\n    return x\n", "f", 2
+    )
     assert not verdict.indistinguishable
     assert verdict.points_tested == 0
     assert "missing" in verdict.note
@@ -500,16 +505,19 @@ def test_the_grid_stays_small_enough_to_cross_product() -> None:
     grid = grid_values(ORIGINAL, guarded("a * a == 99980001"))
     assert len(grid) <= 32, f"grid grew to {len(grid)} values — cost is len**arity"
     assert len(witness_set(ORIGINAL, guarded("a * a == 99980001"))) > len(grid), (
-        "the witness set must be strictly richer than the grid it replaces")
+        "the witness set must be strictly richer than the grid it replaces"
+    )
 
 
 # --------------------------------------------------------------------------
 # Zero denominator. Every mutant excluded means nothing was measured.
 # --------------------------------------------------------------------------
-ADD_SPECS = ["specs/add_spec.lean", "specs/addid_spec.lean",
-             "specs/addsucc_spec.lean"]
-ADD_COMMUTED = (REPO / "src" / "add.py").read_text(
-    encoding="utf-8").replace("return a + b", "return b + a")
+ADD_SPECS = ["specs/add_spec.lean", "specs/addid_spec.lean", "specs/addsucc_spec.lean"]
+ADD_COMMUTED = (
+    (REPO / "src" / "add.py")
+    .read_text(encoding="utf-8")
+    .replace("return a + b", "return b + a")
+)
 
 
 def test_all_mutants_excluded_is_a_hard_fail(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -520,6 +528,7 @@ def test_all_mutants_excluded_is_a_hard_fail(monkeypatch: pytest.MonkeyPatch) ->
     so at --min-score 0 an all-excluded run returned PASS having killed nothing.
     """
     monkeypatch.chdir(REPO)
+
     def only_a_commuted_mutant(_source: str) -> list[Mutant]:
         return [Mutant(name="swap operands", source=ADD_COMMUTED)]
 
@@ -530,12 +539,14 @@ def test_all_mutants_excluded_is_a_hard_fail(monkeypatch: pytest.MonkeyPatch) ->
     assert result["observationally_equivalent"] == 1
     assert result["mutation_score"] == 0.0
     assert result["verdict"] == "FAIL", (
-        "every mutant excluded, nothing killed, and the gate said PASS")
+        "every mutant excluded, nothing killed, and the gate said PASS"
+    )
     assert "zero denominator" in str(result["fail_reason"])
 
 
 def test_no_mutants_at_all_is_also_a_hard_fail(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(REPO)
+
     def no_mutants(_source: str) -> list[Mutant]:
         return []
 
@@ -556,7 +567,8 @@ def test_a_real_run_still_has_a_denominator() -> None:
     assert result["witness_set_size"] > 0
     # Every mutant left in the denominator names the strategy that kept it there.
     assert result["distinguished_by"] and all(
-        v for v in result["distinguished_by"].values())
+        v for v in result["distinguished_by"].values()
+    )
 
 
 def test_the_deprecated_key_still_carries_the_same_count() -> None:
@@ -570,8 +582,13 @@ def test_the_deprecated_key_still_carries_the_same_count() -> None:
 # The claim has to be legible in the output, or it is not a claim.
 # --------------------------------------------------------------------------
 def run_mutation_gate(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run([PY, "scripts/mutation_gate.py", *ADD_SPECS, *args],
-                          cwd=REPO, capture_output=True, text=True, timeout=300)
+    return subprocess.run(
+        [PY, "scripts/mutation_gate.py", *ADD_SPECS, *args],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
 
 
 def test_output_states_the_witness_set_and_the_seed() -> None:
@@ -602,7 +619,8 @@ def test_output_names_the_strategy_for_every_mutant_it_kept() -> None:
 def test_output_does_not_call_them_equivalent_mutants() -> None:
     out = run_mutation_gate("--min-score", "0.95")
     assert "equivalent mutants" not in out.stdout.lower(), (
-        "the gate is claiming equivalence it did not establish")
+        "the gate is claiming equivalence it did not establish"
+    )
 
 
 def test_the_evidence_scraper_still_matches_this_gate() -> None:
@@ -614,11 +632,15 @@ def test_the_evidence_scraper_still_matches_this_gate() -> None:
     what stops the next rename from breaking it quietly.
     """
     out = run_mutation_gate("--min-score", "0.95")
-    pattern = next(p for p, field in run_gate.SCOPE_PATTERNS
-                   if field == "indistinguishable_on_sample")
+    pattern = next(
+        p
+        for p, field in run_gate.SCOPE_PATTERNS
+        if field == "indistinguishable_on_sample"
+    )
     match = pattern.search(out.stdout)
     assert match is not None, (
-        "run_gate.py can no longer scrape the exclusion count from this gate")
+        "run_gate.py can no longer scrape the exclusion count from this gate"
+    )
     assert match.group(1) == "1"
 
 

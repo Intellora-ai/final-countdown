@@ -93,11 +93,22 @@ def steps_of(job: dict[str, Any]) -> list[dict[str, Any]]:
 # the command and runs nothing, which is the exact "containment is not
 # execution" failure this checker exists to catch. An allowlist rather than a
 # denylist of printers, because an unknown launcher must fail closed.
-LAUNCHERS = {"python", "python3", "bash", "sh", "pytest", "pyright", "bandit",
-             "coverage", "mutmut", "npm", "npx"}
+LAUNCHERS = {
+    "python",
+    "python3",
+    "bash",
+    "sh",
+    "pytest",
+    "pyright",
+    "bandit",
+    "coverage",
+    "mutmut",
+    "npm",
+    "npx",
+}
 
 
-Word = tuple[str, bool]          # (text, any of it came from inside quotes)
+Word = tuple[str, bool]  # (text, any of it came from inside quotes)
 Segment = list[Word]
 
 
@@ -125,8 +136,8 @@ def lex(line: str) -> tuple[list[Segment], list[str]]:
     segments: list[Segment] = [[]]
     operators: list[str] = []
     word = ""
-    quoted = False          # some of this word came from inside quotes
-    started = False         # a word is being accumulated right now
+    quoted = False  # some of this word came from inside quotes
+    started = False  # a word is being accumulated right now
     single = double = False
     i, n = 0, len(line)
 
@@ -162,7 +173,7 @@ def lex(line: str) -> tuple[list[Segment], list[str]]:
         elif ch.isspace():
             flush()
         elif ch == "#" and not started:
-            break                       # unquoted comment: nothing after it runs
+            break  # unquoted comment: nothing after it runs
         elif ch in ";|&":
             flush()
             operator = ch
@@ -216,21 +227,24 @@ def segment_runs(segment: Segment, token_words: list[str]) -> bool:
         return False
     # `VAR=x cmd …` — step past leading environment assignments.
     i = 0
-    while (i < len(segment) and "=" in segment[i][0]
-           and not segment[i][0].startswith("-")):
+    while (
+        i < len(segment) and "=" in segment[i][0] and not segment[i][0].startswith("-")
+    ):
         i += 1
     if i >= len(segment):
         return False
     head, head_quoted = segment[i]
-    if head_quoted or not (word_satisfies(head, token_words[0])
-                           or head in LAUNCHERS):
+    if head_quoted or not (word_satisfies(head, token_words[0]) or head in LAUNCHERS):
         return False
     argv = segment[i:]
     return any(
-        all(not argv[start + k][1]
+        all(
+            not argv[start + k][1]
             and word_satisfies(argv[start + k][0], token_words[k])
-            for k in range(len(token_words)))
-        for start in range(len(argv) - len(token_words) + 1))
+            for k in range(len(token_words))
+        )
+        for start in range(len(argv) - len(token_words) + 1)
+    )
 
 
 def logical_lines(run: str) -> list[str]:
@@ -265,8 +279,7 @@ def logical_lines(run: str) -> list[str]:
 
 
 def line_executes(line: str, token_words: list[str]) -> bool:
-    return any(segment_runs(seg, token_words)
-               for seg in lex(mask_expressions(line))[0])
+    return any(segment_runs(seg, token_words) for seg in lex(mask_expressions(line))[0])
 
 
 def executes(run: str, token: str) -> bool:
@@ -329,8 +342,9 @@ def chain_without_errexit(run: str, token_words: list[str]) -> bool:
             continue
         # The gate runs on this line. If it is not a `bash -c`, the `run:`
         # block's own errexit applies and there is nothing to arm.
-        words = [w for segment in lex(mask_expressions(line))[0]
-                 for w, _quoted in segment]
+        words = [
+            w for segment in lex(mask_expressions(line))[0] for w, _quoted in segment
+        ]
         if not any(w.endswith("bash") or w.endswith("sh") for w in words):
             return False
         if "-c" not in words:
@@ -398,9 +412,12 @@ def main() -> None:
         manifest = tomllib.loads(MANIFEST.read_text(encoding="utf-8"))
         gates: dict[str, dict[str, Any]] = manifest.get("gates", {})
         mandatory = {n: s for n, s in gates.items() if s.get("mandatory")}
-        g.set_scope(manifest=str(MANIFEST), gates_declared=len(gates),
-                    mandatory=len(mandatory),
-                    workflows_on_disk=len(list(WORKFLOWS.glob("*.yml"))))
+        g.set_scope(
+            manifest=str(MANIFEST),
+            gates_declared=len(gates),
+            mandatory=len(mandatory),
+            workflows_on_disk=len(list(WORKFLOWS.glob("*.yml"))),
+        )
 
         ok = True
         parsed: dict[str, dict[str, Any]] = {}
@@ -412,10 +429,13 @@ def main() -> None:
             if not wf.is_file():
                 ok = False
                 g.check(f"{name}: workflow exists", False, str(wf))
-                g.fail(what=f"gate '{name}' lost its workflow", where=str(wf),
-                       requirement="Every declared gate must have a workflow file.",
-                       fix=f"Restore {wf} or remove the gate from {MANIFEST} "
-                           "and the ruleset together.")
+                g.fail(
+                    what=f"gate '{name}' lost its workflow",
+                    where=str(wf),
+                    requirement="Every declared gate must have a workflow file.",
+                    fix=f"Restore {wf} or remove the gate from {MANIFEST} "
+                    "and the ruleset together.",
+                )
                 continue
 
             # A code-scanning results check has no job: GitHub's app posts it
@@ -432,10 +452,13 @@ def main() -> None:
                 except yaml.YAMLError as exc:
                     ok = False
                     g.check(f"{wf.name}: parses", False, str(exc)[:80])
-                    g.fail(what=f"{wf.name} is not valid YAML", where=str(wf),
-                           why=str(exc)[:200],
-                           requirement="A workflow that does not parse runs no gates.",
-                           fix="Fix the YAML syntax.")
+                    g.fail(
+                        what=f"{wf.name} is not valid YAML",
+                        where=str(wf),
+                        why=str(exc)[:200],
+                        requirement="A workflow that does not parse runs no gates.",
+                        fix="Fix the YAML syntax.",
+                    )
                     continue
                 parsed[str(wf)] = cast("dict[str, Any]", loaded or {})
             doc = parsed[str(wf)]
@@ -447,12 +470,15 @@ def main() -> None:
             g.check(f"{name}: job '{job_id}' declared", has_job, str(wf))
             if not has_job:
                 ok = False
-                g.fail(what=f"job '{job_id}' renamed or removed", where=str(wf),
-                       requirement="The ruleset requires this exact job id as a "
-                                   "check context. A rename makes the required "
-                                   "check permanently pending, not failing.",
-                       fix=f"Restore job id `{job_id}` or update the ruleset "
-                           f"and {MANIFEST} together.")
+                g.fail(
+                    what=f"job '{job_id}' renamed or removed",
+                    where=str(wf),
+                    requirement="The ruleset requires this exact job id as a "
+                    "check context. A rename makes the required "
+                    "check permanently pending, not failing.",
+                    fix=f"Restore job id `{job_id}` or update the ruleset "
+                    f"and {MANIFEST} together.",
+                )
                 continue
             job = cast("dict[str, Any]", job_obj)
 
@@ -460,23 +486,32 @@ def main() -> None:
             allowed_if = spec.get("job_if")
             job_if = job.get("if")
             if_ok = (job_if is None) or (str(job_if).strip() == str(allowed_if).strip())
-            g.check(f"{name}: job condition", if_ok,
-                    f"if: {job_if}" if job_if else "unconditional")
+            g.check(
+                f"{name}: job condition",
+                if_ok,
+                f"if: {job_if}" if job_if else "unconditional",
+            )
             if not if_ok:
                 ok = False
-                g.fail(what=f"job '{job_id}' runs conditionally", where=str(wf),
-                       why=f"if: {job_if}",
-                       requirement="A mandatory job must run every time, unless "
-                                   f"{MANIFEST} declares the condition.",
-                       fix=f"Remove the condition, or declare job_if in {MANIFEST}.")
+                g.fail(
+                    what=f"job '{job_id}' runs conditionally",
+                    where=str(wf),
+                    why=f"if: {job_if}",
+                    requirement="A mandatory job must run every time, unless "
+                    f"{MANIFEST} declares the condition.",
+                    fix=f"Remove the condition, or declare job_if in {MANIFEST}.",
+                )
 
             # 3. job-level continue-on-error
             if job.get("continue-on-error"):
                 ok = False
                 g.check(f"{name}: job propagates failure", False, "continue-on-error")
-                g.fail(what=f"continue-on-error on job '{job_id}'", where=str(wf),
-                       requirement="A mandatory gate must propagate failure.",
-                       fix="Remove continue-on-error.")
+                g.fail(
+                    what=f"continue-on-error on job '{job_id}'",
+                    where=str(wf),
+                    requirement="A mandatory gate must propagate failure.",
+                    fix="Remove continue-on-error.",
+                )
 
             steps = steps_of(job)
 
@@ -484,40 +519,57 @@ def main() -> None:
             for token in [str(c) for c in spec.get("must_contain", [])]:
                 # `uses:` is an action reference — the token IS what runs.
                 # `run:` needs the stronger test: present is not executed.
-                carriers = [s for s in steps
-                            if token in str(s.get("uses", ""))
-                            or executes(str(s.get("run", "")), token)]
-                g.check(f"{name}: invokes {token}", bool(carriers),
-                        f"{len(carriers)} step(s)")
+                carriers = [
+                    s
+                    for s in steps
+                    if token in str(s.get("uses", ""))
+                    or executes(str(s.get("run", "")), token)
+                ]
+                g.check(
+                    f"{name}: invokes {token}",
+                    bool(carriers),
+                    f"{len(carriers)} step(s)",
+                )
                 if not carriers:
                     ok = False
-                    g.fail(what=f"gate '{name}' no longer invokes its command",
-                           where=str(wf), why=f"no step runs: {token}",
-                           requirement="A required check must still execute its "
-                                       "verifier. Removing the step leaves the "
-                                       "check green and the gate gone.",
-                           fix=f"Restore `{token}` in {wf}, or remove the gate "
-                               f"from {MANIFEST} and the ruleset together.")
+                    g.fail(
+                        what=f"gate '{name}' no longer invokes its command",
+                        where=str(wf),
+                        why=f"no step runs: {token}",
+                        requirement="A required check must still execute its "
+                        "verifier. Removing the step leaves the "
+                        "check green and the gate gone.",
+                        fix=f"Restore `{token}` in {wf}, or remove the gate "
+                        f"from {MANIFEST} and the ruleset together.",
+                    )
                     continue
                 for step in carriers:
                     label = str(step.get("name", token))[:40]
                     if step.get("if") is not None:
                         ok = False
-                        g.check(f"{name}: step unconditional", False,
-                                f"{label}: if: {step['if']}")
-                        g.fail(what=f"gate step in '{name}' runs conditionally",
-                               where=f"{wf} -> {label}", why=f"if: {step['if']}",
-                               requirement="A conditioned gate step is a deleted "
-                                           "gate: the job still exits 0 and the "
-                                           "required check still goes green.",
-                               fix="Remove the `if:` from the gate step.")
+                        g.check(
+                            f"{name}: step unconditional",
+                            False,
+                            f"{label}: if: {step['if']}",
+                        )
+                        g.fail(
+                            what=f"gate step in '{name}' runs conditionally",
+                            where=f"{wf} -> {label}",
+                            why=f"if: {step['if']}",
+                            requirement="A conditioned gate step is a deleted "
+                            "gate: the job still exits 0 and the "
+                            "required check still goes green.",
+                            fix="Remove the `if:` from the gate step.",
+                        )
                     if step.get("continue-on-error"):
                         ok = False
                         g.check(f"{name}: step propagates failure", False, label)
-                        g.fail(what=f"continue-on-error on a gate step in '{name}'",
-                               where=f"{wf} -> {label}",
-                               requirement="Never convert a gate failure into success.",
-                               fix="Remove continue-on-error.")
+                        g.fail(
+                            what=f"continue-on-error on a gate step in '{name}'",
+                            where=f"{wf} -> {label}",
+                            requirement="Never convert a gate failure into success.",
+                            fix="Remove continue-on-error.",
+                        )
                     run = str(step.get("run", ""))
                     token_words = token.split()
                     # A `bash -c` CHAIN DOES NOT INHERIT ERREXIT, and nothing
@@ -542,51 +594,65 @@ def main() -> None:
                     # is the cheapest possible edit and it must not be silent.
                     if chain_without_errexit(run, token_words):
                         ok = False
-                        g.check(f"{name}: chain arms errexit", False,
-                                "bash -c without `set -e`")
-                        g.fail(what=f"a `bash -c` chain in '{name}' never enables errexit",
-                               where=f"{wf} -> {label}",
-                               why="`bash -c` starts with errexit OFF, so every "
-                                   "command after a failing one still runs and "
-                                   "the chain's exit code is the LAST command's.",
-                               requirement="A chain that wraps several "
-                                           "verifications must stop at the first "
-                                           "failure, or its exit code is not its "
-                                           "verdict.",
-                               fix="Add `set -e` as the first line of the "
-                                   "`bash -c` script.",
-                               code="CHAIN_WITHOUT_ERREXIT")
+                        g.check(
+                            f"{name}: chain arms errexit",
+                            False,
+                            "bash -c without `set -e`",
+                        )
+                        g.fail(
+                            what=f"a `bash -c` chain in '{name}' never enables errexit",
+                            where=f"{wf} -> {label}",
+                            why="`bash -c` starts with errexit OFF, so every "
+                            "command after a failing one still runs and "
+                            "the chain's exit code is the LAST command's.",
+                            requirement="A chain that wraps several "
+                            "verifications must stop at the first "
+                            "failure, or its exit code is not its "
+                            "verdict.",
+                            fix="Add `set -e` as the first line of the "
+                            "`bash -c` script.",
+                            code="CHAIN_WITHOUT_ERREXIT",
+                        )
                     disabled = errexit_off_at(run, token_words)
                     if disabled is not None:
                         ok = False
                         g.check(f"{name}: errexit in force", False, disabled)
-                        g.fail(what=f"errexit disabled around the gate in '{name}'",
-                               where=f"{wf} -> {label}", why=disabled,
-                               requirement="A `run:` block is `bash -e`, so a "
-                                           "failing gate aborts the step. With "
-                                           "`set +e` the step's status becomes "
-                                           "whatever runs last instead, and the "
-                                           "gate's failure decides nothing.",
-                               fix="Remove `set +e`, or move the gate command "
-                                   "into its own step.")
+                        g.fail(
+                            what=f"errexit disabled around the gate in '{name}'",
+                            where=f"{wf} -> {label}",
+                            why=disabled,
+                            requirement="A `run:` block is `bash -e`, so a "
+                            "failing gate aborts the step. With "
+                            "`set +e` the step's status becomes "
+                            "whatever runs last instead, and the "
+                            "gate's failure decides nothing.",
+                            fix="Remove `set +e`, or move the gate command "
+                            "into its own step.",
+                        )
                     for line in logical_lines(run):
                         if not line_executes(line, token_words):
                             continue
                         found = suppressors(line)
                         if found:
                             ok = False
-                            g.check(f"{name}: no suppression", False,
-                                    f"{' '.join(sorted(set(found)))} :: "
-                                    f"{line.strip()[:60]}")
-                            g.fail(what=f"failure suppressed in '{name}'",
-                                   where=f"{wf} -> {label}", why=line.strip()[:120],
-                                   requirement="The gate command must be the last "
-                                               "thing on its line that can decide "
-                                               "the step's exit status. `"
-                                               + "`, `".join(sorted(set(found)))
-                                               + "` takes that away from it.",
-                                   fix="Put the gate command last and alone. Split "
-                                       "anything else onto its own line.")
+                            g.check(
+                                f"{name}: no suppression",
+                                False,
+                                f"{' '.join(sorted(set(found)))} :: "
+                                f"{line.strip()[:60]}",
+                            )
+                            g.fail(
+                                what=f"failure suppressed in '{name}'",
+                                where=f"{wf} -> {label}",
+                                why=line.strip()[:120],
+                                requirement="The gate command must be the last "
+                                "thing on its line that can decide "
+                                "the step's exit status. `"
+                                + "`, `".join(sorted(set(found)))
+                                + "` takes that away from it.",
+                                fix="Put the gate command last and alone. Split "
+                                "anything else onto its own line.",
+                            )
 
             # 7. evidence must be uploaded, and its absence must be loud.
             # A scanner is exempt from THIS check only: CodeQL's result is a
@@ -595,76 +661,106 @@ def main() -> None:
             # still checked above, and the ruleset's code_scanning rule is what
             # reads the result.
             if str(spec.get("role", "")) == "scanner":
-                g.check(f"{name}: publishes to code scanning", True,
-                        str(spec.get("evidence", "")))
+                g.check(
+                    f"{name}: publishes to code scanning",
+                    True,
+                    str(spec.get("evidence", "")),
+                )
                 continue
             artifact = str(spec.get("artifact", ""))
-            uploads = [s for s in steps
-                       if "upload-artifact" in str(s.get("uses", ""))
-                       and str(cast("dict[str, Any]",
-                                    s.get("with", {})).get("name", "")) == artifact]
+            uploads = [
+                s
+                for s in steps
+                if "upload-artifact" in str(s.get("uses", ""))
+                and str(cast("dict[str, Any]", s.get("with", {})).get("name", ""))
+                == artifact
+            ]
             g.check(f"{name}: uploads {artifact}", bool(uploads))
             if not uploads:
                 ok = False
-                g.fail(what=f"gate '{name}' preserves no evidence", where=str(wf),
-                       why=f"no upload-artifact step named {artifact!r}",
-                       requirement="Reports must survive the run and the log "
-                                   "retention window, especially on failure.",
-                       fix=f"Add actions/upload-artifact named {artifact} with "
-                           "`if: always()` and `if-no-files-found: error`.")
+                g.fail(
+                    what=f"gate '{name}' preserves no evidence",
+                    where=str(wf),
+                    why=f"no upload-artifact step named {artifact!r}",
+                    requirement="Reports must survive the run and the log "
+                    "retention window, especially on failure.",
+                    fix=f"Add actions/upload-artifact named {artifact} with "
+                    "`if: always()` and `if-no-files-found: error`.",
+                )
             for step in uploads:
                 with_ = cast("dict[str, Any]", step.get("with", {}))
                 if str(step.get("if", "")).strip() != "always()":
                     ok = False
                     g.check(f"{name}: uploads on failure", False, str(step.get("if")))
-                    g.fail(what=f"'{name}' only uploads evidence when it passes",
-                           where=f"{wf} -> {artifact}",
-                           requirement="Evidence matters most on failure.",
-                           fix="Add `if: always()` to the upload step.")
+                    g.fail(
+                        what=f"'{name}' only uploads evidence when it passes",
+                        where=f"{wf} -> {artifact}",
+                        requirement="Evidence matters most on failure.",
+                        fix="Add `if: always()` to the upload step.",
+                    )
                 if str(with_.get("if-no-files-found", "")) != "error":
                     ok = False
-                    g.check(f"{name}: missing evidence is loud", False,
-                            str(with_.get("if-no-files-found")))
-                    g.fail(what=f"'{name}' ignores a missing artifact",
-                           where=f"{wf} -> {artifact}",
-                           why="if-no-files-found is not 'error', so a gate that "
-                               "produced no evidence uploads nothing and the job "
-                               "stays green",
-                           requirement="Artifact absence must be detectable.",
-                           fix="Set `if-no-files-found: error`.")
+                    g.check(
+                        f"{name}: missing evidence is loud",
+                        False,
+                        str(with_.get("if-no-files-found")),
+                    )
+                    g.fail(
+                        what=f"'{name}' ignores a missing artifact",
+                        where=f"{wf} -> {artifact}",
+                        why="if-no-files-found is not 'error', so a gate that "
+                        "produced no evidence uploads nothing and the job "
+                        "stays green",
+                        requirement="Artifact absence must be detectable.",
+                        fix="Set `if-no-files-found: error`.",
+                    )
 
         # 8. every script any workflow invokes exists
         for wf in sorted(WORKFLOWS.glob("*.yml")):
-            for script in sorted(set(re.findall(r"scripts/[\w./-]+\.(?:py|sh)",
-                                                wf.read_text(encoding="utf-8")))):
+            for script in sorted(
+                set(
+                    re.findall(
+                        r"scripts/[\w./-]+\.(?:py|sh)", wf.read_text(encoding="utf-8")
+                    )
+                )
+            ):
                 if not Path(script).is_file():
                     ok = False
                     g.check(f"{wf.name}: {script}", False, "missing")
-                    g.fail(what="workflow calls a script that does not exist",
-                           where=f"{wf.name} -> {script}",
-                           requirement="Every invoked verifier must exist.",
-                           fix=f"Restore {script} or remove the step.")
+                    g.fail(
+                        what="workflow calls a script that does not exist",
+                        where=f"{wf.name} -> {script}",
+                        requirement="Every invoked verifier must exist.",
+                        fix=f"Restore {script} or remove the step.",
+                    )
 
         # 9. the manifest agrees with itself
         ruleset: dict[str, Any] = manifest.get("ruleset", {})
         required = {str(c) for c in ruleset.get("required_checks", [])}
         aligned = required == set(mandatory)
-        g.check("required_checks == mandatory gates", aligned,
-                f"{len(required)} required, {len(mandatory)} mandatory")
+        g.check(
+            "required_checks == mandatory gates",
+            aligned,
+            f"{len(required)} required, {len(mandatory)} mandatory",
+        )
         if not aligned:
             ok = False
             for ctx in sorted(required - set(mandatory)):
-                g.fail(what=f"ruleset requires '{ctx}' but no gate declares it",
-                       requirement="Required checks must map to real jobs, or "
-                                   "merges hang forever.",
-                       fix=f"Add the gate to {MANIFEST} or drop '{ctx}'.")
+                g.fail(
+                    what=f"ruleset requires '{ctx}' but no gate declares it",
+                    requirement="Required checks must map to real jobs, or "
+                    "merges hang forever.",
+                    fix=f"Add the gate to {MANIFEST} or drop '{ctx}'.",
+                )
             for name in sorted(set(mandatory) - required):
-                g.fail(what=f"gate '{name}' is mandatory but not required",
-                       why="it runs, it can go red, and nothing is blocked by it",
-                       requirement="A mandatory gate that GitHub does not require "
-                                   "blocks nothing.",
-                       fix=f"Add '{name}' to required_checks in {MANIFEST} and to "
-                           "the ruleset.")
+                g.fail(
+                    what=f"gate '{name}' is mandatory but not required",
+                    why="it runs, it can go red, and nothing is blocked by it",
+                    requirement="A mandatory gate that GitHub does not require "
+                    "blocks nothing.",
+                    fix=f"Add '{name}' to required_checks in {MANIFEST} and to "
+                    "the ruleset.",
+                )
 
         # 10. docs must not tell anyone to run a verifier that is gone.
         # Scoped to INVOCATIONS, not every mention: evidence.md legitimately
@@ -673,18 +769,25 @@ def main() -> None:
         for doc in DOCS:
             if not doc.is_file():
                 continue
-            for script in sorted(set(re.findall(
-                    r"(?:python3?|bash|sh)\s+(scripts/[\w./-]+\.(?:py|sh))",
-                    doc.read_text(encoding="utf-8")))):
+            for script in sorted(
+                set(
+                    re.findall(
+                        r"(?:python3?|bash|sh)\s+(scripts/[\w./-]+\.(?:py|sh))",
+                        doc.read_text(encoding="utf-8"),
+                    )
+                )
+            ):
                 if not Path(script).is_file():
                     ok = False
                     g.check(f"{doc}: {script}", False, "missing")
-                    g.fail(what="documentation names a script that does not exist",
-                           where=f"{doc} -> {script}",
-                           why="the doc describes a verifier the repo no longer has",
-                           requirement="Docs must not describe a verification "
-                                       "system that is not the one running.",
-                           fix=f"Update {doc}, or restore {script}.")
+                    g.fail(
+                        what="documentation names a script that does not exist",
+                        where=f"{doc} -> {script}",
+                        why="the doc describes a verifier the repo no longer has",
+                        requirement="Docs must not describe a verification "
+                        "system that is not the one running.",
+                        fix=f"Update {doc}, or restore {script}.",
+                    )
 
         g.artifact("reports/preflight.json")
         g.passed() if ok else g.failed()

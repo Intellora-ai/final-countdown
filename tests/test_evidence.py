@@ -43,7 +43,12 @@ FAKE_TOKEN = "github" + "_pat_" + "11ABCDEFG0" + "abcdefghijklmnop"
 def run_generator(output: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(SCRIPT), "--output", str(output)],
-        cwd=REPO, capture_output=True, text=True, timeout=300, check=False)
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        timeout=300,
+        check=False,
+    )
 
 
 @pytest.fixture(scope="module")
@@ -69,15 +74,20 @@ def test_generator_exits_zero(tmp_path: Path) -> None:
 
 
 def test_output_names_the_current_commit(generated: str) -> None:
-    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO,
-                          capture_output=True, text=True, check=True
-                          ).stdout.strip()
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
     assert len(head) == 40, "expected a full SHA to search for"
     assert head in generated, "evidence does not carry the commit it describes"
 
 
 def test_output_is_not_a_stale_copy_of_the_old_hand_written_file(
-        generated: str) -> None:
+    generated: str,
+) -> None:
     """The point of the change: the artifact must announce that it is output.
 
     Without this, a future hand edit reintroduces exactly the drift the
@@ -118,17 +128,30 @@ def test_scanner_does_not_fire_on_a_git_sha() -> None:
 
     ci/gates.toml pins actions by SHA, so these reach the output legitimately.
     """
-    assert gen.scan_for_disclosure_shapes("commit 94c59675f78aae22137e65ea1c4ae9c01d9f9416") == []
-    assert gen.scan_for_disclosure_shapes(
-        "github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd") == []
+    assert (
+        gen.scan_for_disclosure_shapes(
+            "commit 94c59675f78aae22137e65ea1c4ae9c01d9f9416"
+        )
+        == []
+    )
+    assert (
+        gen.scan_for_disclosure_shapes(
+            "github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd"
+        )
+        == []
+    )
 
 
 def test_scanner_does_not_fire_on_english_containing_sk_dash() -> None:
-    assert gen.scan_for_disclosure_shapes("a risk-free, task-based, disk-bound design") == []
+    assert (
+        gen.scan_for_disclosure_shapes("a risk-free, task-based, disk-bound design")
+        == []
+    )
 
 
 def test_planted_secret_aborts_the_generator_and_writes_nothing(
-        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The historical leak path: a credential inside the prose.
 
     Asserts three things, because two of them are the ones that were missing
@@ -136,8 +159,9 @@ def test_planted_secret_aborts_the_generator_and_writes_nothing(
     warns and writes has not stopped the leak.
     """
     out = tmp_path / "evidence.md"
-    monkeypatch.setattr(gen, "NARRATIVE",
-                        f"## Measured by hand\n\nleaked: {FAKE_TOKEN}\n")
+    monkeypatch.setattr(
+        gen, "NARRATIVE", f"## Measured by hand\n\nleaked: {FAKE_TOKEN}\n"
+    )
 
     with pytest.raises(SystemExit) as excinfo:
         gen.main(["--output", str(out)])
@@ -147,7 +171,8 @@ def test_planted_secret_aborts_the_generator_and_writes_nothing(
 
 
 def test_planted_secret_does_not_clobber_an_existing_file(
-        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Abort must leave the previous evidence intact, not truncate it."""
     out = tmp_path / "evidence.md"
     out.write_text("PREVIOUS EVIDENCE\n", encoding="utf-8")
@@ -168,8 +193,9 @@ def test_generator_cannot_read_the_environment() -> None:
     absence of a capability, and absence is not observable from a passing run.
     """
     source = SCRIPT.read_text(encoding="utf-8")
-    code = "\n".join(line for line in source.splitlines()
-                     if not line.lstrip().startswith("#"))
+    code = "\n".join(
+        line for line in source.splitlines() if not line.lstrip().startswith("#")
+    )
     body = code.split('"""', 2)[-1]  # drop the module docstring's prose
     for forbidden in ("os.environ", "getenv", "environb", "os.putenv"):
         assert forbidden not in body, f"generator references {forbidden}"
@@ -196,8 +222,9 @@ def isolated_tree(root: Path, reports: dict[str, str]) -> Path:
     fresh checkout is, and it excludes every generated directory by
     construction rather than by an exclusion list that can drift.
     """
-    tracked = subprocess.run(["git", "ls-files"], cwd=REPO, capture_output=True,
-                             text=True, check=True).stdout.splitlines()
+    tracked = subprocess.run(
+        ["git", "ls-files"], cwd=REPO, capture_output=True, text=True, check=True
+    ).stdout.splitlines()
     for rel in tracked:
         src, dst = REPO / rel, root / rel
         if not src.is_file():
@@ -208,11 +235,22 @@ def isolated_tree(root: Path, reports: dict[str, str]) -> Path:
     # The generator reads git for the commit identity and the working-tree
     # state, so the copy has to be a repository.
     subprocess.run(["git", "init", "-q", "."], cwd=root, check=True)
-    subprocess.run(["git", "add", "-A"], cwd=root, check=True,
-                   capture_output=True)
-    subprocess.run(["git", "-c", "user.email=t@example.invalid",
-                    "-c", "user.name=t", "commit", "-qm", "isolated"],
-                   cwd=root, check=True, capture_output=True)
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True, capture_output=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.email=t@example.invalid",
+            "-c",
+            "user.name=t",
+            "commit",
+            "-qm",
+            "isolated",
+        ],
+        cwd=root,
+        check=True,
+        capture_output=True,
+    )
 
     (root / "reports").mkdir(exist_ok=True)
     for gate, body in reports.items():
@@ -240,15 +278,32 @@ def test_missing_report_is_not_run_never_pass(tmp_path: Path) -> None:
     """
     present = "present-gate"
     absent = ["axle-verify", "mutmut", "coverage", "full"]
-    root = isolated_tree(tmp_path / "iso", {present: json.dumps({
-        "gate": present, "status": "PASS", "schema_version": "1.3",
-        "checks": [], "failures": [],
-    })})
+    root = isolated_tree(
+        tmp_path / "iso",
+        {
+            present: json.dumps(
+                {
+                    "gate": present,
+                    "status": "PASS",
+                    "schema_version": "1.3",
+                    "checks": [],
+                    "failures": [],
+                }
+            )
+        },
+    )
 
     out = root / "evidence.md"
-    proc = subprocess.run([sys.executable, str(SCRIPT), "--output", str(out)],
-                          cwd=root, capture_output=True, text=True, timeout=300)
-    assert proc.returncode == 0, f"generator failed in the isolated tree:\n{proc.stderr}"
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT), "--output", str(out)],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    assert proc.returncode == 0, (
+        f"generator failed in the isolated tree:\n{proc.stderr}"
+    )
     rendered = out.read_text(encoding="utf-8")
 
     for gate in absent:
@@ -268,9 +323,14 @@ def test_the_isolated_tree_ignores_repository_root_reports(tmp_path: Path) -> No
     """
     root = isolated_tree(tmp_path / "iso", {})
     out = root / "evidence.md"
-    subprocess.run([sys.executable, str(SCRIPT), "--output", str(out)],
-                   cwd=root, capture_output=True, text=True, timeout=300,
-                   check=True)
+    subprocess.run(
+        [sys.executable, str(SCRIPT), "--output", str(out)],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=300,
+        check=True,
+    )
     rendered = out.read_text(encoding="utf-8")
 
     # Whatever the real repository happens to hold right now, every gate is
@@ -278,17 +338,23 @@ def test_the_isolated_tree_ignores_repository_root_reports(tmp_path: Path) -> No
     for gate in ("axle-verify", "mutmut", "coverage", "full"):
         assert gen.NOT_RUN in _gate_row(rendered, gate), (
             f"{gate} did not render NOT_RUN in a tree with an empty reports/; "
-            "the generator is reading a directory other than its own")
+            "the generator is reading a directory other than its own"
+        )
 
 
 def test_every_mandatory_gate_appears(generated: str) -> None:
     import tomllib
+
     manifest: dict[str, Any] = tomllib.loads(
-        (REPO / "ci" / "gates.toml").read_text(encoding="utf-8"))
+        (REPO / "ci" / "gates.toml").read_text(encoding="utf-8")
+    )
     gates: dict[str, Any] = manifest["gates"]
-    mandatory = [name for name, spec in gates.items()
-                 if isinstance(spec, dict)
-                 and cast("dict[str, Any]", spec).get("mandatory") is True]
+    mandatory = [
+        name
+        for name, spec in gates.items()
+        if isinstance(spec, dict)
+        and cast("dict[str, Any]", spec).get("mandatory") is True
+    ]
     assert mandatory
     for name in mandatory:
         _gate_row(generated, name)
@@ -304,12 +370,12 @@ def test_report_for_a_different_gate_is_not_credited(tmp_path: Path) -> None:
     reports = tmp_path / "reports"
     reports.mkdir()
     (reports / "mutmut.json").write_text(
-        '{"gate": "coverage", "status": "PASS", "duration_ms": 1}',
-        encoding="utf-8")
+        '{"gate": "coverage", "status": "PASS", "duration_ms": 1}', encoding="utf-8"
+    )
     (tmp_path / "ci").mkdir()
     (tmp_path / "ci" / "gates.toml").write_text(
-        '[gates.mutmut]\nmandatory = true\nmust_contain = ["x"]\n',
-        encoding="utf-8")
+        '[gates.mutmut]\nmandatory = true\nmust_contain = ["x"]\n', encoding="utf-8"
+    )
 
     rows = gen.mandatory_gates(tmp_path)
     assert rows, "gate not read from the manifest"
@@ -344,19 +410,21 @@ def test_two_runs_differ_only_in_the_timestamp(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # THE CONSTRAINT gate_integrity.py check 10 IMPOSES
 # ---------------------------------------------------------------------------
-def test_every_script_the_evidence_tells_you_to_run_exists(
-        generated: str) -> None:
+def test_every_script_the_evidence_tells_you_to_run_exists(generated: str) -> None:
     """Otherwise the preflight gate fails on the document it just generated."""
     assert gen.scan_for_missing_scripts(generated, REPO) == []
 
 
 def test_generator_refuses_to_emit_an_invocation_of_a_missing_script(
-        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The check must be enforced, not merely satisfied by luck today."""
     out = tmp_path / "evidence.md"
     monkeypatch.setattr(
-        gen, "NARRATIVE",
-        "## Measured by hand\n\nRun `python3 scripts/does_not_exist.py`.\n")
+        gen,
+        "NARRATIVE",
+        "## Measured by hand\n\nRun `python3 scripts/does_not_exist.py`.\n",
+    )
 
     with pytest.raises(SystemExit) as excinfo:
         gen.main(["--output", str(out)])
@@ -371,25 +439,29 @@ def test_mention_without_invocation_is_allowed() -> None:
     The narrative does exactly this. A checker that flagged it would push the
     project toward deleting true statements about what was never built.
     """
-    assert gen.scan_for_missing_scripts(
-        "`translate_to_lean.py` was never built.", REPO) == []
-    assert gen.scan_for_missing_scripts(
-        "Run `python3 scripts/translate_to_lean.py`.", REPO) != []
+    assert (
+        gen.scan_for_missing_scripts("`translate_to_lean.py` was never built.", REPO)
+        == []
+    )
+    assert (
+        gen.scan_for_missing_scripts(
+            "Run `python3 scripts/translate_to_lean.py`.", REPO
+        )
+        != []
+    )
 
 
 # ---------------------------------------------------------------------------
 # CONTENT THAT MUST NOT SILENTLY DISAPPEAR
 # ---------------------------------------------------------------------------
-def test_limitations_section_is_present_and_from_the_constant(
-        generated: str) -> None:
+def test_limitations_section_is_present_and_from_the_constant(generated: str) -> None:
     assert "## LIMITATIONS" in generated
     for clause in gen.LIMITATIONS.splitlines():
         if clause.strip().startswith(("1.", "5.", "10.")):
             assert clause in generated
 
 
-def test_hand_measured_findings_survive_into_the_output(
-        generated: str) -> None:
+def test_hand_measured_findings_survive_into_the_output(generated: str) -> None:
     """The two things a machine cannot re-derive must not be lost in the move."""
     assert "add_comm" in generated, "the Lean hallucination finding is gone"
     assert "Python-to-Lean trust boundary" in generated
@@ -404,8 +476,9 @@ def test_tool_versions_are_measured_or_unavailable(generated: str) -> None:
         assert version, f"{name} produced an empty version cell"
         assert how, f"{name} does not say how it was measured"
         if version != gen.UNAVAILABLE:
-            assert any(ch.isdigit() for ch in version), \
+            assert any(ch.isdigit() for ch in version), (
                 f"{name} version {version!r} carries no version number"
+            )
 
 
 # ===========================================================================
@@ -421,10 +494,22 @@ def test_tool_versions_are_measured_or_unavailable(generated: str) -> None:
 #   3. a collector that dies records a reason instead of destroying the report
 #   4. the fingerprint is a fingerprint: two runs on one machine match
 # ===========================================================================
-CI_VARS = ("GITHUB_SHA", "GITHUB_WORKFLOW", "GITHUB_JOB", "GITHUB_RUN_ID",
-           "GITHUB_RUN_ATTEMPT", "GITHUB_REF", "GITHUB_STEP_SUMMARY",
-           "GITHUB_WORKFLOW_REF", "GITHUB_EVENT_NAME", "GITHUB_EVENT_PATH",
-           "RUNNER_OS", "RUNNER_ARCH", "ImageOS", "ImageVersion")
+CI_VARS = (
+    "GITHUB_SHA",
+    "GITHUB_WORKFLOW",
+    "GITHUB_JOB",
+    "GITHUB_RUN_ID",
+    "GITHUB_RUN_ATTEMPT",
+    "GITHUB_REF",
+    "GITHUB_STEP_SUMMARY",
+    "GITHUB_WORKFLOW_REF",
+    "GITHUB_EVENT_NAME",
+    "GITHUB_EVENT_PATH",
+    "RUNNER_OS",
+    "RUNNER_ARCH",
+    "ImageOS",
+    "ImageVersion",
+)
 
 # Every environment variable scripts/gate.py is allowed to read, by name.
 # Asserted by EQUALITY below, not containment: adding a read has to be argued
@@ -457,7 +542,8 @@ def read_report(tmp_path: Path, name: str) -> dict[str, Any]:
 # 1. THE BLOCKS ARE PRESENT AND CARRY WHAT THEY DECLARE
 # ---------------------------------------------------------------------------
 def test_report_carries_an_environment_block_with_every_declared_field(
-        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None) -> None:
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None
+) -> None:
     monkeypatch.chdir(tmp_path)
     with gate_mod.Gate("shape") as g:
         g.passed()
@@ -469,7 +555,8 @@ def test_report_carries_an_environment_block_with_every_declared_field(
 
 
 def test_environment_and_tool_versions_cannot_disagree(
-        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None) -> None:
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None
+) -> None:
     """tool_versions stays a top-level field because ci/gates.toml requires
     it. Two independently built views of the same fact drift; one does not."""
     monkeypatch.chdir(tmp_path)
@@ -484,8 +571,7 @@ def test_local_run_produces_values_rather_than_none(clean_env: None) -> None:
     """Outside GitHub Actions there is no RUNNER_OS. `local`, never null, and
     never a crash -- the same idiom the report's other fields already use."""
     fingerprint = gate_mod.environment_fingerprint()
-    for field in ("runner_os", "runner_arch", "runner_image",
-                  "runner_image_version"):
+    for field in ("runner_os", "runner_arch", "runner_image", "runner_image_version"):
         assert fingerprint[field] == "local", field
     assert isinstance(fingerprint["python"], str)
     assert fingerprint["python"][0].isdigit()
@@ -499,22 +585,34 @@ def test_local_run_produces_values_rather_than_none(clean_env: None) -> None:
 # ---------------------------------------------------------------------------
 # COST -- a version costs a subprocess, in twelve gates, on every push
 # ---------------------------------------------------------------------------
-@pytest.mark.parametrize(("command", "expected"), [
-    # The real commands, copied from .github/workflows/verify.yml.
-    ("python3 scripts/check_vacuity.py specs/add_spec.lean", []),
-    ("python3 scripts/check_composition.py specs/add_spec.lean "
-     "--min-strength 0.9", []),
-    ("bash scripts/verify_per_function.sh scripts/mutation_gate.py "
-     "--min-score 0.95", []),
-    ('pytest --cov=src --cov-branch --cov-fail-under=95 -m "not axle"',
-     ["coverage", "pytest"]),
-    ("pyright", ["node", "pyright"]),
-    ("python3 scripts/security_gate.py src scripts", ["bandit"]),
-    ("python3 scripts/correspondence_gate.py", ["axle"]),
-    ("", []),
-])
+@pytest.mark.parametrize(
+    ("command", "expected"),
+    [
+        # The real commands, copied from .github/workflows/verify.yml.
+        ("python3 scripts/check_vacuity.py specs/add_spec.lean", []),
+        (
+            "python3 scripts/check_composition.py specs/add_spec.lean "
+            "--min-strength 0.9",
+            [],
+        ),
+        (
+            "bash scripts/verify_per_function.sh scripts/mutation_gate.py "
+            "--min-score 0.95",
+            [],
+        ),
+        (
+            'pytest --cov=src --cov-branch --cov-fail-under=95 -m "not axle"',
+            ["coverage", "pytest"],
+        ),
+        ("pyright", ["node", "pyright"]),
+        ("python3 scripts/security_gate.py src scripts", ["bandit"]),
+        ("python3 scripts/correspondence_gate.py", ["axle"]),
+        ("", []),
+    ],
+)
 def test_only_the_tools_a_gate_actually_ran_are_probed(
-        command: str, expected: list[str]) -> None:
+    command: str, expected: list[str]
+) -> None:
     """Eight of the twelve gates are pure Python and must pay nothing.
 
     Measured: probing all six tools in every gate costs 1426 ms per gate;
@@ -541,23 +639,25 @@ def test_indirect_tool_mappings_still_match_their_wrapper() -> None:
     mapping that stops being true reports nothing rather than failing, and
     nothing notices. Re-derive it from the wrapper's own source instead.
     """
-    indirect = {token: tools for token, tools
-                in gate_mod._COMMAND_TOOLS.items()  # pyright: ignore[reportPrivateUsage]
-                if token.endswith(".py")}
+    indirect = {
+        token: tools
+        for token, tools in gate_mod._COMMAND_TOOLS.items()  # pyright: ignore[reportPrivateUsage]
+        if token.endswith(".py")
+    }
     assert indirect, "no indirect mapping left to check -- delete this test"
     for script, tools in indirect.items():
         source = (REPO / "scripts" / script).read_text(encoding="utf-8")
         for tool in tools:
             assert tool in source, (
                 f"{script} no longer mentions {tool}, so recording {tool}'s "
-                f"version as part of that gate's evidence is a fabrication")
+                f"version as part of that gate's evidence is a fabrication"
+            )
 
 
 # ---------------------------------------------------------------------------
 # 2. SECRET SAFETY -- the test that matters
 # ---------------------------------------------------------------------------
-def test_a_credential_shaped_sentinel_never_reaches_the_report(
-        tmp_path: Path) -> None:
+def test_a_credential_shaped_sentinel_never_reaches_the_report(tmp_path: Path) -> None:
     """Plant a credential in every place the collector could reach it.
 
     The report is uploaded as a public artifact and this repository has
@@ -568,36 +668,55 @@ def test_a_credential_shaped_sentinel_never_reaches_the_report(
     Then assert it is in neither the report nor the log.
     """
     payload = tmp_path / "event.json"
-    payload.write_text(json.dumps({
-        "number": 42,
-        "pull_request": {
-            "head": {"sha": SHA_A, "repo": {"clone_url": FAKE_TOKEN}},
-            "base": {"sha": SHA_B},
-            "user": {"login": "someone", "email": FAKE_TOKEN},
-            "body": f"deploy key {FAKE_TOKEN}",
-        },
-        "repository": {"master_branch": FAKE_TOKEN},
-    }), encoding="utf-8")
+    payload.write_text(
+        json.dumps(
+            {
+                "number": 42,
+                "pull_request": {
+                    "head": {"sha": SHA_A, "repo": {"clone_url": FAKE_TOKEN}},
+                    "base": {"sha": SHA_B},
+                    "user": {"login": "someone", "email": FAKE_TOKEN},
+                    "body": f"deploy key {FAKE_TOKEN}",
+                },
+                "repository": {"master_branch": FAKE_TOKEN},
+            }
+        ),
+        encoding="utf-8",
+    )
 
     env = dict(os.environ)
-    env.update({
-        "GITHUB_TOKEN": FAKE_TOKEN,
-        "ACTIONS_RUNTIME_TOKEN": FAKE_TOKEN,
-        "AWS_SECRET_ACCESS_KEY": FAKE_TOKEN,
-        "NPM_TOKEN": FAKE_TOKEN,
-        # Not an accident: RUNNER_NAME was considered and rejected, and on a
-        # self-hosted fleet it is an internal hostname. If it ever gets added,
-        # this test is what fails.
-        "RUNNER_NAME": FAKE_TOKEN,
-        "RUNNER_OS": "Linux",
-        "GITHUB_EVENT_NAME": "pull_request",
-        "GITHUB_EVENT_PATH": str(payload),
-    })
+    env.update(
+        {
+            "GITHUB_TOKEN": FAKE_TOKEN,
+            "ACTIONS_RUNTIME_TOKEN": FAKE_TOKEN,
+            "AWS_SECRET_ACCESS_KEY": FAKE_TOKEN,
+            "NPM_TOKEN": FAKE_TOKEN,
+            # Not an accident: RUNNER_NAME was considered and rejected, and on a
+            # self-hosted fleet it is an internal hostname. If it ever gets added,
+            # this test is what fails.
+            "RUNNER_NAME": FAKE_TOKEN,
+            "RUNNER_OS": "Linux",
+            "GITHUB_EVENT_NAME": "pull_request",
+            "GITHUB_EVENT_PATH": str(payload),
+        }
+    )
     proc = subprocess.run(
-        [sys.executable, str(RUN_GATE), "--name", "sentinel", "--",
-         "/bin/echo", "hello"],
-        cwd=tmp_path, env=env, capture_output=True, text=True, timeout=300,
-        check=False)
+        [
+            sys.executable,
+            str(RUN_GATE),
+            "--name",
+            "sentinel",
+            "--",
+            "/bin/echo",
+            "hello",
+        ],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=300,
+        check=False,
+    )
 
     raw = (tmp_path / "reports" / "sentinel.json").read_text(encoding="utf-8")
     assert FAKE_TOKEN not in raw, "a credential reached the evidence artifact"
@@ -609,11 +728,15 @@ def test_a_credential_shaped_sentinel_never_reaches_the_report(
     report = cast("dict[str, Any]", json.loads(raw))
     assert report["environment"]["runner_os"] == "Linux", (
         "the collector did not actually read the environment, so this test "
-        "proved nothing")
+        "proved nothing"
+    )
     # Exactly the three fields named, and nothing else from a payload that
     # carried four planted secrets.
     assert report["pull_request"] == {
-        "number": 42, "head_sha": SHA_A, "base_sha": SHA_B}
+        "number": 42,
+        "head_sha": SHA_A,
+        "base_sha": SHA_B,
+    }
 
 
 def test_gate_reads_only_the_environment_variables_named_here() -> None:
@@ -626,10 +749,13 @@ def test_gate_reads_only_the_environment_variables_named_here() -> None:
     tree = ast.parse(GATE.read_text(encoding="utf-8"))
     literals: set[str] = set()
     for node in ast.walk(tree):
-        if (isinstance(node, ast.Call)
-                and ast.unparse(node.func) == "os.environ.get"
-                and node.args and isinstance(node.args[0], ast.Constant)
-                and isinstance(node.args[0].value, str)):
+        if (
+            isinstance(node, ast.Call)
+            and ast.unparse(node.func) == "os.environ.get"
+            and node.args
+            and isinstance(node.args[0], ast.Constant)
+            and isinstance(node.args[0].value, str)
+        ):
             literals.add(node.args[0].value)
     indirect = set(gate_mod._RUNNER_VARS.values())  # pyright: ignore[reportPrivateUsage]
     assert literals | indirect == ALLOWED_ENV_VARS
@@ -637,43 +763,63 @@ def test_gate_reads_only_the_environment_variables_named_here() -> None:
 
 def test_gate_never_enumerates_the_environment() -> None:
     """A blanket dump is the credential leak. There must be no way to write one."""
-    code = "\n".join(line for line in GATE.read_text(encoding="utf-8").splitlines()
-                     if not line.lstrip().startswith("#"))
+    code = "\n".join(
+        line
+        for line in GATE.read_text(encoding="utf-8").splitlines()
+        if not line.lstrip().startswith("#")
+    )
     body = code.split('"""', 2)[-1]
-    for forbidden in ("os.environ.items", "os.environ.keys",
-                      "os.environ.values", "os.environ.copy",
-                      "dict(os.environ", "**os.environ", "environb",
-                      # getenv would read a variable the AST allowlist above
-                      # does not see, which would make that test a decoration.
-                      "os.getenv", "for k in os.environ",
-                      "json.dumps(payload", "json.dumps(_event_payload"):
+    for forbidden in (
+        "os.environ.items",
+        "os.environ.keys",
+        "os.environ.values",
+        "os.environ.copy",
+        "dict(os.environ",
+        "**os.environ",
+        "environb",
+        # getenv would read a variable the AST allowlist above
+        # does not see, which would make that test a decoration.
+        "os.getenv",
+        "for k in os.environ",
+        "json.dumps(payload",
+        "json.dumps(_event_payload",
+    ):
         assert forbidden not in body, f"gate.py contains {forbidden}"
 
 
 def test_the_event_payload_is_never_carried_into_the_report(
-        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None) -> None:
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None
+) -> None:
     """Three scalars are lifted out of it. The payload itself never lands."""
     payload = tmp_path / "event.json"
     marker = "PAYLOAD-FIELD-THAT-MUST-NOT-TRAVEL"
-    payload.write_text(json.dumps({
-        "number": 7,
-        "pull_request": {"head": {"sha": SHA_A}, "base": {"sha": SHA_B},
-                         "title": marker},
-        "sender": {"login": marker},
-    }), encoding="utf-8")
+    payload.write_text(
+        json.dumps(
+            {
+                "number": 7,
+                "pull_request": {
+                    "head": {"sha": SHA_A},
+                    "base": {"sha": SHA_B},
+                    "title": marker,
+                },
+                "sender": {"login": marker},
+            }
+        ),
+        encoding="utf-8",
+    )
     monkeypatch.setenv("GITHUB_EVENT_PATH", str(payload))
     monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
     block = gate_mod.provenance()
     assert marker not in json.dumps(block)
-    assert block["pull_request"] == {
-        "number": 7, "head_sha": SHA_A, "base_sha": SHA_B}
+    assert block["pull_request"] == {"number": 7, "head_sha": SHA_A, "base_sha": SHA_B}
 
 
 # ---------------------------------------------------------------------------
 # 3. RAISE SAFETY -- gate.py is the thing that records failures
 # ---------------------------------------------------------------------------
 def test_environment_collector_that_raises_does_not_destroy_a_recorded_fail(
-        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None) -> None:
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None
+) -> None:
     """The whole reason the collector is wrapped.
 
     An unhandled raise inside the recorder turns a recorded FAIL into a crash
@@ -696,14 +842,15 @@ def test_environment_collector_that_raises_does_not_destroy_a_recorded_fail(
     assert report["status"] == "FAIL", "the verdict was lost"
     environment = cast("dict[str, Any]", report["environment"])
     assert set(environment) == set(gate_mod.ENVIRONMENT_FIELDS), (
-        "the degraded block has a different shape, so a consumer cannot read "
-        "both")
+        "the degraded block has a different shape, so a consumer cannot read both"
+    )
     errors = cast("list[str]", environment["collection_errors"])
     assert any("Boom" in e for e in errors), errors
 
 
 def test_provenance_collector_that_raises_does_not_destroy_the_report(
-        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None) -> None:
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None
+) -> None:
     monkeypatch.chdir(tmp_path)
 
     def explode() -> dict[str, Any]:
@@ -722,14 +869,15 @@ def test_provenance_collector_that_raises_does_not_destroy_the_report(
     # Unverifiable is not verified. A degraded block must not read as a pass.
     assert identity["identity_verified"] is None
     assert report["pull_request"] is None
-    assert any("Boom" in e
-               for e in cast("list[str]", identity["collection_errors"]))
+    assert any("Boom" in e for e in cast("list[str]", identity["collection_errors"]))
 
 
 def test_one_field_failing_does_not_cost_the_others(
-        monkeypatch: pytest.MonkeyPatch, clean_env: None) -> None:
+    monkeypatch: pytest.MonkeyPatch, clean_env: None
+) -> None:
     """Per-field, not all-or-nothing: a broken `platform` must not erase the
     tool versions, which are the fields that usually hold the answer."""
+
     def explode() -> str:
         raise Boom("no platform for you")
 
@@ -738,15 +886,18 @@ def test_one_field_failing_does_not_cost_the_others(
     assert fingerprint["platform"] == gate_mod.UNAVAILABLE
     assert fingerprint["machine"] != gate_mod.UNAVAILABLE
     assert fingerprint["python"][0].isdigit()
-    assert any("platform" in e and "Boom" in e
-               for e in cast("list[str]", fingerprint["collection_errors"]))
+    assert any(
+        "platform" in e and "Boom" in e
+        for e in cast("list[str]", fingerprint["collection_errors"])
+    )
 
 
-def test_a_failed_version_probe_is_recorded_not_guessed(
-        clean_env: None) -> None:
+def test_a_failed_version_probe_is_recorded_not_guessed(clean_env: None) -> None:
     """A tool that is not installed reads `unavailable`, never a version."""
-    assert gate_mod.tool_version(["definitely-not-a-real-binary-xyz", "-v"]) \
+    assert (
+        gate_mod.tool_version(["definitely-not-a-real-binary-xyz", "-v"])
         == gate_mod.UNAVAILABLE
+    )
 
 
 def test_degraded_blocks_have_the_same_keys_as_healthy_ones() -> None:
@@ -754,24 +905,28 @@ def test_degraded_blocks_have_the_same_keys_as_healthy_ones() -> None:
     degraded = gate_mod.degraded_environment("because", {"python": "3.12.0"})
     assert set(healthy) == set(degraded) == set(gate_mod.ENVIRONMENT_FIELDS)
     assert degraded["tools"] == {"python": "3.12.0"}
-    assert set(gate_mod.degraded_provenance("because")) \
-        == set(gate_mod.PROVENANCE_FIELDS)
+    assert set(gate_mod.degraded_provenance("because")) == set(
+        gate_mod.PROVENANCE_FIELDS
+    )
 
 
 # ---------------------------------------------------------------------------
 # 4. DETERMINISM -- a fingerprint that changes between runs is a timestamp
 # ---------------------------------------------------------------------------
 def test_two_collections_on_one_machine_fingerprint_identically(
-        clean_env: None) -> None:
+    clean_env: None,
+) -> None:
     """Nothing timestamped, nothing ordered by chance. Otherwise two reports
     cannot be diffed, which is the only thing the block is for."""
     command = 'pytest --cov=src --cov-branch -m "not axle"'
-    assert gate_mod.environment_fingerprint(command) \
-        == gate_mod.environment_fingerprint(command)
+    assert gate_mod.environment_fingerprint(
+        command
+    ) == gate_mod.environment_fingerprint(command)
 
 
 def test_two_gate_runs_differ_only_where_time_passed(
-        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None) -> None:
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None
+) -> None:
     monkeypatch.chdir(tmp_path)
     blocks: list[dict[str, Any]] = []
     for name in ("det1", "det2"):
@@ -786,14 +941,18 @@ def test_two_gate_runs_differ_only_where_time_passed(
 # PROVENANCE -- which workflow, which event, which tree
 # ---------------------------------------------------------------------------
 def test_push_shaped_event_records_no_pull_request(
-        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None) -> None:
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None
+) -> None:
     """null, not an empty dict and not a guess: on a push there is no PR, and
     a fabricated base SHA would make the report claim a comparison it never
     made."""
     payload = tmp_path / "event.json"
-    payload.write_text(json.dumps(
-        {"ref": "refs/heads/main", "after": SHA_A,
-         "head_commit": {"id": SHA_A}}), encoding="utf-8")
+    payload.write_text(
+        json.dumps(
+            {"ref": "refs/heads/main", "after": SHA_A, "head_commit": {"id": SHA_A}}
+        ),
+        encoding="utf-8",
+    )
     monkeypatch.setenv("GITHUB_EVENT_PATH", str(payload))
     monkeypatch.setenv("GITHUB_EVENT_NAME", "push")
     block = gate_mod.provenance()
@@ -802,13 +961,15 @@ def test_push_shaped_event_records_no_pull_request(
 
 
 def test_a_missing_or_unreadable_event_payload_is_not_a_crash(
-        monkeypatch: pytest.MonkeyPatch, clean_env: None) -> None:
+    monkeypatch: pytest.MonkeyPatch, clean_env: None
+) -> None:
     monkeypatch.setenv("GITHUB_EVENT_PATH", "/no/such/event/payload.json")
     block = gate_mod.provenance()
     assert block["pull_request"] is None
     identity = cast("dict[str, Any]", block["commit_identity"])
-    assert any("event payload" in e
-               for e in cast("list[str]", identity["collection_errors"]))
+    assert any(
+        "event payload" in e for e in cast("list[str]", identity["collection_errors"])
+    )
 
 
 def test_workflow_ref_and_event_fall_back_to_local(clean_env: None) -> None:
@@ -818,7 +979,8 @@ def test_workflow_ref_and_event_fall_back_to_local(clean_env: None) -> None:
 
 
 def test_a_sha_mismatch_downgrades_a_passing_gate_to_infrastructure_failure(
-        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None) -> None:
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None
+) -> None:
     """The point of the check.
 
     If the runner tested a tree GitHub does not attribute this run to, the
@@ -841,12 +1003,15 @@ def test_a_sha_mismatch_downgrades_a_passing_gate_to_infrastructure_failure(
     assert identity["identity_verified"] is False
     assert identity["checked_out_sha"] == SHA_B
     assert identity["expected_sha"] == SHA_A
-    assert any(SHA_A in f["why"] or SHA_A in f["what"]
-               for f in cast("list[dict[str, str]]", report["failures"]))
+    assert any(
+        SHA_A in f["why"] or SHA_A in f["what"]
+        for f in cast("list[dict[str, str]]", report["failures"])
+    )
 
 
 def test_a_matching_sha_verifies_and_leaves_the_verdict_alone(
-        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None) -> None:
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None
+) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("GITHUB_SHA", SHA_A)
     monkeypatch.setattr(gate_mod, "checked_out_sha", lambda: SHA_A)
@@ -858,7 +1023,8 @@ def test_a_matching_sha_verifies_and_leaves_the_verdict_alone(
 
 
 def test_local_run_is_unverified_not_failed(
-        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None) -> None:
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clean_env: None
+) -> None:
     """No GITHUB_SHA means nothing to compare against. `null`, because "not
     checked" is not "checked and fine" -- and certainly not a failure that
     would make every local run of every gate red."""
@@ -874,14 +1040,26 @@ def test_local_run_is_unverified_not_failed(
 
 def test_git_is_asked_and_answers_with_this_repository_head() -> None:
     """The comparison is only worth anything if the left-hand side is real."""
-    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO,
-                          capture_output=True, text=True, check=True
-                          ).stdout.strip()
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
     monkeypatched = subprocess.run(
-        [sys.executable, "-c",
-         "import sys; sys.path.insert(0, 'scripts');"
-         " import gate; print(gate.checked_out_sha())"],
-        cwd=REPO, capture_output=True, text=True, timeout=120, check=True)
+        [
+            sys.executable,
+            "-c",
+            "import sys; sys.path.insert(0, 'scripts');"
+            " import gate; print(gate.checked_out_sha())",
+        ],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=True,
+    )
     assert monkeypatched.stdout.strip() == head
 
 
@@ -899,7 +1077,8 @@ def test_no_checkout_overrides_the_ref_the_identity_check_assumes() -> None:
         assert not re.search(r"^\s+ref:", text, re.MULTILINE), (
             f"{workflow.name} overrides the checkout ref; gate.py's "
             "commit_identity() assumes HEAD == GITHUB_SHA and must be "
-            "revisited before this lands")
+            "revisited before this lands"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -918,22 +1097,24 @@ def test_the_schema_minor_moved_and_the_major_did_not() -> None:
     # Read from ci/gates.toml rather than repeated as a literal here. The
     # manifest is where the version is DECLARED, and a test asserting its own
     # copy of a number proves the two agree with the test, not with each other.
-    declared = tomllib.loads(
-        (REPO / "ci" / "gates.toml").read_text(encoding="utf-8"))
+    declared = tomllib.loads((REPO / "ci" / "gates.toml").read_text(encoding="utf-8"))
     version = str(cast("dict[str, Any]", declared["schema"])["version"])
 
     assert gate_mod.SCHEMA_VERSION == version, (
         f"gate.py writes {gate_mod.SCHEMA_VERSION} and ci/gates.toml declares "
-        f"{version}; the manifest describes a report that is not being written")
+        f"{version}; the manifest describes a report that is not being written"
+    )
     major, minor = version.split(".")[:2]
     assert major == aggregate_gates.SCHEMA_MAJOR, (
         "the major moved, which makes every gate's evidence unreadable to the "
-        "finalizer in the same push that changed a field")
+        "finalizer in the same push that changed a field"
+    )
     assert int(minor) >= 3, (
         "1.3 added the finding fields -- finding_id, severity, code, file, "
         "line, column, root_cause, reproduction_command, is_root_cause, "
         "dependent_on, merge_blocking. A minor below that describes a shape "
-        "gate.py no longer writes")
+        "gate.py no longer writes"
+    )
 
 
 # The xfail(strict=True) marker that stood here has been removed, by the
@@ -950,8 +1131,7 @@ def test_ci_gates_toml_still_declares_the_shape_this_writes() -> None:
     """
     import tomllib  # noqa: PLC0415
 
-    manifest = tomllib.loads(
-        (REPO / "ci" / "gates.toml").read_text(encoding="utf-8"))
+    manifest = tomllib.loads((REPO / "ci" / "gates.toml").read_text(encoding="utf-8"))
     schema = cast("dict[str, Any]", manifest["schema"])
     declared = set(cast("list[str]", schema["required_fields"]))
 
@@ -959,10 +1139,12 @@ def test_ci_gates_toml_still_declares_the_shape_this_writes() -> None:
     missing = sorted(written - declared)
     assert not missing, (
         f"ci/gates.toml [schema].required_fields does not list {missing}; "
-        f"set version = \"{gate_mod.SCHEMA_VERSION}\" and add them")
+        f'set version = "{gate_mod.SCHEMA_VERSION}" and add them'
+    )
     assert schema["version"] == gate_mod.SCHEMA_VERSION, (
         f"ci/gates.toml declares schema {schema['version']!r}, gate.py writes "
-        f"{gate_mod.SCHEMA_VERSION!r}")
+        f"{gate_mod.SCHEMA_VERSION!r}"
+    )
 
 
 # ==========================================================================
@@ -981,10 +1163,24 @@ def test_ci_gates_toml_still_declares_the_shape_this_writes() -> None:
 # rewrite of every verifier at once.
 # ==========================================================================
 
-FINDING_FIELDS = ("finding_id", "what", "where", "why", "requirement",
-                  "how_to_fix", "severity", "code", "file", "line", "column",
-                  "root_cause", "reproduction_command", "is_root_cause",
-                  "dependent_on", "merge_blocking")
+FINDING_FIELDS = (
+    "finding_id",
+    "what",
+    "where",
+    "why",
+    "requirement",
+    "how_to_fix",
+    "severity",
+    "code",
+    "file",
+    "line",
+    "column",
+    "root_cause",
+    "reproduction_command",
+    "is_root_cause",
+    "dependent_on",
+    "merge_blocking",
+)
 
 
 def one_failure(tmp_path: Path, **kwargs: Any) -> dict[str, Any]:
@@ -998,13 +1194,23 @@ def one_failure(tmp_path: Path, **kwargs: Any) -> dict[str, Any]:
         f"kw = {kwargs!r}\n"
         "with Gate('probe') as g:\n"
         "    g.fail(**kw)\n"
-        "    g.failed()\n", encoding="utf-8")
+        "    g.failed()\n",
+        encoding="utf-8",
+    )
     env = dict(os.environ)
     env.pop("GITHUB_STEP_SUMMARY", None)
-    subprocess.run([sys.executable, str(script)], cwd=tmp_path,
-                   capture_output=True, text=True, timeout=120, env=env)
-    doc = cast("dict[str, Any]", json.loads(
-        (tmp_path / "reports" / "probe.json").read_text(encoding="utf-8")))
+    subprocess.run(
+        [sys.executable, str(script)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=env,
+    )
+    doc = cast(
+        "dict[str, Any]",
+        json.loads((tmp_path / "reports" / "probe.json").read_text(encoding="utf-8")),
+    )
     return cast("list[dict[str, Any]]", doc["failures"])[0]
 
 
@@ -1016,10 +1222,17 @@ def test_a_finding_carries_every_declared_field(tmp_path: Path) -> None:
 
 def test_the_optional_fields_are_recorded_as_given(tmp_path: Path) -> None:
     f = one_failure(
-        tmp_path, what="hardcoded credential", where="src/x.py:12",
-        severity="CRITICAL", code="B105", file="src/x.py", line=12, column=5,
+        tmp_path,
+        what="hardcoded credential",
+        where="src/x.py:12",
+        severity="CRITICAL",
+        code="B105",
+        file="src/x.py",
+        line=12,
+        column=5,
         root_cause="a literal assigned to a password-shaped name",
-        reproduction="python3 scripts/security_gate.py src scripts")
+        reproduction="python3 scripts/security_gate.py src scripts",
+    )
     assert f["severity"] == "CRITICAL"
     assert f["code"] == "B105"
     assert (f["file"], f["line"], f["column"]) == ("src/x.py", 12, 5)
@@ -1036,27 +1249,38 @@ def test_an_omitted_field_is_null_not_invented(tmp_path: Path) -> None:
     `null` rather than a placeholder.
     """
     f = one_failure(tmp_path, what="w", where="src/add.py")
-    for k in ("code", "file", "line", "column", "root_cause",
-              "reproduction_command", "dependent_on"):
+    for k in (
+        "code",
+        "file",
+        "line",
+        "column",
+        "root_cause",
+        "reproduction_command",
+        "dependent_on",
+    ):
         assert f[k] is None, f"{k} was invented as {f[k]!r}"
 
 
 def test_severity_defaults_to_error_because_that_is_what_a_failure_meant(
-        tmp_path: Path) -> None:
+    tmp_path: Path,
+) -> None:
     assert one_failure(tmp_path, what="w")["severity"] == "ERROR"
 
 
 def test_a_dependent_finding_points_at_its_root(tmp_path: Path) -> None:
     """Several verifiers run under one `set -e`, so the first failure stops the
     rest. Those are not independent defects and must not be counted as such."""
-    f = one_failure(tmp_path, what="verifier 3 never ran",
-                    is_root_cause=False, dependent_on="A1B2C3")
+    f = one_failure(
+        tmp_path,
+        what="verifier 3 never ran",
+        is_root_cause=False,
+        dependent_on="A1B2C3",
+    )
     assert f["is_root_cause"] is False
     assert f["dependent_on"] == "A1B2C3"
 
 
-def test_the_finding_id_matches_the_one_the_finalizer_prints(
-        tmp_path: Path) -> None:
+def test_the_finding_id_matches_the_one_the_finalizer_prints(tmp_path: Path) -> None:
     """Two ids for one defect is two defects, to a reader comparing runs.
 
     blocker_report computes an id from (gate, what, where) when it renders. The
@@ -1093,15 +1317,30 @@ def test_every_new_field_reaches_the_log(tmp_path: Path) -> None:
         "    g.fail(what='w', where='src/x.py:12', severity='CRITICAL', code='B105',\n"
         "           file='src/x.py', line=12, column=5, root_cause='rc',\n"
         "           reproduction='pytest tests/x.py')\n"
-        "    g.failed()\n", encoding="utf-8")
+        "    g.failed()\n",
+        encoding="utf-8",
+    )
     env = dict(os.environ)
     env.pop("GITHUB_STEP_SUMMARY", None)
-    out = subprocess.run([sys.executable, str(script)], cwd=tmp_path,
-                         capture_output=True, text=True, timeout=120, env=env)
-    for expected in ("finding_id=", "severity=CRITICAL", "code=B105",
-                     "file=src/x.py", "line=12", "column=5", "root_cause=rc",
-                     "reproduction_command=pytest tests/x.py",
-                     "merge_blocking=True"):
+    out = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=env,
+    )
+    for expected in (
+        "finding_id=",
+        "severity=CRITICAL",
+        "code=B105",
+        "file=src/x.py",
+        "line=12",
+        "column=5",
+        "root_cause=rc",
+        "reproduction_command=pytest tests/x.py",
+        "merge_blocking=True",
+    ):
         assert expected in out.stdout, f"{expected!r} never reached the log"
 
 
@@ -1115,11 +1354,19 @@ def test_an_absent_field_is_not_printed_as_none(tmp_path: Path) -> None:
         "from gate import Gate\n"
         "with Gate('probe') as g:\n"
         "    g.fail(what='w', where='src/x.py')\n"
-        "    g.failed()\n", encoding="utf-8")
+        "    g.failed()\n",
+        encoding="utf-8",
+    )
     env = dict(os.environ)
     env.pop("GITHUB_STEP_SUMMARY", None)
-    out = subprocess.run([sys.executable, str(script)], cwd=tmp_path,
-                         capture_output=True, text=True, timeout=120, env=env)
+    out = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=env,
+    )
     block = out.stdout.split("[FAILURE]")[1].split("[GATE RESULT]")[0]
     assert "=None" not in block, block
 
@@ -1127,14 +1374,17 @@ def test_an_absent_field_is_not_printed_as_none(tmp_path: Path) -> None:
 def test_the_original_five_argument_form_still_works(tmp_path: Path) -> None:
     """THE CONTROL. Twenty-six call sites pass these positionally and must not
     have to change for a field they do not use."""
-    f = one_failure(tmp_path, what="w", where="s", why="y",
-                    requirement="r", fix="f")
-    assert (f["what"], f["where"], f["why"], f["requirement"],
-            f["how_to_fix"]) == ("w", "s", "y", "r", "f")
+    f = one_failure(tmp_path, what="w", where="s", why="y", requirement="r", fix="f")
+    assert (f["what"], f["where"], f["why"], f["requirement"], f["how_to_fix"]) == (
+        "w",
+        "s",
+        "y",
+        "r",
+        "f",
+    )
 
 
-def test_the_step_summary_is_bounded_and_says_what_it_left_out(
-        tmp_path: Path) -> None:
+def test_the_step_summary_is_bounded_and_says_what_it_left_out(tmp_path: Path) -> None:
     """An uncapped digest does not truncate. It vanishes.
 
     $GITHUB_STEP_SUMMARY is limited to 1 MiB and the write swallows OSError, so
@@ -1154,21 +1404,31 @@ def test_the_step_summary_is_bounded_and_says_what_it_left_out(
         "with Gate('probe') as g:\n"
         "    for i in range(120):\n"
         "        g.fail(what='defect %d' % i, where='src/x%d.py:1' % i)\n"
-        "    g.failed()\n", encoding="utf-8")
+        "    g.failed()\n",
+        encoding="utf-8",
+    )
     env = dict(os.environ)
     env["GITHUB_STEP_SUMMARY"] = str(summary)
-    out = subprocess.run([sys.executable, str(script)], cwd=tmp_path,
-                         capture_output=True, text=True, timeout=120, env=env)
+    out = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=env,
+    )
 
     body = summary.read_text(encoding="utf-8")
     assert body.count("**defect") == 50, "the digest is not bounded"
     assert "**Failures (120)**" in body, "the true total is not stated"
-    assert "70 further finding(s) not shown" in body, \
+    assert "70 further finding(s) not shown" in body, (
         "findings were dropped without saying so"
+    )
     assert f"reports/probe.json" in body, "the complete record is not pointed at"
     assert len(body) < 100_000, f"digest is {len(body)} bytes"
 
     # The job log is deliberately NOT capped: it truncates gracefully and keeps
     # what fits, while the summary is written whole or not at all.
-    assert out.stdout.count("[FAILURE]") == 120, \
+    assert out.stdout.count("[FAILURE]") == 120, (
         "the log dropped findings; only the all-or-nothing renderer is bounded"
+    )

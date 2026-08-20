@@ -43,7 +43,6 @@ REPO = Path(__file__).resolve().parent.parent
 _POSITION = re.compile(r"(/?[\w./-]+\.[A-Za-z]{1,6}):(\d+)\b")
 
 
-
 def first_location(text: str) -> str:
     """The first `path:line` in tool output that names a file that exists.
 
@@ -107,7 +106,10 @@ SCOPE_PATTERNS = [
     # ("equivalent mutants:") stopped matching when that gate renamed the
     # concept, and a scope field silently stopped being populated — a dead
     # regex reports nothing rather than failing, so nothing noticed.
-    (re.compile(r"indistinguishable on sample:\s*(\d+)"), "indistinguishable_on_sample"),
+    (
+        re.compile(r"indistinguishable on sample:\s*(\d+)"),
+        "indistinguishable_on_sample",
+    ),
     (re.compile(r"JOINT strength:\s*([\d.]+)"), "joint_strength"),
     (re.compile(r"bandit:\s*(\d+) findings"), "security_findings"),
     (re.compile(r"PASS \(with (\d+) verified exceptions\)"), "verified_exceptions"),
@@ -188,16 +190,21 @@ def _position(raw: str, line: str, column: str = "") -> Finding:
     where = f"{raw}:{line}" if line else raw
     if rel is None:
         return {"where": where, "file": None, "line": None, "column": None}
-    return {"where": f"{rel}:{line}" if line else rel, "file": rel,
-            "line": int(line) if line else None,
-            "column": int(column) if column else None}
+    return {
+        "where": f"{rel}:{line}" if line else rel,
+        "file": rel,
+        "line": int(line) if line else None,
+        "column": int(column) if column else None,
+    }
 
 
 # --- pytest ---------------------------------------------------------------
 
 _PYTEST_FAILED = re.compile(
     r"^(?:FAILED|ERROR)\s+(?P<file>[\w./-]+\.py)(?:::(?P<test>[\w\[\].:-]+))?"
-    r"(?:\s+-\s+(?P<message>.*))?$", re.MULTILINE)
+    r"(?:\s+-\s+(?P<message>.*))?$",
+    re.MULTILINE,
+)
 
 
 # --- pyright --------------------------------------------------------------
@@ -215,7 +222,8 @@ _PYTEST_FAILED = re.compile(
 _PYRIGHT = re.compile(
     r"^\s*(?P<path>/?[\w./-]+\.pyi?):(?P<line>\d+):(?P<col>\d+)"
     r"\s+-\s+(?P<severity>error|warning|information):\s+(?P<message>.*)$",
-    re.MULTILINE)
+    re.MULTILINE,
+)
 _PYRIGHT_RULE = re.compile(r"\((report[A-Za-z]+)\)")
 
 # --- shellcheck, `-f gcc` -------------------------------------------------
@@ -229,14 +237,18 @@ _PYRIGHT_RULE = re.compile(r"\((report[A-Za-z]+)\)")
 _SHELLCHECK = re.compile(
     r"^(?P<path>[\w./-]+):(?P<line>\d+):(?P<col>\d+):\s+"
     r"(?P<severity>error|warning|note|style):\s+(?P<message>.*?)"
-    r"\s*\[(?P<code>SC\d+)\]$", re.MULTILINE)
+    r"\s*\[(?P<code>SC\d+)\]$",
+    re.MULTILINE,
+)
 
 # --- scripts/security_gate.py --------------------------------------------
 #
 #     UNRESOLVED  B603 scripts/ci_metrics.py:43  subprocess_without_shell...
 _SECURITY_UNRESOLVED = re.compile(
     r"^\s*UNRESOLVED\s+(?P<code>B\d+)\s+(?P<path>[\w./-]+):(?P<line>\d+)\s+"
-    r"(?P<detail>.*)$", re.MULTILINE)
+    r"(?P<detail>.*)$",
+    re.MULTILINE,
+)
 
 # --- scripts/credential_scan.py ------------------------------------------
 #
@@ -247,7 +259,9 @@ _SECURITY_UNRESOLVED = re.compile(
 # report is a public artifact.
 _CREDENTIAL = re.compile(
     r"^\s*CREDENTIAL SHAPE\s+(?P<label>\S+)\s+(?P<path>[\w./-]+):(?P<line>\d+)"
-    r"\s+\((?P<length>\d+) chars", re.MULTILINE)
+    r"\s+\((?P<length>\d+) chars",
+    re.MULTILINE,
+)
 
 # --- scripts/enforce_spec.py ---------------------------------------------
 #
@@ -256,7 +270,8 @@ _CREDENTIAL = re.compile(
 # Seven independent checks run per spec and every one that fails prints its
 # own line, so one spec can legitimately produce several findings.
 _ENFORCE_SPEC = re.compile(
-    r"^❌ Spec (?P<path>\S+) failed: (?P<check>.+)$", re.MULTILINE)
+    r"^❌ Spec (?P<path>\S+) failed: (?P<check>.+)$", re.MULTILINE
+)
 
 # --- the spec verifiers ---------------------------------------------------
 #
@@ -268,8 +283,7 @@ _ENFORCE_SPEC = re.compile(
 # check_vacuity.py, find_counterexample.py and check_composition.py all print
 # this shape, which is why one extractor covers three gates. Disjoint from
 # _ENFORCE_SPEC: `Spec` is followed by a space, never a colon.
-_SPEC_REJECTION = re.compile(
-    r"^❌ (?P<path>[^\s:]+): (?P<reason>.+)$", re.MULTILINE)
+_SPEC_REJECTION = re.compile(r"^❌ (?P<path>[^\s:]+): (?P<reason>.+)$", re.MULTILINE)
 
 # --- scripts/mutation_gate.py and scripts/check_composition.py ------------
 #
@@ -281,9 +295,9 @@ _SPEC_REJECTION = re.compile(
 # one finding each: "three mutants survived" and "one mutant survived" are
 # different amounts of work.
 _SURVIVORS = re.compile(
-    r"^\s*(?:survivors|survives the whole set):\s*(?P<names>.+)$", re.MULTILINE)
-_ZERO_DENOMINATOR = re.compile(r"^\s*ZERO DENOMINATOR — (?P<reason>.+)$",
-                               re.MULTILINE)
+    r"^\s*(?:survivors|survives the whole set):\s*(?P<names>.+)$", re.MULTILINE
+)
+_ZERO_DENOMINATOR = re.compile(r"^\s*ZERO DENOMINATOR — (?P<reason>.+)$", re.MULTILINE)
 
 # --- scripts/honest_report.py --------------------------------------------
 #
@@ -298,7 +312,8 @@ _ZERO_DENOMINATOR = re.compile(r"^\s*ZERO DENOMINATOR — (?P<reason>.+)$",
 _DIMENSION = re.compile(
     r"^ {2}(?!Overall\b)(?P<dimension>[A-Z][A-Za-z ]+?):\s{2,}"
     r"(?P<verdict>FAIL|UNVERIFIED|REJECTED|MISSING|NOT_ESTABLISHED)\b",
-    re.MULTILINE)
+    re.MULTILINE,
+)
 
 
 def per_test_failures(text: str) -> list[Finding]:
@@ -334,15 +349,19 @@ def per_test_failures(text: str) -> list[Finding]:
             continue
         test = match.group("test") or "(collection)"
         node = path + (f"::{test}" if test != "(collection)" else "")
-        out.append({
-            "_at": match.start(),
-            "what": f"{test} failed", **_position(path, ""),
-            "why": (match.group("message") or "").strip()
-                   or "see the captured output above",
-            "requirement": "Every test in this suite must pass.",
-            "fix": f"Reproduce with: pytest {node}",
-            "code": None, "reproduction": f"pytest {node}",
-        })
+        out.append(
+            {
+                "_at": match.start(),
+                "what": f"{test} failed",
+                **_position(path, ""),
+                "why": (match.group("message") or "").strip()
+                or "see the captured output above",
+                "requirement": "Every test in this suite must pass.",
+                "fix": f"Reproduce with: pytest {node}",
+                "code": None,
+                "reproduction": f"pytest {node}",
+            }
+        )
     return out
 
 
@@ -384,20 +403,24 @@ def pyright_diagnostics(text: str) -> list[Finding]:
         message = match.group("message").strip()
         # The rule name sits on the message line OR on the indented
         # continuation beneath it, depending on how long the message is.
-        rule = (_PYRIGHT_RULE.search(message)
-                or _PYRIGHT_RULE.search(_continuation(text, match.end())))
-        out.append({
-            "_at": match.start(),
-            "what": message[:160],
-            **_position(match.group("path"), match.group("line"),
-                        match.group("col")),
-            "why": f"pyright reports this as an {severity}.",
-            "requirement": "This repository type-checks with zero pyright errors.",
-            "fix": "Annotate or narrow the value pyright could not resolve.",
-            "severity": "ERROR" if severity == "error" else "WARNING",
-            "code": rule.group(1) if rule else None,
-            "reproduction": f"pyright {repo_relative(match.group('path')) or ''}".strip(),
-        })
+        rule = _PYRIGHT_RULE.search(message) or _PYRIGHT_RULE.search(
+            _continuation(text, match.end())
+        )
+        out.append(
+            {
+                "_at": match.start(),
+                "what": message[:160],
+                **_position(
+                    match.group("path"), match.group("line"), match.group("col")
+                ),
+                "why": f"pyright reports this as an {severity}.",
+                "requirement": "This repository type-checks with zero pyright errors.",
+                "fix": "Annotate or narrow the value pyright could not resolve.",
+                "severity": "ERROR" if severity == "error" else "WARNING",
+                "code": rule.group(1) if rule else None,
+                "reproduction": f"pyright {repo_relative(match.group('path')) or ''}".strip(),
+            }
+        )
     return out
 
 
@@ -411,18 +434,21 @@ def shellcheck_diagnostics(text: str) -> list[Finding]:
     for match in _SHELLCHECK.finditer(text):
         severity = match.group("severity")
         rel = repo_relative(match.group("path"))
-        out.append({
-            "_at": match.start(),
-            "what": match.group("message").strip()[:160],
-            **_position(match.group("path"), match.group("line"),
-                        match.group("col")),
-            "why": f"shellcheck reports {match.group('code')} as a {severity}.",
-            "requirement": "Shell in this repository passes shellcheck clean.",
-            "fix": f"See https://www.shellcheck.net/wiki/{match.group('code')}",
-            "severity": "ERROR" if severity == "error" else "WARNING",
-            "code": match.group("code"),
-            "reproduction": f"shellcheck -f gcc {rel}" if rel else None,
-        })
+        out.append(
+            {
+                "_at": match.start(),
+                "what": match.group("message").strip()[:160],
+                **_position(
+                    match.group("path"), match.group("line"), match.group("col")
+                ),
+                "why": f"shellcheck reports {match.group('code')} as a {severity}.",
+                "requirement": "Shell in this repository passes shellcheck clean.",
+                "fix": f"See https://www.shellcheck.net/wiki/{match.group('code')}",
+                "severity": "ERROR" if severity == "error" else "WARNING",
+                "code": match.group("code"),
+                "reproduction": f"shellcheck -f gcc {rel}" if rel else None,
+            }
+        )
     return out
 
 
@@ -441,20 +467,22 @@ def security_findings(text: str) -> list[Finding]:
     out: list[Finding] = []
     for match in _SECURITY_UNRESOLVED.finditer(text):
         rel = repo_relative(match.group("path"))
-        out.append({
-            "_at": match.start(),
-            "what": f"{match.group('code')} not covered by a verified safe "
-                    f"pattern",
-            **_position(match.group("path"), match.group("line")),
-            "why": match.group("detail").strip()[:300],
-            "requirement": "Every bandit finding is fixed or covered by a "
-                           "pattern security_gate.py re-derives from the AST.",
-            "fix": "Fix the code, or extend the verified pattern in "
-                   "scripts/security_gate.py so the exemption stays proven.",
-            "code": match.group("code"),
-            "reproduction": f"python3 scripts/security_gate.py {rel}"
-                            if rel else "python3 scripts/security_gate.py src scripts",
-        })
+        out.append(
+            {
+                "_at": match.start(),
+                "what": f"{match.group('code')} not covered by a verified safe pattern",
+                **_position(match.group("path"), match.group("line")),
+                "why": match.group("detail").strip()[:300],
+                "requirement": "Every bandit finding is fixed or covered by a "
+                "pattern security_gate.py re-derives from the AST.",
+                "fix": "Fix the code, or extend the verified pattern in "
+                "scripts/security_gate.py so the exemption stays proven.",
+                "code": match.group("code"),
+                "reproduction": f"python3 scripts/security_gate.py {rel}"
+                if rel
+                else "python3 scripts/security_gate.py src scripts",
+            }
+        )
     return out
 
 
@@ -467,21 +495,22 @@ def credential_findings(text: str) -> list[Finding]:
     """
     out: list[Finding] = []
     for match in _CREDENTIAL.finditer(text):
-        out.append({
-            "_at": match.start(),
-            "what": f"credential shape {match.group('label')} in tracked "
-                    f"content",
-            **_position(match.group("path"), match.group("line")),
-            "why": f"{match.group('length')} characters matching "
-                   f"{match.group('label')}; the value is withheld.",
-            "requirement": "No credential material in tracked content.",
-            "fix": "Remove the value AND rotate the credential: a prefix on a "
-                   "public branch is disclosed the moment it is fetched, and "
-                   "deleting it later does not recall it.",
-            "severity": "CRITICAL",
-            "code": match.group("label"),
-            "reproduction": "python3 scripts/credential_scan.py",
-        })
+        out.append(
+            {
+                "_at": match.start(),
+                "what": f"credential shape {match.group('label')} in tracked content",
+                **_position(match.group("path"), match.group("line")),
+                "why": f"{match.group('length')} characters matching "
+                f"{match.group('label')}; the value is withheld.",
+                "requirement": "No credential material in tracked content.",
+                "fix": "Remove the value AND rotate the credential: a prefix on a "
+                "public branch is disclosed the moment it is fetched, and "
+                "deleting it later does not recall it.",
+                "severity": "CRITICAL",
+                "code": match.group("label"),
+                "reproduction": "python3 scripts/credential_scan.py",
+            }
+        )
     return out
 
 
@@ -497,36 +526,41 @@ def spec_rejections(text: str) -> list[Finding]:
     out: list[Finding] = []
     for match in _ENFORCE_SPEC.finditer(text):
         rel = repo_relative(match.group("path"))
-        out.append({
-            "_at": match.start(),
-            "what": f"{Path(match.group('path')).name}: {match.group('check')}",
-            **_position(match.group("path"), ""),
-            "why": f"enforce_spec.py check {match.group('check')!r} did not "
-                   f"hold.",
-            "requirement": "A spec must make a non-trivial claim about the "
-                           "function it names.",
-            "fix": "Strengthen the theorem statement; a spec that states "
-                   "nothing proves nothing.",
-            "code": match.group("check"),
-            "reproduction": f"python3 scripts/enforce_spec.py {rel}"
-                            if rel else None,
-        })
+        out.append(
+            {
+                "_at": match.start(),
+                "what": f"{Path(match.group('path')).name}: {match.group('check')}",
+                **_position(match.group("path"), ""),
+                "why": f"enforce_spec.py check {match.group('check')!r} did not hold.",
+                "requirement": "A spec must make a non-trivial claim about the "
+                "function it names.",
+                "fix": "Strengthen the theorem statement; a spec that states "
+                "nothing proves nothing.",
+                "code": match.group("check"),
+                "reproduction": f"python3 scripts/enforce_spec.py {rel}"
+                if rel
+                else None,
+            }
+        )
     for match in _SPEC_REJECTION.finditer(text):
         path, reason = match.group("path"), match.group("reason").strip()
         rel = repo_relative(path)
         verdict = reason.split("—")[0].strip().rstrip(":").lower()
-        out.append({
-            "_at": match.start(),
-            "what": f"{Path(path).name}: {verdict}"[:160],
-            **_position(path, ""),
-            "why": reason[:300],
-            "requirement": "Every spec must be parseable, resolvable, true of "
-                           "its source and non-vacuous.",
-            "fix": _MUST_FIX_THE_CODE,
-            "code": verdict.split()[0].upper() if verdict else None,
-            "reproduction": f"python3 scripts/find_counterexample.py {rel}"
-                            if rel else None,
-        })
+        out.append(
+            {
+                "_at": match.start(),
+                "what": f"{Path(path).name}: {verdict}"[:160],
+                **_position(path, ""),
+                "why": reason[:300],
+                "requirement": "Every spec must be parseable, resolvable, true of "
+                "its source and non-vacuous.",
+                "fix": _MUST_FIX_THE_CODE,
+                "code": verdict.split()[0].upper() if verdict else None,
+                "reproduction": f"python3 scripts/find_counterexample.py {rel}"
+                if rel
+                else None,
+            }
+        )
     return out
 
 
@@ -543,33 +577,37 @@ def surviving_mutants(text: str) -> list[Finding]:
         for name in (n.strip() for n in match.group("names").split(",")):
             if not name:
                 continue
-            out.append({
-                "_at": match.start(),
-                "what": f"mutant {name} survives the spec set",
-                "where": "specs/",
-                "why": "The specs hold for a mutated implementation, so they "
-                       "do not discriminate it from the real one.",
-                "requirement": "The spec set must kill every non-equivalent "
-                               "mutant.",
-                "fix": f"Add a spec that is false of the {name} mutation.",
-                "code": name,
-                "reproduction": "python3 scripts/mutation_gate.py "
-                                "specs/*_spec.lean --min-score 0.95",
-            })
+            out.append(
+                {
+                    "_at": match.start(),
+                    "what": f"mutant {name} survives the spec set",
+                    "where": "specs/",
+                    "why": "The specs hold for a mutated implementation, so they "
+                    "do not discriminate it from the real one.",
+                    "requirement": "The spec set must kill every non-equivalent "
+                    "mutant.",
+                    "fix": f"Add a spec that is false of the {name} mutation.",
+                    "code": name,
+                    "reproduction": "python3 scripts/mutation_gate.py "
+                    "specs/*_spec.lean --min-score 0.95",
+                }
+            )
     for match in _ZERO_DENOMINATOR.finditer(text):
-        out.append({
-            "_at": match.start(),
-            "what": "zero denominator: the spec set killed nothing",
-            "where": "specs/",
-            "why": match.group("reason").strip()[:300],
-            "requirement": "A mutation score needs a non-empty denominator; "
-                           "a spec that killed nothing scored nothing.",
-            "fix": "Write a spec that the mutations can violate.",
-            "severity": "CRITICAL",
-            "code": "ZERO_DENOMINATOR",
-            "reproduction": "python3 scripts/mutation_gate.py "
-                            "specs/*_spec.lean --min-score 0.95",
-        })
+        out.append(
+            {
+                "_at": match.start(),
+                "what": "zero denominator: the spec set killed nothing",
+                "where": "specs/",
+                "why": match.group("reason").strip()[:300],
+                "requirement": "A mutation score needs a non-empty denominator; "
+                "a spec that killed nothing scored nothing.",
+                "fix": "Write a spec that the mutations can violate.",
+                "severity": "CRITICAL",
+                "code": "ZERO_DENOMINATOR",
+                "reproduction": "python3 scripts/mutation_gate.py "
+                "specs/*_spec.lean --min-score 0.95",
+            }
+        )
     return out
 
 
@@ -580,21 +618,23 @@ def failed_dimensions(text: str) -> list[Finding]:
     point of the layer -- TRUE != USEFUL != SUFFICIENT != VERIFIED. Recording
     the run as one failure collapsed exactly what the gate refuses to collapse.
     """
-    return [{
-        "_at": match.start(),
-        "what": f"{match.group('dimension').strip()} is "
-                f"{match.group('verdict')}",
-        "where": "specs/",
-        "why": f"honest_report.py reports {match.group('dimension').strip()!r} "
-               f"as {match.group('verdict')}.",
-        "requirement": "Every blocking dimension of the honest report must "
-                       "hold: truth, vacuity, formal proof and mutation "
-                       "discrimination.",
-        "fix": _MUST_FIX_THE_CODE,
-        "code": match.group("verdict"),
-        "reproduction": "bash scripts/verify_per_function.sh "
-                        "scripts/honest_report.py --min-strength 0.9",
-    } for match in _DIMENSION.finditer(text)]
+    return [
+        {
+            "_at": match.start(),
+            "what": f"{match.group('dimension').strip()} is {match.group('verdict')}",
+            "where": "specs/",
+            "why": f"honest_report.py reports {match.group('dimension').strip()!r} "
+            f"as {match.group('verdict')}.",
+            "requirement": "Every blocking dimension of the honest report must "
+            "hold: truth, vacuity, formal proof and mutation "
+            "discrimination.",
+            "fix": _MUST_FIX_THE_CODE,
+            "code": match.group("verdict"),
+            "reproduction": "bash scripts/verify_per_function.sh "
+            "scripts/honest_report.py --min-strength 0.9",
+        }
+        for match in _DIMENSION.finditer(text)
+    ]
 
 
 # Order is the order findings appear in the report, so the tool-specific
@@ -650,12 +690,12 @@ EXTRACTORS: list[Callable[[str], list[Finding]]] = [
 # `== bandit gate 3/4: shell analysis`, written to stderr by the workflow.
 _CHAIN_STEP = re.compile(
     r"^==\s+.*?\bgate\s+(?P<index>\d+)/(?P<total>\d+):\s*(?P<label>.+?)\s*$",
-    re.MULTILINE)
+    re.MULTILINE,
+)
 
 # scripts/verify_per_function.sh announces the size of its loop, then names
 # each source file as it reaches it.
-_LOOP_TOTAL = re.compile(r"^verifying (?P<total>\d+) source file\(s\)$",
-                         re.MULTILINE)
+_LOOP_TOTAL = re.compile(r"^verifying (?P<total>\d+) source file\(s\)$", re.MULTILINE)
 _LOOP_STEP = re.compile(r"^──\s+(?P<source>\S+)\s+←", re.MULTILINE)
 
 
@@ -692,53 +732,57 @@ def unreached(stdout: str, stderr: str) -> list[Finding]:
         last = steps[-1]
         total, reached = int(last.group("total")), int(last.group("index"))
         for index in range(reached + 1, total + 1):
-            out.append({
-                "what": f"verification {index} of {total} did not run",
-                "where": f"step {index}/{total}",
-                "why": f"the chain stopped at step {reached}/{total} "
-                       f"({last.group('label')}), which failed under `set -e`.",
-                "requirement": "Every verification in this gate must run "
-                               "before the gate's verdict means anything.",
-                "fix": "Fix the failure above; the remaining checks run once "
-                       "the chain gets past it.",
-                "severity": "UNKNOWN",
-                "code": "NOT_RUN",
-                "is_root_cause": False,
-                # `why` is what happened. This is the mechanism, and they are
-                # not the same sentence: the chain is `bash -c` under `set -e`,
-                # so a non-zero exit ends the script and every later command is
-                # simply never executed. Nothing decided to skip this check.
-                "root_cause": "`set -e` ends the chain at the first non-zero "
-                              "exit, so this command was never executed.",
-                # Fixing the root makes this disappear on its own. Counting it
-                # as blocking would tell a reader there is separate work here.
-                "merge_blocking": False,
-            })
+            out.append(
+                {
+                    "what": f"verification {index} of {total} did not run",
+                    "where": f"step {index}/{total}",
+                    "why": f"the chain stopped at step {reached}/{total} "
+                    f"({last.group('label')}), which failed under `set -e`.",
+                    "requirement": "Every verification in this gate must run "
+                    "before the gate's verdict means anything.",
+                    "fix": "Fix the failure above; the remaining checks run once "
+                    "the chain gets past it.",
+                    "severity": "UNKNOWN",
+                    "code": "NOT_RUN",
+                    "is_root_cause": False,
+                    # `why` is what happened. This is the mechanism, and they are
+                    # not the same sentence: the chain is `bash -c` under `set -e`,
+                    # so a non-zero exit ends the script and every later command is
+                    # simply never executed. Nothing decided to skip this check.
+                    "root_cause": "`set -e` ends the chain at the first non-zero "
+                    "exit, so this command was never executed.",
+                    # Fixing the root makes this disappear on its own. Counting it
+                    # as blocking would tell a reader there is separate work here.
+                    "merge_blocking": False,
+                }
+            )
 
     loop = _LOOP_TOTAL.search(stdout)
     if loop is not None:
         total = int(loop.group("total"))
         reached = _LOOP_STEP.findall(stdout)
         for source in range(len(reached), total):
-            out.append({
-                "what": f"source file {source + 1} of {total} was not verified",
-                "where": f"source {source + 1}/{total}",
-                "why": f"verify_per_function.sh stopped at "
-                       f"{reached[-1] if reached else 'the first source'}, "
-                       f"so {total - len(reached)} of {total} source file(s) "
-                       f"were never checked.",
-                "requirement": "This gate's verdict covers every source file "
-                               "the specs resolve to, or it covers none.",
-                "fix": "Fix the failing function above; the loop continues "
-                       "past it once it exits 0.",
-                "severity": "UNKNOWN",
-                "code": "NOT_RUN",
-                "is_root_cause": False,
-                "root_cause": "verify_per_function.sh runs under `set -e`, so "
-                              "the first source file that fails ends the loop "
-                              "and the rest are never reached.",
-                "merge_blocking": False,
-            })
+            out.append(
+                {
+                    "what": f"source file {source + 1} of {total} was not verified",
+                    "where": f"source {source + 1}/{total}",
+                    "why": f"verify_per_function.sh stopped at "
+                    f"{reached[-1] if reached else 'the first source'}, "
+                    f"so {total - len(reached)} of {total} source file(s) "
+                    f"were never checked.",
+                    "requirement": "This gate's verdict covers every source file "
+                    "the specs resolve to, or it covers none.",
+                    "fix": "Fix the failing function above; the loop continues "
+                    "past it once it exits 0.",
+                    "severity": "UNKNOWN",
+                    "code": "NOT_RUN",
+                    "is_root_cause": False,
+                    "root_cause": "verify_per_function.sh runs under `set -e`, so "
+                    "the first source file that fails ends the loop "
+                    "and the rest are never reached.",
+                    "merge_blocking": False,
+                }
+            )
     return out
 
 
@@ -838,8 +882,10 @@ def absorb(g: Gate, name: str, not_before: float) -> None:
             # fires correctly the report drops from 87 checks to 1, and with
             # nothing saying why that is indistinguishable from a gate that
             # wrapped a command writing no report at all.
-            g.warn(f"{path} predates this run's command and was not folded in; "
-                   f"it is evidence for an earlier run")
+            g.warn(
+                f"{path} predates this run's command and was not folded in; "
+                f"it is evidence for an earlier run"
+            )
             return
         raw: object = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
@@ -867,16 +913,20 @@ def absorb(g: Gate, name: str, not_before: float) -> None:
             continue
         found_value = str(data.get(field, ""))
         if found_value != want:
-            g.warn(f"{path} carries {field}={found_value!r} but this run is "
-                   f"{want!r}; not folded in")
+            g.warn(
+                f"{path} carries {field}={found_value!r} but this run is "
+                f"{want!r}; not folded in"
+            )
             return
 
     claimed = str(data.get("gate", ""))
     if claimed != name:
         # A report claiming another gate is evidence for that gate, not this
         # one. Folding it would let one gate's checks stand in for another's.
-        g.warn(f"a report claiming gate {claimed!r} was left in {path}; "
-               f"not folded into {name}")
+        g.warn(
+            f"a report claiming gate {claimed!r} was left in {path}; "
+            f"not folded into {name}"
+        )
         return
 
     checks = data.get("checks")
@@ -885,17 +935,20 @@ def absorb(g: Gate, name: str, not_before: float) -> None:
             if not isinstance(entry, dict):
                 continue
             item = cast("dict[str, Any]", entry)
-            g.check(str(item.get("subject", "")),
-                    str(item.get("result", "")) == "PASS",
-                    str(item.get("detail", "")))
+            g.check(
+                str(item.get("subject", "")),
+                str(item.get("result", "")) == "PASS",
+                str(item.get("detail", "")),
+            )
 
     scope = data.get("scope")
     if isinstance(scope, dict):
         # `command` is the wrapper's own and describes the whole chain; the
         # inner value names one step of it and would be the more specific
         # answer to a less useful question.
-        inner = {k: v for k, v in cast("dict[str, Any]", scope).items()
-                 if k != "command"}
+        inner = {
+            k: v for k, v in cast("dict[str, Any]", scope).items() if k != "command"
+        }
         if inner:
             g.set_scope(**inner)
 
@@ -950,7 +1003,9 @@ def absorb(g: Gate, name: str, not_before: float) -> None:
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--name", required=True, help="gate name; becomes reports/<name>.json")
+    p.add_argument(
+        "--name", required=True, help="gate name; becomes reports/<name>.json"
+    )
     p.add_argument("--version", default="1.0.0")
     p.add_argument("--timeout", type=int, default=1800)
     p.add_argument("command", nargs=argparse.REMAINDER)
@@ -976,8 +1031,9 @@ def main() -> None:
         try:
             # shell=False, absolute executable, fixed argv from this repo's
             # workflows - never a shell string.
-            out = subprocess.run([resolved, *cmd[1:]], capture_output=True, text=True,
-                                 timeout=ns.timeout)
+            out = subprocess.run(
+                [resolved, *cmd[1:]], capture_output=True, text=True, timeout=ns.timeout
+            )
         except subprocess.TimeoutExpired:
             g.infrastructure_failure(f"timed out after {ns.timeout}s")
             return
@@ -1041,9 +1097,9 @@ def main() -> None:
                     "where": first_location(combined) or " ".join(cmd[:3]),
                     "why": "\n".join(tail)[:500],
                     "requirement": "This gate is required by the ruleset; "
-                                   "it must exit 0.",
+                    "it must exit 0.",
                     "fix": "Read reports/ and the log above; fix the code, "
-                           "not the gate.",
+                    "not the gate.",
                     "reproduction": " ".join(cmd),
                 }
                 findings = [fallback]
@@ -1062,8 +1118,9 @@ def main() -> None:
             # the case where no extractor recognised the failure is exactly
             # the case where the rest of the chain still did not run.
             root = findings[0]
-            root_id = g.finding_id_for(str(root.get("what", "")),
-                                       str(root.get("where", "")))
+            root_id = g.finding_id_for(
+                str(root.get("what", "")), str(root.get("where", ""))
+            )
             for consequence in unreached(out.stdout, out.stderr):
                 g.fail(**consequence, dependent_on=root_id)
         g.artifact(f"reports/{ns.name}.json")

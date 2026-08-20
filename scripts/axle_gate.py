@@ -75,8 +75,7 @@ def names(directory: Path, suffix: str) -> dict[str, Path]:
     """Identity -> file, for every file in `directory` ending in `suffix`."""
     if not directory.is_dir():
         return {}
-    return {p.name[: -len(suffix)]: p
-            for p in sorted(directory.glob(f"*{suffix}"))}
+    return {p.name[: -len(suffix)]: p for p in sorted(directory.glob(f"*{suffix}"))}
 
 
 def classify(result: subprocess.CompletedProcess[str]) -> tuple[str, str]:
@@ -106,7 +105,9 @@ def classify(result: subprocess.CompletedProcess[str]) -> tuple[str, str]:
         if isinstance(raw, list):
             errors = cast("list[Any]", raw)
     raw_failed = payload.get("failed_declarations")
-    failed: list[Any] = cast("list[Any]", raw_failed) if isinstance(raw_failed, list) else []
+    failed: list[Any] = (
+        cast("list[Any]", raw_failed) if isinstance(raw_failed, list) else []
+    )
     reasons: list[Any] = errors or failed
     detail = "; ".join(str(e)[:120] for e in reasons) or "AXLE reported okay=false"
     return REJECTED, detail[:300]
@@ -123,9 +124,11 @@ def verify(environment: str, spec: Path, proof: Path) -> tuple[str, str]:
         return UNAVAILABLE, "axle is not on PATH"
     try:
         result = subprocess.run(
-            [axle, "verify-proof", "--environment", environment,
-             str(spec), str(proof)],
-            capture_output=True, text=True, timeout=CALL_TIMEOUT)
+            [axle, "verify-proof", "--environment", environment, str(spec), str(proof)],
+            capture_output=True,
+            text=True,
+            timeout=CALL_TIMEOUT,
+        )
     except subprocess.TimeoutExpired:
         return UNAVAILABLE, f"no response within {CALL_TIMEOUT}s"
     except OSError as exc:
@@ -135,59 +138,73 @@ def verify(environment: str, spec: Path, proof: Path) -> tuple[str, str]:
 
 def main() -> None:
     environment = os.environ.get("AXLE_ENV", "lean-4.33.0")
-    with Gate("axle-verify", version="2.0.0",
-              tools={"axle": ["axle", "--version"]}) as g:
+    with Gate(
+        "axle-verify", version="2.0.0", tools={"axle": ["axle", "--version"]}
+    ) as g:
         if shutil.which("axle") is None:
             g.infrastructure_failure("axle is not on PATH")
             return
 
         specs = names(SPECS, SPEC_SUFFIX)
         proofs = names(PROOFS, PROOF_SUFFIX)
-        g.set_scope(environment=environment, specs_found=len(specs),
-                    proofs_found=len(proofs),
-                    spec_dir=str(SPECS), proof_dir=str(PROOFS),
-                    call_timeout_s=CALL_TIMEOUT)
+        g.set_scope(
+            environment=environment,
+            specs_found=len(specs),
+            proofs_found=len(proofs),
+            spec_dir=str(SPECS),
+            proof_dir=str(PROOFS),
+            call_timeout_s=CALL_TIMEOUT,
+        )
 
         # ---- completeness, before any proof is checked --------------------
         complete = True
 
-        non_empty = g.check("spec set is non-empty", bool(specs),
-                            f"{len(specs)} spec(s)")
+        non_empty = g.check(
+            "spec set is non-empty", bool(specs), f"{len(specs)} spec(s)"
+        )
         if not non_empty:
             complete = False
-            g.fail(what="there are no specs to verify",
-                   where=f"{SPECS}/*{SPEC_SUFFIX}",
-                   why="the loop would run zero times and report success",
-                   requirement="A gate that verified nothing must not report PASS.",
-                   fix=f"Restore the spec files under {SPECS}/, or remove this "
-                       "gate from ci/gates.toml and the ruleset together.")
+            g.fail(
+                what="there are no specs to verify",
+                where=f"{SPECS}/*{SPEC_SUFFIX}",
+                why="the loop would run zero times and report success",
+                requirement="A gate that verified nothing must not report PASS.",
+                fix=f"Restore the spec files under {SPECS}/, or remove this "
+                "gate from ci/gates.toml and the ruleset together.",
+            )
 
         missing = sorted(set(specs) - set(proofs))
         orphans = sorted(set(proofs) - set(specs))
 
-        g.check("every spec has a proof", not missing,
-                ", ".join(missing) or "all matched")
+        g.check(
+            "every spec has a proof", not missing, ", ".join(missing) or "all matched"
+        )
         if missing:
             complete = False
             for name in missing:
-                g.fail(what=f"'{name}' has a spec but no proof",
-                       where=f"{PROOFS}/{name}{PROOF_SUFFIX}",
-                       requirement="Every spec must be discharged by a proof.",
-                       fix=f"Write {PROOFS}/{name}{PROOF_SUFFIX}.")
+                g.fail(
+                    what=f"'{name}' has a spec but no proof",
+                    where=f"{PROOFS}/{name}{PROOF_SUFFIX}",
+                    requirement="Every spec must be discharged by a proof.",
+                    fix=f"Write {PROOFS}/{name}{PROOF_SUFFIX}.",
+                )
 
-        g.check("every proof has a spec", not orphans,
-                ", ".join(orphans) or "all matched")
+        g.check(
+            "every proof has a spec", not orphans, ", ".join(orphans) or "all matched"
+        )
         if orphans:
             complete = False
             for name in orphans:
-                g.fail(what=f"'{name}' has a proof but no spec",
-                       where=f"{SPECS}/{name}{SPEC_SUFFIX}",
-                       why="a deleted spec leaves its proof behind, so the "
-                           "function it constrained is no longer verified while "
-                           "the gate stays green",
-                       requirement="The proof set and the spec set must be equal.",
-                       fix=f"Restore {SPECS}/{name}{SPEC_SUFFIX}, or delete "
-                           f"{PROOFS}/{name}{PROOF_SUFFIX} too.")
+                g.fail(
+                    what=f"'{name}' has a proof but no spec",
+                    where=f"{SPECS}/{name}{SPEC_SUFFIX}",
+                    why="a deleted spec leaves its proof behind, so the "
+                    "function it constrained is no longer verified while "
+                    "the gate stays green",
+                    requirement="The proof set and the spec set must be equal.",
+                    fix=f"Restore {SPECS}/{name}{SPEC_SUFFIX}, or delete "
+                    f"{PROOFS}/{name}{PROOF_SUFFIX} too.",
+                )
 
         if not complete:
             # Verifying the members of a set that is already known to be the
@@ -201,30 +218,40 @@ def main() -> None:
         unavailable: list[str] = []
         for name, spec in specs.items():
             state, detail = verify(environment, spec, proofs[name])
-            g.check(f"{name}: proof discharges spec", state == VERIFIED,
-                    detail or state)
+            g.check(
+                f"{name}: proof discharges spec", state == VERIFIED, detail or state
+            )
             if state == VERIFIED:
                 print(f"✓ {name}: verified")
                 continue
             if state == REJECTED:
                 rejected.append(name)
                 print(f"❌ {name}: AXLE rejected the proof")
-                g.fail(what=f"{name}: the proof does not discharge the spec",
-                       where=f"{spec} + {proofs[name]}", why=detail,
-                       requirement="AXLE must return okay=true for every pair.",
-                       fix="Fix the proof, or weaken the spec to something "
-                           "the proof actually establishes.")
+                g.fail(
+                    what=f"{name}: the proof does not discharge the spec",
+                    where=f"{spec} + {proofs[name]}",
+                    why=detail,
+                    requirement="AXLE must return okay=true for every pair.",
+                    fix="Fix the proof, or weaken the spec to something "
+                    "the proof actually establishes.",
+                )
             else:
                 unavailable.append(name)
                 print(f"⚠ {name}: AXLE could not run")
-                g.fail(what=f"{name}: AXLE could not be consulted",
-                       where=f"{spec} + {proofs[name]}", why=detail,
-                       requirement="An unverifiable proof must not merge.",
-                       fix="Check the AXLE service and the environment name; "
-                           "do not bypass the gate.")
+                g.fail(
+                    what=f"{name}: AXLE could not be consulted",
+                    where=f"{spec} + {proofs[name]}",
+                    why=detail,
+                    requirement="An unverifiable proof must not merge.",
+                    fix="Check the AXLE service and the environment name; "
+                    "do not bypass the gate.",
+                )
 
-        g.set_scope(pairs_checked=len(specs), rejected=len(rejected),
-                    unavailable=len(unavailable))
+        g.set_scope(
+            pairs_checked=len(specs),
+            rejected=len(rejected),
+            unavailable=len(unavailable),
+        )
         g.artifact("reports/axle-verify.json")
 
         if rejected:

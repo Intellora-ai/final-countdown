@@ -26,19 +26,49 @@ def bandit_sarif(cwd: Path, out: Path) -> None:
     installed this wrote nothing and the tests died on FileNotFoundError three
     frames later, which named the symptom and hid the cause.
     """
-    r = subprocess.run([PY, "-m", "bandit", "-r", "src", "scripts", "-f", "sarif",
-                        "-o", str(out), "--severity-level", "low",
-                        "--confidence-level", "low"],
-                       cwd=cwd, capture_output=True, text=True, timeout=300)
+    r = subprocess.run(
+        [
+            PY,
+            "-m",
+            "bandit",
+            "-r",
+            "src",
+            "scripts",
+            "-f",
+            "sarif",
+            "-o",
+            str(out),
+            "--severity-level",
+            "low",
+            "--confidence-level",
+            "low",
+        ],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
     assert out.is_file(), (
         f"bandit produced no SARIF (exit {r.returncode}). Install "
-        f"bandit[sarif].\n{(r.stderr or r.stdout)[:400]}")
+        f"bandit[sarif].\n{(r.stderr or r.stdout)[:400]}"
+    )
 
 
 def suppress(cwd: Path, sarif: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run([PY, str(SCRIPTS / "sarif_suppress.py"),
-                           "--sarif", str(sarif), "src", "scripts"],
-                          cwd=cwd, capture_output=True, text=True, timeout=300)
+    return subprocess.run(
+        [
+            PY,
+            str(SCRIPTS / "sarif_suppress.py"),
+            "--sarif",
+            str(sarif),
+            "src",
+            "scripts",
+        ],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
 
 
 def results(sarif: Path) -> list[dict[str, Any]]:
@@ -48,6 +78,7 @@ def results(sarif: Path) -> list[dict[str, Any]]:
 
 def workspace(tmp_path: Path) -> Path:
     import shutil
+
     w = tmp_path / "w"
     w.mkdir()
     for d in ("scripts", "src"):
@@ -100,16 +131,20 @@ def test_an_unverified_finding_is_never_marked(tmp_path: Path) -> None:
     (w / "scripts" / "danger.py").write_text(
         "import subprocess\n"
         "def go(cmd: str) -> None:\n"
-        "    subprocess.run(cmd, shell=True)\n", encoding="utf-8")
+        "    subprocess.run(cmd, shell=True)\n",
+        encoding="utf-8",
+    )
     sarif = w / "b.sarif"
     bandit_sarif(w, sarif)
     suppress(w, sarif)
     assert any("danger.py" in json.dumps(r) for r in results(sarif)), (
-        "a shell=True call was hidden from code scanning")
+        "a shell=True call was hidden from code scanning"
+    )
 
 
 def test_a_multiline_call_is_marked_despite_the_two_line_numbers(
-        tmp_path: Path) -> None:
+    tmp_path: Path,
+) -> None:
     """The two bandit emitters disagree on which line a multi-line call is on.
 
     `bandit -f json` reports `line_number` as the line the call node is
@@ -127,7 +162,8 @@ def test_a_multiline_call_is_marked_despite_the_two_line_numbers(
     target = w / "scripts" / "ci_metrics.py"
     source = target.read_text(encoding="utf-8")
     assert "subprocess.run(\n" in source, (
-        "this test is only meaningful while the call spans several lines")
+        "this test is only meaningful while the call spans several lines"
+    )
 
     sarif = w / "b.sarif"
     bandit_sarif(w, sarif)
@@ -138,4 +174,5 @@ def test_a_multiline_call_is_marked_despite_the_two_line_numbers(
     left = [r for r in results(sarif) if "ci_metrics.py" in json.dumps(r)]
     assert not left, (
         "a gate-verified multi-line subprocess call was published anyway: "
-        f"{[r.get('ruleId') for r in left]}")
+        f"{[r.get('ruleId') for r in left]}"
+    )

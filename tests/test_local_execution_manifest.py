@@ -27,10 +27,13 @@ sys.path.insert(0, str(REPO / "scripts"))
 
 import local_gates as lg  # noqa: E402
 
-MANIFEST = tomllib.loads((REPO / "ci" / "local-execution.toml").read_text(encoding="utf-8"))
+MANIFEST = tomllib.loads(
+    (REPO / "ci" / "local-execution.toml").read_text(encoding="utf-8")
+)
 CONTEXTS: dict[str, dict[str, Any]] = MANIFEST["contexts"]
 REQUIRED: list[str] = tomllib.loads(
-    (REPO / "ci" / "gates.toml").read_text(encoding="utf-8"))["ruleset"]["required_checks"]
+    (REPO / "ci" / "gates.toml").read_text(encoding="utf-8")
+)["ruleset"]["required_checks"]
 
 
 # --------------------------------------------------------------------------
@@ -60,7 +63,8 @@ def test_context_identity_matches_gates_toml() -> None:
     for name, spec in CONTEXTS.items():
         assert spec["required_context"] == name, (
             f"{name}: required_context is {spec['required_context']!r}; the key and the "
-            "declared identity must agree or the join to ci/gates.toml is meaningless")
+            "declared identity must agree or the join to ci/gates.toml is meaningless"
+        )
         assert spec["required_context"] in REQUIRED
 
 
@@ -71,7 +75,8 @@ def test_every_context_is_yes_or_no() -> None:
     """There is no `partial`. Partial is how an omission hides."""
     for name, spec in CONTEXTS.items():
         assert spec["locally_runnable"] in {"yes", "no"}, (
-            f"{name}: locally_runnable={spec['locally_runnable']!r}")
+            f"{name}: locally_runnable={spec['locally_runnable']!r}"
+        )
 
 
 def test_runnable_contexts_carry_argv_and_timeout() -> None:
@@ -80,8 +85,12 @@ def test_runnable_contexts_carry_argv_and_timeout() -> None:
             continue
         command = cast("list[Any]", spec.get("command"))
         assert isinstance(command, list) and command, f"{name}: no command array"
-        assert all(isinstance(t, str) for t in command), f"{name}: command is not argv strings"
-        assert isinstance(spec.get("timeout_seconds"), int), f"{name}: no integer timeout"
+        assert all(isinstance(t, str) for t in command), (
+            f"{name}: command is not argv strings"
+        )
+        assert isinstance(spec.get("timeout_seconds"), int), (
+            f"{name}: no integer timeout"
+        )
         assert spec.get("evidence"), f"{name}: no evidence identifier"
 
 
@@ -96,7 +105,8 @@ def test_commands_are_argv_arrays_never_shell_strings() -> None:
         for meta in ("&&", "||", ";", "|", ">", "<"):
             assert meta not in command, (
                 f"{name}: shell metacharacter {meta!r} is a standalone argv token; "
-                f"the command is being used as a shell line: {joined[:120]}")
+                f"the command is being used as a shell line: {joined[:120]}"
+            )
 
 
 def test_non_runnable_contexts_carry_an_exact_reason_and_no_command() -> None:
@@ -106,7 +116,8 @@ def test_non_runnable_contexts_carry_an_exact_reason_and_no_command() -> None:
         reason = str(spec.get("reason", ""))
         assert len(reason) > 30, f"{name}: reason too thin to be exact: {reason!r}"
         assert "command" not in spec, (
-            f"{name}: marked not-runnable but carries a command; one of the two is a lie")
+            f"{name}: marked not-runnable but carries a command; one of the two is a lie"
+        )
 
 
 # --------------------------------------------------------------------------
@@ -137,17 +148,29 @@ def test_the_loader_refuses_a_manifest_that_demotes_pyright(tmp_path: Path) -> N
         'required_context = "pyright"\n'
         'locally_runnable = "no"\n'
         'reason = "a reason long enough to look plausible to a careless reader"\n',
-        encoding="utf-8")
+        encoding="utf-8",
+    )
     with pytest.raises(lg.ManifestError, match="pyright"):
         lg.load_manifest(bad)
 
 
-@pytest.mark.parametrize("body,fragment", [
-    ('[contexts."x"]\nrequired_context="x"\nlocally_runnable="partial"\n', "only 'yes' or 'no'"),
-    ('[contexts."x"]\nrequired_context="x"\nlocally_runnable="yes"\n', "no command array"),
-    ('[contexts."x"]\nrequired_context="x"\nlocally_runnable="no"\n', "no reason"),
-])
-def test_the_loader_refuses_malformed_entries(tmp_path: Path, body: str, fragment: str) -> None:
+@pytest.mark.parametrize(
+    "body,fragment",
+    [
+        (
+            '[contexts."x"]\nrequired_context="x"\nlocally_runnable="partial"\n',
+            "only 'yes' or 'no'",
+        ),
+        (
+            '[contexts."x"]\nrequired_context="x"\nlocally_runnable="yes"\n',
+            "no command array",
+        ),
+        ('[contexts."x"]\nrequired_context="x"\nlocally_runnable="no"\n', "no reason"),
+    ],
+)
+def test_the_loader_refuses_malformed_entries(
+    tmp_path: Path, body: str, fragment: str
+) -> None:
     bad = tmp_path / "m.toml"
     bad.write_text(body, encoding="utf-8")
     with pytest.raises(lg.ManifestError) as caught:
@@ -162,38 +185,60 @@ def test_github_only_contexts_are_reported_and_never_selected() -> None:
     absent = dict(lg.github_only(CONTEXTS))
     runnable = set(lg.select(CONTEXTS, "full"))
     assert absent, "no context is marked GitHub-only; that would be a surprising claim"
-    assert not (set(absent) & runnable), "a context is both GitHub-only and selected to run"
+    assert not (set(absent) & runnable), (
+        "a context is both GitHub-only and selected to run"
+    )
     for name, reason in absent.items():
         assert reason.strip(), f"{name} is GitHub-only with no reason"
 
 
 def test_a_failing_gate_returns_non_zero_and_writes_evidence(tmp_path: Path) -> None:
     """A gate that fails must make the process fail, and leave a record saying why."""
-    spec = {"command": ["python3", "-c", "import sys; sys.exit(3)"],
-            "timeout_seconds": 60, "evidence": "x.json"}
+    spec = {
+        "command": ["python3", "-c", "import sys; sys.exit(3)"],
+        "timeout_seconds": 60,
+        "evidence": "x.json",
+    }
     record = lg.run_one("deliberate-failure", spec, tmp_path)
     assert record["status"] == "FAIL"
     assert record["exit_code"] == 3
-    written = json.loads((tmp_path / "deliberate-failure.json").read_text(encoding="utf-8"))
-    for field in ("argv", "working_directory", "timeout_seconds", "start", "end",
-                  "duration_seconds", "exit_code"):
+    written = json.loads(
+        (tmp_path / "deliberate-failure.json").read_text(encoding="utf-8")
+    )
+    for field in (
+        "argv",
+        "working_directory",
+        "timeout_seconds",
+        "start",
+        "end",
+        "duration_seconds",
+        "exit_code",
+    ):
         assert field in written, f"evidence is missing {field}"
 
 
 def test_a_failing_gate_never_invents_a_cause(tmp_path: Path) -> None:
     """A confidently wrong root cause sends the next person to the wrong file."""
-    spec = {"command": ["python3", "-c", "import sys; sys.exit(1)"],
-            "timeout_seconds": 60, "evidence": "x.json"}
+    spec = {
+        "command": ["python3", "-c", "import sys; sys.exit(1)"],
+        "timeout_seconds": 60,
+        "evidence": "x.json",
+    }
     record = lg.run_one("unexplained", spec, tmp_path)
     assert "UNKNOWN" in record["observed_why"]
     assert "INVESTIGATE" in record["next_safe_action"]
 
 
 def test_a_missing_binary_blocks_rather_than_passes(tmp_path: Path) -> None:
-    spec = {"command": ["a-binary-that-does-not-exist-anywhere"],
-            "timeout_seconds": 10, "evidence": "x.json"}
+    spec = {
+        "command": ["a-binary-that-does-not-exist-anywhere"],
+        "timeout_seconds": 10,
+        "evidence": "x.json",
+    }
     record = lg.run_one("absent-tool", spec, tmp_path)
-    assert record["status"] == "BLOCK", "a tool that could not run must never read as PASS"
+    assert record["status"] == "BLOCK", (
+        "a tool that could not run must never read as PASS"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -202,8 +247,14 @@ def test_a_missing_binary_blocks_rather_than_passes(tmp_path: Path) -> None:
 def _git(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
     exe = shutil.which("git")
     assert exe is not None
-    return subprocess.run([exe, *args], cwd=str(cwd), capture_output=True,  # noqa: S603
-                          text=True, timeout=120, shell=False)
+    return subprocess.run(
+        [exe, *args],
+        cwd=str(cwd),
+        capture_output=True,  # noqa: S603
+        text=True,
+        timeout=120,
+        shell=False,
+    )
 
 
 @pytest.fixture
@@ -231,9 +282,8 @@ def pushable(tmp_path: Path) -> tuple[Path, Path]:
 
 def _write_makefile(work: Path, exit_code: int) -> None:
     (work / "Makefile").write_text(
-        "sandbox-fast:\n"
-        f"\t@echo 'PASS pyright' && exit {exit_code}\n",
-        encoding="utf-8")
+        f"sandbox-fast:\n\t@echo 'PASS pyright' && exit {exit_code}\n", encoding="utf-8"
+    )
 
 
 def _commit(work: Path, message: str) -> None:
@@ -244,7 +294,7 @@ def _commit(work: Path, message: str) -> None:
 def test_a_failing_local_gate_blocks_a_normal_push(pushable: tuple[Path, Path]) -> None:
     """The claim under test is that `git push` STOPS, not that the hook file executes."""
     work, remote = pushable
-    _write_makefile(work, exit_code=1)                 # a gate that fails
+    _write_makefile(work, exit_code=1)  # a gate that fails
     _commit(work, "first")
 
     pushed = _git("push", "origin", "main", cwd=work)
@@ -261,22 +311,27 @@ def test_a_failing_local_gate_blocks_a_normal_push(pushable: tuple[Path, Path]) 
     # And the decisive assertion: the remote never received the commit.
     on_remote = _git("log", "--oneline", "-1", "main", cwd=remote)
     assert on_remote.returncode != 0 or not on_remote.stdout.strip(), (
-        f"the commit reached the remote despite a failing gate: {on_remote.stdout!r}")
+        f"the commit reached the remote despite a failing gate: {on_remote.stdout!r}"
+    )
 
 
-def test_a_passing_local_gate_lets_a_normal_push_through(pushable: tuple[Path, Path]) -> None:
+def test_a_passing_local_gate_lets_a_normal_push_through(
+    pushable: tuple[Path, Path],
+) -> None:
     """The control. A gate that blocks everything is not a gate, it is an outage."""
     work, remote = pushable
-    _write_makefile(work, exit_code=0)                 # a gate that passes
+    _write_makefile(work, exit_code=0)  # a gate that passes
     _commit(work, "first")
 
     pushed = _git("push", "origin", "main", cwd=work)
     assert pushed.returncode == 0, (
-        f"a passing local gate blocked the push: {pushed.stdout}{pushed.stderr}")
+        f"a passing local gate blocked the push: {pushed.stdout}{pushed.stderr}"
+    )
 
     on_remote = _git("log", "--oneline", "-1", "main", cwd=remote)
     assert on_remote.returncode == 0 and on_remote.stdout.strip(), (
-        "the commit did not reach the remote even though every local gate passed")
+        "the commit did not reach the remote even though every local gate passed"
+    )
 
 
 def test_repair_then_push_succeeds(pushable: tuple[Path, Path]) -> None:
@@ -286,7 +341,7 @@ def test_repair_then_push_succeeds(pushable: tuple[Path, Path]) -> None:
     _commit(work, "broken")
     assert _git("push", "origin", "main", cwd=work).returncode != 0
 
-    _write_makefile(work, exit_code=0)                 # repair
+    _write_makefile(work, exit_code=0)  # repair
     _commit(work, "repaired")
     assert _git("push", "origin", "main", cwd=work).returncode == 0
 
@@ -302,16 +357,26 @@ def test_the_runner_never_uses_a_shell() -> None:
     import ast
 
     tree = ast.parse((REPO / "scripts" / "local_gates.py").read_text(encoding="utf-8"))
-    shell_true = [n for n in ast.walk(tree)
-                  if isinstance(n, ast.keyword) and n.arg == "shell"
-                  and isinstance(n.value, ast.Constant) and n.value.value is True]
+    shell_true = [
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.keyword)
+        and n.arg == "shell"
+        and isinstance(n.value, ast.Constant)
+        and n.value.value is True
+    ]
     assert shell_true == [], "local_gates.py runs something through a shell"
 
     for node in ast.walk(tree):
-        if not (isinstance(node, ast.Call)
-                and ast.unparse(node.func) in {"subprocess.run", "subprocess.Popen"}):
+        if not (
+            isinstance(node, ast.Call)
+            and ast.unparse(node.func) in {"subprocess.run", "subprocess.Popen"}
+        ):
             continue
         assert node.args and isinstance(node.args[0], ast.List), (
-            "every subprocess call must pass an argv list literal")
+            "every subprocess call must pass an argv list literal"
+        )
         kwargs = {k.arg for k in node.keywords}
-        assert "timeout" in kwargs, "a subprocess call without a timeout can hang a push"
+        assert "timeout" in kwargs, (
+            "a subprocess call without a timeout can hang a push"
+        )

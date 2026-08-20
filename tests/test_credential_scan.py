@@ -36,7 +36,7 @@ PY = sys.executable
 
 # Assembled so the shape never appears as a literal in tracked content.
 PAT_PREFIX = "github" + "_pat_"
-PAT_ID = "A1b2C3d4E5f6G7h8I9j0K1"          # 22 chars, as a real token id is
+PAT_ID = "A1b2C3d4E5f6G7h8I9j0K1"  # 22 chars, as a real token id is
 FINE_GRAINED_PAT = PAT_PREFIX + PAT_ID
 # The id half is split too: at 36 characters it is long enough to trip the
 # high-entropy rule on its own, without the `ghp_` prefix. Every literal here
@@ -49,28 +49,36 @@ SK_KEY = "sk" + "-" + "A1b2C3d4E5f6G7h8I9j0"
 
 # Shapes that must NOT fire. Safe to write literally: that is the claim.
 GIT_SHA = "fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09"
-ACTION_PIN = ("      - uses: actions/checkout@"
-              "fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0")
-ENGLISH = ("A risk-free, task-based approach to disk-bound work: the whisky-"
-           "aged, brisk-paced sort.")
+ACTION_PIN = (
+    "      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0"
+)
+ENGLISH = (
+    "A risk-free, task-based approach to disk-bound work: the whisky-"
+    "aged, brisk-paced sort."
+)
 
 # A real npm lockfile integrity field: base64, so it mixes case where a hex
 # digest does not. Computed here rather than pasted, so the test states the
 # property -- a well-formed digest of the declared length -- instead of
 # hardcoding one package's hash and drifting when the lockfile changes.
-NPM_INTEGRITY = '  "integrity": "sha512-' + base64.b64encode(
-    hashlib.sha512(b"any published artifact").digest()).decode() + '",'
+NPM_INTEGRITY = (
+    '  "integrity": "sha512-'
+    + base64.b64encode(hashlib.sha512(b"any published artifact").digest()).decode()
+    + '",'
+)
 
 # The same field carrying something that is NOT a digest. Right prefix, wrong
 # payload: this must still fire, or the prefix would be an opt-out anyone
 # could type to smuggle a secret past the scanner.
-FAKE_INTEGRITY = ('  "integrity": "sha512-'
-                  + "A1b2C3d4E5f6G7h8" + "I9j0K1l2M3n4O5p6Q7r8" + '",')
+FAKE_INTEGRITY = (
+    '  "integrity": "sha512-' + "A1b2C3d4E5f6G7h8" + "I9j0K1l2M3n4O5p6Q7r8" + '",'
+)
 
 
 def git(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["git", *args], cwd=cwd, capture_output=True,
-                          text=True, timeout=60)
+    return subprocess.run(
+        ["git", *args], cwd=cwd, capture_output=True, text=True, timeout=60
+    )
 
 
 def repo(tmp_path: Path) -> Path:
@@ -95,13 +103,15 @@ def commit_file(w: Path, name: str, body: str) -> None:
 
 
 def run_scan(cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run([PY, str(SCANNER)], cwd=cwd, capture_output=True,
-                          text=True, timeout=120)
+    return subprocess.run(
+        [PY, str(SCANNER)], cwd=cwd, capture_output=True, text=True, timeout=120
+    )
 
 
 # ---------------------------------------------------------------------------
 # The present state of this repository
 # ---------------------------------------------------------------------------
+
 
 def test_the_real_repository_is_clean() -> None:
     """The gate's verdict on the tree it actually guards.
@@ -125,14 +135,16 @@ def test_tracked_set_equals_git_ls_files() -> None:
     from credential_scan import index_path, tracked_paths
 
     mine = sorted(tracked_paths(index_path(REPO)))
-    out = subprocess.run(["git", "ls-files", "-z"], cwd=REPO,
-                         capture_output=True, text=True, timeout=60).stdout
+    out = subprocess.run(
+        ["git", "ls-files", "-z"], cwd=REPO, capture_output=True, text=True, timeout=60
+    ).stdout
     assert mine == sorted(p for p in out.split("\0") if p)
 
 
 # ---------------------------------------------------------------------------
 # Detection
 # ---------------------------------------------------------------------------
+
 
 def test_fine_grained_pat_is_caught_and_never_echoed(tmp_path: Path) -> None:
     """The shape that was published. Catching it is half the requirement.
@@ -168,18 +180,22 @@ def test_the_integrity_prefix_is_not_an_opt_out(tmp_path: Path) -> None:
     assert r.returncode == 1, (
         "a non-digest payload behind the integrity prefix was not flagged; "
         "the exemption is trusting the prefix instead of verifying the value\n"
-        + r.stdout + r.stderr)
+        + r.stdout
+        + r.stderr
+    )
     assert "high-entropy-token" in r.stdout
 
 
-@pytest.mark.parametrize(("label", "planted"), [
-    ("github-token", CLASSIC_TOKEN),
-    ("aws-access-key-id", AWS_KEY_ID),
-    ("pem-block", PEM_HEADER),
-    ("api-key-sk", SK_KEY),
-])
-def test_each_credential_shape_blocks(tmp_path: Path, label: str,
-                                      planted: str) -> None:
+@pytest.mark.parametrize(
+    ("label", "planted"),
+    [
+        ("github-token", CLASSIC_TOKEN),
+        ("aws-access-key-id", AWS_KEY_ID),
+        ("pem-block", PEM_HEADER),
+        ("api-key-sk", SK_KEY),
+    ],
+)
+def test_each_credential_shape_blocks(tmp_path: Path, label: str, planted: str) -> None:
     w = repo(tmp_path)
     commit_file(w, "leak.txt", f"value: {planted}\n")
     r = run_scan(w)
@@ -192,15 +208,20 @@ def test_each_credential_shape_blocks(tmp_path: Path, label: str,
 # The false positives that would get the gate switched off
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize(("name", "body"), [
-    ("sha.txt", f"commit {GIT_SHA}\n"),
-    ("workflow.yml", f"jobs:\n  a:\n    steps:\n{ACTION_PIN}\n"),
-    ("prose.md", f"{ENGLISH}\n"),
-    ("lock.txt", "--hash=sha256:" + "abcdef0123456789" * 4 + "\n"),
-    ("package-lock.json", "{\n" + NPM_INTEGRITY + "\n}\n"),
-])
-def test_ordinary_content_does_not_trip_the_gate(tmp_path: Path, name: str,
-                                                 body: str) -> None:
+
+@pytest.mark.parametrize(
+    ("name", "body"),
+    [
+        ("sha.txt", f"commit {GIT_SHA}\n"),
+        ("workflow.yml", f"jobs:\n  a:\n    steps:\n{ACTION_PIN}\n"),
+        ("prose.md", f"{ENGLISH}\n"),
+        ("lock.txt", "--hash=sha256:" + "abcdef0123456789" * 4 + "\n"),
+        ("package-lock.json", "{\n" + NPM_INTEGRITY + "\n}\n"),
+    ],
+)
+def test_ordinary_content_does_not_trip_the_gate(
+    tmp_path: Path, name: str, body: str
+) -> None:
     """40-char git SHAs, SHA-pinned actions, English, and lockfile hashes.
 
     This repository is built out of all four. A gate that fires on them is a
@@ -215,11 +236,14 @@ def test_ordinary_content_does_not_trip_the_gate(tmp_path: Path, name: str,
 def test_a_bare_pattern_constant_is_not_a_finding(tmp_path: Path) -> None:
     """A prefix with no payload is source code, not a credential."""
     w = repo(tmp_path)
-    commit_file(w, "patterns.py",
-                "PREFIXES = (\n"
-                f'    "{PAT_PREFIX}",   # GitHub fine-grained PAT\n'
-                '    "gh" "p_",       # classic\n'
-                ")\n")
+    commit_file(
+        w,
+        "patterns.py",
+        "PREFIXES = (\n"
+        f'    "{PAT_PREFIX}",   # GitHub fine-grained PAT\n'
+        '    "gh" "p_",       # classic\n'
+        ")\n",
+    )
     r = run_scan(w)
     assert r.returncode == 0, r.stdout + r.stderr
 
@@ -228,23 +252,23 @@ def test_a_bare_pattern_constant_is_not_a_finding(tmp_path: Path) -> None:
 # Self-exclusion is payload-aware, not file-wide
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("script", ["credential_scan.py", "generate_evidence.py"])
-def test_the_pattern_bearing_scripts_are_inert_unmodified(tmp_path: Path,
-                                                          script: str) -> None:
+def test_the_pattern_bearing_scripts_are_inert_unmodified(
+    tmp_path: Path, script: str
+) -> None:
     """Both files carry the literal prefixes, and neither is a finding.
 
     Not because either is excluded -- no file is -- but because a prefix with
     no credential-shaped payload does not match anywhere.
     """
     w = repo(tmp_path)
-    commit_file(w, f"scripts/{script}",
-                (SCRIPTS / script).read_text(encoding="utf-8"))
+    commit_file(w, f"scripts/{script}", (SCRIPTS / script).read_text(encoding="utf-8"))
     r = run_scan(w)
     assert r.returncode == 0, r.stdout + r.stderr
 
 
-def test_a_real_secret_inside_the_scanner_itself_still_fails(
-        tmp_path: Path) -> None:
+def test_a_real_secret_inside_the_scanner_itself_still_fails(tmp_path: Path) -> None:
     """The hole a wholesale self-exclusion would have opened.
 
     If `credential_scan.py` were excluded by filename, a credential pasted into
@@ -254,8 +278,9 @@ def test_a_real_secret_inside_the_scanner_itself_still_fails(
     """
     w = repo(tmp_path)
     source = SCANNER.read_text(encoding="utf-8")
-    commit_file(w, "scripts/credential_scan.py",
-                f'{source}\n_LEAKED = "{FINE_GRAINED_PAT}"\n')
+    commit_file(
+        w, "scripts/credential_scan.py", f'{source}\n_LEAKED = "{FINE_GRAINED_PAT}"\n'
+    )
     r = run_scan(w)
     assert r.returncode == 1, r.stdout + r.stderr
     assert "scripts/credential_scan.py" in r.stdout
@@ -265,6 +290,7 @@ def test_a_real_secret_inside_the_scanner_itself_still_fails(
 # ---------------------------------------------------------------------------
 # Scope and robustness
 # ---------------------------------------------------------------------------
+
 
 def test_untracked_files_are_out_of_scope(tmp_path: Path) -> None:
     """Only tracked content can be published, so only tracked content is scanned.
@@ -289,7 +315,8 @@ def test_untracked_files_are_out_of_scope(tmp_path: Path) -> None:
 def test_binary_files_are_skipped_without_crashing(tmp_path: Path) -> None:
     w = repo(tmp_path)
     (w / "blob.bin").write_bytes(
-        b"\x89PNG\r\n\x1a\n\x00\x00" + FINE_GRAINED_PAT.encode() + b"\x00\xff")
+        b"\x89PNG\r\n\x1a\n\x00\x00" + FINE_GRAINED_PAT.encode() + b"\x00\xff"
+    )
     git("add", "-A", cwd=w)
     git("commit", "-qm", "binary", cwd=w)
     r = run_scan(w)

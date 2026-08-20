@@ -95,13 +95,17 @@ TOTAL_BUDGET_S = 120
 WAIT_BUDGET_S = 420
 POLL_INTERVAL_S = 5
 
-HEADING = re.compile(r"^\s{0,3}#{1,6}\s+Measured\s+Evidence\s*$", re.IGNORECASE | re.MULTILINE)
+HEADING = re.compile(
+    r"^\s{0,3}#{1,6}\s+Measured\s+Evidence\s*$", re.IGNORECASE | re.MULTILINE
+)
 
 #: GitHub prefixes every log line with an RFC3339 timestamp and may embed ANSI
 #: colour. Both are transport, not content: matching against them would make a
 #: claim's provability depend on when it ran.
 ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
-TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\s?", re.MULTILINE)
+TIMESTAMP = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\s?", re.MULTILINE
+)
 
 NUMBER_IN_TEXT = re.compile(r"-?\d+(?:\.\d+)?")
 
@@ -121,20 +125,23 @@ NUMBER_IN_TEXT = re.compile(r"-?\d+(?:\.\d+)?")
 # demanded every number appear in the evidence table would block all eight.
 # --------------------------------------------------------------------------
 CLAIM_NUMBER = re.compile(
-    r"\b\d+(?:\.\d+)?\s*(?:%|percent\b|ms\b|s\b|sec\b|secs\b|seconds?\b|x\b|calls?\b|tests?\b)")
+    r"\b\d+(?:\.\d+)?\s*(?:%|percent\b|ms\b|s\b|sec\b|secs\b|seconds?\b|x\b|calls?\b|tests?\b)"
+)
 
 CLAIM_METRIC = re.compile(
     r"\b(measured|benchmark(?:ed)?|coverage|mutation|score|duration|elapsed|latency"
     r"|throughput|speedup|faster|slower|reduced?|reduction|saved|improvement"
     r"|runtime|wall[- ]?clock|p50|p95|p99)\b",
-    re.IGNORECASE)
+    re.IGNORECASE,
+)
 
 #: A threshold is a requirement the project set. It belongs to no run, so
 #: `900-second target` and `--min-score 0.95` must never be flagged.
 CLAIM_REQUIREMENT = re.compile(
     r"\b(target|threshold|floor|ceiling|budget|cap|minimum|maximum|at least|at most"
     r"|must|should|required|requirement|contract|limit|goal|SLA)\b",
-    re.IGNORECASE)
+    re.IGNORECASE,
+)
 
 #: Provenance sitting on the line or within the window: a run ID, a SHA, a row
 #: reference into the evidence table, or an explicit statement that no
@@ -142,7 +149,8 @@ CLAIM_REQUIREMENT = re.compile(
 CLAIM_PROVENANCE = re.compile(
     r"\b(?:run\s*\d{6,}|[0-9a-f]{7,40}|R\d+\b|see\s+Measured\s+Evidence"
     r"|UNMEASURED|NOT\s+MEASURED|ESTIMATE|WITHDRAWN)\b",
-    re.IGNORECASE)
+    re.IGNORECASE,
+)
 
 CLAIM_WINDOW = 2
 
@@ -204,11 +212,15 @@ def safe_eval(formula: str, values: dict[str, float]) -> float:
     a blocklist that forgot a spelling.
     """
     if len(formula) > MAX_FORMULA_CHARS:
-        raise EvidenceError("MALFORMED", f"formula longer than {MAX_FORMULA_CHARS} characters")
+        raise EvidenceError(
+            "MALFORMED", f"formula longer than {MAX_FORMULA_CHARS} characters"
+        )
     try:
         tree = ast.parse(formula, mode="eval")
     except SyntaxError as exc:
-        raise EvidenceError("MALFORMED", f"formula is not an expression: {exc}") from exc
+        raise EvidenceError(
+            "MALFORMED", f"formula is not an expression: {exc}"
+        ) from exc
 
     def walk(node: ast.AST, depth: int) -> float:
         if depth > MAX_FORMULA_DEPTH:
@@ -221,9 +233,13 @@ def safe_eval(formula: str, values: dict[str, float]) -> float:
             return float(node.value)
         if isinstance(node, ast.Name):
             if not _ROW_ID.match(node.id):
-                raise EvidenceError("MALFORMED", f"formula names {node.id!r}, not a row ID")
+                raise EvidenceError(
+                    "MALFORMED", f"formula names {node.id!r}, not a row ID"
+                )
             if node.id not in values:
-                raise EvidenceError("UNKNOWN", f"formula references undeclared row {node.id}")
+                raise EvidenceError(
+                    "UNKNOWN", f"formula references undeclared row {node.id}"
+                )
             return values[node.id]
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
             operand = walk(node.operand, depth + 1)
@@ -240,10 +256,17 @@ def safe_eval(formula: str, values: dict[str, float]) -> float:
                 if right == 0:
                     raise EvidenceError("MALFORMED", "formula divides by zero")
                 return left / right
-            raise EvidenceError("MALFORMED", f"operator {type(node.op).__name__} not permitted")
+            raise EvidenceError(
+                "MALFORMED", f"operator {type(node.op).__name__} not permitted"
+            )
         if isinstance(node, ast.Call):
-            if not isinstance(node.func, ast.Name) or node.func.id not in _ALLOWED_CALLS:
-                raise EvidenceError("MALFORMED", "only max, min, abs and round may be called")
+            if (
+                not isinstance(node.func, ast.Name)
+                or node.func.id not in _ALLOWED_CALLS
+            ):
+                raise EvidenceError(
+                    "MALFORMED", "only max, min, abs and round may be called"
+                )
             if node.keywords:
                 raise EvidenceError("MALFORMED", "keyword arguments are not permitted")
             args = [walk(a, depth + 1) for a in node.args]
@@ -253,13 +276,16 @@ def safe_eval(formula: str, values: dict[str, float]) -> float:
             # digit count, and round(1.0, 2.5) is a TypeError at runtime, not a
             # typing quibble. Every other permitted call takes floats happily.
             if node.func.id == "round":
-                return float(round(args[0], int(args[1])) if len(args) > 1
-                             else round(args[0]))
+                return float(
+                    round(args[0], int(args[1])) if len(args) > 1 else round(args[0])
+                )
             if node.func.id == "abs":
                 return float(abs(args[0]))
             chooser = max if node.func.id == "max" else min
             return float(chooser(args))
-        raise EvidenceError("MALFORMED", f"{type(node).__name__} is not permitted in a formula")
+        raise EvidenceError(
+            "MALFORMED", f"{type(node).__name__} is not permitted in a formula"
+        )
 
     return walk(tree, 0)
 
@@ -294,37 +320,40 @@ def parse_table(body: str) -> list[Row]:
     if match is None:
         return []
 
-    lines = body[match.end():].split("\n")
+    lines = body[match.end() :].split("\n")
     rows: list[Row] = []
-    base = body[:match.end()].count("\n") + 1
+    base = body[: match.end()].count("\n") + 1
     seen_header = False
 
     for offset, line in enumerate(lines):
         cells = _cells(line)
         if not cells:
             if rows or seen_header:
-                break          # table ended
+                break  # table ended
             if line.strip().startswith("#"):
-                break          # next section before any table
+                break  # next section before any table
             continue
         if all(set(c) <= {"-", ":", " "} for c in cells if c):
-            continue           # the |---|---| separator
+            continue  # the |---|---| separator
         if not seen_header:
             seen_header = True
-            continue           # the header row
+            continue  # the header row
 
         line_no = base + offset
         if len(cells) != 9:
             raise EvidenceError(
                 "MALFORMED",
                 f"line {line_no}: evidence row has {len(cells)} columns, expected 9",
-                "Columns are: ID | Type | Metric | Value | Unit | SHA | Run | Source | Evidence")
+                "Columns are: ID | Type | Metric | Value | Unit | SHA | Run | Source | Evidence",
+            )
         rows.append(_row_from(cells, line_no))
         if len(rows) > MAX_ROWS:
             raise EvidenceError("MALFORMED", f"more than {MAX_ROWS} evidence rows")
 
     if seen_header and not rows:
-        raise EvidenceError("MALFORMED", "Measured Evidence section has a header but no rows")
+        raise EvidenceError(
+            "MALFORMED", "Measured Evidence section has a header but no rows"
+        )
     return rows
 
 
@@ -335,43 +364,62 @@ def _row_from(cells: list[str], line_no: int) -> Row:
     if not _ROW_ID.match(row_id):
         raise EvidenceError("MALFORMED", f"{where}: row ID {row_id!r} is not R<number>")
     if row_type not in ROW_TYPES:
-        raise EvidenceError("MALFORMED",
-                            f"{where}: type {row_type!r} is not one of {sorted(ROW_TYPES)}")
+        raise EvidenceError(
+            "MALFORMED", f"{where}: type {row_type!r} is not one of {sorted(ROW_TYPES)}"
+        )
     if not metric:
         raise EvidenceError("MALFORMED", f"{where}: metric name is empty")
     try:
         value = float(raw_value.replace(",", ""))
     except ValueError as exc:
-        raise EvidenceError("MALFORMED",
-                            f"{where}: claimed value {raw_value!r} is not numeric") from exc
+        raise EvidenceError(
+            "MALFORMED", f"{where}: claimed value {raw_value!r} is not numeric"
+        ) from exc
     if unit not in UNITS:
         raise EvidenceError(
-            "MALFORMED", f"{where}: unit {unit!r} is not in the closed set {sorted(UNITS)}",
-            "Units are never guessed at or converted. Use one of the listed units.")
+            "MALFORMED",
+            f"{where}: unit {unit!r} is not in the closed set {sorted(UNITS)}",
+            "Units are never guessed at or converted. Use one of the listed units.",
+        )
     if source not in SOURCES:
-        raise EvidenceError("MALFORMED",
-                            f"{where}: source {source!r} is not one of {sorted(SOURCES)}")
+        raise EvidenceError(
+            "MALFORMED", f"{where}: source {source!r} is not one of {sorted(SOURCES)}"
+        )
     if not evidence.strip():
         raise EvidenceError("MALFORMED", f"{where}: evidence marker is empty")
 
     dash = {"", "-", "—", "–", "n/a", "N/A"}
     if row_type == "derived":
         if source != "formula":
-            raise EvidenceError("MALFORMED", f"{where}: a derived row must have source `formula`")
+            raise EvidenceError(
+                "MALFORMED", f"{where}: a derived row must have source `formula`"
+            )
     else:
         if source == "formula":
-            raise EvidenceError("MALFORMED",
-                                f"{where}: only a derived row may have source `formula`")
+            raise EvidenceError(
+                "MALFORMED", f"{where}: only a derived row may have source `formula`"
+            )
         if sha in dash:
-            raise EvidenceError("MALFORMED", f"{where}: a {row_type} row must name a SHA")
+            raise EvidenceError(
+                "MALFORMED", f"{where}: a {row_type} row must name a SHA"
+            )
         if run_id in dash or not run_id.isdigit():
-            raise EvidenceError("MALFORMED",
-                                f"{where}: a {row_type} row must name a numeric run ID")
+            raise EvidenceError(
+                "MALFORMED", f"{where}: a {row_type} row must name a numeric run ID"
+            )
 
-    return Row(row_id, row_type, metric, value, unit,
-               "" if sha in dash else sha,
-               "" if run_id in dash else run_id,
-               source, evidence, line_no)
+    return Row(
+        row_id,
+        row_type,
+        metric,
+        value,
+        unit,
+        "" if sha in dash else sha,
+        "" if run_id in dash else run_id,
+        source,
+        evidence,
+        line_no,
+    )
 
 
 def unsupported_claims(body: str, rows: list[Row]) -> list[tuple[int, str]]:
@@ -380,8 +428,10 @@ def unsupported_claims(body: str, rows: list[Row]) -> list[tuple[int, str]]:
     table_span = range(0, 0)
     if match is not None:
         end = body.find("\n#", match.end())
-        table_span = range(body[:match.start()].count("\n"),
-                           body[:end if end != -1 else len(body)].count("\n") + 1)
+        table_span = range(
+            body[: match.start()].count("\n"),
+            body[: end if end != -1 else len(body)].count("\n") + 1,
+        )
 
     metrics = {r.metric.lower() for r in rows}
     lines = body.split("\n")
@@ -393,11 +443,11 @@ def unsupported_claims(body: str, rows: list[Row]) -> list[tuple[int, str]]:
             continue
         if CLAIM_REQUIREMENT.search(line):
             continue
-        near = "\n".join(lines[max(0, index - CLAIM_WINDOW): index + CLAIM_WINDOW + 1])
+        near = "\n".join(lines[max(0, index - CLAIM_WINDOW) : index + CLAIM_WINDOW + 1])
         if CLAIM_PROVENANCE.search(near):
             continue
         if any(m and m in line.lower() for m in metrics):
-            continue           # the table already carries this metric
+            continue  # the table already carries this metric
         found.append((index + 1, line.strip()))
     return found
 
@@ -419,7 +469,9 @@ class Fetcher(Protocol):
 class GitHubFetcher:
     """`gh api` over subprocess, argv-only, bounded, and cached per run."""
 
-    def __init__(self, repository: str = REPOSITORY, deadline: float | None = None) -> None:
+    def __init__(
+        self, repository: str = REPOSITORY, deadline: float | None = None
+    ) -> None:
         self.repository = repository
         self.deadline = deadline
         self._cache: dict[str, Any] = {}
@@ -428,16 +480,23 @@ class GitHubFetcher:
         if path in self._cache:
             return self._cache[path]
         if self.deadline is not None and time.monotonic() > self.deadline:
-            raise EvidenceError("INFRASTRUCTURE_BLOCK",
-                                f"fetch budget of {TOTAL_BUDGET_S}s exhausted before {path}")
+            raise EvidenceError(
+                "INFRASTRUCTURE_BLOCK",
+                f"fetch budget of {TOTAL_BUDGET_S}s exhausted before {path}",
+            )
         exe = shutil.which("gh")
         if exe is None:
             raise EvidenceError("INFRASTRUCTURE_BLOCK", "gh is not on PATH")
         last = ""
         for _ in range(FETCH_RETRIES + 1):
-            out = subprocess.run(                       # noqa: S603 - argv only, no shell
-                [exe, "api", path], capture_output=True, text=True,
-                timeout=FETCH_TIMEOUT_S, stdin=subprocess.DEVNULL, shell=False)
+            out = subprocess.run(  # noqa: S603 - argv only, no shell
+                [exe, "api", path],
+                capture_output=True,
+                text=True,
+                timeout=FETCH_TIMEOUT_S,
+                stdin=subprocess.DEVNULL,
+                shell=False,
+            )
             if out.returncode == 0:
                 parsed: Any = json.loads(out.stdout) if out.stdout.strip() else {}
                 self._cache[path] = parsed
@@ -447,27 +506,37 @@ class GitHubFetcher:
         raise EvidenceError(
             "INFRASTRUCTURE_BLOCK",
             f"GET {path} failed after {FETCH_RETRIES + 1} attempts: {last}",
-            "Check GitHub availability and that the token carries actions:read and checks:read.")
+            "Check GitHub availability and that the token carries actions:read and checks:read.",
+        )
 
     def run(self, run_id: str) -> dict[str, Any]:
-        return cast("dict[str, Any]",
-                    self._gh(f"repos/{self.repository}/actions/runs/{run_id}"))
+        return cast(
+            "dict[str, Any]", self._gh(f"repos/{self.repository}/actions/runs/{run_id}")
+        )
 
     def jobs(self, run_id: str) -> list[dict[str, Any]]:
-        payload: dict[str, Any] = self._gh(f"repos/{self.repository}/actions/runs/{run_id}/jobs?per_page=100")
+        payload: dict[str, Any] = self._gh(
+            f"repos/{self.repository}/actions/runs/{run_id}/jobs?per_page=100"
+        )
         return cast("list[dict[str, Any]]", payload.get("jobs") or [])
 
     def job_log(self, run_id: str, job_id: int) -> str:
         exe = shutil.which("gh")
         if exe is None:
             raise EvidenceError("INFRASTRUCTURE_BLOCK", "gh is not on PATH")
-        out = subprocess.run(                           # noqa: S603 - argv only, no shell
+        out = subprocess.run(  # noqa: S603 - argv only, no shell
             [exe, "api", f"repos/{self.repository}/actions/jobs/{job_id}/logs"],
-            capture_output=True, text=True, timeout=FETCH_TIMEOUT_S,
-            stdin=subprocess.DEVNULL, shell=False)
+            capture_output=True,
+            text=True,
+            timeout=FETCH_TIMEOUT_S,
+            stdin=subprocess.DEVNULL,
+            shell=False,
+        )
         if out.returncode != 0:
-            raise EvidenceError("INFRASTRUCTURE_BLOCK",
-                                f"log for job {job_id} of run {run_id} could not be fetched")
+            raise EvidenceError(
+                "INFRASTRUCTURE_BLOCK",
+                f"log for job {job_id} of run {run_id} could not be fetched",
+            )
         return out.stdout
 
     def check_runs(self, sha: str) -> list[dict[str, Any]]:
@@ -481,7 +550,9 @@ class GitHubFetcher:
         return cast("list[dict[str, Any]]", payload.get("check_runs") or [])
 
     def runs_for_sha(self, sha: str) -> list[dict[str, Any]]:
-        payload: dict[str, Any] = self._gh(f"repos/{self.repository}/actions/runs?head_sha={sha}&per_page=50")
+        payload: dict[str, Any] = self._gh(
+            f"repos/{self.repository}/actions/runs?head_sha={sha}&per_page=50"
+        )
         return cast("list[dict[str, Any]]", payload.get("workflow_runs") or [])
 
 
@@ -497,6 +568,7 @@ def _seconds(job: dict[str, Any]) -> float:
     if not started or not completed:
         raise EvidenceError("PARTIAL", f"job {job.get('name')!r} has no completed_at")
     import datetime as dt
+
     begin = dt.datetime.fromisoformat(str(started).replace("Z", "+00:00"))
     end = dt.datetime.fromisoformat(str(completed).replace("Z", "+00:00"))
     return (end - begin).total_seconds()
@@ -515,20 +587,27 @@ def bind_row(row: Row, fetcher: Fetcher, head_sha: str) -> str:
         raise EvidenceError(
             "CONTRADICTED",
             f"{row.row_id}: run {row.run_id} belongs to {full_name}, not {REPOSITORY}",
-            "Evidence may only cite runs of this repository.")
+            "Evidence may only cite runs of this repository.",
+        )
 
     run_sha = str(run.get("head_sha", ""))
     if not run_sha:
-        raise EvidenceError("UNKNOWN", f"{row.row_id}: run {row.run_id} reports no head_sha")
+        raise EvidenceError(
+            "UNKNOWN", f"{row.row_id}: run {row.run_id} reports no head_sha"
+        )
     if not (run_sha.startswith(row.sha) or row.sha.startswith(run_sha)):
         raise EvidenceError(
-            "STALE", f"{row.row_id}: row names SHA {row.sha} but run {row.run_id} ran on {run_sha}")
-    if row.row_type == "current" and not (run_sha.startswith(head_sha)
-                                          or head_sha.startswith(run_sha)):
+            "STALE",
+            f"{row.row_id}: row names SHA {row.sha} but run {row.run_id} ran on {run_sha}",
+        )
+    if row.row_type == "current" and not (
+        run_sha.startswith(head_sha) or head_sha.startswith(run_sha)
+    ):
         raise EvidenceError(
             "STALE",
             f"{row.row_id}: a `current` row must cite the head SHA {head_sha}, not {run_sha}",
-            "Use type `baseline` for evidence from an earlier commit.")
+            "Use type `baseline` for evidence from an earlier commit.",
+        )
 
     jobs = fetcher.jobs(row.run_id)
     if row.source == "api":
@@ -545,15 +624,17 @@ def _bind_api(row: Row, jobs: list[dict[str, Any]]) -> str:
         raise EvidenceError(
             "MALFORMED",
             f"{row.row_id}: {row.evidence!r} is not a supported API path",
-            "Supported: jobs[<job>].duration and jobs[<job>].conclusion")
+            "Supported: jobs[<job>].duration and jobs[<job>].conclusion",
+        )
 
-    name = (duration or conclusion).group("job")          # type: ignore[union-attr]
+    name = (duration or conclusion).group("job")  # type: ignore[union-attr]
     job = next((j for j in jobs if str(j.get("name")) == name), None)
     if job is None:
         raise EvidenceError(
             "CONTRADICTED",
             f"{row.row_id}: run {row.run_id} has no job named {name!r}",
-            f"Jobs in that run: {', '.join(sorted(str(j.get('name')) for j in jobs)) or 'none'}")
+            f"Jobs in that run: {', '.join(sorted(str(j.get('name')) for j in jobs)) or 'none'}",
+        )
 
     if conclusion is not None:
         return f"jobs[{name}].conclusion = {job.get('conclusion')}"
@@ -562,13 +643,16 @@ def _bind_api(row: Row, jobs: list[dict[str, Any]]) -> str:
     if row.unit == "ms":
         actual *= 1000.0
     elif row.unit != "seconds":
-        raise EvidenceError("MALFORMED",
-                            f"{row.row_id}: a duration must be in seconds or ms, not {row.unit}")
+        raise EvidenceError(
+            "MALFORMED",
+            f"{row.row_id}: a duration must be in seconds or ms, not {row.unit}",
+        )
     if not close_enough(row.value, actual):
         raise EvidenceError(
             "CONTRADICTED",
             f"{row.row_id}: claims {row.value} {row.unit}, "
-            f"but jobs[{name}].duration is {actual:.2f} {row.unit}")
+            f"but jobs[{name}].duration is {actual:.2f} {row.unit}",
+        )
     return f"jobs[{name}].duration = {actual:.2f} {row.unit}"
 
 
@@ -584,18 +668,21 @@ def _bind_log(row: Row, jobs: list[dict[str, Any]], fetcher: Fetcher) -> str:
                 "CONTRADICTED",
                 f"{row.row_id}: the marker {row.evidence!r} is in the log of "
                 f"{job.get('name')!r}, but it does not carry the claimed value {row.value}",
-                "The number in the PR must be the number in the log.")
+                "The number in the PR must be the number in the log.",
+            )
         return f"{job.get('name')}: {marker}"
     raise EvidenceError(
         "UNKNOWN",
-        f"{row.row_id}: marker {row.evidence!r} was not found in any log of run {row.run_id}")
+        f"{row.row_id}: marker {row.evidence!r} was not found in any log of run {row.run_id}",
+    )
 
 
 # --------------------------------------------------------------------------
 # Failure dossier
 # --------------------------------------------------------------------------
-def dossier(pr: str, sha: str, workflow: str, run_id: str, job: dict[str, Any],
-            log: str) -> str:
+def dossier(
+    pr: str, sha: str, workflow: str, run_id: str, job: dict[str, Any], log: str
+) -> str:
     """The record a failed required job must produce. It never invents a cause.
 
     If the log proves only that a command exited non-zero, `OBSERVED WHY` says
@@ -606,8 +693,9 @@ def dossier(pr: str, sha: str, workflow: str, run_id: str, job: dict[str, Any],
     findings: list[dict[str, Any]] = []
     try:
         import run_gate
+
         findings = run_gate.extract_findings(log)
-    except Exception:                                   # noqa: BLE001 - extraction is best effort
+    except Exception:  # noqa: BLE001 - extraction is best effort
         findings = []
 
     steps = cast("list[dict[str, Any]]", job.get("steps") or [])
@@ -621,39 +709,46 @@ def dossier(pr: str, sha: str, workflow: str, run_id: str, job: dict[str, Any],
     fix = str(first.get("fix") or "").strip()
 
     if not what:
-        what = (f"step {step.get('name')!r} concluded `failure`"
-                if step else f"job concluded {job.get('conclusion')!r}")
+        what = (
+            f"step {step.get('name')!r} concluded `failure`"
+            if step
+            else f"job concluded {job.get('conclusion')!r}"
+        )
 
     excerpt = "\n".join(
-        line for line in normalize_log(log).split("\n")
-        if line and ("error" in line.lower() or "failed" in line.lower()))[-1200:]
+        line
+        for line in normalize_log(log).split("\n")
+        if line and ("error" in line.lower() or "failed" in line.lower())
+    )[-1200:]
 
-    return "\n".join([
-        "STATUS: FAIL",
-        f"PR: {pr}",
-        f"LATEST_SHA: {sha}",
-        f"WORKFLOW: {workflow}",
-        f"RUN_ID: {run_id}",
-        f"JOB: {job.get('name')}",
-        f"STEP: {step.get('name', 'UNKNOWN')}",
-        f"LOG_SOURCE: actions/jobs/{job.get('id')}/logs",
-        "",
-        f"WHAT FAILED:\n{what}",
-        "",
-        f"WHERE:\n{where or 'UNKNOWN — LOG DOES NOT NAME A LOCATION'}",
-        "",
-        f"OBSERVED WHY:\n{why or 'UNKNOWN — LOG DOES NOT PROVE ROOT CAUSE'}",
-        "",
-        f"NEXT SAFE FIX:\n{fix or 'INVESTIGATE — ROOT CAUSE NOT PROVEN'}",
-        "",
-        "REQUIRED ACTION:",
-        "Fix the code/configuration/evidence issue.",
-        "Push a new SHA.",
-        "Run all required checks again.",
-        "No merge until latest-SHA evidence is green.",
-        "",
-        f"EVIDENCE:\n{excerpt or '(no error-bearing lines in log)'}",
-    ])
+    return "\n".join(
+        [
+            "STATUS: FAIL",
+            f"PR: {pr}",
+            f"LATEST_SHA: {sha}",
+            f"WORKFLOW: {workflow}",
+            f"RUN_ID: {run_id}",
+            f"JOB: {job.get('name')}",
+            f"STEP: {step.get('name', 'UNKNOWN')}",
+            f"LOG_SOURCE: actions/jobs/{job.get('id')}/logs",
+            "",
+            f"WHAT FAILED:\n{what}",
+            "",
+            f"WHERE:\n{where or 'UNKNOWN — LOG DOES NOT NAME A LOCATION'}",
+            "",
+            f"OBSERVED WHY:\n{why or 'UNKNOWN — LOG DOES NOT PROVE ROOT CAUSE'}",
+            "",
+            f"NEXT SAFE FIX:\n{fix or 'INVESTIGATE — ROOT CAUSE NOT PROVEN'}",
+            "",
+            "REQUIRED ACTION:",
+            "Fix the code/configuration/evidence issue.",
+            "Push a new SHA.",
+            "Run all required checks again.",
+            "No merge until latest-SHA evidence is green.",
+            "",
+            f"EVIDENCE:\n{excerpt or '(no error-bearing lines in log)'}",
+        ]
+    )
 
 
 # --------------------------------------------------------------------------
@@ -673,11 +768,15 @@ class StatusEvidence:
     sha: str
 
 
-def collect_status(fetcher: Fetcher, sha: str, contexts: list[str], exclude: str,
-                   wait_budget: float = 0.0,
-                   sleep: Callable[[float], None] = time.sleep,
-                   clock: Callable[[], float] = time.monotonic,
-                   ) -> tuple[list[StatusEvidence], list[str]]:
+def collect_status(
+    fetcher: Fetcher,
+    sha: str,
+    contexts: list[str],
+    exclude: str,
+    wait_budget: float = 0.0,
+    sleep: Callable[[float], None] = time.sleep,
+    clock: Callable[[], float] = time.monotonic,
+) -> tuple[list[StatusEvidence], list[str]]:
     """Wait for every required context on this SHA to become terminal, then read it.
 
     `exclude` is this gate's own context. A gate that waits for itself to become
@@ -695,8 +794,9 @@ def collect_status(fetcher: Fetcher, sha: str, contexts: list[str], exclude: str
         sleep(POLL_INTERVAL_S)
 
 
-def _snapshot(fetcher: Fetcher, sha: str, contexts: list[str],
-              exclude: str) -> tuple[list[StatusEvidence], list[str]]:
+def _snapshot(
+    fetcher: Fetcher, sha: str, contexts: list[str], exclude: str
+) -> tuple[list[StatusEvidence], list[str]]:
     seen = {str(c.get("name")): c for c in fetcher.check_runs(sha)}
     evidence: list[StatusEvidence] = []
     missing: list[str] = []
@@ -715,16 +815,24 @@ def _snapshot(fetcher: Fetcher, sha: str, contexts: list[str],
         found = re.search(r"/runs/(\d+)", url)
         if found:
             run_id = found.group(1)
-        evidence.append(StatusEvidence(context, str(check.get("conclusion")), run_id, sha))
+        evidence.append(
+            StatusEvidence(context, str(check.get("conclusion")), run_id, sha)
+        )
     return evidence, missing
 
 
 # --------------------------------------------------------------------------
 # Entry point
 # --------------------------------------------------------------------------
-def evaluate(body: str, sha: str, fetcher: Fetcher, contexts: list[str],
-             pr: str = "", self_context: str = "merge-evidence",
-             wait_budget: float = 0.0) -> tuple[bool, list[str]]:
+def evaluate(
+    body: str,
+    sha: str,
+    fetcher: Fetcher,
+    contexts: list[str],
+    pr: str = "",
+    self_context: str = "merge-evidence",
+    wait_budget: float = 0.0,
+) -> tuple[bool, list[str]]:
     """The whole decision, offline-testable. Returns (allowed, reasons)."""
     reasons: list[str] = []
 
@@ -733,18 +841,25 @@ def evaluate(body: str, sha: str, fetcher: Fetcher, contexts: list[str],
 
     status, missing = collect_status(fetcher, sha, contexts, self_context, wait_budget)
     for gap in missing:
-        reasons.append(f"NOT_FETCHED: no completed check-run for required context {gap} on {sha}")
+        reasons.append(
+            f"NOT_FETCHED: no completed check-run for required context {gap} on {sha}"
+        )
     for item in status:
         if item.conclusion != "success":
             reasons.append(
-                f"FAILED: required context {item.context} concluded {item.conclusion} on {sha}")
+                f"FAILED: required context {item.context} concluded {item.conclusion} on {sha}"
+            )
             if item.run_id:
                 try:
                     jobs = fetcher.jobs(item.run_id)
-                    job = next((j for j in jobs if str(j.get("name")) == item.context), None)
+                    job = next(
+                        (j for j in jobs if str(j.get("name")) == item.context), None
+                    )
                     if job is not None:
                         log = fetcher.job_log(item.run_id, int(job["id"]))
-                        reasons.append(dossier(pr, sha, item.context, item.run_id, job, log))
+                        reasons.append(
+                            dossier(pr, sha, item.context, item.run_id, job, log)
+                        )
                 except EvidenceError as exc:
                     reasons.append(f"{exc.state}: dossier unavailable — {exc.detail}")
 
@@ -756,14 +871,17 @@ def evaluate(body: str, sha: str, fetcher: Fetcher, contexts: list[str],
     for line_no, text in unsupported_claims(body, rows):
         reasons.append(
             f"UNSUPPORTED: line {line_no} states a measured result outside the "
-            f"Measured Evidence section — {text[:120]}")
+            f"Measured Evidence section — {text[:120]}"
+        )
 
     values: dict[str, float] = {}
     for row in (r for r in rows if r.row_type != "derived"):
         try:
             observed = bind_row(row, fetcher, sha)
             values[row.row_id] = row.value
-            reasons.append(f"BOUND: {row.row_id} {row.metric} = {row.value} {row.unit} ← {observed}")
+            reasons.append(
+                f"BOUND: {row.row_id} {row.metric} = {row.value} {row.unit} ← {observed}"
+            )
         except EvidenceError as exc:
             reasons.append(f"{exc.state}: {exc.detail}")
 
@@ -776,7 +894,8 @@ def evaluate(body: str, sha: str, fetcher: Fetcher, contexts: list[str],
         if not close_enough(row.value, actual):
             reasons.append(
                 f"CONTRADICTED: {row.row_id} claims {row.value} {row.unit}, "
-                f"but {row.evidence} recomputes to {actual:.4f}")
+                f"but {row.evidence} recomputes to {actual:.4f}"
+            )
         else:
             values[row.row_id] = row.value
             reasons.append(f"RECOMPUTED: {row.row_id} {row.evidence} = {actual:.4f} ✓")
@@ -800,10 +919,14 @@ def fetch_pr_body(pr: str) -> str:
     exe = shutil.which("gh")
     if exe is None:
         raise EvidenceError("INFRASTRUCTURE_BLOCK", "gh is not on PATH")
-    out = subprocess.run(                               # noqa: S603 - argv only, no shell
+    out = subprocess.run(  # noqa: S603 - argv only, no shell
         [exe, "pr", "view", pr, "--json", "body", "--jq", ".body"],
-        capture_output=True, text=True, timeout=FETCH_TIMEOUT_S,
-        stdin=subprocess.DEVNULL, shell=False)
+        capture_output=True,
+        text=True,
+        timeout=FETCH_TIMEOUT_S,
+        stdin=subprocess.DEVNULL,
+        shell=False,
+    )
     return out.stdout if out.returncode == 0 else ""
 
 
@@ -813,9 +936,12 @@ def main() -> int:
     parser.add_argument("--sha", default=os.environ.get("GITHUB_SHA", ""))
     parser.add_argument("--body-file", default="")
     parser.add_argument("--self-context", default="merge-evidence")
-    parser.add_argument("--wait", type=float, default=float(
-        os.environ.get("MERGE_EVIDENCE_WAIT", WAIT_BUDGET_S)),
-        help="seconds to wait for required contexts to become terminal")
+    parser.add_argument(
+        "--wait",
+        type=float,
+        default=float(os.environ.get("MERGE_EVIDENCE_WAIT", WAIT_BUDGET_S)),
+        help="seconds to wait for required contexts to become terminal",
+    )
     args = parser.parse_args()
 
     with Gate("merge-evidence", "1.0.0") as gate:
@@ -824,12 +950,15 @@ def main() -> int:
             head_sha=args.sha,
             pull_request=args.pr,
             checks="status evidence for every required context; logs for failed jobs "
-                   "and for cited evidence rows only",
-            does_not_check="complete raw logs of successful jobs")
+            "and for cited evidence rows only",
+            does_not_check="complete raw logs of successful jobs",
+        )
 
         # The fetch budget starts after the wait, not before it: a gate that
         # waited legitimately must not then be told it has no time to read.
-        fetcher = GitHubFetcher(deadline=time.monotonic() + WAIT_BUDGET_S + TOTAL_BUDGET_S)
+        fetcher = GitHubFetcher(
+            deadline=time.monotonic() + WAIT_BUDGET_S + TOTAL_BUDGET_S
+        )
 
         try:
             if args.body_file:
@@ -838,14 +967,23 @@ def main() -> int:
                 body = fetch_pr_body(args.pr)
             else:
                 body = ""
-            allowed, reasons = evaluate(body, args.sha, fetcher, required_contexts(),
-                                        args.pr, args.self_context,
-                                        wait_budget=args.wait)
+            allowed, reasons = evaluate(
+                body,
+                args.sha,
+                fetcher,
+                required_contexts(),
+                args.pr,
+                args.self_context,
+                wait_budget=args.wait,
+            )
         except EvidenceError as exc:
-            gate.fail(what=f"evidence could not be collected ({exc.state})",
-                      where=f"{REPOSITORY}@{args.sha}", why=exc.detail,
-                      requirement="Evidence must be collected before a merge decision.",
-                      fix=exc.fix or "Retry once GitHub is reachable.")
+            gate.fail(
+                what=f"evidence could not be collected ({exc.state})",
+                where=f"{REPOSITORY}@{args.sha}",
+                why=exc.detail,
+                requirement="Evidence must be collected before a merge decision.",
+                fix=exc.fix or "Retry once GitHub is reachable.",
+            )
             gate.infrastructure_failure(exc.detail)
             return 1
 
@@ -854,17 +992,22 @@ def main() -> int:
             if state in {"BOUND", "RECOMPUTED"}:
                 gate.check(reason, True)
             else:
-                gate.fail(what=reason.split("\n", 1)[0],
-                          where=f"{REPOSITORY}@{args.sha}",
-                          why=reason,
-                          requirement="Every measured claim binds to current-SHA evidence, and "
-                                      "every required job has terminal success on this SHA.",
-                          fix="Correct the claim, or push a SHA whose runs support it.",
-                          severity="CRITICAL" if state == "FAILED" else "ERROR")
+                gate.fail(
+                    what=reason.split("\n", 1)[0],
+                    where=f"{REPOSITORY}@{args.sha}",
+                    why=reason,
+                    requirement="Every measured claim binds to current-SHA evidence, and "
+                    "every required job has terminal success on this SHA.",
+                    fix="Correct the claim, or push a SHA whose runs support it.",
+                    severity="CRITICAL" if state == "FAILED" else "ERROR",
+                )
 
         if not reasons:
-            gate.check("no measured claims and no evidence table", True,
-                       "nothing to bind; this gate has no opinion")
+            gate.check(
+                "no measured claims and no evidence table",
+                True,
+                "nothing to bind; this gate has no opinion",
+            )
 
         # DECLARE THE VERDICT. scripts/gate.py refuses to infer one: a gate that
         # exits without saying passed() or failed() is recorded UNKNOWN and

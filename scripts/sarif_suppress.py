@@ -103,8 +103,11 @@ def verified_locations(targets: list[str]) -> tuple[set[tuple[str, str, int]], b
         lines = {int(n) for n in cast("list[Any]", span)} | {line}
 
         if key in security_gate.HEURISTIC:
-            checker = (security_gate.check_is_status_literal
-                       if key[0] == "B105" else security_gate.check_no_sql)
+            checker = (
+                security_gate.check_is_status_literal
+                if key[0] == "B105"
+                else security_gate.check_no_sql
+            )
             good, _ = checker(path, line)
         elif key in security_gate.ELIGIBLE:
             good, _ = security_gate.check_subprocess_safety(path)
@@ -165,8 +168,10 @@ def main() -> int:
 
     ok_locations, gate_passed = verified_locations(targets)
     if not gate_passed:
-        print("gate FAILED — suppressing nothing; a red gate publishes every "
-              "finding, which is when a human most needs to see them")
+        print(
+            "gate FAILED — suppressing nothing; a red gate publishes every "
+            "finding, which is when a human most needs to see them"
+        )
         return 0
 
     runs = doc.get("runs")
@@ -208,8 +213,10 @@ def main() -> int:
     path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
     for entry in sorted(removed):
         print(f"    gate-verified, withheld from code scanning: {entry}")
-    print(f"  bandit SARIF: {total} result(s), {len(removed)} verified by the "
-          f"gate, {total - len(removed)} left for a human")
+    print(
+        f"  bandit SARIF: {total} result(s), {len(removed)} verified by the "
+        f"gate, {total - len(removed)} left for a human"
+    )
     return 0
 
 

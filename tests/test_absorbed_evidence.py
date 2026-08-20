@@ -56,8 +56,12 @@ import run_gate  # noqa: E402
 # another run and is correctly refused. Measured -- omitting them passed
 # locally, where GITHUB_SHA is unset and the check is skipped, and failed every
 # one of these tests in CI.
-IDENTITY = {"commit": "GITHUB_SHA", "run_id": "GITHUB_RUN_ID",
-            "run_attempt": "GITHUB_RUN_ATTEMPT", "workflow": "GITHUB_WORKFLOW"}
+IDENTITY = {
+    "commit": "GITHUB_SHA",
+    "run_id": "GITHUB_RUN_ID",
+    "run_attempt": "GITHUB_RUN_ATTEMPT",
+    "workflow": "GITHUB_WORKFLOW",
+}
 
 
 def this_run() -> dict[str, object]:
@@ -102,6 +106,7 @@ def absorb_into(root: Path, name: str, not_before: float) -> gate_mod.Gate:
 # WHAT IS KEPT
 # ---------------------------------------------------------------------------
 
+
 def test_the_inner_checks_survive_the_wrapper(tmp_path: Path) -> None:
     """The whole point: 84 checks must not become 1."""
     write_report(tmp_path, "preflight")
@@ -114,8 +119,11 @@ def test_the_inner_checks_survive_the_wrapper(tmp_path: Path) -> None:
 
 def test_a_failing_inner_check_stays_failing(tmp_path: Path) -> None:
     """Folding must not launder a check that did not hold."""
-    write_report(tmp_path, "preflight", checks=[
-        {"subject": "ruleset alignment", "result": "FAIL", "detail": "drift"}])
+    write_report(
+        tmp_path,
+        "preflight",
+        checks=[{"subject": "ruleset alignment", "result": "FAIL", "detail": "drift"}],
+    )
     g = absorb_into(tmp_path, "preflight", time.time() - 60)
 
     assert [c["result"] for c in g.checks] == ["FAIL"]
@@ -146,6 +154,7 @@ def test_inner_warnings_are_carried_up(tmp_path: Path) -> None:
 # WHAT IS REFUSED
 # ---------------------------------------------------------------------------
 
+
 def test_a_report_from_a_previous_run_is_not_folded(tmp_path: Path) -> None:
     """The defect this guard exists for.
 
@@ -157,6 +166,7 @@ def test_a_report_from_a_previous_run_is_not_folded(tmp_path: Path) -> None:
     path = write_report(tmp_path, "preflight")
     stale = time.time() - 3600
     import os
+
     os.utime(path, (stale, stale))
 
     g = absorb_into(tmp_path, "preflight", time.time() - 60)
@@ -169,8 +179,9 @@ def test_a_report_claiming_another_gate_is_refused(tmp_path: Path) -> None:
     g = absorb_into(tmp_path, "preflight", time.time() - 60)
 
     assert g.checks == []
-    assert any("mutmut" in w for w in g.warnings), \
+    assert any("mutmut" in w for w in g.warnings), (
         "refused silently; a merge that did nothing must not look like one with nothing to do"
+    )
 
 
 def test_a_malformed_report_warns_rather_than_raising(tmp_path: Path) -> None:
@@ -212,6 +223,7 @@ def test_no_inner_report_is_not_an_error(tmp_path: Path) -> None:
 # THE VERDICT IS STILL THE CHAIN'S
 # ---------------------------------------------------------------------------
 
+
 def test_an_inner_pass_does_not_survive_a_failing_chain(tmp_path: Path) -> None:
     """The property that makes merging safe at all.
 
@@ -232,7 +244,9 @@ def test_an_inner_pass_does_not_survive_a_failing_chain(tmp_path: Path) -> None:
         "pathlib.Path('reports/preflight.json').write_text(json.dumps({\n"
         "    **identity, 'gate': 'preflight', 'status': 'PASS',\n"
         "    'checks': [{'subject': 'inner ran', 'result': 'PASS', 'detail': ''}],\n"
-        "}))\n", encoding="utf-8")
+        "}))\n",
+        encoding="utf-8",
+    )
     chain = tmp_path / "chain.sh"
     chain.write_text(
         "set -e\n"
@@ -240,26 +254,43 @@ def test_an_inner_pass_does_not_survive_a_failing_chain(tmp_path: Path) -> None:
         f"python3 {inner}\n"
         f'echo "== preflight gate 2/2: later step" >&2\n'
         "echo '  scripts/gate.py:1:1 - error: broke (reportGeneralTypeIssues)'\n"
-        "exit 1\n", encoding="utf-8")
+        "exit 1\n",
+        encoding="utf-8",
+    )
 
     result = subprocess.run(
-        [PY, str(SCRIPTS / "run_gate.py"), "--name", "preflight", "--",
-         "bash", str(chain)],
-        cwd=work, capture_output=True, text=True, timeout=600)
+        [
+            PY,
+            str(SCRIPTS / "run_gate.py"),
+            "--name",
+            "preflight",
+            "--",
+            "bash",
+            str(chain),
+        ],
+        cwd=work,
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
 
     assert result.returncode != 0, "the wrapper rewrote a failing exit code"
-    report = json.loads((work / "reports" / "preflight.json").read_text(
-        encoding="utf-8"))
+    report = json.loads(
+        (work / "reports" / "preflight.json").read_text(encoding="utf-8")
+    )
 
-    assert report["status"] == "FAIL", \
+    assert report["status"] == "FAIL", (
         "an inner PASS survived a chain that failed after it"
-    assert any(c["subject"] == "inner ran" for c in report["checks"]), \
+    )
+    assert any(c["subject"] == "inner ran" for c in report["checks"]), (
         "the inner script's checks were overwritten rather than merged"
+    )
     assert report["failures"], "the failing chain recorded no finding"
 
 
 def test_a_report_from_another_run_is_refused_even_when_it_is_fresh(
-        tmp_path: Path, monkeypatch: "pytest.MonkeyPatch") -> None:
+    tmp_path: Path, monkeypatch: "pytest.MonkeyPatch"
+) -> None:
     """mtime answers "written recently", not "written by THIS run".
 
     Any mechanism that preserves or advances a timestamp defeats a freshness
@@ -280,12 +311,14 @@ def test_a_report_from_another_run_is_refused_even_when_it_is_fresh(
     g = absorb_into(tmp_path, "preflight", time.time() - 60)
 
     assert g.checks == [], "evidence from another run was folded in"
-    assert any("another run" in w or "not folded in" in w for w in g.warnings), \
+    assert any("another run" in w or "not folded in" in w for w in g.warnings), (
         "foreign evidence was refused silently"
+    )
 
 
 def test_a_report_carrying_this_run_is_folded(
-        tmp_path: Path, monkeypatch: "pytest.MonkeyPatch") -> None:
+    tmp_path: Path, monkeypatch: "pytest.MonkeyPatch"
+) -> None:
     """The control. The guard must not refuse the case it exists to allow."""
     monkeypatch.setenv("GITHUB_SHA", "1111111111111111111111111111111111111111")
     monkeypatch.setenv("GITHUB_RUN_ID", "999")
@@ -296,7 +329,9 @@ def test_a_report_carrying_this_run_is_folded(
     g = absorb_into(tmp_path, "preflight", time.time() - 60)
 
     assert [c["subject"] for c in g.checks] == [
-        "manifest parses", "every job is declared"]
+        "manifest parses",
+        "every job is declared",
+    ]
 
 
 def test_the_inner_findings_are_folded_not_dropped(tmp_path: Path) -> None:
@@ -309,17 +344,30 @@ def test_the_inner_findings_are_folded_not_dropped(tmp_path: Path) -> None:
     record whose `where` was the multi-line bash script and whose `why` was
     the inner gate's own [GATE END] banner.
     """
-    write_report(tmp_path, "preflight", status="FAIL", failures=[{
-        "what": "gate 'preflight' no longer invokes its command",
-        "where": ".github/workflows/verify.yml",
-        "why": "no step runs: scripts/registry_gate.py",
-        "requirement": "Every declared token must be executed.",
-        "how_to_fix": "Restore `scripts/registry_gate.py` in the preflight job.",
-        "severity": "ERROR", "code": "MUST_CONTAIN",
-        "file": ".github/workflows/verify.yml", "line": 12, "column": None,
-        "root_cause": None, "reproduction_command": "python3 scripts/gate_integrity.py",
-        "is_root_cause": True, "dependent_on": None, "merge_blocking": True,
-    }])
+    write_report(
+        tmp_path,
+        "preflight",
+        status="FAIL",
+        failures=[
+            {
+                "what": "gate 'preflight' no longer invokes its command",
+                "where": ".github/workflows/verify.yml",
+                "why": "no step runs: scripts/registry_gate.py",
+                "requirement": "Every declared token must be executed.",
+                "how_to_fix": "Restore `scripts/registry_gate.py` in the preflight job.",
+                "severity": "ERROR",
+                "code": "MUST_CONTAIN",
+                "file": ".github/workflows/verify.yml",
+                "line": 12,
+                "column": None,
+                "root_cause": None,
+                "reproduction_command": "python3 scripts/gate_integrity.py",
+                "is_root_cause": True,
+                "dependent_on": None,
+                "merge_blocking": True,
+            }
+        ],
+    )
     g = absorb_into(tmp_path, "preflight", time.time() - 60)
 
     assert len(g.failures) == 1, "the inner findings were dropped"

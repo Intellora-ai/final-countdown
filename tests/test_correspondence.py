@@ -274,10 +274,21 @@ def scope_to(w: Path, func: str) -> list[str]:
     `src/<func>.py` -- and then runs the full gate, which verifies EVERY source
     in the tree. correspondence_gate.py:99-102 globs `src/*.py`, and each one
     costs a kernel call to the hosted AXLE service
-    (correspondence_gate.py:312). With four sources and thirteen axle-marked
-    tests that is 42 calls, of which 29 re-verify committed pairs that this
-    test did not touch and that the `correspondence` gate already verified
-    once, in the same job, before pytest ran.
+    (correspondence_gate.py:312).
+
+    COUNTED, NOT ESTIMATED. Two tests in this file build a worktree and run the
+    gate; a third calls `axle()` once directly and is unaffected. Four sources
+    per gate run gives 2*4 + 1 = 9 calls, and scoping to one gives 2*1 + 1 = 3.
+    Six calls removed -- every one of them a re-verification of a committed
+    pair the test did not touch and the `correspondence` gate had already
+    verified once, in the same job, before pytest ran.
+
+    An earlier note here read "42 calls, of which 29" -- it assumed thirteen
+    worktree-building tests when there are two. The GitHub measurement is what
+    caught it: the axle suite went 22.27s -> 14.17s (runs 32371336445 and
+    32374048401, `13 passed` in both), and 8.10s over six calls is 1.35s each
+    against an 863ms AXLE health round trip. Twenty-nine removed calls could
+    not have cost eight seconds.
 
     Re-verifying an unchanged committed pair proves nothing the gate has not
     already proven, and it does it on someone else's server.

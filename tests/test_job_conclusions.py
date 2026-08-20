@@ -75,6 +75,26 @@ def workspace(tmp_path: Path) -> Path:
     return work
 
 
+# The aggregator binds evidence to the current run through these. Inside GitHub
+# Actions they are SET, so a fixture report saying commit="local" is correctly
+# rejected as belonging to another run and every assertion below sees a FAIL it
+# did not ask for. Stripping them makes the sandbox identity "local" on a runner
+# and on a laptop alike. Learned the expensive way: this file passed locally and
+# failed in CI, which is the exact class of bug the rest of the suite exists to
+# catch.
+RUN_IDENTITY_ENV = ("GITHUB_SHA", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT",
+                    "GITHUB_WORKFLOW")
+
+
+def sandbox_env() -> dict[str, str]:
+    import os
+    env = dict(os.environ)
+    env.pop("GITHUB_STEP_SUMMARY", None)  # never write to the real summary
+    for var in RUN_IDENTITY_ENV:
+        env.pop(var, None)
+    return env
+
+
 def aggregate(work: Path, conclusions: str | None = None
               ) -> subprocess.CompletedProcess[str]:
     args = [PY, "aggregate_gates.py", "--evidence-root", "evidence"]
@@ -82,7 +102,7 @@ def aggregate(work: Path, conclusions: str | None = None
         (work / "jobs.json").write_text(conclusions, encoding="utf-8")
         args += ["--job-conclusions", "jobs.json"]
     return subprocess.run(args, cwd=work, capture_output=True, text=True,
-                          timeout=120)
+                          timeout=120, env=sandbox_env())
 
 
 def conclusion(name: str, verdict: str) -> str:
@@ -148,7 +168,8 @@ def test_a_missing_conclusions_file_is_not_an_error(workspace: Path) -> None:
     result = subprocess.run(
         [PY, "aggregate_gates.py", "--evidence-root", "evidence",
          "--job-conclusions", "no-such-file.json"],
-        cwd=workspace, capture_output=True, text=True, timeout=120)
+        cwd=workspace, capture_output=True, text=True, timeout=120,
+        env=sandbox_env())
     assert result.returncode == 0
     assert "unavailable" in result.stdout
     assert "absence still blocks" in result.stdout

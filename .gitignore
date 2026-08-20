@@ -2,6 +2,15 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .coverage
+# Parallel coverage fragments. pytest-cov under pytest-xdist writes one
+# `.coverage.<host>.<pid>.<random>` per worker into the rootdir, and the exact
+# name `.coverage` above does not match them. Untracked, they make
+# `git status --porcelain` report a dirty tree whose path COUNT changes while
+# the suite is still running -- which broke
+# test_two_runs_differ_only_in_the_timestamp, since generate_evidence.py
+# measures that count and two runs then legitimately disagreed. The generator
+# was not non-deterministic; its input was moving underneath it.
+.coverage.*
 coverage.xml
 htmlcov/
 .mutmut-cache

@@ -233,8 +233,38 @@ def test_a_raising_function_records_undefined_not_a_value() -> None:
 # --------------------------------------------------------------------------
 # The gate: editing Python must break the claim. This is the whole point.
 # --------------------------------------------------------------------------
+# GENERATED DIRECTORIES THE COPIED TREE DOES NOT NEED.
+#
+# `worktree` copies the repository so a test can edit src/ inside it and run
+# the real gate against the result. correspondence_gate.py reads exactly three
+# places -- SRC = Path("src"), SPECS = Path("semantics/specs"), PROOFS =
+# Path("semantics/proofs") (correspondence_gate.py:92-94) -- so everything
+# below is verifiably unread by the subprocess under test.
+#
+# MEASURED locally, one copytree of this repository:
+#
+#   before   0.40s   63.9 MB   1594 files
+#   after    0.03s    6.7 MB    198 files
+#
+# WHAT THIS DOES NOT DO, because the first draft of this change claimed it did:
+# it has no effect in CI. A fresh checkout is 194 tracked files, and
+# node_modules/, htmlcov/, .claude/ and the Playwright directories do not exist
+# in the correspondence job at all -- `npm ci` runs only in the e2e workflow.
+# So this cannot protect a GitHub benchmark from copy noise; there is no copy
+# noise there to protect it from. The gain is local: three call sites, ~1.1s.
+#
+# `.venv` was already here and shutil.ignore_patterns applies at EVERY level of
+# the walk, so the nested virtualenvs under technology-universe/runtimes/ were
+# never copied either. The tree is 7.3 GB on disk and 63.9 MB of it reached the
+# copy; assuming otherwise is what made the first draft of this comment wrong.
+#
+# `technology-universe` is deliberately NOT excluded. It is tracked repository
+# content (64 files), and excluding tracked content is the one change here that
+# could alter what the gate sees.
 IGNORE = shutil.ignore_patterns(".git", ".venv", "reports", "evidence",
-                                "__pycache__", ".hypothesis", ".pytest_cache")
+                                "__pycache__", ".hypothesis", ".pytest_cache",
+                                "node_modules", "htmlcov", "playwright-report",
+                                "test-results", ".claude")
 
 
 def worktree(tmp_path: Path, source: str, regenerate: bool,
@@ -579,3 +609,78 @@ def test_a_sorry_in_a_proof_is_caught_twice(tmp_path: Path) -> None:
     sys.path.insert(0, str(SCRIPTS))
     import correspondence_gate as cg
     assert not cg.FOUNDATIONAL >= axioms, "sorryAx must not be foundational"
+
+
+# --------------------------------------------------------------------------
+# The excluded directories cannot change the verdict
+#
+# IGNORE exists to keep the copy small, and a copy that is smaller than the
+# thing it stands in for is only safe while the gate never reads what was left
+# out. That is a property of correspondence_gate.py, not of this test file, so
+# it is asserted against the gate's own source rather than assumed.
+# --------------------------------------------------------------------------
+def test_the_gate_reads_nothing_this_copy_excludes() -> None:
+    """correspondence_gate.py must not name any excluded directory.
+
+    It declares its inputs at module level -- SRC, SPECS, PROOFS -- and reads
+    nothing else from the tree. If a future edit taught it to read, say,
+    node_modules, the copied worktree would silently stop containing what the
+    gate needs and the test would fail for a reason nobody could see from the
+    output.
+    """
+    source = (REPO / "scripts" / "correspondence_gate.py").read_text(
+        encoding="utf-8")
+
+    for excluded in ("node_modules", "htmlcov", "playwright-report",
+                     "test-results", ".hypothesis", ".pytest_cache"):
+        assert excluded not in source, (
+            f"correspondence_gate.py now references {excluded!r}, which "
+            "tests/test_correspondence.py excludes from the worktree copy. "
+            "Either stop reading it or stop excluding it -- the copy must "
+            "contain everything the gate reads.")
+
+
+def test_excluded_directories_do_not_change_the_verdict(tmp_path: Path) -> None:
+    """Plant every excluded directory, then prove the gate's answer is identical.
+
+    The structural check above catches a gate that starts NAMING an excluded
+    path. This catches the same class behaviourally: two runs over the same
+    source, one with the directories present and one without, must agree on
+    both exit code and stdout.
+    """
+    def verdict(extra: bool) -> tuple[int, str]:
+        root = tmp_path / ("with" if extra else "without")
+        w = root / "w"
+        root.mkdir()
+        shutil.copytree(REPO, w, symlinks=True, ignore=IGNORE)
+        if extra:
+            for name in ("node_modules", "htmlcov", "playwright-report",
+                         "test-results"):
+                planted = w / name
+                planted.mkdir(parents=True, exist_ok=True)
+                (planted / "planted.txt").write_text(
+                    "content the gate must not read", encoding="utf-8")
+        (w / "reports").mkdir(exist_ok=True)
+        out = subprocess.run([PY, "scripts/correspondence_gate.py"], cwd=w,
+                             capture_output=True, text=True, timeout=900)
+        return out.returncode, out.stdout
+
+    bare_code, bare_out = verdict(extra=False)
+    planted_code, planted_out = verdict(extra=True)
+
+    assert bare_code == planted_code, (
+        "planting the excluded directories changed the gate's exit code; the "
+        "copy is not independent of what IGNORE removes")
+
+    # The two run-varying fields are normalised out before comparing. The gate
+    # stamps its report with the wall clock and its own elapsed time, so two
+    # sequential runs over an identical tree differ in exactly those and in
+    # nothing else. Comparing raw stdout would assert that both runs started at
+    # the same instant and took the same number of milliseconds, which is not
+    # the property under test and never holds.
+    def stable(text: str) -> str:
+        text = re.sub(r"\d{4}-\d{2}-\d{2}T[\d:.]+\+\d{2}:\d{2}", "<ts>", text)
+        return re.sub(r"\b\d+ms\b", "<ms>", text)
+
+    assert stable(bare_out) == stable(planted_out), (
+        "planting the excluded directories changed the gate's output")

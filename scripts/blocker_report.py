@@ -73,8 +73,14 @@ _BARE_PATH = re.compile(r"\.?/?[\w./\-]+\.[A-Za-z]{1,6}")
 # in the verification, and conflating them costs the reader the more urgent of
 # the two.
 _RAN_AND_FAILED = {"FAIL"}
-_NEVER_CONCLUDED = {"MISSING", "UNKNOWN", "INFRASTRUCTURE_FAILURE",
-                    "CANCELLED", "TIMED_OUT", "SKIPPED"}
+_NEVER_CONCLUDED = {
+    "MISSING",
+    "UNKNOWN",
+    "INFRASTRUCTURE_FAILURE",
+    "CANCELLED",
+    "TIMED_OUT",
+    "SKIPPED",
+}
 
 
 def failure_id(gate: str, failure: dict[str, Any]) -> str:
@@ -109,8 +115,9 @@ def location(where: str) -> tuple[str, int | None, int | None] | None:
         if path.is_file():
             line = int(match.group("line"))
             try:
-                total = sum(1 for _ in
-                            path.open("r", encoding="utf-8", errors="replace"))
+                total = sum(
+                    1 for _ in path.open("r", encoding="utf-8", errors="replace")
+                )
             except OSError:
                 return None
             if 1 <= line <= total:
@@ -187,8 +194,9 @@ def _spot_text(spot: tuple[str, int | None, int | None]) -> str:
     return f"{path}:{line}" if line is not None else path
 
 
-def _blocker_block(index: int, gate: str, fid: str,
-                   failure: dict[str, Any]) -> list[str]:
+def _blocker_block(
+    index: int, gate: str, fid: str, failure: dict[str, Any]
+) -> list[str]:
     """One numbered blocker, every field the gate recorded.
 
     ROOT CAUSE VS CONSEQUENCE, WITHIN ONE GATE. Across gates there is no such
@@ -208,8 +216,12 @@ def _blocker_block(index: int, gate: str, fid: str,
     out = [f"[{index}] {fid}  {gate}{marker}"]
     spot = location(str(failure.get("where", "")))
     shown = [
-        ("WHERE", _spot_text(spot) if spot else
-         str(failure.get("where", "")) or "(no location recorded)"),
+        (
+            "WHERE",
+            _spot_text(spot)
+            if spot
+            else str(failure.get("where", "")) or "(no location recorded)",
+        ),
         ("WHAT", failure.get("what", "")),
         # The tool's own rule id. `what` is a sentence; this is the key a
         # reader searches the tool's documentation with.
@@ -217,8 +229,12 @@ def _blocker_block(index: int, gate: str, fid: str,
         # Absent on every finding recorded before schema 1.3, and absent on
         # any gate that does not distinguish -- printed only when it says
         # something the default ERROR does not.
-        ("SEVERITY", str(failure.get("severity") or "")
-         if failure.get("severity") not in (None, "", "ERROR") else ""),
+        (
+            "SEVERITY",
+            str(failure.get("severity") or "")
+            if failure.get("severity") not in (None, "", "ERROR")
+            else "",
+        ),
         ("WHY", failure.get("why", "")),
         ("DEPENDS ON", str(failure.get("dependent_on") or "")),
         ("REQUIREMENT", failure.get("requirement", "")),
@@ -249,10 +265,13 @@ def render(manifest: dict[str, Any], mergeable: set[str]) -> tuple[str, str]:
     bar = "=" * 72
 
     log = [bar, "PR FINAL VERIFICATION", bar, ""]
-    log += [f"  commit   {identity.get('commit', 'local')}",
-            f"  run      {identity.get('run_id', 'local')}"
-            f"   attempt {identity.get('run_attempt', 'local')}",
-            f"  workflow {identity.get('workflow', 'local')}", ""]
+    log += [
+        f"  commit   {identity.get('commit', 'local')}",
+        f"  run      {identity.get('run_id', 'local')}"
+        f"   attempt {identity.get('run_attempt', 'local')}",
+        f"  workflow {identity.get('workflow', 'local')}",
+        "",
+    ]
     # (gate, text) for every warning any gate recorded. Warnings do not block
     # -- that is policy and it is not changed here -- but they are counted in
     # the header and printed in full below, because a finding that only exists
@@ -262,15 +281,17 @@ def render(manifest: dict[str, Any], mergeable: set[str]) -> tuple[str, str]:
         recorded: list[Any] = list(gate.get("warnings", []) or [])
         warnings.extend((name, str(w)) for w in recorded)
 
-    log += [f"  REQUIRED GATES   {len(gates)}",
-            f"  PASS             {tally['passed']}",
-            f"  FAIL             {tally['failed']}",
-            f"  NEVER CONCLUDED  {tally['never_concluded']}"
-            "   (missing, unknown, cancelled, infrastructure)",
-            f"  WARNINGS         {len(warnings)}   (reported, not blocking)",
-            "",
-            f"  OVERALL          {'PASS' if overall == 'PASS' else 'BLOCKED'}",
-            ""]
+    log += [
+        f"  REQUIRED GATES   {len(gates)}",
+        f"  PASS             {tally['passed']}",
+        f"  FAIL             {tally['failed']}",
+        f"  NEVER CONCLUDED  {tally['never_concluded']}"
+        "   (missing, unknown, cancelled, infrastructure)",
+        f"  WARNINGS         {len(warnings)}   (reported, not blocking)",
+        "",
+        f"  OVERALL          {'PASS' if overall == 'PASS' else 'BLOCKED'}",
+        "",
+    ]
 
     annotations: list[str] = []
     if blocking:
@@ -293,9 +314,12 @@ def render(manifest: dict[str, Any], mergeable: set[str]) -> tuple[str, str]:
             # tests/test_blocker_report.py parses the real workflow and asserts
             # this is still true, so if a `needs:` is ever added between gates
             # the claim fails loudly instead of quietly becoming false.
-            log += [f"  {len(blocking)} gates are blocking. They are independent:",
-                    "  no gate job declares `needs:` on another, so none of these",
-                    "  is downstream of any other. Each is its own defect.", ""]
+            log += [
+                f"  {len(blocking)} gates are blocking. They are independent:",
+                "  no gate job declares `needs:` on another, so none of these",
+                "  is downstream of any other. Each is its own defect.",
+                "",
+            ]
         # WITHIN a gate the topology is the opposite, and the count has to say
         # so. `bandit` runs four verifications under `set -e`, `correspondence`
         # two, and verify_per_function.sh one per source file: the first
@@ -308,21 +332,28 @@ def render(manifest: dict[str, Any], mergeable: set[str]) -> tuple[str, str]:
         # a chain that stops early, since stopping sooner leaves fewer
         # findings behind.
         consequences = sum(
-            1 for gate in blocking
+            1
+            for gate in blocking
             for f in gates.get(gate, {}).get("failures", [])
-            if not f.get("is_root_cause", True))
+            if not f.get("is_root_cause", True)
+        )
         if consequences:
-            total = sum(len(gates.get(g, {}).get("failures", []))
-                        for g in blocking)
-            others = (f"The other {consequences} are" if consequences > 1
-                      else "The other one is")
-            log += [f"  {total - consequences} of {total} findings are root "
-                    f"causes. {others} marked",
-                    "  (consequence): a verification that never ran because an "
-                    "earlier one in",
-                    "  the same gate failed under `set -e`. Nothing was found "
-                    "wrong in those --",
-                    "  nothing was looked at, which is not the same thing.", ""]
+            total = sum(len(gates.get(g, {}).get("failures", [])) for g in blocking)
+            others = (
+                f"The other {consequences} are"
+                if consequences > 1
+                else "The other one is"
+            )
+            log += [
+                f"  {total - consequences} of {total} findings are root "
+                f"causes. {others} marked",
+                "  (consequence): a verification that never ran because an "
+                "earlier one in",
+                "  the same gate failed under `set -e`. Nothing was found "
+                "wrong in those --",
+                "  nothing was looked at, which is not the same thing.",
+                "",
+            ]
         index = 0
         for gate in blocking:
             record = gates.get(gate, {})
@@ -333,11 +364,14 @@ def render(manifest: dict[str, Any], mergeable: set[str]) -> tuple[str, str]:
                 # Saying so is the whole point; an empty section here would
                 # read as "nothing wrong" for the most serious state there is.
                 index += 1
-                log += [f"[{index}] {'—' * 6}  {gate}",
-                        f"      STATUS       {record.get('status', 'UNKNOWN')}",
-                        f"      WHY          {record.get('note') or 'no evidence was produced for this gate'}",
-                        "      REQUIREMENT  A mandatory gate must produce a verdict; "
-                        "absence is never a pass.", ""]
+                log += [
+                    f"[{index}] {'—' * 6}  {gate}",
+                    f"      STATUS       {record.get('status', 'UNKNOWN')}",
+                    f"      WHY          {record.get('note') or 'no evidence was produced for this gate'}",
+                    "      REQUIREMENT  A mandatory gate must produce a verdict; "
+                    "absence is never a pass.",
+                    "",
+                ]
                 continue
             for failure in failures:
                 index += 1
@@ -348,18 +382,25 @@ def render(manifest: dict[str, Any], mergeable: set[str]) -> tuple[str, str]:
                 if mark:
                     annotations.append(mark)
 
-        evidence = sorted({str(gates[g].get("evidence") or "")
-                           for g in blocking if gates.get(g, {}).get("evidence")})
+        evidence = sorted(
+            {
+                str(gates[g].get("evidence") or "")
+                for g in blocking
+                if gates.get(g, {}).get("evidence")
+            }
+        )
         if evidence:
-            log += ["  full tool output for the above:",
-                    *(f"      {e}" for e in evidence), ""]
+            log += [
+                "  full tool output for the above:",
+                *(f"      {e}" for e in evidence),
+                "",
+            ]
 
     if warnings:
         # Placed above the passing gates and below the blockers: a warning is
         # not why the push was rejected, but it is a finding, and burying it
         # under twelve green lines is how it stops being read.
-        log += [bar, f"WARNINGS ({len(warnings)}) — reported, not blocking",
-                bar, ""]
+        log += [bar, f"WARNINGS ({len(warnings)}) — reported, not blocking", bar, ""]
         for name, text in warnings:
             head, *rest = text.splitlines()
             log.append(f"  {name:<24} {head}")
@@ -377,7 +418,7 @@ def render(manifest: dict[str, Any], mergeable: set[str]) -> tuple[str, str]:
         if name in blocking:
             continue
         dur = f"{gate['duration_ms']} ms" if gate.get("duration_ms") else "—"
-        log.append(f"  {str(gate.get('status', '?')):<22} {name:<24} {dur}")
+        log.append(f"  {gate.get('status', '?')!s:<22} {name:<24} {dur}")
     log.append("")
 
     # Annotations last in the text stream but they attach to the diff, not to
@@ -385,23 +426,37 @@ def render(manifest: dict[str, Any], mergeable: set[str]) -> tuple[str, str]:
     log += annotations
 
     icon = "✅" if overall == "PASS" else "❌"
-    md = [f"## {icon} PR final verification — "
-          f"{'PASS' if overall == 'PASS' else 'BLOCKED'}", "",
-          f"`{str(identity.get('commit', 'local'))[:12]}` · "
-          f"run `{identity.get('run_id', 'local')}` · "
-          f"attempt `{identity.get('run_attempt', 'local')}`", "",
-          f"**{tally['passed']} passed · {tally['failed']} failed · "
-          f"{tally['never_concluded']} never concluded · "
-          f"{len(warnings)} warning(s)**", ""]
+    md = [
+        f"## {icon} PR final verification — "
+        f"{'PASS' if overall == 'PASS' else 'BLOCKED'}",
+        "",
+        f"`{str(identity.get('commit', 'local'))[:12]}` · "
+        f"run `{identity.get('run_id', 'local')}` · "
+        f"attempt `{identity.get('run_attempt', 'local')}`",
+        "",
+        f"**{tally['passed']} passed · {tally['failed']} failed · "
+        f"{tally['never_concluded']} never concluded · "
+        f"{len(warnings)} warning(s)**",
+        "",
+    ]
     if warnings:
-        md += ["<details><summary>Warnings (not blocking)</summary>", "",
-               "| Gate | Warning |", "|---|---|"]
-        md += [f"| `{n}` | {t.replace('|', chr(92) + '|')[:200]} |"
-               for n, t in warnings]
+        md += [
+            "<details><summary>Warnings (not blocking)</summary>",
+            "",
+            "| Gate | Warning |",
+            "|---|---|",
+        ]
+        md += [
+            f"| `{n}` | {t.replace('|', chr(92) + '|')[:200]} |" for n, t in warnings
+        ]
         md += ["", "</details>", ""]
     if blocking:
-        md += ["### Blockers", "", "| # | Gate | Where | What | Fix |",
-               "|---|---|---|---|---|"]
+        md += [
+            "### Blockers",
+            "",
+            "| # | Gate | Where | What | Fix |",
+            "|---|---|---|---|---|",
+        ]
         n = 0
         for gate in blocking:
             record: dict[str, Any] = gates.get(gate, {})
@@ -414,13 +469,18 @@ def render(manifest: dict[str, Any], mergeable: set[str]) -> tuple[str, str]:
                 fid = failure_id(gate, failure) if failure else "—"
                 spot = location(str(failure.get("where", "")))
                 raw_where = str(failure.get("where", ""))
-                pos = (f"`{_spot_text(spot)}`" if spot
-                       else (f"`{raw_where}`" if raw_where else "—"))
-                what = str(failure.get("what")
-                           or record.get("status", "")).replace("|", "\\|")
+                pos = (
+                    f"`{_spot_text(spot)}`"
+                    if spot
+                    else (f"`{raw_where}`" if raw_where else "—")
+                )
+                what = str(failure.get("what") or record.get("status", "")).replace(
+                    "|", "\\|"
+                )
                 fix = str(failure.get("how_to_fix", "")).replace("|", "\\|")
-                md.append(f"| {n} `{fid}` | `{gate}` | {pos} | {what[:160]} "
-                          f"| {fix[:160]} |")
+                md.append(
+                    f"| {n} `{fid}` | `{gate}` | {pos} | {what[:160]} | {fix[:160]} |"
+                )
         md.append("")
     return "\n".join(log), "\n".join(md)
 

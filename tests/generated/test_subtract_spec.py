@@ -3,11 +3,15 @@
 Do not edit: regenerate instead. The assertion mirrors the Lean claim exactly.
 """
 
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from src.subtract import subtract
 
 
-@given(st.integers(min_value=-10**6, max_value=10**6), st.integers(min_value=-10**6, max_value=10**6))
+@given(
+    st.integers(min_value=-(10**6), max_value=10**6),
+    st.integers(min_value=-(10**6), max_value=10**6),
+)
 def test_subtract_spec(a: int, b: int) -> None:
     assert subtract(a, 0) == a

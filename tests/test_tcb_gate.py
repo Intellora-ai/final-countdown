@@ -24,8 +24,9 @@ from tcb_gate import TRUSTED_PREFIXES  # noqa: E402
 
 
 def git(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["git", *args], cwd=cwd, capture_output=True,
-                          text=True, timeout=60)
+    return subprocess.run(
+        ["git", *args], cwd=cwd, capture_output=True, text=True, timeout=60
+    )
 
 
 def repo(tmp_path: Path) -> Path:
@@ -39,7 +40,8 @@ def repo(tmp_path: Path) -> Path:
     git("add", "-A", cwd=w)
     git("commit", "-qm", "base", cwd=w)
     (w / "scripts" / "tcb_gate.py").write_text(
-        (SCRIPTS / "tcb_gate.py").read_text(encoding="utf-8"), encoding="utf-8")
+        (SCRIPTS / "tcb_gate.py").read_text(encoding="utf-8"), encoding="utf-8"
+    )
     git("add", "-A", cwd=w)
     git("commit", "-qm", "add gate", cwd=w)
     git("branch", "-f", "base-ref", cwd=w)
@@ -47,8 +49,13 @@ def repo(tmp_path: Path) -> Path:
 
 
 def run_gate(w: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run([PY, "scripts/tcb_gate.py", "--base", "base-ref"],
-                          cwd=w, capture_output=True, text=True, timeout=60)
+    return subprocess.run(
+        [PY, "scripts/tcb_gate.py", "--base", "base-ref"],
+        cwd=w,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
 
 
 def test_untrusted_change_needs_no_acknowledgement(tmp_path: Path) -> None:
@@ -76,8 +83,13 @@ def test_trusted_change_with_acknowledgement_passes(tmp_path: Path) -> None:
     w = repo(tmp_path)
     (w / "scripts" / "gate.py").write_text("x = 1\n", encoding="utf-8")
     git("add", "-A", cwd=w)
-    git("commit", "-qm", "widen a gate\n\nTCB: gate.py gains a result type; "
-        "aggregate_gates must learn it too", cwd=w)
+    git(
+        "commit",
+        "-qm",
+        "widen a gate\n\nTCB: gate.py gains a result type; "
+        "aggregate_gates must learn it too",
+        cwd=w,
+    )
     r = run_gate(w)
     assert r.returncode == 0, r.stdout + r.stderr
     assert "acknowledged in 1 commit" in r.stdout
@@ -93,11 +105,19 @@ def test_acknowledgement_must_carry_a_reason(tmp_path: Path) -> None:
     assert run_gate(w).returncode == 1
 
 
-@pytest.mark.parametrize("path", [
-    ".github/workflows/verify.yml", "scripts/gate.py", "ci/gates.toml",
-    "specs/x_spec.lean", "proofs/x_proof.lean", "semantics/specs/x.lean",
-    "requirements.txt", "requirements.lock",
-])
+@pytest.mark.parametrize(
+    "path",
+    [
+        ".github/workflows/verify.yml",
+        "scripts/gate.py",
+        "ci/gates.toml",
+        "specs/x_spec.lean",
+        "proofs/x_proof.lean",
+        "semantics/specs/x.lean",
+        "requirements.txt",
+        "requirements.lock",
+    ],
+)
 def test_every_trusted_path_is_detected(tmp_path: Path, path: str) -> None:
     w = repo(tmp_path)
     f = w / path
@@ -111,8 +131,13 @@ def test_every_trusted_path_is_detected(tmp_path: Path, path: str) -> None:
 def test_a_missing_base_is_not_permission_to_proceed(tmp_path: Path) -> None:
     """A shallow clone must not read as 'nothing changed'."""
     w = repo(tmp_path)
-    r = subprocess.run([PY, "scripts/tcb_gate.py", "--base", "no/such/ref"],
-                       cwd=w, capture_output=True, text=True, timeout=60)
+    r = subprocess.run(
+        [PY, "scripts/tcb_gate.py", "--base", "no/such/ref"],
+        cwd=w,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
     assert r.returncode == 2
     assert "CANNOT COMPARE" in r.stderr
 
@@ -120,11 +145,15 @@ def test_a_missing_base_is_not_permission_to_proceed(tmp_path: Path) -> None:
 def test_codeowners_covers_exactly_the_enforced_paths() -> None:
     """Two lists that must agree are two lists that drift."""
     text = (REPO / ".github" / "CODEOWNERS").read_text(encoding="utf-8")
-    owned = {ln.split()[0].strip("/") for ln in text.splitlines()
-             if ln.strip() and not ln.lstrip().startswith("#")}
+    owned = {
+        ln.split()[0].strip("/")
+        for ln in text.splitlines()
+        if ln.strip() and not ln.lstrip().startswith("#")
+    }
     owned.discard("*")
     owned.discard(".github/CODEOWNERS")
     enforced = {p.strip("/") for p in TRUSTED_PREFIXES}
     missing = enforced - owned
     assert not missing, (
-        f"tcb_gate enforces paths CODEOWNERS does not name: {sorted(missing)}")
+        f"tcb_gate enforces paths CODEOWNERS does not name: {sorted(missing)}"
+    )

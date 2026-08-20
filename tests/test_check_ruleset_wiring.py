@@ -50,7 +50,10 @@ PY = sys.executable
 
 sys.path.insert(0, str(SCRIPTS))
 from check_ruleset import (  # noqa: E402
-    EXIT_ALIGNED, EXIT_CANNOT_COMPARE, EXIT_DRIFT)
+    EXIT_ALIGNED,
+    EXIT_CANNOT_COMPARE,
+    EXIT_DRIFT,
+)
 
 GATE_STEP = "scripts/check_ruleset.py"
 # The app the real ruleset pins every context to. Any non-null value works for
@@ -75,27 +78,42 @@ def declared_tools() -> list[str]:
     return [str(t) for t in cast("list[Any]", ruleset["code_scanning_tools"])]
 
 
-def ruleset_payload(contexts: Iterable[str],
-                    *,
-                    tools: Iterable[str] | None = None,
-                    unpinned: frozenset[str] = frozenset(),
-                    status_rule: bool = True) -> dict[str, Any]:
+def ruleset_payload(
+    contexts: Iterable[str],
+    *,
+    tools: Iterable[str] | None = None,
+    unpinned: frozenset[str] = frozenset(),
+    status_rule: bool = True,
+) -> dict[str, Any]:
     """A GitHub ruleset response, shaped like the real one."""
-    rules: list[dict[str, Any]] = [{"type": "deletion"},
-                                   {"type": "non_fast_forward"}]
+    rules: list[dict[str, Any]] = [{"type": "deletion"}, {"type": "non_fast_forward"}]
     if status_rule:
-        rules.append({
-            "type": "required_status_checks",
-            "parameters": {"required_status_checks": [
-                {"context": c,
-                 "integration_id": None if c in unpinned else GITHUB_ACTIONS_APP}
-                for c in contexts]},
-        })
-    rules.append({
-        "type": "code_scanning",
-        "parameters": {"code_scanning_tools": [
-            {"tool": t} for t in (declared_tools() if tools is None else tools)]},
-    })
+        rules.append(
+            {
+                "type": "required_status_checks",
+                "parameters": {
+                    "required_status_checks": [
+                        {
+                            "context": c,
+                            "integration_id": None
+                            if c in unpinned
+                            else GITHUB_ACTIONS_APP,
+                        }
+                        for c in contexts
+                    ]
+                },
+            }
+        )
+    rules.append(
+        {
+            "type": "code_scanning",
+            "parameters": {
+                "code_scanning_tools": [
+                    {"tool": t} for t in (declared_tools() if tools is None else tools)
+                ]
+            },
+        }
+    )
     return {"id": 20990225, "name": "final countdown protection", "rules": rules}
 
 
@@ -111,8 +129,7 @@ def stub_gh(bin_dir: Path, payload: dict[str, Any]) -> None:
     payload_file = bin_dir / "ruleset.json"
     payload_file.write_text(json.dumps(payload), encoding="utf-8")
     exe = bin_dir / "gh"
-    exe.write_text(f"#!/bin/sh\nexec /bin/cat '{payload_file}'\n",
-                   encoding="utf-8")
+    exe.write_text(f"#!/bin/sh\nexec /bin/cat '{payload_file}'\n", encoding="utf-8")
     exe.chmod(0o755)
 
 
@@ -130,10 +147,15 @@ def work(tmp_path: Path) -> Path:
 def run_check(root: Path, path_value: str) -> subprocess.CompletedProcess[str]:
     env = dict(os.environ)
     env.pop("GITHUB_STEP_SUMMARY", None)
-    env["PATH"] = path_value      # the ONLY transports the script may find
-    return subprocess.run([PY, str(root / "scripts" / "check_ruleset.py")],
-                          cwd=root, capture_output=True, text=True,
-                          timeout=120, env=env)
+    env["PATH"] = path_value  # the ONLY transports the script may find
+    return subprocess.run(
+        [PY, str(root / "scripts" / "check_ruleset.py")],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=env,
+    )
 
 
 def against(root: Path, payload: dict[str, Any]) -> subprocess.CompletedProcess[str]:
@@ -147,8 +169,11 @@ def preflight_steps() -> list[dict[str, Any]]:
     doc = cast("dict[str, Any]", yaml.safe_load(VERIFY.read_text(encoding="utf-8")))
     jobs = cast("dict[str, Any]", doc["jobs"])
     job = cast("dict[str, Any]", jobs["preflight"])
-    return [cast("dict[str, Any]", s) for s in cast("list[Any]", job["steps"])
-            if isinstance(s, dict)]
+    return [
+        cast("dict[str, Any]", s)
+        for s in cast("list[Any]", job["steps"])
+        if isinstance(s, dict)
+    ]
 
 
 # --------------------------------------------------------------------------
@@ -159,11 +184,13 @@ def test_preflight_job_executes_the_ruleset_check() -> None:
     carriers = [s for s in preflight_steps() if GATE_STEP in str(s.get("run", ""))]
     assert carriers, (
         f"no step in the preflight job runs {GATE_STEP} — the ruleset drift "
-        "check is back to being something a human has to remember")
+        "check is back to being something a human has to remember"
+    )
     for step in carriers:
         run_script = str(step["run"]).strip()
         assert run_script.startswith("python3 "), (
-            f"{GATE_STEP} is mentioned but not launched: {run_script!r}")
+            f"{GATE_STEP} is mentioned but not launched: {run_script!r}"
+        )
         assert "||" not in run_script, f"failure suppressed: {run_script!r}"
 
 
@@ -173,9 +200,11 @@ def test_the_step_is_unconditional_and_propagates_failure() -> None:
         if GATE_STEP not in str(step.get("run", "")):
             continue
         assert step.get("if") is None, (
-            "a conditioned ruleset check still leaves preflight green")
+            "a conditioned ruleset check still leaves preflight green"
+        )
         assert not step.get("continue-on-error"), (
-            "continue-on-error converts ruleset drift into a passing gate")
+            "continue-on-error converts ruleset drift into a passing gate"
+        )
 
 
 def test_the_gate_declaration_requires_the_step() -> None:
@@ -185,7 +214,8 @@ def test_the_gate_declaration_requires_the_step() -> None:
     must = [str(t) for t in cast("list[Any]", preflight["must_contain"])]
     assert GATE_STEP in must, (
         f"{GATE_STEP} is not in [gates.preflight].must_contain, so "
-        "gate_integrity.py does not require the workflow to keep running it")
+        "gate_integrity.py does not require the workflow to keep running it"
+    )
 
 
 def test_deleting_the_step_fails_gate_integrity(tmp_path: Path) -> None:
@@ -207,11 +237,17 @@ def test_deleting_the_step_fails_gate_integrity(tmp_path: Path) -> None:
 
     env = dict(os.environ)
     env.pop("GITHUB_STEP_SUMMARY", None)
-    result = subprocess.run([PY, str(sandbox / "scripts" / "gate_integrity.py")],
-                            cwd=sandbox, capture_output=True, text=True,
-                            timeout=300, env=env)
+    result = subprocess.run(
+        [PY, str(sandbox / "scripts" / "gate_integrity.py")],
+        cwd=sandbox,
+        capture_output=True,
+        text=True,
+        timeout=300,
+        env=env,
+    )
     assert result.returncode != 0, (
-        "the ruleset check was deleted from the workflow and preflight passed")
+        "the ruleset check was deleted from the workflow and preflight passed"
+    )
     assert "no longer invokes its command" in result.stdout, result.stdout[-600:]
 
 
@@ -231,7 +267,8 @@ def test_manifest_declares_a_check_github_does_not_require(work: Path) -> None:
     result = against(work, ruleset_payload(surviving))
     assert result.returncode == EXIT_DRIFT, (
         "a mandatory gate GitHub does not require was reported as aligned:\n"
-        + result.stdout)
+        + result.stdout
+    )
     assert "GATES THAT BLOCK NOTHING" in result.stdout
     assert "mutmut" in result.stdout
 
@@ -241,22 +278,24 @@ def test_github_requires_a_check_the_manifest_does_not_declare(work: Path) -> No
     result = against(work, ruleset_payload([*declared_checks(), "ghost-gate"]))
     assert result.returncode == EXIT_DRIFT, (
         "a required check with no declared gate was reported as aligned:\n"
-        + result.stdout)
+        + result.stdout
+    )
     assert "CHECKS GITHUB REQUIRES THAT THE MANIFEST DOES NOT DECLARE" in result.stdout
     assert "ghost-gate" in result.stdout
 
 
 def test_an_unpinned_context_is_rejected(work: Path) -> None:
     """A context pinned to no app is a required check any actor can forge."""
-    result = against(work, ruleset_payload(declared_checks(),
-                                           unpinned=frozenset({"preflight"})))
+    result = against(
+        work, ruleset_payload(declared_checks(), unpinned=frozenset({"preflight"}))
+    )
     assert result.returncode == EXIT_DRIFT, (
-        "an unpinned required context was reported as aligned:\n" + result.stdout)
+        "an unpinned required context was reported as aligned:\n" + result.stdout
+    )
     assert "NOT PINNED TO AN APP" in result.stdout
 
 
-def test_a_code_scanning_tool_github_stopped_enforcing_is_rejected(
-        work: Path) -> None:
+def test_a_code_scanning_tool_github_stopped_enforcing_is_rejected(work: Path) -> None:
     """Dropping Bandit from the rule makes its findings advisory again."""
     result = against(work, ruleset_payload(declared_checks(), tools=["CodeQL"]))
     assert result.returncode == EXIT_DRIFT, result.stdout
@@ -264,23 +303,23 @@ def test_a_code_scanning_tool_github_stopped_enforcing_is_rejected(
     assert "Bandit" in result.stdout
 
 
-def test_deleting_the_status_check_rule_entirely_is_total_drift(
-        work: Path) -> None:
+def test_deleting_the_status_check_rule_entirely_is_total_drift(work: Path) -> None:
     """Zero required contexts must read as total drift, not as nothing to compare."""
     result = against(work, ruleset_payload([], status_rule=False))
     assert result.returncode == EXIT_DRIFT, (
         "a ruleset requiring no checks at all was not reported as drift:\n"
-        + result.stdout)
+        + result.stdout
+    )
     assert "GATES THAT BLOCK NOTHING" in result.stdout
 
 
-def test_a_drifted_manifest_is_caught_without_any_ruleset_call(
-        work: Path) -> None:
+def test_a_drifted_manifest_is_caught_without_any_ruleset_call(work: Path) -> None:
     """Manifest-internal drift is free to detect and must not need the network."""
     toml = (work / "ci" / "gates.toml").read_text(encoding="utf-8")
     (work / "ci" / "gates.toml").write_text(
         toml.replace('  "preflight",\n', '  "preflight",\n  "ghost-gate",\n', 1),
-        encoding="utf-8")
+        encoding="utf-8",
+    )
     result = against(work, ruleset_payload(declared_checks()))
     assert result.returncode != EXIT_ALIGNED, result.stdout
     assert "MISMATCH inside the manifest" in result.stdout
@@ -294,10 +333,11 @@ def test_an_unreadable_ruleset_is_neither_aligned_nor_drift(work: Path) -> None:
     """Silently skipping means the drift check does not exist."""
     empty = work / "empty-bin"
     empty.mkdir()
-    result = run_check(work, str(empty))      # no gh, no curl, no network
+    result = run_check(work, str(empty))  # no gh, no curl, no network
     assert result.returncode == EXIT_CANNOT_COMPARE, (
         f"expected INFRASTRUCTURE_FAILURE ({EXIT_CANNOT_COMPARE}), got "
-        f"{result.returncode}:\n{result.stdout}")
+        f"{result.returncode}:\n{result.stdout}"
+    )
     assert "CANNOT COMPARE" in result.stdout
     assert "INFRASTRUCTURE_FAILURE" in result.stdout
 
@@ -307,13 +347,14 @@ def test_unreadable_and_drifted_are_distinguishable(work: Path) -> None:
     empty = work / "empty-bin"
     empty.mkdir()
     unreadable = run_check(work, str(empty)).returncode
-    drifted = against(work, ruleset_payload(
-        [c for c in declared_checks() if c != "full"])).returncode
+    drifted = against(
+        work, ruleset_payload([c for c in declared_checks() if c != "full"])
+    ).returncode
     assert unreadable != drifted, (
         "'could not read the ruleset' and 'the ruleset drifted' exit the same "
-        "way, so the workflow cannot tell an outage from a real failure")
-    assert EXIT_ALIGNED not in (unreadable, drifted), (
-        "a non-aligned state exited 0")
+        "way, so the workflow cannot tell an outage from a real failure"
+    )
+    assert EXIT_ALIGNED not in (unreadable, drifted), "a non-aligned state exited 0"
 
 
 def test_a_ruleset_response_that_is_not_json_is_not_aligned(work: Path) -> None:
@@ -321,8 +362,7 @@ def test_a_ruleset_response_that_is_not_json_is_not_aligned(work: Path) -> None:
     bin_dir = work / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
     exe = bin_dir / "gh"
-    exe.write_text("#!/bin/sh\necho '<html>502 Bad Gateway</html>'\n",
-                   encoding="utf-8")
+    exe.write_text("#!/bin/sh\necho '<html>502 Bad Gateway</html>'\n", encoding="utf-8")
     exe.chmod(0o755)
     result = run_check(work, str(bin_dir))
     assert result.returncode == EXIT_CANNOT_COMPARE, result.stdout

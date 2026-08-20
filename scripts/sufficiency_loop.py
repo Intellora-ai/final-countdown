@@ -30,25 +30,35 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from contract_strength import ALTERNATIVES_2, ALTERNATIVES_3, PROBES_2, PROBES_3, distinct
+from collections.abc import Callable, Sequence
+from typing import Any
+
+from contract_strength import (
+    ALTERNATIVES_2,
+    ALTERNATIVES_3,
+    PROBES_2,
+    PROBES_3,
+    distinct,
+)
 from safe_eval import UnsupportedClaim, compile_claim
 from semantic_anchor import anchor_for
 from spec_source import source_for
 from spec_strength import holds, load_module
 from spec_to_test import SpecParseError, parse_lean_spec
-from typing import Any
-from collections.abc import Callable, Sequence
 
 SCOPE = {
     "domain": "integers [-1000, 1000]",
     "examples_per_property": 120,
-    "probe_points": None,      # filled per arity
+    "probe_points": None,  # filled per arity
     "witness_table": None,
 }
 
 
-def divergence(original: Callable[..., int], alt: Callable[..., int],
-               probes: Sequence[tuple[int, ...]]) -> dict[str, Any] | None:
+def divergence(
+    original: Callable[..., int],
+    alt: Callable[..., int],
+    probes: Sequence[tuple[int, ...]],
+) -> dict[str, Any] | None:
     """First probe point where the two implementations disagree."""
     for values in probes:
         try:
@@ -62,8 +72,9 @@ def divergence(original: Callable[..., int], alt: Callable[..., int],
     return None
 
 
-def anchor_verdict(anchor: dict[str, Any], func_name: str,
-                   div: dict[str, Any]) -> str | None:
+def anchor_verdict(
+    anchor: dict[str, Any], func_name: str, div: dict[str, Any]
+) -> str | None:
     """Does an authoritative assertion settle this divergence?
 
     Only the anchor's own assertions are consulted. Nothing is invented here.
@@ -77,10 +88,12 @@ def anchor_verdict(anchor: dict[str, Any], func_name: str,
             continue
         # Evaluate the assertion against each implementation's actual function.
         try:
-            ok_original = claim({func_name: anchor["_original"], "min": min,
-                                 "max": max, "abs": abs})
-            ok_witness = claim({func_name: anchor["_witness"], "min": min,
-                                "max": max, "abs": abs})
+            ok_original = claim(
+                {func_name: anchor["_original"], "min": min, "max": max, "abs": abs}
+            )
+            ok_witness = claim(
+                {func_name: anchor["_witness"], "min": min, "max": max, "abs": abs}
+            )
         except (UnsupportedClaim, TypeError, ValueError, ArithmeticError):
             # The assertion references something outside the claim language, or
             # the implementation rejects it; either way it cannot settle intent.
@@ -93,14 +106,20 @@ def anchor_verdict(anchor: dict[str, Any], func_name: str,
 def run(spec_files: list[str], verbose: bool = True) -> dict[str, Any]:
     """Raises SpecParseError if ANY spec fails to parse — see contract_strength.assess."""
     if not spec_files:
-        return {"sufficiency": "UNKNOWN", "reason": "no spec files given",
-                "scope": SCOPE}
+        return {
+            "sufficiency": "UNKNOWN",
+            "reason": "no spec files given",
+            "scope": SCOPE,
+        }
     infos = [(s, parse_lean_spec(s)) for s in spec_files]
 
     src = source_for(spec_files[0])
     if src is None:
-        return {"sufficiency": "UNKNOWN",
-                "reason": f"no src/ file for {spec_files[0]}", "scope": SCOPE}
+        return {
+            "sufficiency": "UNKNOWN",
+            "reason": f"no src/ file for {spec_files[0]}",
+            "scope": SCOPE,
+        }
     original_mod = load_module(Path(src).read_text())
     func_name = infos[0][1]["function_name"]
     original = getattr(original_mod, func_name)
@@ -123,10 +142,14 @@ def run(spec_files: list[str], verbose: bool = True) -> dict[str, Any]:
             survivors.append((label, fn))
 
     if not survivors:
-        return {"sufficiency": "ESTABLISHED", "scope": scope,
-                "witnesses_tested": tested, "witnesses_excluded": tested,
-                "reason": f"no witness survived within scope ({tested} tested)",
-                "derivations": []}
+        return {
+            "sufficiency": "ESTABLISHED",
+            "scope": scope,
+            "witnesses_tested": tested,
+            "witnesses_excluded": tested,
+            "reason": f"no witness survived within scope ({tested} tested)",
+            "derivations": [],
+        }
 
     derivations: list[dict[str, Any]] = []
     for label, fn in survivors:
@@ -137,37 +160,59 @@ def run(spec_files: list[str], verbose: bool = True) -> dict[str, Any]:
             continue
         anchor["_original"], anchor["_witness"] = original, fn
         refuting = anchor_verdict(anchor, func_name, div)
-        derivations.append({
-            "witness": label,
-            "diverges_at": div,
-            "anchor_refutes": refuting,
-            "derived_from_anchor": (
-                f"{func_name}{div['inputs']} = {div['original']}" if refuting else None),
-        })
+        derivations.append(
+            {
+                "witness": label,
+                "diverges_at": div,
+                "anchor_refutes": refuting,
+                "derived_from_anchor": (
+                    f"{func_name}{div['inputs']} = {div['original']}"
+                    if refuting
+                    else None
+                ),
+            }
+        )
 
     decided = [d for d in derivations if d["anchor_refutes"]]
     state = "NOT_ESTABLISHED" if decided else "UNKNOWN"
     return {
-        "sufficiency": state, "scope": scope,
-        "witnesses_tested": tested, "witnesses_excluded": tested - len(survivors),
-        "reason": (f"{len(survivors)} witness(es) survived; "
-                   + ("the anchor refutes them, so a spec is derivable"
-                      if decided else "the anchor is silent — intent must be stated by a human")),
+        "sufficiency": state,
+        "scope": scope,
+        "witnesses_tested": tested,
+        "witnesses_excluded": tested - len(survivors),
+        "reason": (
+            f"{len(survivors)} witness(es) survived; "
+            + (
+                "the anchor refutes them, so a spec is derivable"
+                if decided
+                else "the anchor is silent — intent must be stated by a human"
+            )
+        ),
         "derivations": derivations,
     }
 
 
 if __name__ == "__main__":
-    p = argparse.ArgumentParser(); p.add_argument("specs", nargs="+"); ns = p.parse_args()
+    p = argparse.ArgumentParser()
+    p.add_argument("specs", nargs="+")
+    ns = p.parse_args()
     try:
         r = run(ns.specs)
     except SpecParseError as exc:
         print(f"❌ unparsable spec — the loop did NOT run: {exc}")
         sys.exit(1)
     sc = r["scope"]
-    print(f"  Sufficiency:      {r['sufficiency']}"
-          + (f" (within scope: {sc['domain']})" if r["sufficiency"] == "ESTABLISHED" else ""))
-    print(f"  Scope:            {sc['domain']}, {sc['witness_table']} candidate implementations")
+    print(
+        f"  Sufficiency:      {r['sufficiency']}"
+        + (
+            f" (within scope: {sc['domain']})"
+            if r["sufficiency"] == "ESTABLISHED"
+            else ""
+        )
+    )
+    print(
+        f"  Scope:            {sc['domain']}, {sc['witness_table']} candidate implementations"
+    )
     print(f"  Search depth:     {sc['examples_per_property']} examples per property")
     print(f"  Witnesses tested: {r['witnesses_tested']}")
     print(f"  Witnesses excluded: {r['witnesses_excluded']}")
@@ -175,7 +220,9 @@ if __name__ == "__main__":
     for d in r["derivations"]:
         print(f"\n  witness: {d['witness']}")
         i = d["diverges_at"]
-        print(f"    diverges at {i['inputs']}: original={i['original']}  witness={i['witness']}")
+        print(
+            f"    diverges at {i['inputs']}: original={i['original']}  witness={i['witness']}"
+        )
         if d["anchor_refutes"]:
             print(f"    anchor refutes it:  {d['anchor_refutes']}")
             print(f"    DERIVED FROM ANCHOR (not invented): {d['derived_from_anchor']}")

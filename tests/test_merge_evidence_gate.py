@@ -30,10 +30,12 @@ OTHER = "0000000000000000000000000000000000000000"
 
 LOG_AFTER = (
     "2026-08-20T13:24:34.4680068Z \x1b[32m13 passed, 772 deselected in 14.17s\x1b[0m\n"
-    "2026-08-20T13:24:34.4680069Z AXLE_CALLS=3\n")
+    "2026-08-20T13:24:34.4680069Z AXLE_CALLS=3\n"
+)
 LOG_BEFORE = (
     "2026-08-20T12:57:30.2370201Z 13 passed, 767 deselected in 22.27s\n"
-    "2026-08-20T12:57:30.2370202Z AXLE_CALLS=9\n")
+    "2026-08-20T12:57:30.2370202Z AXLE_CALLS=9\n"
+)
 
 REQUIRED = ["correspondence", "coverage", "e2e", "full"]
 
@@ -42,10 +44,13 @@ class FakeFetcher:
     """Offline GitHub. Records what was fetched so tests can assert the gate did
     not quietly download every successful log while claiming it did not."""
 
-    def __init__(self, runs: dict[str, dict[str, Any]],
-                 jobs: dict[str, list[dict[str, Any]]],
-                 logs: dict[int, str],
-                 checks: list[dict[str, Any]]) -> None:
+    def __init__(
+        self,
+        runs: dict[str, dict[str, Any]],
+        jobs: dict[str, list[dict[str, Any]]],
+        logs: dict[int, str],
+        checks: list[dict[str, Any]],
+    ) -> None:
         self._runs, self._jobs, self._logs, self._checks = runs, jobs, logs, checks
         self.logs_fetched: list[int] = []
 
@@ -68,11 +73,17 @@ class FakeFetcher:
         return [r for r in self._runs.values() if r["head_sha"] == sha]
 
 
-def _job(job_id: int, name: str, start: str, end: str,
-         conclusion: str = "success") -> dict[str, Any]:
-    return {"id": job_id, "name": name, "conclusion": conclusion,
-            "started_at": start, "completed_at": end,
-            "steps": [{"name": f"Run {name}", "conclusion": conclusion}]}
+def _job(
+    job_id: int, name: str, start: str, end: str, conclusion: str = "success"
+) -> dict[str, Any]:
+    return {
+        "id": job_id,
+        "name": name,
+        "conclusion": conclusion,
+        "started_at": start,
+        "completed_at": end,
+        "steps": [{"name": f"Run {name}", "conclusion": conclusion}],
+    }
 
 
 def fetcher(*, all_green: bool = True, missing: str = "") -> FakeFetcher:
@@ -85,10 +96,31 @@ def fetcher(*, all_green: bool = True, missing: str = "") -> FakeFetcher:
     # correspondence job spans exactly 14.17s and run 111's exactly 22.27s. A fake
     # whose arithmetic does not match the claims would let a broken gate pass.
     jobs = {
-        "222": [_job(1, "correspondence", "2026-08-20T13:24:04.00Z", "2026-08-20T13:24:18.17Z"),
-                _job(2, "coverage", "2026-08-20T13:24:04.00Z", "2026-08-20T13:24:54.00Z")],
-        "111": [_job(3, "correspondence", "2026-08-20T12:56:51.00Z", "2026-08-20T12:57:13.27Z")],
-        "999": [_job(4, "correspondence", "2026-08-20T13:24:04.00Z", "2026-08-20T13:24:18.17Z")],
+        "222": [
+            _job(
+                1,
+                "correspondence",
+                "2026-08-20T13:24:04.00Z",
+                "2026-08-20T13:24:18.17Z",
+            ),
+            _job(2, "coverage", "2026-08-20T13:24:04.00Z", "2026-08-20T13:24:54.00Z"),
+        ],
+        "111": [
+            _job(
+                3,
+                "correspondence",
+                "2026-08-20T12:56:51.00Z",
+                "2026-08-20T12:57:13.27Z",
+            )
+        ],
+        "999": [
+            _job(
+                4,
+                "correspondence",
+                "2026-08-20T13:24:04.00Z",
+                "2026-08-20T13:24:18.17Z",
+            )
+        ],
     }
     logs = {1: LOG_AFTER, 2: LOG_AFTER, 3: LOG_BEFORE, 4: LOG_AFTER}
     checks: list[dict[str, Any]] = []
@@ -96,21 +128,30 @@ def fetcher(*, all_green: bool = True, missing: str = "") -> FakeFetcher:
         if name == missing:
             continue
         conclusion = "success" if (all_green or name != "coverage") else "failure"
-        checks.append({"name": name, "status": "completed", "conclusion": conclusion,
-                       "details_url": f"https://github.com/x/y/actions/runs/222/job/1",
-                       "_sha": HEAD})
+        checks.append(
+            {
+                "name": name,
+                "status": "completed",
+                "conclusion": conclusion,
+                "details_url": "https://github.com/x/y/actions/runs/222/job/1",
+                "_sha": HEAD,
+            }
+        )
     return FakeFetcher(runs, jobs, logs, checks)
 
 
 def table(*rows: str) -> str:
-    head = ("## Measured Evidence\n\n"
-            "| ID | Type | Metric | Value | Unit | SHA | Run | Source | Evidence |\n"
-            "|---|---|---|---:|---|---|---:|---|---|\n")
+    head = (
+        "## Measured Evidence\n\n"
+        "| ID | Type | Metric | Value | Unit | SHA | Run | Source | Evidence |\n"
+        "|---|---|---|---:|---|---|---:|---|---|\n"
+    )
     return head + "\n".join(rows) + "\n"
 
 
-def verdict(body: str, fetch: FakeFetcher | None = None,
-            sha: str = HEAD) -> tuple[bool, list[str]]:
+def verdict(
+    body: str, fetch: FakeFetcher | None = None, sha: str = HEAD
+) -> tuple[bool, list[str]]:
     return meg.evaluate(body, sha, fetch or fetcher(), REQUIRED, pr="99")
 
 
@@ -124,8 +165,10 @@ def test_claimed_value_contradicting_the_log_is_blocked() -> None:
     genuinely prints `AXLE_CALLS=3`; the row cites that very line and then claims
     13. Finding the evidence is not the same as the evidence agreeing.
     """
-    body = table("| R1 | current | correspondence | 13 | calls | "
-                 f"{HEAD} | 222 | log | `AXLE_CALLS=3` |")
+    body = table(
+        "| R1 | current | correspondence | 13 | calls | "
+        f"{HEAD} | 222 | log | `AXLE_CALLS=3` |"
+    )
     allowed, reasons = verdict(body)
     assert not allowed
     assert any("CONTRADICTED" in r and "R1" in r for r in reasons), reasons
@@ -133,8 +176,10 @@ def test_claimed_value_contradicting_the_log_is_blocked() -> None:
 
 def test_the_same_marker_with_the_true_number_is_accepted() -> None:
     """The control for the test above: only the claimed value differs."""
-    body = table("| R1 | current | correspondence | 3 | calls | "
-                 f"{HEAD} | 222 | log | `AXLE_CALLS=3` |")
+    body = table(
+        "| R1 | current | correspondence | 3 | calls | "
+        f"{HEAD} | 222 | log | `AXLE_CALLS=3` |"
+    )
     allowed, reasons = verdict(body)
     assert allowed, reasons
 
@@ -146,7 +191,8 @@ def test_derived_row_that_does_not_recompute_is_blocked() -> None:
         "| jobs[correspondence].duration |",
         f"| R2 | current | correspondence | 14.17 | seconds | {HEAD} | 222 | api "
         "| jobs[correspondence].duration |",
-        "| R3 | derived | duration saved | 29.00 | seconds | — | — | formula | R1 - R2 |")
+        "| R3 | derived | duration saved | 29.00 | seconds | — | — | formula | R1 - R2 |",
+    )
     allowed, reasons = verdict(body)
     assert not allowed
     assert any("CONTRADICTED" in r and "R3" in r for r in reasons), reasons
@@ -156,8 +202,10 @@ def test_derived_row_that_does_not_recompute_is_blocked() -> None:
 # Criterion 2 -- the honest case passes
 # --------------------------------------------------------------------------
 def test_matching_current_evidence_is_accepted() -> None:
-    body = table(f"| R1 | current | correspondence | 14.17 | seconds | {HEAD} | 222 | log "
-                 "| `13 passed, 772 deselected in 14.17s` |")
+    body = table(
+        f"| R1 | current | correspondence | 14.17 | seconds | {HEAD} | 222 | log "
+        "| `13 passed, 772 deselected in 14.17s` |"
+    )
     allowed, reasons = verdict(body)
     assert allowed, reasons
 
@@ -170,7 +218,8 @@ def test_baseline_and_derived_rows_reconstruct_pr_28_honestly() -> None:
         f"| R2 | current | correspondence | 14.17 | seconds | {HEAD} | 222 | api "
         "| jobs[correspondence].duration |",
         "| R3 | derived | duration saved | 8.10 | seconds | — | — | formula | R1 - R2 |",
-        "| R4 | derived | speedup | 1.57 | x | — | — | formula | R1 / R2 |")
+        "| R4 | derived | speedup | 1.57 | x | — | — | formula | R1 / R2 |",
+    )
     allowed, reasons = verdict(body)
     assert allowed, reasons
     assert sum("RECOMPUTED" in r for r in reasons) == 2
@@ -180,16 +229,20 @@ def test_baseline_and_derived_rows_reconstruct_pr_28_honestly() -> None:
 # Criteria 3, 4, 14 -- provenance must be the right provenance
 # --------------------------------------------------------------------------
 def test_right_number_from_a_stale_sha_is_blocked() -> None:
-    body = table(f"| R1 | current | correspondence | 22.27 | seconds | {OLD} | 111 | api "
-                 "| jobs[correspondence].duration |")
+    body = table(
+        f"| R1 | current | correspondence | 22.27 | seconds | {OLD} | 111 | api "
+        "| jobs[correspondence].duration |"
+    )
     allowed, reasons = verdict(body)
     assert not allowed
     assert any("STALE" in r for r in reasons), reasons
 
 
 def test_right_number_from_the_wrong_job_is_blocked() -> None:
-    body = table(f"| R1 | current | nonexistent-job | 14.17 | seconds | {HEAD} | 222 | api "
-                 "| jobs[nonexistent-job].duration |")
+    body = table(
+        f"| R1 | current | nonexistent-job | 14.17 | seconds | {HEAD} | 222 | api "
+        "| jobs[nonexistent-job].duration |"
+    )
     allowed, reasons = verdict(body)
     assert not allowed
     assert any("CONTRADICTED" in r for r in reasons), reasons
@@ -197,8 +250,10 @@ def test_right_number_from_the_wrong_job_is_blocked() -> None:
 
 def test_run_from_another_repository_is_blocked() -> None:
     """A run ID in a PR body is attacker-chosen. It must belong to this repo."""
-    body = table(f"| R1 | current | correspondence | 14.17 | seconds | {HEAD} | 999 | api "
-                 "| jobs[correspondence].duration |")
+    body = table(
+        f"| R1 | current | correspondence | 14.17 | seconds | {HEAD} | 999 | api "
+        "| jobs[correspondence].duration |"
+    )
     allowed, reasons = verdict(body)
     assert not allowed
     assert any("someone/else" in r for r in reasons), reasons
@@ -208,22 +263,42 @@ def test_run_from_another_repository_is_blocked() -> None:
 # Criteria 5, 6, 7 -- missing, malformed, unknown
 # --------------------------------------------------------------------------
 def test_marker_absent_from_every_log_is_blocked() -> None:
-    body = table(f"| R1 | current | correspondence | 14.17 | seconds | {HEAD} | 222 | log "
-                 "| `a line that was never printed` |")
+    body = table(
+        f"| R1 | current | correspondence | 14.17 | seconds | {HEAD} | 222 | log "
+        "| `a line that was never printed` |"
+    )
     allowed, reasons = verdict(body)
     assert not allowed
     assert any("UNKNOWN" in r for r in reasons), reasons
 
 
-@pytest.mark.parametrize("row,expect", [
-    ("| R1 | current | correspondence | 14.17 | seconds | " + HEAD + " | 222 |", "expected 9"),
-    ("| R1 | sideways | correspondence | 14.17 | seconds | " + HEAD
-     + " | 222 | log | `x` |", "type"),
-    ("| R1 | current | correspondence | fourteen | seconds | " + HEAD
-     + " | 222 | log | `x` |", "not numeric"),
-    ("| ONE | current | correspondence | 14.17 | seconds | " + HEAD
-     + " | 222 | log | `x` |", "row ID"),
-])
+@pytest.mark.parametrize(
+    "row,expect",
+    [
+        (
+            "| R1 | current | correspondence | 14.17 | seconds | " + HEAD + " | 222 |",
+            "expected 9",
+        ),
+        (
+            "| R1 | sideways | correspondence | 14.17 | seconds | "
+            + HEAD
+            + " | 222 | log | `x` |",
+            "type",
+        ),
+        (
+            "| R1 | current | correspondence | fourteen | seconds | "
+            + HEAD
+            + " | 222 | log | `x` |",
+            "not numeric",
+        ),
+        (
+            "| ONE | current | correspondence | 14.17 | seconds | "
+            + HEAD
+            + " | 222 | log | `x` |",
+            "row ID",
+        ),
+    ],
+)
 def test_malformed_rows_are_blocked(row: str, expect: str) -> None:
     allowed, reasons = verdict(table(row))
     assert not allowed
@@ -231,8 +306,10 @@ def test_malformed_rows_are_blocked(row: str, expect: str) -> None:
 
 
 def test_unknown_unit_is_blocked_rather_than_converted() -> None:
-    body = table(f"| R1 | current | correspondence | 14.17 | fortnights | {HEAD} | 222 | log "
-                 "| `13 passed, 772 deselected in 14.17s` |")
+    body = table(
+        f"| R1 | current | correspondence | 14.17 | fortnights | {HEAD} | 222 | log "
+        "| `13 passed, 772 deselected in 14.17s` |"
+    )
     allowed, reasons = verdict(body)
     assert not allowed
     assert any("closed set" in r for r in reasons), reasons
@@ -242,8 +319,10 @@ def test_unknown_unit_is_blocked_rather_than_converted() -> None:
 # Criterion 8 -- the withdrawn 93-second figure
 # --------------------------------------------------------------------------
 def test_the_withdrawn_93_second_figure_cannot_be_revived() -> None:
-    body = table(f"| R1 | current | correspondence | 93 | seconds | {HEAD} | 222 | api "
-                 "| jobs[correspondence].duration |")
+    body = table(
+        f"| R1 | current | correspondence | 93 | seconds | {HEAD} | 222 | api "
+        "| jobs[correspondence].duration |"
+    )
     allowed, reasons = verdict(body)
     assert not allowed
     assert any("CONTRADICTED" in r and "93" in r for r in reasons), reasons
@@ -310,28 +389,34 @@ def test_the_eight_historical_pr_bodies_produce_no_false_blocks() -> None:
     for name, lines in flagged.items():
         for text in lines:
             assert meg.CLAIM_METRIC.search(text) and meg.CLAIM_NUMBER.search(text), (
-                f"{name} flagged a line carrying no measurement: {text!r}")
+                f"{name} flagged a line carrying no measurement: {text!r}"
+            )
             assert not meg.CLAIM_PROVENANCE.search(text), (
-                f"{name} flagged a line that does carry provenance: {text!r}")
+                f"{name} flagged a line that does carry provenance: {text!r}"
+            )
 
     assert sum(len(v) for v in flagged.values()) == 4, (
-        f"expected the four known unsupported claims, got {flagged}")
+        f"expected the four known unsupported claims, got {flagged}"
+    )
 
 
 # --------------------------------------------------------------------------
 # Criterion 13 -- the formula evaluator is not an interpreter
 # --------------------------------------------------------------------------
-@pytest.mark.parametrize("formula", [
-    '__import__("os").system("touch /tmp/pwned")',
-    'open("/etc/passwd").read()',
-    "R1.__class__.__mro__",
-    "(1).__class__.__bases__",
-    "[x for x in range(10)]",
-    "lambda: 1",
-    "R1 if R1 else R2",
-    "R1 ** 99999999",
-    "eval('1+1')",
-])
+@pytest.mark.parametrize(
+    "formula",
+    [
+        '__import__("os").system("touch /tmp/pwned")',
+        'open("/etc/passwd").read()',
+        "R1.__class__.__mro__",
+        "(1).__class__.__bases__",
+        "[x for x in range(10)]",
+        "lambda: 1",
+        "R1 if R1 else R2",
+        "R1 ** 99999999",
+        "eval('1+1')",
+    ],
+)
 def test_formula_injection_is_refused_without_executing(formula: str) -> None:
     """`eval` on a pull request body is remote code execution with extra steps."""
     marker = Path("/tmp/pwned")
@@ -347,10 +432,17 @@ def test_formula_referencing_an_undeclared_row_is_blocked() -> None:
     assert caught.value.state == "UNKNOWN"
 
 
-@pytest.mark.parametrize("formula,expected", [
-    ("R1 - R2", 8.10), ("R1 / R2", 1.5716), ("(R1 - R2) / R1 * 100", 36.372),
-    ("max(R1, R2)", 22.27), ("abs(R2 - R1)", 8.10), ("round(R1)", 22.0),
-])
+@pytest.mark.parametrize(
+    "formula,expected",
+    [
+        ("R1 - R2", 8.10),
+        ("R1 / R2", 1.5716),
+        ("(R1 - R2) / R1 * 100", 36.372),
+        ("max(R1, R2)", 22.27),
+        ("abs(R2 - R1)", 8.10),
+        ("round(R1)", 22.0),
+    ],
+)
 def test_permitted_arithmetic_computes(formula: str, expected: float) -> None:
     got = meg.safe_eval(formula, {"R1": 22.27, "R2": 14.17})
     assert abs(got - expected) < 0.01
@@ -363,7 +455,9 @@ def test_a_failed_required_job_blocks_and_produces_a_dossier() -> None:
     allowed, reasons = verdict("No claims here.", fetcher(all_green=False))
     assert not allowed
     assert any(r.startswith("FAILED:") and "coverage" in r for r in reasons), reasons
-    assert any("STATUS: FAIL" in r and "REQUIRED ACTION:" in r for r in reasons), reasons
+    assert any("STATUS: FAIL" in r and "REQUIRED ACTION:" in r for r in reasons), (
+        reasons
+    )
 
 
 def test_the_dossier_says_unknown_rather_than_inventing_a_cause() -> None:
@@ -373,7 +467,9 @@ def test_the_dossier_says_unknown_rather_than_inventing_a_cause() -> None:
     is worse than an admitted absence of one.
     """
     job = _job(7, "coverage", "2026-08-20T13:24:04Z", "2026-08-20T13:24:54Z", "failure")
-    text = meg.dossier("99", HEAD, "coverage", "222", job, "some output with no known shape\n")
+    text = meg.dossier(
+        "99", HEAD, "coverage", "222", job, "some output with no known shape\n"
+    )
     assert "OBSERVED WHY:\nUNKNOWN — LOG DOES NOT PROVE ROOT CAUSE" in text
     assert "NEXT SAFE FIX:\nINVESTIGATE — ROOT CAUSE NOT PROVEN" in text
 
@@ -393,8 +489,9 @@ def test_status_evidence_is_collected_for_every_required_context() -> None:
 
 def test_the_gate_excludes_itself_from_the_wait_set() -> None:
     """A gate that waits for itself to become terminal never becomes terminal."""
-    _, missing = meg.collect_status(fetcher(), HEAD,
-                                    [*REQUIRED, "merge-evidence"], "merge-evidence")
+    _, missing = meg.collect_status(
+        fetcher(), HEAD, [*REQUIRED, "merge-evidence"], "merge-evidence"
+    )
     assert missing == []
 
 
@@ -412,8 +509,10 @@ def test_successful_job_logs_are_not_downloaded() -> None:
 
 def test_a_cited_log_row_does_download_exactly_that_log() -> None:
     fetch = fetcher()
-    body = table(f"| R1 | current | correspondence | 14.17 | seconds | {HEAD} | 222 | log "
-                 "| `13 passed, 772 deselected in 14.17s` |")
+    body = table(
+        f"| R1 | current | correspondence | 14.17 | seconds | {HEAD} | 222 | log "
+        "| `13 passed, 772 deselected in 14.17s` |"
+    )
     allowed, reasons = meg.evaluate(body, HEAD, fetch, REQUIRED, pr="99")
     assert allowed, reasons
     assert fetch.logs_fetched == [1]
@@ -429,13 +528,16 @@ def test_timestamps_and_colour_do_not_decide_provability() -> None:
     assert "2026-08-20T" not in meg.normalize_log(LOG_AFTER)
 
 
-@pytest.mark.parametrize("marker,claim,expect", [
-    ("elapsed: 8.10s", 8.1, True),
-    ("elapsed: 8.1 seconds", 8.10, True),
-    ("Total coverage: 100.00%", 100.0, True),
-    ("AXLE_CALLS=42", 13.0, False),
-    ("AXLE_CALLS=42", 42.0, True),
-])
+@pytest.mark.parametrize(
+    "marker,claim,expect",
+    [
+        ("elapsed: 8.10s", 8.1, True),
+        ("elapsed: 8.1 seconds", 8.10, True),
+        ("Total coverage: 100.00%", 100.0, True),
+        ("AXLE_CALLS=42", 13.0, False),
+        ("AXLE_CALLS=42", 42.0, True),
+    ],
+)
 def test_value_normalization(marker: str, claim: float, expect: bool) -> None:
     assert meg.value_present_in(marker, claim) is expect
 
@@ -473,20 +575,28 @@ def test_the_gate_contains_no_eval_exec_or_shell() -> None:
     tree = ast.parse(source)
 
     dangerous = [
-        node for node in ast.walk(tree)
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
         and node.func.id in {"eval", "exec", "compile", "__import__"}
     ]
     assert dangerous == [], (
         f"{len(dangerous)} interpreter call site(s) in a script that parses "
-        "attacker-controlled pull request bodies")
+        "attacker-controlled pull request bodies"
+    )
 
     shell_true = [
-        node for node in ast.walk(tree)
-        if isinstance(node, ast.keyword) and node.arg == "shell"
-        and isinstance(node.value, ast.Constant) and node.value.value is True
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.keyword)
+        and node.arg == "shell"
+        and isinstance(node.value, ast.Constant)
+        and node.value.value is True
     ]
-    assert shell_true == [], "subprocess with shell=True in a script that reads untrusted text"
+    assert shell_true == [], (
+        "subprocess with shell=True in a script that reads untrusted text"
+    )
 
 
 def test_the_gate_declares_what_it_does_not_check() -> None:
@@ -512,17 +622,20 @@ def test_every_exit_path_declares_a_verdict() -> None:
 
     source = (REPO / "scripts" / "merge_evidence_gate.py").read_text(encoding="utf-8")
     tree = ast.parse(source)
-    main = next(n for n in ast.walk(tree)
-                if isinstance(n, ast.FunctionDef) and n.name == "main")
+    main = next(
+        n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "main"
+    )
 
     called = {
-        ast.unparse(n.func) for n in ast.walk(main)
+        ast.unparse(n.func)
+        for n in ast.walk(main)
         if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
     }
     for verdict_call in ("gate.passed", "gate.failed", "gate.infrastructure_failure"):
         assert verdict_call in called, (
             f"main() never calls {verdict_call}(); a gate that exits without "
-            "declaring a result is recorded UNKNOWN, and UNKNOWN blocks")
+            "declaring a result is recorded UNKNOWN, and UNKNOWN blocks"
+        )
 
 
 # --------------------------------------------------------------------------
@@ -561,11 +674,19 @@ def test_the_gate_waits_for_a_context_in_another_workflow() -> None:
     slept: list[float] = []
     ticks = iter([0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0])
     _, missing = meg.collect_status(
-        slow, HEAD, REQUIRED, "merge-evidence",
-        wait_budget=60.0, sleep=slept.append, clock=lambda: next(ticks))
+        slow,
+        HEAD,
+        REQUIRED,
+        "merge-evidence",
+        wait_budget=60.0,
+        sleep=slept.append,
+        clock=lambda: next(ticks),
+    )
     assert missing == [], missing
     assert slept, "the gate returned without ever waiting"
-    assert slow.reads == 4, f"expected three pending reads then a terminal one, got {slow.reads}"
+    assert slow.reads == 4, (
+        f"expected three pending reads then a terminal one, got {slow.reads}"
+    )
 
 
 def test_waiting_is_bounded_and_fails_closed() -> None:
@@ -573,16 +694,23 @@ def test_waiting_is_bounded_and_fails_closed() -> None:
     slow = SlowFetcher(turns=99)
     ticks = iter([0.0, 30.0, 61.0, 90.0])
     _, missing = meg.collect_status(
-        slow, HEAD, REQUIRED, "merge-evidence",
-        wait_budget=60.0, sleep=lambda _: None, clock=lambda: next(ticks))
+        slow,
+        HEAD,
+        REQUIRED,
+        "merge-evidence",
+        wait_budget=60.0,
+        sleep=lambda _: None,
+        clock=lambda: next(ticks),
+    )
     assert any("e2e" in m for m in missing), missing
 
 
 def test_zero_budget_does_not_wait_at_all() -> None:
     slow = SlowFetcher(turns=1)
     slept: list[float] = []
-    _, missing = meg.collect_status(slow, HEAD, REQUIRED, "merge-evidence",
-                                    wait_budget=0.0, sleep=slept.append)
+    _, missing = meg.collect_status(
+        slow, HEAD, REQUIRED, "merge-evidence", wait_budget=0.0, sleep=slept.append
+    )
     assert slept == []
     assert any("e2e" in m for m in missing), missing
 
@@ -604,11 +732,14 @@ def test_the_gate_runs_on_pull_requests_only() -> None:
     """
     yaml = pytest.importorskip("yaml")
     spec = yaml.safe_load(
-        (REPO / ".github" / "workflows" / "verify.yml").read_text(encoding="utf-8"))
+        (REPO / ".github" / "workflows" / "verify.yml").read_text(encoding="utf-8")
+    )
     condition = str(spec["jobs"]["merge-evidence"].get("if", ""))
     assert "pull_request" in condition, (
         "merge-evidence must not run on push: CodeQL is a required context that "
-        "does not exist on a push SHA, so the gate can only ever time out there")
+        "does not exist on a push SHA, so the gate can only ever time out there"
+    )
     assert "always()" in condition, (
         "within a pull request the failure dossier is worth most in exactly the "
-        "case needs:[full] would otherwise skip this job")
+        "case needs:[full] would otherwise skip this job"
+    )

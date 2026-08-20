@@ -23,8 +23,9 @@ def check(timeout: int = 60) -> int:
         return 1
     start = time.monotonic()
     try:
-        out = subprocess.run([axle, "environments"], capture_output=True,
-                             text=True, timeout=timeout)
+        out = subprocess.run(
+            [axle, "environments"], capture_output=True, text=True, timeout=timeout
+        )
     except subprocess.TimeoutExpired:
         print(f"UNREACHABLE: {URL} did not respond within {timeout}s")
         return 1
@@ -33,8 +34,7 @@ def check(timeout: int = 60) -> int:
         print(f"UNREACHABLE: {URL} returned no Lean environments")
         print((out.stderr or out.stdout)[:300])
         return 1
-    envs = [ln.strip().strip('",') for ln in out.stdout.splitlines()
-            if '"name"' in ln]
+    envs = [ln.strip().strip('",') for ln in out.stdout.splitlines() if '"name"' in ln]
     print(f"REACHABLE: {URL}  {elapsed:.0f}ms  {len(envs)} Lean environments")
     return 0
 

@@ -100,8 +100,7 @@ class Pattern(NamedTuple):
 # or a bracket.
 _PATTERNS: Final[tuple[Pattern, ...]] = (
     # GitHub fine-grained PAT. The published prefix was this shape.
-    Pattern("github-fine-grained-pat",
-            re.compile(r"github_pat_[A-Za-z0-9_]{20,}")),
+    Pattern("github-fine-grained-pat", re.compile(r"github_pat_[A-Za-z0-9_]{20,}")),
     # GitHub classic (p), OAuth (o), server-to-server (s), user-to-server (u).
     Pattern("github-token", re.compile(r"gh[posu]_[A-Za-z0-9]{20,}")),
     # AWS access key id.
@@ -163,9 +162,11 @@ class Finding(NamedTuple):
 
 
 def _mixed_alphabet(run: str) -> bool:
-    return (any(c.isupper() for c in run)
-            and any(c.islower() for c in run)
-            and any(c.isdigit() for c in run))
+    return (
+        any(c.isupper() for c in run)
+        and any(c.islower() for c in run)
+        and any(c.isdigit() for c in run)
+    )
 
 
 def _integrity_spans(text: str) -> list[tuple[int, int]]:
@@ -201,8 +202,9 @@ def scan_text(text: str, path: str) -> list[Finding]:
 
     for pattern in _PATTERNS:
         for m in pattern.regex.finditer(text):
-            findings.append(Finding(pattern.label, path, line_of(m.start()),
-                                    len(m.group(0))))
+            findings.append(
+                Finding(pattern.label, path, line_of(m.start()), len(m.group(0)))
+            )
 
     # The token rule breaks a base64 payload at `+`, `/` and `=`, so a single
     # digest arrives here as several fragments. Computing the proven spans once
@@ -213,11 +215,11 @@ def scan_text(text: str, path: str) -> list[Finding]:
         run = m.group(0)
         if not _mixed_alphabet(run):
             continue
-        if any(start <= m.start() and m.end() <= end
-               for start, end in integrity):
+        if any(start <= m.start() and m.end() <= end for start, end in integrity):
             continue
-        findings.append(Finding("high-entropy-token", path,
-                                line_of(m.start()), len(run)))
+        findings.append(
+            Finding("high-entropy-token", path, line_of(m.start()), len(run))
+        )
 
     return sorted(findings, key=lambda f: (f.line, f.label))
 
@@ -232,7 +234,7 @@ def index_path(root: Path) -> Path:
         prefix = "gitdir:"
         if not text.startswith(prefix):
             raise CannotScan(f"{dot} is not a gitdir redirect")
-        target = Path(text[len(prefix):].strip())
+        target = Path(text[len(prefix) :].strip())
         if not target.is_absolute():
             target = (root / target).resolve()
         return target / "index"
@@ -267,14 +269,15 @@ def tracked_paths(index: Path) -> list[str]:
         raise CannotScan(
             f"git index version {version} is not supported (this reads "
             f"{sorted(_SUPPORTED_INDEX_VERSIONS)}); rewrite it with "
-            "`git update-index --index-version 2`")
+            "`git update-index --index-version 2`"
+        )
 
     paths: list[str] = []
     pos = 12
     for _ in range(count):
         if pos + _ENTRY_FIXED_BYTES > len(data):
             raise CannotScan(f"{index} is truncated after {len(paths)} entries")
-        flags = struct.unpack(">H", data[pos + 60:pos + 62])[0]
+        flags = struct.unpack(">H", data[pos + 60 : pos + 62])[0]
         name_start = pos + _ENTRY_FIXED_BYTES
         if flags & _EXTENDED_FLAG:
             name_start += 2
@@ -330,8 +333,10 @@ def main() -> int:
         print("  A scan that did not run is not a clean scan.", file=sys.stderr)
         return 2
 
-    print(f"  credential scan: {scanned} tracked text file(s) scanned, "
-          f"{skipped} binary or absent")
+    print(
+        f"  credential scan: {scanned} tracked text file(s) scanned, "
+        f"{skipped} binary or absent"
+    )
 
     if not findings:
         print("  PASS -- no credential material in tracked content")
@@ -339,14 +344,21 @@ def main() -> int:
 
     for f in findings:
         # Label, location, length. Never the value: this reaches a public log.
-        print(f"  CREDENTIAL SHAPE  {f.label}  {f.path}:{f.line}  "
-              f"({f.length} chars, value withheld)")
-    print(f"\n  FAIL -- {len(findings)} credential-shaped match(es) in tracked "
-          "content")
-    print("  Tracked content is what a push publishes. Remove the value and "
-          "rotate the credential:", file=sys.stderr)
-    print("  a prefix on a public branch is disclosed the moment it is "
-          "fetched, and deleting it later does not recall it.", file=sys.stderr)
+        print(
+            f"  CREDENTIAL SHAPE  {f.label}  {f.path}:{f.line}  "
+            f"({f.length} chars, value withheld)"
+        )
+    print(f"\n  FAIL -- {len(findings)} credential-shaped match(es) in tracked content")
+    print(
+        "  Tracked content is what a push publishes. Remove the value and "
+        "rotate the credential:",
+        file=sys.stderr,
+    )
+    print(
+        "  a prefix on a public branch is disclosed the moment it is "
+        "fetched, and deleting it later does not recall it.",
+        file=sys.stderr,
+    )
     return 1
 
 

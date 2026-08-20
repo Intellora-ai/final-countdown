@@ -49,7 +49,9 @@ class ManifestError(Exception):
 
 def load_manifest(path: Path = MANIFEST) -> dict[str, dict[str, Any]]:
     if not path.is_file():
-        raise ManifestError(f"{path} is missing; local gate selection has no source of truth")
+        raise ManifestError(
+            f"{path} is missing; local gate selection has no source of truth"
+        )
     data = tomllib.loads(path.read_text(encoding="utf-8"))
     contexts = cast("dict[str, dict[str, Any]]", data.get("contexts") or {})
     if not contexts:
@@ -61,36 +63,49 @@ def load_manifest(path: Path = MANIFEST) -> dict[str, dict[str, Any]]:
             raise ManifestError(
                 f"{name}: locally_runnable is {runnable!r}; only 'yes' or 'no' are permitted. "
                 "There is no partial state -- a check either has an exact command or an exact "
-                "reason it cannot run here.")
+                "reason it cannot run here."
+            )
         if runnable == "yes":
             command = spec.get("command")
             if not isinstance(command, list) or not command:
-                raise ManifestError(f"{name}: locally_runnable=yes with no command array")
+                raise ManifestError(
+                    f"{name}: locally_runnable=yes with no command array"
+                )
             if not all(isinstance(tok, str) for tok in cast("list[Any]", command)):
                 raise ManifestError(f"{name}: command must be an argv array of strings")
             if not isinstance(spec.get("timeout_seconds"), int):
-                raise ManifestError(f"{name}: locally_runnable=yes with no integer timeout_seconds")
+                raise ManifestError(
+                    f"{name}: locally_runnable=yes with no integer timeout_seconds"
+                )
         elif not str(spec.get("reason", "")).strip():
             raise ManifestError(f"{name}: locally_runnable=no with no reason")
 
     pyright = contexts.get(PYRIGHT)
-    if pyright is None or pyright.get("locally_runnable") != "yes" or not pyright.get("in_fast"):
+    if (
+        pyright is None
+        or pyright.get("locally_runnable") != "yes"
+        or not pyright.get("in_fast")
+    ):
         raise ManifestError(
             "pyright must be locally_runnable=yes and in_fast=true. It is the check whose omission "
-            "produced the failure this tool exists to prevent, so it may not be optional here.")
+            "produced the failure this tool exists to prevent, so it may not be optional here."
+        )
     return contexts
 
 
 def github_only(contexts: dict[str, dict[str, Any]]) -> list[tuple[str, str]]:
-    return sorted((n, str(s.get("reason", ""))) for n, s in contexts.items()
-                  if s.get("locally_runnable") == "no")
+    return sorted(
+        (n, str(s.get("reason", "")))
+        for n, s in contexts.items()
+        if s.get("locally_runnable") == "no"
+    )
 
 
 def select(contexts: dict[str, dict[str, Any]], tier: str) -> list[str]:
     runnable = [n for n, s in contexts.items() if s.get("locally_runnable") == "yes"]
     if tier == "fast":
         chosen = [n for n in runnable if contexts[n].get("in_fast")]
-        if PYRIGHT not in chosen:                    # belt and braces; load_manifest already checked
+        if PYRIGHT not in chosen:  # belt and braces; load_manifest already checked
             raise ManifestError("the fast tier does not include pyright")
         return sorted(chosen)
     return sorted(runnable)
@@ -120,33 +135,49 @@ def run_one(name: str, spec: dict[str, Any], evidence_dir: Path) -> dict[str, An
     }
 
     if exe is None:
-        record.update(status="BLOCK", exit_code=None, duration_seconds=0.0,
-                      what_failed=f"{command[0]!r} is not on PATH",
-                      observed_why="UNKNOWN — the interpreter or tool was not found",
-                      next_safe_action="INVESTIGATE — run `make doctor` and install the tool")
+        record.update(
+            status="BLOCK",
+            exit_code=None,
+            duration_seconds=0.0,
+            what_failed=f"{command[0]!r} is not on PATH",
+            observed_why="UNKNOWN — the interpreter or tool was not found",
+            next_safe_action="INVESTIGATE — run `make doctor` and install the tool",
+        )
     else:
         try:
-            out = subprocess.run(                    # noqa: S603 - argv only, no shell
-                [exe, *command[1:]], cwd=str(REPO_ROOT), capture_output=True, text=True,
-                timeout=timeout, stdin=subprocess.DEVNULL, shell=False, env=env)
+            out = subprocess.run(  # noqa: S603 - argv only, no shell
+                [exe, *command[1:]],
+                cwd=str(REPO_ROOT),
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                stdin=subprocess.DEVNULL,
+                shell=False,
+                env=env,
+            )
             record.update(
                 status="PASS" if out.returncode == 0 else "FAIL",
                 exit_code=out.returncode,
                 stdout_tail=out.stdout[-4000:],
-                stderr_tail=out.stderr[-4000:])
+                stderr_tail=out.stderr[-4000:],
+            )
             if out.returncode != 0:
                 record.update(
                     what_failed=" ".join(command),
                     where=f"{REPO_ROOT} (exit {out.returncode})",
                     observed_why="UNKNOWN — the command exited non-zero; the log below is the "
-                                 "only proven evidence",
+                    "only proven evidence",
                     next_safe_action="INVESTIGATE — read the captured output, then re-run this "
-                                     "single command")
+                    "single command",
+                )
         except subprocess.TimeoutExpired:
-            record.update(status="BLOCK", exit_code=None,
-                          what_failed=" ".join(command),
-                          observed_why=f"UNKNOWN — no result within {timeout}s",
-                          next_safe_action="INVESTIGATE — a timeout proves nothing about the code")
+            record.update(
+                status="BLOCK",
+                exit_code=None,
+                what_failed=" ".join(command),
+                observed_why=f"UNKNOWN — no result within {timeout}s",
+                next_safe_action="INVESTIGATE — a timeout proves nothing about the code",
+            )
 
     record["end"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     record["duration_seconds"] = round(time.time() - started, 2)
@@ -170,11 +201,18 @@ def _probe(argv: list[str], timeout: int = 30) -> tuple[int, str]:
     exe = shutil.which(argv[0])
     if exe is None:
         return 127, ""
-    out = subprocess.run(                            # noqa: S603 - argv only, no shell
-        [exe, *argv[1:]], capture_output=True, text=True, timeout=timeout,
-        cwd=str(REPO_ROOT), stdin=subprocess.DEVNULL, shell=False)
+    out = subprocess.run(  # noqa: S603 - argv only, no shell
+        [exe, *argv[1:]],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        cwd=str(REPO_ROOT),
+        stdin=subprocess.DEVNULL,
+        shell=False,
+    )
     return out.returncode, (out.stdout or out.stderr).strip().splitlines()[0] if (
-        out.stdout or out.stderr).strip() else ""
+        out.stdout or out.stderr
+    ).strip() else ""
 
 
 def cmd_doctor() -> int:
@@ -189,10 +227,18 @@ def cmd_doctor() -> int:
     for tool, mandatory, install in (
         ("git", True, "https://git-scm.com/downloads"),
         ("python3", True, "https://www.python.org/downloads/"),
-        ("node", False, "https://nodejs.org/ (only needed for the e2e context, which is GitHub-only)"),
+        (
+            "node",
+            False,
+            "https://nodejs.org/ (only needed for the e2e context, which is GitHub-only)",
+        ),
         ("npm", False, "ships with node"),
-        ("shellcheck", False, "brew install shellcheck / apt-get install shellcheck "
-                              "(the `bandit` context is GitHub-only without it)"),
+        (
+            "shellcheck",
+            False,
+            "brew install shellcheck / apt-get install shellcheck "
+            "(the `bandit` context is GitHub-only without it)",
+        ),
         ("gh", False, "https://cli.github.com/ (needed only to read GitHub evidence)"),
     ):
         found = shutil.which(tool)
@@ -203,10 +249,14 @@ def cmd_doctor() -> int:
 
     _, ver = _probe(["python3", "--version"])
     local_py = ver.replace("Python ", "").strip()
-    print(f"\n  python local={local_py or 'UNKNOWN'}  workflows declare={DECLARED_PYTHON}")
+    print(
+        f"\n  python local={local_py or 'UNKNOWN'}  workflows declare={DECLARED_PYTHON}"
+    )
     if local_py and not local_py.startswith(DECLARED_PYTHON):
-        print(f"    LIMIT: local Python {local_py} differs from the {DECLARED_PYTHON} CI uses. "
-              "A local pass does not promise a CI pass.")
+        print(
+            f"    LIMIT: local Python {local_py} differs from the {DECLARED_PYTHON} CI uses. "
+            "A local pass does not promise a CI pass."
+        )
     _, nver = _probe(["node", "--version"])
     if nver:
         print(f"  node   local={nver}  workflows declare=v{DECLARED_NODE}")
@@ -225,14 +275,18 @@ def cmd_doctor() -> int:
 
     try:
         contexts = load_manifest()
-        print(f"  manifest ok: {len(contexts)} contexts, "
-              f"{sum(1 for v in contexts.values() if v['locally_runnable'] == 'yes')} runnable here")
+        print(
+            f"  manifest ok: {len(contexts)} contexts, "
+            f"{sum(1 for v in contexts.values() if v['locally_runnable'] == 'yes')} runnable here"
+        )
     except ManifestError as exc:
         print(f"  manifest BLOCK: {exc}")
         mandatory_missing.append("ci/local-execution.toml")
 
     if mandatory_missing:
-        print(f"\nSTATUS: BLOCK — missing mandatory prerequisite(s): {', '.join(mandatory_missing)}")
+        print(
+            f"\nSTATUS: BLOCK — missing mandatory prerequisite(s): {', '.join(mandatory_missing)}"
+        )
         return 1
     print("\nSTATUS: PASS — mandatory prerequisites present.")
     return 0
@@ -284,12 +338,20 @@ def cmd_bootstrap() -> int:
         return 1
 
     print("-> pip install --require-hashes -r requirements.lock")
-    out = subprocess.run(                            # noqa: S603 - argv only, no shell
+    out = subprocess.run(  # noqa: S603 - argv only, no shell
         [exe, "install", "--quiet", "--require-hashes", "-r", "requirements.lock"],
-        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=900,
-        stdin=subprocess.DEVNULL, shell=False, env=env)
+        cwd=str(REPO_ROOT),
+        capture_output=True,
+        text=True,
+        timeout=900,
+        stdin=subprocess.DEVNULL,
+        shell=False,
+        env=env,
+    )
     if out.returncode != 0:
-        print(f"STATUS: FAIL — lockfile install rejected:\n{(out.stderr or out.stdout)[-1500:]}")
+        print(
+            f"STATUS: FAIL — lockfile install rejected:\n{(out.stderr or out.stdout)[-1500:]}"
+        )
         return 1
 
     if shutil.which("npm"):
@@ -299,7 +361,9 @@ def cmd_bootstrap() -> int:
             print("STATUS: FAIL — npm ci rejected package-lock.json")
             return 1
     else:
-        print("-> npm absent; skipping node dependencies (only the GitHub-only e2e context needs them)")
+        print(
+            "-> npm absent; skipping node dependencies (only the GitHub-only e2e context needs them)"
+        )
 
     print("-> git config core.hooksPath .githooks")
     code, _ = _probe(["git", "config", "core.hooksPath", ".githooks"])
@@ -307,7 +371,9 @@ def cmd_bootstrap() -> int:
         print("STATUS: FAIL — could not set the repository-local hook path")
         return 1
 
-    print("\nSTATUS: PASS — repository-local environment ready, pre-push hook installed.")
+    print(
+        "\nSTATUS: PASS — repository-local environment ready, pre-push hook installed."
+    )
     print("A normal `git push` now runs `make sandbox-fast` first.")
     return 0
 
@@ -321,8 +387,12 @@ _NORMALIZERS = (
     (re.compile(r"\b(?:gw\d+|\d+ workers?)\b"), "<XDIST_WORKERS>"),
     (re.compile(r"\bin \d+\.\d+s\b"), "in <DURATION>s"),
 )
-_RULE_NAMES = ("wall-clock timestamp", "coverage fragment filename", "xdist worker count",
-               "pytest duration line")
+_RULE_NAMES = (
+    "wall-clock timestamp",
+    "coverage fragment filename",
+    "xdist worker count",
+    "pytest duration line",
+)
 
 
 def _normalize(text: str) -> tuple[str, list[str]]:
@@ -370,9 +440,16 @@ def cmd_determinism(run_id: str) -> int:
     raws: list[str] = []
     for i in (1, 2):
         print(f"-> run {i}/2: {' '.join(argv)}")
-        res = subprocess.run(                        # noqa: S603 - argv only, no shell
-            [exe, *rest], cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=1800,
-            stdin=subprocess.DEVNULL, shell=False, env=env)
+        res = subprocess.run(  # noqa: S603 - argv only, no shell
+            [exe, *rest],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=1800,
+            stdin=subprocess.DEVNULL,
+            shell=False,
+            env=env,
+        )
         raw = (res.stdout or "") + (res.stderr or "")
         raws.append(raw)
         (out_dir / f"run{i}.raw.txt").write_text(raw, encoding="utf-8")
@@ -382,11 +459,26 @@ def cmd_determinism(run_id: str) -> int:
         (out_dir / f"run{i}.normalized.txt").write_text(n, encoding="utf-8")
 
     import difflib
-    raw_diff = "\n".join(difflib.unified_diff(raws[0].splitlines(), raws[1].splitlines(),
-                                              "run1.raw", "run2.raw", lineterm=""))
+
+    raw_diff = "\n".join(
+        difflib.unified_diff(
+            raws[0].splitlines(),
+            raws[1].splitlines(),
+            "run1.raw",
+            "run2.raw",
+            lineterm="",
+        )
+    )
     (out_dir / "raw.diff").write_text(raw_diff, encoding="utf-8")
-    norm_diff = "\n".join(difflib.unified_diff(norm[0].splitlines(), norm[1].splitlines(),
-                                               "run1.normalized", "run2.normalized", lineterm=""))
+    norm_diff = "\n".join(
+        difflib.unified_diff(
+            norm[0].splitlines(),
+            norm[1].splitlines(),
+            "run1.normalized",
+            "run2.normalized",
+            lineterm="",
+        )
+    )
     (out_dir / "normalized.diff").write_text(norm_diff, encoding="utf-8")
 
     report = {
@@ -398,7 +490,9 @@ def cmd_determinism(run_id: str) -> int:
         "normalized_differed": bool(norm_diff),
         "status": "FAIL — UNEXPLAINED NONDETERMINISM" if norm_diff else "PASS",
     }
-    (out_dir / "report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    (out_dir / "report.json").write_text(
+        json.dumps(report, indent=2) + "\n", encoding="utf-8"
+    )
 
     print(f"\nraw differences:        {'yes' if raw_diff else 'none'}")
     print(f"after normalization:    {'DIFFERENT' if norm_diff else 'identical'}")
@@ -408,14 +502,18 @@ def cmd_determinism(run_id: str) -> int:
         print("\nSTATUS: FAIL — UNEXPLAINED NONDETERMINISM")
         print(norm_diff[:2000])
         return 1
-    print("\nSTATUS: PASS — two runs agree once only the allowlisted sources are normalized.")
+    print(
+        "\nSTATUS: PASS — two runs agree once only the allowlisted sources are normalized."
+    )
     return 0
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tier", choices=("fast", "full"), default="fast")
-    parser.add_argument("--run-id", default=time.strftime("%Y%m%d-%H%M%S", time.gmtime()))
+    parser.add_argument(
+        "--run-id", default=time.strftime("%Y%m%d-%H%M%S", time.gmtime())
+    )
     parser.add_argument("--doctor", action="store_true")
     parser.add_argument("--bootstrap", action="store_true")
     parser.add_argument("--determinism", action="store_true")
@@ -466,8 +564,9 @@ def main() -> int:
         "results": results,
         "status": "PASS" if failed is None else failed["status"],
     }
-    (evidence_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n",
-                                               encoding="utf-8")
+    (evidence_dir / "summary.json").write_text(
+        json.dumps(summary, indent=2) + "\n", encoding="utf-8"
+    )
 
     if failed is not None:
         print(f"\nWHAT_FAILED: {failed.get('what_failed')}")
@@ -480,12 +579,16 @@ def main() -> int:
         tail = str(failed.get("stderr_tail") or failed.get("stdout_tail") or "")[-1500:]
         if tail:
             print(f"OBSERVED_EVIDENCE:\n{tail}")
-        print(f"\nSTATUS: {failed['status']} — {len(absent)} required context(s) still run only "
-              "on GitHub and were NOT evaluated here.")
+        print(
+            f"\nSTATUS: {failed['status']} — {len(absent)} required context(s) still run only "
+            "on GitHub and were NOT evaluated here."
+        )
         return 1
 
-    print(f"\nSTATUS: PASS ({len(chosen)} local gate(s)). This is a PARTIAL result: "
-          f"{len(absent)} required context(s) run only on GitHub.")
+    print(
+        f"\nSTATUS: PASS ({len(chosen)} local gate(s)). This is a PARTIAL result: "
+        f"{len(absent)} required context(s) run only on GitHub."
+    )
     print(f"EVIDENCE: {evidence_dir}")
     return 0
 

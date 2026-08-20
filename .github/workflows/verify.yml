@@ -488,7 +488,7 @@ jobs:
             echo "== bandit gate 2/4: SARIF suppression" >&2
             python3 scripts/sarif_suppress.py --sarif bandit.sarif src scripts
             echo "== bandit gate 3/4: shell analysis" >&2
-            shellcheck scripts/*.sh
+            shellcheck -f gcc scripts/*.sh
             echo "== bandit gate 4/4: credential scan" >&2
             python3 scripts/credential_scan.py
           '

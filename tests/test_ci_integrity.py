@@ -1111,7 +1111,12 @@ ENFORCE_STEP = "run: python3 scripts/enforce_spec.py specs/*_spec.lean"
 # stops the chain at the first non-zero exit, and a suppressor on this line
 # discards that exit, so the chain continues and the gate records a PASS over a
 # check that failed. Anchored on the indented in-chain form.
-SHELLCHECK_STEP = "            shellcheck scripts/*.sh"
+# `-f gcc` is part of the pinned string, not incidental: run_gate.py's
+# shellcheck extractor parses that format, and shellcheck's default rendering
+# is three lines per finding with a caret ruler that carries no parseable
+# position. Dropping the flag would silently collapse every shell finding back
+# into one record, so the sabotage target names the whole invocation.
+SHELLCHECK_STEP = "            shellcheck -f gcc scripts/*.sh"
 
 
 def sabotage(sandbox: Path, workflow: str, old: str, new: str) -> None:

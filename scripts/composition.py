@@ -6,9 +6,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mutation_gate import score
 from typing import Any
 
-def analyse(spec_files: list[str], threshold: float = 0.9) -> dict[str, Any]:
+def analyse(spec_files: list[str], threshold: float = 0.9,
+            joint: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Smallest complementary spec set, plus the joint score.
+
+    `joint` is accepted rather than always recomputed. honest_report.py calls
+    `score(spec_files, threshold)` and then calls this, which called it AGAIN
+    with the same arguments in the same process -- a full mutation run whose
+    only consumers are two printed lines. Measured: 3.74s of a 19.7s local
+    honest-report, 26 of its 142 Hypothesis searches.
+
+    The caller passing the value it already has is the whole optimisation. When
+    nothing is passed the behaviour is exactly as before, so check_composition
+    and every other caller are unaffected.
+    """
     individual = {s: score([s], threshold) for s in spec_files}
-    joint = score(spec_files, threshold)
+    if joint is None:
+        joint = score(spec_files, threshold)
     # Greedy cover: keep adding the spec that kills the most still-alive mutants.
     remaining: set[str] = set(joint["survivors"])
     universe: set[str] = set()

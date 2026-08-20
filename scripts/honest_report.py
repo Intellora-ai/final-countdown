@@ -32,7 +32,12 @@ def report(spec_files: list[str], threshold: float = 0.9) -> str:
     proof = "VERIFIED" if all(p["proof"] == "VERIFIED" for p in proofs) else "UNVERIFIED"
 
     mut = score(spec_files, threshold)
-    comp = analyse(spec_files, threshold)
+    # `mut` handed on rather than recomputed. analyse() called
+    # score(spec_files, threshold) itself -- the same arguments, in the same
+    # process, moments later -- for a value that feeds only the two printed
+    # composition lines below. Measured 3.74s of a 19.7s local run, 26 of its
+    # 142 Hypothesis searches, for a number this line already holds.
+    comp = analyse(spec_files, threshold, joint=mut)
     suff = sufficiency_loop.run(spec_files)
 
     boundary = sum(1 for t in truths if t.get("precondition_reach") is not None)

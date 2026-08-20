@@ -199,12 +199,35 @@ jobs:
         run: |
           set -euo pipefail
           BUNDLE="bundle-out/sandbox-verification-bundle-${SOURCE_SHA}.tar"
+
           # sign-blob, not an image command: this is a file, and there is no OCI
           # registry anywhere in this repository to push one to.
+          #
+          # --bundle, not --output-signature/--output-certificate. Measured on run
+          # 32414848831: this cosign defaults to --new-bundle-format, under which those
+          # two flags are deprecated AND ignored, and the run died with
+          # "create bundle file: open : no such file or directory" because --bundle was
+          # never supplied. The Sigstore bundle carries the signature and the
+          # certificate together.
           cosign sign-blob --yes \
-            --output-signature bundle-out/bundle.sig \
-            --output-certificate bundle-out/bundle.pem \
+            --bundle bundle-out/bundle.sigstore.json \
             "$BUNDLE"
+
+          # The certificate, extracted to PEM from the bundle so it can be READ rather
+          # than trusted. Correction 4 requires the actual issuer and identity to come
+          # out of certificate material; a value echoed back from the environment would
+          # prove only that this file can print its own variables.
+          python3 - <<'PYEOF'
+          import json, textwrap
+
+          with open("bundle-out/bundle.sigstore.json", encoding="utf-8") as handle:
+              bundle = json.load(handle)
+          raw = bundle["verificationMaterial"]["certificate"]["rawBytes"]
+          body = "\n".join(textwrap.wrap(raw, 64))
+          with open("bundle-out/bundle.pem", "w", encoding="utf-8") as out:
+              out.write(f"-----BEGIN CERTIFICATE-----\n{body}\n-----END CERTIFICATE-----\n")
+          print("extracted bundle-out/bundle.pem from the Sigstore bundle")
+          PYEOF
 
       - name: Verify the signature, and prove the identity was observed
         run: |
@@ -218,8 +241,7 @@ jobs:
           EXPECTED_ISSUER="https://token.actions.githubusercontent.com"
 
           cosign verify-blob \
-            --certificate bundle-out/bundle.pem \
-            --signature bundle-out/bundle.sig \
+            --bundle bundle-out/bundle.sigstore.json \
             --certificate-identity "$EXPECTED_IDENTITY" \
             --certificate-oidc-issuer "$EXPECTED_ISSUER" \
             "$BUNDLE"
@@ -277,8 +299,7 @@ jobs:
           EXPECTED_IDENTITY="${GITHUB_SERVER_URL}/${GITHUB_WORKFLOW_REF}"
           set +e
           cosign verify-blob \
-            --certificate bundle-out/bundle.pem \
-            --signature bundle-out/bundle.sig \
+            --bundle bundle-out/bundle.sigstore.json \
             --certificate-identity "$EXPECTED_IDENTITY" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             altered.tar

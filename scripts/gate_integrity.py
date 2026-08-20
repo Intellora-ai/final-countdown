@@ -306,6 +306,48 @@ def errexit_change(words: list[str]) -> bool | None:
     return state
 
 
+def chain_without_errexit(run: str, token_words: list[str]) -> bool:
+    """True when the gate runs inside a `bash -c` that never enables errexit.
+
+    THE ASYMMETRY THIS EXISTS FOR. `errexit_off_at` below can only report a
+    `set +e` that is PRESENT. It has no way to report a `set -e` that is
+    ABSENT, because in a `run:` block errexit is never absent -- GitHub starts
+    one as `bash -e {0}`.
+
+    `bash -c` breaks that assumption. It starts with errexit OFF, so a chain
+    of verifications runs every command regardless of what failed and exits
+    with the LAST command's status. Since the last command in each of these
+    chains is the one that writes the report, the gate would report PASS over
+    a chain whose earlier verifications all failed.
+
+    Checked structurally rather than by searching the whole script for the
+    string, so `# set -e` in a comment, `echo "set -e"`, or a `set -e` that
+    appears only AFTER the gate's own line does not satisfy it.
+    """
+    for line in logical_lines(run):
+        if not line_executes(line, token_words):
+            continue
+        # The gate runs on this line. If it is not a `bash -c`, the `run:`
+        # block's own errexit applies and there is nothing to arm.
+        words = [w for segment in lex(mask_expressions(line))[0]
+                 for w, _quoted in segment]
+        if not any(w.endswith("bash") or w.endswith("sh") for w in words):
+            return False
+        if "-c" not in words:
+            return False
+        # The script is the argument after -c, and it is quoted, so `lex` kept
+        # it whole. Its own first `set -e` is what arms the chain.
+        script = str(run)
+        marker = script.find("-c")
+        body = script[marker:] if marker != -1 else script
+        for inner in logical_lines(body):
+            for segment in lex(mask_expressions(inner))[0]:
+                if errexit_change([w for w, _quoted in segment]) is True:
+                    return False
+        return True
+    return False
+
+
 def errexit_off_at(run: str, token_words: list[str]) -> str | None:
     """The `set +e` still in force when the gate's line runs, if any.
 
@@ -478,6 +520,42 @@ def main() -> None:
                                fix="Remove continue-on-error.")
                     run = str(step.get("run", ""))
                     token_words = token.split()
+                    # A `bash -c` CHAIN DOES NOT INHERIT ERREXIT, and nothing
+                    # above notices. GitHub runs a `run:` block as
+                    # `bash -e {0}`, so errexit is on and `errexit_off_at`
+                    # catches any `set +e`. Inside `bash -c '...'` errexit is
+                    # OFF by default and the compensating `set -e` is one line
+                    # in a string literal. `errexit_off_at` reports a `set +e`
+                    # that is PRESENT; it can never report a `set -e` that is
+                    # ABSENT, and ci/gates.toml pins the wrapper rather than
+                    # the guard inside it.
+                    #
+                    # Measured on a copy of this workflow with that single line
+                    # deleted: gate_integrity exited 0, and a chain whose first
+                    # three verifications exit 1 and whose fourth exits 0
+                    # produced a wrapper exit of 0 with status PASS and
+                    # mergeable_contribution true. For the preflight gate that
+                    # is the TCB check and the live-ruleset drift check both
+                    # failing while `full` certifies an all-green run.
+                    #
+                    # So the chain is required to arm itself. One deleted line
+                    # is the cheapest possible edit and it must not be silent.
+                    if chain_without_errexit(run, token_words):
+                        ok = False
+                        g.check(f"{name}: chain arms errexit", False,
+                                "bash -c without `set -e`")
+                        g.fail(what=f"a `bash -c` chain in '{name}' never enables errexit",
+                               where=f"{wf} -> {label}",
+                               why="`bash -c` starts with errexit OFF, so every "
+                                   "command after a failing one still runs and "
+                                   "the chain's exit code is the LAST command's.",
+                               requirement="A chain that wraps several "
+                                           "verifications must stop at the first "
+                                           "failure, or its exit code is not its "
+                                           "verdict.",
+                               fix="Add `set -e` as the first line of the "
+                                   "`bash -c` script.",
+                               code="CHAIN_WITHOUT_ERREXIT")
                     disabled = errexit_off_at(run, token_words)
                     if disabled is not None:
                         ok = False

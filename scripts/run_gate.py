@@ -15,16 +15,19 @@ stays non-zero; the wrapper exits non-zero too.
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import re
 import shutil
 import subprocess
 import sys
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from gate import Gate  # noqa: E402
+from gate import REPORTS, SEVERITIES, Gate  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -148,6 +151,17 @@ SCOPE_PATTERNS = [
 # FAIL CLOSED. If nothing matches, `main` still records the single fallback
 # record. A failure is never recorded as zero failures.
 # ---------------------------------------------------------------------------
+
+# The fields a report must match to belong to THIS run, and the variable each
+# comes from. Same set ci/gates.toml declares as `run_identity` and
+# aggregate_gates.rejection() enforces; kept here so `absorb` refuses foreign
+# evidence for the same reason the finalizer does.
+_RUN_IDENTITY = {
+    "commit": "GITHUB_SHA",
+    "run_id": "GITHUB_RUN_ID",
+    "run_attempt": "GITHUB_RUN_ATTEMPT",
+    "workflow": "GITHUB_WORKFLOW",
+}
 
 Finding = dict[str, Any]
 
@@ -763,6 +777,177 @@ def extract_findings(text: str) -> list[Finding]:
     return out
 
 
+# ---------------------------------------------------------------------------
+# EVIDENCE A WRAPPED VERIFIER ALREADY WROTE
+#
+# THE DEFECT THIS REMOVES. Six verifications run as bare steps inside a job
+# whose report is written by a DIFFERENT script:
+#
+#   preflight       tcb_gate.py, check_ruleset.py, registry_gate.py
+#                   ... then gate_integrity.py, which writes preflight.json
+#   axle-verify     axle_health.py, enforce_spec.py
+#                   ... then axle_gate.py, which writes axle-verify.json
+#   correspondence  axle_health.py
+#
+# The ordering is deliberate and fail-closed: the report writer runs LAST, so a
+# failure in any earlier step means no report exists at all, and
+# aggregate_gates.py turns that absence into a blocking UNKNOWN. Merge stays
+# blocked. What is missing is not the verdict -- it is every detail of it. The
+# finalizer can only say "no evidence was produced for this gate", never which
+# trusted path drifted or which spec broke which rule. That detail exists only
+# in the job log, which is the thing this whole effort removes.
+#
+# Wrapping the chain in run_gate.py is how bandit and correspondence already
+# solve this. The obstacle was that the report writer inside the chain owns the
+# same reports/<name>.json the wrapper is about to write, so the wrapper simply
+# overwrote it. MEASURED: reports/preflight.json carries 84 structured checks;
+# a wrapper report carries one. Overwriting trades 84 checks for N findings,
+# which is a net loss of evidence and not a fix.
+#
+# So the wrapper MERGES. The inner script's `checks` and `scope` are folded in;
+# the wrapper's STATUS wins, because the chain's exit code is the verdict and
+# the inner script only ever saw its own step. An inner report saying PASS from
+# step 4 of 5 must never survive a chain that failed at step 5.
+# ---------------------------------------------------------------------------
+
+
+def absorb(g: Gate, name: str, not_before: float) -> None:
+    """Fold a report the wrapped command wrote into this gate's own.
+
+    `not_before` is the wall time the wrapped command started. A report older
+    than that is from a PREVIOUS run -- a re-run against a warm working tree,
+    or a checkout that never cleaned reports/ -- and folding it would publish
+    last run's checks as evidence for this one. That is the exact class of lie
+    aggregate_gates.py rejects with its identity fields, and it is refused
+    here for the same reason rather than trusted because the file happens to
+    be on disk.
+
+    Never raises. This runs inside a gate that has already decided its verdict,
+    and a reporting bug must not be able to change one. Every refusal is
+    recorded as a warning instead, because a merge that silently did nothing
+    looks exactly like a merge that had nothing to do.
+    """
+    path = REPORTS / f"{name}.json"
+    try:
+        if not path.is_file():
+            # The normal case: most gates wrap a command that writes no report.
+            return
+        if path.stat().st_mtime < not_before:
+            # NAMED, not silent -- the docstring above promises it and this
+            # path was the one place that broke the promise. If the guard ever
+            # fires correctly the report drops from 87 checks to 1, and with
+            # nothing saying why that is indistinguishable from a gate that
+            # wrapped a command writing no report at all.
+            g.warn(f"{path} predates this run's command and was not folded in; "
+                   f"it is evidence for an earlier run")
+            return
+        raw: object = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        g.warn(f"could not read the report {name} wrote for itself: {exc}")
+        return
+
+    if not isinstance(raw, dict):
+        g.warn(f"the report {name} wrote for itself is not a JSON object")
+        return
+    data = cast("dict[str, Any]", raw)
+
+    # IDENTITY, NOT ONLY FRESHNESS. mtime answers "was this written recently";
+    # it does not answer "was this written by THIS run". Any mechanism that
+    # preserves or advances a timestamp -- an archive extraction, a warm
+    # self-hosted workspace, a clock that stepped forward -- defeats a
+    # freshness test alone, and the fields that settle it are already in the
+    # file. Same comparison aggregate_gates.rejection() makes, for the same
+    # reason: a report that cannot be shown to belong to this run is not
+    # evidence for it.
+    for field, var in _RUN_IDENTITY.items():
+        want = os.environ.get(var)
+        if want is None:
+            # Outside CI there is nothing to compare against, and refusing
+            # every local run would make the wrapper untestable by hand.
+            continue
+        found_value = str(data.get(field, ""))
+        if found_value != want:
+            g.warn(f"{path} carries {field}={found_value!r} but this run is "
+                   f"{want!r}; not folded in")
+            return
+
+    claimed = str(data.get("gate", ""))
+    if claimed != name:
+        # A report claiming another gate is evidence for that gate, not this
+        # one. Folding it would let one gate's checks stand in for another's.
+        g.warn(f"a report claiming gate {claimed!r} was left in {path}; "
+               f"not folded into {name}")
+        return
+
+    checks = data.get("checks")
+    if isinstance(checks, list):
+        for entry in cast("list[Any]", checks):
+            if not isinstance(entry, dict):
+                continue
+            item = cast("dict[str, Any]", entry)
+            g.check(str(item.get("subject", "")),
+                    str(item.get("result", "")) == "PASS",
+                    str(item.get("detail", "")))
+
+    scope = data.get("scope")
+    if isinstance(scope, dict):
+        # `command` is the wrapper's own and describes the whole chain; the
+        # inner value names one step of it and would be the more specific
+        # answer to a less useful question.
+        inner = {k: v for k, v in cast("dict[str, Any]", scope).items()
+                 if k != "command"}
+        if inner:
+            g.set_scope(**inner)
+
+    # THE FINDINGS, WHICH ARE THE WHOLE POINT. Folding checks and scope while
+    # dropping `failures` loses exactly what this change exists to keep: when
+    # the inner writer is the step that FAILS, its findings are the routable
+    # ones. Measured before this: gate_integrity failing on a missing
+    # must_contain token produced two findings with a file, a requirement and
+    # a fix each; wrapped, they became ONE fallback record whose `where` was
+    # the multi-line bash script and whose `why` was the inner gate's own
+    # [GATE END] banner -- the six-line tail of a nested Gate is always its
+    # end banner. blocker_report could place no annotation on either.
+    #
+    # Re-emitted through `fail` rather than appended, so every finding in the
+    # merged report is derived by one code path and `finding_id` is rederived
+    # against THIS gate's name.
+    for entry in cast("list[Any]", data.get("failures", []) or []):
+        if not isinstance(entry, dict):
+            continue
+        found = cast("dict[str, Any]", entry)
+        severity = str(found.get("severity") or "ERROR")
+        g.fail(
+            what=str(found.get("what", "")),
+            where=str(found.get("where", "")),
+            why=str(found.get("why", "")),
+            requirement=str(found.get("requirement", "")),
+            fix=str(found.get("how_to_fix", "")),
+            severity=severity if severity in SEVERITIES else "ERROR",
+            code=cast("str | None", found.get("code")),
+            file=cast("str | None", found.get("file")),
+            line=cast("int | None", found.get("line")),
+            column=cast("int | None", found.get("column")),
+            root_cause=cast("str | None", found.get("root_cause")),
+            reproduction=cast("str | None", found.get("reproduction_command")),
+            is_root_cause=bool(found.get("is_root_cause", True)),
+            dependent_on=cast("str | None", found.get("dependent_on")),
+            merge_blocking=bool(found.get("merge_blocking", True)),
+        )
+
+    # The version belongs to the gate, not to the wrapper. gate_integrity.py
+    # and axle_gate.py both declare 2.0.0; run_gate's --version defaults to
+    # 1.0.0, so wrapping silently regressed the field for both. Adopting the
+    # inner value keeps ONE declaration of it, in the script that owns the
+    # gate, rather than a second copy in the workflow that can drift.
+    inner_version = data.get("gate_version")
+    if isinstance(inner_version, str) and inner_version:
+        g.version = inner_version
+
+    for recorded in cast("list[Any]", data.get("warnings", []) or []):
+        g.warn(str(recorded))
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--name", required=True, help="gate name; becomes reports/<name>.json")
@@ -784,6 +969,10 @@ def main() -> None:
         resolved = exe
         g.set_scope(command=" ".join(cmd))
 
+        # Taken BEFORE the command runs, so `absorb` can tell a report this
+        # command wrote from one a previous run left behind. Read after the
+        # fact it would be later than the file it is meant to judge.
+        started = time.time()
         try:
             # shell=False, absolute executable, fixed argv from this repo's
             # workflows - never a shell string.
@@ -792,6 +981,11 @@ def main() -> None:
         except subprocess.TimeoutExpired:
             g.infrastructure_failure(f"timed out after {ns.timeout}s")
             return
+
+        # Before the verdict is recorded, so a chain whose own report writer
+        # ran keeps that writer's checks. The status is decided below from the
+        # exit code and is never taken from the absorbed report.
+        absorb(g, ns.name, started)
 
         # THE JOIN IS NOT COSMETIC. These are two separately captured streams,
         # and a tool whose last stdout line has no trailing newline glues that

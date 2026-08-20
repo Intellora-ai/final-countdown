@@ -41,7 +41,7 @@ import subprocess
 import sys
 import time
 import tomllib
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, cast
 
@@ -236,7 +236,16 @@ def safe_eval(formula: str, values: dict[str, float]) -> float:
             args = [walk(a, depth + 1) for a in node.args]
             if not args:
                 raise EvidenceError("MALFORMED", f"{node.func.id}() needs arguments")
-            return float(_ALLOWED_CALLS[node.func.id](*args))
+            # `round` is not splattable with floats: its second parameter is a
+            # digit count, and round(1.0, 2.5) is a TypeError at runtime, not a
+            # typing quibble. Every other permitted call takes floats happily.
+            if node.func.id == "round":
+                return float(round(args[0], int(args[1])) if len(args) > 1
+                             else round(args[0]))
+            if node.func.id == "abs":
+                return float(abs(args[0]))
+            chooser = max if node.func.id == "max" else min
+            return float(chooser(args))
         raise EvidenceError("MALFORMED", f"{type(node).__name__} is not permitted in a formula")
 
     return walk(tree, 0)
@@ -412,12 +421,12 @@ class GitHubFetcher:
         if exe is None:
             raise EvidenceError("INFRASTRUCTURE_BLOCK", "gh is not on PATH")
         last = ""
-        for attempt in range(FETCH_RETRIES + 1):
+        for _ in range(FETCH_RETRIES + 1):
             out = subprocess.run(                       # noqa: S603 - argv only, no shell
                 [exe, "api", path], capture_output=True, text=True,
                 timeout=FETCH_TIMEOUT_S, stdin=subprocess.DEVNULL, shell=False)
             if out.returncode == 0:
-                parsed = json.loads(out.stdout) if out.stdout.strip() else {}
+                parsed: Any = json.loads(out.stdout) if out.stdout.strip() else {}
                 self._cache[path] = parsed
                 return parsed
             last = (out.stderr or out.stdout).strip().splitlines()[-1:] or [""]
@@ -432,8 +441,8 @@ class GitHubFetcher:
                     self._gh(f"repos/{self.repository}/actions/runs/{run_id}"))
 
     def jobs(self, run_id: str) -> list[dict[str, Any]]:
-        payload = self._gh(f"repos/{self.repository}/actions/runs/{run_id}/jobs?per_page=100")
-        return cast("list[dict[str, Any]]", payload.get("jobs", []))
+        payload: dict[str, Any] = self._gh(f"repos/{self.repository}/actions/runs/{run_id}/jobs?per_page=100")
+        return cast("list[dict[str, Any]]", payload.get("jobs") or [])
 
     def job_log(self, run_id: str, job_id: int) -> str:
         exe = shutil.which("gh")
@@ -449,12 +458,12 @@ class GitHubFetcher:
         return out.stdout
 
     def check_runs(self, sha: str) -> list[dict[str, Any]]:
-        payload = self._gh(f"repos/{self.repository}/commits/{sha}/check-runs?per_page=100")
-        return cast("list[dict[str, Any]]", payload.get("check_runs", []))
+        payload: dict[str, Any] = self._gh(f"repos/{self.repository}/commits/{sha}/check-runs?per_page=100")
+        return cast("list[dict[str, Any]]", payload.get("check_runs") or [])
 
     def runs_for_sha(self, sha: str) -> list[dict[str, Any]]:
-        payload = self._gh(f"repos/{self.repository}/actions/runs?head_sha={sha}&per_page=50")
-        return cast("list[dict[str, Any]]", payload.get("workflow_runs", []))
+        payload: dict[str, Any] = self._gh(f"repos/{self.repository}/actions/runs?head_sha={sha}&per_page=50")
+        return cast("list[dict[str, Any]]", payload.get("workflow_runs") or [])
 
 
 # --------------------------------------------------------------------------
@@ -481,7 +490,8 @@ def bind_row(row: Row, fetcher: Fetcher, head_sha: str) -> str:
     """
     run = fetcher.run(row.run_id)
 
-    full_name = str((run.get("repository") or {}).get("full_name", ""))
+    repository = cast("dict[str, Any]", run.get("repository") or {})
+    full_name = str(repository.get("full_name", ""))
     if full_name and full_name != REPOSITORY:
         raise EvidenceError(
             "CONTRADICTED",
@@ -581,7 +591,9 @@ def dossier(pr: str, sha: str, workflow: str, run_id: str, job: dict[str, Any],
     except Exception:                                   # noqa: BLE001 - extraction is best effort
         findings = []
 
-    step = next((s for s in job.get("steps", []) if s.get("conclusion") == "failure"), {})
+    steps = cast("list[dict[str, Any]]", job.get("steps") or [])
+    no_step: dict[str, Any] = {}
+    step = next((s for s in steps if s.get("conclusion") == "failure"), no_step)
     first = findings[0] if findings else {}
 
     what = str(first.get("what") or "").strip()
@@ -640,7 +652,6 @@ class StatusEvidence:
     conclusion: str
     run_id: str
     sha: str
-    job: dict[str, Any] = field(default_factory=dict)
 
 
 def collect_status(fetcher: Fetcher, sha: str, contexts: list[str],
@@ -812,6 +823,11 @@ def main() -> int:
             gate.check("no measured claims and no evidence table", True,
                        "nothing to bind; this gate has no opinion")
         return 0 if allowed else 1
+
+    # Reached only if Gate.__exit__ suppressed an exception. An evidence gate
+    # that fell out of its own context manager has proven nothing, and "proved
+    # nothing" is not "allowed".
+    return 1
 
 
 if __name__ == "__main__":

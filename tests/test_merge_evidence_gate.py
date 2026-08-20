@@ -91,7 +91,7 @@ def fetcher(*, all_green: bool = True, missing: str = "") -> FakeFetcher:
         "999": [_job(4, "correspondence", "2026-08-20T13:24:04.00Z", "2026-08-20T13:24:18.17Z")],
     }
     logs = {1: LOG_AFTER, 2: LOG_AFTER, 3: LOG_BEFORE, 4: LOG_AFTER}
-    checks = []
+    checks: list[dict[str, Any]] = []
     for name in REQUIRED:
         if name == missing:
             continue

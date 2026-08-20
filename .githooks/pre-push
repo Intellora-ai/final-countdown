@@ -30,6 +30,36 @@ END=$(date +%s)
 printf '%s\n' "$OUTPUT"
 
 if [ "$STATUS" -ne 0 ]; then
+  # THE STRUCTURED SUMMARY, READ BACK RATHER THAN RESTATED. local_gates.py writes
+  # .evidence/quality-gate/<run-id>/summary.json carrying the exact failing argv and
+  # the four not-run categories. Printing it FROM THE FILE means this hook cannot
+  # drift from what the run actually recorded. A hook that re-derived the same facts
+  # would be a second copy, and second copies are what this repository keeps removing.
+  QG_DIR="$(ls -td "$ROOT"/.evidence/quality-gate/* 2>/dev/null | head -1 || true)"
+  QG_SUMMARY=""
+  if [ -n "$QG_DIR" ] && [ -f "$QG_DIR/summary.json" ]; then
+    QG_SUMMARY="$(python3 -c '
+import json, sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    q = json.load(handle)
+
+for key in (
+    "EXACT_FAILED_ARGV",
+    "STATUS",
+    "GITHUB_ONLY_REQUIRED_CONTEXTS",
+    "EXTERNAL_REQUIRED_CONTEXTS",
+    "LOCAL_PREREQUISITE_NOT_PROVISIONED",
+    "NETWORK_REQUIRED_EXCLUDED_FROM_DEFAULT",
+    "NEXT_SAFE_ACTION",
+):
+    value = q.get(key)
+    if isinstance(value, list):
+        value = " ".join(str(v) for v in value) or "(none)"
+    print(f"{key:<40} {value}")
+' "$QG_DIR/summary.json" 2>/dev/null || true)"
+  fi
+
   cat >&2 <<EOF
 
 ==================================================
@@ -39,6 +69,10 @@ FAILED_COMMAND: make sandbox-fast
 EXIT_CODE:      $STATUS
 DURATION:       $((END - START))s
 EVIDENCE:       $(ls -td "$ROOT"/.evidence/fast/* 2>/dev/null | head -1 || echo "none written")
+QUALITY_GATE:   ${QG_DIR:-none written}
+
+${QG_SUMMARY:-QUALITY-GATE SUMMARY ABSENT. The categories below could not be read back from
+evidence, so STATUS is not proven by this block. Treat that absence as a finding.}
 
 The failing gate's exact argv, exit code and captured output are in the run above and in
 the evidence directory.

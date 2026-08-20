@@ -64,6 +64,14 @@ MANIFEST_NAME = "gate-manifest.json"
 MERGEABLE = {"PASS", "NOT_APPLICABLE"}
 ICONS = {"PASS": "✅", "FAIL": "❌"}
 
+# GitHub's own verdict on a job, as `conclusion` on the Actions jobs API. These
+# are the ones that mean the job did not finish its work. `skipped` is here
+# because GitHub counts a skipped job as SATISFYING a required status check --
+# a gate conditioned into skipping passes the ruleset for its own context, and
+# the finalizer is the only thing that can see it.
+NOT_CONCLUDED = {"cancelled", "skipped", "timed_out", "failure",
+                 "action_required", "neutral", "stale"}
+
 # The schema major this finalizer knows how to read. A different MAJOR means
 # the fields below may not mean what they say, so the report is not evidence.
 SCHEMA_MAJOR = "1"
@@ -232,12 +240,71 @@ def load_reports(root: Path, identity: dict[str, str]) -> tuple[
     return out, rejected, seen
 
 
+
+def job_conclusions(path: Path | None) -> dict[str, str]:
+    """{job name: GitHub's conclusion} from an Actions jobs API response.
+
+    WHY THIS EXISTS. This aggregator reads reports, not job conclusions, and
+    that was a deliberate and correct choice: a report is evidence a gate
+    produced, while a conclusion is GitHub's opinion about a process. But the
+    two can disagree in exactly one direction that matters.
+
+    gate.py writes reports/<gate>.json in Gate.__exit__, and every upload step
+    carries `if: always()`. A job cancelled AFTER that write uploads an artifact
+    that says PASS, and this finalizer certified it. The window is small -- the
+    gate step is the last substantive step in every gate job -- but it is real,
+    and a cancelled required check certified as passing is the precise failure
+    this repository exists to prevent.
+
+    FAIL-SAFE, AND THE DIRECTION IS THE WHOLE POINT. An unreadable, absent or
+    malformed file returns {}, and an empty mapping changes nothing: every
+    check the file-based logic already made still stands, and missing evidence
+    still blocks. This may only turn a PASS into a block, never a block into a
+    PASS. An aggregator that could be made to pass by feeding it a file would
+    have replaced one false green with a better-hidden one.
+    """
+    if path is None:
+        return {}
+    try:
+        payload = cast("dict[str, Any]", json.loads(path.read_text(encoding="utf-8")))
+    except (OSError, ValueError) as exc:
+        print(f"  job conclusions unavailable ({exc}); "
+              f"reports alone decide, and absence still blocks")
+        return {}
+
+    jobs = payload.get("jobs")
+    if not isinstance(jobs, list):
+        print("  job conclusions file carries no jobs[]; reports alone decide")
+        return {}
+
+    out: dict[str, str] = {}
+    for job in cast("list[Any]", jobs):
+        if not isinstance(job, dict):
+            continue
+        entry = cast("dict[str, Any]", job)
+        name = entry.get("name")
+        # `conclusion` is null while a job is still running. The finalizer is
+        # one of those jobs, so its own entry is expected to be null and is
+        # simply not recorded -- absent means "no opinion", which is the
+        # neutral value here.
+        conclusion = entry.get("conclusion")
+        if isinstance(name, str) and isinstance(conclusion, str):
+            out[name] = conclusion
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--evidence-root", default=str(REPORTS),
                     help="directory searched recursively for gate reports")
+    ap.add_argument("--job-conclusions", default=None,
+                    help="Actions jobs API response for THIS run. Optional: "
+                         "without it the verdict is exactly what reports say, "
+                         "and absence still blocks.")
     ns = ap.parse_args()
     root = Path(ns.evidence_root)
+    conclusions = job_conclusions(
+        Path(ns.job_conclusions) if ns.job_conclusions else None)
 
     try:
         expected, identity_fields = topology(load_manifest())
@@ -320,6 +387,62 @@ def main() -> int:
             "evidence": seen[name][0],
         }
 
+    # GITHUB'S VERDICT ON THE JOB, CROSS-CHECKED AGAINST THE GATE'S OWN REPORT.
+    #
+    # Applied after every gate entry exists and before anything is decided, so
+    # it can only ADD to `blocking`. A gate the reports already condemned stays
+    # condemned; a gate the reports cleared is re-examined against what GitHub
+    # says the job actually did.
+    #
+    # The case this closes: a job cancelled after gate.py wrote its report
+    # uploads an artifact saying PASS, and every file-based check agrees.
+    # GitHub says `cancelled`. GitHub is right.
+    #
+    # `skipped` is treated the same way and matters more than it looks: GitHub
+    # counts a skipped job as SATISFYING its required status check, so a gate
+    # conditioned into skipping is green in the ruleset and only visible here.
+    cancelled_checks: list[str] = []
+    skipped_checks: list[str] = []
+    for name, g in gates.items():
+        conclusion = conclusions.get(name)
+        if conclusion is None or conclusion == "success":
+            continue
+        if str(g["status"]) not in MERGEABLE:
+            # Already blocking on the evidence. Record the conclusion for the
+            # reader without changing a verdict that is already correct.
+            g["job_conclusion"] = conclusion
+            continue
+        g["job_conclusion"] = conclusion
+        g["note"] = (f"the report says {g['status']} but GitHub concluded "
+                     f"{conclusion!r} for this job — the gate did not finish, "
+                     f"so its report describes work that was cut short")
+        g["status"] = "CANCELLED" if conclusion == "cancelled" else (
+            "SKIPPED" if conclusion == "skipped" else "INFRASTRUCTURE_FAILURE")
+        if conclusion == "cancelled":
+            cancelled_checks.append(name)
+        elif conclusion == "skipped":
+            skipped_checks.append(name)
+
+    # A gate with NO report at all, whose job GitHub says was cancelled, is
+    # told apart from one that merely produced nothing. Both block; only one of
+    # them is a defect in the change.
+    for name, g in gates.items():
+        conclusion = conclusions.get(name)
+        if conclusion == "cancelled" and g.get("evidence") is None:
+            g["status"] = "CANCELLED"
+            g["note"] = ("the job was cancelled, so no report was written — "
+                         "this is not a missing artifact, it is work that "
+                         "was stopped")
+            if name not in cancelled_checks:
+                cancelled_checks.append(name)
+        elif conclusion == "skipped" and g.get("evidence") is None:
+            g["status"] = "SKIPPED"
+            g["note"] = ("the job was skipped. GitHub counts a skipped job as "
+                         "satisfying its required status check, so this is the "
+                         "only place it is visible")
+            if name not in skipped_checks:
+                skipped_checks.append(name)
+
     blocking = [n for n, g in gates.items() if g["status"] not in MERGEABLE]
     overall = "PASS" if not blocking else "FAIL"
 
@@ -341,6 +464,9 @@ def main() -> int:
         "duplicates": duplicates,
         "rejected": rejected,
         "blocking": blocking,
+        "cancelled_checks": sorted(cancelled_checks),
+        "unexpectedly_skipped_checks": sorted(skipped_checks),
+        "job_conclusions_consulted": bool(conclusions),
         "total_gate_ms": sum(durations),
         "slowest_gate_ms": max(durations) if durations else 0,
         "gates": gates,
@@ -361,6 +487,12 @@ def main() -> int:
     print("  run identity: " + "  ".join(f"{k}={v}" for k, v in identity.items()))
     print(f"  evidence root: {root}  ({len(discover(root))} report file(s))")
     print(f"  expected {len(expected)} gate(s), admissible reports {len(found)}")
+    print(f"  job conclusions: "
+          + (f"{len(conclusions)} consulted" if conclusions
+             else "not consulted — reports alone decide"))
+    print(f"  cancelled_checks={len(cancelled_checks)}  "
+          f"unexpectedly_skipped_checks={len(skipped_checks)}  "
+          f"checks_missing_evidence={len(set(expected) - set(found))}")
     for name, g in gates.items():
         mark = ICONS.get(str(g["status"]), "⚠️")
         dur = f"{g['duration_ms']} ms" if g.get("duration_ms") else "—"

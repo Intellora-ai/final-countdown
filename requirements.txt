@@ -14,7 +14,7 @@
 # this file alone changes nothing that runs.
 
 axiom-axle>=1.7.0
-pytest>=8.0
+pytest>=9.1.1
 pytest-cov>=5.0
 # Parallel test execution, pinned like everything else here. Added to measure
 # whether -n auto reduces the coverage gate's wall clock on GitHub runners; if

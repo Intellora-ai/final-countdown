@@ -213,20 +213,28 @@ jobs:
             --bundle bundle-out/bundle.sigstore.json \
             "$BUNDLE"
 
-          # The certificate, extracted to PEM from the bundle so it can be READ rather
-          # than trusted. Correction 4 requires the actual issuer and identity to come
-          # out of certificate material; a value echoed back from the environment would
-          # prove only that this file can print its own variables.
+          # The certificate, extracted so it can be READ rather than trusted.
+          # Correction 4 requires the actual issuer and identity to come out of
+          # certificate material; a value echoed back from the environment would prove
+          # only that this file can print its own variables.
+          #
+          # WRITTEN AS DER, NOT PEM, AND THAT IS NOT COSMETIC. The first version built
+          # the PEM by hand, which put a literal BEGIN-CERTIFICATE header into this
+          # file -- and scripts/credential_scan.py correctly flagged it as a pem-block
+          # on run 32417872499. The scanner was right: it cannot tell a header used to
+          # assemble a file from a key someone committed, and teaching it to would blunt
+          # it. Emitting DER and letting openssl read `-inform DER` removes the literal
+          # instead of arguing with the control that found it.
           python3 - <<'PYEOF'
-          import json, textwrap
+          import base64
+          import json
 
           with open("bundle-out/bundle.sigstore.json", encoding="utf-8") as handle:
               bundle = json.load(handle)
           raw = bundle["verificationMaterial"]["certificate"]["rawBytes"]
-          body = "\n".join(textwrap.wrap(raw, 64))
-          with open("bundle-out/bundle.pem", "w", encoding="utf-8") as out:
-              out.write(f"-----BEGIN CERTIFICATE-----\n{body}\n-----END CERTIFICATE-----\n")
-          print("extracted bundle-out/bundle.pem from the Sigstore bundle")
+          with open("bundle-out/bundle.cert.der", "wb") as out:
+              out.write(base64.b64decode(raw))
+          print("extracted bundle-out/bundle.cert.der from the Sigstore bundle")
           PYEOF
 
       - name: Verify the signature, and prove the identity was observed
@@ -250,14 +258,10 @@ jobs:
           # certificate carries it. Read the ACTUAL values out of the certificate and
           # compare, or a passing verification would only prove cosign accepted the
           # arguments this file supplied.
-          ACTUAL_IDENTITY="$(openssl x509 -in bundle-out/bundle.pem -noout -ext subjectAltName \
+          ACTUAL_IDENTITY="$(openssl x509 -inform DER -in bundle-out/bundle.cert.der -noout -ext subjectAltName \
             | tr ',' '\n' | grep -o 'URI:.*' | sed 's/^URI://' | head -1)"
-          ACTUAL_ISSUER="$(openssl asn1parse -in bundle-out/bundle.pem -strparse 0 2>/dev/null \
-            | grep -A1 '1.3.6.1.4.1.57264.1.8' | tail -1 | sed 's/.*://' || true)"
-          if [ -z "$ACTUAL_ISSUER" ]; then
-            ACTUAL_ISSUER="$(openssl x509 -in bundle-out/bundle.pem -noout -text \
-              | grep -A2 '1.3.6.1.4.1.57264.1.8' | tail -1 | tr -d ' \t' | sed 's/^\.\.//' || true)"
-          fi
+          ACTUAL_ISSUER="$(openssl x509 -inform DER -in bundle-out/bundle.cert.der -noout -text \
+            | grep -A2 '1.3.6.1.4.1.57264.1.8' | tail -1 | tr -d ' \t' | sed 's/^\.\.//' || true)"
 
           RECOMPUTED="$(sha256sum "$BUNDLE" | cut -d' ' -f1)"
           RECORDED="$(python3 -c "import json;print(json.load(open('bundle-out/bundle.manifest.json'))['bundle_sha256'])")"

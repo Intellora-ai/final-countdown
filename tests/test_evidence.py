@@ -243,24 +243,66 @@ def test_report_for_a_different_gate_is_not_credited(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # DETERMINISM
 # ---------------------------------------------------------------------------
+def dirty_paths() -> int:
+    """How many paths differ from HEAD right now, by git's own count."""
+    out = subprocess.run(["git", "status", "--porcelain"], cwd=REPO,
+                         capture_output=True, text=True, timeout=60, check=False)
+    return len([ln for ln in out.stdout.splitlines() if ln.strip()])
+
+
 def test_two_runs_differ_only_in_the_timestamp(tmp_path: Path) -> None:
     """Same commit, same tree, same document -- except when it was made.
 
     Any other difference means a value in here is not a measurement of the
     repository, and a document that changes without the repository changing is
     back to being prose.
+
+    THE PREMISE IS "SAME TREE", AND IT HAS TO BE CHECKED RATHER THAN ASSUMED.
+
+    This measures the live working tree, so it is only meaningful while that
+    tree holds still between the two runs. Serially it always did. Under
+    `pytest -n auto` it does not: another worker creating or removing a file in
+    the repository lands between the two generations, and the document reports
+    the tree it actually saw. Measured, from a real parallel run:
+
+        ('| Working tree | dirty -- 11 path(s) differ from HEAD |',
+         '| Working tree | dirty -- 13 path(s) differ from HEAD |')
+
+    Two paths appeared while the test was running. That is the generator being
+    CORRECT -- it measured a tree that genuinely changed -- reported as
+    non-determinism, because the test asserted a premise it never verified.
+
+    So the tree is now counted before and after. If it moved, the working-tree
+    line is allowed to differ and nothing else is; if it held still, the
+    timestamp remains the only permitted difference, exactly as before. The
+    generator is never given a pass it has not earned: every other line must
+    match in both cases.
     """
+    before = dirty_paths()
     first, second = tmp_path / "a.md", tmp_path / "b.md"
     assert run_generator(first).returncode == 0
     assert run_generator(second).returncode == 0
+    after = dirty_paths()
 
     a = first.read_text(encoding="utf-8").splitlines()
     b = second.read_text(encoding="utf-8").splitlines()
     assert len(a) == len(b), "line count changed between two identical runs"
 
     differing = [(x, y) for x, y in zip(a, b) if x != y]
-    assert len(differing) == 1, f"unexpected non-determinism: {differing}"
-    assert gen.TIMESTAMP_LABEL in differing[0][0]
+
+    timestamp = [d for d in differing if gen.TIMESTAMP_LABEL in d[0]]
+    assert len(timestamp) == 1, (
+        f"the timestamp must differ between two runs and be the only one that "
+        f"always does: {differing}")
+
+    other = [d for d in differing if gen.TIMESTAMP_LABEL not in d[0]]
+    if before == after:
+        assert not other, f"unexpected non-determinism: {other}"
+    else:
+        assert all("Working tree" in d[0] for d in other), (
+            f"the tree changed under this test ({before} -> {after} dirty "
+            f"paths), which explains the working-tree line and nothing else: "
+            f"{other}")
 
 
 # ---------------------------------------------------------------------------

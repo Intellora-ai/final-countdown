@@ -1099,8 +1099,14 @@ def test_only_app_posted_roles_are_exempt_from_reporting(sandbox: Path) -> None:
 # --------------------------------------------------------------------------
 E2E = ".github/workflows/e2e.yml"
 
+# `-n auto` is part of the invocation now: the suite runs across the runner's
+# cores. It is in this constant, not stripped from it, because the constant is a
+# sabotage TARGET -- `sabotage()` asserts the string is present before swapping
+# it, so a stale target fails loudly instead of silently testing nothing. That
+# assertion is what caught this when the workflow changed.
 COVERAGE_STEP = ('run: python3 scripts/run_gate.py --name coverage -- pytest '
-                 '--cov=src --cov-branch --cov-fail-under=95 -m "not axle"')
+                 '-n auto --cov=src --cov-branch --cov-fail-under=95 '
+                 '-m "not axle"')
 MUTMUT_STEP = ('run: python3 scripts/run_gate.py --name mutmut -- bash '
                'scripts/verify_per_function.sh scripts/mutation_gate.py '
                '--min-score 0.95')
@@ -1126,7 +1132,7 @@ def sabotage(sandbox: Path, workflow: str, old: str, new: str) -> None:
     # coverage floor dropped to 0; the real threshold demoted to a comment
     (VERIFY, COVERAGE_STEP,
      'run: |\n          python3 scripts/run_gate.py --name coverage -- pytest '
-     '--cov=src --cov-branch --cov-fail-under=0 -m "not axle"   '
+     '-n auto --cov=src --cov-branch --cov-fail-under=0 -m "not axle"   '
      '# was --cov-fail-under=95'),
     # mutation score floor dropped from 0.95 to 0.10 the same way
     (VERIFY, MUTMUT_STEP,

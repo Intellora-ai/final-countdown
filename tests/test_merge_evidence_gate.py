@@ -495,3 +495,31 @@ def test_the_gate_declares_what_it_does_not_check() -> None:
     source = (REPO / "scripts" / "merge_evidence_gate.py").read_text(encoding="utf-8")
     assert "does_not_check" in source
     assert "complete raw logs of successful jobs" in source
+
+
+def test_every_exit_path_declares_a_verdict() -> None:
+    """scripts/gate.py refuses to infer a result, and it is right to.
+
+    Run 32381293460 went red with "merge-evidence finished without setting a
+    result" while every check passed and nothing was refused. A verdict nobody
+    stated is not a verdict; inferring one from an empty failure list is how a
+    gate that never ran comes to read as a gate that passed.
+
+    Checked by parsing rather than grepping, so a mention in a docstring or a
+    comment cannot satisfy it.
+    """
+    import ast
+
+    source = (REPO / "scripts" / "merge_evidence_gate.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    main = next(n for n in ast.walk(tree)
+                if isinstance(n, ast.FunctionDef) and n.name == "main")
+
+    called = {
+        ast.unparse(n.func) for n in ast.walk(main)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+    }
+    for verdict_call in ("gate.passed", "gate.failed", "gate.infrastructure_failure"):
+        assert verdict_call in called, (
+            f"main() never calls {verdict_call}(); a gate that exits without "
+            "declaring a result is recorded UNKNOWN, and UNKNOWN blocks")

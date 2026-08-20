@@ -804,6 +804,7 @@ def main() -> int:
                       where=f"{REPOSITORY}@{args.sha}", why=exc.detail,
                       requirement="Evidence must be collected before a merge decision.",
                       fix=exc.fix or "Retry once GitHub is reachable.")
+            gate.infrastructure_failure(exc.detail)
             return 1
 
         for reason in reasons:
@@ -822,6 +823,19 @@ def main() -> int:
         if not reasons:
             gate.check("no measured claims and no evidence table", True,
                        "nothing to bind; this gate has no opinion")
+
+        # DECLARE THE VERDICT. scripts/gate.py refuses to infer one: a gate that
+        # exits without saying passed() or failed() is recorded UNKNOWN and
+        # UNKNOWN blocks. That rule caught this file on run 32381293460, where
+        # every check passed, no claim was refused, and the job still went red
+        # with "merge-evidence finished without setting a result". It was right
+        # to. A verdict nobody stated is not a verdict, and inferring one from
+        # an empty failure list is exactly how a gate that never ran reads as a
+        # gate that passed.
+        if allowed:
+            gate.passed()
+        else:
+            gate.failed()
         return 0 if allowed else 1
 
     # Reached only if Gate.__exit__ suppressed an exception. An evidence gate

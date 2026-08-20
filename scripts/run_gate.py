@@ -580,6 +580,107 @@ EXTRACTORS: list[Callable[[str], list[Finding]]] = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# WHAT THE GATE NEVER GOT TO CHECK.
+#
+# Three gates wrap a CHAIN of verifications in one invocation, under `set -e`:
+#
+#   bandit          security_gate.py, sarif_suppress.py, shellcheck,
+#                   credential_scan.py           (4 steps)
+#   correspondence  correspondence_gate.py, pytest -m axle        (2 steps)
+#   spec-composition / honest-report / mutmut
+#                   verify_per_function.sh, one verifier call per source file
+#
+# `set -e` stops the chain at the first non-zero exit, which is what makes the
+# gate's verdict the chain's verdict -- and also means every later step NEVER
+# RAN. The report said nothing about them. A reader saw three findings from
+# step 1 and had no way to tell that steps 2, 3 and 4 were unexamined, so the
+# gate read as "three problems" when the truth was "three problems and three
+# unknowns".
+#
+# That is the same distinction this repository draws everywhere else and had
+# not drawn here: could not check is not checked and fine. registry_gate.py
+# says it, check_ruleset.py says it, aggregate_gates.py turns a missing report
+# into a blocking UNKNOWN for exactly this reason.
+#
+# It also silently rewarded stopping early. Findings are counted across runs,
+# and a chain that died at step 1 with three findings looked BETTER than one
+# that ran all four and found four -- when the first checked less.
+#
+# NO LABEL IS INVENTED FOR A STEP THAT DID NOT RUN. Its `echo` never executed,
+# so its name was never printed, and the only place that name exists is
+# .github/workflows/verify.yml. Reading the workflow from inside the gate
+# would put a second copy of the step names here, which is the duplicate
+# declaration ci/gates.toml exists to prevent -- and a stale copy would name
+# the wrong step, which is worse than naming none. The index, the total and
+# the step that stopped the chain are all recorded, and all three are true.
+# ---------------------------------------------------------------------------
+
+# `== bandit gate 3/4: shell analysis`, written to stderr by the workflow.
+_CHAIN_STEP = re.compile(
+    r"^==\s+.*?\bgate\s+(?P<index>\d+)/(?P<total>\d+):\s*(?P<label>.+?)\s*$",
+    re.MULTILINE)
+
+# scripts/verify_per_function.sh announces the size of its loop, then names
+# each source file as it reaches it.
+_LOOP_TOTAL = re.compile(r"^verifying (?P<total>\d+) source file\(s\)$",
+                         re.MULTILINE)
+_LOOP_STEP = re.compile(r"^──\s+(?P<source>\S+)\s+←", re.MULTILINE)
+
+
+def unreached(text: str) -> list[Finding]:
+    """One finding per verification the chain never reached.
+
+    `is_root_cause` is False and `dependent_on` is filled in by the caller,
+    which is the only place the root's id is known. Severity is UNKNOWN
+    because nothing was found wrong here -- nothing was looked at. UNKNOWN is
+    already this file's word for "outcome could not be determined", and
+    calling it an ERROR would assert a defect that was never observed.
+    """
+    out: list[Finding] = []
+
+    steps = list(_CHAIN_STEP.finditer(text))
+    if steps:
+        last = steps[-1]
+        total, reached = int(last.group("total")), int(last.group("index"))
+        for index in range(reached + 1, total + 1):
+            out.append({
+                "what": f"verification {index} of {total} did not run",
+                "where": f"step {index}/{total}",
+                "why": f"the chain stopped at step {reached}/{total} "
+                       f"({last.group('label')}), which failed under `set -e`.",
+                "requirement": "Every verification in this gate must run "
+                               "before the gate's verdict means anything.",
+                "fix": "Fix the failure above; the remaining checks run once "
+                       "the chain gets past it.",
+                "severity": "UNKNOWN",
+                "code": "NOT_RUN",
+                "is_root_cause": False,
+            })
+
+    loop = _LOOP_TOTAL.search(text)
+    if loop is not None:
+        total = int(loop.group("total"))
+        reached = _LOOP_STEP.findall(text)
+        for source in range(len(reached), total):
+            out.append({
+                "what": f"source file {source + 1} of {total} was not verified",
+                "where": f"source {source + 1}/{total}",
+                "why": f"verify_per_function.sh stopped at "
+                       f"{reached[-1] if reached else 'the first source'}, "
+                       f"so {total - len(reached)} of {total} source file(s) "
+                       f"were never checked.",
+                "requirement": "This gate's verdict covers every source file "
+                               "the specs resolve to, or it covers none.",
+                "fix": "Fix the failing function above; the loop continues "
+                       "past it once it exits 0.",
+                "severity": "UNKNOWN",
+                "code": "NOT_RUN",
+                "is_root_cause": False,
+            })
+    return out
+
+
 def extract_findings(text: str) -> list[Finding]:
     """Every defect the captured output names, one record each.
 
@@ -669,12 +770,36 @@ def main() -> None:
                 # failures. Falls back to the command when the output names no
                 # real file, so a gate whose failure has no position is
                 # unchanged.
-                g.fail(what=f"{ns.name} failed",
-                       where=first_location(combined) or " ".join(cmd[:3]),
-                       why="\n".join(tail)[:500],
-                       requirement="This gate is required by the ruleset; it must exit 0.",
-                       fix="Read reports/ and the log above; fix the code, not the gate.",
-                       reproduction=" ".join(cmd))
+                fallback: Finding = {
+                    "what": f"{ns.name} failed",
+                    "where": first_location(combined) or " ".join(cmd[:3]),
+                    "why": "\n".join(tail)[:500],
+                    "requirement": "This gate is required by the ruleset; "
+                                   "it must exit 0.",
+                    "fix": "Read reports/ and the log above; fix the code, "
+                           "not the gate.",
+                    "reproduction": " ".join(cmd),
+                }
+                findings = [fallback]
+                g.fail(**fallback)
+
+            # THE ROOT IS THE FIRST DEFECT THE CHAIN HIT, and every
+            # verification after it is a consequence rather than an
+            # independent problem. Across gates this repository states the
+            # opposite and proves it -- no gate job declares `needs:` on
+            # another, so five red gates are five problems. Inside one gate
+            # the topology is `set -e`, which IS a dependency, and recording
+            # an unrun step as a further defect would overstate the work by
+            # however many steps were left.
+            #
+            # Computed after the fallback rather than inside the `if`, because
+            # the case where no extractor recognised the failure is exactly
+            # the case where the rest of the chain still did not run.
+            root = findings[0]
+            root_id = g.finding_id_for(str(root.get("what", "")),
+                                       str(root.get("where", "")))
+            for consequence in unreached(combined):
+                g.fail(**consequence, dependent_on=root_id)
         g.artifact(f"reports/{ns.name}.json")
 
 

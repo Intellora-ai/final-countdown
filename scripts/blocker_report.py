@@ -183,16 +183,42 @@ def _spot_text(spot: tuple[str, int | None, int | None]) -> str:
 
 def _blocker_block(index: int, gate: str, fid: str,
                    failure: dict[str, Any]) -> list[str]:
-    """One numbered blocker, every field the gate recorded."""
-    out = [f"[{index}] {fid}  {gate}"]
+    """One numbered blocker, every field the gate recorded.
+
+    ROOT CAUSE VS CONSEQUENCE, WITHIN ONE GATE. Across gates there is no such
+    relation and this file says so in full above: no gate job declares
+    `needs:` on another, so five red gates are five problems. Inside a gate
+    the topology is different -- `bandit` runs four verifications under
+    `set -e`, `correspondence` runs two, and verify_per_function.sh loops over
+    every source file -- so the first failure stops the rest, and those are
+    not independent defects.
+
+    A finding that carries `dependent_on` is printed with the handle of the
+    root it came from, so a reader fixing one defect can see which of the
+    other entries will disappear with it and which will not. Schema 1.3 has
+    carried the field since it was added; until now nothing read it.
+    """
+    marker = "" if failure.get("is_root_cause", True) else "  (consequence)"
+    out = [f"[{index}] {fid}  {gate}{marker}"]
     spot = location(str(failure.get("where", "")))
     shown = [
         ("WHERE", _spot_text(spot) if spot else
          str(failure.get("where", "")) or "(no location recorded)"),
         ("WHAT", failure.get("what", "")),
+        # The tool's own rule id. `what` is a sentence; this is the key a
+        # reader searches the tool's documentation with.
+        ("CODE", failure.get("code") or ""),
+        # Absent on every finding recorded before schema 1.3, and absent on
+        # any gate that does not distinguish -- printed only when it says
+        # something the default ERROR does not.
+        ("SEVERITY", str(failure.get("severity") or "")
+         if failure.get("severity") not in (None, "", "ERROR") else ""),
         ("WHY", failure.get("why", "")),
+        ("DEPENDS ON", str(failure.get("dependent_on") or "")),
         ("REQUIREMENT", failure.get("requirement", "")),
         ("FIX", failure.get("how_to_fix", "")),
+        # A command, not a sentence about one.
+        ("REPRODUCE", failure.get("reproduction_command") or ""),
     ]
     for label, value in shown:
         text = str(value).strip()
@@ -264,6 +290,33 @@ def render(manifest: dict[str, Any], mergeable: set[str]) -> tuple[str, str]:
             log += [f"  {len(blocking)} gates are blocking. They are independent:",
                     "  no gate job declares `needs:` on another, so none of these",
                     "  is downstream of any other. Each is its own defect.", ""]
+        # WITHIN a gate the topology is the opposite, and the count has to say
+        # so. `bandit` runs four verifications under `set -e`, `correspondence`
+        # two, and verify_per_function.sh one per source file: the first
+        # failure stops the rest, and the rest are recorded as consequences
+        # rather than as further defects.
+        #
+        # Counted separately because "9 blockers" over 3 real defects and 6
+        # steps that never ran is a number that makes the change look six
+        # times worse than it is -- and, read the other way, silently rewards
+        # a chain that stops early, since stopping sooner leaves fewer
+        # findings behind.
+        consequences = sum(
+            1 for gate in blocking
+            for f in gates.get(gate, {}).get("failures", [])
+            if not f.get("is_root_cause", True))
+        if consequences:
+            total = sum(len(gates.get(g, {}).get("failures", []))
+                        for g in blocking)
+            others = (f"The other {consequences} are" if consequences > 1
+                      else "The other one is")
+            log += [f"  {total - consequences} of {total} findings are root "
+                    f"causes. {others} marked",
+                    "  (consequence): a verification that never ran because an "
+                    "earlier one in",
+                    "  the same gate failed under `set -e`. Nothing was found "
+                    "wrong in those --",
+                    "  nothing was looked at, which is not the same thing.", ""]
         index = 0
         for gate in blocking:
             record = gates.get(gate, {})

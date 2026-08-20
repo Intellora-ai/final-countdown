@@ -413,6 +413,26 @@ def degraded_provenance(reason: str) -> dict[str, Any]:
     return block
 
 
+def finding_id(gate: str, what: str, where: str) -> str:
+    """A short, stable handle for one defect.
+
+    Keyed on (gate, what, where) and deliberately NOT on the line number
+    alone, so reformatting a file does not rename the problem. Six hex
+    characters is ~16 million values; these are read by eye across two runs,
+    not stored. The basis is byte-identical to blocker_report.failure_id, so
+    the id the finalizer prints and the id stored in the report are the same
+    string, and there is a test that asserts exactly that.
+
+    Module level, and not merely an expression inside `fail`, because
+    `dependent_on` has to name a finding that ANOTHER `fail` call will
+    produce. A caller that cannot derive the id in advance can only guess at
+    it, and a dependency pointing at a handle nothing carries is worse than no
+    dependency at all.
+    """
+    basis = f"{gate}\x00{what}\x00{where}"
+    return hashlib.sha256(basis.encode("utf-8")).hexdigest()[:6].upper()
+
+
 class Gate:
     """Context manager implementing the gate lifecycle."""
 
@@ -494,10 +514,8 @@ class Gate:
         blocker_report.failure_id -- (gate, what, where) -- so an id printed by
         the finalizer and one stored in the report are the same string.
         """
-        basis = f"{self.name}\x00{what}\x00{where}"
         self.failures.append({
-            "finding_id": hashlib.sha256(
-                basis.encode("utf-8")).hexdigest()[:6].upper(),
+            "finding_id": finding_id(self.name, what, where),
             "what": what, "where": where, "why": why,
             "requirement": requirement, "how_to_fix": fix,
             "severity": severity,
@@ -515,6 +533,14 @@ class Gate:
             # two files away.
             "merge_blocking": True,
         })
+
+    def finding_id_for(self, what: str, where: str = "") -> str:
+        """The handle `fail(what, where)` will derive, before it is called.
+
+        The only way to pass a truthful `dependent_on`: a consequence has to
+        name its root cause, and the root's id is derived rather than chosen.
+        """
+        return finding_id(self.name, what, where)
 
     def warn(self, message: str) -> None:
         self.warnings.append(message)

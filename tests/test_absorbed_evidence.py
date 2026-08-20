@@ -32,6 +32,7 @@ script only ever saw its own step.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import time
@@ -42,8 +43,26 @@ SCRIPTS = REPO / "scripts"
 PY = sys.executable
 sys.path.insert(0, str(SCRIPTS))
 
+import pytest  # noqa: E402
+
 import gate as gate_mod  # noqa: E402
 import run_gate  # noqa: E402
+
+
+# The identity fields gate.py stamps on every report from the environment, and
+# that `absorb` now checks before folding anything. A fixture that omits them
+# is not a report an inner verifier could ever have written: in CI these are
+# always set, so an unstamped fixture is indistinguishable from evidence for
+# another run and is correctly refused. Measured -- omitting them passed
+# locally, where GITHUB_SHA is unset and the check is skipped, and failed every
+# one of these tests in CI.
+IDENTITY = {"commit": "GITHUB_SHA", "run_id": "GITHUB_RUN_ID",
+            "run_attempt": "GITHUB_RUN_ATTEMPT", "workflow": "GITHUB_WORKFLOW"}
+
+
+def this_run() -> dict[str, object]:
+    """The identity a report written by THIS run would carry."""
+    return {field: os.environ.get(var, "local") for field, var in IDENTITY.items()}
 
 
 def write_report(root: Path, name: str, **extra: object) -> Path:
@@ -51,6 +70,7 @@ def write_report(root: Path, name: str, **extra: object) -> Path:
     reports = root / "reports"
     reports.mkdir(parents=True, exist_ok=True)
     body: dict[str, object] = {
+        **this_run(),
         "gate": name,
         "status": "PASS",
         "checks": [
@@ -203,11 +223,14 @@ def test_an_inner_pass_does_not_survive_a_failing_chain(tmp_path: Path) -> None:
     work = tmp_path / "run"
     (work / "reports").mkdir(parents=True)
     inner = tmp_path / "inner.py"
+    # Stamped from the environment, the way gate.py stamps every real report.
     inner.write_text(
-        "import json, pathlib\n"
+        "import json, os, pathlib\n"
+        "identity = {f: os.environ.get(v, 'local') for f, v in "
+        f"{IDENTITY!r}.items()}}\n"
         "pathlib.Path('reports').mkdir(exist_ok=True)\n"
         "pathlib.Path('reports/preflight.json').write_text(json.dumps({\n"
-        "    'gate': 'preflight', 'status': 'PASS',\n"
+        "    **identity, 'gate': 'preflight', 'status': 'PASS',\n"
         "    'checks': [{'subject': 'inner ran', 'result': 'PASS', 'detail': ''}],\n"
         "}))\n", encoding="utf-8")
     chain = tmp_path / "chain.sh"
@@ -233,3 +256,86 @@ def test_an_inner_pass_does_not_survive_a_failing_chain(tmp_path: Path) -> None:
     assert any(c["subject"] == "inner ran" for c in report["checks"]), \
         "the inner script's checks were overwritten rather than merged"
     assert report["failures"], "the failing chain recorded no finding"
+
+
+def test_a_report_from_another_run_is_refused_even_when_it_is_fresh(
+        tmp_path: Path, monkeypatch: "pytest.MonkeyPatch") -> None:
+    """mtime answers "written recently", not "written by THIS run".
+
+    Any mechanism that preserves or advances a timestamp defeats a freshness
+    test on its own -- an archive extraction, a warm self-hosted workspace, a
+    clock that stepped forward. Demonstrated before this guard existed: a
+    report from run 111 with a future mtime was folded in, publishing a PASS
+    check and a scope from a three-day-old run as this run's evidence.
+
+    The fields that settle it are already in the file, and this is the same
+    comparison aggregate_gates.rejection() makes.
+    """
+    monkeypatch.setenv("GITHUB_SHA", "1111111111111111111111111111111111111111")
+    monkeypatch.setenv("GITHUB_RUN_ID", "999")
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "1")
+    monkeypatch.setenv("GITHUB_WORKFLOW", "verify")
+
+    write_report(tmp_path, "preflight", commit="dead" * 10, run_id="111")
+    g = absorb_into(tmp_path, "preflight", time.time() - 60)
+
+    assert g.checks == [], "evidence from another run was folded in"
+    assert any("another run" in w or "not folded in" in w for w in g.warnings), \
+        "foreign evidence was refused silently"
+
+
+def test_a_report_carrying_this_run_is_folded(
+        tmp_path: Path, monkeypatch: "pytest.MonkeyPatch") -> None:
+    """The control. The guard must not refuse the case it exists to allow."""
+    monkeypatch.setenv("GITHUB_SHA", "1111111111111111111111111111111111111111")
+    monkeypatch.setenv("GITHUB_RUN_ID", "999")
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "1")
+    monkeypatch.setenv("GITHUB_WORKFLOW", "verify")
+
+    write_report(tmp_path, "preflight")
+    g = absorb_into(tmp_path, "preflight", time.time() - 60)
+
+    assert [c["subject"] for c in g.checks] == [
+        "manifest parses", "every job is declared"]
+
+
+def test_the_inner_findings_are_folded_not_dropped(tmp_path: Path) -> None:
+    """The half the first version of absorb() missed.
+
+    Folding checks and scope while dropping `failures` loses exactly what this
+    exists to keep: when the inner writer is the step that FAILS, its findings
+    are the routable ones. Measured before this fix -- two findings, each with
+    a requirement and a fix and one with a file path, became ONE fallback
+    record whose `where` was the multi-line bash script and whose `why` was
+    the inner gate's own [GATE END] banner.
+    """
+    write_report(tmp_path, "preflight", status="FAIL", failures=[{
+        "what": "gate 'preflight' no longer invokes its command",
+        "where": ".github/workflows/verify.yml",
+        "why": "no step runs: scripts/registry_gate.py",
+        "requirement": "Every declared token must be executed.",
+        "how_to_fix": "Restore `scripts/registry_gate.py` in the preflight job.",
+        "severity": "ERROR", "code": "MUST_CONTAIN",
+        "file": ".github/workflows/verify.yml", "line": 12, "column": None,
+        "root_cause": None, "reproduction_command": "python3 scripts/gate_integrity.py",
+        "is_root_cause": True, "dependent_on": None, "merge_blocking": True,
+    }])
+    g = absorb_into(tmp_path, "preflight", time.time() - 60)
+
+    assert len(g.failures) == 1, "the inner findings were dropped"
+    folded = g.failures[0]
+    assert folded["code"] == "MUST_CONTAIN"
+    assert folded["file"] == ".github/workflows/verify.yml"
+    assert folded["line"] == 12
+    assert folded["how_to_fix"].startswith("Restore")
+    assert folded["reproduction_command"] == "python3 scripts/gate_integrity.py"
+
+
+def test_the_inner_gate_version_is_adopted(tmp_path: Path) -> None:
+    """gate_integrity.py and axle_gate.py both declare 2.0.0; run_gate's
+    --version defaults to 1.0.0, so wrapping silently regressed the field.
+    ci/gates.toml requires it but pins no value, so nothing caught it."""
+    write_report(tmp_path, "preflight", gate_version="2.0.0")
+    g = absorb_into(tmp_path, "preflight", time.time() - 60)
+
+    assert g.version == "2.0.0"

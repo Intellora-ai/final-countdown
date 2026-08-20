@@ -833,10 +833,29 @@ def test_the_schema_minor_moved_and_the_major_did_not() -> None:
     does not know, so 2.0 would make every gate's evidence unreadable in the
     same push that added a field to it.
     """
+    import tomllib  # noqa: PLC0415
+
     import aggregate_gates  # noqa: PLC0415 - read here, not at import time
 
-    assert gate_mod.SCHEMA_VERSION == "1.2"
-    assert gate_mod.SCHEMA_VERSION.split(".")[0] == aggregate_gates.SCHEMA_MAJOR
+    # Read from ci/gates.toml rather than repeated as a literal here. The
+    # manifest is where the version is DECLARED, and a test asserting its own
+    # copy of a number proves the two agree with the test, not with each other.
+    declared = tomllib.loads(
+        (REPO / "ci" / "gates.toml").read_text(encoding="utf-8"))
+    version = str(cast("dict[str, Any]", declared["schema"])["version"])
+
+    assert gate_mod.SCHEMA_VERSION == version, (
+        f"gate.py writes {gate_mod.SCHEMA_VERSION} and ci/gates.toml declares "
+        f"{version}; the manifest describes a report that is not being written")
+    major, minor = version.split(".")[:2]
+    assert major == aggregate_gates.SCHEMA_MAJOR, (
+        "the major moved, which makes every gate's evidence unreadable to the "
+        "finalizer in the same push that changed a field")
+    assert int(minor) >= 3, (
+        "1.3 added the finding fields -- finding_id, severity, code, file, "
+        "line, column, root_cause, reproduction_command, is_root_cause, "
+        "dependent_on, merge_blocking. A minor below that describes a shape "
+        "gate.py no longer writes")
 
 
 # The xfail(strict=True) marker that stood here has been removed, by the
@@ -866,3 +885,212 @@ def test_ci_gates_toml_still_declares_the_shape_this_writes() -> None:
     assert schema["version"] == gate_mod.SCHEMA_VERSION, (
         f"ci/gates.toml declares schema {schema['version']!r}, gate.py writes "
         f"{gate_mod.SCHEMA_VERSION!r}")
+
+
+# ==========================================================================
+# SCHEMA 1.3 — a finding is a record, not a sentence
+#
+# `Gate.fail()` was five strings: what, where, why, requirement, how_to_fix.
+# Everything a machine needs to route a defect -- which rule fired, how bad it
+# is, which line, whether it is a root cause or a consequence of one, what to
+# type to see it again -- was either absent or buried in prose. Measured before
+# this: exactly ONE call site in the repository emitted a paste-able command,
+# and it was inside `how_to_fix` as a sentence.
+#
+# The five originals are unchanged and positional, so all twenty-six existing
+# call sites read exactly as they did. Everything new is keyword-only with a
+# default, which is what makes the addition a MINOR schema bump rather than a
+# rewrite of every verifier at once.
+# ==========================================================================
+
+FINDING_FIELDS = ("finding_id", "what", "where", "why", "requirement",
+                  "how_to_fix", "severity", "code", "file", "line", "column",
+                  "root_cause", "reproduction_command", "is_root_cause",
+                  "dependent_on", "merge_blocking")
+
+
+def one_failure(tmp_path: Path, **kwargs: Any) -> dict[str, Any]:
+    """Run a real gate that records one failure; return that failure."""
+    tmp_path.mkdir(parents=True, exist_ok=True)  # callers pass sub-paths
+    script = tmp_path / "g.py"
+    script.write_text(
+        "import sys\n"
+        f"sys.path.insert(0, {str(GATE.parent)!r})\n"
+        "from gate import Gate\n"
+        f"kw = {kwargs!r}\n"
+        "with Gate('probe') as g:\n"
+        "    g.fail(**kw)\n"
+        "    g.failed()\n", encoding="utf-8")
+    env = dict(os.environ)
+    env.pop("GITHUB_STEP_SUMMARY", None)
+    subprocess.run([sys.executable, str(script)], cwd=tmp_path,
+                   capture_output=True, text=True, timeout=120, env=env)
+    doc = cast("dict[str, Any]", json.loads(
+        (tmp_path / "reports" / "probe.json").read_text(encoding="utf-8")))
+    return cast("list[dict[str, Any]]", doc["failures"])[0]
+
+
+def test_a_finding_carries_every_declared_field(tmp_path: Path) -> None:
+    f = one_failure(tmp_path, what="w", where="src/add.py:3")
+    missing = [k for k in FINDING_FIELDS if k not in f]
+    assert not missing, f"the record shape lost {missing}"
+
+
+def test_the_optional_fields_are_recorded_as_given(tmp_path: Path) -> None:
+    f = one_failure(
+        tmp_path, what="hardcoded credential", where="src/x.py:12",
+        severity="CRITICAL", code="B105", file="src/x.py", line=12, column=5,
+        root_cause="a literal assigned to a password-shaped name",
+        reproduction="python3 scripts/security_gate.py src scripts")
+    assert f["severity"] == "CRITICAL"
+    assert f["code"] == "B105"
+    assert (f["file"], f["line"], f["column"]) == ("src/x.py", 12, 5)
+    assert f["reproduction_command"].startswith("python3 ")
+    assert f["is_root_cause"] is True
+    assert f["merge_blocking"] is True
+
+
+def test_an_omitted_field_is_null_not_invented(tmp_path: Path) -> None:
+    """`unavailable` must stay distinguishable from a measured value.
+
+    A default of "" or 0 would make "nobody recorded a column" indistinguishable
+    from "the column is zero", which is the whole reason this repository writes
+    `null` rather than a placeholder.
+    """
+    f = one_failure(tmp_path, what="w", where="src/add.py")
+    for k in ("code", "file", "line", "column", "root_cause",
+              "reproduction_command", "dependent_on"):
+        assert f[k] is None, f"{k} was invented as {f[k]!r}"
+
+
+def test_severity_defaults_to_error_because_that_is_what_a_failure_meant(
+        tmp_path: Path) -> None:
+    assert one_failure(tmp_path, what="w")["severity"] == "ERROR"
+
+
+def test_a_dependent_finding_points_at_its_root(tmp_path: Path) -> None:
+    """Several verifiers run under one `set -e`, so the first failure stops the
+    rest. Those are not independent defects and must not be counted as such."""
+    f = one_failure(tmp_path, what="verifier 3 never ran",
+                    is_root_cause=False, dependent_on="A1B2C3")
+    assert f["is_root_cause"] is False
+    assert f["dependent_on"] == "A1B2C3"
+
+
+def test_the_finding_id_matches_the_one_the_finalizer_prints(
+        tmp_path: Path) -> None:
+    """Two ids for one defect is two defects, to a reader comparing runs.
+
+    blocker_report computes an id from (gate, what, where) when it renders. The
+    gate now stores one. They must be the same string or the handle is useless
+    for exactly the thing a handle is for.
+    """
+    import blocker_report  # noqa: PLC0415
+
+    f = one_failure(tmp_path, what="x fails", where="src/add.py:3")
+    assert f["finding_id"] == blocker_report.failure_id("probe", f)
+
+
+def test_the_finding_id_is_stable_across_runs(tmp_path: Path) -> None:
+    a = one_failure(tmp_path / "a", what="x fails", where="src/add.py:3")
+    b = one_failure(tmp_path / "b", what="x fails", where="src/add.py:3")
+    assert a["finding_id"] == b["finding_id"]
+
+
+def test_two_different_defects_get_two_different_ids(tmp_path: Path) -> None:
+    a = one_failure(tmp_path / "a", what="x fails", where="src/add.py:3")
+    b = one_failure(tmp_path / "b", what="y fails", where="src/add.py:3")
+    assert a["finding_id"] != b["finding_id"]
+
+
+def test_every_new_field_reaches_the_log(tmp_path: Path) -> None:
+    """A field that only exists in an artifact nobody downloads is a finding
+    the system discarded. The log is what a human opens after a push."""
+    script = tmp_path / "g.py"
+    script.write_text(
+        "import sys\n"
+        f"sys.path.insert(0, {str(GATE.parent)!r})\n"
+        "from gate import Gate\n"
+        "with Gate('probe') as g:\n"
+        "    g.fail(what='w', where='src/x.py:12', severity='CRITICAL', code='B105',\n"
+        "           file='src/x.py', line=12, column=5, root_cause='rc',\n"
+        "           reproduction='pytest tests/x.py')\n"
+        "    g.failed()\n", encoding="utf-8")
+    env = dict(os.environ)
+    env.pop("GITHUB_STEP_SUMMARY", None)
+    out = subprocess.run([sys.executable, str(script)], cwd=tmp_path,
+                         capture_output=True, text=True, timeout=120, env=env)
+    for expected in ("finding_id=", "severity=CRITICAL", "code=B105",
+                     "file=src/x.py", "line=12", "column=5", "root_cause=rc",
+                     "reproduction_command=pytest tests/x.py",
+                     "merge_blocking=True"):
+        assert expected in out.stdout, f"{expected!r} never reached the log"
+
+
+def test_an_absent_field_is_not_printed_as_none(tmp_path: Path) -> None:
+    """`column=None` in a log is worse than no line at all: it reads as a
+    measurement whose value happens to be None."""
+    script = tmp_path / "g.py"
+    script.write_text(
+        "import sys\n"
+        f"sys.path.insert(0, {str(GATE.parent)!r})\n"
+        "from gate import Gate\n"
+        "with Gate('probe') as g:\n"
+        "    g.fail(what='w', where='src/x.py')\n"
+        "    g.failed()\n", encoding="utf-8")
+    env = dict(os.environ)
+    env.pop("GITHUB_STEP_SUMMARY", None)
+    out = subprocess.run([sys.executable, str(script)], cwd=tmp_path,
+                         capture_output=True, text=True, timeout=120, env=env)
+    block = out.stdout.split("[FAILURE]")[1].split("[GATE RESULT]")[0]
+    assert "=None" not in block, block
+
+
+def test_the_original_five_argument_form_still_works(tmp_path: Path) -> None:
+    """THE CONTROL. Twenty-six call sites pass these positionally and must not
+    have to change for a field they do not use."""
+    f = one_failure(tmp_path, what="w", where="s", why="y",
+                    requirement="r", fix="f")
+    assert (f["what"], f["where"], f["why"], f["requirement"],
+            f["how_to_fix"]) == ("w", "s", "y", "r", "f")
+
+
+def test_the_step_summary_is_bounded_and_says_what_it_left_out(
+        tmp_path: Path) -> None:
+    """An uncapped digest does not truncate. It vanishes.
+
+    $GITHUB_STEP_SUMMARY is limited to 1 MiB and the write swallows OSError, so
+    the run that most needs a summary -- a branch with thousands of findings --
+    is exactly the run that would silently produce none. One record per defect
+    is what made that reachable; before it, a gate recorded one failure.
+
+    The omission is stated rather than silent, for the same reason a gate that
+    checked two of four source files may not report as though it checked four.
+    """
+    summary = tmp_path / "summary.md"
+    script = tmp_path / "g.py"
+    script.write_text(
+        "import sys\n"
+        f"sys.path.insert(0, {str(GATE.parent)!r})\n"
+        "from gate import Gate\n"
+        "with Gate('probe') as g:\n"
+        "    for i in range(120):\n"
+        "        g.fail(what='defect %d' % i, where='src/x%d.py:1' % i)\n"
+        "    g.failed()\n", encoding="utf-8")
+    env = dict(os.environ)
+    env["GITHUB_STEP_SUMMARY"] = str(summary)
+    out = subprocess.run([sys.executable, str(script)], cwd=tmp_path,
+                         capture_output=True, text=True, timeout=120, env=env)
+
+    body = summary.read_text(encoding="utf-8")
+    assert body.count("**defect") == 50, "the digest is not bounded"
+    assert "**Failures (120)**" in body, "the true total is not stated"
+    assert "70 further finding(s) not shown" in body, \
+        "findings were dropped without saying so"
+    assert f"reports/probe.json" in body, "the complete record is not pointed at"
+    assert len(body) < 100_000, f"digest is {len(body)} bytes"
+
+    # The job log is deliberately NOT capped: it truncates gracefully and keeps
+    # what fits, while the summary is written whole or not at all.
+    assert out.stdout.count("[FAILURE]") == 120, \
+        "the log dropped findings; only the all-or-nothing renderer is bounded"

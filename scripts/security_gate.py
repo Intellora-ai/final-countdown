@@ -401,7 +401,15 @@ def main(targets: Sequence[str]) -> int:
     unresolved: list[dict[str, Any]] = []
 
     for f in findings:
-        key = (f["test_id"], f["filename"].lstrip("./"))
+        # `removeprefix`, never `lstrip`. `lstrip` strips a character SET, so
+        # a finding in any dot-directory (".github/workflows/x.py") arrives
+        # here as "github/workflows/x.py" -- a path that is not in the tree.
+        # That string is half of the key ELIGIBLE and HEURISTIC are matched
+        # on, so a declared exception would stop being found and the checker
+        # below would read a file that does not exist. It fails closed today,
+        # but it fails for the wrong reason and would be unexplainable from
+        # the output. Latent only while the scan roots are src and scripts.
+        key = (f["test_id"], f["filename"].removeprefix("./"))
         if key in HEURISTIC:
             checker = check_is_status_literal if key[0] == "B105" else check_no_sql
             ok, evidence = checker(key[1], f["line_number"])
@@ -430,7 +438,7 @@ def main(targets: Sequence[str]) -> int:
         # that IS the candidate credential. Print the rule id and location; the
         # reader opens the file. Same reason as check_is_status_literal above.
         detail = f.get("_reason") or str(f.get("test_name") or f["test_id"])
-        print(f"  UNRESOLVED  {f['test_id']} {f['filename'].lstrip('./')}"
+        print(f"  UNRESOLVED  {f['test_id']} {f['filename'].removeprefix('./')}"
               f":{f['line_number']}  {detail}")
 
     if unresolved:

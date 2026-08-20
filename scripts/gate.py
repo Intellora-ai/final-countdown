@@ -24,6 +24,7 @@ blocks the merge instead of vanishing from the report.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import platform
@@ -48,7 +49,7 @@ REPORTS = Path("reports")
 # keeps reading every 1.x report. A major bump would have been wrong and
 # expensive: SCHEMA_MAJOR is "1" there, so 2.0 would make every gate's
 # evidence unreadable in the same push that added a field to it.
-SCHEMA_VERSION = "1.2"  # 1.1 added run_attempt; 1.2 added environment+provenance
+SCHEMA_VERSION = "1.3"  # 1.1 run_attempt; 1.2 environment+provenance; 1.3 finding fields
 
 # Status names are constants, not credentials; bandit's B105 heuristic keys
 # on the variable name, so they are namespaced to keep the scan signal clean.
@@ -61,6 +62,46 @@ NOT_APPLICABLE = "NOT_APPLICABLE"
 UNKNOWN = "UNKNOWN"
 
 MERGEABLE_RESULTS = {PASS, NOT_APPLICABLE}
+
+# The severity vocabulary a finding may use. Closed, and checked in `fail`.
+#
+# It was free-form, which meant a typo created a severity class silently: a
+# filter looking for "CRITICAL" would skip "CRTICAL" forever, and a finding
+# nobody sees is a finding the system discarded. The same argument this file
+# already makes about absent evidence applies to miscategorised evidence.
+#
+# UNKNOWN is deliberately a severity as well as a status. A verification that
+# never ran has no defect to rate -- nothing was found wrong because nothing
+# was looked at -- and calling that ERROR would assert a defect nobody
+# observed. It is the same word for the same idea: the outcome could not be
+# determined.
+#
+# EXACTLY THE VALUES THIS REPOSITORY PRODUCES, and no more. One added "for
+# completeness" would be a value nothing writes -- the same defect as a field
+# nothing reads, which this schema has already had to fix once.
+#
+# WARNING is here because run_gate.py really does emit it: pyright and
+# shellcheck both grade their own diagnostics, and a `warning` from either
+# becomes a finding whose severity says so. The first version of this set
+# omitted it, because the survey behind it grepped for `"severity": "..."` and
+# both of those sites write `"ERROR" if kind == "error" else "WARNING"` -- a
+# conditional the pattern could not see. The gate then refused a severity its
+# own wrapper produces, which would have turned a real failing pyright run
+# into an INFRASTRUCTURE_FAILURE. Caught by the test that re-derives this set
+# from the source; that test now parses instead of grepping, for the same
+# reason.
+#
+# A WARNING-severity finding still blocks. Severity grades the defect, not the
+# consequence: `warnings` is the separate, non-blocking list, and anything
+# recorded through `fail` failed.
+SEVERITIES = frozenset({"CRITICAL", "ERROR", "WARNING", "UNKNOWN"})
+
+# How many findings the $GITHUB_STEP_SUMMARY digest renders before it says how
+# many it left out. That file is capped at 1 MiB by GitHub and written whole or
+# not at all, so an uncapped render loses the entire summary rather than its
+# tail. Fifty findings is roughly 40 KB of markdown -- far inside the limit,
+# and far more than a human reads before opening the JSON.
+SUMMARY_FAILURE_LIMIT = 50
 
 
 def _now() -> str:
@@ -412,6 +453,26 @@ def degraded_provenance(reason: str) -> dict[str, Any]:
     return block
 
 
+def finding_id(gate: str, what: str, where: str) -> str:
+    """A short, stable handle for one defect.
+
+    Keyed on (gate, what, where) and deliberately NOT on the line number
+    alone, so reformatting a file does not rename the problem. Six hex
+    characters is ~16 million values; these are read by eye across two runs,
+    not stored. The basis is byte-identical to blocker_report.failure_id, so
+    the id the finalizer prints and the id stored in the report are the same
+    string, and there is a test that asserts exactly that.
+
+    Module level, and not merely an expression inside `fail`, because
+    `dependent_on` has to name a finding that ANOTHER `fail` call will
+    produce. A caller that cannot derive the id in advance can only guess at
+    it, and a dependency pointing at a handle nothing carries is worse than no
+    dependency at all.
+    """
+    basis = f"{gate}\x00{what}\x00{where}"
+    return hashlib.sha256(basis.encode("utf-8")).hexdigest()[:6].upper()
+
+
 class Gate:
     """Context manager implementing the gate lifecycle."""
 
@@ -446,10 +507,99 @@ class Gate:
         return ok
 
     def fail(self, what: str, where: str = "", why: str = "",
-             requirement: str = "", fix: str = "") -> None:
-        """Record an actionable failure: what, where, why, requirement, fix."""
-        self.failures.append({"what": what, "where": where, "why": why,
-                              "requirement": requirement, "how_to_fix": fix})
+             requirement: str = "", fix: str = "", *,
+             severity: str = "ERROR", code: str | None = None,
+             file: str | None = None, line: int | None = None,
+             column: int | None = None, root_cause: str | None = None,
+             reproduction: str | None = None,
+             is_root_cause: bool = True,
+             dependent_on: str | None = None,
+             merge_blocking: bool = True) -> None:
+        """Record one actionable failure.
+
+        The five positional fields are the original shape and every one of the
+        twenty-six existing call sites still reads exactly as it did. The
+        keyword-only additions are what turns a finding from prose into
+        something a machine can route.
+
+        WHAT EACH ADDS, AND WHY IT IS NOT ALREADY THERE.
+
+        `severity`   defaults to ERROR because that is what a recorded failure
+                     has always meant here. A verifier that genuinely
+                     distinguishes -- bandit has HIGH/MEDIUM/LOW -- can now say
+                     so instead of flattening it.
+        `code`       the tool's own rule id (B105, reportUnknownMemberType).
+                     `what` is a sentence; a code is a key you can search a
+                     tool's documentation with.
+        `file`/`line`/`column`
+                     the MACHINE form of `where`. `where` stays free text
+                     because gates use it for things that are not positions at
+                     all ("specs/a.lean + proofs/a.lean"), and
+                     blocker_report.location() has to re-parse it to annotate.
+                     Given these, it does not have to guess.
+        `root_cause` why the finding exists, as distinct from `why`, which is
+                     what the tool printed.
+        `reproduction`
+                     a command to paste. Exactly one call site in the whole
+                     repository emitted one before this, buried inside
+                     `how_to_fix` as prose; everything else said "fix the code,
+                     not the gate", which is advice, not a command.
+        `is_root_cause` / `dependent_on`
+                     within one gate, several verifiers run under `set -e`, so
+                     the first failure prevents the rest from running at all.
+                     Those are not independent defects and must not be counted
+                     as such.
+
+        `finding_id` is derived rather than passed: a caller free to choose it
+        could give two different defects the same handle. Same basis as
+        blocker_report.failure_id -- (gate, what, where) -- so an id printed by
+        the finalizer and one stored in the report are the same string.
+        """
+        if severity not in SEVERITIES:
+            # Loud, not lenient. `severity` was a free-form string, so a typo
+            # silently created a severity class that every reader and filter
+            # would then miss -- and a finding nobody sees is a finding the
+            # system discarded. Raising inside the `with` block is caught by
+            # __exit__ and recorded as INFRASTRUCTURE_FAILURE, which is not
+            # mergeable, so this fails closed in the one direction that
+            # matters.
+            raise ValueError(
+                f"severity {severity!r} is not one of {sorted(SEVERITIES)}")
+        self.failures.append({
+            "finding_id": finding_id(self.name, what, where),
+            "what": what, "where": where, "why": why,
+            "requirement": requirement, "how_to_fix": fix,
+            "severity": severity,
+            "code": code,
+            "file": file,
+            "line": line,
+            "column": column,
+            "root_cause": root_cause,
+            "reproduction_command": reproduction,
+            "is_root_cause": is_root_cause,
+            "dependent_on": dependent_on,
+            # NOT A CONSTANT, though it was one until a review pointed out
+            # that a field with a single possible value carries no bits -- the
+            # same objection this file already applies to printing a default
+            # severity as though somebody had judged it.
+            #
+            # A root cause blocks: a gate with failures is not PASS, and only
+            # PASS and NOT_APPLICABLE are mergeable. A CONSEQUENCE does not
+            # block on its own account. It is a verification that never ran
+            # because an earlier one in the same chain failed, and it will
+            # disappear when that one is fixed without anybody doing separate
+            # work for it. Recording it as blocking would tell a reader there
+            # are more things to fix than there are.
+            "merge_blocking": merge_blocking,
+        })
+
+    def finding_id_for(self, what: str, where: str = "") -> str:
+        """The handle `fail(what, where)` will derive, before it is called.
+
+        The only way to pass a truthful `dependent_on`: a consequence has to
+        name its root cause, and the root's id is derived rather than chosen.
+        """
+        return finding_id(self.name, what, where)
 
     def warn(self, message: str) -> None:
         self.warnings.append(message)
@@ -678,9 +828,18 @@ class Gate:
             print(f"\n[SUMMARY]\npassed={passed}\nfailed={len(self.checks) - passed}")
         for f in self.failures:
             print("\n[FAILURE]")
-            for k in ("what", "where", "why", "requirement", "how_to_fix"):
-                if f.get(k):
-                    print(f"{k}={f[k]}")
+            # Order matters: a reader scanning a log wants the handle and the
+            # severity before the prose. Fields whose value is None or empty
+            # are omitted rather than printed as `field=None`, so an absent
+            # measurement reads as absent instead of as a value.
+            for k in ("finding_id", "severity", "code", "what", "where",
+                      "file", "line", "column", "why", "root_cause",
+                      "requirement", "how_to_fix", "reproduction_command",
+                      "is_root_cause", "dependent_on", "merge_blocking"):
+                v = f.get(k)
+                if v is None or v == "":
+                    continue
+                print(f"{k}={v}")
         for w in self.warnings:
             print(f"\n[WARNING] {w}")
         print(f"\n[GATE RESULT]\n{self.result}")
@@ -705,14 +864,44 @@ class Gate:
         for k, v in self.scope.items():
             lines.append(f"| {k} | {v} |")
         if self.failures:
-            lines += ["", "**Failures**", ""]
-            for f in self.failures:
-                lines.append(f"- **{f['what']}**"
+            # CAPPED, AND THE CAP IS STATED. $GITHUB_STEP_SUMMARY is limited to
+            # 1 MiB and the write below swallows OSError, so an uncapped render
+            # does not truncate -- it vanishes. One record per defect made that
+            # reachable: a branch with thousands of pyright errors is ~7 lines
+            # each, and the run that most needs a summary is exactly the run
+            # that would silently produce none. The JSON report is unaffected
+            # and stays complete; this is the human-readable digest of it.
+            #
+            # The [FAILURE] blocks in the log above are deliberately NOT capped.
+            # A job log truncates gracefully at the end and keeps what fits,
+            # while this file is written whole or not at all -- so only the
+            # all-or-nothing renderer needs a bound.
+            shown = self.failures[:SUMMARY_FAILURE_LIMIT]
+            omitted = len(self.failures) - len(shown)
+            lines += ["", f"**Failures ({len(self.failures)})**", ""]
+            for f in shown:
+                head = f"- `{f.get('finding_id', '')}` " if f.get("finding_id") else "- "
+                sev = f"**{f['severity']}** " if f.get("severity") else ""
+                code = f"`{f['code']}` " if f.get("code") else ""
+                lines.append(f"{head}{sev}{code}**{f['what']}**"
                              + (f" — `{f['where']}`" if f.get("where") else ""))
                 if f.get("why"):
                     lines.append(f"  - why: {f['why']}")
+                if f.get("root_cause"):
+                    lines.append(f"  - root cause: {f['root_cause']}")
+                if f.get("dependent_on"):
+                    lines.append(f"  - blocked by: `{f['dependent_on']}`")
                 if f.get("how_to_fix"):
                     lines.append(f"  - fix: {f['how_to_fix']}")
+                if f.get("reproduction_command"):
+                    lines.append(f"  - reproduce: `{f['reproduction_command']}`")
+            if omitted:
+                # Named, never silent. A digest that quietly drops findings
+                # reads as "this is all of them", which is the same lie as a
+                # gate that reports a partial run as a complete one.
+                lines += ["", f"_{omitted} further finding(s) not shown here; "
+                              f"all {len(self.failures)} are in "
+                              f"`reports/{self.name}.json`._"]
         lines.append("")
         try:
             with open(target, "a", encoding="utf-8") as fh:

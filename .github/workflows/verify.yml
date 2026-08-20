@@ -732,7 +732,26 @@ jobs:
   # become terminal never becomes terminal.
   merge-evidence:
     needs: [full]
-    if: always()
+    # PULL REQUESTS ONLY, and the reason is structural rather than a preference.
+    #
+    # `CodeQL` is one of the 17 required contexts, and on a push SHA it does not
+    # exist. Measured on 7cc6b0bb, the merged main commit: sixteen of the
+    # seventeen appear as check-runs and `CodeQL` is absent entirely, because it
+    # is a code-scanning analysis status GitHub raises for pull requests. So the
+    # gate waited its full 420-second budget for a check that could never
+    # arrive, and then correctly reported NOT_FETCHED.
+    #
+    # The bug was not the waiting. It was running a MERGE policy on a POST-MERGE
+    # event: required contexts decide whether a pull request may merge, and by
+    # the time a commit is on main that decision is already made and there is no
+    # pull request body left to check. Teaching the evidence logic to tolerate a
+    # missing context would have bought this at the price of the fail-closed
+    # rule that makes it worth having. Not running where it has no meaning costs
+    # nothing.
+    #
+    # `always()` is still here: within a pull request, the failure dossier is
+    # worth most exactly when `needs: [full]` would otherwise skip this job.
+    if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # Narrower than it looks: the workflow grants `contents: read` and these two

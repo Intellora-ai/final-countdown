@@ -585,3 +585,30 @@ def test_zero_budget_does_not_wait_at_all() -> None:
                                     wait_budget=0.0, sleep=slept.append)
     assert slept == []
     assert any("e2e" in m for m in missing), missing
+
+
+def test_the_gate_runs_on_pull_requests_only() -> None:
+    """A merge policy has no meaning after the merge.
+
+    `CodeQL` is one of the 17 required contexts and it does not exist on a push
+    SHA. Measured on 7cc6b0bb, the merged main commit: sixteen of the seventeen
+    appear as check-runs and `CodeQL` is absent entirely, because it is a
+    code-scanning analysis status GitHub raises for pull requests. The gate
+    waited its full budget for a check that could never arrive and then
+    correctly reported NOT_FETCHED.
+
+    The fix was to stop running where the policy does not apply, not to teach
+    the evidence logic that a missing context is sometimes acceptable. The
+    second would have bought a green main at the cost of the fail-closed rule
+    that is the only reason this gate is worth having.
+    """
+    yaml = pytest.importorskip("yaml")
+    spec = yaml.safe_load(
+        (REPO / ".github" / "workflows" / "verify.yml").read_text(encoding="utf-8"))
+    condition = str(spec["jobs"]["merge-evidence"].get("if", ""))
+    assert "pull_request" in condition, (
+        "merge-evidence must not run on push: CodeQL is a required context that "
+        "does not exist on a push SHA, so the gate can only ever time out there")
+    assert "always()" in condition, (
+        "within a pull request the failure dossier is worth most in exactly the "
+        "case needs:[full] would otherwise skip this job")

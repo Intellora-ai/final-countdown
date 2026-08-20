@@ -390,8 +390,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       # PROBLEM MATCHERS — turn "Process completed with exit code 1" into a red box
       # on the exact file and line.
+      #
+      # Registered immediately AFTER checkout, not at step 0. The matcher file lives in
+      # the repository, so registering it before actions/checkout fails with "Could not
+      # find a part of the path" -- measured on run 32393030673, where it took pyright,
+      # bandit, full and merge-evidence red from one cause.
       #
       # Registered per job rather than once globally because a matcher belongs to the
       # tool that produces the lines it parses; a matcher registered where its tool does
@@ -405,7 +411,6 @@ jobs:
       # tests/test_problem_matchers.py pins both regexes against sample lines.
       - name: register problem matchers
         run: echo "::add-matcher::.github/matchers/tools.json"
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
@@ -428,8 +433,14 @@ jobs:
       contents: read
       security-events: write   # required to upload SARIF to code scanning
     steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       # PROBLEM MATCHERS — turn "Process completed with exit code 1" into a red box
       # on the exact file and line.
+      #
+      # Registered immediately AFTER checkout, not at step 0. The matcher file lives in
+      # the repository, so registering it before actions/checkout fails with "Could not
+      # find a part of the path" -- measured on run 32393030673, where it took pyright,
+      # bandit, full and merge-evidence red from one cause.
       #
       # Registered per job rather than once globally because a matcher belongs to the
       # tool that produces the lines it parses; a matcher registered where its tool does
@@ -443,7 +454,6 @@ jobs:
       # tests/test_problem_matchers.py pins both regexes against sample lines.
       - name: register problem matchers
         run: echo "::add-matcher::.github/matchers/tools.json"
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}

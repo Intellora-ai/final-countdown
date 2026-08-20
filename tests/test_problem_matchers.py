@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -81,17 +82,51 @@ def test_the_generic_template_regex_would_not_have_worked_for_pyright() -> None:
         "the generic template should still match gcc-style output")
 
 
-def test_every_job_that_registers_a_matcher_registers_it_first() -> None:
-    """A matcher registered after the tool ran annotates nothing."""
+def test_the_matcher_is_registered_after_checkout_and_before_the_tool() -> None:
+    """Two failure modes, one on each side. This test previously enforced one of them.
+
+    Registered too LATE -- after the tool has run -- and it annotates nothing.
+    Registered too EARLY -- before actions/checkout -- and the file it names does not
+    exist yet.
+
+    The first version of this test asserted `index == 0`, which is the too-early case,
+    and CI proved it on run 32393030673:
+
+        Could not find a part of the path
+        '/home/runner/work/final-countdown/final-countdown/.github/matchers/tools.json'
+
+    pyright then produced no reports/, its upload failed with if-no-files-found: error,
+    and `full` and `merge-evidence` went red behind it. Four red checks, one cause, and
+    a passing test that had pinned the cause in place.
+
+    The correct invariant is positional but relative: after checkout, before the tool.
+    """
     yaml = pytest.importorskip("yaml")
     spec = yaml.safe_load(
         (REPO / ".github" / "workflows" / "verify.yml").read_text(encoding="utf-8"))
+
     registering: list[str] = []
-    for name, job in spec["jobs"].items():
-        for index, step in enumerate(job.get("steps") or []):
-            if "add-matcher" in str(step.get("run", "")):
-                registering.append(name)
-                assert index == 0, (
-                    f"{name}: the matcher is registered at step {index}; a matcher "
-                    "registered after the tool has already run annotates nothing")
+    jobs = cast("dict[str, dict[str, Any]]", spec["jobs"])
+    for name, job in jobs.items():
+        steps = cast("list[dict[str, Any]]", job.get("steps") or [])
+        matcher_at = [i for i, s in enumerate(steps) if "add-matcher" in str(s.get("run", ""))]
+        if not matcher_at:
+            continue
+        registering.append(name)
+        index = matcher_at[0]
+
+        checkout_at = [i for i, s in enumerate(steps)
+                       if "actions/checkout" in str(s.get("uses", ""))]
+        assert checkout_at, f"{name}: registers a matcher but never checks out the repository"
+        assert index > checkout_at[0], (
+            f"{name}: the matcher is registered at step {index}, before checkout at step "
+            f"{checkout_at[0]}. The matcher file lives in the repository and does not "
+            "exist on disk yet -- GitHub fails with 'Could not find a part of the path'")
+
+        tool_at = [i for i, s in enumerate(steps) if "run_gate.py" in str(s.get("run", ""))]
+        if tool_at:
+            assert index < tool_at[0], (
+                f"{name}: the matcher is registered at step {index}, after the tool runs "
+                f"at step {tool_at[0]}. It would annotate nothing")
+
     assert registering, "no job registers the problem matchers, so the file is inert"

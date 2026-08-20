@@ -132,8 +132,17 @@ def score(spec_files: list[str], threshold: float = 0.9) -> dict[str, Any]:
     for m in live:
         try:
             mod = load_module(m.source)
-            alive = any(holds(i, mod)[0] for _, i in infos) and all(
-                holds(i, mod)[0] for _, i in infos)
+            # `all` alone. The previous form was `any(...) and all(...)`,
+            # and for a non-empty `infos` -- which score() guarantees, since it
+            # returns early on an empty spec set -- `all` implies `any`. The
+            # `any` therefore decided nothing and ran a second independent
+            # Hypothesis search per mutant whose result was discarded.
+            #
+            # Worth stating because RUN is not derandomized: this removes real
+            # random draws, not cached ones. It cannot change the verdict --
+            # `all` is evaluated identically -- but the searches it removes
+            # were genuinely being performed and thrown away.
+            alive = all(holds(i, mod)[0] for _, i in infos)
         except Exception:
             alive = False
         if alive:

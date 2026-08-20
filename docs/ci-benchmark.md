@@ -14,7 +14,12 @@ report runner variance and call it a result.
 
 | label | config | coverage job | verify wall | critical path | run |
 |---|---|---|---|---|---|
-| A1 | serial | 148s | 160s | 160s | 32364…  |
+| A1 | serial | 148s | 160s | 160s | 32364… |
+| A2 | serial | 132s | 147s | 147s | 32365… |
+| A3 | serial | 148s | 165s | 165s | 32366… |
+| B1 | `-n auto` | **75s** | 85s | **85s** | 32367… |
+
+Serial median: coverage 148s, critical path 160s.
 
 ## Decision rule
 

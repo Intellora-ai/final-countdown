@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -26,7 +27,7 @@ from pathlib import Path
 from typing import Any, cast
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from gate import REPORTS, Gate  # noqa: E402
+from gate import REPORTS, SEVERITIES, Gate  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -150,6 +151,17 @@ SCOPE_PATTERNS = [
 # FAIL CLOSED. If nothing matches, `main` still records the single fallback
 # record. A failure is never recorded as zero failures.
 # ---------------------------------------------------------------------------
+
+# The fields a report must match to belong to THIS run, and the variable each
+# comes from. Same set ci/gates.toml declares as `run_identity` and
+# aggregate_gates.rejection() enforces; kept here so `absorb` refuses foreign
+# evidence for the same reason the finalizer does.
+_RUN_IDENTITY = {
+    "commit": "GITHUB_SHA",
+    "run_id": "GITHUB_RUN_ID",
+    "run_attempt": "GITHUB_RUN_ATTEMPT",
+    "workflow": "GITHUB_WORKFLOW",
+}
 
 Finding = dict[str, Any]
 
@@ -817,7 +829,17 @@ def absorb(g: Gate, name: str, not_before: float) -> None:
     """
     path = REPORTS / f"{name}.json"
     try:
-        if not path.is_file() or path.stat().st_mtime < not_before:
+        if not path.is_file():
+            # The normal case: most gates wrap a command that writes no report.
+            return
+        if path.stat().st_mtime < not_before:
+            # NAMED, not silent -- the docstring above promises it and this
+            # path was the one place that broke the promise. If the guard ever
+            # fires correctly the report drops from 87 checks to 1, and with
+            # nothing saying why that is indistinguishable from a gate that
+            # wrapped a command writing no report at all.
+            g.warn(f"{path} predates this run's command and was not folded in; "
+                   f"it is evidence for an earlier run")
             return
         raw: object = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
@@ -828,6 +850,26 @@ def absorb(g: Gate, name: str, not_before: float) -> None:
         g.warn(f"the report {name} wrote for itself is not a JSON object")
         return
     data = cast("dict[str, Any]", raw)
+
+    # IDENTITY, NOT ONLY FRESHNESS. mtime answers "was this written recently";
+    # it does not answer "was this written by THIS run". Any mechanism that
+    # preserves or advances a timestamp -- an archive extraction, a warm
+    # self-hosted workspace, a clock that stepped forward -- defeats a
+    # freshness test alone, and the fields that settle it are already in the
+    # file. Same comparison aggregate_gates.rejection() makes, for the same
+    # reason: a report that cannot be shown to belong to this run is not
+    # evidence for it.
+    for field, var in _RUN_IDENTITY.items():
+        want = os.environ.get(var)
+        if want is None:
+            # Outside CI there is nothing to compare against, and refusing
+            # every local run would make the wrapper untestable by hand.
+            continue
+        found_value = str(data.get(field, ""))
+        if found_value != want:
+            g.warn(f"{path} carries {field}={found_value!r} but this run is "
+                   f"{want!r}; not folded in")
+            return
 
     claimed = str(data.get("gate", ""))
     if claimed != name:
@@ -856,6 +898,51 @@ def absorb(g: Gate, name: str, not_before: float) -> None:
                  if k != "command"}
         if inner:
             g.set_scope(**inner)
+
+    # THE FINDINGS, WHICH ARE THE WHOLE POINT. Folding checks and scope while
+    # dropping `failures` loses exactly what this change exists to keep: when
+    # the inner writer is the step that FAILS, its findings are the routable
+    # ones. Measured before this: gate_integrity failing on a missing
+    # must_contain token produced two findings with a file, a requirement and
+    # a fix each; wrapped, they became ONE fallback record whose `where` was
+    # the multi-line bash script and whose `why` was the inner gate's own
+    # [GATE END] banner -- the six-line tail of a nested Gate is always its
+    # end banner. blocker_report could place no annotation on either.
+    #
+    # Re-emitted through `fail` rather than appended, so every finding in the
+    # merged report is derived by one code path and `finding_id` is rederived
+    # against THIS gate's name.
+    for entry in cast("list[Any]", data.get("failures", []) or []):
+        if not isinstance(entry, dict):
+            continue
+        found = cast("dict[str, Any]", entry)
+        severity = str(found.get("severity") or "ERROR")
+        g.fail(
+            what=str(found.get("what", "")),
+            where=str(found.get("where", "")),
+            why=str(found.get("why", "")),
+            requirement=str(found.get("requirement", "")),
+            fix=str(found.get("how_to_fix", "")),
+            severity=severity if severity in SEVERITIES else "ERROR",
+            code=cast("str | None", found.get("code")),
+            file=cast("str | None", found.get("file")),
+            line=cast("int | None", found.get("line")),
+            column=cast("int | None", found.get("column")),
+            root_cause=cast("str | None", found.get("root_cause")),
+            reproduction=cast("str | None", found.get("reproduction_command")),
+            is_root_cause=bool(found.get("is_root_cause", True)),
+            dependent_on=cast("str | None", found.get("dependent_on")),
+            merge_blocking=bool(found.get("merge_blocking", True)),
+        )
+
+    # The version belongs to the gate, not to the wrapper. gate_integrity.py
+    # and axle_gate.py both declare 2.0.0; run_gate's --version defaults to
+    # 1.0.0, so wrapping silently regressed the field for both. Adopting the
+    # inner value keeps ONE declaration of it, in the script that owns the
+    # gate, rather than a second copy in the workflow that can drift.
+    inner_version = data.get("gate_version")
+    if isinstance(inner_version, str) and inner_version:
+        g.version = inner_version
 
     for recorded in cast("list[Any]", data.get("warnings", []) or []):
         g.warn(str(recorded))

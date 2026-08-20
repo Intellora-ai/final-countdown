@@ -1567,3 +1567,70 @@ def test_every_eligible_file_still_verifies() -> None:
             continue
         ok, evidence = check_subprocess_safety(str(path))
         assert ok, f"{rel} lost its verified exception: {evidence}"
+
+
+# --------------------------------------------------------------------------
+# Attack 26 — a `bash -c` chain that never arms errexit
+#
+# The asymmetry that made this reachable: `errexit_off_at` can only report a
+# `set +e` that is PRESENT. In a `run:` block errexit is never absent, because
+# GitHub starts one as `bash -e {0}`. `bash -c` starts with errexit OFF, so the
+# compensating `set -e` is one line inside a string literal — and ci/gates.toml
+# pins the wrapper, not the guard inside it.
+#
+# Measured before the check existed: deleting that single line left
+# gate_integrity exiting 0, and a chain whose first three verifications exit 1
+# and whose fourth exits 0 produced a wrapper exit of 0 with status PASS and
+# mergeable_contribution true. For preflight that is the TCB check and the
+# live-ruleset drift check both failing while `full` certifies an all-green run.
+# --------------------------------------------------------------------------
+@pytest.mark.parametrize("gate", ["preflight", "axle-verify", "bandit",
+                                  "correspondence"])
+def test_attack_chain_without_errexit_is_caught(sandbox: Path, gate: str) -> None:
+    wf = sandbox / VERIFY
+    text = wf.read_text()
+    marker = f"--name {gate} -- bash -c"
+    assert marker in text, f"{gate} is no longer a bash -c chain"
+    head, tail = text[: text.index(marker)], text[text.index(marker):]
+    armed = tail.replace("            set -e\n", "", 1)
+    assert armed != tail, f"the {gate} chain has no `set -e` to delete"
+    wf.write_text(head + armed)
+
+    result = integrity(sandbox)
+    assert result.returncode != 0, (
+        f"a `{gate}` chain with errexit never enabled satisfied the gate — "
+        "every command after a failing one still runs and the chain's exit "
+        "code is the last command's, which is the report writer's")
+    assert "chain arms errexit" in result.stdout, result.stdout[-800:]
+
+
+def test_a_chain_that_arms_errexit_is_not_flagged() -> None:
+    """The control. Every chain in the real workflow must already pass."""
+    import sys as _s
+    _s.path.insert(0, str(SCRIPTS))
+    from gate_integrity import chain_without_errexit
+
+    # A `run:` block that is not a chain has nothing to arm -- GitHub's own
+    # `bash -e {0}` already applies, and demanding `set -e` there would be a
+    # false positive, which is how a check gets switched off.
+    assert not chain_without_errexit(
+        "python3 scripts/axle_gate.py", ["scripts/axle_gate.py"])
+
+    # Against the REAL workflow rather than a synthetic string, because the
+    # shape that matters is the one on disk: a hand-written approximation of a
+    # multi-line `bash -c` inside YAML is exactly the kind of input that can
+    # pass while the real thing fails, or the reverse.
+    import yaml as _yaml
+    doc = _yaml.safe_load((REPO / VERIFY).read_text(encoding="utf-8"))
+    chains = 0
+    for job in doc["jobs"].values():
+        for step in job.get("steps", []):
+            run = str(step.get("run", ""))
+            if "-- bash -c" not in run:
+                continue
+            chains += 1
+            token = next(w for w in run.split() if w.endswith(".py")
+                         and "run_gate" not in w)
+            assert not chain_without_errexit(run, [token]), (
+                f"a real chain was flagged as unarmed: {run[:120]!r}")
+    assert chains >= 4, f"expected at least 4 bash -c chains, found {chains}"

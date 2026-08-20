@@ -22,6 +22,7 @@ makes this process exit non-zero. A gate whose result is unknown is not a gate t
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -80,6 +81,16 @@ def load_manifest(path: Path = MANIFEST) -> dict[str, dict[str, Any]]:
         elif not str(spec.get("reason", "")).strip():
             raise ManifestError(f"{name}: locally_runnable=no with no reason")
 
+        # A network flag with no stated reason is a switch nobody can audit. The
+        # exclusion it triggers removes a required check from every default run, so
+        # the file that triggers it has to say what the network is for.
+        if requires_network(spec) and not str(spec.get("network_reason", "")).strip():
+            raise ManifestError(
+                f"{name}: requires_network is set with no network_reason. The flag "
+                "removes this check from both default tiers; that decision must carry "
+                "its reason in the manifest, not in someone's memory."
+            )
+
     pyright = contexts.get(PYRIGHT)
     if (
         pyright is None
@@ -93,7 +104,65 @@ def load_manifest(path: Path = MANIFEST) -> dict[str, dict[str, Any]]:
     return contexts
 
 
+def load_local_checks(path: Path = MANIFEST) -> dict[str, dict[str, Any]]:
+    """The `[local_checks]` table: regression and quality checks that are NOT GitHub contexts.
+
+    Kept in its own table and its own loader because the two namespaces must never
+    merge. `[contexts.*]` is exactly the seventeen required GitHub contexts, and
+    test_no_context_is_invented enforces that. A local check that could occupy a
+    required context's name would print a line indistinguishable from the check
+    GitHub actually enforces -- the false reassurance this manifest exists to remove.
+    """
+    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    checks = cast("dict[str, dict[str, Any]]", data.get("local_checks") or {})
+    contexts = cast("dict[str, dict[str, Any]]", data.get("contexts") or {})
+
+    collisions = sorted(set(checks) & set(contexts))
+    if collisions:
+        raise ManifestError(
+            f"local check(s) {collisions} share a name with a required GitHub context. "
+            "A local check may not borrow a required context's identity: a local pass "
+            "would then be indistinguishable from the check GitHub enforces."
+        )
+
+    for name, spec in checks.items():
+        if not str(spec.get("requirement", "")).strip():
+            raise ManifestError(
+                f"local check {name}: no requirement. A check that cannot say which "
+                "escape or rule it proves is a command, not a check."
+            )
+        command = spec.get("command")
+        if not isinstance(command, list) or not command:
+            raise ManifestError(f"local check {name}: no command array")
+        if not all(isinstance(tok, str) for tok in cast("list[Any]", command)):
+            raise ManifestError(f"local check {name}: command must be argv strings")
+        if not isinstance(spec.get("timeout_seconds"), int):
+            raise ManifestError(f"local check {name}: no integer timeout_seconds")
+        if not spec.get("evidence"):
+            raise ManifestError(f"local check {name}: no evidence identifier")
+        if spec.get("tier") not in {"fast", "full"}:
+            raise ManifestError(
+                f"local check {name}: tier is {spec.get('tier')!r}; only 'fast' or 'full'"
+            )
+        if not str(spec.get("tier_reason", "")).strip():
+            raise ManifestError(
+                f"local check {name}: no tier_reason. Tier membership is a decision and "
+                "has to be defensible in the file that makes it."
+            )
+    return checks
+
+
+def requires_network(spec: dict[str, Any]) -> bool:
+    return bool(spec.get("requires_network"))
+
+
 def github_only(contexts: dict[str, dict[str, Any]]) -> list[tuple[str, str]]:
+    """Contexts the manifest says cannot run here at all.
+
+    Deliberately unchanged in meaning and signature: existing callers and tests read
+    it as "locally_runnable == no". Network-excluded contexts are a different case --
+    they CAN run here -- and are reported by not_run_locally() instead.
+    """
     return sorted(
         (n, str(s.get("reason", "")))
         for n, s in contexts.items()
@@ -101,14 +170,95 @@ def github_only(contexts: dict[str, dict[str, Any]]) -> list[tuple[str, str]]:
     )
 
 
+def not_run_locally(
+    contexts: dict[str, dict[str, Any]], tier: str
+) -> list[dict[str, str]]:
+    """Every required context this run will NOT execute, with its category and reason.
+
+    Two populations, and conflating them is what the categories exist to stop:
+
+      locally_runnable = no    it cannot run here. Category says why -- a hosted
+                               third party (EXTERNAL), the GitHub platform itself
+                               (GITHUB_ONLY), or a local prerequisite nobody has
+                               installed (LOCAL_PREREQUISITE_NOT_PROVISIONED). A
+                               missing local browser is not a third-party service.
+
+      requires_network = yes   it CAN run here and is excluded anyway, because a
+                               default local loop that silently reaches the network
+                               is not a local loop. Carries its opt-in command.
+    COMPLETENESS, MEASURED. An earlier version listed only the contexts marked
+    `locally_runnable = no`. On the fast tier that printed 8 while 13 of the 17
+    required contexts had actually not been evaluated: the five runnable-but-not-in-
+    this-tier ones vanished from the report entirely. Under-reporting what did not
+    run is the same defect as claiming something passed, one step removed, so this
+    is now derived as "every required context minus the ones this tier selected".
+    The arithmetic is checkable: len(selected) + len(not_run) == len(contexts).
+    """
+    selected = set(select(contexts, tier))
+    rows: list[dict[str, str]] = []
+    for name, spec in sorted(contexts.items()):
+        if name in selected:
+            continue
+        if spec.get("locally_runnable") == "no":
+            category = str(spec.get("category", "UNCATEGORISED"))
+            reason = str(spec.get("reason", ""))
+            opt_in = ""
+        elif requires_network(spec):
+            category = "NETWORK_REQUIRED_EXCLUDED_FROM_DEFAULT"
+            reason = str(
+                spec.get("network_reason")
+                or "requires the network; excluded from the default local loop"
+            )
+            opt_in = str(spec.get("opt_in_command", ""))
+        else:
+            category = "NOT_IN_THIS_TIER"
+            reason = (
+                f"runs locally but is not in the {tier} tier; "
+                f"`make sandbox-test` selects it"
+            )
+            opt_in = "make sandbox-test"
+        rows.append(
+            {
+                "context": name,
+                "category": category,
+                "reason": reason,
+                "opt_in_command": opt_in,
+            }
+        )
+    return rows
+
+
 def select(contexts: dict[str, dict[str, Any]], tier: str) -> list[str]:
-    runnable = [n for n, s in contexts.items() if s.get("locally_runnable") == "yes"]
+    """The contexts this tier executes.
+
+    NETWORK EXCLUSION IS ENFORCED HERE, not annotated in the manifest. A flag that
+    only documents a network call still lets the call happen; the selector is the
+    single place every tier passes through, so it is the only place the exclusion
+    cannot be forgotten. `requires_network = true` therefore removes a check from
+    BOTH default tiers -- it is reported by not_run_locally() with its opt-in
+    command instead.
+    """
+    runnable = [
+        n
+        for n, s in contexts.items()
+        if s.get("locally_runnable") == "yes" and not requires_network(s)
+    ]
     if tier == "fast":
         chosen = [n for n in runnable if contexts[n].get("in_fast")]
         if PYRIGHT not in chosen:  # belt and braces; load_manifest already checked
             raise ManifestError("the fast tier does not include pyright")
         return sorted(chosen)
     return sorted(runnable)
+
+
+def select_local_checks(checks: dict[str, dict[str, Any]], tier: str) -> list[str]:
+    """Local checks for this tier. `fast` is a subset of `full`, and network is excluded here too."""
+    return sorted(
+        n
+        for n, s in checks.items()
+        if not requires_network(s)
+        and (s.get("tier") == "fast" or (tier == "full" and s.get("tier") == "full"))
+    )
 
 
 def run_one(name: str, spec: dict[str, Any], evidence_dir: Path) -> dict[str, Any]:
@@ -182,7 +332,42 @@ def run_one(name: str, spec: dict[str, Any], evidence_dir: Path) -> dict[str, An
     record["end"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     record["duration_seconds"] = round(time.time() - started, 2)
     path = evidence_dir / f"{name}.json"
-    path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+
+    # THE FOUR STATUSES, AND THE ONE ASYMMETRY THAT MATTERS.
+    #
+    #   PASS     the command exited 0 and its evidence was retained and reread.
+    #   FAIL     the command exited non-zero. Always. A non-zero exit is a known
+    #            verdict even when the CAUSE is unknown -- that unknown belongs in
+    #            observed_why, never in status.
+    #   BLOCK    execution could not safely happen: tool absent, timeout.
+    #   UNKNOWN  the VERDICT itself cannot be determined, because the evidence that
+    #            would carry it is absent, unreadable, malformed or incomplete.
+    #
+    # UNKNOWN can only ever REPLACE A PASS. A FAIL or BLOCK whose evidence also went
+    # missing stays FAIL or BLOCK: downgrading it would let a broken command reach
+    # the softer word, and every one of the four blocks the push anyway, so there is
+    # nothing to gain and a real hole to open.
+    try:
+        payload = json.dumps(record, indent=2) + "\n"
+        path.write_text(payload, encoding="utf-8")
+        reread = json.loads(path.read_text(encoding="utf-8"))
+        if reread.get("context") != name or reread.get("status") != record["status"]:
+            raise ValueError("evidence does not describe the run that wrote it")
+    except (OSError, ValueError) as exc:
+        if record["status"] == "PASS":
+            record.update(
+                status="UNKNOWN",
+                what_failed=f"evidence for {name} could not be retained",
+                observed_why=(
+                    f"UNKNOWN — the command exited 0 but its evidence is absent, "
+                    f"unreadable or malformed ({exc}), so the verdict is not proven"
+                ),
+                next_safe_action=(
+                    "INVESTIGATE — an unprovable pass is not a pass; check that "
+                    f"{evidence_dir} is writable, then re-run"
+                ),
+            )
+
     record["evidence_path"] = str(path)
     return record
 
@@ -508,6 +693,82 @@ def cmd_determinism(run_id: str) -> int:
     return 0
 
 
+#: Every category not_run_locally() can emit. Listed rather than derived so the quality
+#: summary always carries all four keys: a category that happens to be empty on this run
+#: must still appear, or a reader cannot tell "none" from "not reported".
+CATEGORIES = (
+    "GITHUB_ONLY",
+    "EXTERNAL",
+    "LOCAL_PREREQUISITE_NOT_PROVISIONED",
+    "NETWORK_REQUIRED_EXCLUDED_FROM_DEFAULT",
+    "NOT_IN_THIS_TIER",
+)
+
+
+def _by_category(rows: list[dict[str, str]]) -> dict[str, list[str]]:
+    grouped: dict[str, list[str]] = {c: [] for c in CATEGORIES}
+    for row in rows:
+        grouped.setdefault(row["category"], []).append(row["context"])
+    return {k: sorted(v) for k, v in grouped.items()}
+
+
+def _git_sha() -> str:
+    """The commit this run measured, or UNKNOWN. Never a guess."""
+    exe = shutil.which("git")
+    if exe is None:
+        return "UNKNOWN"
+    try:
+        out = subprocess.run(  # noqa: S603 - argv only, no shell
+            [exe, "rev-parse", "HEAD"],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=30,
+            stdin=subprocess.DEVNULL,
+            shell=False,
+        )
+    except subprocess.TimeoutExpired:
+        return "UNKNOWN"
+    return out.stdout.strip() if out.returncode == 0 and out.stdout.strip() else "UNKNOWN"
+
+
+def _render_markdown(quality: dict[str, Any]) -> str:
+    """summary.md carries the same fields as summary.json, in the order the contract lists them.
+
+    Not a prettier restatement: it is the file a human opens after a blocked push, so
+    every field the JSON carries appears here too. A markdown summary that showed less
+    than the JSON would send the reader to the JSON, which makes it worthless.
+    """
+    lines = [
+        f"# Local quality gate — {quality['STATUS']}",
+        "",
+        f"`{quality['SHA']}` · run `{quality['RUN_ID']}` · {quality['TOTAL_SECONDS']}s",
+        "",
+        "| field | value |",
+        "|---|---|",
+    ]
+    for key, value in quality.items():
+        if isinstance(value, list):
+            rendered = ", ".join(f"`{v}`" for v in cast("list[Any]", value)) or "_none_"
+        else:
+            rendered = str(value)
+        lines.append(f"| `{key}` | {rendered} |")
+    lines += [
+        "",
+        "## What this does not prove",
+        "",
+        "A local pass is a PARTIAL result. The contexts listed under "
+        "`LOCAL_GATES_NOT_RUN` were not evaluated here, and none of them is reported "
+        "as having passed. GitHub's required contexts remain the merge proof.",
+        "",
+        "This gate is a developer-speed control, not a security boundary. "
+        "`git push --no-verify`, the GitHub web UI, a direct API call, or another "
+        "machine all bypass it.",
+        "",
+    ]
+    return "\n".join(lines)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tier", choices=("fast", "full"), default="fast")
@@ -532,41 +793,143 @@ def main() -> int:
         print(f"BLOCK: {exc}", file=sys.stderr)
         return 2
 
+    try:
+        checks = load_local_checks()
+    except ManifestError as exc:
+        print(f"BLOCK: {exc}", file=sys.stderr)
+        return 2
+
     evidence_dir = EVIDENCE_ROOT / args.tier / args.run_id
     evidence_dir.mkdir(parents=True, exist_ok=True)
+    run_started = time.time()
+    start_time = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(run_started))
 
-    # THE GITHUB-ONLY LIST COMES FIRST, ALWAYS. Printing it after execution would let the
+    # THE NOT-RUN LIST COMES FIRST, ALWAYS. Printing it after execution would let the
     # first failing gate suppress it, and a partial local pass that hides what it did not
     # cover is exactly the false reassurance this tool exists to remove.
     absent = github_only(contexts)
-    print(f"=== required contexts that do NOT run locally ({len(absent)}) ===")
-    for name, reason in absent:
-        print(f"NOT_RUN_LOCALLY\nREQUIRED_ON_GITHUB\ncontext={name}\nREASON={reason}\n")
+    skipped = not_run_locally(contexts, args.tier)
+    print(f"=== required contexts that do NOT run locally ({len(skipped)}) ===")
+    for row in skipped:
+        print("NOT_RUN_LOCALLY")
+        print("REQUIRED_ON_GITHUB")
+        print(f"context={row['context']}")
+        print(f"CATEGORY={row['category']}")
+        print(f"REASON={row['reason']}")
+        if row["opt_in_command"]:
+            print(f"OPT_IN={row['opt_in_command']}")
+        print()
 
     chosen = select(contexts, args.tier)
-    print(f"=== running {len(chosen)} local gate(s), tier={args.tier} ===")
+    chosen_checks = select_local_checks(checks, args.tier)
+    print(
+        f"=== running {len(chosen)} local gate(s) + {len(chosen_checks)} local "
+        f"check(s), tier={args.tier} ==="
+    )
 
     results: list[dict[str, Any]] = []
     failed: dict[str, Any] | None = None
     for name in chosen:
         record = run_one(name, contexts[name], evidence_dir)
         results.append(record)
-        print(f"  {record['status']:<5} {name:<24} {record['duration_seconds']:>6.1f}s")
+        print(f"  {record['status']:<7} {name:<26} {record['duration_seconds']:>6.1f}s")
         if record["status"] != "PASS":
             failed = record
             break
 
+    # Local checks run after the required contexts and only if those held. A regression
+    # fixture reporting on a tree whose required checks already failed adds a second
+    # failure to triage, not a second piece of information.
+    if failed is None:
+        for name in chosen_checks:
+            record = run_one(name, checks[name], evidence_dir)
+            record["local_check"] = True
+            results.append(record)
+            print(
+                f"  {record['status']:<7} {name:<26} {record['duration_seconds']:>6.1f}s"
+            )
+            if record["status"] != "PASS":
+                failed = record
+                break
+
+    status = "PASS" if failed is None else str(failed["status"])
+    total_seconds = round(time.time() - run_started, 2)
+    end_time = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    by_category = _by_category(skipped)
+
+    # ONE RESULT IDENTITY, TWO FILES. Q5 keeps the tier path exactly where its existing
+    # readers expect it and adds the quality-gate path beside it. Both carry the same
+    # run_id and the same checksum over the same identity fields, so a mismatch between
+    # them is detectable rather than a matter of trusting that they were written together.
+    identity = {
+        "sha": _git_sha(),
+        "run_id": args.run_id,
+        "tier": args.tier,
+        "status": status,
+        "selected": chosen + chosen_checks,
+        "gates_passed": sorted(
+            str(r["context"]) for r in results if r["status"] == "PASS"
+        ),
+        "gates_failed": sorted(
+            str(r["context"]) for r in results if r["status"] != "PASS"
+        ),
+    }
+    checksum = hashlib.sha256(
+        json.dumps(identity, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+    # The tier summary keeps every key it already had; the new ones are additive, so
+    # nothing that reads this file today has to change to keep working.
     summary = {
         "tier": args.tier,
         "run_id": args.run_id,
         "selected": chosen,
         "github_only": [n for n, _ in absent],
         "results": results,
-        "status": "PASS" if failed is None else failed["status"],
+        "status": status,
+        "result_identity": identity,
+        "result_checksum": checksum,
     }
     (evidence_dir / "summary.json").write_text(
         json.dumps(summary, indent=2) + "\n", encoding="utf-8"
     )
+
+    quality_dir = EVIDENCE_ROOT / "quality-gate" / args.run_id
+    quality_dir.mkdir(parents=True, exist_ok=True)
+    quality = {
+        "SHA": identity["sha"],
+        "START_TIME": start_time,
+        "END_TIME": end_time,
+        "TOTAL_SECONDS": total_seconds,
+        "LOCAL_GATES_SELECTED": chosen + chosen_checks,
+        "LOCAL_GATES_PASSED": identity["gates_passed"],
+        "LOCAL_GATES_FAILED": identity["gates_failed"],
+        "LOCAL_GATES_NOT_RUN": [r["context"] for r in skipped],
+        "GITHUB_ONLY_REQUIRED_CONTEXTS": by_category["GITHUB_ONLY"],
+        "EXTERNAL_REQUIRED_CONTEXTS": by_category["EXTERNAL"],
+        "LOCAL_PREREQUISITE_NOT_PROVISIONED": by_category[
+            "LOCAL_PREREQUISITE_NOT_PROVISIONED"
+        ],
+        "NETWORK_REQUIRED_EXCLUDED_FROM_DEFAULT": by_category[
+            "NETWORK_REQUIRED_EXCLUDED_FROM_DEFAULT"
+        ],
+        "EXACT_FAILED_ARGV": (failed or {}).get("argv", []),
+        "EXIT_CODE": 0 if failed is None else 1,
+        "EVIDENCE_PATHS": [str(evidence_dir), str(quality_dir)],
+        "STATUS": status,
+        "NEXT_SAFE_ACTION": (
+            "PUSH — every selected local check passed. GitHub's required contexts "
+            "remain the merge proof."
+            if failed is None
+            else str(failed.get("next_safe_action", "INVESTIGATE"))
+        ),
+        "RESULT_CHECKSUM": checksum,
+        "RUN_ID": args.run_id,
+    }
+    (quality_dir / "summary.json").write_text(
+        json.dumps(quality, indent=2) + "\n", encoding="utf-8"
+    )
+    (quality_dir / "summary.md").write_text(_render_markdown(quality), encoding="utf-8")
 
     if failed is not None:
         print(f"\nWHAT_FAILED: {failed.get('what_failed')}")
@@ -579,17 +942,21 @@ def main() -> int:
         tail = str(failed.get("stderr_tail") or failed.get("stdout_tail") or "")[-1500:]
         if tail:
             print(f"OBSERVED_EVIDENCE:\n{tail}")
+        print(f"QUALITY_GATE_EVIDENCE: {quality_dir}")
         print(
-            f"\nSTATUS: {failed['status']} — {len(absent)} required context(s) still run only "
-            "on GitHub and were NOT evaluated here."
+            f"\nSTATUS: {failed['status']} — {len(skipped)} required context(s) were "
+            "NOT evaluated here and none of them is reported as passed."
         )
         return 1
 
     print(
-        f"\nSTATUS: PASS ({len(chosen)} local gate(s)). This is a PARTIAL result: "
-        f"{len(absent)} required context(s) run only on GitHub."
+        f"\nSTATUS: PASS ({len(chosen)} local gate(s) + {len(chosen_checks)} local "
+        f"check(s)). This is a PARTIAL result: {len(skipped)} required context(s) "
+        "were not evaluated here."
     )
     print(f"EVIDENCE: {evidence_dir}")
+    print(f"QUALITY_GATE_EVIDENCE: {quality_dir}")
+    print(f"NEXT_SAFE_ACTION: {quality['NEXT_SAFE_ACTION']}")
     return 0
 
 

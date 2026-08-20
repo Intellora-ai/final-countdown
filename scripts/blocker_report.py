@@ -124,8 +124,14 @@ def location(where: str) -> tuple[str, int | None, int | None] | None:
     # A bare path. Must be the whole field -- `spec.lean + proof.lean` names
     # two files and neither is "the" location, so it is left unannotated
     # rather than arbitrarily attributed to the first.
-    if _BARE_PATH.fullmatch(text) and (REPO / text.lstrip("./")).is_file():
-        return (text.lstrip("./"), None, None)
+    #
+    # `removeprefix`, never `lstrip`: `lstrip` strips a character SET, so
+    # ".github/workflows/verify.yml" loses its leading dot and becomes a path
+    # that is not in the tree. This function would then return None for a file
+    # that exists, and the annotation it exists to place would be dropped.
+    bare = text.removeprefix("./")
+    if _BARE_PATH.fullmatch(text) and (REPO / bare).is_file():
+        return (bare, None, None)
     return None
 
 

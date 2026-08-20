@@ -63,6 +63,46 @@ UNKNOWN = "UNKNOWN"
 
 MERGEABLE_RESULTS = {PASS, NOT_APPLICABLE}
 
+# The severity vocabulary a finding may use. Closed, and checked in `fail`.
+#
+# It was free-form, which meant a typo created a severity class silently: a
+# filter looking for "CRITICAL" would skip "CRTICAL" forever, and a finding
+# nobody sees is a finding the system discarded. The same argument this file
+# already makes about absent evidence applies to miscategorised evidence.
+#
+# UNKNOWN is deliberately a severity as well as a status. A verification that
+# never ran has no defect to rate -- nothing was found wrong because nothing
+# was looked at -- and calling that ERROR would assert a defect nobody
+# observed. It is the same word for the same idea: the outcome could not be
+# determined.
+#
+# EXACTLY THE VALUES THIS REPOSITORY PRODUCES, and no more. One added "for
+# completeness" would be a value nothing writes -- the same defect as a field
+# nothing reads, which this schema has already had to fix once.
+#
+# WARNING is here because run_gate.py really does emit it: pyright and
+# shellcheck both grade their own diagnostics, and a `warning` from either
+# becomes a finding whose severity says so. The first version of this set
+# omitted it, because the survey behind it grepped for `"severity": "..."` and
+# both of those sites write `"ERROR" if kind == "error" else "WARNING"` -- a
+# conditional the pattern could not see. The gate then refused a severity its
+# own wrapper produces, which would have turned a real failing pyright run
+# into an INFRASTRUCTURE_FAILURE. Caught by the test that re-derives this set
+# from the source; that test now parses instead of grepping, for the same
+# reason.
+#
+# A WARNING-severity finding still blocks. Severity grades the defect, not the
+# consequence: `warnings` is the separate, non-blocking list, and anything
+# recorded through `fail` failed.
+SEVERITIES = frozenset({"CRITICAL", "ERROR", "WARNING", "UNKNOWN"})
+
+# How many findings the $GITHUB_STEP_SUMMARY digest renders before it says how
+# many it left out. That file is capped at 1 MiB by GitHub and written whole or
+# not at all, so an uncapped render loses the entire summary rather than its
+# tail. Fifty findings is roughly 40 KB of markdown -- far inside the limit,
+# and far more than a human reads before opening the JSON.
+SUMMARY_FAILURE_LIMIT = 50
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -473,7 +513,8 @@ class Gate:
              column: int | None = None, root_cause: str | None = None,
              reproduction: str | None = None,
              is_root_cause: bool = True,
-             dependent_on: str | None = None) -> None:
+             dependent_on: str | None = None,
+             merge_blocking: bool = True) -> None:
         """Record one actionable failure.
 
         The five positional fields are the original shape and every one of the
@@ -514,6 +555,16 @@ class Gate:
         blocker_report.failure_id -- (gate, what, where) -- so an id printed by
         the finalizer and one stored in the report are the same string.
         """
+        if severity not in SEVERITIES:
+            # Loud, not lenient. `severity` was a free-form string, so a typo
+            # silently created a severity class that every reader and filter
+            # would then miss -- and a finding nobody sees is a finding the
+            # system discarded. Raising inside the `with` block is caught by
+            # __exit__ and recorded as INFRASTRUCTURE_FAILURE, which is not
+            # mergeable, so this fails closed in the one direction that
+            # matters.
+            raise ValueError(
+                f"severity {severity!r} is not one of {sorted(SEVERITIES)}")
         self.failures.append({
             "finding_id": finding_id(self.name, what, where),
             "what": what, "where": where, "why": why,
@@ -527,11 +578,19 @@ class Gate:
             "reproduction_command": reproduction,
             "is_root_cause": is_root_cause,
             "dependent_on": dependent_on,
-            # Every failure recorded by a gate blocks: a gate with failures is
-            # not PASS, and only PASS and NOT_APPLICABLE are mergeable. Stated
-            # per finding rather than left to be inferred from the gate status
-            # two files away.
-            "merge_blocking": True,
+            # NOT A CONSTANT, though it was one until a review pointed out
+            # that a field with a single possible value carries no bits -- the
+            # same objection this file already applies to printing a default
+            # severity as though somebody had judged it.
+            #
+            # A root cause blocks: a gate with failures is not PASS, and only
+            # PASS and NOT_APPLICABLE are mergeable. A CONSEQUENCE does not
+            # block on its own account. It is a verification that never ran
+            # because an earlier one in the same chain failed, and it will
+            # disappear when that one is fixed without anybody doing separate
+            # work for it. Recording it as blocking would tell a reader there
+            # are more things to fix than there are.
+            "merge_blocking": merge_blocking,
         })
 
     def finding_id_for(self, what: str, where: str = "") -> str:
@@ -805,8 +864,22 @@ class Gate:
         for k, v in self.scope.items():
             lines.append(f"| {k} | {v} |")
         if self.failures:
-            lines += ["", "**Failures**", ""]
-            for f in self.failures:
+            # CAPPED, AND THE CAP IS STATED. $GITHUB_STEP_SUMMARY is limited to
+            # 1 MiB and the write below swallows OSError, so an uncapped render
+            # does not truncate -- it vanishes. One record per defect made that
+            # reachable: a branch with thousands of pyright errors is ~7 lines
+            # each, and the run that most needs a summary is exactly the run
+            # that would silently produce none. The JSON report is unaffected
+            # and stays complete; this is the human-readable digest of it.
+            #
+            # The [FAILURE] blocks in the log above are deliberately NOT capped.
+            # A job log truncates gracefully at the end and keeps what fits,
+            # while this file is written whole or not at all -- so only the
+            # all-or-nothing renderer needs a bound.
+            shown = self.failures[:SUMMARY_FAILURE_LIMIT]
+            omitted = len(self.failures) - len(shown)
+            lines += ["", f"**Failures ({len(self.failures)})**", ""]
+            for f in shown:
                 head = f"- `{f.get('finding_id', '')}` " if f.get("finding_id") else "- "
                 sev = f"**{f['severity']}** " if f.get("severity") else ""
                 code = f"`{f['code']}` " if f.get("code") else ""
@@ -822,6 +895,13 @@ class Gate:
                     lines.append(f"  - fix: {f['how_to_fix']}")
                 if f.get("reproduction_command"):
                     lines.append(f"  - reproduce: `{f['reproduction_command']}`")
+            if omitted:
+                # Named, never silent. A digest that quietly drops findings
+                # reads as "this is all of them", which is the same lie as a
+                # gate that reports a partial run as a complete one.
+                lines += ["", f"_{omitted} further finding(s) not shown here; "
+                              f"all {len(self.failures)} are in "
+                              f"`reports/{self.name}.json`._"]
         lines.append("")
         try:
             with open(target, "a", encoding="utf-8") as fh:

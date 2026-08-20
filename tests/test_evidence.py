@@ -939,10 +939,10 @@ def test_a_finding_carries_every_declared_field(tmp_path: Path) -> None:
 def test_the_optional_fields_are_recorded_as_given(tmp_path: Path) -> None:
     f = one_failure(
         tmp_path, what="hardcoded credential", where="src/x.py:12",
-        severity="HIGH", code="B105", file="src/x.py", line=12, column=5,
+        severity="CRITICAL", code="B105", file="src/x.py", line=12, column=5,
         root_cause="a literal assigned to a password-shaped name",
         reproduction="python3 scripts/security_gate.py src scripts")
-    assert f["severity"] == "HIGH"
+    assert f["severity"] == "CRITICAL"
     assert f["code"] == "B105"
     assert (f["file"], f["line"], f["column"]) == ("src/x.py", 12, 5)
     assert f["reproduction_command"].startswith("python3 ")
@@ -1012,7 +1012,7 @@ def test_every_new_field_reaches_the_log(tmp_path: Path) -> None:
         f"sys.path.insert(0, {str(GATE.parent)!r})\n"
         "from gate import Gate\n"
         "with Gate('probe') as g:\n"
-        "    g.fail(what='w', where='src/x.py:12', severity='HIGH', code='B105',\n"
+        "    g.fail(what='w', where='src/x.py:12', severity='CRITICAL', code='B105',\n"
         "           file='src/x.py', line=12, column=5, root_cause='rc',\n"
         "           reproduction='pytest tests/x.py')\n"
         "    g.failed()\n", encoding="utf-8")
@@ -1020,7 +1020,7 @@ def test_every_new_field_reaches_the_log(tmp_path: Path) -> None:
     env.pop("GITHUB_STEP_SUMMARY", None)
     out = subprocess.run([sys.executable, str(script)], cwd=tmp_path,
                          capture_output=True, text=True, timeout=120, env=env)
-    for expected in ("finding_id=", "severity=HIGH", "code=B105",
+    for expected in ("finding_id=", "severity=CRITICAL", "code=B105",
                      "file=src/x.py", "line=12", "column=5", "root_cause=rc",
                      "reproduction_command=pytest tests/x.py",
                      "merge_blocking=True"):
@@ -1053,3 +1053,44 @@ def test_the_original_five_argument_form_still_works(tmp_path: Path) -> None:
                     requirement="r", fix="f")
     assert (f["what"], f["where"], f["why"], f["requirement"],
             f["how_to_fix"]) == ("w", "s", "y", "r", "f")
+
+
+def test_the_step_summary_is_bounded_and_says_what_it_left_out(
+        tmp_path: Path) -> None:
+    """An uncapped digest does not truncate. It vanishes.
+
+    $GITHUB_STEP_SUMMARY is limited to 1 MiB and the write swallows OSError, so
+    the run that most needs a summary -- a branch with thousands of findings --
+    is exactly the run that would silently produce none. One record per defect
+    is what made that reachable; before it, a gate recorded one failure.
+
+    The omission is stated rather than silent, for the same reason a gate that
+    checked two of four source files may not report as though it checked four.
+    """
+    summary = tmp_path / "summary.md"
+    script = tmp_path / "g.py"
+    script.write_text(
+        "import sys\n"
+        f"sys.path.insert(0, {str(GATE.parent)!r})\n"
+        "from gate import Gate\n"
+        "with Gate('probe') as g:\n"
+        "    for i in range(120):\n"
+        "        g.fail(what='defect %d' % i, where='src/x%d.py:1' % i)\n"
+        "    g.failed()\n", encoding="utf-8")
+    env = dict(os.environ)
+    env["GITHUB_STEP_SUMMARY"] = str(summary)
+    out = subprocess.run([sys.executable, str(script)], cwd=tmp_path,
+                         capture_output=True, text=True, timeout=120, env=env)
+
+    body = summary.read_text(encoding="utf-8")
+    assert body.count("**defect") == 50, "the digest is not bounded"
+    assert "**Failures (120)**" in body, "the true total is not stated"
+    assert "70 further finding(s) not shown" in body, \
+        "findings were dropped without saying so"
+    assert f"reports/probe.json" in body, "the complete record is not pointed at"
+    assert len(body) < 100_000, f"digest is {len(body)} bytes"
+
+    # The job log is deliberately NOT capped: it truncates gracefully and keeps
+    # what fits, while the summary is written whole or not at all.
+    assert out.stdout.count("[FAILURE]") == 120, \
+        "the log dropped findings; only the all-or-nothing renderer is bounded"

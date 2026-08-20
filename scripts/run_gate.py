@@ -76,6 +76,13 @@ def repo_relative(raw: str) -> str | None:
     comparison fail wherever a symlink sits above the checkout -- on macOS
     /var is a link to /private/var, so an unresolved REPO never matches a
     resolved path and every absolute position was silently discarded.
+
+    `removeprefix`, never `lstrip`. `lstrip` strips a character SET, so
+    `".github/workflows/verify.yml".lstrip("./")` is
+    `"github/workflows/verify.yml"` -- a path that does not exist, which this
+    function would then reject while `_position` kept the mangled string in
+    `where` and presented it as a location. Exactly the harm the paragraph
+    above says this exists to prevent, for every dot-directory in the tree.
     """
     path = Path(raw)
     if path.is_absolute():
@@ -84,7 +91,7 @@ def repo_relative(raw: str) -> str | None:
         except (ValueError, OSError):
             return None
     else:
-        candidate = raw.lstrip("./")
+        candidate = raw.removeprefix("./")
     return candidate if (REPO / candidate).is_file() else None
 
 
@@ -314,6 +321,7 @@ def per_test_failures(text: str) -> list[Finding]:
         test = match.group("test") or "(collection)"
         node = path + (f"::{test}" if test != "(collection)" else "")
         out.append({
+            "_at": match.start(),
             "what": f"{test} failed", **_position(path, ""),
             "why": (match.group("message") or "").strip()
                    or "see the captured output above",
@@ -365,6 +373,7 @@ def pyright_diagnostics(text: str) -> list[Finding]:
         rule = (_PYRIGHT_RULE.search(message)
                 or _PYRIGHT_RULE.search(_continuation(text, match.end())))
         out.append({
+            "_at": match.start(),
             "what": message[:160],
             **_position(match.group("path"), match.group("line"),
                         match.group("col")),
@@ -389,6 +398,7 @@ def shellcheck_diagnostics(text: str) -> list[Finding]:
         severity = match.group("severity")
         rel = repo_relative(match.group("path"))
         out.append({
+            "_at": match.start(),
             "what": match.group("message").strip()[:160],
             **_position(match.group("path"), match.group("line"),
                         match.group("col")),
@@ -418,6 +428,7 @@ def security_findings(text: str) -> list[Finding]:
     for match in _SECURITY_UNRESOLVED.finditer(text):
         rel = repo_relative(match.group("path"))
         out.append({
+            "_at": match.start(),
             "what": f"{match.group('code')} not covered by a verified safe "
                     f"pattern",
             **_position(match.group("path"), match.group("line")),
@@ -443,6 +454,7 @@ def credential_findings(text: str) -> list[Finding]:
     out: list[Finding] = []
     for match in _CREDENTIAL.finditer(text):
         out.append({
+            "_at": match.start(),
             "what": f"credential shape {match.group('label')} in tracked "
                     f"content",
             **_position(match.group("path"), match.group("line")),
@@ -472,6 +484,7 @@ def spec_rejections(text: str) -> list[Finding]:
     for match in _ENFORCE_SPEC.finditer(text):
         rel = repo_relative(match.group("path"))
         out.append({
+            "_at": match.start(),
             "what": f"{Path(match.group('path')).name}: {match.group('check')}",
             **_position(match.group("path"), ""),
             "why": f"enforce_spec.py check {match.group('check')!r} did not "
@@ -489,6 +502,7 @@ def spec_rejections(text: str) -> list[Finding]:
         rel = repo_relative(path)
         verdict = reason.split("—")[0].strip().rstrip(":").lower()
         out.append({
+            "_at": match.start(),
             "what": f"{Path(path).name}: {verdict}"[:160],
             **_position(path, ""),
             "why": reason[:300],
@@ -516,6 +530,7 @@ def surviving_mutants(text: str) -> list[Finding]:
             if not name:
                 continue
             out.append({
+                "_at": match.start(),
                 "what": f"mutant {name} survives the spec set",
                 "where": "specs/",
                 "why": "The specs hold for a mutated implementation, so they "
@@ -529,6 +544,7 @@ def surviving_mutants(text: str) -> list[Finding]:
             })
     for match in _ZERO_DENOMINATOR.finditer(text):
         out.append({
+            "_at": match.start(),
             "what": "zero denominator: the spec set killed nothing",
             "where": "specs/",
             "why": match.group("reason").strip()[:300],
@@ -551,6 +567,7 @@ def failed_dimensions(text: str) -> list[Finding]:
     the run as one failure collapsed exactly what the gate refuses to collapse.
     """
     return [{
+        "_at": match.start(),
         "what": f"{match.group('dimension').strip()} is "
                 f"{match.group('verdict')}",
         "where": "specs/",
@@ -628,7 +645,7 @@ _LOOP_TOTAL = re.compile(r"^verifying (?P<total>\d+) source file\(s\)$",
 _LOOP_STEP = re.compile(r"^──\s+(?P<source>\S+)\s+←", re.MULTILINE)
 
 
-def unreached(text: str) -> list[Finding]:
+def unreached(stdout: str, stderr: str) -> list[Finding]:
     """One finding per verification the chain never reached.
 
     `is_root_cause` is False and `dependent_on` is filled in by the caller,
@@ -636,10 +653,27 @@ def unreached(text: str) -> list[Finding]:
     because nothing was found wrong here -- nothing was looked at. UNKNOWN is
     already this file's word for "outcome could not be determined", and
     calling it an ERROR would assert a defect that was never observed.
+
+    EACH DETECTOR READS ONLY THE STREAM ITS MARKERS ARE WRITTEN TO, and that
+    is a correctness requirement rather than tidiness. Both patterns match
+    plain text at column 0, so run against the combined capture they fire on
+    any gate whose output happens to CONTAIN a marker -- and this repository
+    contains those exact strings at column 0 in
+    tests/test_within_gate_dependency.py. A pytest failure that echoed that
+    file would fabricate NOT_RUN findings for a gate that has no chain at all.
+    Measured before the split: a pyright capture with one echoed loop line
+    produced 4 fabricated findings.
+
+    The split is not a guess about where output goes. verify.yml writes every
+    `== <gate> N/M:` marker with `>&2`, deliberately, so that concatenating
+    stderr after stdout puts the last marker at the end of the capture. And
+    verify_per_function.sh writes both of its markers with a plain `echo`, to
+    stdout. Tests assert both of those, so a change to either stream fails
+    loudly instead of silently reverting this.
     """
     out: list[Finding] = []
 
-    steps = list(_CHAIN_STEP.finditer(text))
+    steps = list(_CHAIN_STEP.finditer(stderr))
     if steps:
         last = steps[-1]
         total, reached = int(last.group("total")), int(last.group("index"))
@@ -656,12 +690,21 @@ def unreached(text: str) -> list[Finding]:
                 "severity": "UNKNOWN",
                 "code": "NOT_RUN",
                 "is_root_cause": False,
+                # `why` is what happened. This is the mechanism, and they are
+                # not the same sentence: the chain is `bash -c` under `set -e`,
+                # so a non-zero exit ends the script and every later command is
+                # simply never executed. Nothing decided to skip this check.
+                "root_cause": "`set -e` ends the chain at the first non-zero "
+                              "exit, so this command was never executed.",
+                # Fixing the root makes this disappear on its own. Counting it
+                # as blocking would tell a reader there is separate work here.
+                "merge_blocking": False,
             })
 
-    loop = _LOOP_TOTAL.search(text)
+    loop = _LOOP_TOTAL.search(stdout)
     if loop is not None:
         total = int(loop.group("total"))
-        reached = _LOOP_STEP.findall(text)
+        reached = _LOOP_STEP.findall(stdout)
         for source in range(len(reached), total):
             out.append({
                 "what": f"source file {source + 1} of {total} was not verified",
@@ -677,6 +720,10 @@ def unreached(text: str) -> list[Finding]:
                 "severity": "UNKNOWN",
                 "code": "NOT_RUN",
                 "is_root_cause": False,
+                "root_cause": "verify_per_function.sh runs under `set -e`, so "
+                              "the first source file that fails ends the loop "
+                              "and the rest are never reached.",
+                "merge_blocking": False,
             })
     return out
 
@@ -688,6 +735,18 @@ def extract_findings(text: str) -> list[Finding]:
     derives `finding_id` from: two extractors that recognise the same line
     must not turn one defect into two, because a reader comparing runs counts
     findings.
+
+    ORDERED BY POSITION IN THE OUTPUT, not by position in EXTRACTORS. `main`
+    takes findings[0] as the root cause every skipped verification is recorded
+    against, and describes it as "the first defect the chain hit" -- which was
+    false while this returned extractor order. With two extractors matching one
+    capture, the root was whichever of them happened to sit earlier in the
+    list, and every consequence inherited that mis-attribution. Each extractor
+    records `_at`, the offset of its match, and it is stripped here so it never
+    reaches Gate.fail.
+
+    Sorting is stable, so findings that share an offset keep extractor order,
+    and findings from one extractor stay in the order the tool printed them.
     """
     out: list[Finding] = []
     seen: set[tuple[str, str]] = set()
@@ -698,6 +757,9 @@ def extract_findings(text: str) -> list[Finding]:
                 continue
             seen.add(key)
             out.append(finding)
+    out.sort(key=lambda f: cast("int", f.get("_at", 0)))
+    for finding in out:
+        finding.pop("_at", None)
     return out
 
 
@@ -731,7 +793,17 @@ def main() -> None:
             g.infrastructure_failure(f"timed out after {ns.timeout}s")
             return
 
-        combined = out.stdout + out.stderr
+        # THE JOIN IS NOT COSMETIC. These are two separately captured streams,
+        # and a tool whose last stdout line has no trailing newline glues that
+        # line onto the first line of stderr. Every pattern here is anchored
+        # with `^` under re.MULTILINE, so a glued first stderr line stops
+        # matching -- and the chain markers are written to stderr, first one
+        # first. When a chain stops at step 1 there IS only one marker, it is
+        # the glued one, and `unreached` would report that nothing was skipped
+        # for the case where three quarters of the gate never ran. Measured:
+        # glued -> 0 steps, 0 unreached; separated -> 1 step, 3 unreached.
+        gap = "" if (not out.stdout or out.stdout.endswith("\n")) else "\n"
+        combined = out.stdout + gap + out.stderr
         print(combined, end="" if combined.endswith("\n") else "\n")
 
         counts: dict[str, object] = {}
@@ -798,7 +870,7 @@ def main() -> None:
             root = findings[0]
             root_id = g.finding_id_for(str(root.get("what", "")),
                                        str(root.get("where", "")))
-            for consequence in unreached(combined):
+            for consequence in unreached(out.stdout, out.stderr):
                 g.fail(**consequence, dependent_on=root_id)
         g.artifact(f"reports/{ns.name}.json")
 

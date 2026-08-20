@@ -777,15 +777,25 @@ def cmd_determinism(run_id: str) -> int:
     """Run the declared local contract twice and compare. Any unexplained difference fails."""
     out_dir = EVIDENCE_ROOT / "determinism" / run_id
     out_dir.mkdir(parents=True, exist_ok=True)
-    venv_bin = REPO_ROOT / ".venv" / "bin"
-    if not (venv_bin / "python3").is_file():
-        print("BLOCK: .venv missing — run `make bootstrap` first")
-        return 2
+    # PREFER THE VENV, DO NOT REQUIRE IT. This check ran only from a laptop when it
+    # was written, so it demanded .venv/bin/python3 and returned BLOCK without one. A
+    # GitHub runner installs from requirements.lock into the system interpreter and has
+    # no .venv at all, so on run 32414089692 the deep lane reported FAIL in 0.1s for an
+    # environment difference rather than for anything about the tree.
+    #
+    # The guarantee is unchanged: what this check needs is a resolvable pytest, and it
+    # still BLOCKs when there is none. Only the assumption that the pytest must live in
+    # a virtualenv is gone -- that was never the property being verified.
     env = dict(os.environ)
-    env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
+    venv_bin = REPO_ROOT / ".venv" / "bin"
+    if (venv_bin / "python3").is_file():
+        env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
     exe = shutil.which("pytest", path=env["PATH"])
     if exe is None:
-        print("BLOCK: pytest not resolvable in the virtualenv — run `make bootstrap`")
+        print(
+            "BLOCK: pytest is not resolvable, in a virtualenv or on PATH. "
+            "Run `make bootstrap`, or install from requirements.lock."
+        )
         return 2
     # SERIAL ON PURPOSE, and this is not a weakening.
     #

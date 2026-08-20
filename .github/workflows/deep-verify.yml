@@ -292,8 +292,28 @@ jobs:
           echo "STATUS: PASS — the original signature rejected the altered copy"
           rm -f altered.tar
 
-      - name: Upload the authoritative artifact set
+      # TWO UPLOADS, BECAUSE THEY SURVIVE DIFFERENT FAILURES. On run 32414089692 the
+      # lane failed, so no bundle was built, so the single `if: always()` upload of
+      # bundle-out/ found nothing and errored -- and the lane's own evidence, which
+      # existed and explained the failure, was never uploaded. The log said
+      # "INVESTIGATE — read the captured output" while pointing at a directory nobody
+      # outside the runner could reach.
+      #
+      # Lane evidence is uploaded unconditionally: it is the thing a reader needs most
+      # when the lane failed. The bundle set is uploaded only when it was actually
+      # produced, so `if-no-files-found: error` keeps meaning "the build was supposed
+      # to leave files here and did not".
+      - name: Upload the deep-lane evidence
         if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: deep-verify-evidence-${{ needs.gate.outputs.source_sha }}
+          path: .evidence/deep-verify/
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload the authoritative artifact set
+        if: success()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: sandbox-verification-bundle-${{ needs.gate.outputs.source_sha }}

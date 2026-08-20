@@ -422,7 +422,13 @@ argv = ["bash", "-c", "grep -rInE '(alembic|flyway|liquibase|knex|prisma|sequeli
 
 [[deep_checks."migration".probes]]
 name = "no database connection config or schema-evolution artifact"
-argv = ["bash", "-c", "git grep -InE '(postgres://|mysql://|mongodb://|sqlite:///|DATABASE_URL|CREATE TABLE|ALTER TABLE)' -- . ':!technology-universe' ':!.claude' ':!ci/local-execution.toml' || true"]
+# The two files EXCLUDED here are the two that talk ABOUT this probe: this
+# manifest, which defines the patterns, and the document that describes them.
+# Neither is evidence of a migration system, and a probe that matches its own
+# definition is measuring itself. Found on run 32414089692, where the probe
+# matched docs/engineering/deep-verification.md:70 -- the line listing
+# "`CREATE TABLE`" as one of the things it searches for.
+argv = ["bash", "-c", "git grep -InE '(postgres://|mysql://|mongodb://|sqlite:///|DATABASE_URL|CREATE TABLE|ALTER TABLE)' -- . ':!technology-universe' ':!.claude' ':!ci/local-execution.toml' ':!docs/engineering/deep-verification.md' || true"]
 
 [[deep_checks."migration".probes]]
 name = "no database service in any workflow"

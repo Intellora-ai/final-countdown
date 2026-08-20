@@ -19,7 +19,10 @@ report runner variance and call it a result.
 | A3 | serial | 148s | 165s | 165s | 32366… |
 | B1 | `-n auto` | **75s** | 85s | **85s** | 32367… |
 
+| B2 | `-n auto` | **63s** | 77s | **77s** | 32368… |
+
 Serial median: coverage 148s, critical path 160s.
+`-n auto` median: coverage 69s, critical path 81s.
 
 ## Decision rule
 

@@ -370,7 +370,7 @@ jobs:
       # The XML is emitted and uploaded anyway: it costs one flag, it is the
       # format every other tool understands, and keeping it means the gate's
       # decision path and the interchange format are not the same dependency.
-        run: python3 scripts/run_gate.py --name coverage -- pytest -n auto --cov=src --cov-branch --cov-fail-under=95 -m "not axle" --junitxml=test-results/pytest.xml
+        run: python3 scripts/run_gate.py --name coverage -- pytest -n auto --dist loadfile --cov=src --cov-branch --cov-fail-under=95 -m "not axle" --junitxml=test-results/pytest.xml
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

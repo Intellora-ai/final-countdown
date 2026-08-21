@@ -16,7 +16,7 @@
  * lesson being constructed and a lesson being played at someone.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Concept } from '../../types'
 import { store } from '../../data/store'
 import { OperationLog } from '../../lib/operations'
@@ -25,6 +25,18 @@ import { scriptFor, type LessonScript, type AskOption } from '../../lib/lesson-s
 import { buildConceptScene } from '../../lib/scene'
 import { Handwritten, DrawnPath, usePrefersReducedMotion } from './Handwriting'
 import { Button } from '../../ui/Button'
+import { buildLessonRegistry, phaseAt } from '../../lib/lesson-representations'
+import { createProgressWriter } from '../../lib/progress-writer'
+/* Lazy, and for a measured reason. Bundled eagerly, PixiJS and KaTeX pushed the
+ * main chunk to 738 kB — every learner opening any page downloading a WebGL
+ * renderer for one representation inside one lesson. Split out, they arrive
+ * when the learner actually asks to see them. */
+const MeltingCondition = lazy(() =>
+  import('./MeltingCondition').then((m) => ({ default: m.MeltingCondition })),
+)
+const ParticleMotion = lazy(() =>
+  import('./ParticleMotion').then((m) => ({ default: m.ParticleMotion })),
+)
 
 /* World bounds. Tall enough that every band below has its own space: the
  * question, the label, the figure and its caption, the prediction, the recorded
@@ -68,9 +80,14 @@ export function Board({
     const log = new OperationLog()
     const variables = new VariableStore({ emit: (op) => log.append(op) })
     const scene = buildConceptScene({ chapterId, concept, log, variables })
-    return { log, variables, scene }
+    const registry = buildLessonRegistry()
+    const progress = createProgressWriter(chapterId, concept.id)
+    return { log, variables, scene, registry, progress }
   })
-  const { log, variables, scene } = engine
+  const { log, variables, scene, registry, progress } = engine
+
+  /* Elapsed time is written once, when the board closes. Measured, not guessed. */
+  useEffect(() => () => progress.close(), [progress])
   const script: LessonScript | null = useMemo(
     () => scriptFor(chapterId, concept.id),
     [chapterId, concept.id],
@@ -232,6 +249,8 @@ export function Board({
       chapterId, conceptId: concept.id, type: 'predict', source: 'learner',
       payload: { stepId: current?.id, optionId: option.id, label: option.label },
     })
+    // One prediction, one observed attempt. Correctness is an event, not a score.
+    progress.recordPrediction(option.id, Boolean(option.correct))
     // The learner's answer IS the action that unlocks the next step.
     setShown((n) => n + 1)
     setWriting(true)
@@ -243,6 +262,40 @@ export function Board({
     ? variables.get(script.interactiveVariableId)
     : undefined
   const temperatureUnlocked = finished && Boolean(temperature)
+
+  /* ── representation switching ───────────────────────────────────────────
+   * Offered only once the mechanism has been built, because "show me another
+   * way" is meaningless before there is a first way. The alternatives are
+   * ranked by the registry, so the top offer is whichever representation
+   * covers what the current one declared it cannot explain. */
+  const [representationId, setRepresentationId] = useState('particle-lattice')
+  const dataKeys = useMemo(
+    () => variables.forConcept(chapterId, concept.id).map((v) => v.variableId),
+    [variables, chapterId, concept.id, temperature?.value],
+  )
+  const alternatives = useMemo(
+    () => (finished ? registry.alternativesFor(representationId, dataKeys) : []),
+    [finished, registry, representationId, dataKeys],
+  )
+  const activeRepresentation = registry.get(representationId)
+
+  const switchTo = (nextId: string) => {
+    const outcome = registry.request(nextId, dataKeys, representationId)
+    if (!outcome.ok) {
+      // Never a broken object and never a generic fallback: the board says what
+      // it cannot build and offers the nearest thing it can.
+      setSwitchRefusal(outcome.reason ?? 'that representation is not available here')
+      return
+    }
+    setSwitchRefusal(null)
+    setRepresentationId(nextId)
+    log.append({
+      chapterId, conceptId: concept.id, type: 'change_representation', source: 'learner',
+      payload: { from: representationId, to: nextId },
+    })
+    progress.recordRepresentation(nextId)
+  }
+  const [switchRefusal, setSwitchRefusal] = useState<string | null>(null)
 
   if (!script) return <UnscriptedBoard scene={scene} concept={concept} chapterName={chapterName} subjectName={subjectName} />
 
@@ -320,6 +373,49 @@ export function Board({
           </label>
         )}
       </div>
+
+      {finished && activeRepresentation && (
+        <section className="cv-rep" aria-label={`Representation: ${activeRepresentation.name}`}>
+          <header className="cv-rep-head">
+            <h2 className="cv-rep-name">{activeRepresentation.name}</h2>
+            {/* The purpose is shown, not hidden in a data structure. A learner
+                who can read why an object is on the board can tell when it is
+                the wrong object for their question. */}
+            <p className="cv-rep-purpose">{activeRepresentation.purpose}</p>
+          </header>
+
+          <div className="cv-rep-body">
+            <Suspense fallback={<p className="cv-rep-hint">building the representation…</p>}>
+              {representationId === 'melting-condition' && temperature && (
+                <MeltingCondition temperatureK={Number(temperature.value)} />
+              )}
+              {representationId === 'particle-motion' && temperature && (
+                <ParticleMotion temperatureK={Number(temperature.value)} reduced={reduced} />
+              )}
+            </Suspense>
+            {(representationId === 'particle-lattice' || representationId === 'causal-chain') && (
+              <p className="cv-rep-hint">Shown on the board above.</p>
+            )}
+          </div>
+
+          <footer className="cv-rep-foot">
+            <span className="cv-rep-cannot">
+              cannot explain: {activeRepresentation.cannotExplain.join('; ')}
+            </span>
+            <div className="cv-rep-alts">
+              {alternatives.slice(0, 2).map((alt) => (
+                <button key={alt.representationId} className="cv-option" onClick={() => switchTo(alt.representationId)}>
+                  Show me {alt.name.toLowerCase()}
+                </button>
+              ))}
+            </div>
+          </footer>
+
+          {switchRefusal && (
+            <p className="cv-rep-refusal" role="status">{switchRefusal}</p>
+          )}
+        </section>
+      )}
 
       <p className="cv-progress" aria-live="polite">
         Step {Math.min(shown, steps.length)} of {steps.length} · {log.semanticStepCount()} semantic

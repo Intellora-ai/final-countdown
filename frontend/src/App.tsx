@@ -7,6 +7,7 @@ import { SetupFlow } from './components/SetupFlow'
 import { TodayView } from './components/TodayView'
 import { ChapterView } from './components/ChapterView'
 import { Placeholder } from './components/Placeholder'
+import { BoardView } from './board'
 
 export default function App() {
   const store = useStore()
@@ -54,7 +55,7 @@ export default function App() {
               <Route path="/practice" element={<Placeholder kind="practice" />} />
               <Route path="/quick-question" element={<Placeholder kind="quick-question" />} />
               <Route path="/misconception" element={<Placeholder kind="misconception" />} />
-              <Route path="/canvas" element={<Placeholder kind="canvas" />} />
+              <Route path="/canvas" element={<BoardView />} />
               <Route path="*" element={<Navigate to="/today" replace />} />
             </Routes>
           </main>

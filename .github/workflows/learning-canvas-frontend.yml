@@ -1,0 +1,95 @@
+# LEARNING CANVAS FRONTEND — the browser-side verification contract.
+#
+# NOT A REQUIRED CONTEXT. `ci/gates.toml` keeps `required_checks` at seventeen, and this workflow
+# adds none of them. It is a second verification domain inside one repository, not a second
+# project: Python and Lean prove what they can prove, and TypeScript in a browser proves what they
+# cannot. Forcing frontend code through `axle_gate.py` would mean claiming a Lean proof for a React
+# component, and pointing `pyright` at a `.tsx` file proves nothing about either.
+#
+# WHY PATH FILTERS. The frontend lives at `frontend/`. A Python-only commit has nothing here to
+# verify, so running Node for it would burn minutes to re-prove an untouched tree. `verify.yml`
+# deliberately has NO path filter and therefore still runs for a frontend-only pull request --
+# that is the existing design, not an oversight, and it is not modified here.
+#
+# WHY EVERY ACTION IS A 40-CHARACTER SHA. A tag is a pointer somebody else can move. Every SHA
+# below is already in use elsewhere in this repository, so this workflow introduces no new
+# third-party code -- only new calls to code the repository has already accepted.
+#
+# NO `${{ }}` INSIDE `run:`. `codeql.yml` analyses `languages: actions`, and an expression
+# interpolated into a shell body is the script-injection finding it exists to catch. Nothing here
+# needs one: every value is a static path.
+
+name: Learning Canvas Frontend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - ".github/workflows/learning-canvas-frontend.yml"
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - ".github/workflows/learning-canvas-frontend.yml"
+
+# Read-only. This workflow verifies; it does not publish, sign, deploy, or comment.
+permissions:
+  contents: read
+
+concurrency:
+  group: learning-canvas-frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+
+      # node-version-file rather than a literal: the version lives in frontend/.nvmrc, so a
+      # developer's local shell and this runner read the same single declaration.
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # `npm ci`, never `npm install`: it installs the lockfile exactly and fails if
+      # package.json and package-lock.json disagree, which is the property that makes this run
+      # reproducible rather than merely repeatable.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test -- --run
+
+      - name: Build
+        run: npm run build
+
+      # `if: always()` so a failed build still uploads whatever it produced -- the partial output
+      # is often what identifies the failure. `if-no-files-found: ignore` because a failure before
+      # the build step legitimately leaves no dist/ at all, and a missing artifact is not itself
+      # a second failure to report.
+      - name: Upload build output
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: learning-canvas-frontend-build
+          path: frontend/dist
+          if-no-files-found: ignore

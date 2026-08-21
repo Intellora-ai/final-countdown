@@ -1,0 +1,435 @@
+/* THE BOARD'S VISUAL SYSTEM — scoped, derived, and unable to leak.
+ *
+ * EVERY RULE IN THIS FILE IS NESTED UNDER [data-board="root"]. Nothing here can
+ * reach the sidebar, the topbar, Today, the chapter map or the setup flow, and
+ * nothing there is redefined. The dashboard's tokens are read, never written.
+ *
+ * SIX ALIASES, FIVE NEW COLOURS. --board-text points at an existing token
+ * rather than restating #FFFFFF, so board CSS reads uniformly without
+ * introducing a sixth value that would then need keeping in sync.
+ *
+ * WHAT IS BORROWED RATHER THAN INVENTED: the 4px spacing grid, the 16px panel
+ * radius, the pill radius, the easing curve and durations, DM Sans and
+ * JetBrains Mono, and the reduced-motion rule. Structure is shared; only the
+ * palette is the board's own. That is what keeps this a room in the same
+ * building rather than a second design system.
+ */
+
+[data-board='root'] {
+  /* ── The five new colour values ──────────────────────────────── */
+  --board-canvas: #16191c;
+  --board-panel: rgba(255, 255, 255, 0.05);
+  --board-text-secondary: #8e9ca3;
+  --board-accent: #38e4d7;
+  --board-border: rgba(255, 255, 255, 0.12);
+
+  /* ── Reuse, not a new value ──────────────────────────────────── */
+  --board-text: var(--agabi-neutral-0);
+
+  /* ── Derived ─────────────────────────────────────────────────── */
+  --board-accent-glow: rgba(56, 228, 215, 0.4);
+  --board-panel-hover: rgba(255, 255, 255, 0.08);
+  --board-panel-strong: rgba(255, 255, 255, 0.07);
+
+  container-type: inline-size;
+  container-name: broot;
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100vh - 54px);
+  background: var(--board-canvas);
+  color: var(--board-text);
+  font-family: var(--font-sans);
+  border-left: 1px solid var(--board-border);
+  animation: osIn 0.3s var(--ease-out);
+}
+
+/* Decoration only: turns the join with the app chrome into a deliberate edge
+   rather than a seam. Never interactive, never announced. */
+[data-board='edge'] {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0) 180px),
+    linear-gradient(to right, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0) 160px);
+}
+
+/* ── Controls ───────────────────────────────────────────────────── */
+
+[data-board='controls-top'] {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+}
+
+[data-board='controls-right'] {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+}
+
+[data-board='pill'],
+[data-board='icon'],
+[data-board='segment'] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: 1px solid var(--board-border);
+  background: var(--board-panel);
+  color: var(--board-text-secondary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1;
+  cursor: default;
+}
+
+[data-board='pill'] {
+  border-radius: var(--radius-full);
+  padding: 9px 16px;
+  min-height: 36px;
+}
+
+[data-board='icon'] {
+  border-radius: var(--radius-full);
+  width: 36px;
+  height: 36px;
+  font-size: 16px;
+  flex: none;
+}
+
+[data-board='segmented'] {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--board-border);
+  background: var(--board-panel);
+}
+
+[data-board='segment'] {
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: var(--radius-full);
+  padding: 6px 14px;
+  min-height: 30px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+/* GLOW, PLACE 1 OF 2 — the active dimension. */
+[data-board='segment'][data-active='true'] {
+  color: var(--board-text);
+  background: rgba(56, 228, 215, 0.12);
+  border-color: var(--board-accent);
+  box-shadow: 0 0 0 3px var(--board-accent-glow);
+}
+
+/* Placeholders, so they read as not-yet-live rather than broken. */
+[data-board='root'] button:disabled,
+[data-board='root'] input:disabled {
+  opacity: 0.55;
+}
+
+[data-board='ask'] {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 520px;
+  margin: 0 auto;
+  height: 40px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--board-border);
+  background: var(--board-panel);
+  color: var(--board-text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+
+[data-board='ask']::placeholder {
+  color: var(--board-text-secondary);
+}
+
+/* Hidden by default; the wide-board container query below is the only thing
+   that shows it. The flex properties live here so that query toggles exactly
+   one declaration. */
+[data-board='controls-side'] {
+  display: none;
+  position: absolute;
+  left: var(--space-4);
+  top: 96px;
+  bottom: var(--space-6);
+  z-index: 2;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+[data-board='controls-side'] > * {
+  pointer-events: auto;
+}
+
+/* The rail belongs beside the content, never over it. Below this width the
+   board is narrow enough that a floating cluster would sit on the text, so it
+   is not shown at all. Measured against the board, not the window: an open
+   drawer narrows the board while the viewport stays exactly as wide. */
+@container broot (min-width: 900px) {
+  [data-board='controls-side'] { display: flex; }
+}
+
+[data-board='rail'] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* ── Canvas and header ──────────────────────────────────────────── */
+
+[data-board='canvas'] {
+  position: relative;
+  z-index: 1;
+  max-width: 1220px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-5) var(--space-20);
+}
+
+/* 88px of left padding is the rail's column, reserved. The rail ends at 52px
+   (16px offset + a 36px control), so content starting at 88px clears it with
+   room to spare at every board width where the rail is shown. */
+@container broot (min-width: 900px) {
+  [data-board='canvas'] {
+    padding: var(--space-4) var(--space-12) var(--space-24) 88px;
+  }
+}
+
+[data-board='header'] {
+  margin-bottom: var(--space-12);
+}
+
+[data-board='eyebrow'] {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--board-text-secondary);
+  margin: 0 0 var(--space-4);
+}
+
+[data-board='title'] {
+  position: relative;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: clamp(28px, 3.2vw, 42px);
+  line-height: 1.16;
+  letter-spacing: var(--tracking-tight);
+  color: var(--board-text);
+  margin: 0;
+  padding-bottom: var(--space-5);
+  max-width: 22ch;
+}
+
+/* GLOW, PLACE 2 OF 2 — the title accent. */
+[data-board='title']::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 84px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--board-accent);
+  box-shadow: 0 0 14px var(--board-accent-glow);
+}
+
+[data-board='subtitle'] {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  color: var(--board-text-secondary);
+  margin: var(--space-4) 0 0;
+}
+
+/* ── Grid ───────────────────────────────────────────────────────── */
+
+[data-board='grid'] {
+  container-type: inline-size;
+  container-name: bgrid;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--space-6) var(--space-5);
+  align-items: start;
+}
+
+/* Narrowest first: everything is full width until there is room to be
+   otherwise. A block never has to opt out of being readable. */
+[data-board='cell'] {
+  grid-column: span 12;
+  min-width: 0;
+}
+
+@container bgrid (min-width: 600px) {
+  [data-board='cell'][data-w='small'] { grid-column: span 6; }
+}
+
+@container bgrid (min-width: 900px) {
+  [data-board='cell'][data-w='small'] { grid-column: span 4; }
+  [data-board='cell'][data-w='medium'] { grid-column: span 4; }
+  [data-board='cell'][data-w='wide'] { grid-column: span 8; }
+}
+
+@container bgrid (min-width: 1200px) {
+  [data-board='cell'][data-w='small'] { grid-column: span 3; }
+}
+
+/* ── Block frame ────────────────────────────────────────────────── */
+
+[data-board='cell'][data-treatment='glass'] {
+  background: var(--board-panel);
+  border: 1px solid var(--board-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+}
+
+/* Bare: canvas, a heading, and the text. No box, on purpose. */
+[data-board='cell'][data-treatment='bare'] {
+  padding: 0;
+}
+
+[data-board='block-eyebrow'] {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--board-text-secondary);
+  margin: 0 0 var(--space-3);
+}
+
+[data-board='block-title'] {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 17px;
+  line-height: 1.35;
+  letter-spacing: 0.005em;
+  color: var(--board-text);
+  margin: 0 0 var(--space-4);
+}
+
+/* ── Block bodies ───────────────────────────────────────────────── */
+
+[data-board='prose'] p {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--board-text-secondary);
+  margin: 0 0 var(--space-4);
+  max-width: 62ch;
+  overflow-wrap: anywhere;
+}
+
+[data-board='prose'] p:last-child {
+  margin-bottom: 0;
+}
+
+/* The scroll belongs to the table. The page never moves sideways. */
+[data-board='table-scroll'] {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  margin: 0 calc(var(--space-2) * -1);
+  padding: 0 var(--space-2);
+}
+
+[data-board='table'] {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+[data-board='table'] th,
+[data-board='table'] td {
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--board-border);
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+[data-board='table'] th {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--board-text-secondary);
+  font-weight: 400;
+}
+
+[data-board='table'] td {
+  color: var(--board-text);
+  line-height: 1.5;
+}
+
+[data-board='table'] tbody tr:last-child td {
+  border-bottom: none;
+}
+
+[data-board='callout'] {
+  margin: 0;
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--board-border);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--board-text);
+  overflow-wrap: anywhere;
+}
+
+/* Tone is a word; this is where it becomes a colour. Restrained: an edge, not
+   a fill, and no glow — the glow budget is spent on the title and the toggle. */
+[data-board='callout'][data-tone='key'] {
+  border-left-color: var(--board-accent);
+}
+
+[data-board='callout'][data-tone='warning'] {
+  border-left-color: var(--agabi-amber-500);
+}
+
+[data-board='unknown-type'] {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--board-accent);
+  margin: 0 0 var(--space-2);
+}
+
+[data-board='unknown-note'] {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--board-text-secondary);
+  margin: 0;
+}
+
+/* ── Narrow shells ──────────────────────────────────────────────── */
+
+@container broot (max-width: 899px) {
+  [data-board='controls-top'] {
+    flex-wrap: wrap;
+    padding: var(--space-4) var(--space-5);
+  }
+
+  [data-board='ask'] {
+    order: 3;
+    flex-basis: 100%;
+    max-width: none;
+    margin: 0;
+  }
+
+  [data-board='controls-right'] { margin-left: auto; }
+
+  /* The 44px floor the rest of the product already keeps. */
+  [data-board='pill'],
+  [data-board='icon'] { min-height: 44px; }
+  [data-board='icon'] { width: 44px; height: 44px; }
+}

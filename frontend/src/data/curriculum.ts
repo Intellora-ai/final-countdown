@@ -3,36 +3,6 @@
  * tables, keep the shape. Concept deps are same-chapter concept ids. */
 import type { Subject, Concept } from '../types'
 
-const EDGE_TYPES = [
-  'prerequisite', 'causal', 'definitional', 'part_of', 'example_of',
-  'contrasts_with', 'temporal', 'quantitative', 'supports', 'contradicts',
-  'misconception_of',
-] as const
-
-const slug = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')
-
-/* One edge in the concept spec string. The historical form is a bare concept
- * name — `"Roots<Factorisation"` — and it means `prerequisite`, because that is
- * the only relationship the imported curriculum ever encoded. An explicit kind
- * may be written as `kind:Target`, e.g. `"Pressure<causal:Collisions"`.
- *
- * An unrecognised prefix is NOT silently treated as a type. `"a:b:c"` or a
- * misspelled `casual:` would otherwise create an edge nobody declared, so the
- * whole token falls back to being read as a name and the row still resolves to
- * a prerequisite the layout engine can draw. Typos degrade to the old meaning
- * rather than to an invented one. */
-function parseEdge(token: string): { type: (typeof EDGE_TYPES)[number]; to: string } {
-  const colon = token.indexOf(':')
-  if (colon > 0) {
-    const kind = token.slice(0, colon).trim()
-    const rest = token.slice(colon + 1)
-    if ((EDGE_TYPES as readonly string[]).includes(kind) && rest.trim()) {
-      return { type: kind as (typeof EDGE_TYPES)[number], to: slug(rest) }
-    }
-  }
-  return { type: 'prerequisite', to: slug(token) }
-}
-
 function ch(name, minutes, concepts) {
     return {
       id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
@@ -40,16 +10,11 @@ function ch(name, minutes, concepts) {
       concepts: concepts.map(function (spec) {
         let parts = spec.split("<");
         let nm = parts[0].trim();
-        const edges = parts[1] ? parts[1].split(",").map(parseEdge) : []
         return {
           id: nm.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
           name: nm,
           minutes: minutes,
-          /* Derived from edges, never maintained separately: two lists of the
-           * same relationships would eventually disagree, and the one the
-           * layout engine reads is the one that would be wrong. */
-          deps: edges.map((e) => e.to),
-          edges: edges
+          deps: parts[1] ? parts[1].split(",").map(function (d) { return d.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-"); }) : []
         };
       })
     };

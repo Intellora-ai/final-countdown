@@ -1,47 +1,7 @@
 export type ConceptState = 'notStarted' | 'inProgress' | 'completed' | 'mastered'
 export type MasterySource = 'system' | 'declared' | 'session' | null
 
-/* ── Semantic edges ─────────────────────────────────────────────────────────
- * The imported curriculum encoded one relationship — "B depends on A" — as an
- * untyped string. That is enough to lay out a chapter and enough to decide what
- * a learner may start next, and it is not enough to teach with: an arrow that
- * means "you must learn this first" and an arrow that means "this CAUSES that"
- * are different claims, and a board that draws them identically is lying about
- * one of them.
- *
- * So the type is added and the existing meaning is preserved exactly. `deps`
- * still lists every target, in the same order, so `layout()`, `prereqsMet()`
- * and the planner behave byte-for-byte as before; `edges` carries the type
- * alongside. Every row imported from the curriculum migrates to `prerequisite`,
- * because that is what it always meant.
- */
-export type SemanticEdgeType =
-  | 'prerequisite'      // must be learned before
-  | 'causal'            // A brings about B
-  | 'definitional'      // A is part of what B means
-  | 'part_of'           // A is a component of B
-  | 'example_of'        // A is an instance of B
-  | 'contrasts_with'    // A is understood by how it differs from B
-  | 'temporal'          // A happens before B
-  | 'quantitative'      // A and B are related by a measurable law
-  | 'supports'          // A is evidence for B
-  | 'contradicts'       // A is evidence against B
-  | 'misconception_of'  // A is a common wrong reading of B
-
-export interface SemanticEdge { type: SemanticEdgeType; to: string }
-
-export interface Concept {
-  id: string
-  name: string
-  minutes: number
-  /** Every edge target, untyped and in source order. The layout engine, the
-   *  prerequisite check and the planner all read this and must keep seeing
-   *  exactly what they saw before typing was introduced. */
-  deps: string[]
-  /** The same relationships, with their kind. `edges.map(e => e.to)` equals
-   *  `deps`; `frontend/src/data/curriculum.semantics.test.ts` proves it. */
-  edges: SemanticEdge[]
-}
+export interface Concept { id: string; name: string; minutes: number; deps: string[] }
 export interface Chapter { id: string; name: string; concepts: Concept[] }
 export interface Subject { id: string; name: string; chapters: Chapter[] }
 
@@ -67,27 +27,10 @@ export interface PlanItem {
 }
 export interface TodayPlan { items: PlanItem[]; allocated: number; capacity: number; reserve: number; usable: number }
 
-/* Where the learner was looking, per concept per representation.
- *
- * Camera is LEARNER STATE, not view state. Someone who panned to a corner of
- * the board and zoomed into a detail did that deliberately; resetting it
- * because the tutor drew something, or because they closed the concept and came
- * back, throws away work they did. So it is persisted through the same adapter
- * as progress and restored on reopen. */
-export interface CameraState {
-  pan: { x: number; y: number }
-  zoom: number
-  focusObjectId: string | null
-  representationId: string | null
-  updatedAt: number
-}
-
 export interface DB {
   students: Record<string, Student>
   progress: Record<string, Record<string, Record<string, ProgressRecord>>>
   activity: Record<string, ActivityEvent[]>
-  /** canvas/{studentId}/{chapterId}/{conceptId}/{representationId} */
-  canvas?: Record<string, Record<string, Record<string, Record<string, CameraState>>>>
   currentId: string | null
 }
 export interface ActivityEvent { at?: number; type: string; chapterId?: string; conceptId?: string; from?: string; to?: string }

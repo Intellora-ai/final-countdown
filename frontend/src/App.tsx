@@ -7,7 +7,6 @@ import { SetupFlow } from './components/SetupFlow'
 import { TodayView } from './components/TodayView'
 import { ChapterView } from './components/ChapterView'
 import { Placeholder } from './components/Placeholder'
-import { CanvasView } from './components/CanvasView'
 
 export default function App() {
   const store = useStore()
@@ -55,11 +54,7 @@ export default function App() {
               <Route path="/practice" element={<Placeholder kind="practice" />} />
               <Route path="/quick-question" element={<Placeholder kind="quick-question" />} />
               <Route path="/misconception" element={<Placeholder kind="misconception" />} />
-              {/* Identity in the path. The bare form still resolves — a returning
-                  learner opens what they last touched — and rewrites itself to the
-                  identified URL so a refresh lands on the same concept. */}
-              <Route path="/canvas" element={<CanvasView />} />
-              <Route path="/canvas/:chapterId/:conceptId" element={<CanvasView />} />
+              <Route path="/canvas" element={<Placeholder kind="canvas" />} />
               <Route path="*" element={<Navigate to="/today" replace />} />
             </Routes>
           </main>

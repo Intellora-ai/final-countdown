@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import CURRICULUM from '../data/curriculum'
 import { store } from '../data/store'
-import { canvasPath } from '../lib/canvas-identity'
 import { Button } from '../ui/Button'
 import { nodeStyle, stateLabel } from '../lib/format'
 import type { Chapter, Concept } from '../types'
@@ -101,7 +100,7 @@ export function ChapterView() {
   const begin = (cId: string) => {
     const v = cstate(cId)
     if (v !== 'inProgress' && v !== 'mastered') store.setConceptState(ch.id, cId, 'inProgress', 'session')
-    nav(canvasPath(ch.id, cId))
+    nav('/canvas')
   }
 
   /* viewBox frames the graph's own bounds — zoom 1 fits every chapter. */

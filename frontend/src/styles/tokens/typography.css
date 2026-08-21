@@ -5,12 +5,6 @@
   --font-display: 'Fraunces', Georgia, serif;
   --font-sans: 'DM Sans', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
-  /* Learning canvas only — the tutor's own hand. Never used for UI chrome,
-     labels, axes or body copy: the point of a handwritten annotation is that it
-     reads as someone writing ON the board, and a board where everything is
-     handwritten loses that distinction entirely. Falls back to italic Fraunces,
-     which the design system already licenses. */
-  --font-hand: 'Caveat', 'Fraunces', cursive;
 
   /* ── Typography Scale ──────────────────────────────────────── */
   --text-display-xl: 4rem;      /* 64px · Fraunces light 300 · lh 1.1 */

@@ -181,3 +181,34 @@
                    text-shadow: 0 0 10px rgba(26,173,166,.45) }
 .cv-progress { text-align: center; font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em;
                text-transform: uppercase; color: var(--muted-foreground); margin: 0 }
+
+/* ── representations ────────────────────────────────────────────────────────
+   The panel shows its own purpose and — the part that matters — what it cannot
+   explain. A learner who can read why an object is on the board can tell when
+   it is the wrong object for the question they actually have. */
+.cv-rep { max-width: 1180px; margin: 0 auto 16px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px 22px }
+.cv-rep-head { margin-bottom: 14px }
+.cv-rep-name { font-family: var(--font-display); font-size: 21px; font-weight: 600; margin: 0; color: var(--foreground) }
+.cv-rep-purpose { font-size: 14.5px; line-height: 1.55; color: var(--muted-foreground); margin: 6px 0 0 }
+.cv-rep-body { display: flex; justify-content: center; padding: 10px 0 16px; min-height: 60px }
+.cv-rep-hint { font-size: 14px; color: var(--muted-foreground); margin: 0 }
+.cv-rep-foot { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between;
+               border-top: 1px solid var(--border); padding-top: 14px }
+.cv-rep-cannot { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+                 color: var(--agabi-amber-500) }
+.cv-rep-alts { display: flex; flex-wrap: wrap; gap: 8px }
+.cv-rep-refusal { margin: 12px 0 0; font-size: 14px; color: var(--agabi-amber-500) }
+
+/* Equations stay structured maths; KaTeX renders from LaTeX the model owns. */
+.cv-equation { color: var(--foreground) }
+.cv-equation .katex { font-size: 1.15em }
+.cv-equation[data-phase="melting"] .katex { color: var(--accent) }
+
+.cv-sim-canvas { line-height: 0 }
+.cv-sim { border: 1px solid var(--border); border-radius: 12px; padding: 8px; background: var(--background) }
+
+/* Content that must reach assistive technology but not the eye. Motion and
+   rendered maths are both invisible to a screen reader, so the same claim is
+   carried in words beside them. */
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+                   clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0 }

@@ -2,18 +2,18 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../ui/Button'
 
+/* The three surfaces that genuinely are not designed yet. The canvas is no
+ * longer one of them: `/canvas/:chapterId/:conceptId` renders CanvasView, so a
+ * `canvas` entry here would be a second, dead definition of a live route. */
 const COPY: Record<string, { eyebrow: string; title: string }> = {
   practice: { eyebrow: 'Sidebar · practice', title: 'Practice' },
   'quick-question': { eyebrow: 'Sidebar · ask quick question', title: 'Quick question' },
-  misconception: { eyebrow: 'Today · misconception practice', title: 'Misconception practice' },
-  canvas: { eyebrow: 'Today · concept', title: 'Learning canvas' }
+  misconception: { eyebrow: 'Today · misconception practice', title: 'Misconception practice' }
 }
 
-/* The Learning Canvas plugs in here later: replace the 'canvas' branch with the
- * real surface; the Start actions already write inProgress before arriving. */
 export function Placeholder({ kind }: { kind: string }) {
   const nav = useNavigate()
-  const c = COPY[kind] || COPY.canvas
+  const c = COPY[kind] || COPY.practice
   return (
     <div className="ph-wrap">
       <div style={{ textAlign: 'center' }}>

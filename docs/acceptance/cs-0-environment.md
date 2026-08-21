@@ -1,5 +1,29 @@
 # CS-0 — build and reproducibility evidence
 
+## GitHub result — the authoritative one
+
+| | |
+|---|---|
+| Commit | `5af41c857f41c9df17a0551993b9f81596d1c2f8` |
+| Pull request | [#37](https://github.com/Intellora-ai/final-countdown/pull/37), merged as `0329d6e` |
+| `Learning Canvas Frontend` | run **32481339386** — `success`; every step green: Checkout · Setup Node · Install dependencies · Typecheck · Unit tests · Build · Upload build output |
+| `verify` | run 32481339331 — success (17 required Python/Lean contexts, unmodified) |
+| `codeql` · `e2e` · `ai-review` | 32481339276 · 32481339414 · 32481339223 — all success |
+| Check rollup | **21 / 21 passing**, `mergeable: MERGEABLE`, `mergeStateStatus: CLEAN` |
+
+The workflow did not run on the branch push alone: its triggers are `push: branches:[main]` and
+`pull_request: branches:[main]`, and a feature-branch push matches neither. `workflow_dispatch`
+was not an option either — GitHub's documentation is explicit that *"this event will only trigger
+a workflow run if the workflow file exists on the default branch"*, and it did not yet. The PR is
+the repository's own path, and this repo's history proves a workflow added on a branch runs there:
+`deep-verify.yml` was introduced in `65bf56f` on a feature branch and `deep-verify` completed
+`success` on PR #36's head `1d06fda` before that PR merged.
+
+`STATUS: CS-0 PASS · B1 PASS`
+
+---
+
+
 Everything below was measured on 2026-08-21, not recalled. Local results **prepare** the batch;
 the authoritative proof is the `Learning Canvas Frontend` GitHub Actions run on the pushed commit.
 

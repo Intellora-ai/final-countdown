@@ -94,3 +94,35 @@
 .btn.ghost { background: transparent; color: var(--agabi-neutral-300) }
 .btn.ghost:hover { background: rgba(255,255,255,.06) }
 .btn[disabled] { opacity: .45; cursor: default }
+
+/* ── learning canvas ────────────────────────────────────────────────────────
+   The board. Ground, ink and accent come from Agabi tokens only; the
+   composition — question centred at the top over its accent underline, quiet
+   supporting panels below — is measured from the reference image, where colour
+   covers 1.54% of the surface and everything else is dark ground and near-white
+   ink. Restraint is the design: glow and accent read as loud precisely because
+   almost nothing else is. */
+.cv-board { min-height: calc(100vh - 54px); background: var(--background); padding: 40px 40px 64px; animation: osIn .3s cubic-bezier(.16,1,.3,1) }
+.cv-crumb { letter-spacing: .18em; margin-bottom: 26px; color: var(--muted-foreground) }
+.cv-question { font-family: var(--font-display); font-weight: 600; font-size: 34px; line-height: 1.25; letter-spacing: -.02em; margin: 0 auto; max-width: 760px; text-align: center; color: var(--foreground) }
+/* The underline in the reference is a soft one-stop gradient, not a rule: it
+   fades at both ends so it reads as drawn rather than as a border. */
+.cv-underline { width: min(560px, 70%); height: 1px; margin: 14px auto 30px; background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: .75 }
+.cv-meta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; margin-bottom: 34px }
+.cv-meta-item { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted-foreground) }
+.cv-chip { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; padding: 4px 10px; border-radius: 9px; border: 1px solid var(--border); color: var(--muted-foreground) }
+/* State is carried by the same single hue the chapter map already uses — one
+   accent, four treatments — so the board never introduces a second colour
+   language for the same four states. */
+.cv-chip[data-state="inProgress"] { border-color: var(--accent); color: var(--accent) }
+.cv-chip[data-state="completed"] { border-color: rgba(26,173,166,.42); color: var(--accent) }
+.cv-chip[data-state="mastered"] { background: var(--accent); border-color: var(--accent); color: var(--accent-foreground) }
+.cv-panel { max-width: 760px; margin: 0 auto 22px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px }
+.cv-panel-h { font-family: var(--font-mono); font-size: 10px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; color: var(--muted-foreground); margin: 0 0 12px }
+.cv-vars, .cv-edges { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px }
+.cv-var, .cv-edge { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; font-size: 15px; color: var(--foreground) }
+.cv-var-name b { font-family: var(--font-display); font-style: italic; margin-right: 6px; color: var(--accent) }
+.cv-var-value { font-family: var(--font-mono); font-size: 14px; color: var(--accent) }
+.cv-edge-type { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-foreground) }
+.cv-edge-to { text-transform: capitalize }
+.cv-note { max-width: 760px; margin: 30px auto 0; font-size: 13.5px; line-height: 1.6; color: var(--muted-foreground); text-align: center }

@@ -39,7 +39,7 @@ export interface SessionState {
   error?: string
 }
 
-type Action =
+export type SessionAction =
   | { kind: 'release'; step: TeachingStep; timeline: RevealTimeline; clarification?: boolean }
   | { kind: 'apply'; upTo: number }
   | { kind: 'pause' } | { kind: 'resume' }
@@ -48,7 +48,7 @@ type Action =
   | { kind: 'pace'; pace: PaceProfileName }
   | { kind: 'replay'; timeline: RevealTimeline }
 
-function reducer(s: SessionState, a: Action): SessionState {
+export function reducer(s: SessionState, a: SessionAction): SessionState {
   switch (a.kind) {
     case 'release':
       return {

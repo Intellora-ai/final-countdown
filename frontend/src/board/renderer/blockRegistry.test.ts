@@ -45,10 +45,10 @@ describe('blockRegistry — resolution', () => {
   })
 
   it('carries the presentation decisions the JSON is not allowed to make', () => {
-    expect(entryMeta('explanation')).toEqual({ treatment: 'bare', defaultWidth: 'wide' })
-    expect(entryMeta('table')).toEqual({ treatment: 'glass', defaultWidth: 'full' })
-    expect(entryMeta('callout')).toEqual({ treatment: 'glass', defaultWidth: 'medium' })
-    expect(entryMeta('simulation')).toEqual({ treatment: 'glass', defaultWidth: 'full' })
+    expect(entryMeta('explanation')).toEqual({ treatment: 'bare', defaultWidth: 'wide', layout: 'flow' })
+    expect(entryMeta('table')).toEqual({ treatment: 'glass', defaultWidth: 'full', layout: 'grid' })
+    expect(entryMeta('callout')).toEqual({ treatment: 'glass', defaultWidth: 'medium', layout: 'grid' })
+    expect(entryMeta('simulation')).toEqual({ treatment: 'glass', defaultWidth: 'full', layout: 'spatial' })
   })
 
   it('returns eager UnknownBlock, flagged unknown, for types this build cannot draw', () => {
@@ -72,12 +72,18 @@ describe('blockRegistry — registry and catalogue agree', () => {
     expect(registeredTypes().sort()).toEqual([...IMPLEMENTED_BLOCK_TYPES].sort())
   })
 
-  it('gives every registered type a valid treatment and default width', () => {
+  it('gives every registered type a valid treatment, default width and layout', () => {
     for (const key of registeredTypes()) {
       const meta = entryMeta(key)!
       expect(['bare', 'glass']).toContain(meta.treatment)
       expect(ALL_BLOCK_WIDTHS).toContain(meta.defaultWidth)
+      expect(['flow', 'grid', 'spatial']).toContain(meta.layout)
     }
+  })
+
+  it("confines 'spatial' to exactly diagram and simulation — the invariant as data", () => {
+    const spatial = registeredTypes().filter((t) => entryMeta(t)!.layout === 'spatial').sort()
+    expect(spatial).toEqual(['diagram', 'simulation'])
   })
 })
 

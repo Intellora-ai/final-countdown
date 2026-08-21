@@ -36,17 +36,48 @@ describe('root validation', () => {
     expect(validateBoard(base({ blocks: undefined })).status).toBe('failed')
   })
 
-  it('refuses a board-level unknown key rather than stripping it', () => {
+  it('refuses a board-level unknown key rather than stripping it — and says so in the notices too', () => {
     const r = validateBoard(base({ theme: 'dark' }))
     expect(r.status).toBe('failed')
-    if (r.status === 'failed') expect(r.error).toContain("'theme'")
+    if (r.status === 'failed') {
+      expect(r.error).toContain("'theme'")
+      expect(r.notices.some((n) => n.message.includes("'theme'"))).toBe(true)
+    }
+  })
+
+  it('collects safe root repairs BEFORE a fatal root error — the ordering contract', () => {
+    const r = validateBoard(base({ layout: 'spiral', theme: 'dark' }))
+    expect(r.status).toBe('failed')
+    const messages = r.notices.map((n) => n.message)
+    const repairIdx = messages.findIndex((m) => m.includes("'grid'"))
+    const fatalIdx = messages.findIndex((m) => m.includes("'theme'"))
+    expect(repairIdx).toBeGreaterThanOrEqual(0)
+    expect(fatalIdx).toBeGreaterThan(repairIdx)
   })
 
   it('a failed board still carries the notices collected before the failure', () => {
-    /* Layout repair happens before connectors fail the board. */
     const r = validateBoard(base({ layout: 'circular', connectors: 'not-a-list' }))
     expect(r.status).toBe('failed')
-    expect(r.notices.length).toBeGreaterThan(0)
+    /* the layout repair AND the fatal itself */
+    expect(r.notices.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('notice order is contractual: root repairs, root fatals, blocks in source order, connectors in source order', () => {
+    const good = validateBoard(base({
+      blocks: [
+        { id: 'a', type: 'explanation', content: 'ok', layout: { width: 'enormous' } },
+        { id: 'b', type: 'quiz', prompt: 'q?', options: [{ id: 'x', label: 'X' }] },
+      ],
+      connectors: [{ id: 'c', from: 'a', to: 'ghost' }],
+    }))
+    if (good.status === 'failed') throw new Error('unexpected fail')
+    const msgs = good.notices.map((n) => n.message)
+    const iWidth = msgs.findIndex((m) => m.includes('unrecognised width'))
+    const iQuiz = msgs.findIndex((m) => m.includes('at least two options'))
+    const iConn = msgs.findIndex((m) => m.includes("'ghost'"))
+    expect(iWidth).toBeGreaterThanOrEqual(0)
+    expect(iQuiz).toBeGreaterThan(iWidth)     // block a before block b
+    expect(iConn).toBeGreaterThan(iQuiz)      // connectors last
   })
 
   it('accepts a valid empty board as ok — emptiness is a fact, not an error', () => {
@@ -83,7 +114,10 @@ describe('block-level rules', () => {
     expect(r.status).toBe('repaired')
     if (r.status === 'failed') throw new Error('unexpected fail')
     expect(r.board.blocks).toHaveLength(1)
-    expect(r.board.blocks[0]).toEqual({ type: 'unknown', id: 'f1', originalType: 'holographic_projection' })
+    expect(r.board.blocks[0]).toEqual({
+      type: 'unknown', id: 'f1', originalType: 'holographic_projection',
+      message: 'This block type is not available in this version of the board.',
+    })
   })
 
   it('synthesizes a missing id and refuses a duplicate one', () => {
@@ -250,6 +284,50 @@ describe('connectors', () => {
   })
 })
 
+describe('presentation smuggling — known schemas', () => {
+  const KEYS = ['html', 'component', 'dangerouslySetInnerHTML', 'className', 'css', 'font', 'color']
+  it.each(KEYS)("drops a known block carrying '%s' and names the field", (key) => {
+    const r = validateBoard(base({ blocks: [block({ [key]: 'payload' })] }))
+    if (r.status === 'failed') throw new Error('unexpected fail')
+    expect(r.board.blocks).toHaveLength(0)
+    expect(r.notices.some((n) => n.message.includes(`'${key}'`))).toBe(true)
+  })
+})
+
+describe('presentation smuggling — unknown types', () => {
+  it('an unknown type is reduced to id/originalType/message; NO payload survives in any form', () => {
+    const r = validateBoard(base({
+      blocks: [{
+        id: 'u1', type: 'hologram',
+        html: '<script>alert(1)</script>', css: 'body{}', style: { color: 'red' },
+        component: 'Evil', payload: { deep: { nested: 'data' } },
+      }],
+    }))
+    if (r.status === 'failed') throw new Error('unexpected fail')
+    expect(r.board.blocks[0]).toEqual({
+      id: 'u1', type: 'unknown', originalType: 'hologram',
+      message: 'This block type is not available in this version of the board.',
+    })
+    /* Nothing from the payload is reachable anywhere in the validated board. */
+    expect(JSON.stringify(r.board)).not.toContain('script')
+    expect(JSON.stringify(r.board)).not.toContain('Evil')
+    expect(JSON.stringify(r.board)).not.toContain('nested')
+  })
+})
+
+describe('the invalid-board fixture', () => {
+  it('fails with BOTH notices — the repair collected first, the fatal second — and no board', async () => {
+    const { INVALID_BOARD } = await import('../fixtures/invalid-board')
+    const r = validateBoard(INVALID_BOARD)
+    expect(r.status).toBe('failed')
+    if (r.status !== 'failed') return
+    const msgs = r.notices.map((n) => n.message)
+    expect(msgs.findIndex((m) => m.includes("'grid'"))).toBe(0)
+    expect(msgs.findIndex((m) => m.includes("'theme'"))).toBe(1)
+    expect(r.error).toContain("'theme'")
+  })
+})
+
 describe('the fixtures', () => {
   const valid: Array<[string, LearningBoard]> = [
     ['change-of-state', CHANGE_OF_STATE_BOARD],
@@ -280,7 +358,8 @@ describe('the fixtures', () => {
     expect(r.status).toBe('repaired')
     if (r.status === 'failed') throw new Error('unexpected fail')
     /* Survivors: repaired explanation, preserved unknown, repaired table,
-     * chart-as-table. Dropped: styled callout, external image, one-option quiz. */
+     * chart-as-table. Dropped: styled callout, duplicate-id callout, external
+     * image, alt-less image, one-option quiz. */
     expect(r.board.blocks.map((b) => b.type).sort()).toEqual(['explanation', 'table', 'table', 'unknown'])
     /* The valid connector survives; the dangling one is gone. */
     expect(r.board.connectors).toHaveLength(1)
@@ -288,6 +367,7 @@ describe('the fixtures', () => {
     for (const fragment of [
       "no id", "'style'", "holographic_projection", 'did not match the columns',
       'a table is shown', 'external or unsafe', 'at least two options', "'ghost-block'",
+      'ids must be unique', 'alt text',
     ]) {
       expect(messages).toContain(fragment)
     }

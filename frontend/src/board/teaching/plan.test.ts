@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { planFromBoard, planFromSteps, splitLongExplanation, wordCount } from './plan'
+import { derivePurpose, planFromBoard, planFromSteps, splitLongExplanation, wordCount } from './plan'
 import { MAX_STEP_WORDS } from './types'
 import { validateBoard } from '../renderer/validateBoard'
 import { CHANGE_OF_STATE_BOARD } from '../fixtures/change-of-state'
@@ -103,11 +103,37 @@ describe('planFromBoard — the invariant', () => {
 describe('planFromSteps', () => {
   it('serves authored steps in order, once, then null', async () => {
     const plan = planFromSteps({ title: 'T' }, [
-      { id: 's1', blocks: [{ id: 'e', type: 'explanation', content: 'Hi.' }], checkpoint: { prompt: 'Clear?' } },
-      { id: 's2', blocks: [{ id: 'q', type: 'equation', latex: 'x' }], checkpoint: null },
+      { id: 's1', purpose: 'explain', blocks: [{ id: 'e', type: 'explanation', content: 'Hi.' }], checkpoint: { question: 'Clear?', continueLabel: 'Continue', unclearLabel: 'Explain again' } },
+      { id: 's2', purpose: 'explain', blocks: [{ id: 'q', type: 'equation', latex: 'x' }], checkpoint: null },
     ])
     expect((await plan.nextStep())!.id).toBe('s1')
     expect((await plan.nextStep())!.id).toBe('s2')
     expect(await plan.nextStep()).toBeNull()
+  })
+})
+
+describe('derivePurpose', () => {
+  const b = (type: string, extra: Record<string, unknown> = {}) => ({ id: 'x', type, ...extra }) as never
+  it('quiz wins: any quiz makes the step a check', () => {
+    expect(derivePurpose([b('explanation', { content: 'x' }), b('quiz', { prompt: 'q', options: [] })])).toBe('check')
+  })
+  it('example without quiz is practice', () => {
+    expect(derivePurpose([b('example', { prompt: 'p', working: [] })])).toBe('practice')
+  })
+  it('a primary visual is a demonstration', () => {
+    expect(derivePurpose([b('diagram', { nodes: [], edges: [] })])).toBe('demonstrate')
+  })
+  it('prose alone explains', () => {
+    expect(derivePurpose([b('explanation', { content: 'x' })])).toBe('explain')
+  })
+  it('every compiled step carries a purpose', async () => {
+    const { validateBoard } = await import('../renderer/validateBoard')
+    const { CHANGE_OF_STATE_BOARD } = await import('../fixtures/change-of-state')
+    const r = validateBoard(CHANGE_OF_STATE_BOARD as never)
+    if (r.status === 'failed') throw new Error('fixture failed')
+    const plan = planFromBoard(r.board)
+    for (let s = await plan.nextStep(); s !== null; s = await plan.nextStep()) {
+      expect(['explain', 'demonstrate', 'practice', 'check']).toContain(s.purpose)
+    }
   })
 })

@@ -9,13 +9,21 @@
  */
 import type { Block, Connector } from '../types/learningBoard'
 
+/* A deliberate pause requiring explicit learner action. No timeout exists;
+ * silence never advances. The labels ride WITH the question so the buttons
+ * a learner sees are authored content, not hardcoded chrome. */
 export interface Checkpoint {
-  /** e.g. "Is this clear?" — the learner must answer; silence never advances. */
-  prompt: string
+  question: string
+  continueLabel: string
+  unclearLabel: string
 }
+
+/** What a step is FOR. Rendered as the step's eyebrow — visible meaning. */
+export type StepPurpose = 'explain' | 'demonstrate' | 'practice' | 'check' 
 
 export interface TeachingStep {
   id: string
+  purpose: StepPurpose
   /** The step's single primary idea, shown as its heading. */
   title?: string
   /** 1 primary + at most 2 supporting. Enforced by the plan compiler. */

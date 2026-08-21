@@ -1,7 +1,7 @@
 /* THE LEARNER'S CONTROLS — pacing belongs to the person being taught.
  *
  * During a reveal: pause/resume, finish now, replay, pace. At a checkpoint:
- * the prompt plus explicit choices — Continue, Explain again, and (when the
+ * the question plus explicit choices — its authored labels, and (when the
  * lesson provides one) another example. There is no timer on any of these.
  * Everything is a real button with a real 44px target and visible focus.
  */
@@ -53,16 +53,20 @@ export function TeachingControls({ session }: { session: SessionApi }) {
 export function CheckpointPanel({ session }: { session: SessionApi }) {
   const s = session
   if (s.status !== 'checkpoint' || !s.currentStep) return null
-  const prompt = s.currentStep.step.checkpoint?.prompt ?? 'Ready to continue?'
+  /* The question AND its button labels are authored content — chrome renders
+   * what the checkpoint says, never a hardcoded pair of words. */
+  const cp = s.currentStep.step.checkpoint ?? {
+    question: 'Ready to continue?', continueLabel: 'Continue', unclearLabel: 'Explain again',
+  }
   return (
     <div data-board="checkpoint" role="group" aria-label="Checkpoint">
-      <p data-board="checkpoint-prompt">{prompt}</p>
+      <p data-board="checkpoint-question">{cp.question}</p>
       <div data-board="checkpoint-actions">
         <button type="button" data-board="teach-btn" data-primary="true" onClick={s.continueNext}>
-          Continue
+          {cp.continueLabel}
         </button>
         <button type="button" data-board="teach-btn" onClick={s.explainAgain}>
-          Explain again
+          {cp.unclearLabel}
         </button>
         {s.showAnotherExample && (
           <button type="button" data-board="teach-btn" onClick={s.showAnotherExample}>

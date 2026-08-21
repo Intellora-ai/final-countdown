@@ -15,7 +15,7 @@
 import type { Block, Connector, ValidatedBoard } from '../types/learningBoard'
 import {
   MAX_STEP_EQUATIONS, MAX_STEP_SUPPORTING, MAX_STEP_VISUALS, MAX_STEP_WORDS,
-  type Checkpoint, type TeachingPlan, type TeachingStep,
+  type Checkpoint, type StepPurpose, type TeachingPlan, type TeachingStep,
 } from './types'
 
 export function wordCount(text: string): number {
@@ -94,7 +94,20 @@ function add(d: StepDraft, b: Block): void {
   else if (isSupporting(b)) d.supporting++
 }
 
-const DEFAULT_CHECKPOINTS = ['Is this clear?', 'Shall we move forward?']
+const DEFAULT_CHECKPOINTS: Checkpoint[] = [
+  { question: 'Is this clear?', continueLabel: 'Continue', unclearLabel: 'Explain again' },
+  { question: 'Shall we move forward?', continueLabel: 'Move forward', unclearLabel: 'Explain again' },
+]
+
+/** What a compiled step is FOR, read off its content: a quiz makes it a
+ *  check, a worked example practice, a primary visual a demonstration, and
+ *  prose alone an explanation. */
+export function derivePurpose(blocks: Block[]): StepPurpose {
+  if (blocks.some((b) => b.type === 'quiz')) return 'check'
+  if (blocks.some((b) => b.type === 'example')) return 'practice'
+  if (blocks.some(isPrimaryVisual)) return 'demonstrate'
+  return 'explain'
+}
 
 /** Connectors whose ends are BOTH released once this step lands. */
 function connectorsReleasedBy(connectors: Connector[], releasedIds: Set<string>): Connector[] {
@@ -131,11 +144,10 @@ export function planFromBoard(board: ValidatedBoard): TeachingPlan {
         .filter((c) => !emittedConnectors.has(c.id))
       ready.forEach((c) => emittedConnectors.add(c.id))
       const first = draft.blocks[0]
-      const checkpoint: Checkpoint = {
-        prompt: DEFAULT_CHECKPOINTS[(stepNo - 1) % DEFAULT_CHECKPOINTS.length],
-      }
+      const checkpoint: Checkpoint = DEFAULT_CHECKPOINTS[(stepNo - 1) % DEFAULT_CHECKPOINTS.length]
       return Promise.resolve({
         id: `step-${stepNo}`,
+        purpose: derivePurpose(draft.blocks),
         title: ('title' in first && first.title) || undefined,
         blocks: draft.blocks,
         connectors: ready,

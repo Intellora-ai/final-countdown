@@ -327,7 +327,7 @@
   line-height: 1.7;
   color: var(--board-text-secondary);
   margin: 0 0 var(--space-4);
-  max-width: 62ch;
+  max-width: 70ch;
   overflow-wrap: anywhere;
 }
 
@@ -949,7 +949,7 @@
   white-space: nowrap;
 }
 
-[data-board='diagram-edge'] { stroke: rgba(56, 228, 215, 0.5); stroke-width: 1.4; }
+[data-board='diagram-edge'] { stroke: rgba(56, 228, 215, 0.5); stroke-width: 2; }
 [data-board='diagram-edge'][data-kind='sequence'] { stroke-dasharray: 5 4; }
 [data-board='diagram-edge'][data-kind='reference'] { stroke: rgba(142, 156, 163, 0.55); stroke-dasharray: 2 4; }
 
@@ -1060,7 +1060,7 @@
 
 [data-board='connector-line'] {
   stroke: rgba(56, 228, 215, 0.32);
-  stroke-width: 1.4;
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-dasharray: 1 7;
 }
@@ -1112,6 +1112,7 @@
 
 [data-board='world-step'] {
   position: absolute;            /* world coordinates — the ONE sanctioned use */
+  min-width: 320px;              /* contract: minimum normal block width */
   padding: var(--space-6) var(--space-6) var(--space-8);
   border-radius: var(--radius-xl);
   transition: opacity var(--duration-smooth) var(--ease-out);
@@ -1286,7 +1287,7 @@
   animation: osIn 0.3s var(--ease-out);
 }
 
-[data-board='checkpoint-prompt'] {
+[data-board='checkpoint-question'] {
   font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 500;
@@ -1387,4 +1388,15 @@
 @media (prefers-reduced-motion: reduce) {
   [data-board='caret'] { animation: none; }
   [data-board='world-step'] { transition: none; }
+}
+
+
+/* Step purpose — the contract's StepPurpose, rendered as visible meaning. */
+[data-board='step-purpose'] {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--board-accent);
+  margin: 0 0 var(--space-2);
 }

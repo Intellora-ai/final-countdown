@@ -60,6 +60,12 @@ export const FIXTURES: FixtureEntry[] = [
     eyebrow: 'FIXTURE · VALIDATOR DEMONSTRATION',
     load: () => import('./broken-board').then((m) => m.BROKEN_BOARD),
   },
+  {
+    id: 'invalid-board',
+    label: 'Invalid',
+    eyebrow: 'FIXTURE · ROOT REFUSAL DEMONSTRATION',
+    load: () => import('./invalid-board').then((m) => m.INVALID_BOARD),
+  },
 ]
 
 /** The chemistry fixture's eyebrow needs the curriculum lookup that lives in

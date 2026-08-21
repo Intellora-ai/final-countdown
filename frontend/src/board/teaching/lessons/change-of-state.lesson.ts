@@ -46,34 +46,39 @@ export const CHANGE_OF_STATE_LESSON: {
   steps: [
     {
       id: 'step-1',
+      purpose: 'explain',
       title: 'The main idea',
       blocks: [opening],
-      checkpoint: { prompt: 'Is this clear?' },
+      checkpoint: { question: 'Is everything clear?', continueLabel: 'Continue', unclearLabel: 'Explain again' },
     },
     {
       id: 'step-2',
+      purpose: 'explain',
       title: 'The energy of melting',
       blocks: [block('equation-1')],
-      checkpoint: { prompt: 'Ready to see it drawn?' },
+      checkpoint: { question: 'Ready to see it drawn?', continueLabel: 'Show me', unclearLabel: 'Explain again' },
     },
     {
       id: 'step-3',
+      purpose: 'demonstrate',
       title: 'How the states connect',
       blocks: [block('diagram-1')],
-      checkpoint: { prompt: 'Does the picture make sense?' },
+      checkpoint: { question: 'Does the picture make sense?', continueLabel: 'Continue', unclearLabel: 'Explain again' },
     },
     {
       id: 'step-4',
+      purpose: 'demonstrate',
       title: 'Measured, not imagined',
       blocks: [block('chart-1')],
       connectors: [connector('c1')],   // equation → chart: both ends now released
-      checkpoint: { prompt: 'Shall we move forward?' },
+      checkpoint: { question: 'Shall we move forward?', continueLabel: 'Move forward', unclearLabel: 'Explain again' },
     },
     {
       id: 'step-5',
+      purpose: 'explain',
       title: 'The takeaway',
       blocks: [block('callout-1')],
-      checkpoint: { prompt: 'Done — want another example?' },
+      checkpoint: { question: 'Done — want another example?', continueLabel: 'Finish', unclearLabel: 'Explain again' },
     },
   ],
 }

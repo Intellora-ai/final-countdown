@@ -4,8 +4,9 @@ import type { BoardSource } from '../types/learningBoard'
  * a LearningBoard and never claims to be. Every fault in here is one the
  * validator documents a rule for, so switching the picker to this fixture
  * demonstrates, on screen: repairs with notices, a preserved unknown block,
- * a dropped smuggling attempt, a chart falling back to a table, and a dangling
- * relationship being removed. The board still renders. That is the point.
+ * a dropped smuggling attempt, a chart falling back to a table, a duplicate
+ * id refused, an image without alt text refused, and a dangling relationship
+ * removed. The board still renders. That is the point.
  */
 export const BROKEN_BOARD: BoardSource = {
   type: 'learning_board',
@@ -57,11 +58,24 @@ export const BROKEN_BOARD: BoardSource = {
       ],
     },
     {
+      /* Duplicate of the table's id: the later twin is refused. */
+      id: 'table-1',
+      type: 'callout',
+      content: 'This callout stole an existing id and was omitted for it.',
+    },
+    {
       id: 'image-1',
       type: 'image',
       /* External source: refused. */
       src: 'https://example.com/leak.png',
       alt: 'An image that tried to load from the network',
+    },
+    {
+      id: 'image-2',
+      type: 'image',
+      /* No alt text: refused — every image must be describable. */
+      src: 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%2F%3E',
+      alt: '   ',
     },
     {
       id: 'quiz-1',

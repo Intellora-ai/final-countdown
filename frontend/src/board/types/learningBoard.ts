@@ -244,6 +244,9 @@ export interface UnknownBlockData {
   type: 'unknown'
   id: string
   originalType: string
+  /** The safe fallback sentence UnknownBlock renders. Nothing else from the
+   *  original payload survives — an unknown type cannot smuggle content. */
+  message: string
 }
 
 export type ValidatedBlock = Block | UnknownBlockData

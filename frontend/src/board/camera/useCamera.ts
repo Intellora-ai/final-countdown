@@ -92,7 +92,9 @@ export function useCamera(): CameraApi {
     const down = (e: PointerEvent) => {
       if (!isPanStart(e)) return
       pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
-      el.setPointerCapture(e.pointerId)
+      /* Capture can throw (InvalidPointerId) when the pointer is already gone
+       * or synthetic — a drag must degrade to uncaptured, never abort. */
+      try { el.setPointerCapture(e.pointerId) } catch { /* uncaptured drag */ }
       if (pointers.current.size === 2) {
         const [a, b] = [...pointers.current.values()]
         pinchStart.current = {

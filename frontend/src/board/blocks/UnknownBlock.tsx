@@ -13,13 +13,17 @@ import React from 'react'
  * defined, visible, non-fatal outcome today.
  */
 export function UnknownBlock({ block }: { block: unknown }) {
-  const raw = block && typeof block === 'object' ? (block as { type?: unknown }).type : undefined
-  const label = typeof raw === 'string' && raw.trim() ? raw.trim() : 'missing type'
+  const obj = block && typeof block === 'object' ? (block as { type?: unknown; originalType?: unknown; message?: unknown }) : {}
+  const raw = typeof obj.originalType === 'string' ? obj.originalType : typeof obj.type === 'string' ? obj.type : ''
+  const label = raw.trim() || 'missing type'
+  const message = typeof obj.message === 'string' && obj.message.trim()
+    ? obj.message
+    : 'This block type is not available in this version of the board.'
 
   return (
     <div data-board="unknown">
       <p data-board="unknown-type">{label}</p>
-      <p data-board="unknown-note">This block type is not available in this version of the board.</p>
+      <p data-board="unknown-note">{message}</p>
     </div>
   )
 }

@@ -27,30 +27,36 @@ import { UnknownBlock } from '../blocks/UnknownBlock'
 
 export type BlockTreatment = 'bare' | 'glass'
 
+/** Where a block's content may position itself. 'spatial' — coordinates
+ *  inside its own viewBox — is granted to exactly two types; the parity test
+ *  makes that confinement checkable rather than conventional. */
+export type BlockLayoutKind = 'flow' | 'grid' | 'spatial'
+
 interface Entry {
   load: () => Promise<{ default: ComponentType<{ block: any }> }>
   treatment: BlockTreatment
   defaultWidth: BlockWidth
+  layout: BlockLayoutKind
 }
 
 const ENTRIES: Record<ImplementedBlockType, Entry> = {
   /* Prose is bare — text on the canvas itself. Panels are for surfaces. */
-  explanation: { load: () => import('../blocks/ExplanationBlock').then((m) => ({ default: m.ExplanationBlock })), treatment: 'bare', defaultWidth: 'wide' },
-  text:        { load: () => import('../blocks/TextBlock').then((m) => ({ default: m.TextBlock })),               treatment: 'bare', defaultWidth: 'wide' },
-  process:     { load: () => import('../blocks/ProcessBlock').then((m) => ({ default: m.ProcessBlock })),         treatment: 'bare', defaultWidth: 'wide' },
-  timeline:    { load: () => import('../blocks/TimelineBlock').then((m) => ({ default: m.TimelineBlock })),       treatment: 'bare', defaultWidth: 'wide' },
-  table:       { load: () => import('../blocks/TableBlock').then((m) => ({ default: m.TableBlock })),             treatment: 'glass', defaultWidth: 'full' },
-  callout:     { load: () => import('../blocks/CalloutBlock').then((m) => ({ default: m.CalloutBlock })),         treatment: 'glass', defaultWidth: 'medium' },
-  pie_chart:   { load: () => import('../blocks/charts/PieChartBlock').then((m) => ({ default: m.PieChartBlock })), treatment: 'glass', defaultWidth: 'medium' },
-  bar_chart:   { load: () => import('../blocks/charts/BarChartBlock').then((m) => ({ default: m.BarChartBlock })), treatment: 'glass', defaultWidth: 'medium' },
-  line_chart:  { load: () => import('../blocks/charts/LineChartBlock').then((m) => ({ default: m.LineChartBlock })), treatment: 'glass', defaultWidth: 'wide' },
-  equation:    { load: () => import('../blocks/EquationBlock').then((m) => ({ default: m.EquationBlock })),       treatment: 'glass', defaultWidth: 'medium' },
-  comparison:  { load: () => import('../blocks/ComparisonBlock').then((m) => ({ default: m.ComparisonBlock })),   treatment: 'glass', defaultWidth: 'full' },
-  diagram:     { load: () => import('../blocks/DiagramBlock').then((m) => ({ default: m.DiagramBlock })),         treatment: 'glass', defaultWidth: 'full' },
-  example:     { load: () => import('../blocks/ExampleBlock').then((m) => ({ default: m.ExampleBlock })),         treatment: 'glass', defaultWidth: 'wide' },
-  quiz:        { load: () => import('../blocks/QuizBlock').then((m) => ({ default: m.QuizBlock })),               treatment: 'glass', defaultWidth: 'wide' },
-  image:       { load: () => import('../blocks/ImageBlock').then((m) => ({ default: m.ImageBlock })),             treatment: 'glass', defaultWidth: 'medium' },
-  simulation:  { load: () => import('../blocks/SimulationBlock').then((m) => ({ default: m.SimulationBlock })),   treatment: 'glass', defaultWidth: 'full' },
+  explanation: { load: () => import('../blocks/ExplanationBlock').then((m) => ({ default: m.ExplanationBlock })), treatment: 'bare', defaultWidth: 'wide', layout: 'flow' },
+  text:        { load: () => import('../blocks/TextBlock').then((m) => ({ default: m.TextBlock })),               treatment: 'bare', defaultWidth: 'wide', layout: 'flow' },
+  process:     { load: () => import('../blocks/ProcessBlock').then((m) => ({ default: m.ProcessBlock })),         treatment: 'bare', defaultWidth: 'wide', layout: 'flow' },
+  timeline:    { load: () => import('../blocks/TimelineBlock').then((m) => ({ default: m.TimelineBlock })),       treatment: 'bare', defaultWidth: 'wide', layout: 'flow' },
+  table:       { load: () => import('../blocks/TableBlock').then((m) => ({ default: m.TableBlock })),             treatment: 'glass', defaultWidth: 'full', layout: 'grid' },
+  callout:     { load: () => import('../blocks/CalloutBlock').then((m) => ({ default: m.CalloutBlock })),         treatment: 'glass', defaultWidth: 'medium', layout: 'grid' },
+  pie_chart:   { load: () => import('../blocks/charts/PieChartBlock').then((m) => ({ default: m.PieChartBlock })), treatment: 'glass', defaultWidth: 'medium', layout: 'grid' },
+  bar_chart:   { load: () => import('../blocks/charts/BarChartBlock').then((m) => ({ default: m.BarChartBlock })), treatment: 'glass', defaultWidth: 'medium', layout: 'grid' },
+  line_chart:  { load: () => import('../blocks/charts/LineChartBlock').then((m) => ({ default: m.LineChartBlock })), treatment: 'glass', defaultWidth: 'wide', layout: 'grid' },
+  equation:    { load: () => import('../blocks/EquationBlock').then((m) => ({ default: m.EquationBlock })),       treatment: 'glass', defaultWidth: 'medium', layout: 'grid' },
+  comparison:  { load: () => import('../blocks/ComparisonBlock').then((m) => ({ default: m.ComparisonBlock })),   treatment: 'glass', defaultWidth: 'full', layout: 'grid' },
+  diagram:     { load: () => import('../blocks/DiagramBlock').then((m) => ({ default: m.DiagramBlock })),         treatment: 'glass', defaultWidth: 'full', layout: 'spatial' },
+  example:     { load: () => import('../blocks/ExampleBlock').then((m) => ({ default: m.ExampleBlock })),         treatment: 'glass', defaultWidth: 'wide', layout: 'grid' },
+  quiz:        { load: () => import('../blocks/QuizBlock').then((m) => ({ default: m.QuizBlock })),               treatment: 'glass', defaultWidth: 'wide', layout: 'grid' },
+  image:       { load: () => import('../blocks/ImageBlock').then((m) => ({ default: m.ImageBlock })),             treatment: 'glass', defaultWidth: 'medium', layout: 'grid' },
+  simulation:  { load: () => import('../blocks/SimulationBlock').then((m) => ({ default: m.SimulationBlock })),   treatment: 'glass', defaultWidth: 'full', layout: 'spatial' },
 }
 
 /* One lazy wrapper per type, created once — recreating lazy() per render
@@ -81,9 +87,9 @@ export function registeredTypes(): string[] {
 }
 
 /** Metadata without touching the loader — for tests and layout math. */
-export function entryMeta(type: string): { treatment: BlockTreatment; defaultWidth: BlockWidth } | null {
+export function entryMeta(type: string): { treatment: BlockTreatment; defaultWidth: BlockWidth; layout: BlockLayoutKind } | null {
   const e = (ENTRIES as Record<string, Entry | undefined>)[type]
-  return e ? { treatment: e.treatment, defaultWidth: e.defaultWidth } : null
+  return e ? { treatment: e.treatment, defaultWidth: e.defaultWidth, layout: e.layout } : null
 }
 
 /** The raw loader — the proof harness uses it to verify code-splitting. */

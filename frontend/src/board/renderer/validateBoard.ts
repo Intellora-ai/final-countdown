@@ -19,8 +19,16 @@
  * level it drops the block, with a notice naming the field either way.
  *
  * UNKNOWN TYPES ARE PRESERVED, NOT DROPPED. A block whose type this build
- * cannot draw becomes UnknownBlockData and renders as a visible placeholder.
- * Dropping it would leave a silent hole in a lesson.
+ * cannot draw becomes UnknownBlockData — id, originalType and a fallback
+ * message ONLY; no other payload survives — and renders as a visible
+ * placeholder. Dropping it would leave a silent hole in a lesson.
+ *
+ * NOTICE ORDER IS CONTRACTUAL, not incidental:
+ *   1. root-level safe-repair notices (layout, missing board id)
+ *   2. root-level fatal notices (the failure itself, also in `error`)
+ *   3. block notices, in source order
+ *   4. connector notices, in source order
+ * A test locks this order; changing it is an API break.
  */
 import {
   ALL_BLOCK_TYPES,
@@ -392,18 +400,31 @@ const LAYOUT_KEYS = ['width', 'position'] as const
 
 export function validateBoard(source: BoardSource): BoardResult {
   const ctx: Ctx = { notices: [], repaired: false }
-  const fail = (error: string): BoardResult => ({ status: 'failed', error, notices: ctx.notices })
+  /* A fatal root error is ALSO a notice — the ErrorState shows the learner
+   * everything the validator managed to establish before it had to stop. */
+  const fail = (error: string): BoardResult => {
+    note(ctx, 'warn', error)
+    return { status: 'failed', error, notices: ctx.notices }
+  }
 
+  /* Phase 0 — structurally unparseable: nothing collectable exists yet. */
   if (!isObj(source)) return fail('The board was not an object.')
   if (source.type !== 'learning_board') return fail("The board's type was not 'learning_board'.")
   if (source.version !== 1) return fail(`Unsupported board version: ${String(source.version)}.`)
   if (!isStr(source.title) || !source.title.trim()) return fail('The board had no title.')
   if (!Array.isArray(source.blocks)) return fail('The board had no blocks list.')
-  const badKey = unknownKey(source, BOARD_KEYS)
-  if (badKey) return fail(`The board carried an unrecognised field '${badKey}'. Unknown fields are refused, not stripped.`)
+
+  /* Phase 1 — collect root-level SAFE REPAIRS. These run BEFORE fatal
+   * detection so a board that both needs a repair and carries a fatal fault
+   * fails WITH its repair notices, not instead of them. */
   if (source.layout !== undefined && ALL_LAYOUT_MODES.indexOf(source.layout as never) < 0) {
     repair(ctx, "The board's layout mode was unrecognised; 'grid' is used.")
   }
+  if (!isStr(source.id) || !source.id.trim()) repair(ctx, "The board had no id; 'board' was assigned.")
+
+  /* Phase 2 — detect root-level FATAL errors. */
+  const badKey = unknownKey(source, BOARD_KEYS)
+  if (badKey) return fail(`The board carried an unrecognised field '${badKey}'. Unknown fields are refused, not stripped.`)
   if (source.metadata !== undefined) {
     if (!isObj(source.metadata)) return fail('The board metadata was not an object.')
     const mk = unknownKey(source.metadata, METADATA_KEYS)
@@ -438,7 +459,12 @@ export function validateBoard(source: BoardSource): BoardResult {
       note(ctx, 'info', `One block of the unsupported type '${declaredType}' is shown as a placeholder.`, id)
       ctx.repaired = true
       seenIds.add(id)
-      blocks.push({ type: 'unknown', id, originalType: declaredType })
+      /* id, originalType, message — and NOTHING else. Whatever payload the
+       * unknown block carried is discarded here, unvalidated and unrendered. */
+      blocks.push({
+        type: 'unknown', id, originalType: declaredType,
+        message: 'This block type is not available in this version of the board.',
+      })
       return
     }
 
@@ -508,7 +534,5 @@ export function validateBoard(source: BoardSource): BoardResult {
     connectors,
     ...(isObj(source.metadata) ? { metadata: source.metadata as ValidatedBoard['metadata'] } : {}),
   }
-  if (!isStr(source.id) || !source.id.trim()) repair(ctx, "The board had no id; 'board' was assigned.")
-
   return { status: ctx.repaired ? 'repaired' : 'ok', board, notices: ctx.notices }
 }

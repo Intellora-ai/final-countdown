@@ -39,8 +39,8 @@ mark('canvas-route-start')
 
 /* World layout: a step column 760 units wide; steps drift right/down like a
  * teacher working across a board. Snapped to the 8px world grid. */
-const STEP_W = 760
-const STEP_GAP_Y = 96
+const STEP_W = 720
+const STEP_GAP_Y = 80
 const STEP_DRIFT_X = 112
 const EST_STEP_H = 360
 
@@ -48,6 +48,7 @@ const EST_STEP_H = 360
  * example" offers real content or does not appear at all. */
 const CHEM_EXTRA: TeachingStep = {
   id: 'extra-example',
+  purpose: 'practice',
   title: 'A worked example',
   blocks: [{
     id: 'extra-worked',
@@ -57,7 +58,7 @@ const CHEM_EXTRA: TeachingStep = {
     working: ['Q = m · L', 'Q = 0.5 × 334,000', 'Q = 167,000 J'],
     result: 'Q = 167 kJ — all of it spent breaking the arrangement, none on temperature.',
   }],
-  checkpoint: { prompt: 'Shall we move forward?' },
+  checkpoint: { question: 'Shall we move forward?', continueLabel: 'Move forward', unclearLabel: 'Explain again' },
 }
 
 interface Placement { rect: WorldRect; measured: boolean }
@@ -292,6 +293,7 @@ function WorldStep({
         <div data-board="step-culled" aria-hidden="true" />
       ) : (
         <>
+          <p data-board="step-purpose">{released.step.purpose}</p>
           {released.step.title && <h2 data-board="step-title">{released.step.title}</h2>}
           <StepView released={released} isCurrent={isCurrent} />
         </>

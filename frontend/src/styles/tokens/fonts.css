@@ -1,4 +1,14 @@
 /* Agabi — Webfonts (exact source: src/styles/fonts.css from agabi.fig build)
    Fraunces (display serif) · DM Sans (body/UI) · JetBrains Mono (labels/data)
-   All three load from Google Fonts — no local binaries exist in the source. */
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=JetBrains+Mono:wght@400;500&display=swap');
+   All three load from Google Fonts — no local binaries exist in the source.
+
+   Caveat is added for the learning canvas ONLY. The design ruling is Agabi wins
+   on colour and theme, Gemini wins on handwriting: the reference board annotates
+   in a fine slanted script, and Agabi's three faces have no handwriting among
+   them. It arrives through the same @import and the same origin the design
+   system already uses, so it adds no npm dependency and no new network host.
+   Licence: SIL Open Font License 1.1, verified and checksummed in
+   docs/licences/caveat-font.md — commercial use permitted, no Reserved Font
+   Name, and no attribution obligation while the binary is not redistributed.
+   Fraunces italic is the recorded fallback. */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=JetBrains+Mono:wght@400;500&family=Caveat:wght@400;600&display=swap');

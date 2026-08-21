@@ -4,7 +4,7 @@
  * talks to ONE adapter — swap LocalAdapter for Firebase/Supabase, keep the UI.
  * WEAKNESS IS NOT STORED: raw signals are; "weak" is a policy hook. */
 import CURRICULUM from './curriculum'
-import type { Adapter, DB, Student, ProgressRecord, ConceptState, Chapter, Concept, Subject, TodayPlan, PlanItem, PlanDraft, ActivityEvent } from '../types'
+import type { Adapter, DB, Student, ProgressRecord, ConceptState, Chapter, Concept, Subject, TodayPlan, PlanItem, PlanDraft, ActivityEvent, CameraState } from '../types'
 
 const KEY = 'learning-os/v2'
 const CHAN = 'learning-os-sync'
@@ -236,6 +236,31 @@ export class Store {
     s.deadlines = clone(plan.deadlines || {})
     s.lastActiveAt = now()
     this.save('students/' + id, s)
+  }
+
+  /* -------------------------------- canvas ------------------------------- */
+  /* Camera is learner state and is persisted like any other. It is keyed by
+   * representation as well as concept, because the frame that fits a particle
+   * simulation is not the frame that fits an equation — restoring one into the
+   * other would "remember" a position the learner never chose. */
+  canvasCamera(chId: string, cId: string, representationId: string): CameraState | null {
+    const root = this.db && this.db.canvas
+    const forStudent = root && root[this.currentId!]
+    const forChapter = forStudent && forStudent[chId]
+    const forConcept = forChapter && forChapter[cId]
+    return (forConcept && forConcept[representationId]) || null
+  }
+
+  saveCanvasCamera(chId: string, cId: string, representationId: string, camera: Omit<CameraState, 'updatedAt'>) {
+    if (!this.db || !this.currentId) return
+    if (!this.db.canvas) this.db.canvas = {}
+    const byStudent = this.db.canvas
+    if (!byStudent[this.currentId]) byStudent[this.currentId] = {}
+    if (!byStudent[this.currentId][chId]) byStudent[this.currentId][chId] = {}
+    if (!byStudent[this.currentId][chId][cId]) byStudent[this.currentId][chId][cId] = {}
+    const record: CameraState = { ...camera, updatedAt: now() }
+    byStudent[this.currentId][chId][cId][representationId] = record
+    this.save('canvas/' + this.currentId + '/' + chId + '/' + cId + '/' + representationId, record)
   }
 
   /* ------------------------------- progress ------------------------------ */

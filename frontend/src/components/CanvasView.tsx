@@ -1,34 +1,18 @@
-/* THE LEARNING CANVAS — the board the Start actions have always pointed at.
+/* THE LEARNING CANVAS ROUTE — resolve who the board is about, then hand over.
  *
- * WHAT CHANGED FROM THE PLACEHOLDER. `/canvas` used to render "Not designed
- * yet" and know nothing about what the learner had just started. It now carries
- * identity in the URL — `/canvas/:chapterId/:conceptId` — so every object the
- * board will ever draw can be anchored to a real concept, replayed, restored
- * after a refresh, and explained when the learner asks why it is there.
- *
- * WHAT THIS BATCH DELIBERATELY DOES NOT DO. It does not yet write by hand, run
- * a simulation, or construct the eight-step lesson. Those are CS-7 and CS-8 and
- * they arrive on this surface. What lands here is the part everything else
- * stands on: the concept is resolved, its variables are declared into the one
- * store that all representations will read, and the opening operations are
- * logged so the scene is replayable from its first frame rather than from
- * whenever logging was remembered.
- *
- * The board is dark ground with the question at the top and its underline in
- * accent — the composition measured from the reference image, painted entirely
- * from Agabi tokens.
+ * This file does one thing: turn a URL into a concept, or say honestly that it
+ * cannot. Everything the board does with that concept lives in canvas/Board.tsx,
+ * so "which concept is this?" and "what does the lesson look like?" stay two
+ * separate questions with two separate answers.
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import CURRICULUM from '../data/curriculum'
 import { store } from '../data/store'
 import { Button } from '../ui/Button'
-import { stateLabel } from '../lib/format'
 import { resolveCanvasIdentity } from '../lib/canvas-identity'
-import { OperationLog } from '../lib/operations'
-import { VariableStore } from '../lib/variables'
-import { buildConceptScene } from '../lib/scene'
+import { Board } from './canvas/Board'
 
 export function CanvasView() {
   const nav = useNavigate()
@@ -112,96 +96,6 @@ function CanvasNeedsSelection({ reason, onBack }: { reason: string; onBack: () =
           Go to today's learning
         </Button>
       </div>
-    </div>
-  )
-}
-
-function Board({
-  subjectName,
-  chapterName,
-  chapterId,
-  concept,
-}: {
-  subjectName: string
-  chapterName: string
-  chapterId: string
-  concept: import('../types').Concept
-}) {
-  /* One log and one variable store per opened concept, created once. Every
-   * representation this board grows will read from these two objects and hold
-   * no copy of its own — the property acceptance test T4 measures. */
-  const [{ log, variables, scene }] = useState(() => {
-    const log = new OperationLog()
-    const variables = new VariableStore({
-      emit: (op) => log.append(op),
-    })
-    const scene = buildConceptScene({ chapterId, concept, log, variables })
-    return { log, variables, scene }
-  })
-
-  const [, force] = useState(0)
-  useEffect(() => variables.subscribe(() => force((n) => n + 1)), [variables])
-
-  const conceptState = store.stateOf(chapterId, concept.id)
-  const bound = variables.forConcept(chapterId, concept.id)
-
-  return (
-    <div className="cv-board" data-shell="pad">
-      <div className="cv-crumb mono-crumb">
-        {subjectName} · {chapterName}
-      </div>
-
-      <h1 className="cv-question">{scene.question}</h1>
-      <div className="cv-underline" aria-hidden="true" />
-
-      <div className="cv-meta">
-        <span className="cv-chip" data-state={conceptState}>
-          {stateLabel(conceptState)}
-        </span>
-        <span className="cv-meta-item">{concept.minutes} min</span>
-        <span className="cv-meta-item">
-          {scene.steps} step{scene.steps === 1 ? '' : 's'} so far
-        </span>
-      </div>
-
-      {bound.length > 0 && (
-        <section className="cv-panel" aria-label="Variables in this concept">
-          <h2 className="cv-panel-h">Variables</h2>
-          <ul className="cv-vars">
-            {bound.map((v) => (
-              <li key={v.variableId} className="cv-var">
-                <span className="cv-var-name">
-                  {v.symbol ? <b>{v.symbol}</b> : null} {v.name}
-                </span>
-                <span className="cv-var-value">
-                  {String(v.value)}
-                  {v.unit ?? ''}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {concept.edges.length > 0 && (
-        <section className="cv-panel" aria-label="How this concept connects">
-          <h2 className="cv-panel-h">Connections</h2>
-          <ul className="cv-edges">
-            {concept.edges.map((e) => (
-              <li key={`${e.type}:${e.to}`} className="cv-edge">
-                <span className="cv-edge-type">{e.type.replace(/_/g, ' ')}</span>
-                <span className="cv-edge-to">{e.to.replace(/-/g, ' ')}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <p className="cv-note">
-        This board is under construction: identity, variables and the operation log are live, and
-        the handwritten step-by-step scene lands next. {log.semanticStepCount()} semantic
-        operation{log.semanticStepCount() === 1 ? '' : 's'} recorded.
-      </p>
     </div>
   )
 }

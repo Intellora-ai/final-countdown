@@ -67,10 +67,27 @@ export interface PlanItem {
 }
 export interface TodayPlan { items: PlanItem[]; allocated: number; capacity: number; reserve: number; usable: number }
 
+/* Where the learner was looking, per concept per representation.
+ *
+ * Camera is LEARNER STATE, not view state. Someone who panned to a corner of
+ * the board and zoomed into a detail did that deliberately; resetting it
+ * because the tutor drew something, or because they closed the concept and came
+ * back, throws away work they did. So it is persisted through the same adapter
+ * as progress and restored on reopen. */
+export interface CameraState {
+  pan: { x: number; y: number }
+  zoom: number
+  focusObjectId: string | null
+  representationId: string | null
+  updatedAt: number
+}
+
 export interface DB {
   students: Record<string, Student>
   progress: Record<string, Record<string, Record<string, ProgressRecord>>>
   activity: Record<string, ActivityEvent[]>
+  /** canvas/{studentId}/{chapterId}/{conceptId}/{representationId} */
+  canvas?: Record<string, Record<string, Record<string, Record<string, CameraState>>>>
   currentId: string | null
 }
 export interface ActivityEvent { at?: number; type: string; chapterId?: string; conceptId?: string; from?: string; to?: string }

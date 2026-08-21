@@ -1,6 +1,7 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { store } from '../data/store'
+import { canvasPath } from '../lib/canvas-identity'
 import { Button } from '../ui/Button'
 import { SUBCOL, stateLabel } from '../lib/format'
 
@@ -16,7 +17,9 @@ export function TodayView() {
     /* Every start is a write first and a navigation second — the record, the
      * sidebar counts, today's plan and the node move together. */
     if (cur !== 'inProgress' && cur !== 'mastered') store.setConceptState(chId, cId, 'inProgress', 'session')
-    nav('/canvas')
+    /* The canvas is told WHICH concept, rather than being left to guess from
+     * the store. Same write, same order; the destination now carries identity. */
+    nav(canvasPath(chId, cId))
   }
 
   return (

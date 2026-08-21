@@ -1,89 +1,71 @@
-import type { ComponentType } from 'react'
+import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
 import {
   IMPLEMENTED_BLOCK_TYPES,
-  type Block,
   type BlockWidth,
   type ImplementedBlockType,
 } from '../types/learningBoard'
-import { ExplanationBlock } from '../blocks/ExplanationBlock'
-import { TextBlock } from '../blocks/TextBlock'
-import { TableBlock } from '../blocks/TableBlock'
-import { CalloutBlock } from '../blocks/CalloutBlock'
-import { PieChartBlock } from '../blocks/charts/PieChartBlock'
-import { BarChartBlock } from '../blocks/charts/BarChartBlock'
-import { LineChartBlock } from '../blocks/charts/LineChartBlock'
-import { EquationBlock } from '../blocks/EquationBlock'
-import { ProcessBlock } from '../blocks/ProcessBlock'
-import { TimelineBlock } from '../blocks/TimelineBlock'
-import { ComparisonBlock } from '../blocks/ComparisonBlock'
-import { DiagramBlock } from '../blocks/DiagramBlock'
-import { ExampleBlock } from '../blocks/ExampleBlock'
-import { QuizBlock } from '../blocks/QuizBlock'
-import { ImageBlock } from '../blocks/ImageBlock'
-import { SimulationBlock } from '../blocks/SimulationBlock'
 import { UnknownBlock } from '../blocks/UnknownBlock'
 
 /* THE REGISTRY — where a block type meets its component, and where every
  * visual decision about that type lives.
  *
- * WHY `treatment` AND `defaultWidth` ARE HERE AND NOT IN THE JSON. This is the
- * whole boundary, expressed as a data structure. A generator chooses WHAT a
- * block is; the registry chooses what that kind of block LOOKS like. There is
- * no field in LearningBoard where a generator could set `treatment: 'glass'`,
- * because the decision was never its to make.
+ * NOW LAZY, AND FOR A MEASURED REASON. Statically imported, all sixteen block
+ * bodies ride in the route's initial chunk — a learner opening a lesson that
+ * is one explanation downloads the particle simulation. Each entry is a
+ * dynamic import; a component's code arrives the first time a step actually
+ * mounts that block type. The loading boundary ("future charts are not
+ * loaded before their step") becomes a property of the bundler output, not a
+ * promise.
  *
- * WHY THERE IS NO SWITCH IN THE RENDERER. Sixteen block types, and adding a
- * seventeenth is one entry here plus one interface in the types file.
- * BoardRenderer does not change and cannot grow a special case for one type.
+ * METADATA STAYS SYNCHRONOUS. treatment and defaultWidth are layout inputs —
+ * the frame renders before the body code lands — so they live here as plain
+ * data, still out of the JSON's reach, still per-type, still the boundary.
+ *
+ * UnknownBlock is the ONE eager component: the fallback path must not itself
+ * be able to fail to load.
  */
 
-/** How BoardBlock frames this kind of block. Chosen per type, never per board. */
 export type BlockTreatment = 'bare' | 'glass'
 
-interface Entry<T extends Block> {
-  Component: ComponentType<{ block: T }>
+interface Entry {
+  load: () => Promise<{ default: ComponentType<{ block: any }> }>
   treatment: BlockTreatment
   defaultWidth: BlockWidth
 }
 
-/* Typed per block type at the definition site: a component that accepts the
- * wrong block shape is a compile error here, the only place it can be caught. */
-type Registry = {
-  [K in ImplementedBlockType]: Entry<Extract<Block, { type: K }>>
+const ENTRIES: Record<ImplementedBlockType, Entry> = {
+  /* Prose is bare — text on the canvas itself. Panels are for surfaces. */
+  explanation: { load: () => import('../blocks/ExplanationBlock').then((m) => ({ default: m.ExplanationBlock })), treatment: 'bare', defaultWidth: 'wide' },
+  text:        { load: () => import('../blocks/TextBlock').then((m) => ({ default: m.TextBlock })),               treatment: 'bare', defaultWidth: 'wide' },
+  process:     { load: () => import('../blocks/ProcessBlock').then((m) => ({ default: m.ProcessBlock })),         treatment: 'bare', defaultWidth: 'wide' },
+  timeline:    { load: () => import('../blocks/TimelineBlock').then((m) => ({ default: m.TimelineBlock })),       treatment: 'bare', defaultWidth: 'wide' },
+  table:       { load: () => import('../blocks/TableBlock').then((m) => ({ default: m.TableBlock })),             treatment: 'glass', defaultWidth: 'full' },
+  callout:     { load: () => import('../blocks/CalloutBlock').then((m) => ({ default: m.CalloutBlock })),         treatment: 'glass', defaultWidth: 'medium' },
+  pie_chart:   { load: () => import('../blocks/charts/PieChartBlock').then((m) => ({ default: m.PieChartBlock })), treatment: 'glass', defaultWidth: 'medium' },
+  bar_chart:   { load: () => import('../blocks/charts/BarChartBlock').then((m) => ({ default: m.BarChartBlock })), treatment: 'glass', defaultWidth: 'medium' },
+  line_chart:  { load: () => import('../blocks/charts/LineChartBlock').then((m) => ({ default: m.LineChartBlock })), treatment: 'glass', defaultWidth: 'wide' },
+  equation:    { load: () => import('../blocks/EquationBlock').then((m) => ({ default: m.EquationBlock })),       treatment: 'glass', defaultWidth: 'medium' },
+  comparison:  { load: () => import('../blocks/ComparisonBlock').then((m) => ({ default: m.ComparisonBlock })),   treatment: 'glass', defaultWidth: 'full' },
+  diagram:     { load: () => import('../blocks/DiagramBlock').then((m) => ({ default: m.DiagramBlock })),         treatment: 'glass', defaultWidth: 'full' },
+  example:     { load: () => import('../blocks/ExampleBlock').then((m) => ({ default: m.ExampleBlock })),         treatment: 'glass', defaultWidth: 'wide' },
+  quiz:        { load: () => import('../blocks/QuizBlock').then((m) => ({ default: m.QuizBlock })),               treatment: 'glass', defaultWidth: 'wide' },
+  image:       { load: () => import('../blocks/ImageBlock').then((m) => ({ default: m.ImageBlock })),             treatment: 'glass', defaultWidth: 'medium' },
+  simulation:  { load: () => import('../blocks/SimulationBlock').then((m) => ({ default: m.SimulationBlock })),   treatment: 'glass', defaultWidth: 'full' },
 }
 
-const REGISTRY: Registry = {
-  /* Prose carries the argument, so it is bare — text on the canvas itself.
-   * Wrapping it in a panel is what turns a board into a stack of cards. */
-  explanation: { Component: ExplanationBlock, treatment: 'bare', defaultWidth: 'wide' },
-  text:        { Component: TextBlock,        treatment: 'bare', defaultWidth: 'wide' },
-  process:     { Component: ProcessBlock,     treatment: 'bare', defaultWidth: 'wide' },
-  timeline:    { Component: TimelineBlock,    treatment: 'bare', defaultWidth: 'wide' },
-  /* Surfaces with edges earn a panel. */
-  table:       { Component: TableBlock,       treatment: 'glass', defaultWidth: 'full' },
-  callout:     { Component: CalloutBlock,     treatment: 'glass', defaultWidth: 'medium' },
-  pie_chart:   { Component: PieChartBlock,    treatment: 'glass', defaultWidth: 'medium' },
-  bar_chart:   { Component: BarChartBlock,    treatment: 'glass', defaultWidth: 'medium' },
-  line_chart:  { Component: LineChartBlock,   treatment: 'glass', defaultWidth: 'wide' },
-  equation:    { Component: EquationBlock,    treatment: 'glass', defaultWidth: 'medium' },
-  comparison:  { Component: ComparisonBlock,  treatment: 'glass', defaultWidth: 'full' },
-  diagram:     { Component: DiagramBlock,     treatment: 'glass', defaultWidth: 'full' },
-  example:     { Component: ExampleBlock,     treatment: 'glass', defaultWidth: 'wide' },
-  quiz:        { Component: QuizBlock,        treatment: 'glass', defaultWidth: 'wide' },
-  image:       { Component: ImageBlock,       treatment: 'glass', defaultWidth: 'medium' },
-  simulation:  { Component: SimulationBlock,  treatment: 'glass', defaultWidth: 'full' },
+/* One lazy wrapper per type, created once — recreating lazy() per render
+ * would remount the block on every parent update. */
+const LAZY: Partial<Record<ImplementedBlockType, LazyExoticComponent<ComponentType<{ block: any }>>>> = {}
+
+function lazyFor(type: ImplementedBlockType): LazyExoticComponent<ComponentType<{ block: any }>> {
+  return (LAZY[type] ??= lazy(ENTRIES[type].load))
 }
 
-/* THE ONE PLACE THE PER-TYPE TYPING IS ERASED. Every component above was
- * checked against its own block shape; a single call site then renders any of
- * them, and no honest type describes that without the caller narrowing —
- * which is the switch this design exists to avoid. The erasure is deliberate,
- * visible, and confined to this type and resolve(). */
 export interface ResolvedEntry {
   Component: ComponentType<{ block: any }>
   treatment: BlockTreatment
   defaultWidth: BlockWidth
-  /** false when the type had no component and the fallback was returned. */
+  /** false when the type had no entry and the fallback was returned. */
   known: boolean
 }
 
@@ -94,25 +76,35 @@ const FALLBACK: ResolvedEntry = {
   known: false,
 }
 
-/** The registry's keys — what this build can actually draw. */
 export function registeredTypes(): string[] {
-  return Object.keys(REGISTRY)
+  return Object.keys(ENTRIES)
+}
+
+/** Metadata without touching the loader — for tests and layout math. */
+export function entryMeta(type: string): { treatment: BlockTreatment; defaultWidth: BlockWidth } | null {
+  const e = (ENTRIES as Record<string, Entry | undefined>)[type]
+  return e ? { treatment: e.treatment, defaultWidth: e.defaultWidth } : null
+}
+
+/** The raw loader — the proof harness uses it to verify code-splitting. */
+export function loaderFor(type: string): Entry['load'] | null {
+  const e = (ENTRIES as Record<string, Entry | undefined>)[type]
+  return e ? e.load : null
 }
 
 export function resolve(type: unknown): ResolvedEntry {
   if (typeof type !== 'string') return FALLBACK
-  const entry = (REGISTRY as Record<string, Entry<Block> | undefined>)[type]
-  if (!entry) return FALLBACK
+  const e = (ENTRIES as Record<string, Entry | undefined>)[type]
+  if (!e) return FALLBACK
   return {
-    Component: entry.Component as ComponentType<any>,
-    treatment: entry.treatment,
-    defaultWidth: entry.defaultWidth,
+    Component: lazyFor(type as ImplementedBlockType),
+    treatment: e.treatment,
+    defaultWidth: e.defaultWidth,
     known: true,
   }
 }
 
-/* ROUTING, NOT VALIDATION. Enough structure for a lookup — nothing more.
- * Well-formedness is validateBoard()'s job. */
+/* ROUTING, NOT VALIDATION. Enough structure for a lookup — nothing more. */
 export function isRenderableBlock(value: unknown): value is { type: string; id?: string } {
   return (
     typeof value === 'object' &&

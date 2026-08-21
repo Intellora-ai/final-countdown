@@ -1073,3 +1073,318 @@
   font-size: 9px;
   letter-spacing: 0.08em;
 }
+
+
+/* ═══ PHASE 1C — INFINITE BOARD + PROGRESSIVE TEACHING ═════════════════
+   The camera variant: the root clips, the world transforms, the chrome
+   stays put. Every fixed element sits OUTSIDE [data-board='world'], so the
+   camera transform structurally cannot move a control. */
+
+[data-board='root'][data-variant='camera'] {
+  height: calc(100vh - 54px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+[data-board='viewport'] {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  touch-action: none;
+  cursor: grab;
+  z-index: 1;
+}
+
+[data-board='viewport'][data-dragging='true'] { cursor: grabbing; }
+
+[data-board='world'] {
+  position: absolute;
+  top: 0; left: 0;
+  width: 0; height: 0;          /* children place themselves in world coords */
+  overflow: visible;
+  transform:
+    translate3d(var(--camera-x, 0px), var(--camera-y, 0px), 0)
+    scale(var(--camera-zoom, 1));
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+[data-board='world-step'] {
+  position: absolute;            /* world coordinates — the ONE sanctioned use */
+  padding: var(--space-6) var(--space-6) var(--space-8);
+  border-radius: var(--radius-xl);
+  transition: opacity var(--duration-smooth) var(--ease-out);
+}
+
+[data-board='world-step'][data-current='false'] { opacity: 0.62; }
+[data-board='world-step'][data-current='true'] {
+  outline: 1px solid rgba(56, 228, 215, 0.14);
+  outline-offset: 12px;
+  border-radius: var(--radius-xl);
+}
+
+[data-board='step-title'] {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 21px;
+  letter-spacing: var(--tracking-tight);
+  color: var(--board-text);
+  margin: 0 0 var(--space-5);
+}
+
+[data-board='step-blocks'] { display: flex; flex-direction: column; gap: var(--space-6); }
+[data-board='step-blocks'] [data-board='cell'] { grid-column: unset; }
+
+[data-board='step-culled'] { width: 100%; height: 100%; }
+
+[data-board='caret'] {
+  display: inline-block;
+  width: 2px; height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--board-accent);
+  animation: agabi-pulse 1500ms var(--ease-in-out) infinite;
+}
+
+[data-board='visual-pending'] { min-height: 24px; }
+
+[data-board='block-loading'] {
+  min-height: 48px;
+  border-radius: var(--radius-lg);
+  background: var(--board-panel);
+  animation: agabi-pulse 1500ms var(--ease-in-out) infinite;
+}
+
+/* Chart phase: axes visible, marks held back until the chart-data event. */
+[data-reveal='axes'] [data-board='line'],
+[data-reveal='axes'] [data-board='point'],
+[data-reveal='axes'] [data-board='point-highlight'],
+[data-reveal='axes'] [data-board='bar'],
+[data-reveal='axes'] [data-board='bar-highlight'],
+[data-reveal='axes'] [data-board='series'],
+[data-reveal='axes'] [data-board='chart-legend'] { opacity: 0; }
+
+[data-reveal='full'] [data-board='line'],
+[data-reveal='full'] [data-board='point'],
+[data-reveal='full'] [data-board='bar'],
+[data-reveal='full'] [data-board='series'] { transition: opacity var(--duration-smooth) var(--ease-out); }
+
+/* ── compact fixed header (camera variant) ─────────────────────────────── */
+[data-board='header-compact'] {
+  position: absolute;
+  left: var(--space-6);
+  bottom: var(--space-6);
+  z-index: 4;
+  max-width: 340px;
+  pointer-events: none;
+}
+
+[data-board='header-compact'] [data-board='picker'] { pointer-events: auto; margin-bottom: var(--space-4); }
+[data-board='header-compact'] [data-board='eyebrow'] { margin-bottom: var(--space-2); }
+
+[data-board='title-compact'] {
+  position: relative;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 17px;
+  line-height: 1.3;
+  letter-spacing: var(--tracking-tight);
+  color: var(--board-text);
+  margin: 0;
+  padding-bottom: var(--space-3);
+}
+
+/* Same glow site as the scroll variant's title — budget unchanged. */
+[data-board='title-compact']::after {
+  content: '';
+  position: absolute;
+  left: 0; bottom: 0;
+  width: 56px; height: 2px;
+  border-radius: 2px;
+  background: var(--board-accent);
+  box-shadow: 0 0 14px var(--board-accent-glow);
+}
+
+[data-board='header-compact'] [data-board='subtitle'] { margin-top: var(--space-2); }
+
+/* ── teaching chrome (fixed, outside the world) ────────────────────────── */
+[data-board='teach-controls'] {
+  position: absolute;
+  right: var(--space-6);
+  bottom: var(--space-6);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--board-border);
+  background: rgba(22, 25, 28, 0.88);
+  backdrop-filter: blur(10px);
+  border-radius: var(--radius-full);
+}
+
+[data-board='teach-btn'] {
+  border: 1px solid var(--board-border);
+  background: var(--board-panel);
+  color: var(--board-text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  border-radius: var(--radius-full);
+  padding: 0 16px;
+  min-height: 44px;
+  min-width: 44px;
+  cursor: pointer;
+  transition: border-color var(--duration-base) var(--ease-out);
+}
+
+[data-board='teach-btn']:hover { border-color: var(--board-accent); }
+[data-board='teach-btn'][data-primary='true'] {
+  background: rgba(56, 228, 215, 0.14);
+  border-color: var(--board-accent);
+}
+
+[data-board='teach-sep'] { width: 1px; height: 24px; background: var(--board-border); }
+
+[data-board='pace'] { display: flex; gap: 2px; padding: 2px; }
+
+[data-board='pace-btn'] {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--board-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: var(--radius-full);
+  padding: 0 12px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+[data-board='pace-btn'][data-active='true'] {
+  color: var(--board-text);
+  border-color: var(--board-border);
+  background: var(--board-panel);
+}
+
+[data-board='checkpoint'] {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--space-6) + 76px);
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-5) var(--space-8);
+  border: 1px solid var(--board-border);
+  background: rgba(22, 25, 28, 0.92);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-xl);
+  animation: osIn 0.3s var(--ease-out);
+}
+
+[data-board='checkpoint-prompt'] {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--board-text);
+  margin: 0;
+}
+
+[data-board='checkpoint-actions'] { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: center; }
+
+[data-board='lesson-done'] {
+  position: absolute;
+  left: 50%; bottom: calc(var(--space-6) + 76px);
+  transform: translateX(-50%);
+  z-index: 4;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--board-text-secondary);
+}
+
+[data-board='overlay-notices'] {
+  position: absolute;
+  top: 76px; right: var(--space-6);
+  z-index: 4;
+  width: min(420px, calc(100% - 48px));
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+[data-board='overlay-state'] {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+}
+
+/* Keyboard focus must be VISIBLE on the board's dark ground. */
+[data-board='root'] :focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+}
+
+/* Camera-variant narrow shells: controls stack tighter, header yields. */
+@container broot (max-width: 899px) {
+  /* Narrow shells: the picker wrapped into a tall block that sat OVER the
+   * board and ate every pointer event (found by the proof harness: the
+   * element at the screen centre was the picker). It becomes one
+   * horizontally scrollable row pinned at the top, and the header shrinks
+   * to a strip — chrome may frame the board, never cover it. */
+  [data-board='root'][data-variant='camera'] [data-board='header-compact'] {
+    bottom: auto;
+    top: 118px;
+    left: var(--space-5);
+    right: var(--space-5);
+    max-width: none;
+  }
+  [data-board='root'][data-variant='camera'] [data-board='header-compact'] [data-board='picker'] {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding-bottom: var(--space-2);
+    margin-bottom: var(--space-2);
+    scrollbar-width: none;
+  }
+  [data-board='root'][data-variant='camera'] [data-board='header-compact'] [data-board='picker-pill'] {
+    flex: none;
+  }
+  [data-board='root'][data-variant='camera'] [data-board='title-compact'] { font-size: 14px; padding-bottom: var(--space-2); }
+  [data-board='root'][data-variant='camera'] [data-board='header-compact'] [data-board='subtitle'] { display: none; }
+  [data-board='root'][data-variant='camera'] [data-board='teach-controls'] {
+    right: var(--space-3);
+    left: var(--space-3);
+    bottom: var(--space-3);
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  [data-board='root'][data-variant='camera'] [data-board='checkpoint'] {
+    width: calc(100% - 24px);
+    bottom: calc(var(--space-3) + 110px);
+    padding: var(--space-4);
+  }
+  /* The camera rail IS the product on a camera board — show it narrow too,
+     compactly, above the content. */
+  [data-board='root'][data-variant='camera'] [data-board='controls-side'] {
+    display: flex;
+    top: 130px;
+    bottom: auto;
+    right: var(--space-3);
+    left: auto;
+    align-items: flex-end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-board='caret'] { animation: none; }
+  [data-board='world-step'] { transition: none; }
+}

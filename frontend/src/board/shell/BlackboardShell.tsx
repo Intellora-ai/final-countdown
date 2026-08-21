@@ -27,11 +27,14 @@ export function BlackboardShell({
   eyebrow,
   title,
   subtitle,
+  picker,
   children,
 }: {
   eyebrow?: string
   title: string
   subtitle?: string | null
+  /** The fixture/board selector — the one piece of chrome the view supplies. */
+  picker?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
@@ -40,6 +43,7 @@ export function BlackboardShell({
       <BoardTopControls />
       <BoardSideControls />
       <BoardCanvas>
+        {picker}
         <header data-board="header">
           {eyebrow ? <p data-board="eyebrow">{eyebrow}</p> : null}
           <h1 data-board="title">{title}</h1>

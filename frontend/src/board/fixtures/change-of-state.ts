@@ -1,22 +1,22 @@
 import CURRICULUM from '../../data/curriculum'
 import type { LearningBoard } from '../types/learningBoard'
 
-/* THE PHASE 1 FIXTURE — one answer, in the content language.
+/* THE REFERENCE FIXTURE — the Gemini-style composition, as data.
  *
- * IT IS NOT LEARNER DATA AND SAYS SO. `metadata.source: 'fixture'` is set, and
- * the board reads no progress record, writes nothing, and claims nothing about
- * anyone's mastery. It exists to prove the renderer, and it is labelled so it
- * can never be mistaken for something observed.
+ * Everything the reference image shows a flavour of is here as a BLOCK:
+ * explanation, equation, process, diagram, chart, table, callout, simulation,
+ * and two relationships. Not one of them knows it is part of this lesson —
+ * delete this file and every component still renders any other board.
  *
- * THE IDS ARE REAL. `chemistry`, `matter-in-our-surroundings` and
- * `change-of-state` all exist in curriculum.ts. The eyebrow and subtitle below
- * are LOOKED UP rather than typed out, which means this file cannot drift from
- * the curriculum silently — if a chapter is renamed or re-graded, the label
- * changes with it. That is also what makes metadata load-bearing from day one
- * rather than a field somebody remembers to fill in later.
+ * NOT LEARNER DATA, AND SAYS SO: metadata.source 'fixture', no progress read,
+ * no progress written. IDS ARE REAL: chemistry / matter-in-our-surroundings /
+ * change-of-state exist in curriculum.ts, and the eyebrow/subtitle are looked
+ * up so a renamed chapter breaks a test instead of drifting.
  *
- * IT FALLS BACK RATHER THAN THROWING. A missing concept is a reason to render a
- * plain label, not to take the route down.
+ * THE PHYSICS IS THE LESSON'S OWN. Q = m·L is latent heat — the equation FOR
+ * melting — not PV = nRT borrowed from the reference image's gas lesson. The
+ * heating curve's plateau at the melting point is the equation drawn as data:
+ * temperature holds while Q flows into L.
  */
 
 const FIXTURE_CLASS = 'Class 9'
@@ -37,21 +37,16 @@ function lookup() {
 
 const { subject, concept } = lookup()
 
-/** e.g. "CHEMISTRY · CHANGE OF STATE" */
 export const CHANGE_OF_STATE_EYEBROW = [subject?.name ?? 'Chemistry', concept?.name ?? 'Change of state']
   .join(' · ')
   .toUpperCase()
-
-const SUBTITLE = concept
-  ? `${concept.name} · ${concept.minutes} min`
-  : 'Change of state'
 
 export const CHANGE_OF_STATE_BOARD: LearningBoard = {
   type: 'learning_board',
   version: 1,
   id: 'board-change-of-state',
   title: 'Why does heating a solid turn it into a liquid?',
-  subtitle: SUBTITLE,
+  subtitle: concept ? `${concept.name} · ${concept.minutes} min` : 'Change of state',
   layout: 'grid',
   blocks: [
     {
@@ -65,8 +60,7 @@ export const CHANGE_OF_STATE_BOARD: LearningBoard = {
         'about their own positions, and adding heat makes those vibrations larger.\n\n' +
         'At the melting point the vibrations are strong enough to overcome the forces holding ' +
         'that arrangement together. The particles break out of their fixed positions and begin ' +
-        'to slide past one another, and the solid becomes a liquid. Nothing is created or ' +
-        'destroyed along the way: the same particles are simply held together less rigidly.',
+        'to slide past one another, and the solid becomes a liquid.',
     },
     {
       id: 'callout-1',
@@ -76,6 +70,63 @@ export const CHANGE_OF_STATE_BOARD: LearningBoard = {
       content:
         'While something is melting its temperature does not rise. The heat being supplied goes ' +
         'into breaking the fixed arrangement, not into making the particles hotter.',
+    },
+    {
+      id: 'equation-1',
+      type: 'equation',
+      eyebrow: 'THE ENERGY OF MELTING',
+      title: 'Latent heat',
+      layout: { width: 'medium' },
+      latex: 'Q = m · L',
+      variables: [
+        { symbol: 'Q', meaning: 'heat absorbed during melting', unit: 'J' },
+        { symbol: 'm', meaning: 'mass of the substance', unit: 'kg' },
+        { symbol: 'L', meaning: 'latent heat of fusion', unit: 'J/kg' },
+      ],
+    },
+    {
+      id: 'chart-1',
+      type: 'line_chart',
+      eyebrow: 'MEASURED, NOT IMAGINED',
+      title: 'Heating curve of ice',
+      layout: { width: 'wide' },
+      points: [
+        { x: 0, y: -20 }, { x: 10, y: -10 }, { x: 20, y: 0 },
+        { x: 30, y: 0 }, { x: 40, y: 0 },
+        { x: 50, y: 12 }, { x: 60, y: 25 }, { x: 70, y: 40 },
+      ],
+      highlightIndex: 3,
+      yLabel: 'Temperature (°C)',
+      xLabel: 'Heat added (kJ)',
+    },
+    {
+      id: 'process-1',
+      type: 'process',
+      title: 'What happens, step by step',
+      layout: { width: 'wide' },
+      steps: [
+        { title: 'Heat flows in', detail: 'Energy transfers from the surroundings into the solid.' },
+        { title: 'Vibrations grow', detail: 'Particles vibrate further about their fixed positions.' },
+        { title: 'The melting point is reached', detail: 'Vibrations are now as large as the fixed arrangement can survive.' },
+        { title: 'The arrangement breaks', detail: 'Heat now goes into separating particles — temperature holds steady.' },
+        { title: 'The liquid forms', detail: 'Particles slide past one another while staying close together.' },
+      ],
+    },
+    {
+      id: 'diagram-1',
+      type: 'diagram',
+      eyebrow: 'THE THREE STATES',
+      title: 'How the states connect',
+      layout: { width: 'medium' },
+      nodes: [
+        { id: 'solid', label: 'Solid', detail: 'fixed arrangement', group: 'states' },
+        { id: 'liquid', label: 'Liquid', detail: 'particles slide', group: 'states' },
+        { id: 'gas', label: 'Gas', detail: 'particles fly free', group: 'states' },
+      ],
+      edges: [
+        { from: 'solid', to: 'liquid', kind: 'causal', label: 'melting' },
+        { from: 'liquid', to: 'gas', kind: 'causal', label: 'evaporation' },
+      ],
     },
     {
       id: 'table-1',
@@ -89,11 +140,22 @@ export const CHANGE_OF_STATE_BOARD: LearningBoard = {
         ['Gas', 'Far apart, no order', 'Move freely and quickly', 'Fills the container completely'],
       ],
     },
+    {
+      id: 'sim-1',
+      type: 'simulation',
+      eyebrow: 'SEE IT MOVE',
+      title: 'Particles and temperature',
+      layout: { width: 'full' },
+      kind: 'particle-box',
+      unit: 'K',
+      minTemp: 273,
+      maxTemp: 450,
+      initialTemp: 300,
+    },
   ],
-  connectors: [],
-  metadata: {
-    chapterId: CHAPTER_ID,
-    conceptId: CONCEPT_ID,
-    source: 'fixture',
-  },
+  connectors: [
+    { id: 'c1', from: 'equation-1', to: 'chart-1', kind: 'reference', label: 'the plateau is Q = m·L' },
+    { id: 'c2', from: 'diagram-1', to: 'sim-1', kind: 'reference', label: 'watch the particles' },
+  ],
+  metadata: { chapterId: CHAPTER_ID, conceptId: CONCEPT_ID, source: 'fixture' },
 }

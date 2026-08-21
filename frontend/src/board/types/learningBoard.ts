@@ -4,53 +4,58 @@
  * permanent; this is the part that changes per question.
  *
  * THE BOUNDARY THIS FILE DEFENDS. Nothing here describes appearance. There is
- * no colour, no font, no radius, no spacing, no coordinate, no HTML and no
- * class name — and there is no field where one could be smuggled in. A block
- * says what it MEANS (a table, a callout) and at most how important it is
- * (`layout.width`, a semantic word, not a pixel count). Everything visual is
- * decided by the block registry and the stylesheet, which a generator cannot
- * reach.
+ * no colour, no font, no radius, no coordinate for ordinary content, no HTML
+ * and no class name — and no field where one could be smuggled in. A block
+ * says what it MEANS; the registry and stylesheet decide what that looks like.
+ * The one spatial exception is a diagram node's optional grid position,
+ * because WHERE a node sits in a concept map is meaning, not styling — and it
+ * exists only inside the diagram type, so spatial data structurally cannot
+ * reach a paragraph or a table.
  *
- * WHY THE UNION IS DERIVED FROM AN ARRAY. `BlockType` and `ALL_BLOCK_TYPES`
- * describe the same set, and two hand-written copies of one set drift. The
- * array is the single declaration; the union is read off it. A type added in
- * one place cannot be missing from the other.
- *
- * PHASE 1 IMPLEMENTS THREE. The other eleven are declared here on purpose: it
- * means the registry's fallback path is exercised by values that will really
- * arrive, rather than by a string nobody would ever send.
+ * THREE TIERS OF TRUST.
+ *   BoardSource      unknown. What a fixture module or a future generator
+ *                    hands over. Nothing renders it directly.
+ *   LearningBoard    the authoring type. Valid fixtures are written as this so
+ *                    the compiler checks them, then exposed as BoardSource.
+ *   ValidatedBoard   what validateBoard() emits and the renderer consumes.
+ *                    Its blocks may include UnknownBlockData — a block whose
+ *                    type this build cannot draw, preserved rather than lost.
  */
 
-/* Every block type the product will ever accept. Phase 1 renders the first
- * three; the rest resolve to UnknownBlock until their component exists. */
+/* ── The catalogue ─────────────────────────────────────────────────────── */
+
+/* Every block type this build implements. The union is read off the array so
+ * the two cannot drift. */
 export const ALL_BLOCK_TYPES = [
-  'explanation', 'table', 'callout',                     // Phase 1
-  'text', 'pie_chart', 'bar_chart', 'line_chart',        // future
+  'explanation', 'table', 'callout',
+  'text', 'pie_chart', 'bar_chart', 'line_chart',
   'equation', 'process', 'timeline', 'comparison',
   'diagram', 'example', 'quiz',
+  'image', 'simulation',
 ] as const
 
 export type BlockType = (typeof ALL_BLOCK_TYPES)[number]
 
-/* How a board arranges its blocks. Phase 1 implements 'grid' only; the union
- * exists so a future board can declare 'spatial' without changing this type. */
+/* All 16 are implemented in Phase 1B; the alias remains because the registry
+ * test asserts parity against it, and a future phase may again declare ahead
+ * of implementing. */
+export const IMPLEMENTED_BLOCK_TYPES = ALL_BLOCK_TYPES
+export type ImplementedBlockType = BlockType
+
 export const ALL_LAYOUT_MODES = ['flow', 'grid', 'spatial', 'stack'] as const
 export type BoardLayoutMode = (typeof ALL_LAYOUT_MODES)[number]
 
-/* Semantic importance, not a column count. The grid decides what each word is
- * worth at each size, and that mapping lives in board-theme.css. */
 export const ALL_BLOCK_WIDTHS = ['small', 'medium', 'wide', 'full'] as const
 export type BlockWidth = (typeof ALL_BLOCK_WIDTHS)[number]
 
 export interface BlockLayout {
   width?: BlockWidth
-  /** Reserved for spatial mode. The Phase 1 grid renderer ignores it. */
+  /** Reserved. The grid renderer ignores it. */
   position?: 'auto'
 }
 
 export interface BlockBase {
-  /** Stable and unique within the board. Used as the React key and, later, as
-   *  the anchor a connector points at. */
+  /** Stable and unique within the board. React key; connector anchor. */
   id: string
   type: BlockType
   title?: string
@@ -59,10 +64,19 @@ export interface BlockBase {
   layout?: BlockLayout
 }
 
+/* ── Block payloads ───────────────────────────────────────────────────── */
+
 export interface ExplanationBlock extends BlockBase {
   type: 'explanation'
   /** Blank lines separate paragraphs. No markup is interpreted. */
   content: string
+}
+
+/** Paragraphs of emphasised segments. Emphasis is a WORD ('strong'|'accent');
+ *  the stylesheet decides what a word looks like. Never HTML. */
+export interface TextBlock extends BlockBase {
+  type: 'text'
+  paragraphs: Array<Array<{ text: string; emphasis?: 'strong' | 'accent' }>>
 }
 
 export interface TableBlock extends BlockBase {
@@ -80,24 +94,122 @@ export interface CalloutBlock extends BlockBase {
   tone?: CalloutTone
 }
 
-/* The Phase 1 union. Adding a future block interface here turns every
- * exhaustive switch over Block into a compile error until it is handled. */
-export type Block = ExplanationBlock | TableBlock | CalloutBlock
+export interface PieChartBlock extends BlockBase {
+  type: 'pie_chart'
+  data: Array<{ label: string; value: number }>
+}
 
-/** Which of ALL_BLOCK_TYPES have a component today. Kept next to the union it
- *  describes so the registry test can assert the two agree. */
-export const IMPLEMENTED_BLOCK_TYPES = ['explanation', 'table', 'callout'] as const
-export type ImplementedBlockType = (typeof IMPLEMENTED_BLOCK_TYPES)[number]
+export interface BarChartBlock extends BlockBase {
+  type: 'bar_chart'
+  data: Array<{ label: string; value: number; highlight?: boolean }>
+  yLabel?: string
+}
 
-/* Declared now so the JSON shape is final and no migration is needed later.
- * Always empty in Phase 1 — nothing renders connectors yet. */
+export interface LineChartBlock extends BlockBase {
+  type: 'line_chart'
+  points: Array<{ x: string | number; y: number }>
+  /** Index into points; the renderer marks it. */
+  highlightIndex?: number
+  yLabel?: string
+  xLabel?: string
+}
+
+export interface EquationBlock extends BlockBase {
+  type: 'equation'
+  /** Rendered as text with math typography. Never interpreted as HTML. */
+  latex: string
+  variables?: Array<{ symbol: string; meaning: string; unit?: string }>
+}
+
+export interface ProcessBlock extends BlockBase {
+  type: 'process'
+  steps: Array<{ title: string; detail?: string }>
+}
+
+export interface TimelineBlock extends BlockBase {
+  type: 'timeline'
+  events: Array<{ at: string; label: string; detail?: string }>
+}
+
+export interface ComparisonBlock extends BlockBase {
+  type: 'comparison'
+  /** The things being compared — column heads. 2 or 3. */
+  subjects: string[]
+  /** Shared criteria; values align with subjects by index. */
+  criteria: Array<{ label: string; values: string[] }>
+}
+
+export type DiagramEdgeKind = 'causal' | 'sequence' | 'reference'
+
+export interface DiagramBlock extends BlockBase {
+  type: 'diagram'
+  nodes: Array<{
+    id: string
+    label: string
+    detail?: string
+    group?: string
+    /** Semantic grid cell, NOT pixels. Only diagram nodes may be spatial. */
+    position?: { col: number; row: number }
+  }>
+  edges: Array<{ from: string; to: string; kind?: DiagramEdgeKind; label?: string }>
+}
+
+export interface ExampleBlock extends BlockBase {
+  type: 'example'
+  prompt: string
+  input?: string
+  working: string[]
+  result?: string
+}
+
+export interface QuizBlock extends BlockBase {
+  type: 'quiz'
+  prompt: string
+  options: Array<{ id: string; label: string; correct?: boolean }>
+  explanation?: string
+}
+
+export interface ImageBlock extends BlockBase {
+  type: 'image'
+  /** data:image/* URI, relative local path, or imported asset. The validator
+   *  refuses http(s), protocol-relative and javascript: sources outright. */
+  src: string
+  /** Required. An image nobody can hear described is dropped, not rendered. */
+  alt: string
+  caption?: string
+  sourceNote?: string
+}
+
+export interface SimulationBlock extends BlockBase {
+  type: 'simulation'
+  kind: 'particle-box'
+  /** Kelvin only — P ∝ T is false in Celsius. The validator enforces 'K'. */
+  unit: 'K'
+  minTemp: number
+  maxTemp: number
+  initialTemp: number
+}
+
+export type Block =
+  | ExplanationBlock | TextBlock | TableBlock | CalloutBlock
+  | PieChartBlock | BarChartBlock | LineChartBlock
+  | EquationBlock | ProcessBlock | TimelineBlock | ComparisonBlock
+  | DiagramBlock | ExampleBlock | QuizBlock
+  | ImageBlock | SimulationBlock
+
+/* ── Connectors and board ─────────────────────────────────────────────── */
+
+export const ALL_CONNECTOR_KINDS = ['causal', 'sequence', 'reference'] as const
+export type ConnectorKind = (typeof ALL_CONNECTOR_KINDS)[number]
+
 export interface Connector {
   id: string
   /** Block id. */
   from: string
   /** Block id. */
   to: string
-  kind?: 'causal' | 'sequence' | 'reference'
+  kind?: ConnectorKind
+  label?: string
 }
 
 export interface BoardMetadata {
@@ -119,3 +231,36 @@ export interface LearningBoard {
   connectors?: Connector[]
   metadata?: BoardMetadata
 }
+
+/* ── The trust boundary ───────────────────────────────────────────────── */
+
+/** What a fixture module or a future generator hands over. Untrusted. */
+export type BoardSource = unknown
+
+/* A block whose type this build cannot draw, preserved through validation
+ * rather than erased. 'unknown' is OUTPUT-ONLY: it is not in ALL_BLOCK_TYPES
+ * and the validator never accepts it as input. */
+export interface UnknownBlockData {
+  type: 'unknown'
+  id: string
+  originalType: string
+}
+
+export type ValidatedBlock = Block | UnknownBlockData
+
+export interface ValidatedBoard extends Omit<LearningBoard, 'blocks'> {
+  blocks: ValidatedBlock[]
+}
+
+/* Every repair, truncation or drop is a Notice the learner can see. Silence
+ * is the one failure mode the validator is not allowed to have. */
+export interface Notice {
+  level: 'info' | 'warn'
+  blockId?: string
+  message: string
+}
+
+export type BoardResult =
+  | { status: 'ok'; board: ValidatedBoard; notices: Notice[] }
+  | { status: 'repaired'; board: ValidatedBoard; notices: Notice[] }
+  | { status: 'failed'; error: string; notices: Notice[] }

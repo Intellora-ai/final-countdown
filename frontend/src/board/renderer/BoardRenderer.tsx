@@ -1,52 +1,58 @@
-import React from 'react'
-import type { LearningBoard } from '../types/learningBoard'
+import React, { useRef, useState, useCallback } from 'react'
+import type { ValidatedBoard } from '../types/learningBoard'
 import { BoardGrid } from '../shell/BoardGrid'
 import { BoardBlock } from '../shell/BoardBlock'
+import { ConnectorLayer } from '../shell/ConnectorLayer'
 import { isRenderableBlock, resolve } from './blockRegistry'
 
-/* THE RENDERER — a fold over blocks, and deliberately nothing more.
+/* THE RENDERER — a fold over validated blocks, and deliberately nothing more.
  *
- * READ THIS FILE LOOKING FOR A BLOCK TYPE BY NAME. There isn't one. No switch,
- * no if-chain, no 'table' string anywhere. That absence is the feature: it is
- * what makes "a new block type does not require rewriting the canvas" a
- * property of the code rather than a promise in a document.
+ * READ THIS FILE LOOKING FOR A BLOCK TYPE BY NAME. There still isn't one.
+ * Sixteen block types render through here and none is mentioned; the registry
+ * decides which component, which frame, which span. That absence is what makes
+ * "a new block type does not require rewriting the canvas" a property of the
+ * code rather than a promise.
  *
- * WHAT IT DECIDES: which component, which frame treatment, which grid span,
- * which React key. All four come from the registry or from a semantic hint,
- * never from the component being rendered.
+ * IT NOW CONSUMES ValidatedBoard. The validator is the only door content comes
+ * through, so the tolerant guards Phase 1 carried are demoted to belt-and-
+ * braces: a preserved unknown block resolves to the fallback via the registry
+ * exactly like any unregistered string.
  *
- * WHY IT TOLERATES MALFORMED INPUT WITHOUT VALIDATING IT. Phase 1 has no
- * validator, and a renderer that assumes well-formed data would crash the whole
- * board on one bad block. So a block with no id gets a positional key, and a
- * block with no recognisable type gets the fallback component. That is the
- * minimum needed for the fallback path to be real. It is not, and must not be
- * mistaken for, the Phase 2 validator.
+ * CONNECTORS WRAP, NEVER TOUCH. The grid renders exactly as it would without
+ * them; the layer measures afterwards and draws on top. Each cell carries
+ * data-block-id so the layer can find its anchors without owning any layout.
  */
-export function BoardRenderer({ board }: { board: LearningBoard }) {
+export function BoardRenderer({ board }: { board: ValidatedBoard }) {
   const blocks = Array.isArray(board?.blocks) ? board.blocks : []
+  const connectors = board.connectors ?? []
+  const [gridEl, setGridEl] = useState<HTMLElement | null>(null)
+  const wrapRef = useRef<HTMLDivElement | null>(null)
+  const gridRef = useCallback((el: HTMLElement | null) => setGridEl(el), [])
 
   return (
-    <BoardGrid>
-      {blocks.map((block, index) => {
-        const renderable = isRenderableBlock(block)
-        const entry = resolve(renderable ? block.type : undefined)
-        const width = (renderable && block.layout?.width) || entry.defaultWidth
-        /* A missing id must not collapse two blocks onto one key. */
-        const key = (renderable && block.id) || `block-${index}`
-        const Component = entry.Component
-
-        return (
-          <BoardBlock
-            key={key}
-            width={width}
-            treatment={entry.treatment}
-            title={renderable ? block.title : undefined}
-            eyebrow={renderable ? block.eyebrow : undefined}
-          >
-            <Component block={block} />
-          </BoardBlock>
-        )
-      })}
-    </BoardGrid>
+    <div ref={wrapRef} data-board="renderer" style={{ position: 'relative' }}>
+      <BoardGrid ref={gridRef}>
+        {blocks.map((block, index) => {
+          const renderable = isRenderableBlock(block)
+          const entry = resolve(renderable ? block.type : undefined)
+          const width = (renderable && 'layout' in block && block.layout?.width) || entry.defaultWidth
+          const key = (renderable && block.id) || `block-${index}`
+          const Component = entry.Component
+          return (
+            <BoardBlock
+              key={key}
+              blockId={renderable ? block.id : undefined}
+              width={width}
+              treatment={entry.treatment}
+              title={renderable && 'title' in block ? block.title : undefined}
+              eyebrow={renderable && 'eyebrow' in block ? block.eyebrow : undefined}
+            >
+              <Component block={block} />
+            </BoardBlock>
+          )
+        })}
+      </BoardGrid>
+      <ConnectorLayer connectors={connectors} blocks={blocks} gridEl={gridEl} />
+    </div>
   )
 }

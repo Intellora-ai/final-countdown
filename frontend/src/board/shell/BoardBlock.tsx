@@ -20,12 +20,15 @@ import type { BlockTreatment } from '../renderer/blockRegistry'
  * top to bottom.
  */
 export function BoardBlock({
+  blockId,
   width,
   treatment,
   title,
   eyebrow,
   children,
 }: {
+  /** Anchor for the connector layer. Absent on unrenderable blocks. */
+  blockId?: string
   width: BlockWidth
   treatment: BlockTreatment
   title?: string
@@ -33,7 +36,7 @@ export function BoardBlock({
   children: React.ReactNode
 }) {
   return (
-    <section data-board="cell" data-w={width} data-treatment={treatment}>
+    <section data-board="cell" data-block-id={blockId} data-w={width} data-treatment={treatment}>
       {eyebrow ? <p data-board="block-eyebrow">{eyebrow}</p> : null}
       {title ? <h2 data-board="block-title">{title}</h2> : null}
       <div data-board="block-body">{children}</div>

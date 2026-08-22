@@ -18,6 +18,7 @@ import {
   DimensionToggle, ZoomRail, IconBack, IconLayers, IconPanel, IconZoom, IconFit,
 } from './chrome/SceneChrome'
 import { color, overlay, radius, space, spaceLegacy, status, type, typeLegacy } from './design/tokens'
+import { PanelSurface, SectionHeading, SceneLabel, Badge } from './primitives'
 import { cssVariables } from './design/generateCss'
 
 const ParticleBox3D = React.lazy(() =>
@@ -55,20 +56,14 @@ function Node({ x, y, w, children, className, style }: {
   )
 }
 
-function Badge({ n }: { n: number }) {
-  return <span className="sc-badge">{n}</span>
-}
-
+/* Badge, the heading and the annotation face now come from primitives/, so a
+ * second lesson can have them. The scene keeps its hand-placed COORDINATES --
+ * those are still layout.ts's job and are deliberately untouched here -- and
+ * gives up only its private copies of the visual language. */
 function PanelHead({ n, title, sub, x, y }: { n: number; title: string; sub?: string; x: number; y: number }) {
   return (
     <Node x={x} y={y}>
-      <div className="sc-head">
-        <Badge n={n} />
-        <span className="sc-head-text">
-          <h2 className="sc-title">{title}</h2>
-          {sub && <p className="sc-sub">{sub}</p>}
-        </span>
-      </div>
+      <SectionHeading index={n} title={title} sub={sub} />
     </Node>
   )
 }
@@ -176,7 +171,7 @@ export function GasPressureScene() {
           </Node>
 
           <Node x={L.p1GasNote.x} y={L.p1GasNote.y}>
-            <span className="sc-note">gas</span>
+            <SceneLabel>gas</SceneLabel>
             <svg width={44} height={26} style={{ display: 'block', marginTop: -2, marginLeft: -34 }} aria-hidden="true">
               <path d="M42 2 C 30 8, 18 14, 6 22" fill="none" stroke={overlay.strongest} strokeWidth={1} />
               <path d="M4 16 L4 23 L11 22" fill="none" stroke={overlay.strongest} strokeWidth={1} />
@@ -188,7 +183,7 @@ export function GasPressureScene() {
               <line x1={38} y1={6} x2={6} y2={6} stroke={overlay.full} strokeWidth={1} />
               <path d="M11 2.5 L5 6 L11 9.5" fill="none" stroke={overlay.full} strokeWidth={1} />
             </svg>
-            <span className="sc-note">speed</span>
+            <SceneLabel>speed</SceneLabel>
             <svg width={40} height={14} style={{ display: 'block', marginTop: space.xs }} aria-hidden="true">
               <line x1={2} y1={7} x2={34} y2={7} stroke={overlay.full} strokeWidth={1} />
               <path d="M29 3.5 L35 7 L29 10.5" fill="none" stroke={overlay.full} strokeWidth={1} />
@@ -196,9 +191,9 @@ export function GasPressureScene() {
           </Node>
 
           <Node x={L.p1Caption.x} y={L.p1Caption.y} w={140}>
-            <span className="sc-note" style={{ fontStyle: 'normal', lineHeight: typeLegacy.annotation.lineHeight, display: 'block' }}>
+            <SceneLabel variant="caption">
               gas particles<br />shove the container
-            </span>
+            </SceneLabel>
           </Node>
 
           {/* ── ② causal chain ───────────────────────────────────────── */}
@@ -224,7 +219,7 @@ export function GasPressureScene() {
           {/* ── ④ pressure against temperature ───────────────────────── */}
           <Node x={L.p4Badge.x} y={L.p4Badge.y}><Badge n={4} /></Node>
           <Node x={L.p4Head.x} y={L.p4Head.y}>
-            <h2 className="sc-title">Pressure vs Temperature</h2>
+            <SectionHeading title="Pressure vs Temperature" />
           </Node>
           <Node x={L.p4Graph.x} y={L.p4Graph.y}>
             <PressureGraph store={store} xVar="T" yVar="P" width={L.p4Graph.w} height={L.p4Graph.h} />
@@ -233,10 +228,10 @@ export function GasPressureScene() {
           {/* ── ⑤ live simulation ────────────────────────────────────── */}
           <Node x={L.p5Badge.x} y={L.p5Badge.y}><Badge n={5} /></Node>
           <Node x={L.p5Head.x} y={L.p5Head.y}>
-            <h2 className="sc-title">Physical simulation</h2>
+            <SectionHeading title="Physical simulation" />
           </Node>
           <Node x={L.p5Panel.x} y={L.p5Panel.y} w={L.p5Panel.w}>
-            <div className="sc-panel" data-no-pan style={{
+            <PanelSurface tone="glass" interactive style={{
               height: L.p5Panel.h,
               display: 'grid',
               gridTemplateColumns: '52px 1fr 84px',
@@ -258,7 +253,7 @@ export function GasPressureScene() {
                 <span style={{ fontSize: type.label.size, color: 'var(--sc-ink-dim)' }}>Pressure</span>
                 <Gauge store={store} valueId="P" spanFrom="T" size={64} />
               </div>
-            </div>
+            </PanelSurface>
           </Node>
 
           {/* ── ⑥ concept map ────────────────────────────────────────── */}

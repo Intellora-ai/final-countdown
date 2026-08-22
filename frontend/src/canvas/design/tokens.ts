@@ -44,7 +44,8 @@ const primitive = {
   glass200: '#bcdfeb',
   glass100: '#cfeaf3',
 
-  /* ink: six near-whites that are six different weights of emphasis */
+  /* ink: near-whites that are different weights of emphasis, plus true white */
+  white100: '#ffffff',
   ink000: '#f2f7f9',
   ink050: '#e8eef2',
   ink100: '#dbe6ea',
@@ -133,6 +134,12 @@ export const particle = {
  *  was picked against a different ground, and merging them flattens the
  *  hierarchy the reference image draws with. */
 export const ink = {
+  /* Pure white. A panel heading in the reference is #fff, not near-white --
+   * extracting it to `bright` shifted every heading by three points per
+   * channel, which no test caught because the guards assert "not serif", not
+   * an exact colour. Small, silent, and exactly the kind of drift a token
+   * layer is supposed to prevent. */
+  pure: primitive.white100,
   bright: primitive.ink000,
   high: primitive.ink050,
   equation: primitive.ink100,
@@ -188,6 +195,35 @@ export const shadow = {
   soft: primitive.black(0.4),
   medium: primitive.black(0.42),
   strong: primitive.black(0.5),
+} as const
+
+/** COMPOSITES, not colours — and separated for that reason.
+ *
+ * A box-shadow is an offset, a blur and a colour in one string. Keeping it in
+ * the `shadow` colour group made a test fail that asserts every value there
+ * resolves to a colour, and the test was right: mixing a composite into a
+ * colour group is how a token layer stops being checkable. */
+export const elevation = {
+  /* The glass panel's lift. Composed here rather than in a stylesheet so the
+   * TSX primitive and the CSS class cannot drift apart. */
+  panel: `0 18px 46px ${primitive.black(0.5)}, inset 0 1px 0 ${primitive.white(0.05)}`,
+} as const
+
+/** The frosted surface the reference uses for interactive panels. A gradient,
+ *  not a flat fill — that top-to-bottom fade is what reads as glass. */
+export const surface = {
+  glassTop: primitive.white(0.045),
+  glassBottom: primitive.white(0.015),
+  glassBlur: '6px',
+} as const
+
+/** Sizes that belong to a visual primitive rather than to the spacing scale:
+ *  a badge is a circle of a fixed diameter, not a padding value. */
+export const primitiveSize = {
+  badge: 19,
+  badgeBorder: 1,
+  headGap: 9,
+  headTextGap: 1,
 } as const
 
 export const status = {
@@ -262,6 +298,9 @@ export const type: Record<
  * is built around. Named for their job, not their pixel value, so a later
  * normalisation has something to aim at. */
 export const typeLegacy = {
+  /* The numbered badge sets at 10px, half a point below the `micro` role.
+   * Snapping it to micro made every badge fractionally larger. */
+  badge: { size: 10, lineHeight: 1 },
   gasRelation: { size: 46, lineHeight: 1 },
   gasSymbol: { size: 42, lineHeight: 1 },
   gasLaw: { size: 30, lineHeight: 1 },
@@ -318,5 +357,6 @@ export const ACCENT_OWNERSHIP = {
 export const tokens = {
   color, glass, particle, ink, overlay, accentAlpha, heat, shadow, status,
   series, space, spaceLegacy, font, type, typeLegacy, radius, stroke, motion, arrow,
+  elevation, surface, primitiveSize,
 } as const
 export type Tokens = typeof tokens

@@ -31,7 +31,12 @@ test.describe('explanation canvas regressions', () => {
      * the board title and every panel heading. The scene sets a sans family on
      * its container, but the dashboard styles h1/h2 by ELEMENT, and an element
      * rule beats an inherited value. */
-    for (const sel of ['.scene-title', '.sc-title']) {
+    /* Targets a SEMANTIC hook, not a CSS class. The first version located
+     * '.sc-title' — a scene-specific class name — so extracting the heading
+     * into a reusable primitive broke the locator even though nothing about
+     * the rendering changed. A class name is an implementation detail; what
+     * this guard actually asserts is that a heading is sans. */
+    for (const sel of ['.scene-title', '[data-canvas="section-title"]']) {
       const ff = await page.locator(sel).first().evaluate((el) => getComputedStyle(el).fontFamily)
       /* The FIRST family in the stack is the one that renders. Testing the
        * whole string for /serif/ was wrong: every sans stack ends in the
@@ -39,6 +44,51 @@ test.describe('explanation canvas regressions', () => {
       const first = ff.split(',')[0].trim().replace(/["']/g, '')
       expect(first, `${sel} resolved family`).not.toMatch(/^(Fraunces|Georgia|Times|serif)$/i)
       expect(ff, `${sel} font stack`).toMatch(/sans-serif$/)
+    }
+  })
+
+  test('the extracted primitives render exactly what the CSS did', async ({ page }) => {
+    await openScene(page)
+    /* THE GUARD THAT CAUGHT TWO SILENT SHIFTS.
+     *
+     * Moving .sc-title, .sc-badge and .sc-note out of scene.css into reusable
+     * components changed two values nobody would have noticed: headings went
+     * from #fff to a near-white token, and badges from 10px to 10.5px. Every
+     * other guard passed, because they assert "not serif" and "margin 0" —
+     * properties, not values.
+     *
+     * These are exact-value assertions taken from the CSS the primitives
+     * replaced. They are the difference between "the extraction compiled" and
+     * "the extraction preserved the design". */
+    const EXPECTED = {
+      '[data-canvas="section-title"]': {
+        color: 'rgb(255, 255, 255)', fontSize: '15px',
+        fontWeight: '700', letterSpacing: '0.825px', textTransform: 'uppercase',
+      },
+      '[data-canvas="section-sub"]': {
+        color: 'rgb(147, 161, 171)', fontSize: '10.5px', letterSpacing: '0.945px',
+      },
+      '[data-canvas="badge"]': {
+        fontSize: '10px', width: '19px', height: '19px',
+        borderRadius: '50%', color: 'rgb(139, 148, 158)',
+      },
+      '[data-canvas="scene-label"]': {
+        fontStyle: 'italic', fontSize: '13px', color: 'rgb(139, 148, 158)',
+      },
+      '[data-canvas="panel"]': {
+        borderRadius: '14px', backdropFilter: 'blur(6px)',
+      },
+    } as const
+
+    for (const [selector, props] of Object.entries(EXPECTED)) {
+      const actual = await page.locator(selector).first().evaluate((el, keys) => {
+        const c = getComputedStyle(el as HTMLElement)
+        return Object.fromEntries(keys.map((k) => [k, c[k as never]]))
+      }, Object.keys(props))
+
+      for (const [prop, want] of Object.entries(props)) {
+        expect(actual[prop], `${selector} ${prop}`).toBe(want)
+      }
     }
   })
 

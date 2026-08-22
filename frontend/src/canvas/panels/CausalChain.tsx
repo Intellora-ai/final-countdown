@@ -1,4 +1,5 @@
 import React from 'react'
+import { color, pending, pendingSize, space } from '../design/tokens'
 
 /* PANEL ② — the causal sentence, drawn as a sentence.
  *
@@ -37,12 +38,12 @@ function HeatGlyph() {
         <path
           key={i}
           d={`M${9 + i * 8} 16 c0 -3 -3 -3.5 -3 -6.5 c0 -2.4 2 -3.6 2 -5.5 c1.6 1.6 1.2 3.4 0.4 4.8 c-0.8 1.5 0.6 2.6 0.6 4.4 c0 1.3 -0.5 2.2 0 2.8 Z`}
-          fill="#f59e0b"
+          fill={color.warning}
           opacity={0.85}
         />
       ))}
-      <rect x={3} y={17} width={32} height={4} rx={2} fill="#6b7280" />
-      <rect x={6} y={21} width={26} height={2.5} rx={1.2} fill="#4b5563" />
+      <rect x={3} y={17} width={32} height={4} rx={2} fill={pending.stoveBody} />
+      <rect x={6} y={21} width={26} height={2.5} rx={1.2} fill={pending.stoveBase} />
     </svg>
   )
 }
@@ -50,15 +51,15 @@ function HeatGlyph() {
 function ImpactGlyph() {
   return (
     <svg width={54} height={62} viewBox="0 0 54 62" aria-hidden="true">
-      <line x1={40} y1={2} x2={40} y2={60} stroke="rgba(255,255,255,0.5)" strokeWidth={1.2} />
+      <line x1={40} y1={2} x2={40} y2={60} stroke={pending.white50} strokeWidth={1.2} />
       {[16, 44].map((cy, i) => (
         <g key={i}>
-          <circle cx={20} cy={cy} r={7} fill="#22d3ee" opacity={0.22} />
-          <circle cx={20} cy={cy} r={4} fill="#a5f3fc" />
-          <line x1={24} y1={cy} x2={36} y2={cy} stroke="#5eead4" strokeWidth={1.1} opacity={0.7} />
+          <circle cx={20} cy={cy} r={7} fill={pending.particleCore} opacity={0.22} />
+          <circle cx={20} cy={cy} r={4} fill={pending.particleHalo} />
+          <line x1={24} y1={cy} x2={36} y2={cy} stroke={color.accentGlow} strokeWidth={1.1} opacity={0.7} />
           {[-1, 0, 1].map((k) => (
             <line key={k} x1={40} y1={cy} x2={46 + Math.abs(k) * 2} y2={cy + k * 7}
-              stroke="#fde68a" strokeWidth={1.1} opacity={0.85} />
+              stroke={pending.spark} strokeWidth={1.1} opacity={0.85} />
           ))}
         </g>
       ))}
@@ -68,11 +69,11 @@ function ImpactGlyph() {
 
 export function CausalChain({ steps }: { steps: ChainStep[] }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: pendingSize.gap10 }}>
       {steps.map((s, i) => (
         <React.Fragment key={i}>
           {i > 0 && <Arrow />}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: 'none' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: space.xs, flex: 'none' }}>
             <span
               style={{
                 fontSize: s.tone === 'cause' || s.tone === 'effect' ? 14 : 12.5,
@@ -84,7 +85,7 @@ export function CausalChain({ steps }: { steps: ChainStep[] }) {
                 fontFamily: s.tone === 'middle' ? "'Fraunces', Georgia, serif" : 'inherit',
                 textAlign: 'center',
                 maxWidth: 92,
-                lineHeight: 1.25,
+                lineHeight: pendingSize.line125,
               }}
             >
               {s.label}

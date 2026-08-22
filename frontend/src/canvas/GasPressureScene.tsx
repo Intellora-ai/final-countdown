@@ -4,11 +4,10 @@ import './scene.css'
 import { WORLD_W, WORLD_H, L, EDGE_CARDS } from './layout'
 import { GAS_MODEL } from './gasModel'
 import { createModelStore, useResolved } from './model/modelStore'
-import { formatValue } from './model/resolve'
 import { useViewport, fitViewport, MIN_SCALE, MAX_SCALE } from './useViewport'
 import { Connectors, type Wire } from './Connectors'
 import { CausalChain } from './panels/CausalChain'
-import { EquationPanel, Katex } from './panels/EquationPanel'
+import { EquationPanel } from './panels/EquationPanel'
 import { PressureGraph } from './panels/PressureGraph'
 import { ConceptMap } from './panels/ConceptMap'
 import { Thermometer } from './panels/Thermometer'
@@ -18,6 +17,8 @@ import { SketchNote } from './panels/SketchNote'
 import {
   DimensionToggle, ZoomRail, IconBack, IconLayers, IconPanel, IconZoom, IconFit,
 } from './chrome/SceneChrome'
+import { color, pending, pendingSize, space, type } from './design/tokens'
+import { cssVariables } from './design/generateCss'
 
 const ParticleBox3D = React.lazy(() =>
   import('./panels/ParticleBox3D').then((m) => ({ default: m.ParticleBox3D })),
@@ -137,7 +138,9 @@ export function GasPressureScene() {
   }, [])
 
   return (
-    <div className="scene">
+    /* The token variables are handed to the scene element itself rather than
+      * written into a stylesheet, so CSS and WebGL read one object. */
+    <div className="scene" style={cssVariables() as React.CSSProperties}>
       <div
         className="scene-viewport"
         ref={ref}
@@ -175,25 +178,25 @@ export function GasPressureScene() {
           <Node x={L.p1GasNote.x} y={L.p1GasNote.y}>
             <span className="sc-note">gas</span>
             <svg width={44} height={26} style={{ display: 'block', marginTop: -2, marginLeft: -34 }} aria-hidden="true">
-              <path d="M42 2 C 30 8, 18 14, 6 22" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth={1} />
-              <path d="M4 16 L4 23 L11 22" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth={1} />
+              <path d="M42 2 C 30 8, 18 14, 6 22" fill="none" stroke={pending.white50} strokeWidth={1} />
+              <path d="M4 16 L4 23 L11 22" fill="none" stroke={pending.white50} strokeWidth={1} />
             </svg>
           </Node>
 
           <Node x={L.p1SpeedNote.x} y={L.p1SpeedNote.y}>
             <svg width={40} height={12} style={{ display: 'block', marginLeft: -46 }} aria-hidden="true">
-              <line x1={38} y1={6} x2={6} y2={6} stroke="rgba(255,255,255,0.55)" strokeWidth={1} />
-              <path d="M11 2.5 L5 6 L11 9.5" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth={1} />
+              <line x1={38} y1={6} x2={6} y2={6} stroke={pending.white55} strokeWidth={1} />
+              <path d="M11 2.5 L5 6 L11 9.5" fill="none" stroke={pending.white55} strokeWidth={1} />
             </svg>
             <span className="sc-note">speed</span>
-            <svg width={40} height={14} style={{ display: 'block', marginTop: 4 }} aria-hidden="true">
-              <line x1={2} y1={7} x2={34} y2={7} stroke="rgba(255,255,255,0.55)" strokeWidth={1} />
-              <path d="M29 3.5 L35 7 L29 10.5" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth={1} />
+            <svg width={40} height={14} style={{ display: 'block', marginTop: space.xs }} aria-hidden="true">
+              <line x1={2} y1={7} x2={34} y2={7} stroke={pending.white55} strokeWidth={1} />
+              <path d="M29 3.5 L35 7 L29 10.5" fill="none" stroke={pending.white55} strokeWidth={1} />
             </svg>
           </Node>
 
           <Node x={L.p1Caption.x} y={L.p1Caption.y} w={140}>
-            <span className="sc-note" style={{ fontStyle: 'normal', lineHeight: 1.35, display: 'block' }}>
+            <span className="sc-note" style={{ fontStyle: 'normal', lineHeight: pendingSize.line135, display: 'block' }}>
               gas particles<br />shove the container
             </span>
           </Node>
@@ -204,7 +207,7 @@ export function GasPressureScene() {
             <CausalChain steps={CHAIN} />
           </Node>
           <Node x={1150} y={214}>
-            <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 42, color: 'var(--sc-ink)' }}>P</span>
+            <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: pendingSize.fontDisplayLg, color: 'var(--sc-ink)' }}>P</span>
           </Node>
 
           {/* ── ③ the relation ───────────────────────────────────────── */}
@@ -238,8 +241,8 @@ export function GasPressureScene() {
               display: 'grid',
               gridTemplateColumns: '52px 1fr 84px',
               alignItems: 'center',
-              padding: '12px 14px',
-              gap: 6,
+              padding: `${pendingSize.pad12}px ${pendingSize.pad14}px`,
+              gap: pendingSize.gap6,
             }}>
               <Thermometer store={store} varId="T" min={100} max={600} unit="K" height={126} />
               <div style={{ display: 'grid', placeItems: 'center' }}>
@@ -251,8 +254,8 @@ export function GasPressureScene() {
                   <ParticleBox2D store={store} varId="T" width={126} height={122} />
                 )}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 11.5, color: 'var(--sc-ink-dim)' }}>Pressure</span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: space.sm }}>
+                <span style={{ fontSize: type.label.size, color: 'var(--sc-ink-dim)' }}>Pressure</span>
                 <Gauge store={store} valueId="P" spanFrom="T" size={64} />
               </div>
             </div>
@@ -306,7 +309,7 @@ export function GasPressureScene() {
       <ZoomRail scale={vp.scale} min={MIN_SCALE} max={MAX_SCALE} onZoom={zoomTo}
         style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', zIndex: 40 }} />
 
-      <div className="sc-chrome" style={{ left: 18, bottom: 12, display: 'flex', gap: 8 }}>
+      <div className="sc-chrome" style={{ left: 18, bottom: 12, display: 'flex', gap: space.sm }}>
         <button className="sc-square" aria-label="Toggle sidebar"><IconPanel /></button>
         <button className="sc-square" onClick={() => zoomTo(1)} aria-label="Actual size"><IconZoom /></button>
         <button className="sc-square" onClick={fit} aria-label="Fit to screen"><IconFit /></button>
@@ -322,8 +325,8 @@ export function GasPressureScene() {
       {model.problems.length > 0 && (
         <div className="sc-chrome" role="status" style={{
           left: '50%', bottom: 60, transform: 'translateX(-50%)',
-          background: 'rgba(120,30,30,0.35)', border: '1px solid rgba(255,120,120,0.35)',
-          borderRadius: 8, padding: '6px 12px', fontSize: 12, color: '#ffd9d9',
+          background: pending.errorSurface, border: `1px solid ${pending.errorBorder}`,
+          borderRadius: pendingSize.radius8, padding: `${pendingSize.pad6}px ${pendingSize.pad12}px`, fontSize: pendingSize.font12, color: color.negative,
         }}>
           {model.problems[0]}
         </div>

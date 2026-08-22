@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import { scaleLinear } from 'd3-scale'
 import { useResolved, type ModelStore } from '../model/modelStore'
+import { color, pending } from '../design/tokens'
 
 /* PANEL ④ — Pressure against Temperature, with an axis that cannot be wrong.
  *
@@ -106,50 +107,50 @@ export function PressureGraph({
       <g transform={`translate(${pad.left},${pad.top})`}>
         {/* grid */}
         {yTicks.map((t) => (
-          <line key={`gy${t}`} x1={0} x2={iw} y1={y(t)} y2={y(t)} stroke="rgba(255,255,255,0.07)" />
+          <line key={`gy${t}`} x1={0} x2={iw} y1={y(t)} y2={y(t)} stroke={pending.white07} />
         ))}
         {xTicks.map((t) => (
-          <line key={`gx${t}`} y1={0} y2={ih} x1={x(t)} x2={x(t)} stroke="rgba(255,255,255,0.055)" />
+          <line key={`gx${t}`} y1={0} y2={ih} x1={x(t)} x2={x(t)} stroke={pending.white055} />
         ))}
 
         {/* axes */}
-        <line x1={0} y1={ih} x2={iw} y2={ih} stroke="rgba(255,255,255,0.32)" />
-        <line x1={0} y1={0} x2={0} y2={ih} stroke="rgba(255,255,255,0.32)" />
+        <line x1={0} y1={ih} x2={iw} y2={ih} stroke={pending.white32} />
+        <line x1={0} y1={0} x2={0} y2={ih} stroke={pending.white32} />
 
         {yTicks.map((t) => (
           <text key={`ty${t}`} x={-8} y={y(t)} textAnchor="end" dominantBaseline="middle"
-            fill="#9aa5ad" fontSize={10} fontFamily="ui-monospace, monospace">{t}</text>
+            fill={pending.inkAxis} fontSize={10} fontFamily="ui-monospace, monospace">{t}</text>
         ))}
         {xTicks.map((t) => (
           <text key={`tx${t}`} x={x(t)} y={ih + 13} textAnchor="middle"
-            fill="#9aa5ad" fontSize={10} fontFamily="ui-monospace, monospace">{t}</text>
+            fill={pending.inkAxis} fontSize={10} fontFamily="ui-monospace, monospace">{t}</text>
         ))}
 
         {/* the relation */}
-        <path d={path} fill="none" stroke="#2dd4bf" strokeWidth={1.7} strokeLinecap="round" />
+        <path d={path} fill="none" stroke={color.accent} strokeWidth={1.7} strokeLinecap="round" />
         {dots.map((d, i) => (
-          <circle key={i} cx={d.cx} cy={d.cy} r={3} fill="#2dd4bf" />
+          <circle key={i} cx={d.cx} cy={d.cy} r={3} fill={color.accent} />
         ))}
 
         {/* where the learner is standing */}
         {hasMarker && (
           <g>
-            <line x1={0} y1={my} x2={mx} y2={my} stroke="rgba(255,255,255,0.42)" strokeDasharray="3 3" />
-            <line x1={mx} y1={my} x2={mx} y2={ih} stroke="rgba(255,255,255,0.42)" strokeDasharray="3 3" />
-            <circle cx={mx} cy={my} r={5.5} fill="#0e1113" stroke="#5eead4" strokeWidth={2} />
-            <text x={mx + 10} y={my + 12} fill="#e8eef2" fontSize={10.5} fontFamily="ui-monospace, monospace">
+            <line x1={0} y1={my} x2={mx} y2={my} stroke={pending.white42} strokeDasharray="3 3" />
+            <line x1={mx} y1={my} x2={mx} y2={ih} stroke={pending.white42} strokeDasharray="3 3" />
+            <circle cx={mx} cy={my} r={5.5} fill={color.bg} stroke={color.accentGlow} strokeWidth={2} />
+            <text x={mx + 10} y={my + 12} fill={color.text} fontSize={10.5} fontFamily="ui-monospace, monospace">
               {Math.round(current)}{meta[xVar]?.unit ?? ''}
             </text>
           </g>
         )}
 
-        <text x={iw * 0.52} y={12} fill="#cbd5d1" fontSize={11} fontStyle="italic"
+        <text x={iw * 0.52} y={12} fill={pending.inkAnnotation} fontSize={11} fontStyle="italic"
           fontFamily="'Fraunces', Georgia, serif">(P = kT)</text>
 
-        <text x={iw / 2} y={ih + 27} textAnchor="middle" fill="#2dd4bf" fontSize={10}
+        <text x={iw / 2} y={ih + 27} textAnchor="middle" fill={color.accent} fontSize={10}
           fontFamily="ui-monospace, monospace">{xLabel}</text>
         <text transform={`translate(${-33},${ih / 2}) rotate(-90)`} textAnchor="middle"
-          fill="#2dd4bf" fontSize={10} fontFamily="ui-monospace, monospace">{yLabel}</text>
+          fill={color.accent} fontSize={10} fontFamily="ui-monospace, monospace">{yLabel}</text>
       </g>
     </svg>
   )

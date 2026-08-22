@@ -2,6 +2,7 @@ import React, { useMemo, useRef } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { ModelStore } from '../model/modelStore'
+import { color, pending } from '../design/tokens'
 
 /* PANEL ① / ⑤ — a glass box of gas, in WebGL, telling the truth about speed.
  *
@@ -129,16 +130,16 @@ function Swarm({ speedRef, showVectors }: { speedRef: React.MutableRefObject<num
       {showVectors && (
         <instancedMesh ref={trail} args={[undefined, undefined, COUNT]} frustumCulled={false}>
           <cylinderGeometry args={[0.008, 0.028, 0.16, 6]} />
-          <meshBasicMaterial color="#5eead4" transparent opacity={0.5} blending={THREE.AdditiveBlending} depthWrite={false} />
+          <meshBasicMaterial color={color.accentGlow} transparent opacity={0.5} blending={THREE.AdditiveBlending} depthWrite={false} />
         </instancedMesh>
       )}
       <instancedMesh ref={halo} args={[undefined, undefined, COUNT]} frustumCulled={false}>
         <sphereGeometry args={[0.062, 12, 12]} />
-        <meshBasicMaterial color="#22d3ee" transparent opacity={0.22} blending={THREE.AdditiveBlending} depthWrite={false} />
+        <meshBasicMaterial color={pending.particleCore} transparent opacity={0.22} blending={THREE.AdditiveBlending} depthWrite={false} />
       </instancedMesh>
       <instancedMesh ref={core} args={[undefined, undefined, COUNT]} frustumCulled={false}>
         <sphereGeometry args={[0.062, 16, 16]} />
-        <meshStandardMaterial color="#d8f6ff" emissive="#2ad4ee" emissiveIntensity={3.4} roughness={0.25} />
+        <meshStandardMaterial color={pending.particleBright} emissive={pending.particleEmissive} emissiveIntensity={3.4} roughness={0.25} />
       </instancedMesh>
     </>
   )
@@ -158,7 +159,7 @@ function GlassCube() {
           * gives the reference's frosted slab, and costs one pass instead of
           * two. */}
         <meshPhysicalMaterial
-          color="#bcdfeb"
+          color={pending.glassBody}
           transparent
           opacity={0.15}
           roughness={0.18}
@@ -170,7 +171,7 @@ function GlassCube() {
         />
       </mesh>
       <lineSegments geometry={edges}>
-        <lineBasicMaterial color="#cfeaf3" transparent opacity={0.7} />
+        <lineBasicMaterial color={pending.glassEdge} transparent opacity={0.7} />
       </lineSegments>
     </group>
   )
@@ -194,7 +195,7 @@ function Rig({ store, tempVar, showVectors }: { store: ModelStore; tempVar: stri
     <>
       <ambientLight intensity={0.55} />
       <directionalLight position={[3, 4, 5]} intensity={1.1} />
-      <pointLight position={[-3, -2, -3]} intensity={0.5} color="#22d3ee" />
+      <pointLight position={[-3, -2, -3]} intensity={0.5} color={pending.particleCore} />
       <GlassCube />
       <Swarm speedRef={speedRef} showVectors={showVectors} />
     </>

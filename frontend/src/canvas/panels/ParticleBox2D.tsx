@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react'
 import { useValue, type ModelStore } from '../model/modelStore'
+import { color, pending } from '../design/tokens'
 
 /* THE 2D FACE OF THE SAME BOX — what the toggle actually switches to.
  *
@@ -43,20 +44,20 @@ export function ParticleBox2D({
       aria-label={`Gas particles in a fixed container at ${Math.round(t ?? 0)} kelvin, moving at ${speed.toFixed(2)} times the speed at ${t0} kelvin.`}>
       <defs>
         <linearGradient id="box2d" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(255,255,255,0.10)" />
-          <stop offset="100%" stopColor="rgba(255,255,255,0.03)" />
+          <stop offset="0%" stopColor={color.borderStrong} />
+          <stop offset="100%" stopColor={pending.white03} />
         </linearGradient>
       </defs>
       <rect x={3} y={3} width={width - 6} height={height - 6} rx={12}
-        fill="url(#box2d)" stroke="rgba(159,216,230,0.42)" strokeWidth={1.1} />
+        fill="url(#box2d)" stroke={pending.glassStroke2d} strokeWidth={1.1} />
       {particles.map((p, i) => {
         const len = 9 * speed
         const dx = Math.cos(p.a) * len, dy = Math.sin(p.a) * len
         return (
           <g key={i}>
-            <line x1={p.x - dx} y1={p.y - dy} x2={p.x} y2={p.y} stroke="#5eead4" strokeWidth={1.1} opacity={0.55} />
-            <circle cx={p.x} cy={p.y} r={7} fill="#22d3ee" opacity={0.16} />
-            <circle cx={p.x} cy={p.y} r={3.6} fill="#a5f3fc" />
+            <line x1={p.x - dx} y1={p.y - dy} x2={p.x} y2={p.y} stroke={color.accentGlow} strokeWidth={1.1} opacity={0.55} />
+            <circle cx={p.x} cy={p.y} r={7} fill={pending.particleCore} opacity={0.16} />
+            <circle cx={p.x} cy={p.y} r={3.6} fill={pending.particleHalo} />
           </g>
         )
       })}

@@ -1,6 +1,7 @@
 import React from 'react'
 import { useResolved, type ModelStore } from '../model/modelStore'
 import { formatValue } from '../model/resolve'
+import { color, pending, pendingSize, type } from '../design/tokens'
 
 /* THE PRESSURE DIAL — a derived value, drawn as an arc.
  *
@@ -52,20 +53,20 @@ export function Gauge({
   const needle = START + SWEEP * frac
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: pendingSize.gap5 }}>
       <svg width={size} height={size} role="img"
         aria-label={`${meta?.label ?? valueId} ${formatValue(value, meta?.precision)} ${meta?.unit ?? ''}`}>
-        <path d={arc(START, START + SWEEP)} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={5} strokeLinecap="round" />
-        <path d={arc(START, needle)} fill="none" stroke="#2dd4bf" strokeWidth={5} strokeLinecap="round" />
+        <path d={arc(START, START + SWEEP)} fill="none" stroke={pending.white12} strokeWidth={5} strokeLinecap="round" />
+        <path d={arc(START, needle)} fill="none" stroke={color.accent} strokeWidth={5} strokeLinecap="round" />
         <line
           x1={cx} y1={cy}
           x2={cx + (r - 9) * Math.cos(needle)}
           y2={cy + (r - 9) * Math.sin(needle)}
-          stroke="#e8eef2" strokeWidth={1.8} strokeLinecap="round"
+          stroke={color.text} strokeWidth={1.8} strokeLinecap="round"
         />
-        <circle cx={cx} cy={cy} r={2.6} fill="#e8eef2" />
+        <circle cx={cx} cy={cy} r={2.6} fill={color.text} />
       </svg>
-      <span data-sc="gauge-value" style={{ fontFamily: 'var(--sc-mono)', fontSize: 11.5, color: 'var(--sc-ink)' }}>
+      <span data-sc="gauge-value" style={{ fontFamily: 'var(--sc-mono)', fontSize: type.label.size, color: 'var(--sc-ink)' }}>
         {formatValue(value, meta?.precision)} {meta?.unit ?? ''}
       </span>
     </div>

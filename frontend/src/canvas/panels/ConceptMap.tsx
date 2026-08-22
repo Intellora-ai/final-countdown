@@ -1,4 +1,5 @@
 import React from 'react'
+import { color, pending } from '../design/tokens'
 
 /* PANEL ⑥ — the four quantities, and the one place they meet.
  *
@@ -48,7 +49,7 @@ export function ConceptMap({
             key={i}
             d={`M ${ax} ${ay} C ${ax + dx} ${ay}, ${bx - dx} ${by}, ${bx} ${by}`}
             fill="none"
-            stroke="rgba(45,212,191,0.5)"
+            stroke={pending.accent50}
             strokeWidth={1.15}
           />
         )
@@ -60,14 +61,14 @@ export function ConceptMap({
           <g key={n.id}>
             <rect
               x={n.x} y={n.y} width={w} height={NODE_H} rx={NODE_H / 2}
-              fill={n.accent ? 'rgba(45,212,191,0.10)' : 'rgba(255,255,255,0.045)'}
-              stroke={n.accent ? 'rgba(45,212,191,0.75)' : 'rgba(255,255,255,0.16)'}
+              fill={n.accent ? pending.accent10 : pending.white045}
+              stroke={n.accent ? pending.accent75 : pending.white16}
               strokeWidth={1}
             />
             <text
               x={n.x + w / 2} y={n.y + NODE_H / 2 + 0.5}
               textAnchor="middle" dominantBaseline="middle"
-              fontSize={11} fill={n.accent ? '#7ee7d8' : '#d5dee3'}
+              fontSize={11} fill={n.accent ? color.positive : pending.inkNode}
               fontFamily="system-ui, sans-serif"
             >
               {n.label}

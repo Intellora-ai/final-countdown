@@ -35,7 +35,7 @@ export default defineConfig({
      * jsdom is deliberately absent — it performs no layout and implements no
      * container queries, so a "mobile" assertion made against it would be an
      * assertion about the stub. Those claims belong to the browser harness. */
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'eslint-rules/**/*.test.ts'],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
   },
 })

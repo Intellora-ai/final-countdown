@@ -5,19 +5,19 @@
  * reading as one board rather than six widgets that happen to share a page. */
 
 .scene {
-  --sc-bg: #0e1113;
-  --sc-bg-deep: #0a0c0e;
-  --sc-ink: #e8eef2;
-  --sc-ink-dim: #8b949e;
-  --sc-ink-faint: #5b666f;
-  --sc-accent: #2dd4bf;
-  --sc-accent-soft: #5eead4;
-  --sc-accent-dim: rgba(45, 212, 191, 0.42);
+  --sc-bg: var(--c-color-bg);
+  --sc-bg-deep: var(--c-color-bg-deep);
+  --sc-ink: var(--c-color-text);
+  --sc-ink-dim: var(--c-color-text-muted);
+  --sc-ink-faint: var(--c-color-text-faint);
+  --sc-accent: var(--c-color-accent);
+  --sc-accent-soft: var(--c-color-accent-glow);
+  --sc-accent-dim: var(--c-color-accent-dim);
   --sc-line: rgba(45, 212, 191, 0.55);
-  --sc-panel: rgba(255, 255, 255, 0.028);
-  --sc-panel-edge: rgba(255, 255, 255, 0.085);
-  --sc-chrome: rgba(255, 255, 255, 0.05);
-  --sc-chrome-edge: rgba(255, 255, 255, 0.10);
+  --sc-panel: var(--c-color-surface);
+  --sc-panel-edge: var(--c-color-border);
+  --sc-chrome: var(--c-color-surface-raised);
+  --sc-chrome-edge: var(--c-color-border-strong);
   --sc-serif: 'Fraunces', 'Iowan Old Style', Georgia, 'Times New Roman', serif;
   --sc-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --sc-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;

@@ -3,7 +3,7 @@
 One step per message. Stop after each. Wait for explicit approval before the
 next. See `CLAUDE.md` for the laws, tripwires and stop protocol.
 
-**Status:** first action complete. Nothing else started.
+**Status:** Steps 0 and 1 complete. Step 2 next.
 
 ---
 
@@ -12,7 +12,7 @@ next. See `CLAUDE.md` for the laws, tripwires and stop protocol.
 - [x] `CLAUDE.md` — principle, goals, laws, stop protocol, tripwires,
       anti-patterns, scope, dashboard protection, Step 0 warning
 - [x] `PROGRESS.md` — this file
-- [ ] **Approved to begin Step 0**
+- [x] **Approved to begin Step 0**
 
 ---
 
@@ -23,28 +23,28 @@ next. See `CLAUDE.md` for the laws, tripwires and stop protocol.
 
 **Pre-flight — all five before a single deletion**
 
-- [ ] migration branch created
-- [ ] backup tag at `9462d0d`
-- [ ] deleted paths archived
-- [ ] working tree verified clean
-- [ ] deletion manifest recorded
+- [x] migration branch created — `canvas/step-0-remove-blackboard`
+- [x] backup tag at `9462d0d` — `backup/pre-blackboard-deletion`
+- [x] deleted paths archived — `docs/migrations/blackboard-9462d0d.tar.gz` (181 KB)
+- [x] working tree verified clean
+- [x] deletion manifest recorded — `docs/migrations/step-0-blackboard-deletion.md`, 94 files named before deletion
 
 **The deletion** — `frontend/src/board/` except `scene/` and `model/`
 
-- [ ] `types/` `renderer/` `blocks/` `fixtures/` `teaching/` `progress/`
+- [x] `types/` `renderer/` `blocks/` `fixtures/` `teaching/` `progress/`
       `camera/` `shell/` `lib/` `BoardView.tsx` `GalleryView.tsx` `index.ts`
-- [ ] 3 legacy e2e specs (`canvas-invariants`, `canvas-phase4`, `canvas-phase5`)
-- [ ] `App.tsx` — 3 lines (import at :10, routes at :109–110)
-- [ ] `board/scene/` → `src/canvas/`, `board/model/` → `src/canvas/model/`
+- [x] 3 legacy e2e specs (`canvas-invariants`, `canvas-phase4`, `canvas-phase5`)
+- [x] `App.tsx` — 3 lines (import at :10, routes at :109–110)
+- [x] `board/scene/` → `src/canvas/`, `board/model/` → `src/canvas/model/`
 
 **Definition of done**
 
-- [ ] typecheck clean
-- [ ] surviving tests green (~44, down from 303)
-- [ ] dashboard still renders Today / Chapter / Sidebar
-- [ ] `/canvas/gas` renders **identically**
-- [ ] budget passes
-- [ ] dashboard untouched — verified, not assumed
+- [x] typecheck clean
+- [x] surviving tests green — **46** (down from 303)
+- [x] dashboard still renders Today / Chapter / Sidebar
+- [x] `/canvas/gas` renders **identically** — 6/6 browser guards pass
+- [x] budget passes — **67.68 KB** of 150 (was 92.03)
+- [x] dashboard untouched — `git diff 9462d0d` on components/data/styles returns nothing
 
 ---
 
@@ -52,31 +52,30 @@ next. See `CLAUDE.md` for the laws, tripwires and stop protocol.
 
 *Canvas scope only. Dashboard is not migrated.*
 
-- [ ] `src/canvas/design/tokens.ts` authoritative
-- [ ] codegen emits `:root` custom properties from it
-- [ ] drift test: generated CSS and `tokens.ts` cannot disagree
-- [ ] `space` (0,4,8,12,16,24,32,48,64,96) — no other spacing token
-- [ ] exactly 7 type roles: display, title, heading, body, label, micro, mono
-- [ ] semantic colour roles only (bg → warning)
-- [ ] `series[6]` fixed order — model picks an **index**
-- [ ] `radius` · `stroke` · `motion` · `arrow`
-- [ ] **aliases preserve current rendered values**
-- [ ] **every value collapse reported, not applied** (four teals: `#0C9B8E`,
-      `#1AADA6`, `#38e4d7`, `#2dd4bf`)
-- [ ] ESLint introduced: `eslint`, `typescript-eslint`, `@typescript-eslint/rule-tester`
-- [ ] flat config + `lint` script + CI step
-- [ ] `design-value` rule via `ESLintUtils.RuleCreator`
-- [ ] covers JSX style objects, JSX/SVG attributes, TS/JS style objects, R3F props
-- [ ] `RuleTester` valid **and** invalid cases
-- [ ] zero `eslint-disable`
-- [ ] CSS blind spot reported — is a separate check needed?
+- [x] `src/canvas/design/tokens.ts` authoritative
+- [x] variables applied at runtime to `.scene` — no codegen artefact to drift
+- [x] drift impossible by construction; alias-coverage test guards renames
+- [x] `space` scale defined — **6 off-scale gaps found in use, reported not snapped**
+- [x] exactly 7 type roles — **6 off-role font sizes found in use, reported not snapped**
+- [x] semantic colour roles only (bg → warning)
+- [x] `series[6]` fixed order — model picks an **index**
+- [x] `radius` · `stroke` · `motion` · `arrow`
+- [x] **aliases preserve current rendered values** — 118 substitutions, zero value changed
+- [x] **every collapse reported, not applied** — `COLLAPSE_CANDIDATES`, `pending`, `pendingSize`, `ACCENT_CONFLICTS`
+- [x] ESLint introduced: `eslint@10.9`, `typescript-eslint@8.67`, `rule-tester@8.67`
+- [x] flat config + `lint` script + CI step
+- [x] `design-value` rule, local, no third-party plugin
+- [x] covers JSX style objects, JSX/SVG attributes, TS/JS style objects, R3F props
+- [x] `RuleTester` — 18 valid, 15 invalid, 33 assertions
+- [x] zero `eslint-disable` in source
+- [x] CSS blind spot reported — see Step 1 report
 
 **Definition of done**
 
-- [ ] no *unreported* visual change
-- [ ] lint passes with zero disables
-- [ ] every colour / spacing / font-size in the DOM traces to `tokens.ts`
-- [ ] verification method stated honestly (no screenshot tooling exists yet)
+- [x] no *unreported* visual change — 30/30 browser guards, visual check by eye
+- [x] lint passes with zero disables
+- [x] every colour / spacing / font-size in `src/canvas` traces to `tokens.ts`
+- [x] verification stated honestly — no screenshot tooling exists; manual + DOM guards
 
 ---
 

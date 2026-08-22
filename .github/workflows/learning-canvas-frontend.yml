@@ -76,6 +76,20 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      # LAW 4, ENFORCED RATHER THAN REQUESTED.
+      #
+      # `design-value` is a local AST rule -- no third-party plugin -- that refuses a
+      # raw colour or an arbitrary size anywhere the canvas can paint from JavaScript:
+      # JSX style objects, SVG presentation attributes, and three.js material props.
+      # That last surface is the reason the token layer is TypeScript rather than CSS:
+      # `<meshStandardMaterial color="var(--x)" />` does not resolve, it throws.
+      #
+      # Scoped to src/canvas deliberately. src/components, src/data and src/styles are
+      # the dashboard, they are out of scope for this refactor, and pointing a canvas
+      # token rule at them would restyle a design nobody asked to change.
+      - name: Lint
+        run: npm run lint
+
       - name: Unit tests
         run: npm test -- --run
 

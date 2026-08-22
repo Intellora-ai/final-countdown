@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
+import { color, pending, pendingSize } from '../design/tokens'
 
 /* PANEL ③ — mathematics set as mathematics.
  *
@@ -60,20 +61,20 @@ export function EquationPanel({
   emphasise?: string
 }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-        <div style={{ fontSize: 46, lineHeight: 1, color: '#f2f7f9' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: pendingSize.gap14 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: pendingSize.gap2 }}>
+        <div style={{ fontSize: pendingSize.fontDisplayXl, lineHeight: pendingSize.line1, color: pending.inkBright }}>
           <Katex latex={relation} />
         </div>
         {constants && (
-          <div style={{ fontSize: 12.5, color: '#8b949e', fontStyle: 'italic', fontFamily: "'Fraunces', Georgia, serif" }}>
+          <div style={{ fontSize: pendingSize.font125, color: color.textMuted, fontStyle: 'italic', fontFamily: "'Fraunces', Georgia, serif" }}>
             {constants}
           </div>
         )}
       </div>
 
       {law && (
-        <div style={{ position: 'relative', fontSize: 30, lineHeight: 1, color: '#e8eef2', textAlign: 'center' }}>
+        <div style={{ position: 'relative', fontSize: pendingSize.fontDisplayMd, lineHeight: pendingSize.line1, color: color.text, textAlign: 'center' }}>
           <Katex latex={law} />
           {emphasise && (
             /* The mark is a rule under the emphasised tail of the law, drawn in
@@ -85,7 +86,7 @@ export function EquationPanel({
               style={{
                 position: 'absolute', right: '0.6em', bottom: -4,
                 width: `${Math.max(1, emphasise.length) * 0.62}em`, height: 2,
-                background: 'var(--sc-accent)', borderRadius: 2,
+                background: 'var(--sc-accent)', borderRadius: pendingSize.radius2,
               }}
             />
           )}

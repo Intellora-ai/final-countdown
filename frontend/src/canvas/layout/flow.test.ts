@@ -81,32 +81,68 @@ describe('arrow style is constant; only count and routing change', () => {
     for (const bow of bows) expect(bow).toBeGreaterThanOrEqual(arrow.minBow)
   })
 
-  it('emits a cubic with horizontal tangents at both ends, always', () => {
+  /* REWRITTEN, and deliberately stronger than what it replaced.
+   *
+   * The previous version asserted HORIZONTAL tangents at both ends of every
+   * edge, at every chain length. That was only ever true because edgePath
+   * attached every wire to the source's right face and the target's left face
+   * regardless of where those boxes actually were — the very defect that made
+   * serpentine and column arrows point the wrong way. Keeping the old
+   * assertion would have pinned the bug in place.
+   *
+   * The real invariant is not "horizontal": it is PERPENDICULAR TO THE FACE.
+   * A side attachment has horizontal tangents at both ends, a top/bottom
+   * attachment has vertical ones, and an edge must never mix the two — a wire
+   * that leaves sideways and arrives from above is the visual signature of
+   * endpoints computed independently of each other. */
+  it('emits a cubic whose tangents are perpendicular to the faces it touches', () => {
     for (const n of [3, 7, 12, 20]) {
       const l = layoutFlow(...Object.values(chain(n)) as [never, never])
       for (const e of l.edges) {
         expect(e.path, `${n} steps`).toMatch(/^M [\d.-]+ [\d.-]+ C /)
-        /* The first control point shares the start's y, the second shares the
-         * end's y — that is what "horizontal tangent" means in path terms. */
         const m = e.path.match(/M ([\d.-]+) ([\d.-]+) C ([\d.-]+) ([\d.-]+), ([\d.-]+) ([\d.-]+), ([\d.-]+) ([\d.-]+)/)
         expect(m, e.path).toBeTruthy()
         if (!m) continue
-        expect(Number(m[4])).toBeCloseTo(Number(m[2]), 6)
-        expect(Number(m[6])).toBeCloseTo(Number(m[8]), 6)
+        const [x0, y0, c1x, c1y, c2x, c2y, x1, y1] = m.slice(1).map(Number)
+
+        const horizontalStart = Math.abs(c1y - y0) < 1e-6
+        const horizontalEnd = Math.abs(c2y - y1) < 1e-6
+        const verticalStart = Math.abs(c1x - x0) < 1e-6
+        const verticalEnd = Math.abs(c2x - x1) < 1e-6
+
+        expect(
+          (horizontalStart && horizontalEnd) || (verticalStart && verticalEnd),
+          `${n} steps: ${e.from}->${e.to} mixes tangent axes: ${e.path}`,
+        ).toBe(true)
       }
     }
   })
 
-  it('loops a backwards edge instead of crossing back through the chain', () => {
-    /* The serpentine fold. Without this the connector would cut straight
-     * across every node between the two ends. */
+  /* REWRITTEN. The old test asserted the first control point sat to the RIGHT
+   * of a backwards edge's start — describing a wire that leaves the source's
+   * right face and loops back over the row. It also never looked at where the
+   * path ENDED, so it could not notice that the loop terminated on the
+   * target's left face with the arrowhead pointing the wrong way.
+   *
+   * A backwards edge should not loop at all. It should leave the LEFT face and
+   * travel left. "Does not cross back through the chain" is now asserted
+   * directly: no part of the path may re-enter the horizontal span the source
+   * occupies. */
+  it('sends a backwards edge leftward, never looping back across the source', () => {
     const a = { id: 'a', label: 'a', x: 400, y: 0, w: 132, h: 44, row: 0, truncated: false, fullLabel: 'a' }
     const b = { id: 'b', label: 'b', x: 0, y: 100, w: 132, h: 44, row: 1, truncated: false, fullLabel: 'b' }
     const p = edgePath(a, b)
-    const m = p.match(/C ([\d.-]+) /)
-    expect(m).toBeTruthy()
-    /* The first control point sits to the RIGHT of the start, not the left. */
-    expect(Number(m![1])).toBeGreaterThan(a.x + a.w)
+    const m = p.match(/M ([\d.-]+) ([\d.-]+) C ([\d.-]+) ([\d.-]+), ([\d.-]+) ([\d.-]+), ([\d.-]+) ([\d.-]+)/)
+    expect(m, p).toBeTruthy()
+    const [x0, , c1x, , c2x, , x1] = m!.slice(1).map(Number)
+
+    /* Leaves the source's left face. */
+    expect(x0).toBeCloseTo(a.x, 6)
+    /* Lands on the target's right face, so the arrowhead points left, at b. */
+    expect(x1).toBeCloseTo(b.x + b.w, 6)
+    /* No control point sits inside or beyond the source box: the wire never
+     * doubles back over the nodes it is meant to have left behind. */
+    for (const cx of [c1x, c2x]) expect(cx).toBeLessThan(a.x)
   })
 })
 

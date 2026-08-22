@@ -84,31 +84,62 @@ function fitLabel(label: string): { text: string; truncated: boolean } {
   return { text: label.slice(0, TWO_LINE_LIMIT - 1) + '…', truncated: true }
 }
 
-/* ARROW GEOMETRY — a cubic with horizontal tangents at both ends.
+/* ARROW GEOMETRY — a cubic whose tangents leave and arrive along the FACES the
+ * direction of travel implies.
  *
- * That single rule is what makes independently-placed nodes look deliberately
- * wired rather than joined by whatever straight line was shortest. The bow is
- * a fraction of the horizontal span, floored so that near-vertical connectors
- * still curve rather than collapsing into a spike. */
+ * One rule makes independently-placed nodes look deliberately wired rather than
+ * joined by whatever straight line was shortest: the tangent at each end is
+ * perpendicular to the face it touches. The bow is a fraction of the span,
+ * floored so a short connector still curves rather than collapsing to a spike.
+ *
+ * WHAT THIS REPLACED, because the shape of the bug is the reason for the shape
+ * of the fix. The previous version always started at `a.x + a.w` and always
+ * ended at `b.x`: the source's right face and the target's left face, for every
+ * edge in every layout. It carried a branch for `x1 < x0` whose comment
+ * promised a wire that "leaves to the RIGHT and enters from the RIGHT", but the
+ * branch computed `out = a.x + a.w + bow` and `inn = b.x - bow` — identically
+ * equal to `x0 + bow` and `x1 - bow`, the forward case. It emitted the same
+ * string. It was dead code.
+ *
+ * The visible cost: on a serpentine second row, which reads right-to-left,
+ * every arrowhead pointed right — against the flow — and each wire left the
+ * source's right face, crossed back over the row, and entered the target's left
+ * face, leaving a stub protruding from both ends of the row. A vertical
+ * `column` chain got the same treatment: out of the right face, down, and back
+ * into the left face of the node directly below.
+ *
+ * DOMINANT AXIS CHOOSES THE FACES. When the boxes are further apart
+ * horizontally than vertically the wire uses left/right faces; otherwise
+ * top/bottom. That is what makes a column chain drop straight down and a
+ * reversed row travel straight back. */
 export function edgePath(a: PlacedNode, b: PlacedNode): string {
-  const x0 = a.x + a.w
-  const y0 = a.y + a.h / 2
-  const x1 = b.x
-  const y1 = b.y + b.h / 2
+  const acx = a.x + a.w / 2
+  const acy = a.y + a.h / 2
+  const bcx = b.x + b.w / 2
+  const bcy = b.y + b.h / 2
+  const dx = bcx - acx
+  const dy = bcy - acy
 
-  /* Same row, adjacent: a short straight-ish link reads better than a bulge. */
-  const bow = Math.max(arrow.minBow, Math.abs(x1 - x0) * arrow.curvature)
-
-  /* A backwards edge (the serpentine fold, or a return arrow) leaves to the
-   * RIGHT and enters from the RIGHT, so it loops rather than crossing back
-   * through the nodes between. */
-  if (x1 < x0) {
-    const out = a.x + a.w + bow
-    const inn = b.x - bow
-    return `M ${x0} ${y0} C ${out} ${y0}, ${inn} ${y1}, ${x1} ${y1}`
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    /* Horizontal run: opposing side faces, horizontal tangents. */
+    const east = dx >= 0
+    const x0 = east ? a.x + a.w : a.x
+    const x1 = east ? b.x : b.x + b.w
+    const bow = Math.max(arrow.minBow, Math.abs(x1 - x0) * arrow.curvature)
+    const c0 = east ? x0 + bow : x0 - bow
+    const c1 = east ? x1 - bow : x1 + bow
+    return `M ${x0} ${acy} C ${c0} ${acy}, ${c1} ${bcy}, ${x1} ${bcy}`
   }
 
-  return `M ${x0} ${y0} C ${x0 + bow} ${y0}, ${x1 - bow} ${y1}, ${x1} ${y1}`
+  /* Vertical run: top and bottom faces, vertical tangents. The serpentine fold
+   * and every `column` chain land here. */
+  const south = dy >= 0
+  const y0 = south ? a.y + a.h : a.y
+  const y1 = south ? b.y : b.y + b.h
+  const bow = Math.max(arrow.minBow, Math.abs(y1 - y0) * arrow.curvature)
+  const c0 = south ? y0 + bow : y0 - bow
+  const c1 = south ? y1 - bow : y1 + bow
+  return `M ${acx} ${y0} C ${acx} ${c0}, ${bcx} ${c1}, ${bcx} ${y1}`
 }
 
 export function layoutFlow(

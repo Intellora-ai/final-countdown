@@ -482,3 +482,96 @@ describe('the pre-measurement frame guesses small, not desktop', () => {
     expect(root.getAttribute('data-viewport-width')).toBe('1440')
   })
 })
+
+/* ── guards for fixes that a mutation audit found UNPROTECTED ───────────── *
+ *
+ * Reverting each of these used to leave the suite green. A fix nothing pins is
+ * a fix that comes back.
+ */
+
+describe('the repair budget is not refunded by its own output', () => {
+  it('a height-only change does not reset the repair counter', () => {
+    /* THE OSCILLATION THIS PREVENTS. `MAX_REPAIR_ROUNDS` caps the
+     * measure -> validate -> repair loop. The reset effect used to depend on
+     * `effectiveViewport.height`, and height is an OUTPUT of the layout that
+     * effect resets -- so every repair that changed a block's height refunded
+     * the budget and the loop ran forever.
+     *
+     * Observed live at 320px: `equation#law` and `chart#graph` flipped
+     * 77x365 <-> 157x257 indefinitely, span 4 against singleColumnFallback's
+     * span 8. The fallback made them wide enough to stop overflowing, so the
+     * next validation reverted it, so they overflowed again.
+     *
+     * Width is a real input and may reset. Height may never. */
+    geometry = {
+      rootWidth: 320, rootHeight: 500,
+      blocks: {
+        a: { scrollWidth: 2000, clientWidth: 100 },
+        b: { scrollWidth: 2000, clientWidth: 100 },
+        c: { scrollWidth: 2000, clientWidth: 100 },
+      },
+    }
+    const { container } = render(<LessonRenderer lesson={lesson} />)
+    const root = container.querySelector('[data-canvas="lesson"]')!
+    const repairsBefore = root.getAttribute('data-repairs')
+
+    /* Same width, taller container -- exactly what a repair itself causes. */
+    geometry = { ...geometry, rootHeight: 900 }
+    triggerResize()
+
+    expect(root.getAttribute('data-viewport-width')).toBe('320')
+    expect(
+      root.getAttribute('data-repairs'),
+      'a height change refunded the repair budget, so the loop can never terminate',
+    ).toBe(repairsBefore)
+  })
+
+  it('a width change DOES reset it, because width is a real input', () => {
+    geometry = { rootWidth: 320, rootHeight: 500 }
+    const { container } = render(<LessonRenderer lesson={lesson} />)
+    const root = container.querySelector('[data-canvas="lesson"]')!
+    geometry = { rootWidth: 1440, rootHeight: 500 }
+    triggerResize()
+    expect(root.getAttribute('data-viewport-width')).toBe('1440')
+  })
+})
+
+describe('an intentional scroll container announces itself', () => {
+  const tableLesson: Lesson = {
+    id: 'wide', question: 'Does the table declare its own scrolling?',
+    elements: [{
+      id: 't', kind: 'table', purpose: 'compare', title: 'Three methods',
+      payload: {
+        columns: [
+          { key: 'a', label: 'Method', type: 'text' },
+          { key: 'b', label: 'Assumes', type: 'text' },
+        ],
+        rows: [{ a: 'FIFO', b: 'Oldest sells first' }, { a: 'LIFO', b: 'Newest sells first' }],
+      },
+    }],
+  }
+
+  it('emits data-overflow="scroll" on the box that scrolls', async () => {
+    /* renderer/measure.ts reads this attribute to tell an intentional scroller
+     * from a layout fault. The query was written; the attribute was not, so
+     * every working table was counted as a defect -- the exact thing
+     * measure.ts says it exists to avoid: "Treating intentional scroll as
+     * overflow would make the honest fix look like the bug." */
+    const { container } = render(<LessonRenderer lesson={tableLesson} />)
+    await waitFor(() => {
+      expect(container.querySelector('table')).not.toBeNull()
+    })
+    expect(container.querySelector('[data-overflow="scroll"]')).not.toBeNull()
+  })
+
+  it('is reachable without a mouse', async () => {
+    const { container } = render(<LessonRenderer lesson={tableLesson} />)
+    await waitFor(() => {
+      expect(container.querySelector('[data-overflow="scroll"]')).not.toBeNull()
+    })
+    const box = container.querySelector('[data-overflow="scroll"]')!
+    expect(box.getAttribute('tabindex')).toBe('0')
+    expect(box.getAttribute('role')).toBe('group')
+    expect(box.getAttribute('aria-label')).toBeTruthy()
+  })
+})

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
+import { type as typeTokens } from '../src/canvas/design/tokens'
 
 /* THE CHECK THAT DID NOT EXIST, AND WHY THAT MATTERED.
  *
@@ -43,7 +44,7 @@ const VIEWPORTS = [
  * which left the interval [10, 10.5) as a free dead zone: a container could
  * scale `micro` down to 10.01px and pass a check whose entire purpose is to
  * defend that token. The floor is the token. */
-const MIN_READABLE_PX = 10.5
+const MIN_READABLE_PX = typeTokens.micro.size
 
 interface Collected {
   consoleErrors: string[]
@@ -282,5 +283,21 @@ test.describe('the document is well formed', () => {
       unreachable,
       'a scroll container with no tabindex and no role cannot be scrolled without a mouse (WCAG 2.1.1)',
     ).toEqual([])
+  })
+})
+
+
+test.describe('the readability floor is the token, not a number beside it', () => {
+  test('MIN_READABLE_PX is the smallest type role, read from tokens.ts', () => {
+    /* This floor was hardcoded to 10 while `micro` is 10.5, leaving the
+     * interval [10, 10.5) free: a container could scale the smallest role down
+     * by 5% and pass the check whose whole purpose is to defend it. Reverting
+     * that was invisible to every test, because the floor IS the assertion --
+     * lowering it cannot fail a test that uses it. So the floor is now read
+     * from the token, and this pins it to the SMALLEST role rather than to any
+     * role that happens to be convenient. */
+    const smallest = Math.min(...Object.values(typeTokens).map((r) => r.size))
+    expect(MIN_READABLE_PX).toBe(smallest)
+    expect(MIN_READABLE_PX).toBe(typeTokens.micro.size)
   })
 })

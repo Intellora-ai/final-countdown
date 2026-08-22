@@ -327,38 +327,68 @@ const twoPointChart: Lesson = {
   }],
 }
 
-describe('a representation that fails its own invariants is refused, not drawn', () => {
-  it('refuses a two-point trend instead of drawing one', () => {
+/* SUPERSEDED BY DEGRADATION, DELIBERATELY.
+ *
+ * When these were written, a two-point chart's only honest outcome was a
+ * refusal box, because `degrade()` had no caller. Step 5 wired degradation in,
+ * so the same fixture now becomes the TABLE its contract was already offering:
+ * strictly more useful than a refusal, and it keeps the data.
+ *
+ * These were updated rather than deleted, because the property they exist to
+ * protect is unchanged -- a representation that fails its invariants must
+ * never be DRAWN. Whether the honest answer is a substitution or a refusal is
+ * the next question, and both are still pinned.
+ *
+ * Chart refusal is now unreachable by construction: the only chart invariant a
+ * real payload fails is `enoughPointsToPlot`, and that case always has a table
+ * to degrade to. The refusal path is covered in degradation.test.tsx with a
+ * fixture whose contract offers nothing. */
+describe('a representation that fails its own invariants is never drawn as itself', () => {
+  it('does not draw a two-point trend', async () => {
     const { container } = render(<LessonRenderer lesson={twoPointChart} />)
-    expect(container.querySelector('[data-canvas="invariant-refusal"]')).not.toBeNull()
+    await waitFor(() => {
+      expect(container.querySelector('[data-canvas="degraded"]')).not.toBeNull()
+    })
+    expect(container.querySelector('[data-mark="line"]')).toBeNull()
   })
 
-  it('names the invariant that failed', () => {
+  it('substitutes the representation its contract nominated', async () => {
     const { container } = render(<LessonRenderer lesson={twoPointChart} />)
-    const r = container.querySelector('[data-canvas="invariant-refusal"]')!
-    expect(r.getAttribute('data-violated')).toContain('enoughPointsToPlot')
+    await waitFor(() => {
+      const r = container.querySelector('[data-canvas="degraded"]')!
+      expect(r.getAttribute('data-degraded-from')).toBe('chart')
+      expect(r.getAttribute('data-degraded-to')).toBe('table')
+    })
   })
 
-  it('draws no chart marks at all for the refused block', () => {
+  it('draws no chart marks at all for the failed representation', async () => {
     /* The whole point: no line, no area, no dots. Nothing that reads as data. */
     const { container } = render(<LessonRenderer lesson={twoPointChart} />)
+    await waitFor(() => {
+      expect(container.querySelector('[data-canvas="degraded"]')).not.toBeNull()
+    })
     expect(container.querySelector('[data-mark]')).toBeNull()
   })
 
-  it('explains the refusal in words a learner can act on', () => {
+  it('explains the substitution in words a learner can act on', async () => {
     const { container } = render(<LessonRenderer lesson={twoPointChart} />)
-    expect(container.textContent).toContain('Fewer than three points')
+    await waitFor(() => {
+      expect(container.textContent).toContain('Fewer than three points')
+    })
   })
 
-  it('keeps the block title, so the lesson still reads as a sequence', () => {
+  it('keeps the block title, so the lesson still reads as a sequence', async () => {
     const { container } = render(<LessonRenderer lesson={twoPointChart} />)
-    expect(container.textContent).toContain('Pressure vs temperature')
+    await waitFor(() => {
+      expect(container.textContent).toContain('Pressure vs temperature')
+    })
   })
 
-  it('announces the refusal to assistive technology', () => {
+  it('announces the substitution to assistive technology', async () => {
     const { container } = render(<LessonRenderer lesson={twoPointChart} />)
-    const r = container.querySelector('[data-canvas="invariant-refusal"]')!
-    expect(r.getAttribute('role')).toBe('status')
+    await waitFor(() => {
+      expect(container.querySelector('[data-canvas="degraded"] [role="status"]')).not.toBeNull()
+    })
   })
 
   it('does not refuse a chart whose invariants all hold', async () => {
@@ -386,12 +416,69 @@ describe('a representation that fails its own invariants is refused, not drawn',
     })
   })
 
-  it('a refusal is distinct from "this build has no renderer"', () => {
-    /* Two different failures with two different causes must not collapse into
-     * one message: "we cannot draw this" and "this would be a lie" are
-     * different things to tell a learner. */
+  it('a substitution is distinct from "this build has no renderer"', async () => {
+    /* Three outcomes with three causes must not collapse into one message.
+     * "We cannot draw this kind at all", "this would be a lie so here is
+     * something truer", and "this would be a lie and there is nothing truer"
+     * are different things to tell a learner. */
     const { container } = render(<LessonRenderer lesson={twoPointChart} />)
+    await waitFor(() => {
+      expect(container.querySelector('[data-canvas="degraded"]')).not.toBeNull()
+    })
     expect(container.querySelector('[data-canvas="unrenderable"]')).toBeNull()
-    expect(container.querySelector('[data-canvas="invariant-refusal"]')).not.toBeNull()
+    expect(container.querySelector('[data-canvas="invariant-refusal"]')).toBeNull()
+  })
+})
+
+/* ── gap found by mutation testing ──────────────────────────────────────── *
+ *
+ * A mutation run scored 8/9 here. The survivor: `UNMEASURED_VIEWPORT` could be
+ * flipped back to the old `1200x800` desktop guess with ZERO test failures,
+ * because every test above sets a root width first, so measurement always
+ * succeeds and the pre-measurement branch is never entered.
+ *
+ * Notably the test named "never silently reports 1200 when the container is a
+ * phone" did NOT catch it: under that mutation alone, measurement still
+ * succeeds and still reports 375. The two mutations together -- no measurement
+ * AND a desktop guess -- would reproduce the original defect exactly, and only
+ * one of them had a failure signature. */
+
+describe('the pre-measurement frame guesses small, not desktop', () => {
+  it('reports itself as unmeasured when the container has no size yet', () => {
+    geometry = { rootWidth: 0, rootHeight: 0 }
+    const { container } = render(<LessonRenderer lesson={lesson} />)
+    const root = container.querySelector('[data-canvas="lesson"]')!
+    expect(root.getAttribute('data-viewport-source')).toBe('unmeasured')
+  })
+
+  it('guesses a phone, not a desktop, before the first measurement', () => {
+    /* Guessing small is the safe direction. A layout computed for 360px and
+     * then measured wider discloses less for one frame, which is recoverable.
+     * The reverse ships an overflowing frame to a real phone. */
+    geometry = { rootWidth: 0, rootHeight: 0 }
+    const { container } = render(<LessonRenderer lesson={lesson} />)
+    const root = container.querySelector('[data-canvas="lesson"]')!
+    expect(root.getAttribute('data-viewport-width')).toBe('360')
+    expect(Number(root.getAttribute('data-viewport-width'))).toBeLessThan(768)
+  })
+
+  it('still validates the frame it painted from the guess', () => {
+    geometry = { rootWidth: 0, rootHeight: 0 }
+    const { container } = render(<LessonRenderer lesson={lesson} />)
+    const root = container.querySelector('[data-canvas="lesson"]')!
+    expect(root.getAttribute('data-validated')).toBe('true')
+  })
+
+  it('switches to the measured width as soon as one arrives', () => {
+    geometry = { rootWidth: 0, rootHeight: 0 }
+    const { container } = render(<LessonRenderer lesson={lesson} />)
+    const root = container.querySelector('[data-canvas="lesson"]')!
+    expect(root.getAttribute('data-viewport-source')).toBe('unmeasured')
+
+    geometry = { rootWidth: 1440, rootHeight: 900 }
+    triggerResize()
+
+    expect(root.getAttribute('data-viewport-source')).toBe('measured')
+    expect(root.getAttribute('data-viewport-width')).toBe('1440')
   })
 })

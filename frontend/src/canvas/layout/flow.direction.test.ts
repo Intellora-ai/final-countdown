@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { edgePath, layoutFlow, type PlacedNode } from './flow'
+import { arrow } from '../design/tokens'
 
 /* AN ARROW MUST POINT AT THE THING IT MEANS.
  *
@@ -216,6 +217,119 @@ describe('real serpentine layouts read in the direction they are drawn', () => {
     for (const e of flow.edges) {
       const c = parse(e.path)
       expect(endTangent(c).dy, `${e.from} -> ${e.to} does not travel downward`).toBeGreaterThan(0)
+    }
+  })
+})
+
+/* ── gaps found by mutation testing ─────────────────────────────────────── *
+ *
+ * A mutation run over flow.ts scored 5/8. Both halves of the shipped bug were
+ * caught, but three mutants survived:
+ *
+ *   bow -> arrow.minBow      the proportional term dropped, so a 400px span
+ *                            curves at 40 instead of ~120. A 3x change in
+ *                            curvature, plainly visible, and NOTHING asserted
+ *                            bow magnitude anywhere. The test named "arrow
+ *                            style is constant" did not check the style.
+ *   2nd control point bcx    unreachable: every vertical edge the suite builds
+ *                            joins boxes at the SAME x, so a vertical-dominant
+ *                            edge between horizontally offset boxes -- where
+ *                            the wire would kink -- was never constructed.
+ *   |dx| >= |dy| -> >        the exactly-equal case, where the dominant-axis
+ *                            rule is genuinely ambiguous, was never exercised.
+ */
+
+describe('arrow curvature is a constant of the design, not per-edge taste', () => {
+  it('scales the bow with the span rather than pinning it to the floor', () => {
+    /* Goal 1 for arrows: the RULE is constant, the output varies with geometry.
+     * A fixed bow would make every arrow the same shape regardless of span. */
+    const near = parse(edgePath(node('a', 0, 0), node('b', 200, 0)))
+    const far = parse(edgePath(node('a', 0, 0), node('b', 900, 0)))
+    const nearBow = near.c1x - near.x0
+    const farBow = far.c1x - far.x0
+    expect(farBow).toBeGreaterThan(nearBow)
+  })
+
+  it('derives the bow from the curvature token, not a hand-tuned number', () => {
+    const a = node('a', 0, 0)
+    const b = node('b', 600, 0)
+    const c = parse(edgePath(a, b))
+    const span = Math.abs(b.x - (a.x + a.w))
+    const expected = Math.max(arrow.minBow, span * arrow.curvature)
+    expect(c.c1x - c.x0).toBeCloseTo(expected, 6)
+    expect(c.x1 - c.c2x).toBeCloseTo(expected, 6)
+  })
+
+  it('never lets the bow collapse below the floor on a short link', () => {
+    const c = parse(edgePath(node('a', 0, 0), node('b', 140, 0)))
+    expect(c.c1x - c.x0).toBeGreaterThanOrEqual(arrow.minBow)
+  })
+
+  it('uses the same curvature rule on the vertical axis as the horizontal', () => {
+    const h = parse(edgePath(node('a', 0, 0), node('b', 600, 0)))
+    const v = parse(edgePath(node('a', 0, 0), node('b', 0, 600)))
+    const hBow = h.c1x - h.x0
+    const vBow = v.c1y - v.y0
+    /* Different spans, so not equal -- but both must exceed the floor and
+     * both must be proportional rather than pinned. */
+    expect(hBow).toBeGreaterThan(arrow.minBow)
+    expect(vBow).toBeGreaterThan(arrow.minBow)
+  })
+})
+
+describe('a vertical run between horizontally offset boxes stays coherent', () => {
+  /* Every vertical edge the other tests build joins boxes at the same x, so
+   * this whole case was invisible to the suite. */
+  const a = node('a', 0, 0)
+  const b = node('b', 300, 600)
+
+  it('is treated as vertical, because the drop dominates the offset', () => {
+    const c = parse(edgePath(a, b))
+    expect(Math.abs(c.y1 - c.y0)).toBeGreaterThan(Math.abs(c.x1 - c.x0))
+  })
+
+  it('leaves the source bottom and enters the target top', () => {
+    const c = parse(edgePath(a, b))
+    expect(onFace({ x: c.x0, y: c.y0 }, a, 'bottom')).toBe(true)
+    expect(onFace({ x: c.x1, y: c.y1 }, b, 'top')).toBe(true)
+  })
+
+  it('anchors each tangent over its OWN box, so the wire does not kink', () => {
+    /* The second control point must sit above the TARGET's centre, not the
+     * source's. Sharing one x makes the arrow arrive tilted. */
+    const c = parse(edgePath(a, b))
+    expect(c.c1x).toBeCloseTo(a.x + a.w / 2, 6)
+    expect(c.c2x).toBeCloseTo(b.x + b.w / 2, 6)
+    expect(c.c2x).not.toBeCloseTo(c.c1x, 1)
+  })
+
+  it('still points at the target', () => {
+    const c = parse(edgePath(a, b))
+    expect(endTangent(c).dy).toBeGreaterThan(0)
+  })
+})
+
+describe('the dominant-axis boundary is decided, not left ambiguous', () => {
+  it('resolves an exactly diagonal edge deterministically', () => {
+    /* |dx| === |dy|. Whichever way the rule falls, it must fall the same way
+     * every time and still terminate on a face of the target. */
+    const a = node('a', 0, 0)
+    const b = node('b', 300, 300)
+    const first = edgePath(a, b)
+    expect(edgePath(a, b)).toBe(first)
+
+    const c = parse(first)
+    const faces = (['left', 'right', 'top', 'bottom'] as const)
+      .filter((f) => onFace({ x: c.x1, y: c.y1 }, b, f))
+    expect(faces.length, 'endpoint is on no face of the target').toBeGreaterThan(0)
+  })
+
+  it('handles two boxes at the same position without producing NaN', () => {
+    const a = node('a', 100, 100)
+    const b = node('b', 100, 100)
+    const c = parse(edgePath(a, b))
+    for (const v of [c.x0, c.y0, c.c1x, c.c1y, c.c2x, c.c2y, c.x1, c.y1]) {
+      expect(Number.isFinite(v)).toBe(true)
     }
   })
 })

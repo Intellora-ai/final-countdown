@@ -66,6 +66,8 @@ interface Resolved {
   fallbackFrom?: string
   /** Invariants this representation failed. Non-empty means: do not draw it. */
   violated?: Invariant[]
+  /** Set when the declared representation was swapped for a safer one. */
+  degradedFrom?: { kind: string; reason: string }
 }
 
 function resolveElement(element: LessonElement, ctx: RepresentationContext): Resolved {
@@ -96,6 +98,23 @@ function resolveElement(element: LessonElement, ctx: RepresentationContext): Res
   const invariants = contract.invariants(normalized, context)
   const violated = invariants.filter((i) => !i.holds)
 
+  /* DEGRADE BEFORE REFUSING.
+   *
+   * `degradeIfNeeded` and every contract's `degrade()` have existed since
+   * Step 2 with zero callers. The chart contract says in as many words that
+   * fewer than three points "is a table, not a trend" and hands back a
+   * fully-formed table payload. Nothing ever asked for it, so a two-point
+   * chart could only ever draw a dishonest line or show a refusal box -- both
+   * of which throw away an answer the contract was already holding.
+   *
+   * EXACTLY ONE HOP. The degraded representation is accepted or refused on its
+   * own merits and is never itself degraded. If chart -> table and table ->
+   * chart were both reachable, an unbounded loop would hang the render. */
+  if (violated.length > 0) {
+    const degraded = tryDegrade(contract, normalized, context, element)
+    if (degraded) return degraded
+  }
+
   const plans = contract.disclosure(normalized, context)
   const derived = contract.derive(normalized, context) as Record<string, unknown>
 
@@ -110,6 +129,68 @@ function resolveElement(element: LessonElement, ctx: RepresentationContext): Res
     reason: chosen.reason,
     ...(chosen.fallbackFrom ? { fallbackFrom: chosen.fallbackFrom } : {}),
   }
+}
+
+/** One degradation hop, or null when there is nothing honest to fall back to. */
+function tryDegrade(
+  contract: NonNullable<ReturnType<typeof contractFor>>,
+  normalized: unknown,
+  context: RepresentationContext,
+  element: LessonElement,
+): Resolved | null {
+  const plan = contract.degrade(normalized, context)
+  if (!plan) return null
+
+  const target = contractFor(plan.to)
+  if (!target) return null
+
+  /* The replacement payload is validated like any other. A contract handing
+   * over a malformed payload must not bypass the checks every lesson faces. */
+  const parsed = target.validate(plan.payload)
+  if (!parsed.ok) return null
+
+  const dNormalized = target.normalize(parsed.value, context)
+
+  /* A degradation that is itself dishonest is not a fallback. If the
+   * replacement fails its own invariants, refuse rather than swap one lie for
+   * another. */
+  const dViolated = target.invariants(dNormalized, context).filter((i) => !i.holds)
+  if (dViolated.length > 0) return null
+
+  const dPlans = target.disclosure(dNormalized, context)
+
+  return {
+    element,
+    kind: target.kind,
+    rendererKey: target.renderer,
+    data: dNormalized,
+    derived: target.derive(dNormalized, context) as Record<string, unknown>,
+    violated: [],
+    ...(dPlans[0] ? { disclosure: dPlans[0] } : {}),
+    reason: plan.reason,
+    degradedFrom: { kind: contract.kind, reason: plan.reason },
+  }
+}
+
+/* A SUBSTITUTION THE LEARNER CAN SEE.
+ *
+ * Swapping a chart for a table silently would leave someone who expected a
+ * chart wondering whether the lesson was authored wrong. The notice states
+ * what changed and quotes the contract's own reason. */
+function Degraded({
+  from, to, reason, children,
+}: { from: string; to: string; reason: string; children: React.ReactNode }) {
+  return (
+    <div data-canvas="degraded" data-degraded-from={from} data-degraded-to={to}>
+      {children}
+      <p role="status" style={{
+        fontFamily: type.mono.family, fontSize: type.mono.size,
+        color: ink.axis, margin: 0, marginTop: space.xs,
+      }}>
+        Shown as a {to} rather than a {from}. {reason}
+      </p>
+    </div>
+  )
 }
 
 /* WHAT A LEARNER SEES WHEN A REPRESENTATION CANNOT BE HONEST.
@@ -409,14 +490,23 @@ export function LessonRenderer({ lesson, viewport, explain = false }: LessonRend
                * having a renderer available for it. */
               <InvariantRefusal element={r.element} kind={r.kind ?? 'unknown'} violated={r.violated} />
             ) : Component ? (
-              <Suspense fallback={<Skeleton />}>
-                <Component
-                  data={r.data}
-                  derived={r.derived}
-                  disclosure={r.disclosure}
-                  title={r.element.title}
-                />
-              </Suspense>
+              r.degradedFrom ? (
+                <Degraded
+                  from={r.degradedFrom.kind}
+                  to={r.kind ?? 'unknown'}
+                  reason={r.degradedFrom.reason}
+                >
+                  <Suspense fallback={<Skeleton />}>
+                    <Component data={r.data} derived={r.derived}
+                      disclosure={r.disclosure} title={r.element.title} />
+                  </Suspense>
+                </Degraded>
+              ) : (
+                <Suspense fallback={<Skeleton />}>
+                  <Component data={r.data} derived={r.derived}
+                    disclosure={r.disclosure} title={r.element.title} />
+                </Suspense>
+              )
             ) : (
               <Unrenderable element={r.element} reason={r.reason} />
             )}
@@ -431,6 +521,7 @@ export function LessonRenderer({ lesson, viewport, explain = false }: LessonRend
                 {r.violated && r.violated.length > 0
                   ? ` · REFUSED: ${r.violated.map((v) => v.name).join(', ')}`
                   : ''}
+                {r.degradedFrom ? ` · DEGRADED ${r.degradedFrom.kind} → ${r.kind}` : ''}
               </p>
             )}
           </section>

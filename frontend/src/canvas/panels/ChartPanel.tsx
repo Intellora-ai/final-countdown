@@ -58,8 +58,6 @@ function assertNever(x: never, mark: string): never {
   )
 }
 
-const CARTESIAN: ReadonlySet<Mark> = new Set<Mark>(['bar', 'line', 'area', 'scatter'])
-
 /** Token colour for the nth category, wrapping rather than running off the end. */
 function seriesColour(i: number): string {
   return series[i % series.length]
@@ -186,7 +184,7 @@ export function ChartPanel({ data, derived, disclosure, title }: PanelProps) {
                 fill={color.text} fontSize={type.label.size} fontFamily={type.label.family}>
                 {s.label}
               </text>
-              <text x={space.lg} y={space.md + space.md} dominantBaseline="alphabetic"
+              <text data-legend="value" x={space.lg} y={space.md + space.md} dominantBaseline="alphabetic"
                 fill={color.textMuted} fontSize={type.micro.size} fontFamily={type.mono.family}>
                 {s.value}{d.y.unit ? ` ${d.y.unit}` : ''} · {Math.round(s.fraction * 100)}%
               </text>
@@ -330,7 +328,6 @@ export function ChartPanel({ data, derived, disclosure, title }: PanelProps) {
   )
 }
 
-/** Exported so a parity test can assert the renderer covers every derivable
- *  mark without reaching into the component's internals. */
+/** The marks this file has a branch for. The parity test IMPORTS this rather
+ *  than restating it, so the renderer and its test cannot drift apart. */
 export const RENDERABLE_MARKS: readonly Mark[] = ['bar', 'line', 'area', 'pie', 'scatter']
-export { CARTESIAN as CARTESIAN_MARKS }

@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import React from 'react'
-import { ChartPanel } from './ChartPanel'
+import { ChartPanel, RENDERABLE_MARKS } from './ChartPanel'
 import { chartContract, type ChartPayload, type Mark } from '../contract/representations/chart'
 import { series } from '../design/tokens'
 import type { RepresentationContext, LessonElement } from '../contract/types'
@@ -116,19 +116,19 @@ const comparison: ChartPayload = {
 
 /* ── the parity gate ────────────────────────────────────────────────────── */
 
+/* One fixture per mark, at module scope so the parity gate at the bottom of
+ * this file can read the same table these tests drive. */
+const MARKS: Mark[] = ['bar', 'line', 'area', 'pie', 'scatter']
+
+const fixtureFor: Record<Mark, ChartPayload> = {
+  bar: comparison,
+  line: trendTemporal,
+  area: changeOverTime,
+  pie: composition,
+  scatter: relationshipNominalX,
+}
+
 describe('every mark the contract can choose has a rendering branch', () => {
-  /* Derived from chart.ts markFor() + marksAgree(). If a new mark is added to
-   * the Mark union without a branch here and in ChartPanel, this fails. */
-  const MARKS: Mark[] = ['bar', 'line', 'area', 'pie', 'scatter']
-
-  const fixtureFor: Record<Mark, ChartPayload> = {
-    bar: comparison,
-    line: trendTemporal,
-    area: changeOverTime,
-    pie: composition,
-    scatter: relationshipNominalX,
-  }
-
   it('the Mark union and the fixture table agree, so no mark is untested', () => {
     expect(Object.keys(fixtureFor).sort()).toEqual([...MARKS].sort())
   })
@@ -305,4 +305,138 @@ describe('the accessible name matches what was drawn', () => {
       expect(r.container.querySelectorAll(`[data-mark="${name}"]`).length).toBeGreaterThan(0)
     })
   }
+})
+
+/* ── gaps found by mutation testing ─────────────────────────────────────── *
+ *
+ * A mutation run over this file scored 2/8: the suite protected the DISPATCH
+ * (which `data-mark` lands in the DOM) and almost nothing about the DRAWING.
+ * Four mutations to the pie's own geometry and arithmetic survived untouched:
+ *
+ *   sweep flag 1 -> 0        every sector drawn the wrong way round, and the
+ *                            only path assertion was `toMatch(/A/)`, which
+ *                            checks that an arc COMMAND exists, not that the
+ *                            arc is right
+ *   `* 100` dropped          legend reads "1%" instead of "55%". The existing
+ *                            `/55%/` assertion passed anyway because the
+ *                            <title> tooltip has its own `* 100` -- redundancy
+ *                            masking a real hole
+ *   zero-total guard deleted no fixture had a zero or negative total, so the
+ *                            "refuse rather than mislead" branch was never
+ *                            entered by any test
+ *   `> 0` -> `>= 0`          no fixture had a zero-valued slice
+ *
+ * These close them. */
+
+/** Pull the arc parameters out of a sector's `d` attribute. */
+function arcOf(d: string) {
+  const m = d.match(/A (-?[\d.]+) (-?[\d.]+) 0 ([01]) ([01]) (-?[\d.]+) (-?[\d.]+)/)
+  if (!m) throw new Error(`no arc command in: ${d}`)
+  return {
+    rx: Number(m[1]), ry: Number(m[2]),
+    largeArc: Number(m[3]), sweep: Number(m[4]),
+    ex: Number(m[5]), ey: Number(m[6]),
+  }
+}
+
+describe('pie geometry is correct, not merely present', () => {
+  it('sweeps every sector the same way round', () => {
+    /* Mixed sweep directions would overlap wedges and misstate every share. */
+    const r = renderChart(composition)
+    const sweeps = [...r.container.querySelectorAll('[data-mark="pie"]')]
+      .map((s) => arcOf(s.getAttribute('d')!).sweep)
+    expect(new Set(sweeps).size).toBe(1)
+    /* 1 is clockwise in SVG's coordinate system, matching the clockwise order
+     * the legend lists the categories in. */
+    expect(sweeps[0]).toBe(1)
+  })
+
+  it('sets the large-arc flag exactly when a sector exceeds half the circle', () => {
+    /* Get this wrong and a 55% slice renders as a 45% slice. */
+    const r = renderChart(composition)
+    const total = composition.data.reduce((s, d) => s + Number(d.share), 0)
+    const sectors = [...r.container.querySelectorAll('[data-mark="pie"]')]
+    sectors.forEach((el, i) => {
+      const fraction = Number(composition.data[i].share) / total
+      expect(arcOf(el.getAttribute('d')!).largeArc).toBe(fraction > 0.5 ? 1 : 0)
+    })
+  })
+
+  it('gives each sector an angular extent proportional to its value', () => {
+    /* The claim a pie makes. If the angles do not match the numbers, every
+     * other assertion in this file is decoration. */
+    const r = renderChart(composition)
+    const total = composition.data.reduce((s, d) => s + Number(d.share), 0)
+    const sectors = [...r.container.querySelectorAll('[data-mark="pie"]')]
+
+    let cursor = -Math.PI / 2
+    sectors.forEach((el, i) => {
+      const { ex, ey, rx } = arcOf(el.getAttribute('d')!)
+      const fraction = Number(composition.data[i].share) / total
+      cursor += fraction * Math.PI * 2
+      /* Where the arc SHOULD end, from the value alone. */
+      const cx = 100, cy = 100
+      expect(ex).toBeCloseTo(cx + Math.cos(cursor) * rx, 1)
+      expect(ey).toBeCloseTo(cy + Math.sin(cursor) * rx, 1)
+    })
+  })
+
+  it('states the percentage in the visible legend, not only in the tooltip', () => {
+    /* The tooltip and the legend compute the share independently. Asserting on
+     * whole-container text let the legend's copy be wrong while the tooltip's
+     * stayed right. This reads the legend specifically. */
+    const r = renderChart(composition)
+    const legend = [...r.container.querySelectorAll('[data-legend="value"]')]
+      .map((n) => n.textContent ?? '')
+    expect(legend.join(' | ')).toContain('55%')
+    expect(legend.join(' | ')).toContain('27%')
+    expect(legend.join(' | ')).toContain('18%')
+  })
+})
+
+describe('a pie refuses data that cannot be shares of a whole', () => {
+  const zeroTotal: ChartPayload = {
+    intent: 'composition',
+    fields: [
+      { name: 'part', role: 'x', type: 'nominal' },
+      { name: 'amount', role: 'y', type: 'quantitative' },
+    ],
+    data: [{ part: 'A', amount: 0 }, { part: 'B', amount: 0 }, { part: 'C', amount: 0 }],
+  }
+
+  it('refuses a zero total instead of drawing an empty circle', () => {
+    const r = renderChart(zeroTotal)
+    expect(r.container.querySelector('[data-chart="unrenderable"]')).not.toBeNull()
+    expect(r.container.querySelector('[data-mark="pie"]')).toBeNull()
+  })
+
+  it('says why, and announces it', () => {
+    const r = renderChart(zeroTotal)
+    const n = r.container.querySelector('[data-chart="unrenderable"]')!
+    expect(n.getAttribute('role')).toBe('status')
+    expect(n.textContent).toContain('cannot be shares of a whole')
+  })
+
+  it('excludes a zero-valued slice rather than drawing a zero-width wedge', () => {
+    const withZero: ChartPayload = {
+      intent: 'composition',
+      fields: [
+        { name: 'part', role: 'x', type: 'nominal' },
+        { name: 'amount', role: 'y', type: 'quantitative' },
+      ],
+      data: [{ part: 'A', amount: 60 }, { part: 'B', amount: 0 }, { part: 'C', amount: 40 }],
+    }
+    const r = renderChart(withZero)
+    const cats = [...r.container.querySelectorAll('[data-mark="pie"]')]
+      .map((s) => s.getAttribute('data-category'))
+    expect(cats).toEqual(['A', 'C'])
+  })
+})
+
+describe('the renderer and its parity list cannot drift apart', () => {
+  it('the fixture table covers exactly RENDERABLE_MARKS, imported from the renderer', () => {
+    /* Previously this file restated the mark list by hand, so adding a mark to
+     * ChartPanel without adding a fixture here would have gone unnoticed. */
+    expect(Object.keys(fixtureFor).sort()).toEqual([...RENDERABLE_MARKS].sort())
+  })
 })

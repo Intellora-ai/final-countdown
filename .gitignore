@@ -45,3 +45,5 @@ frontend/tsconfig.tsbuildinfo
 # here; the numbers belong in the phase report, which quotes them, rather than
 # in history, where a machine's timings would be reviewed as if they were code.
 frontend/e2e/report/
+.DS_Store
+screenshots/

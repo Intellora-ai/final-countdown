@@ -3,6 +3,7 @@ import './scene.css'
 import { color, ink, overlay, space, type, radius, stroke, accentAlpha } from './design/tokens'
 import { cssVariables } from './design/generateCss'
 import { ACCEPTANCE_LESSONS } from './lessons/acceptance'
+import { financialCrisis } from './lessons/demo'
 import { selectArchetype, compositionFor, GRID_COLUMNS } from './layout/archetypes'
 import { contentMass, climbLadder } from './layout/disclosure'
 import { checkFrame, type LayoutFrame, type PlacedBlock } from './layout/validate'
@@ -69,7 +70,7 @@ export function LessonGallery() {
           because the content differs. The design language does not differ at all.
         </p>
 
-        {ACCEPTANCE_LESSONS.map((lesson) => {
+        {[financialCrisis, ...ACCEPTANCE_LESSONS].map((lesson) => {
           const { decision, frame, ladder, ok } = frameFor(lesson)
           const bands = [...new Set(frame.blocks.map((b) => b.band))].sort((a, b) => a - b)
           const isOpen = open === lesson.id

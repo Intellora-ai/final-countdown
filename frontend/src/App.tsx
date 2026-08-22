@@ -7,7 +7,6 @@ import { SetupFlow } from './components/SetupFlow'
 import { TodayView } from './components/TodayView'
 import { ChapterView } from './components/ChapterView'
 import { Placeholder } from './components/Placeholder'
-import { BoardView, GalleryView } from './board'
 
 export default function App() {
   const store = useStore()
@@ -55,10 +54,17 @@ export default function App() {
               <Route path="/practice" element={<Placeholder kind="practice" />} />
               <Route path="/quick-question" element={<Placeholder kind="quick-question" />} />
               <Route path="/misconception" element={<Placeholder kind="misconception" />} />
-              {/* The gallery is declared before the board so the more
-                * specific path wins regardless of matcher order changes. */}
-              <Route path="/canvas/gallery" element={<GalleryView />} />
-              <Route path="/canvas" element={<BoardView />} />
+              {/* THE LEARNING CANVAS IS DISCONNECTED, NOT DELETED.
+                *
+                * It worked, and it was the wrong design — so it is out of the
+                * product rather than patched inside it. Every file under
+                * src/board/ is intact and still builds; nothing routes to it.
+                * The catch-all below sends any surviving /canvas link to Today
+                * rather than a blank screen.
+                *
+                * When there is a design worth wiring up, the routes come back
+                * here. The reasoning behind what is parked lives in the commit
+                * messages from 14b589c to 7b1a1a0. */}
               <Route path="*" element={<Navigate to="/today" replace />} />
             </Routes>
           </main>

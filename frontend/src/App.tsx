@@ -8,6 +8,39 @@ import { TodayView } from './components/TodayView'
 import { ChapterView } from './components/ChapterView'
 import { Placeholder } from './components/Placeholder'
 
+/* THE SCENE IS LOADED ON DEMAND, AND THE BUDGET IS WHY.
+ *
+ * Imported statically it pulled KaTeX, d3-scale, every panel and the whole
+ * explanation canvas into the entry chunk: initial JavaScript went to 186.55
+ * KB gzip against this repo's stated 150 KB ceiling. A learner opening Today
+ * has no use for a typesetting engine. As a lazy route it becomes a chunk that
+ * arrives only when someone actually opens the canvas, and three.js — already
+ * lazy one level deeper — arrives only when the 3D panel first mounts. */
+const LessonGallery = React.lazy(() =>
+  import('./canvas/LessonGallery').then((m) => ({ default: m.LessonGallery })),
+)
+
+/* /canvas/gas now renders the gas lesson through the composed renderer. The
+ * hand-placed GasPressureScene it replaced stated every panel position in a
+ * 1408x768 coordinate table, which is the one thing the layout grammar exists
+ * to make unnecessary. */
+const GasLesson = React.lazy(() =>
+  import('./canvas/GasLesson').then((m) => ({ default: m.GasLesson })),
+)
+
+function SceneFallback() {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, display: 'grid', placeItems: 'center',
+      background: '#0e1113', color: '#5b666f',
+      fontFamily: 'ui-monospace, monospace', fontSize: 11, letterSpacing: '.18em',
+      textTransform: 'uppercase',
+    }}>
+      Opening the canvas…
+    </div>
+  )
+}
+
 export default function App() {
   const store = useStore()
   const narrow = useNarrow()
@@ -35,6 +68,30 @@ export default function App() {
 
   if (inSetup) return <SetupFlow />
 
+  /* THE EXPLANATION CANVAS OWNS THE WHOLE WINDOW.
+   *
+   * It is returned BEFORE the shell rather than inside it, because the shell
+   * is not decoration it can sit under: the sidebar takes a column and the top
+   * bar takes a strip, and a board whose layout is stated in exact coordinates
+   * cannot be handed an unpredictable fraction of the screen. Every other
+   * route keeps the curriculum around it; this one replaces it, and the back
+   * button in its own chrome is how the learner returns. */
+  if (loc.pathname === '/canvas/lessons') {
+    return (
+      <React.Suspense fallback={<SceneFallback />}>
+        <LessonGallery />
+      </React.Suspense>
+    )
+  }
+
+  if (loc.pathname === '/canvas/gas') {
+    return (
+      <React.Suspense fallback={<SceneFallback />}>
+        <GasLesson />
+      </React.Suspense>
+    )
+  }
+
   const closeOnPhone = () => { if (narrow) setDrawer(false) }
 
   return (
@@ -54,7 +111,11 @@ export default function App() {
               <Route path="/practice" element={<Placeholder kind="practice" />} />
               <Route path="/quick-question" element={<Placeholder kind="quick-question" />} />
               <Route path="/misconception" element={<Placeholder kind="misconception" />} />
-              <Route path="/canvas" element={<Placeholder kind="canvas" />} />
+              {/* The blackboard's two routes are gone with the blackboard itself
+                * (see docs/migrations/step-0-blackboard-deletion.md). The
+                * explanation canvas is returned above, before the shell, because
+                * it owns the whole window. Any surviving /canvas link falls
+                * through to the catch-all rather than a blank screen. */}
               <Route path="*" element={<Navigate to="/today" replace />} />
             </Routes>
           </main>

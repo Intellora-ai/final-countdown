@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import CURRICULUM from '../data/curriculum'
 import { store } from '../data/store'
 import { Button } from '../ui/Button'
@@ -9,7 +9,6 @@ import type { Chapter, Concept } from '../types'
 const NODEW = 176, CARDW = 244, CARDH = 62, CHROME = 36
 
 export function ChapterView() {
-  const nav = useNavigate()
   const { subjectId, chapterId } = useParams()
   const st = store.student()!
   const subjects = CURRICULUM.subjectsFor(st.cls, st.stream).filter((s) => st.subjects.indexOf(s.id) >= 0)
@@ -99,8 +98,10 @@ export function ChapterView() {
 
   const begin = (cId: string) => {
     const v = cstate(cId)
+    /* The write stays; the navigation to the learning canvas does not, while
+     * that canvas is disconnected. Beginning a concept marks it in progress
+     * and the map updates in front of the learner. */
     if (v !== 'inProgress' && v !== 'mastered') store.setConceptState(ch.id, cId, 'inProgress', 'session')
-    nav('/canvas')
   }
 
   /* viewBox frames the graph's own bounds — zoom 1 fits every chapter. */

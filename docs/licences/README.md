@@ -26,6 +26,7 @@ that needs it. KaTeX and PixiJS are recorded here at CS-0 and installed later, a
 | [katex](katex.md) | 0.18.4 | MIT | CS-9 |
 | [pixi.js](pixi-js.md) | 8.20.0 | MIT | CS-10 |
 | [Caveat](caveat-font.md) | google/fonts `main` | OFL-1.1 | CS-7 |
+| [@playwright/test](playwright.md) | 1.62.1 | Apache-2.0 | repo root, pre-canvas; adopted for the canvas harness at Phases 4–7 (no new install) |
 
 Three.js is not recorded here. It is only reached at CS-12, and only if a concept declares a
 3D purpose; its record is written in that changeset, in this same order.

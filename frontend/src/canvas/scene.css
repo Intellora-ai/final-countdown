@@ -1,0 +1,242 @@
+/* THE EXPLANATION CANVAS — the visual language of the reference, stated once.
+ *
+ * Every colour, radius, glow and type size the scene uses lives here. No panel
+ * component carries a hex value; that is what keeps six very different panels
+ * reading as one board rather than six widgets that happen to share a page. */
+
+.scene {
+  --sc-bg: var(--c-color-bg);
+  --sc-bg-deep: var(--c-color-bg-deep);
+  --sc-ink: var(--c-color-text);
+  --sc-ink-dim: var(--c-color-text-muted);
+  --sc-ink-faint: var(--c-color-text-faint);
+  --sc-accent: var(--c-color-accent);
+  --sc-accent-soft: var(--c-color-accent-glow);
+  --sc-accent-dim: var(--c-color-accent-dim);
+  --sc-line: rgba(45, 212, 191, 0.55);
+  --sc-panel: var(--c-color-surface);
+  --sc-panel-edge: var(--c-color-border);
+  --sc-chrome: var(--c-color-surface-raised);
+  --sc-chrome-edge: var(--c-color-border-strong);
+  --sc-serif: 'Fraunces', 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+  --sc-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --sc-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(1200px 700px at 50% 10%, #14181b 0%, var(--sc-bg) 55%, var(--sc-bg-deep) 100%);
+  color: var(--sc-ink);
+  font-family: var(--sc-sans);
+  -webkit-font-smoothing: antialiased;
+  touch-action: none;
+}
+
+/* ── viewport / world ──────────────────────────────────────────────────── */
+
+.scene-viewport { position: absolute; inset: 0; cursor: grab; }
+.scene-viewport[data-panning='true'] { cursor: grabbing; }
+
+.scene-world {
+  position: absolute;
+  top: 0; left: 0;
+  width: 1408px;
+  height: 768px;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.scene-node { position: absolute; }
+
+/* ── title ─────────────────────────────────────────────────────────────── */
+
+.scene-title {
+  position: absolute;
+  left: 0; right: 0;
+  text-align: center;
+  /* STATED, NOT INHERITED. The dashboard sets a display serif on every h1 and
+   * h2, and an element rule beats an inherited family every time — so the
+   * board's headings silently arrived in Fraunces. On this surface headings
+   * are sans and only mathematics is serif; that contrast is the whole reason
+   * an equation reads as an equation here. */
+  font-family: var(--sc-sans);
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+.scene-title em { font-style: normal; color: #fff; }
+.scene-title span { color: var(--sc-ink-dim); font-weight: 500; }
+.scene-title-rule { display: block; margin: 9px auto 0; }
+
+/* ── numbered badge ────────────────────────────────────────────────────── */
+
+.sc-badge {
+  width: 19px; height: 19px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.30);
+  color: var(--sc-ink-dim);
+  font-family: var(--sc-mono);
+  font-size: 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: none;
+}
+
+.sc-head { display: flex; align-items: center; gap: 9px; }
+.sc-head-text { display: flex; flex-direction: column; gap: 1px; }
+.sc-title {
+  font-family: var(--sc-sans);
+  font-size: 15px; font-weight: 700;
+  letter-spacing: 0.055em; text-transform: uppercase;
+  color: #fff; margin: 0;
+}
+.sc-sub {
+  font-family: var(--sc-sans);
+  font-size: 10.5px; letter-spacing: 0.09em; text-transform: uppercase;
+  color: #93a1ab; margin: 0;
+}
+
+/* Annotation type — the pencilled labels around the cube. */
+.sc-note {
+  font-family: var(--sc-serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--sc-ink-dim);
+}
+
+/* ── glass panel (the simulation) ──────────────────────────────────────── */
+
+.sc-panel {
+  background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015));
+  border: 1px solid var(--sc-panel-edge);
+  border-radius: 14px;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+  backdrop-filter: blur(6px);
+}
+
+/* ── chrome ────────────────────────────────────────────────────────────── */
+
+.sc-chrome { position: absolute; z-index: 40; }
+
+.sc-pill {
+  height: 36px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.045);
+  border: 1px solid var(--sc-chrome-edge);
+  color: var(--sc-ink);
+  display: flex; align-items: center;
+  backdrop-filter: blur(10px);
+}
+
+.sc-ask {
+  width: 440px; padding: 0 18px;
+  font-size: 13.5px; color: var(--sc-ink);
+  background: transparent; border: 0; outline: 0;
+  font-family: var(--sc-sans);
+}
+.sc-ask::placeholder { color: var(--sc-ink-faint); }
+
+.sc-round {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(255,255,255,0.045);
+  border: 1px solid var(--sc-chrome-edge);
+  color: var(--sc-ink-dim);
+  display: grid; place-items: center;
+  cursor: pointer; padding: 0;
+  transition: color 120ms, border-color 120ms;
+}
+.sc-round:hover { color: var(--sc-ink); border-color: rgba(255,255,255,0.22); }
+
+.sc-seg {
+  display: flex; align-items: center; gap: 2px;
+  padding: 3px; border-radius: 999px;
+  background: rgba(255,255,255,0.045);
+  border: 1px solid var(--sc-chrome-edge);
+  backdrop-filter: blur(10px);
+}
+.sc-seg button {
+  border: 0; background: transparent; cursor: pointer;
+  font-family: var(--sc-mono); font-size: 11px; letter-spacing: 0.06em;
+  color: var(--sc-ink-faint);
+  padding: 5px 11px; border-radius: 999px;
+  transition: background 140ms, color 140ms;
+}
+.sc-seg button[data-on='true'] {
+  background: rgba(255,255,255,0.10);
+  color: #fff;
+}
+
+.sc-square {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: rgba(255,255,255,0.045);
+  border: 1px solid var(--sc-chrome-edge);
+  color: var(--sc-ink-dim);
+  display: grid; place-items: center; cursor: pointer; padding: 0;
+}
+.sc-square:hover { color: var(--sc-ink); }
+
+/* vertical zoom rail */
+.sc-rail {
+  width: 30px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--sc-chrome-edge);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 8px 0; gap: 8px;
+  backdrop-filter: blur(10px);
+}
+.sc-rail button {
+  border: 0; background: transparent; color: var(--sc-ink-dim);
+  cursor: pointer; font-size: 14px; line-height: 1; padding: 2px 0; width: 100%;
+}
+.sc-rail-track {
+  width: 2px; flex: 1; min-height: 64px;
+  background: rgba(255,255,255,0.14); border-radius: 2px;
+  position: relative;
+}
+.sc-rail-thumb {
+  position: absolute; left: 50%; width: 9px; height: 9px;
+  margin-left: -4.5px; border-radius: 50%;
+  background: var(--sc-ink); box-shadow: 0 0 0 3px rgba(0,0,0,0.4);
+}
+
+/* ── edge concept cards ────────────────────────────────────────────────── */
+
+.sc-card {
+  border-radius: 11px;
+  background: rgba(255,255,255,0.035);
+  border: 1px solid rgba(255,255,255,0.09);
+  padding: 11px 13px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.42);
+}
+.sc-card-title { font-size: 13.5px; font-weight: 650; color: var(--sc-ink); white-space: nowrap; }
+.sc-card-sub { font-size: 10.5px; color: var(--sc-ink-faint); white-space: nowrap; margin-top: 2px; }
+
+/* ── connectors ────────────────────────────────────────────────────────── */
+
+.sc-connectors { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.sc-connectors path { fill: none; stroke: var(--sc-line); stroke-width: 1.25; }
+
+.sc-spark { color: rgba(255,255,255,0.30); }
+
+/* Reduced motion: the scene is legible without any of its animation. */
+@media (prefers-reduced-motion: reduce) {
+  .scene * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+/* ── mathematics ───────────────────────────────────────────────────────── */
+
+/* KaTeX ships `margin: 1em 0` on display math. At the 46px the relation is set
+ * in, that is 46px of air above AND below a single line — which turned the
+ * equation panel into a 305px column and pushed PV = nRT down onto the concept
+ * map. The board controls its own vertical rhythm, so the display margins go. */
+.scene .katex-display { margin: 0 !important; }
+.scene .katex-display > .katex { text-align: center; }
+.scene .katex { color: inherit; }
+/* KaTeX renders an accessible MathML copy alongside the visual one. It must
+ * stay in the DOM for screen readers and stay out of the visual layout. */
+.scene .katex .katex-mathml {
+  position: absolute; clip: rect(1px, 1px, 1px, 1px);
+  padding: 0; border: 0; height: 1px; width: 1px; overflow: hidden;
+}

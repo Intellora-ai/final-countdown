@@ -261,6 +261,23 @@ must_contain = ["github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb
 evidence = "github code scanning, category /language:actions"
 artifact = ""
 
+# TypeScript analysis. `mandatory = false` ONLY because check_ruleset.py
+# asserts this manifest's required_checks equals GitHub's live required set:
+# declaring it required before an admin adds the context would fail preflight
+# on the same push. Promote it the moment that context exists.
+#
+# Its findings are NOT advisory. The `CodeQL` results check below is required
+# with an alert threshold of `all`, so anything this job publishes blocks.
+[gates.codeql-javascript-typescript]
+workflow = "codeql.yml"
+job = "codeql-javascript-typescript"
+mandatory = false
+role = "scanner"
+must_contain = ["github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd",
+                "github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd"]
+evidence = "github code scanning, category /language:javascript-typescript"
+artifact = ""
+
 # The code-scanning RESULTS check. Not a workflow job — GitHub's
 # github-advanced-security app (57789) posts it once CodeQL results land, and
 # it is what turns a finding into a blocked merge. Required alongside the two

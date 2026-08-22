@@ -165,6 +165,18 @@ export function LessonGallery() {
 
               <button
                 onClick={() => setOpen(isOpen ? null : lesson.id)}
+                /* EIGHT BUTTONS CANNOT ALL BE CALLED "why this shape?".
+                 *
+                 * A screen reader lists controls by name; eight identical
+                 * names is eight indistinguishable rows and no way to pick
+                 * one. The VISIBLE text stays terse because it sits directly
+                 * under the lesson it belongs to and the association is
+                 * obvious to a sighted reader. The accessible name carries the
+                 * lesson so the control is identifiable out of context. */
+                aria-label={isOpen
+                  ? `Hide the composition reasoning for: ${lesson.question}`
+                  : `Why this shape? Show the composition reasoning for: ${lesson.question}`}
+                aria-expanded={isOpen}
                 style={{
                   marginTop: space.sm, background: 'transparent', cursor: 'pointer',
                   border: `${stroke.hair}px solid ${color.border}`, borderRadius: radius.sm,

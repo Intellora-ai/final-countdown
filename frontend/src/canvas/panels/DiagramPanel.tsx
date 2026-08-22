@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useId } from 'react'
 import { layoutFlow } from '../layout/flow'
 import { color, type, space, radius, stroke, accentAlpha, ink } from '../design/tokens'
 import { arrow } from '../design/tokens'
@@ -19,6 +19,14 @@ import type { PanelProps } from '../renderer/renderers'
  * look finished while throwing that work away.
  */
 export function DiagramPanel({ data, title }: PanelProps) {
+  /* ONE MARKER ID PER INSTANCE.
+   *
+   * This was the literal string "dp-head". `url(#dp-head)` resolves to the
+   * FIRST matching id in the document, so with three diagrams on a page all
+   * three arrowheads pointed at panel one's marker -- and the document carried
+   * three duplicate ids, which breaks every id-based reference an assistive
+   * technology relies on. useId gives each mount its own. */
+  const headId = `dp-head-${useId().replace(/:/g, '')}`
   const d = data as {
     nodes?: Array<{ id: string; label: string }>
     edges?: Array<{ from: string; to: string; label?: string }>
@@ -52,7 +60,7 @@ export function DiagramPanel({ data, title }: PanelProps) {
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img"
         aria-label={`${flow.shape} diagram: ${nodes.map((n) => n.label).join(' then ')}.`}>
         <defs>
-          <marker id="dp-head" markerWidth={arrow.headLength} markerHeight={arrow.headWidth * 2}
+          <marker id={headId} markerWidth={arrow.headLength} markerHeight={arrow.headWidth * 2}
             refX={arrow.headLength} refY={arrow.headWidth} orient="auto">
             <path d={`M0,0 L${arrow.headLength},${arrow.headWidth} L0,${arrow.headWidth * 2} Z`} fill={color.accent} />
           </marker>
@@ -62,7 +70,7 @@ export function DiagramPanel({ data, title }: PanelProps) {
           {flow.edges.map((e, i) => (
             <path key={i} d={e.path} fill="none"
               stroke={accentAlpha.connector} strokeWidth={stroke.base}
-              strokeLinecap={arrow.cap as 'round'} markerEnd="url(#dp-head)" />
+              strokeLinecap={arrow.cap as 'round'} markerEnd={`url(#${headId})`} />
           ))}
 
           {flow.nodes.map((n) => (

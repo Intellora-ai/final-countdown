@@ -3,7 +3,7 @@
 One step per message. Stop after each. Wait for explicit approval before the
 next. See `CLAUDE.md` for the laws, tripwires and stop protocol.
 
-**Status:** Steps 0 and 1 complete. Step 2 next.
+**Status:** Steps 0, 1 and 2 complete. Step 3 next.
 
 ---
 
@@ -83,23 +83,20 @@ next. See `CLAUDE.md` for the laws, tripwires and stop protocol.
 
 *The foundation for Steps 3–8.*
 
-- [ ] `LessonElement` envelope — no x/y/width/height/colour/spacing, ever
-- [ ] `RepresentationContext`
-- [ ] `RepresentationContract`: validate · normalize · fitness · capacity ·
-      disclosure · derive · invariants · degrade · renderer
-- [ ] registry
-- [ ] deterministic selection, with logged fitness and rejection reasons
-- [ ] six disclosure strategies: truncate_expand · paginate · scroll_y ·
-      split_block · aggregate · progressive_disclosure
-- [ ] existing hand-rolled validation style — **no Zod**
-- [ ] adding a representation costs: 1 contract + 1 renderer + 1 registry entry + tests
-- [ ] the 7 acceptance lessons authored (2 have no existing content:
-      flowchart-dominant, equation-dominant)
+- [x] `LessonElement` envelope — appearance refused at runtime AND in the type
+- [x] `RepresentationContext` — viewport, data profile, a11y requirements
+- [x] `RepresentationContract` — all nine members
+- [x] registry — refuses a duplicate kind
+- [x] deterministic selection — every candidate, score and rejection reason
+- [x] all six disclosure strategies exercised by the table + text contracts
+- [x] hand-rolled validation, repair-notice style — **no Zod**
+- [x] proven by test: a `molecule` contract joins and is selected with zero engine edits
+- [ ] the 7 acceptance lessons authored — **deferred to Step 3**, where archetypes give them something to compose into
 
 **Definition of done**
 
-- [ ] 400-word prose and a 60-row table both disclose, never overflow
-- [ ] every disclosure path keeps all content accessible and correct
+- [x] 400-word prose truncate_expand; 60-row table paginates; 260 rows aggregate
+- [x] every path states `reachableVia`; `everyRowReachable` is an invariant
 
 ---
 

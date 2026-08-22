@@ -76,10 +76,28 @@ export function appearanceKey(obj: Record<string, unknown>): string | null {
   return null
 }
 
-export function appearanceKeysDeep(value: unknown, path = ''): string | null {
+/* STRUCTURE IS POLICED; DATA IS NOT.
+ *
+ * The first version of this walked the entire payload, and it was wrong in a
+ * way that would have shipped: a chart whose x-field is named `x` was refused,
+ * and a table about rectangles with a `width` column would have been refused
+ * too. Those are user-chosen FIELD NAMES inside data records, not styling
+ * instructions — a lesson is entitled to teach about widths.
+ *
+ * `dataKeys` names the payload fields whose CONTENTS are data. The walk skips
+ * inside them and inspects everything else, so `{ align: 'center' }` on a
+ * column definition is still caught while `{ width: 40 }` in a data row is
+ * left alone. Getting this backwards would either let styling through or make
+ * whole subjects unteachable.
+ */
+export function appearanceKeysDeep(
+  value: unknown,
+  path = '',
+  dataKeys: readonly string[] = [],
+): string | null {
   if (isArr(value)) {
     for (let i = 0; i < value.length; i++) {
-      const hit = appearanceKeysDeep(value[i], `${path}[${i}]`)
+      const hit = appearanceKeysDeep(value[i], `${path}[${i}]`, dataKeys)
       if (hit) return hit
     }
     return null
@@ -88,7 +106,10 @@ export function appearanceKeysDeep(value: unknown, path = ''): string | null {
   const own = appearanceKey(value)
   if (own) return path ? `${path}.${own}` : own
   for (const [k, v] of Object.entries(value)) {
-    const hit = appearanceKeysDeep(v, path ? `${path}.${k}` : k)
+    /* The values under a data key are records the lesson author named. Their
+     * keys are field names and mean nothing to the design system. */
+    if (dataKeys.indexOf(k) >= 0) continue
+    const hit = appearanceKeysDeep(v, path ? `${path}.${k}` : k, dataKeys)
     if (hit) return hit
   }
   return null

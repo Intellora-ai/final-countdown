@@ -74,7 +74,7 @@ export const tableContract: RepresentationContract<TablePayload, NormalizedTable
     const bad = unknownKey(payload, KEYS)
     if (bad) return issues.fail(bad, `Unrecognised field '${bad}'. Unknown fields are refused, not stripped.`)
 
-    const appearance = appearanceKeysDeep(payload)
+    const appearance = appearanceKeysDeep(payload, '', ['rows'])
     if (appearance) {
       return issues.fail(appearance, `'${appearance}' carries appearance. A column's type decides its alignment; a lesson does not.`)
     }

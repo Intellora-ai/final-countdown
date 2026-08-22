@@ -16,6 +16,10 @@ import { Placeholder } from './components/Placeholder'
  * has no use for a typesetting engine. As a lazy route it becomes a chunk that
  * arrives only when someone actually opens the canvas, and three.js — already
  * lazy one level deeper — arrives only when the 3D panel first mounts. */
+const LessonGallery = React.lazy(() =>
+  import('./canvas/LessonGallery').then((m) => ({ default: m.LessonGallery })),
+)
+
 const GasPressureScene = React.lazy(() =>
   import('./canvas/GasPressureScene').then((m) => ({ default: m.GasPressureScene })),
 )
@@ -68,6 +72,14 @@ export default function App() {
    * cannot be handed an unpredictable fraction of the screen. Every other
    * route keeps the curriculum around it; this one replaces it, and the back
    * button in its own chrome is how the learner returns. */
+  if (loc.pathname === '/canvas/lessons') {
+    return (
+      <React.Suspense fallback={<SceneFallback />}>
+        <LessonGallery />
+      </React.Suspense>
+    )
+  }
+
   if (loc.pathname === '/canvas/gas') {
     return (
       <React.Suspense fallback={<SceneFallback />}>

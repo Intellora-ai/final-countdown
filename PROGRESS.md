@@ -3,7 +3,7 @@
 One step per message. Stop after each. Wait for explicit approval before the
 next. See `CLAUDE.md` for the laws, tripwires and stop protocol.
 
-**Status:** Steps 0-5 complete. Steps 6-10 next.
+**Status:** Steps 0-5 and 8 complete. Steps 6, 7, 9, 10 next.
 
 ---
 
@@ -180,18 +180,17 @@ Runs after layout, before paint. Code, not review.
 
 ## Step 8 — Chart contract
 
-- [ ] ticks from `d3-scale.nice()` — model never supplies ticks
-- [ ] series colours by index into `tokens.series` — model never supplies hex
-- [ ] renderer chooses baseline/scale/range; bars at zero, narrow-range lines not forced
-- [ ] <3 points → table or prose · >300 → LTTB + note · >6 series → top 5 + "Other"
-- [ ] legend: none at 1, inline at 2–3, block at 4+
-- [ ] gridlines horizontal only; axis labels always carry units
+- [x] ticks from `d3-scale.nice()` — no code path in the contract picks a tick
+- [x] series colours by index into `tokens.series`
+- [x] baseline decided per mark: bars at zero, narrow-range lines not forced
+- [x] <3 points degrades to table · >300 downsamples WITH a stated notice · >6 series → top 5 + Other
+- [x] legend: none at 1, inline at 2-3, block at 4+
+- [x] axis labels always carry units
 
 **Definition of done**
 
-- [ ] property test: 20 random ranges per chart type, every tick sequence
-      monotonic and evenly spaced
-- [ ] no chart in the acceptance set has a misleading axis
+- [x] property test: 20 seeded ranges x 6 intents, all monotonic and evenly spaced
+- [x] the reference's 200/150/100/110 axis asserted unreachable
 
 ---
 

@@ -105,10 +105,22 @@ function looksLikeColour(value) {
   return NAMED_COLOURS.has(v.toLowerCase())
 }
 
+/* A SHORTHAND IS STRUCTURAL IF EVERY PART OF IT IS.
+ *
+ * ALLOWLIST ENTRY, argued rather than assumed. `margin: '0 auto'` is the
+ * centring idiom; `0` and `auto` are each already allowed on their own, and
+ * refusing them when written together would have pushed someone toward an
+ * eslint-disable — the one escape Law 4 forbids outright. Splitting on
+ * whitespace and requiring every atom to pass keeps `0 auto`, `1fr auto` and
+ * `0 var(--c-space-lg)` legal while still refusing `12px 14px`, because 12px
+ * is not structural however many friends it arrives with. */
 function isStructural(value) {
   if (typeof value === 'number') return value === 0
   if (typeof value !== 'string') return false
-  return STRUCTURAL.test(value.trim())
+  const v = value.trim()
+  if (STRUCTURAL.test(v)) return true
+  const parts = v.split(/\s+/)
+  return parts.length > 1 && parts.every((p) => STRUCTURAL.test(p))
 }
 
 /* The package is type:module, so this rule is ESM like everything else here.

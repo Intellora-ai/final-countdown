@@ -124,3 +124,19 @@ ruleTester.run('design-value', rule as never, {
     },
   ],
 })
+
+/* Allowlist regression: structural shorthands must stay legal, and a shorthand
+ * containing a real design value must stay illegal. Added when `margin: 0 auto`
+ * was refused — the fix is an allowlist entry, never a suppression. */
+ruleTester.run('design-value-shorthands', rule as never, {
+  valid: [
+    { code: 'const s = { margin: "0 auto" }' },
+    { code: 'const s = { padding: "0 auto" }' },
+    { code: 'const s = { gap: "0 0" }' },
+    { code: 'const s = { padding: "0 var(--c-space-lg)" }' },
+  ],
+  invalid: [
+    { code: 'const s = { padding: "12px 14px" }', errors: [{ messageId: 'rawSize' }] },
+    { code: 'const s = { margin: "0 12px" }', errors: [{ messageId: 'rawSize' }] },
+  ],
+})

@@ -186,3 +186,75 @@ describe('degradation is bounded and explainable', () => {
     expect(container.querySelectorAll('[data-canvas="degraded"]')).toHaveLength(1)
   })
 })
+
+/* ── an empty substitute is not a substitute ────────────────────────────── *
+ *
+ * Found by rendering the real gas lesson in a browser after the jsdom tests
+ * above were already green. Its `graph` element is authored `data: []` -- the
+ * author meant it to be driven by the lesson's `model` (T is a variable, P is
+ * derived), and the chart contract has no concept of model-driven data, so the
+ * payload is literally empty.
+ *
+ * The chain then behaved "correctly" at every hop and produced a lie:
+ *   chart.normalize  -> data: []
+ *   invariants       -> enoughPointsToPlot fails (0 points)
+ *   chart.degrade    -> { to: 'table', rows: [] }
+ *   table.validate   -> ok, no issues
+ *   table.invariants -> all hold; every row of zero rows is reachable
+ *   render           -> a table with headers "T" and "P (kPa)" and NO ROWS
+ *
+ * A table with a header and no body reads as a real answer that happens to be
+ * empty. It is not. There is no data, and the learner must be told that rather
+ * than shown furniture. */
+
+const emptyChart: Lesson = {
+  id: 'empty-series', question: 'What if the series has no points?',
+  elements: [{
+    id: 'graph', kind: 'chart', purpose: 'quantify', title: 'Pressure vs temperature',
+    payload: {
+      intent: 'relationship',
+      fields: [
+        { name: 'T', role: 'x', type: 'quantitative', unit: 'K' },
+        { name: 'P', role: 'y', type: 'quantitative', unit: 'kPa' },
+      ],
+      data: [],
+    },
+  }],
+}
+
+describe('a degradation that would render nothing is refused instead', () => {
+  it('does not substitute an empty table for an empty chart', async () => {
+    const { container } = render(<LessonRenderer lesson={emptyChart} />)
+    await waitFor(() => {
+      expect(container.querySelector('[data-canvas="invariant-refusal"]')).not.toBeNull()
+    })
+    expect(container.querySelector('[data-canvas="degraded"]')).toBeNull()
+  })
+
+  it('never renders a table header with no body', async () => {
+    /* The exact shape of the lie: "T | P (kPa)" and nothing beneath it. */
+    const { container } = render(<LessonRenderer lesson={emptyChart} />)
+    await waitFor(() => {
+      expect(container.querySelector('[data-canvas="invariant-refusal"]')).not.toBeNull()
+    })
+    const headerCells = container.querySelectorAll('thead th')
+    const bodyRows = container.querySelectorAll('tbody tr')
+    expect(headerCells.length === 0 || bodyRows.length > 0).toBe(true)
+  })
+
+  it('tells the learner the series is empty', async () => {
+    const { container } = render(<LessonRenderer lesson={emptyChart} />)
+    await waitFor(() => {
+      expect(container.querySelector('[data-canvas="invariant-refusal"]')).not.toBeNull()
+    })
+    expect(container.textContent).toContain('Fewer than three points')
+  })
+
+  it('still degrades when the substitute actually has content', async () => {
+    /* The guard must not swallow the working case. */
+    const { container } = render(<LessonRenderer lesson={twoPointChart} />)
+    await waitFor(() => {
+      expect(container.querySelector('[data-canvas="degraded"]')).not.toBeNull()
+    })
+  })
+})

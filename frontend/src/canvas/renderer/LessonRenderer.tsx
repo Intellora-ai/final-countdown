@@ -131,6 +131,22 @@ function resolveElement(element: LessonElement, ctx: RepresentationContext): Res
   }
 }
 
+/* THE CONTENT-BEARING ARRAYS every representation normalizes to. Checked by
+ * name rather than by kind, so a new contract inherits the guard without
+ * editing this file -- the same reason the registry keys renderers by string. */
+const CONTENT_KEYS = ['rows', 'data', 'nodes', 'paragraphs', 'steps', 'events', 'items'] as const
+
+/** Does this normalized payload carry anything a learner could read? */
+function hasContent(normalized: unknown): boolean {
+  if (!normalized || typeof normalized !== 'object') return false
+  const o = normalized as Record<string, unknown>
+  const present = CONTENT_KEYS.filter((k) => Array.isArray(o[k]))
+  /* No content-bearing array at all means this representation does not measure
+   * its content in items, so we cannot judge it empty and must not refuse it. */
+  if (!present.length) return true
+  return present.some((k) => (o[k] as unknown[]).length > 0)
+}
+
 /** One degradation hop, or null when there is nothing honest to fall back to. */
 function tryDegrade(
   contract: NonNullable<ReturnType<typeof contractFor>>,
@@ -150,6 +166,22 @@ function tryDegrade(
   if (!parsed.ok) return null
 
   const dNormalized = target.normalize(parsed.value, context)
+
+  /* AN EMPTY SUBSTITUTE IS NOT A SUBSTITUTE.
+   *
+   * Found by rendering the real gas lesson in a browser after the jsdom tests
+   * were already green. Its `graph` element is authored `data: []` -- the
+   * author meant it driven by the lesson's `model`, and the chart contract has
+   * no concept of model-driven data. Every hop then behaved correctly and
+   * produced a lie: chart normalizes to zero points, `enoughPointsToPlot`
+   * fails, `degrade()` hands over `rows: []`, the table contract validates it
+   * happily, and every table invariant holds because every row of zero rows is
+   * trivially reachable. The learner got a table with headers "T" and
+   * "P (kPa)" and no body.
+   *
+   * A header with nothing under it reads as a real answer that happens to be
+   * empty. There is no answer. Refuse, and let the invariant explain why. */
+  if (!hasContent(dNormalized)) return null
 
   /* A degradation that is itself dishonest is not a fallback. If the
    * replacement fails its own invariants, refuse rather than swap one lie for

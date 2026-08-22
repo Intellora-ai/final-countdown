@@ -30,10 +30,47 @@ export function EquationPanelAdapter({ data, title }: PanelProps) {
         }}>{title}</h3>
       )}
 
+      {/* A DERIVATION IS NOT REFLOWABLE TEXT, so it scrolls INSIDE its own box.
+        *
+        * `(x + b/2a)^2 = (b^2-4ac)/4a^2` is one unbreakable typeset object at
+        * the display size, and on a 320px phone it is wider than the column.
+        * The ancestor `.scene` computes `overflow-x: hidden`, so before this
+        * box existed the right-hand side of every long step was AMPUTATED --
+        * not scrolled past, not disclosed, simply gone. Sixty-four elements at
+        * 320px, the worst cut by 112px, which is most of an equals sign and
+        * everything after it.
+        *
+        * The fix is disclosure, never shrinking. Setting a smaller font-size
+        * for narrow viewports would give mathematics two display sizes and
+        * therefore two design systems, and would still fail on the next
+        * equation one term longer. The type token is untouched; the box moved.
+        *
+        * Same three attributes TablePanel carries, for the same three reasons.
+        * `data-overflow="scroll"` is what tells renderer/measure.ts:65 this box
+        * scrolls ON PURPOSE -- without it the honest fix reads to the validator
+        * as the very layout fault it repairs. `tabIndex={0}` and the group role
+        * make the scroller reachable from a keyboard: it holds the only copy of
+        * the terms it hides, and a box you can only reach with a mouse fails
+        * WCAG 2.1.1. */}
+      <div
+        data-overflow="scroll"
+        tabIndex={0}
+        role="group"
+        aria-label={title ? `${title} (scrollable)` : 'Scrollable derivation'}
+        style={{ overflowX: 'auto' }}
+      >
       <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
         {d.steps.map((s, i) => (
           <li key={i} style={{ marginBottom: space.md }}>
-            <div style={{ fontSize: type.display.size, color: color.text, lineHeight: typeLegacy.annotation.lineHeight }}>
+            {/* `max-content` is a structural width, not a design value: it asks
+              * the step to be exactly as wide as the mathematics inside it, so
+              * the scroller has something to scroll to. Left at `auto` the step
+              * shrinks to the column and the glyphs spill out of a box that
+              * reports itself as full width. */}
+            <div style={{
+              fontSize: type.display.size, color: color.text,
+              lineHeight: typeLegacy.annotation.lineHeight, width: 'max-content',
+            }}>
               <Katex latex={s.latex} />
             </div>
             {s.note && (
@@ -45,6 +82,7 @@ export function EquationPanelAdapter({ data, title }: PanelProps) {
           </li>
         ))}
       </ol>
+      </div>
 
       {/* An equation whose symbols are not named is a shape, not a statement. */}
       {d.variables?.length ? (

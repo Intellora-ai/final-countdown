@@ -63,6 +63,48 @@ function seriesColour(i: number): string {
   return series[i % series.length]
 }
 
+/* THE VIEWBOX HAS A FLOOR, AND THE BOX AROUND IT SCROLLS.
+ *
+ * `<svg viewBox="0 0 520 200" width="100%">` scales its whole coordinate
+ * system to whatever width the grid hands the block. At a 320px viewport that
+ * width was 46-112px, so the viewBox scaled by 0.14x-0.34x and EVERY label
+ * scaled with it: an axis tick declared at `type.micro.size` (10.5) rendered
+ * at 1.62px. The declared sizes were right; the container was destroying them.
+ *
+ * Shrinking the type to fit is the one fix CLAUDE.md rules out by name. So the
+ * SVG gets a `min-width` equal to its own viewBox width — below that it stops
+ * scaling and the frame scrolls instead. `min-width` is geometry derived from
+ * the viewBox, not a design value: it is the same number, expressed in px.
+ *
+ * The four attributes below are load-bearing together, and are the same set
+ * TablePanel uses for the same reason. `data-overflow="scroll"` is what
+ * renderer/measure.ts:65 reads to tell disclosure apart from a layout fault --
+ * without it the validator would report every chart as overflowing. `tabIndex`
+ * plus the group role and label make a scroller that a mouse can reach
+ * reachable by keyboard too (WCAG 2.1.1); this box holds the only copy of the
+ * chart it clips.
+ */
+function ScrollFrame({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div
+      data-overflow="scroll"
+      tabIndex={0}
+      role="group"
+      aria-label={label}
+      style={{ overflowX: 'auto' }}
+    >
+      {children}
+    </div>
+  )
+}
+
+/** `width="100%"` still fills a roomy block; `minWidth` stops the coordinate
+ *  system collapsing in a narrow one. `display: block` removes the inline
+ *  baseline gap that would otherwise sit under every chart. */
+function svgFrameStyle(minWidth: number): React.CSSProperties {
+  return { display: 'block', minWidth }
+}
+
 export function ChartPanel({ data, derived, disclosure, title }: PanelProps) {
   const d = data as unknown as ChartData
   const dv = derived as unknown as ChartDerived
@@ -142,7 +184,9 @@ export function ChartPanel({ data, derived, disclosure, title }: PanelProps) {
     return (
       <div>
         {heading}
+        <ScrollFrame label={title ? `${title} (scrollable chart)` : 'Scrollable chart'}>
         <svg viewBox={`0 0 ${W} ${size}`} width="100%" role="img"
+          style={svgFrameStyle(W)}
           aria-label={
             `${dv.yLabel} by ${dv.xLabel}, drawn as a pie chart of ${sectors.length} `
             + `sectors: ${sectors.map((s) => `${s.label} ${Math.round(s.fraction * 100)}%`).join(', ')}.`
@@ -191,6 +235,7 @@ export function ChartPanel({ data, derived, disclosure, title }: PanelProps) {
             </g>
           ))}
         </svg>
+        </ScrollFrame>
         {notice}
       </div>
     )
@@ -284,7 +329,9 @@ export function ChartPanel({ data, derived, disclosure, title }: PanelProps) {
     <div>
       {heading}
 
+      <ScrollFrame label={title ? `${title} (scrollable chart)` : 'Scrollable chart'}>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img"
+        style={svgFrameStyle(W)}
         aria-label={`${dv.yLabel} against ${dv.xLabel}, ${rows.length} points, drawn as a ${mark} chart.`}>
         <g transform={`translate(${PAD.left},${PAD.top})`}>
           {/* Horizontal gridlines only. Vertical ones fight the marks. */}
@@ -321,6 +368,7 @@ export function ChartPanel({ data, derived, disclosure, title }: PanelProps) {
             fill={color.accent} fontSize={type.micro.size} fontFamily={type.mono.family}>{dv.yLabel}</text>
         </g>
       </svg>
+      </ScrollFrame>
 
       {/* Downsampling that is not stated is a lie about the data. */}
       {notice}

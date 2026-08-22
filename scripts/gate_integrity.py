@@ -412,17 +412,44 @@ def main() -> None:
         manifest = tomllib.loads(MANIFEST.read_text(encoding="utf-8"))
         gates: dict[str, dict[str, Any]] = manifest.get("gates", {})
         mandatory = {n: s for n, s in gates.items() if s.get("mandatory")}
+
+        # A NON-MANDATORY SCANNER STILL NEEDS A GUARD.
+        #
+        # This loop used to walk `mandatory` alone, which left every
+        # non-required gate structurally unchecked: its step could be deleted,
+        # conditioned away with `if: false`, or suffixed with `|| true`, and
+        # nothing here would notice. That is the exact drift this file's own
+        # docstring says it exists to catch.
+        #
+        # It surfaced when `codeql-javascript-typescript` was added. It cannot
+        # be `mandatory = true` until an admin adds the context to the GitHub
+        # ruleset -- check_ruleset.py requires the two sets to be equal -- so
+        # under the old selection it was a scanner nobody was watching.
+        #
+        # SCANNERS ONLY, deliberately. `role = "supplementary"` gates are
+        # allowed to be conditional and allowed to no-op: `ai-review` is a
+        # documented no-op without its secret, and the deep-verify pair is
+        # label-gated by design. Sweeping them in would turn intended
+        # behaviour into a failure. A scanner that quietly stops scanning is a
+        # different thing, and it is the thing that just cost this repository
+        # 100 unanalysed TypeScript files.
+        structural = {
+            n: s
+            for n, s in gates.items()
+            if s.get("mandatory") or s.get("role") == "scanner"
+        }
         g.set_scope(
             manifest=str(MANIFEST),
             gates_declared=len(gates),
             mandatory=len(mandatory),
+            structurally_checked=len(structural),
             workflows_on_disk=len(list(WORKFLOWS.glob("*.yml"))),
         )
 
         ok = True
         parsed: dict[str, dict[str, Any]] = {}
 
-        for name, spec in mandatory.items():
+        for name, spec in structural.items():
             wf = WORKFLOWS / str(spec["workflow"])
             job_id = str(spec["job"])
 
@@ -486,10 +513,14 @@ def main() -> None:
             allowed_if = spec.get("job_if")
             job_if = job.get("if")
             if_ok = (job_if is None) or (str(job_if).strip() == str(allowed_if).strip())
+            # `if: false` parses to the boolean False, which is falsy, so a
+            # truthiness test reported "unconditional" for a job conditioned
+            # never to run -- the single most misleading case this check has.
+            # Test for absence explicitly.
             g.check(
                 f"{name}: job condition",
                 if_ok,
-                f"if: {job_if}" if job_if else "unconditional",
+                "unconditional" if job_if is None else f"if: {job_if}",
             )
             if not if_ok:
                 ok = False
@@ -497,7 +528,7 @@ def main() -> None:
                     what=f"job '{job_id}' runs conditionally",
                     where=str(wf),
                     why=f"if: {job_if}",
-                    requirement="A mandatory job must run every time, unless "
+                    requirement="A required job, or any scanner, must run every time, unless "
                     f"{MANIFEST} declares the condition.",
                     fix=f"Remove the condition, or declare job_if in {MANIFEST}.",
                 )
@@ -509,7 +540,7 @@ def main() -> None:
                 g.fail(
                     what=f"continue-on-error on job '{job_id}'",
                     where=str(wf),
-                    requirement="A mandatory gate must propagate failure.",
+                    requirement="A required gate, or any scanner, must propagate failure.",
                     fix="Remove continue-on-error.",
                 )
 

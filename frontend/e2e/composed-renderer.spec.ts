@@ -39,10 +39,11 @@ const VIEWPORTS = [
   { name: '1440', width: 1440, height: 900 },
 ]
 
-/* The smallest type role in tokens.ts is `micro` at 10.5px. Anything rendering
- * below 10px is therefore not a token decision -- it is a container shrinking
- * text to fit, which the design system forbids outright. */
-const MIN_READABLE_PX = 10
+/* The smallest type role in tokens.ts is `micro` at 10.5px. This floor WAS 10,
+ * which left the interval [10, 10.5) as a free dead zone: a container could
+ * scale `micro` down to 10.01px and pass a check whose entire purpose is to
+ * defend that token. The floor is the token. */
+const MIN_READABLE_PX = 10.5
 
 interface Collected {
   consoleErrors: string[]
@@ -59,12 +60,74 @@ function collect(page: Page): Collected {
   return c
 }
 
+/* THE READINESS CHECK IS A FLOOR, NOT A CEILING, AND THAT DISTINCTION IS THE
+ * WHOLE GATE.
+ *
+ * The first version of this waited for `[data-canvas="block"]` to be non-empty
+ * and claimed in a comment that this gave the lazy chunks time to land. That
+ * was false. `data-canvas="block"` is on the outer <section> in
+ * LessonRenderer.tsx, OUTSIDE both <Suspense> boundaries, so the wait was
+ * satisfied by the first synchronous React commit -- before a single dynamic
+ * import was even requested. The Suspense fallback is a text-free <div>,
+ * invisible to every census in this file.
+ *
+ * Measured under an 8x CPU throttle with 220ms added per request:
+ *
+ *              warm      throttled
+ *   blocks       25             25
+ *   KaTeX         8              2
+ *   tables        4              0
+ *   CLIPPED      34              0
+ *
+ * Every assertion below is `toBe(0)` or `toEqual([])`. So a page that failed
+ * to load scored PERFECT, and the gate did not merely degrade under CI load --
+ * it INVERTED. Slower runner, better score. `retries: 1` compounded it: a
+ * fast-red attempt got a second chance to be slow-green, and Playwright
+ * reports flaky-then-passed as exit 0.
+ *
+ * So this now waits for CONTENT, not for scaffolding, and every wait is a
+ * lower bound that a blank page cannot satisfy. */
 async function open(page: Page) {
-  await page.goto(ROUTE, { waitUntil: 'networkidle' })
+  await page.goto(ROUTE)
   await page.waitForSelector('[data-canvas="lesson"]')
-  /* Panels are React.lazy; give the dynamic chunks a chance to land so an
-   * assertion does not read a frame of Suspense fallbacks. */
-  await page.waitForFunction(() => document.querySelectorAll('[data-canvas="block"]').length > 0)
+
+  /* Every lesson root must report that the measure -> validate -> repair loop
+   * in LessonRenderer settled. Reading geometry mid-repair is how the clipping
+   * census gets a torn frame. */
+  await page.waitForFunction(() => {
+    const lessons = [...document.querySelectorAll('[data-canvas="lesson"]')]
+    return lessons.length >= 8 && lessons.every((l) => l.getAttribute('data-validated') === 'true')
+  }, undefined, { timeout: 30_000 })
+
+  /* Every block must have resolved to real content. `blocks` counts sections;
+   * `filled` counts sections that actually contain a table, an SVG, typeset
+   * mathematics, or text. Equality is the floor: one unresolved Suspense
+   * fallback and this never settles. */
+  await page.waitForFunction(() => {
+    const blocks = [...document.querySelectorAll('[data-canvas="block"]')]
+    if (blocks.length === 0) return false
+    return blocks.every((b) =>
+      b.querySelector('table, svg, .katex') !== null
+      || (b.textContent ?? '').replace(/[​-‍﻿]/g, '').trim().length > 0)
+  }, undefined, { timeout: 30_000 })
+
+  /* Font metrics decide every effective-size measurement in this file.
+   * `document.fonts.ready` resolves with the FontFaceSet itself, which is not
+   * serialisable across the CDP boundary -- returning it directly hangs the
+   * evaluate. Resolve to undefined instead. */
+  await page.evaluate(() => document.fonts.ready.then(() => undefined))
+
+  /* Two consecutive frames with an unchanged layout signature. Cheaper and
+   * more honest than a fixed sleep, and it cannot pass on a blank page
+   * because the previous wait already demanded content. */
+  await page.waitForFunction(() => {
+    const sig = [...document.querySelectorAll('[data-canvas="block"]')]
+      .map((b) => { const r = b.getBoundingClientRect(); return `${Math.round(r.width)}x${Math.round(r.height)}` })
+      .join(',')
+    const w = window as unknown as { __sig?: string; __same?: number }
+    if (w.__sig === sig) { w.__same = (w.__same ?? 0) + 1 } else { w.__sig = sig; w.__same = 0 }
+    return (w.__same ?? 0) >= 2
+  }, undefined, { timeout: 30_000 })
 }
 
 test.describe('the composed renderer runs clean', () => {

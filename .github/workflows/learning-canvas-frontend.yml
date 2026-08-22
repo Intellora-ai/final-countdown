@@ -93,10 +93,20 @@ jobs:
       - name: Typecheck
         id: typecheck
         continue-on-error: true
-        run: npm run typecheck 2>&1 | tee "$RUNNER_TEMP/tsc.log"
+        # `set -o pipefail` is load-bearing. GitHub's default shell is
+        # `bash -e`, NOT `bash -eo pipefail`, so `npm run typecheck | tee`
+        # reports tee's exit status and the step could never fail. This clause
+        # of the verification gate was dead until this line existed. Every
+        # other workflow in this repository already sets it -- verify.yml:821,
+        # e2e.yml:108, deep-verify.yml in eight places.
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run typecheck 2>&1 | tee "$RUNNER_TEMP/tsc.log"
 
       - name: Annotate typecheck
         if: always()
+        continue-on-error: true
         run: node scripts/gh-annotate.mjs tsc < "$RUNNER_TEMP/tsc.log"
 
       # LAW 4, ENFORCED RATHER THAN REQUESTED.
@@ -120,6 +130,7 @@ jobs:
 
       - name: Annotate lint
         if: always()
+        continue-on-error: true
         run: node scripts/gh-annotate.mjs eslint < "$RUNNER_TEMP/eslint.json"
 
       - name: Unit tests
@@ -129,6 +140,7 @@ jobs:
 
       - name: Annotate unit tests
         if: always()
+        continue-on-error: true
         run: node scripts/gh-annotate.mjs vitest < "$RUNNER_TEMP/vitest.json"
 
       - name: Build
@@ -148,12 +160,16 @@ jobs:
       - name: Bundle budget
         id: budget
         continue-on-error: true
-        run: npm run budget 2>&1 | tee "$RUNNER_TEMP/budget.log"
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run budget 2>&1 | tee "$RUNNER_TEMP/budget.log"
 
       # The budget step had no annotation path, so an overrun was a number
       # buried in a log group like every other failure before this change.
       - name: Annotate bundle budget
         if: always()
+        continue-on-error: true
         run: |
           if grep -q "canvas-bundle-budget: FAIL" "$RUNNER_TEMP/budget.log"; then
             LINE=$(grep "canvas-bundle-budget: FAIL" "$RUNNER_TEMP/budget.log" | head -1)
@@ -205,7 +221,7 @@ jobs:
       - name: Scene regression guards
         id: playwright
         continue-on-error: true
-        run: npx playwright test -c playwright.config.ts e2e/scene-regressions.spec.ts e2e/composed-renderer.spec.ts --project=desktop-1440
+        run: npx playwright test -c playwright.config.ts e2e/scene-regressions.spec.ts e2e/composed-renderer.spec.ts --project=desktop-1440 --fail-on-flaky-tests
 
       # THE VERDICT, RESTORED.
       #

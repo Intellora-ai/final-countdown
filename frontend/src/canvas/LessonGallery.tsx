@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import './scene.css'
 import { color, ink, overlay, space, type, radius, stroke, accentAlpha } from './design/tokens'
 import { cssVariables } from './design/generateCss'
@@ -8,6 +8,7 @@ import { selectArchetype, compositionFor, GRID_COLUMNS } from './layout/archetyp
 import { contentMass, climbLadder } from './layout/disclosure'
 import { checkFrame, type LayoutFrame, type PlacedBlock } from './layout/validate'
 import { LessonRenderer } from './renderer/LessonRenderer'
+import { useElementSize } from './renderer/measure'
 import { registerRepresentations } from './contract/bootstrap'
 
 /* THE ENGINE, MADE VISIBLE.
@@ -49,8 +50,57 @@ function frameFor(lesson: (typeof ACCEPTANCE_LESSONS)[number]): {
   return { decision, frame, ladder, ok: checkFrame(frame).every((c) => c.holds) }
 }
 
+/* CHROME IS A BUDGET, NOT A CONSTANT.
+ *
+ * This page wrapped every lesson in two paddings chosen for a desktop: 48px of
+ * page gutter and 24px of panel gutter, on both sides. On a 1440px screen that
+ * is 146 of 1440 pixels — 10%, and invisible. On a 320px phone it is 146 of 320
+ * pixels: 46% of the screen spent on emptiness before a single word is placed,
+ * and the 174px that survived was too narrow for the grid's own gutters, so
+ * every column collapsed to zero. The frame was not merely cramped; it was
+ * arithmetically impossible.
+ *
+ * So the page chooses the largest padding pair ON THE TOKEN SCALE that keeps
+ * total chrome inside a quarter of the measured screen. Every value below is a
+ * `space` token — the scale shrinks, it is never stepped off. Above 576px the
+ * top rung is affordable and the page renders exactly as it does today. */
+const CHROME_LADDER = [
+  { page: space.h1, panel: space.xl },
+  { page: space.xl, panel: space.lg },
+  { page: space.lg, panel: space.md },
+  { page: space.md, panel: space.sm },
+  { page: space.sm, panel: space.xs },
+] as const
+
+/** Page + panel gutters may claim at most this fraction of the screen. */
+const CHROME_SHARE = 4
+
+/* Mirrors UNMEASURED_VIEWPORT in the renderer, and for the same reason: before
+ * the first measurement lands there is no width to read, and guessing SMALL is
+ * the recoverable direction. A narrow guess corrected to a wide screen loosens
+ * the padding a frame later; a wide guess on a phone paints the broken frame
+ * this fix exists to remove. */
+const UNMEASURED_WIDTH = 360
+
+function chromeFor(width: number): (typeof CHROME_LADDER)[number] {
+  const budget = width / CHROME_SHARE
+  return CHROME_LADDER.find((c) => (c.page + c.panel) * 2 <= budget)
+    ?? CHROME_LADDER[CHROME_LADDER.length - 1]!
+}
+
 export function LessonGallery() {
   const [open, setOpen] = useState<string | null>(null)
+
+  /* `.scene` is `position: fixed; inset: 0`, so its width IS the screen and
+   * cannot be pushed around by the content inside it — measuring it here
+   * cannot feed back into the padding it decides. */
+  const sceneRef = useRef<HTMLDivElement>(null)
+  const sceneSize = useElementSize(sceneRef)
+  const chrome = chromeFor(sceneSize?.width ?? UNMEASURED_WIDTH)
+
+  /* The slot preview's panel has always been tighter than the renderer's. It
+   * keeps that relationship: it shrinks with the screen, it never grows. */
+  const slotPanelPad = Math.min(space.lg, chrome.panel)
 
   /* THE FEATURE FLAG. ?renderer=v2 draws real content through the registry;
    * anything else keeps the slot view. Default behaviour is unchanged, so the
@@ -62,8 +112,8 @@ export function LessonGallery() {
   if (dynamic) registerRepresentations()
 
   return (
-    <div className="scene" style={{ ...(cssVariables() as React.CSSProperties), overflowY: 'auto' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: space.h1 }}>
+    <div ref={sceneRef} className="scene" style={{ ...(cssVariables() as React.CSSProperties), overflowY: 'auto' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: chrome.page }}>
         <h1 style={{
           fontSize: type.display.size, lineHeight: type.display.lineHeight,
           fontWeight: type.display.weight, letterSpacing: type.display.tracking,
@@ -113,7 +163,7 @@ export function LessonGallery() {
               {dynamic ? (
                 <div style={{
                   border: `${stroke.hair}px solid ${color.border}`,
-                  borderRadius: radius.lg, padding: space.xl,
+                  borderRadius: radius.lg, padding: chrome.panel,
                   background: color.surface,
                 }}>
                   <LessonRenderer lesson={lesson as never} explain />
@@ -122,7 +172,7 @@ export function LessonGallery() {
               /* the composition, on the real grid */
               <div style={{
                 border: `${stroke.hair}px solid ${color.border}`,
-                borderRadius: radius.lg, padding: space.lg,
+                borderRadius: radius.lg, padding: slotPanelPad,
                 background: color.surface,
               }}>
                 {bands.map((band) => (

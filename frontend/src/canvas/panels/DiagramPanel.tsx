@@ -1,4 +1,4 @@
-import React, { useId } from 'react'
+import React, { useId, useLayoutEffect, useRef, useState } from 'react'
 import { layoutFlow } from '../layout/flow'
 import { color, type, space, radius, stroke, accentAlpha, ink } from '../design/tokens'
 import { arrow } from '../design/tokens'
@@ -27,6 +27,36 @@ export function DiagramPanel({ data, title }: PanelProps) {
    * three duplicate ids, which breaks every id-based reference an assistive
    * technology relies on. useId gives each mount its own. */
   const headId = `dp-head-${useId().replace(/:/g, '')}`
+
+  /* THE LAYOUT WIDTH IS MEASURED, NOT GUESSED.
+   *
+   * This was `layoutFlow(nodes, edges, 900)`. Nine hundred pixels was never
+   * the width of anything: a `column` flow centres each node inside the width
+   * it is given, so the layout spread itself across a 900px canvas and the
+   * grid then squeezed that viewBox into a 112px block. Everything scaled with
+   * it, node labels included — 11.5px of `type.label` rendered at 2.3px.
+   *
+   * Measuring the host is what makes the viewBox and the box agree. */
+  const hostRef = useRef<HTMLDivElement>(null)
+  const [hostWidth, setHostWidth] = useState(0)
+
+  useLayoutEffect(() => {
+    const el = hostRef.current
+    if (!el) return
+    const read = () => setHostWidth(el.clientWidth)
+    read()
+    /* jsdom implements no layout and no ResizeObserver. The listener fallback
+     * keeps this correct there and in any other environment without one; it is
+     * never the path a browser takes. */
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', read)
+      return () => window.removeEventListener('resize', read)
+    }
+    const ro = new ResizeObserver(read)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   const d = data as {
     nodes?: Array<{ id: string; label: string }>
     edges?: Array<{ from: string; to: string; label?: string }>
@@ -42,13 +72,22 @@ export function DiagramPanel({ data, title }: PanelProps) {
     )
   }
 
-  const flow = layoutFlow(nodes, edges, 900)
   const pad = space.lg
-  const W = flow.width + pad * 2
+  const inner = Math.max(0, hostWidth - pad * 2)
+  const flow = layoutFlow(nodes, edges, inner)
+
+  /* ONE VIEWBOX UNIT IS ONE PIXEL, ALWAYS.
+   *
+   * The viewBox is never allowed to be narrower than the box drawing it, and
+   * `minWidth` below never lets the box be narrower than the viewBox. Between
+   * them the scale factor is pinned at 1, so `type.label.size` renders at
+   * 11.5px whether the block is 112px wide or 1100 — the declared size is the
+   * rendered size. Wider content scrolls; it does not shrink. */
+  const W = Math.max(flow.width, inner) + pad * 2
   const H = flow.height + pad * 2
 
   return (
-    <div>
+    <div ref={hostRef}>
       {title && (
         <h3 style={{
           fontFamily: type.title.family, fontSize: type.title.size,
@@ -57,7 +96,20 @@ export function DiagramPanel({ data, title }: PanelProps) {
         }}>{title}</h3>
       )}
 
+      {/* The scroll frame carries the same four attributes TablePanel's does,
+        * for the same reasons. `data-overflow="scroll"` is read by
+        * renderer/measure.ts:65 to tell deliberate scrolling apart from a
+        * layout fault; `tabIndex`, the group role and the label keep a box
+        * that scrolls by mouse reachable by keyboard (WCAG 2.1.1). */}
+      <div
+        data-overflow="scroll"
+        tabIndex={0}
+        role="group"
+        aria-label={title ? `${title} (scrollable diagram)` : 'Scrollable diagram'}
+        style={{ overflowX: 'auto' }}
+      >
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img"
+        style={{ display: 'block', minWidth: W }}
         aria-label={`${flow.shape} diagram: ${nodes.map((n) => n.label).join(' then ')}.`}>
         <defs>
           <marker id={headId} markerWidth={arrow.headLength} markerHeight={arrow.headWidth * 2}
@@ -88,6 +140,7 @@ export function DiagramPanel({ data, title }: PanelProps) {
           ))}
         </g>
       </svg>
+      </div>
 
       {flow.wrongRepresentation && (
         <p style={{

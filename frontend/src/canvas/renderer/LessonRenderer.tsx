@@ -328,6 +328,39 @@ const UNMEASURED_VIEWPORT = { width: 360, height: 640 } as const
  * rather than allowed to loop in front of a learner. */
 const MAX_REPAIR_ROUNDS = 2
 
+/* THE GUTTER IS A CAPACITY DECISION, NOT A STYLE ONE.
+ *
+ * A twelve-column grid with a fixed `space.lg` gutter has eleven gaps, so it
+ * spends 176px on gutters before it places a single pixel of content. On a
+ * 320px phone the band measured 174px wide — less than the gutters alone — and
+ * `1fr` cannot go negative, so every one of the twelve tracks resolved to
+ * exactly 0px and each block became pure gutter: span 4 drew 48px, span 12 drew
+ * 176px, two pixels WIDER than the band containing it.
+ *
+ * The fix is not a smaller font or a media query. It is to notice that a gutter
+ * has to be affordable. This picks the largest gutter ON THE TOKEN SCALE whose
+ * eleven copies claim no more than a third of the measured band, so at least
+ * two thirds of the band always reaches content. Nothing here invents a value:
+ * the ladder is `space`, and it is capped at `space.lg` so a wide desktop keeps
+ * the exact gutter it has today rather than growing a new one.
+ *
+ * Ratio, not breakpoint, deliberately. The renderer already measures its own
+ * container for capacity; asking that same number one more question is cheaper
+ * and more honest than a second source of truth in a stylesheet that would
+ * describe the WINDOW while the band is a box several paddings inside it. */
+const GUTTER_LADDER = [space.lg, space.md, space.sm, space.xs] as const
+
+/** Gutters may claim at most this fraction of the band. */
+const GUTTER_SHARE = 3
+
+function gutterFor(bandWidth: number): number {
+  const budget = bandWidth / GUTTER_SHARE
+  const gaps = GRID_COLUMNS - 1
+  /* No affordable gutter means a band narrower than 132px. Butting the tracks
+   * together is ugly; collapsing them to zero is broken. Prefer ugly. */
+  return GUTTER_LADDER.find((g) => g * gaps <= budget) ?? space.none
+}
+
 export function LessonRenderer({ lesson, viewport, explain = false }: LessonRendererProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const measuredSize = useElementSize(rootRef)
@@ -392,10 +425,26 @@ export function LessonRenderer({ lesson, viewport, explain = false }: LessonRend
   const [outcome, setOutcome] = useState<ValidationOutcome | null>(null)
   const rounds = useRef(0)
 
+  /* RESET ON WIDTH, NEVER ON HEIGHT. Height is an OUTPUT of the layout this
+   * effect resets, so depending on it closes a feedback loop:
+   *
+   *   repair widens a block -> lesson grows taller -> measured height changes
+   *   -> this effect fires -> rounds.current = 0 -> the repair budget is
+   *   refunded -> repair runs again, forever.
+   *
+   * Observed at 320px on the gas lesson: `equation#law` and `chart#graph`
+   * flipped 77x365 <-> 157x257 indefinitely, which is span 4 against
+   * singleColumnFallback's span 8. The fallback made the blocks wide enough to
+   * stop overflowing, so the next validation reverted it, so they overflowed
+   * again. MAX_REPAIR_ROUNDS was supposed to cap exactly this and could not,
+   * because its counter was being zeroed on every oscillation.
+   *
+   * Width is a genuine input -- capacity decisions are made from it -- and it
+   * does not change as a consequence of the repair. */
   useLayoutEffect(() => {
     rounds.current = 0
     setOutcome(null)
-  }, [lesson, effectiveViewport.width, effectiveViewport.height])
+  }, [lesson, effectiveViewport.width])
 
   useLayoutEffect(() => {
     if (rounds.current >= MAX_REPAIR_ROUNDS) return
@@ -452,6 +501,11 @@ export function LessonRenderer({ lesson, viewport, explain = false }: LessonRend
 
   const failedChecks = (outcome?.checks ?? []).filter((c) => !c.holds)
 
+  /* The band is exactly as wide as this component's root, so the viewport the
+   * renderer already resolved is the band width. Same precedence, same number,
+   * one more question asked of it. */
+  const gutter = gutterFor(effectiveViewport.width)
+
   const byId = new Map(resolved.map((r) => [r.element.id, r]))
 
   return (
@@ -498,7 +552,7 @@ export function LessonRenderer({ lesson, viewport, explain = false }: LessonRend
           style={{
             display: 'grid',
             gridTemplateColumns: `repeat(${GRID_COLUMNS}, 1fr)`,
-            gap: space.lg,
+            gap: gutter,
             alignItems: 'start',
           }}
         >

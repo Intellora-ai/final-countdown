@@ -105,6 +105,28 @@ test.describe('explanation canvas regressions', () => {
     expect(state.unrenderable, 'blocks with no renderer').toEqual([])
   })
 
+  test('the lesson question appears exactly once', async ({ page }, testInfo) => {
+    attributeFiles(testInfo, [
+      'frontend/src/canvas/GasLesson.tsx',
+      'frontend/src/canvas/renderer/LessonRenderer.tsx',
+    ])
+    await openScene(page, testInfo)
+    /* SHIPPED, AND CAUGHT BY LOOKING AT A SCREENSHOT RATHER THAN BY A TEST.
+     * The route rendered the question as its own <h1> while LessonRenderer
+     * rendered the same string as the lesson's <h2>, so the page opened with
+     * the question printed twice. 155 browser assertions across five projects
+     * passed: they checked that headings are sans, that every block renders
+     * and that nothing refuses. Not one of them counted. */
+    const question = await page.evaluate(() => {
+      const heads = [...document.querySelectorAll('h1, h2, h3')]
+        .map((h) => (h.textContent ?? '').trim())
+      const target = heads.find((t) => t.includes('increase pressure in a gas'))
+      return { target, occurrences: heads.filter((t) => t === target).length, heads }
+    })
+    expect(question.target, 'the lesson question is rendered somewhere').toBeTruthy()
+    expect(question.occurrences, `headings were: ${JSON.stringify(question.heads)}`).toBe(1)
+  })
+
   test('headings are sans, not the dashboard serif', async ({ page }, testInfo) => {
     attributeFiles(testInfo, ['frontend/src/canvas/design/tokens.ts'])
     await openScene(page, testInfo)

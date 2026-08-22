@@ -5,7 +5,7 @@ import { LessonRenderer } from './renderer/LessonRenderer'
 import { registerRepresentations } from './contract/bootstrap'
 import { gasPressure } from './lessons/acceptance'
 import { cssVariables } from './design/generateCss'
-import { color, space, radius, stroke, type } from './design/tokens'
+import { color, space, radius, stroke } from './design/tokens'
 
 /* THE GAS LESSON, THROUGH THE ENGINE THAT IS SUPPOSED TO DRAW EVERYTHING.
  *
@@ -62,16 +62,16 @@ export function GasLesson() {
         </svg>
       </button>
 
+      {/* NO TITLE HERE. The first cut rendered `{gasPressure.question}` as an
+        * <h1> above the renderer, and a screenshot of the finished route showed
+        * the question twice: LessonRenderer already renders it as the lesson's
+        * own <h2>, and every lesson gets that heading whatever route it is on.
+        *
+        * 155 browser assertions across five projects did not catch it. They
+        * checked that headings are sans, that blocks render and that nothing
+        * refuses -- none of them counted. `the lesson question appears exactly
+        * once` in scene-regressions.spec.ts is the guard that would have. */}
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: space.xxl }}>
-        <h1 style={{
-          fontFamily: type.display.family, fontSize: type.display.size,
-          fontWeight: type.display.weight, letterSpacing: type.display.tracking,
-          lineHeight: type.display.lineHeight, color: color.text,
-          margin: 0, marginBottom: space.xxl,
-        }}>
-          {gasPressure.question}
-        </h1>
-
         <div style={{
           border: `${stroke.hair}px solid ${color.border}`,
           borderRadius: radius.lg,

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { selectArchetype, compositionFor, allArchetypes, GRID_COLUMNS, profile } from './archetypes'
 import { ACCEPTANCE_LESSONS } from '../lessons/acceptance'
 import { appearanceKeysDeep } from '../contract/validate'
+import type { LessonElement } from '../contract/types'
 
 /* THE LAYOUT GRAMMAR'S GUARDS.
  *
@@ -188,5 +189,70 @@ describe('the acceptance lessons carry meaning, never appearance', () => {
     /* If every lesson had the same profile, the selector could not possibly
      * differentiate them and the whole exercise would be theatre. */
     expect(new Set(sigs).size).toBeGreaterThanOrEqual(5)
+  })
+})
+
+/* THE THRESHOLDS, TESTED AT THEIR EDGES.
+ *
+ * Every test above this point asks whether selection is STABLE and
+ * EXPLAINABLE: same input, same archetype; a named rule; seven lessons that do
+ * not collapse onto one composition. None of them asks whether the numbers in
+ * the rules are the numbers claimed.
+ *
+ * The mutation gate proved the gap. `p.dataMass > 0.5` became `> 0.05` and
+ * `p.textMass > 0.6` became `> 0.06` -- thresholds loose enough that a single
+ * table in a prose lesson selects DATA, and almost anything selects NARRATIVE
+ * -- and the whole suite stayed green. The acceptance lessons all sit far from
+ * the boundary, so moving the boundary moved nothing they measure.
+ *
+ * A threshold is only a threshold if something sits on it.
+ */
+describe('the mass thresholds hold exactly where they claim to', () => {
+  /* A counter, not Math.random: this file's first test asserts selection is a
+   * pure function with "no clock, no randomness, no globals", and a fixture
+   * builder that rolls dice would undercut the claim it is helping to test. */
+  let seq = 0
+  const at = (kind: string): LessonElement =>
+    ({ id: `e-${kind}-${seq++}`, kind, purpose: 'explain', payload: {} }) as LessonElement
+
+  /** Neither `derive`, `simulation`, `comparison`, `timeline` nor `diagram`,
+   *  so the four rules above the mass rules cannot fire and steal the case. */
+  const mix = (data: number, text: number, other = 0): LessonElement[] => [
+    ...Array.from({ length: data }, () => at('table')),
+    ...Array.from({ length: text }, () => at('text')),
+    ...Array.from({ length: other }, () => at('image')),
+  ]
+
+  it('does not select DATA at exactly half data mass', () => {
+    const d = selectArchetype(mix(2, 2))
+    expect(d.profile.dataMass).toBe(0.5)
+    expect(d.archetype).not.toBe('DATA')
+  })
+
+  it('selects DATA as soon as data mass passes half', () => {
+    const d = selectArchetype(mix(3, 1))
+    expect(d.profile.dataMass).toBeCloseTo(0.75)
+    expect(d.archetype).toBe('DATA')
+  })
+
+  it('does not select NARRATIVE at exactly six-tenths text mass', () => {
+    /* 3 text of 5, with 2 tables keeping dataMass at 0.4 so the DATA rule
+     * above cannot fire first and mask the result. */
+    const d = selectArchetype(mix(2, 3))
+    expect(d.profile.textMass).toBeCloseTo(0.6)
+    expect(d.profile.dataMass).toBeCloseTo(0.4)
+    expect(d.archetype).not.toBe('NARRATIVE')
+  })
+
+  it('selects NARRATIVE as soon as text mass passes six-tenths', () => {
+    const d = selectArchetype(mix(1, 4))
+    expect(d.profile.textMass).toBeCloseTo(0.8)
+    expect(d.archetype).toBe('NARRATIVE')
+  })
+
+  it('falls through to SPLIT when neither mass rule fires', () => {
+    const d = selectArchetype(mix(2, 2))
+    expect(d.archetype).toBe('SPLIT')
+    expect(d.rule).toBe('default')
   })
 })

@@ -403,6 +403,267 @@ def step_text(step: dict[str, Any]) -> str:
     return f"{step.get('run', '')}\n{step.get('uses', '')}"
 
 
+FRONTEND_WF = WORKFLOWS / "learning-canvas-frontend.yml"
+FRONTEND_JOB = "frontend"
+FRONTEND_GATE_STEP = "Verification gate"
+PLAYWRIGHT_CONFIG = Path("frontend/playwright.config.ts")
+MUTATION_CATALOGUE = Path("frontend/scripts/mutation-gate.mjs")
+
+# A Playwright project declared but never run is a verification dimension that
+# exists on paper only. Exempting one is allowed; doing it silently is not, so
+# an exemption costs a written reason here.
+PLAYWRIGHT_EXEMPT: dict[str, str] = {}
+
+# The mutation catalogue may only grow. These floors are the measured state on
+# the commit that introduced this check; a change that lowers either one is
+# removing a defect the suite can currently see, which needs to be a deliberate
+# and visible act rather than a deletion nobody reviewed.
+MUTATION_COUNT_FLOOR = 26
+MUTATION_FILE_FLOOR = 9
+
+QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
+SINGLE_PIPE = re.compile(r"(?<!\|)\|(?!\|)")
+
+
+def unquoted(text: str) -> str:
+    """Shell text with quoted spans removed, so operators inside them do not count."""
+    return QUOTED.sub("", mask_expressions(text))
+
+
+def check_frontend(g: Gate) -> bool:
+    """The frontend workflow's structural integrity.
+
+    WHY THIS LIVES IN preflight AND NOT IN THE FRONTEND WORKFLOW ITSELF.
+    `learning-canvas-frontend.yml` is absent from ci/gates.toml and absent from
+    the live ruleset's 17 required contexts, so nothing it runs can block a
+    merge. A self-check inside it would inherit exactly that: a checker that
+    reports and cannot stop anything. preflight IS required, so putting the
+    check here is the only construction where it has teeth.
+
+    WHAT IT DEFENDS, and why each one is a defect that already happened rather
+    than a hypothetical:
+
+      * `Typecheck` piped through `tee` under GitHub's default `bash -e`, which
+        has no pipefail, so the step reported tee's exit status and could never
+        fail. That clause of the verification gate was dead for the entire life
+        of the workflow. The instance is fixed; check (e) is what makes the
+        CLASS impossible.
+      * Every verification step is `continue-on-error: true` so the whole
+        battery runs, and a final gate step restores the verdict by reading
+        each outcome. A step added without a matching clause in that condition
+        reports forever and blocks nothing -- and nothing but memory was
+        stopping that. Checks (c) and (d) replace the memory.
+      * Five Playwright projects are declared -- desktop-1440, square-900,
+        mobile-375, reduced-motion, keyboard -- and CI ran one. Four verification
+        dimensions existed in config and never executed. Check (f) makes
+        declaring a project and not running it a preflight failure.
+      * The mutation catalogue is a list in a file. Deleting entries from it
+        silently lowers how much defect the suite can see. Check (g) ratchets.
+    """
+    if not FRONTEND_WF.is_file():
+        g.check("frontend workflow exists", False, str(FRONTEND_WF))
+        g.fail(
+            what="the frontend verification workflow is gone",
+            where=str(FRONTEND_WF),
+            requirement="The canvas has a verification workflow.",
+            fix=f"Restore {FRONTEND_WF}.",
+        )
+        return False
+
+    doc = cast("dict[str, Any]", yaml.safe_load(FRONTEND_WF.read_text(encoding="utf-8")))
+    jobs = cast("dict[str, Any]", doc.get("jobs") or {})
+    job = jobs.get(FRONTEND_JOB)
+    if not isinstance(job, dict):
+        g.check(f"frontend workflow has job '{FRONTEND_JOB}'", False, "missing")
+        g.fail(
+            what=f"job '{FRONTEND_JOB}' is missing",
+            where=str(FRONTEND_WF),
+            requirement="The workflow's verification job must exist to be checked.",
+            fix=f"Restore the '{FRONTEND_JOB}' job.",
+        )
+        return False
+
+    steps = steps_of(cast("dict[str, Any]", job))
+    ok = True
+
+    # (a)+(b) the gate step is the thing that restores the verdict, so it must
+    # not itself be suppressible.
+    gate_steps = [s for s in steps if s.get("name") == FRONTEND_GATE_STEP]
+    if len(gate_steps) != 1:
+        g.check("exactly one verification gate step", False, f"found {len(gate_steps)}")
+        g.fail(
+            what="the verification gate step is missing or duplicated",
+            where=f"{FRONTEND_WF} -> {FRONTEND_JOB}",
+            why="every check in the job is continue-on-error, so without this "
+            "step the job is green with failures in it",
+            requirement=f"Exactly one step named '{FRONTEND_GATE_STEP}'.",
+            fix=f"Restore the single '{FRONTEND_GATE_STEP}' step.",
+        )
+        return False
+
+    gate = gate_steps[0]
+    condition = str(gate.get("if", ""))
+    gate_run = str(gate.get("run", ""))
+
+    if gate.get("continue-on-error"):
+        ok = False
+        g.check("gate step is not continue-on-error", False, "it is")
+        g.fail(
+            what="the verification gate cannot fail the job",
+            where=f"{FRONTEND_WF} -> {FRONTEND_GATE_STEP}",
+            why="continue-on-error on the gate makes every other check advisory",
+            requirement="The gate step decides the job.",
+            fix="Remove continue-on-error from the gate step.",
+        )
+    if "exit 1" not in gate_run:
+        ok = False
+        g.check("gate step exits non-zero", False, "no `exit 1`")
+        g.fail(
+            what="the verification gate does not fail",
+            where=f"{FRONTEND_WF} -> {FRONTEND_GATE_STEP}",
+            requirement="The gate must exit non-zero when its condition fires.",
+            fix="Restore `exit 1` in the gate step's run.",
+        )
+
+    enforced = set(re.findall(r"steps\.([A-Za-z0-9_-]+)\.outcome", condition))
+
+    # (c) a reporting step with an id must be wired into the verdict.
+    # (d) a reporting step WITHOUT an id must be an annotator. This is the half
+    #     that stops a real check from hiding as a reporter: give it no id and
+    #     it would never reach the condition, and before this check nothing
+    #     would have noticed.
+    for step in steps:
+        if not step.get("continue-on-error"):
+            continue
+        name = str(step.get("name", "<unnamed>"))
+        sid = step.get("id")
+        if sid:
+            if str(sid) not in enforced:
+                ok = False
+                g.check(f"frontend step '{sid}' is enforced", False, "not in gate")
+                g.fail(
+                    what=f"step '{name}' reports but cannot fail the job",
+                    where=f"{FRONTEND_WF} -> {name}",
+                    why="continue-on-error without a clause in the verification "
+                    "gate is a check that runs and enforces nothing",
+                    requirement="Every continue-on-error step with an id is "
+                    "named in the gate condition.",
+                    fix=f"Add `steps.{sid}.outcome == 'failure'` to the "
+                    f"'{FRONTEND_GATE_STEP}' condition.",
+                )
+        elif not name.startswith("Annotate"):
+            ok = False
+            g.check(f"frontend step '{name}' is an annotator", False, "no id")
+            g.fail(
+                what=f"step '{name}' is continue-on-error with no id",
+                where=f"{FRONTEND_WF} -> {name}",
+                why="with no id it can never appear in the gate condition, so "
+                "it can never fail the job whatever it finds",
+                requirement="Only annotators (name starts with 'Annotate') may "
+                "be continue-on-error without an id.",
+                fix=f"Give '{name}' an id and a gate clause, or rename it to "
+                "'Annotate …' if it genuinely only reports.",
+            )
+
+    # (e) THE PIPEFAIL CLASS. Scoped to steps whose exit status is load-bearing:
+    # an annotator that pipes grep into head wants SIGPIPE to be harmless, and
+    # forcing pipefail there would break a working reporter to satisfy a rule.
+    for step in steps:
+        sid = step.get("id")
+        if not sid or str(sid) not in enforced:
+            continue
+        run = str(step.get("run", ""))
+        if SINGLE_PIPE.search(unquoted(run)) and "pipefail" not in run:
+            ok = False
+            g.check(f"frontend step '{sid}' sets pipefail", False, "pipes without it")
+            g.fail(
+                what=f"step '{sid}' pipes without pipefail",
+                where=f"{FRONTEND_WF} -> {step.get('name', sid)}",
+                why="GitHub's default shell is `bash -e`, not `bash -eo "
+                "pipefail`, so the step reports the LAST command's status. "
+                "`npm run typecheck | tee` reported tee, and that clause of "
+                "the gate was dead for the life of the workflow.",
+                requirement="A step the gate reads must set `set -o pipefail` "
+                "if it pipes.",
+                fix=f"Add `shell: bash` and `set -o pipefail` to '{sid}'.",
+            )
+
+    # (f) a declared Playwright project that never runs is a dimension on paper.
+    if PLAYWRIGHT_CONFIG.is_file():
+        cfg = PLAYWRIGHT_CONFIG.read_text(encoding="utf-8")
+        block = cfg.partition("projects:")[2].partition("webServer:")[0]
+        declared = re.findall(r"name:\s*'([^']+)'", block)
+        run_text = "\n".join(str(s.get("run", "")) for s in steps)
+        invoked = set(re.findall(r"--project=([A-Za-z0-9_-]+)", run_text))
+        g.set_scope(
+            playwright_projects_declared=len(declared),
+            playwright_projects_run=len(invoked),
+        )
+        for name in declared:
+            if name in invoked or name in PLAYWRIGHT_EXEMPT:
+                continue
+            ok = False
+            g.check(f"playwright project '{name}' runs in CI", False, "declared only")
+            g.fail(
+                what=f"Playwright project '{name}' is declared and never run",
+                where=f"{PLAYWRIGHT_CONFIG} -> projects[].name = '{name}'",
+                why="a viewport or preference the config says is covered, that "
+                "no CI run has ever exercised, is a coverage claim with no "
+                "evidence behind it",
+                requirement="Every declared project runs in CI, or is listed "
+                "in PLAYWRIGHT_EXEMPT with a reason.",
+                fix=f"Add `--project={name}` to the browser step, or add "
+                f"'{name}' to PLAYWRIGHT_EXEMPT in {Path(__file__).name} with "
+                "a written reason.",
+            )
+    else:
+        ok = False
+        g.check("playwright config exists", False, str(PLAYWRIGHT_CONFIG))
+        g.fail(
+            what="the Playwright config is gone",
+            where=str(PLAYWRIGHT_CONFIG),
+            requirement="Browser coverage is declared somewhere checkable.",
+            fix=f"Restore {PLAYWRIGHT_CONFIG}.",
+        )
+
+    # (g) THE RATCHET. The catalogue is a list; lists shrink quietly.
+    if MUTATION_CATALOGUE.is_file():
+        src = MUTATION_CATALOGUE.read_text(encoding="utf-8")
+        entries = re.findall(r"^\s*id:\s*'([^']+)',\s*$", src, re.M)
+        files = set(re.findall(r"^\s*file:\s*'([^']+)',\s*$", src, re.M))
+        g.set_scope(mutants=len(entries), mutated_files=len(files))
+        if len(entries) < MUTATION_COUNT_FLOOR or len(files) < MUTATION_FILE_FLOOR:
+            ok = False
+            g.check("mutation catalogue did not shrink", False,
+                    f"{len(entries)} mutants over {len(files)} files")
+            g.fail(
+                what="the mutation catalogue shrank",
+                where=str(MUTATION_CATALOGUE),
+                why=f"{len(entries)} mutants over {len(files)} files, against a "
+                f"floor of {MUTATION_COUNT_FLOOR} over {MUTATION_FILE_FLOOR}. "
+                "Every entry removed is a defect the suite could see and now "
+                "cannot.",
+                requirement="The catalogue only grows.",
+                fix="Restore the removed mutants, or raise the floor "
+                "deliberately in a commit that says why.",
+            )
+    else:
+        ok = False
+        g.check("mutation catalogue exists", False, str(MUTATION_CATALOGUE))
+        g.fail(
+            what="the frontend mutation gate is gone",
+            where=str(MUTATION_CATALOGUE),
+            why="it is the only thing checking that the canvas tests can fail",
+            requirement="The mutation catalogue exists.",
+            fix=f"Restore {MUTATION_CATALOGUE}.",
+        )
+
+    if ok:
+        g.check("frontend workflow integrity", True,
+                f"{len(enforced)} enforced step(s), gate intact")
+    return ok
+
+
 def main() -> None:
     with Gate("preflight", version="2.0.0") as g:
         if not MANIFEST.is_file():
@@ -819,6 +1080,10 @@ def main() -> None:
                         "system that is not the one running.",
                         fix=f"Update {doc}, or restore {script}.",
                     )
+
+        # 11. The frontend verification workflow, which ci/gates.toml does not
+        # describe and the ruleset does not require. See check_frontend.
+        ok = check_frontend(g) and ok
 
         g.artifact("reports/preflight.json")
         g.passed() if ok else g.failed()

@@ -48,7 +48,12 @@ jobs:
   frontend:
     name: frontend
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 15 was sized for a job that ran 1.2-2.1 min. Two checks have since been
+    # added that trade wall clock for defect-finding: the mutation gate reruns
+    # the unit suite once per mutant (115s measured on a runner) and the
+    # browser step went from one Playwright project to five. 25 leaves room for
+    # both to grow without the timeout becoming the thing that fails.
+    timeout-minutes: 25
 
     defaults:
       run:
@@ -244,10 +249,36 @@ jobs:
       # `composed-renderer.spec.ts` makes no timing claims either: console
       # errors, clipped-and-unreachable content, effective font size, duplicate
       # ids, accessible names. All DOM facts, all deterministic.
+      # ALL FIVE DECLARED PROJECTS, NOT ONE.
+      #
+      # playwright.config.ts declares desktop-1440, square-900, mobile-375,
+      # reduced-motion and keyboard, and CI ran the first. Four verification
+      # dimensions existed in config and had never executed: the 375px viewport
+      # the responsive work was measured against, the reduced-motion path the
+      # simulation contract's fitness function branches on, and the
+      # keyboard-only path the table's scroller was given tabIndex for.
+      #
+      # This does not contradict the exclusion reasoning above, which is about
+      # SPECS that make timing claims, not about viewports. These two specs
+      # make none: every assertion is a DOM fact. Measured before wiring it in
+      # -- 128/128 across the four unused projects in 75.7s locally, so the
+      # dimensions were dark rather than broken.
+      #
+      # `--project` repeated is Playwright's own union syntax; adding one to
+      # the config without adding it here now fails preflight, via
+      # scripts/gate_integrity.py check (f).
       - name: Scene regression guards
         id: playwright
         continue-on-error: true
-        run: npx playwright test -c playwright.config.ts e2e/scene-regressions.spec.ts e2e/composed-renderer.spec.ts --project=desktop-1440 --fail-on-flaky-tests
+        run: >-
+          npx playwright test -c playwright.config.ts
+          e2e/scene-regressions.spec.ts e2e/composed-renderer.spec.ts
+          --project=desktop-1440
+          --project=square-900
+          --project=mobile-375
+          --project=reduced-motion
+          --project=keyboard
+          --fail-on-flaky-tests
 
       # THE VERDICT, RESTORED.
       #

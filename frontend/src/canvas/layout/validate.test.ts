@@ -183,3 +183,78 @@ describe('the fallback is ugly and correct', () => {
     expect(out.frame).toEqual(clean)
   })
 })
+
+/* THE BOUNDARY CASES THE MUTATION GATE FOUND.
+ *
+ * `noCollision` was tested with blocks at col 1 span 6 and col 4 span 6 --
+ * three columns of overlap. Nothing exercised the edge of the comparison, so
+ * changing `a.col <= c.col + c.span - 1` to `<` broke no test: two blocks
+ * sharing exactly one column stopped counting as a collision, which is the
+ * off-by-one a grid layout actually produces.
+ *
+ * `MAX_PASSES = 3` was likewise invisible. Every repairable frame resolves on
+ * the FIRST pass -- falling back from DATA to SPLIT fixes collision and
+ * overflow in one step, measured across 20- and 40-block frames -- so the
+ * constant only has an observable effect on a frame the ladder cannot fix at
+ * all. That path is asserted below, because otherwise the difference between
+ * "tried three times, then fell back" and "gave up immediately" is invisible.
+ */
+describe('the exact edges of the geometry checks', () => {
+  it('counts two blocks sharing exactly one column as a collision', () => {
+    /* cols 1-6 and cols 6-11: the single shared column is 6. */
+    const r = noCollision(frame({
+      blocks: [
+        block({ id: 'a', col: 1, span: 6, band: 0 }),
+        block({ id: 'b', col: 6, span: 6, band: 0 }),
+      ],
+    }))
+    expect(r.holds).toBe(false)
+    expect(r.blocks.sort()).toEqual(['a', 'b'])
+  })
+
+  it('leaves genuinely adjacent blocks alone', () => {
+    /* cols 1-6 and cols 7-12: touching, never overlapping. */
+    const r = noCollision(frame({
+      blocks: [
+        block({ id: 'a', col: 1, span: 6, band: 0 }),
+        block({ id: 'b', col: 7, span: 6, band: 0 }),
+      ],
+    }))
+    expect(r.holds).toBe(true)
+  })
+
+  it('keeps blocks in different bands out of each other\'s way', () => {
+    const r = noCollision(frame({
+      blocks: [
+        block({ id: 'a', col: 1, span: 12, band: 0 }),
+        block({ id: 'b', col: 1, span: 12, band: 1 }),
+      ],
+    }))
+    expect(r.holds).toBe(true)
+  })
+
+  it('gives the ladder three passes before falling back to one column', () => {
+    /* Contrast is not something a relayout can repair, so every pass fails
+     * identically and the loop runs to its limit. That makes the pass budget
+     * observable, which it is not on any frame the ladder can actually fix. */
+    const out = validateAndRepair(frame({
+      archetype: 'DATA',
+      blocks: [block({ id: 'a', contrast: 2.0 })],
+    }))
+    const ladderPasses = out.repairs.filter((r) => r.pass <= 3)
+    expect(ladderPasses).toHaveLength(3)
+    expect(out.usedFallback).toBe(true)
+    expect(out.repairs[out.repairs.length - 1].action).toBe('Single-column fallback.')
+  })
+
+  it('reports honestly that the fallback did not fix a contrast fault', () => {
+    /* A single column cannot raise contrast. The outcome says so rather than
+     * claiming success because the last resort ran. */
+    const out = validateAndRepair(frame({
+      archetype: 'DATA',
+      blocks: [block({ id: 'a', contrast: 2.0 })],
+    }))
+    expect(out.passed).toBe(false)
+    expect(out.checks.find((c) => c.name === 'contrastAA')?.holds).toBe(false)
+  })
+})

@@ -199,3 +199,51 @@ describe('the ladder climbs only as far as it must, and records every rung', () 
     }
   })
 })
+
+/* DENSITY IS A CAPACITY POLICY, AND THE POLICY HAS TO SAY SOMETHING.
+ *
+ * The mutation gate turned compact's `collapseAsides: true, allowPagination:
+ * true` into `false, false` and no test failed. Compact would have lost both
+ * of its escape hatches -- with nowhere to put overflow, content that does not
+ * fit has only the outcomes CLAUDE.md forbids -- and the suite could not see
+ * it. What was tested was the ladder's behaviour given a policy, never the
+ * policy itself.
+ */
+describe('each density grants the capacity it claims', () => {
+  it('gives compact both escape hatches, because compact is where overflow lives', () => {
+    const p = policyFor('compact')
+    expect(p.collapseAsides).toBe(true)
+    expect(p.allowPagination).toBe(true)
+    expect(p.allowAggregation).toBe(true)
+    expect(p.allowGrouping).toBe(true)
+  })
+
+  it('leaves relaxed alone — there is nothing to disclose away', () => {
+    const p = policyFor('relaxed')
+    expect(p.collapseAsides).toBe(false)
+    expect(p.allowPagination).toBe(false)
+    expect(p.allowAggregation).toBe(false)
+    expect(p.allowGrouping).toBe(false)
+  })
+
+  it('discloses strictly less as density rises', () => {
+    const [relaxed, normal, compact] = (['relaxed', 'normal', 'compact'] as const).map(policyFor)
+    expect(relaxed.initialItems).toBeGreaterThan(normal.initialItems)
+    expect(normal.initialItems).toBeGreaterThan(compact.initialItems)
+    expect(relaxed.initialRows).toBeGreaterThan(normal.initialRows)
+    expect(normal.initialRows).toBeGreaterThan(compact.initialRows)
+  })
+
+  it('never turns an escape hatch back off as density rises', () => {
+    /* A strategy available at a looser density must stay available at a
+     * tighter one. Losing one on the way up would mean the tighter policy has
+     * fewer ways to handle more pressure. */
+    const order = (['relaxed', 'normal', 'compact'] as const).map(policyFor)
+    const flags = ['collapseAsides', 'allowPagination', 'allowAggregation', 'allowGrouping'] as const
+    for (const flag of flags) {
+      for (let i = 1; i < order.length; i++) {
+        if (order[i - 1][flag]) expect(order[i][flag], flag).toBe(true)
+      }
+    }
+  })
+})

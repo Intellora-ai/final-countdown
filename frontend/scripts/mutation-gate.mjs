@@ -147,6 +147,93 @@ const MUTANTS = [
     to: '    if (false) {',
     breaks: 'a named model is accepted, putting hardcoded physics back in the engine',
   },
+
+  /* THE LAYOUT VALIDATOR. Its whole job is to refuse a frame, so every mutant
+   * here is a way for it to stop refusing -- the failure mode where the gate
+   * is present, green, and enforcing nothing. */
+  {
+    id: 'validate-tap-floor',
+    file: 'src/canvas/layout/validate.ts',
+    from: 'const MIN_TAP = 40',
+    to: 'const MIN_TAP = 0',
+    breaks: 'the 40px accessibility floor stops existing; minTapTarget can never fail',
+  },
+  {
+    id: 'validate-contrast-floor',
+    file: 'src/canvas/layout/validate.ts',
+    from: 'const AA_CONTRAST = 4.5',
+    to: 'const AA_CONTRAST = 0',
+    breaks: 'WCAG AA contrast stops being checked; unreadable text passes',
+  },
+  {
+    id: 'validate-collision-boundary',
+    file: 'src/canvas/layout/validate.ts',
+    from: 'const overlap = a.col <= c.col + c.span - 1 && c.col <= a.col + a.span - 1',
+    to: 'const overlap = a.col < c.col + c.span - 1 && c.col < a.col + a.span - 1',
+    breaks: 'blocks sharing exactly one column no longer count as colliding',
+  },
+  {
+    id: 'validate-always-passes',
+    file: 'src/canvas/layout/validate.ts',
+    from: '    if (!failed.length) {',
+    to: '    if (true) {',
+    breaks: 'a frame that failed its checks is reported as passed and painted',
+  },
+  {
+    id: 'validate-repair-passes',
+    file: 'src/canvas/layout/validate.ts',
+    from: 'const MAX_PASSES = 3',
+    to: 'const MAX_PASSES = 1',
+    breaks: 'the repair ladder gives up after one rung instead of three',
+  },
+
+  /* THE SELECTOR. "ORDER IS THE DESIGN" is a written claim in archetypes.ts;
+   * these mutants are what it would mean for that claim to be false. */
+  {
+    id: 'archetype-simulation-first',
+    file: 'src/canvas/layout/archetypes.ts',
+    from: '  if (p.hasSimulation) {',
+    to: '  if (false) {',
+    breaks: 'a lesson the learner can manipulate stops selecting EXPLORATORY',
+  },
+  {
+    id: 'archetype-comparison-primary',
+    file: 'src/canvas/layout/archetypes.ts',
+    from: '  if (p.hasComparison && p.primaryCount === 1) {',
+    to: '  if (p.hasComparison) {',
+    breaks: 'COMPARISON wins with many primaries, where it is not the lesson',
+  },
+  {
+    id: 'archetype-data-threshold',
+    file: 'src/canvas/layout/archetypes.ts',
+    from: '  if (p.dataMass > 0.5) {',
+    to: '  if (p.dataMass > 0.05) {',
+    breaks: 'one table in a prose lesson selects DATA',
+  },
+  {
+    id: 'archetype-text-threshold',
+    file: 'src/canvas/layout/archetypes.ts',
+    from: '  if (p.textMass > 0.6) {',
+    to: '  if (p.textMass > 0.06) {',
+    breaks: 'almost anything selects NARRATIVE, collapsing the grammar to one shape',
+  },
+
+  /* DENSITY IS A CAPACITY POLICY. If compact stops being compact, the whole
+   * disclosure ladder is decoration. */
+  {
+    id: 'disclosure-compact-capacity',
+    file: 'src/canvas/layout/disclosure.ts',
+    from: '    initialItems: 5, initialRows: 8,',
+    to: '    initialItems: 50, initialRows: 80,',
+    breaks: 'compact density discloses as much as relaxed; the ladder does nothing',
+  },
+  {
+    id: 'disclosure-compact-strategies',
+    file: 'src/canvas/layout/disclosure.ts',
+    from: '    collapseAsides: true, allowPagination: true,',
+    to: '    collapseAsides: false, allowPagination: false,',
+    breaks: 'compact loses both escape hatches, so overflow has nowhere to go',
+  },
 ]
 
 function vitest(outFile) {

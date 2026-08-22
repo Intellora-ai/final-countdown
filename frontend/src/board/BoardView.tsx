@@ -28,7 +28,11 @@ import { ConnectorLayer } from './shell/ConnectorLayer'
 import { useBoardSource } from './hooks/useBoardSource'
 import { FIXTURES, featuredFixtures } from './fixtures'
 import { planFromBoard, planFromSteps } from './teaching/plan'
-import { useTeachingSession, type ReleasedStep } from './teaching/useTeachingSession'
+import { useTeachingSession, type ReleasedStep, type SessionStartup } from './teaching/useTeachingSession'
+import { BoardInteractionProvider } from './teaching/BoardInteractionContext'
+import { useLearnerProgress } from './progress/useLearnerProgress'
+import { buildHydration } from './progress/hydrate'
+import { store as dashboardStore } from '../data/store'
 import { StepView } from './teaching/StepView'
 import { TeachingControls, CheckpointPanel } from './teaching/TeachingControls'
 import { AccessibleLesson } from './teaching/AccessibleLesson'
@@ -66,6 +70,13 @@ const CHEM_EXTRA: TeachingStep = {
 
 interface Placement { rect: WorldRect; measured: boolean }
 
+/* Read at the moment a resume is built rather than held in state: the timeline
+ * shape depends on it, and a preference read once at module load would be the
+ * wrong one for anybody who changed it after opening the tab. */
+function reducedMotionNow(): boolean {
+  return typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
 export function BoardView() {
   /* The URL owns which board is open. Two things follow from that and both
    * matter: a scenario can be linked to and reloaded, and the gallery can hand
@@ -98,8 +109,13 @@ function TeachingBoard({ fixtureId, setFixtureId }: { fixtureId: string; setFixt
   /* validated → plan. The scripted chemistry lesson arrives by dynamic
    * import so it stays in its own chunk; every other board compiles through
    * planFromBoard. Stale async results are discarded on fixture switch. */
+  /* A plan is a CURSOR, not a value: nextStep() advances it, and two readers
+   * of one plan see two halves of a lesson. What is prepared here is therefore
+   * a factory. Resuming needs a cursor it can walk to find the saved step;
+   * starting fresh needs one that has not been walked. Handing both the same
+   * instance is how a resumed lesson quietly starts over. */
   const [prepared, setPrepared] = useState<
-    | { plan: TeachingPlan; extras?: { anotherExample?: TeachingStep }; notices: Notice[]; title: string; subtitle?: string | null }
+    | { makePlan: () => TeachingPlan; extras?: { anotherExample?: TeachingStep }; notices: Notice[]; title: string; subtitle?: string | null }
     | { error: string; notices: Notice[] }
     | { empty: true; notices: Notice[]; title: string }
     | null
@@ -116,13 +132,13 @@ function TeachingBoard({ fixtureId, setFixtureId }: { fixtureId: string; setFixt
       void import('./teaching/lessons/change-of-state.lesson').then((m) => {
         if (!alive) return
         setPrepared({
-          plan: planFromSteps(m.CHANGE_OF_STATE_LESSON, m.CHANGE_OF_STATE_LESSON.steps),
+          makePlan: () => planFromSteps(m.CHANGE_OF_STATE_LESSON, m.CHANGE_OF_STATE_LESSON.steps),
           extras: { anotherExample: CHEM_EXTRA },
           notices: validated.notices, title: board.title, subtitle: board.subtitle,
         })
       })
     } else {
-      setPrepared({ plan: planFromBoard(board), notices: validated.notices, title: board.title, subtitle: board.subtitle })
+      setPrepared({ makePlan: () => planFromBoard(board), notices: validated.notices, title: board.title, subtitle: board.subtitle })
     }
     return () => { alive = false }
   }, [validated, fixtureId])
@@ -130,6 +146,11 @@ function TeachingBoard({ fixtureId, setFixtureId }: { fixtureId: string; setFixt
   /* ── world placement ─────────────────────────────────────────────────── */
   const placements = useRef(new Map<string, Placement>())
   const [, bumpLayout] = useState(0)
+
+  /* Which diagram node the learner has selected, if any. A view concern, so it
+   * lives here rather than in the teaching session: selecting a node changes
+   * what is emphasised, never what has been taught. */
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
 
   const placeStep = useCallback((index: number, stepId: string): WorldRect => {
     const existing = placements.current.get(stepId)
@@ -171,11 +192,107 @@ function TeachingBoard({ fixtureId, setFixtureId }: { fixtureId: string; setFixt
     })
   }, [camera])
 
+  /* ── learner progress ─────────────────────────────────────────────────── */
+
+  /* WHO IS LEARNING — and why this is awaited rather than read.
+   *
+   * Progress is stored per learner so two people sharing a machine keep
+   * separate positions. The dashboard knows who that is, but it loads its
+   * database asynchronously: read currentId on the first render and it is
+   * null, so the board looks up a record under 'anon' that was written under
+   * a real student id, finds nothing, and starts the lesson over. The record
+   * was there the whole time; the board asked the wrong question early.
+   *
+   * Reading currentId is one of exactly two places the board touches the
+   * dashboard — see docs/engineering/board-progress-boundary.md. */
+  const [scope, setScope] = useState<string | null>(null)
+  useEffect(() => {
+    let alive = true
+    void dashboardStore.init().then(() => {
+      if (alive) setScope(dashboardStore.currentId ?? 'anon')
+    })
+    return () => { alive = false }
+  }, [])
+
+  const progress = useLearnerProgress({
+    boardId: fixtureId,
+    scope: scope ?? 'anon',
+    /* Nothing is read or written until we know whose position it is. */
+    enabled: scope !== null,
+  })
+
+  /* Look up whether this board can be resumed, then tell the session how to
+   * start. Until that resolves the session waits: releasing step one while a
+   * resume is still loading would stack the opening step under the lesson the
+   * learner had actually reached. */
+  const [startup, setStartup] = useState<SessionStartup>({ kind: 'wait' })
+  const [plan, setPlan] = useState<TeachingPlan | null>(null)
+
+  /* Resolved once per prepared board. Guarding on the prepared object's
+   * identity rather than on "this effect already ran" survives StrictMode's
+   * deliberate double-invocation, which is how the shared-cursor bug showed
+   * itself: the second walk started where the first stopped, never found the
+   * saved step, and silently restarted the lesson. */
+  const resolvedFor = useRef<object | null>(null)
+
+  useEffect(() => {
+    if (!prepared || !('makePlan' in prepared)) { setStartup({ kind: 'wait' }); setPlan(null); return }
+    /* Both halves must be present: the lesson, and the identity its position
+     * is filed under. Resolving on the lesson alone would decide "no saved
+     * position" before anyone had asked whose position it would be. */
+    if (scope === null) { setStartup({ kind: 'wait' }); return }
+    if (resolvedFor.current === prepared) return
+    resolvedFor.current = prepared
+
+    const saved = progress.saved
+    if (!saved) {
+      setPlan(prepared.makePlan())
+      setStartup({ kind: 'fresh' })
+      return
+    }
+
+    /* This cursor is walked to find the saved step. If it finds it, the cursor
+     * now sits exactly after the restored steps — which is where Continue
+     * should pick up, so the session keeps this same instance. */
+    const walked = prepared.makePlan()
+    void buildHydration(walked, saved, {
+      reducedMotion: reducedMotionNow(),
+      pace: 'standard',
+    }).then((r) => {
+      if (r.stale || r.restored === 0) {
+        /* The record names a step this board no longer produces. `walked` is
+         * spent from searching, so the fresh start gets an unread cursor —
+         * reusing the spent one would open the lesson somewhere in its middle. */
+        setPlan(prepared.makePlan())
+        setStartup({ kind: 'fresh' })
+        return
+      }
+      setPlan(walked)
+      setStartup({ kind: 'resume', released: r.released, pace: 'standard' })
+    })
+  }, [prepared, progress.saved, scope])
+
   const session = useTeachingSession(
-    prepared && 'plan' in prepared ? prepared.plan : null,
-    prepared && 'plan' in prepared ? prepared.extras : undefined,
+    plan,
+    prepared && 'makePlan' in prepared ? prepared.extras : undefined,
     onStepReleased,
+    startup,
   )
+
+  /* Report the position whenever the lesson moves. Every input here changes
+   * only when something the learner did changed it: released steps grow on
+   * Continue, the camera value updates when an interaction ENDS (never per
+   * frame), and answers change when one is given. A report that matches what
+   * is stored never becomes a write. */
+  const clarificationCount = session.released.filter((r) => r.clarification).length
+  useEffect(() => {
+    if (!session.released.length) return
+    progress.report({
+      released: session.released,
+      clarificationCount,
+      lastCamera: camera.camera,
+    })
+  }, [session.released, clarificationCount, camera.camera, progress])
 
   /* Register placements for newly released steps, then focus. */
   useEffect(() => {
@@ -188,6 +305,19 @@ function TeachingBoard({ fixtureId, setFixtureId }: { fixtureId: string; setFixt
     // placement map only grows; focusing depends on count
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.released.length])
+
+  /* A resumed session puts the camera back where the learner left it, once,
+   * after the restored steps have been placed. It runs after the focus effect
+   * above deliberately: restore marks the camera as manually positioned, so
+   * the automatic focus does not immediately overrule it. */
+  const restoredCamera = useRef(false)
+  useEffect(() => {
+    if (restoredCamera.current) return
+    if (startup.kind !== 'resume' || !progress.saved?.lastCamera) return
+    if (!session.released.length) return
+    restoredCamera.current = true
+    camera.restore(progress.saved.lastCamera)
+  }, [startup, progress.saved, session.released.length, camera])
 
   /* ── harness registration (DEV-only; no-op in production) ─────────────── */
   const sessionRef = useRef(session)
@@ -242,6 +372,15 @@ function TeachingBoard({ fixtureId, setFixtureId }: { fixtureId: string; setFixt
 
   const releasedBlocks = session.released.flatMap((r) => r.step.blocks)
   const releasedConnectors = session.released.flatMap((r) => r.step.connectors ?? [])
+
+  /* What blocks can reach. Memoised because it is context: a new object every
+   * render would re-render every block in the world on every keystroke. */
+  const interaction = useMemo(() => ({
+    quizAnswers: progress.quizAnswers,
+    answerQuiz: progress.answerQuiz,
+    selectedNodeId,
+    selectNode: setSelectedNodeId,
+  }), [progress.quizAnswers, progress.answerQuiz, selectedNodeId])
   const [worldEl, setWorldEl] = useState<HTMLElement | null>(null)
   const worldRef = useCallback((el: HTMLDivElement | null) => { camera.worldRef(el); setWorldEl(el) }, [camera])
 
@@ -266,10 +405,10 @@ function TeachingBoard({ fixtureId, setFixtureId }: { fixtureId: string; setFixt
           {(src.status === 'loading' || session.status === 'loading') && prepared === null && src.status !== 'failed' && (
             <div data-board="overlay-state"><BoardLoading /></div>
           )}
-          {prepared && 'plan' in prepared && session.status === 'error' && (
+          {prepared && 'makePlan' in prepared && session.status === 'error' && (
             <div data-board="overlay-state"><BoardError message={session.error ?? 'The lesson stopped.'} /></div>
           )}
-          {prepared && 'plan' in prepared && (
+          {prepared && 'makePlan' in prepared && (
             <>
               <CheckpointPanel session={session} />
               <TeachingControls session={session} />
@@ -281,21 +420,23 @@ function TeachingBoard({ fixtureId, setFixtureId }: { fixtureId: string; setFixt
         </>
       }
     >
-      <BoardViewport ref={viewportRef}>
-        <CameraWorld ref={worldRef}>
-          {session.released.map((r, i) => {
-            const isCurrent = i === session.released.length - 1
-            const p = placements.current.get(r.step.id)
-            const rect = p?.rect ?? placeStep(i, r.step.id)
-            const culled = !isCurrent && p?.measured && !rectsIntersect(rect, cullWindow)
-            return (
-              <WorldStep key={r.step.id} released={r} rect={rect} culled={!!culled}
-                isCurrent={isCurrent} onMeasure={measureStep} />
-            )
-          })}
-          <ConnectorLayer connectors={releasedConnectors} blocks={releasedBlocks} gridEl={worldEl} />
-        </CameraWorld>
-      </BoardViewport>
+      <BoardInteractionProvider value={interaction}>
+        <BoardViewport ref={viewportRef}>
+          <CameraWorld ref={worldRef}>
+            {session.released.map((r, i) => {
+              const isCurrent = i === session.released.length - 1
+              const p = placements.current.get(r.step.id)
+              const rect = p?.rect ?? placeStep(i, r.step.id)
+              const culled = !isCurrent && p?.measured && !rectsIntersect(rect, cullWindow)
+              return (
+                <WorldStep key={r.step.id} released={r} rect={rect} culled={!!culled}
+                  isCurrent={isCurrent} onMeasure={measureStep} />
+              )
+            })}
+            <ConnectorLayer connectors={releasedConnectors} blocks={releasedBlocks} gridEl={worldEl} />
+          </CameraWorld>
+        </BoardViewport>
+      </BoardInteractionProvider>
       <AccessibleLesson released={session.released} />
     </BlackboardShell>
   )

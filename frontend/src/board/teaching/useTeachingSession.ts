@@ -47,6 +47,14 @@ export type SessionAction =
   | { kind: 'complete' } | { kind: 'fail'; error: string }
   | { kind: 'pace'; pace: PaceProfileName }
   | { kind: 'replay'; timeline: RevealTimeline }
+  /* Re-time the CURRENT step without restarting it. Distinct from replay,
+   * which starts the reveal over: retime keeps everything already shown and
+   * only changes how fast the rest arrives. */
+  | { kind: 'retime'; timeline: RevealTimeline }
+  /* Install a lesson already in progress — a resumed session. The steps
+   * arrive fully applied, at a checkpoint, because a learner returning to a
+   * lesson should find where they were, not watch it replay. */
+  | { kind: 'hydrate'; released: ReleasedStep[]; pace: PaceProfileName }
 
 export function reducer(s: SessionState, a: SessionAction): SessionState {
   switch (a.kind) {
@@ -76,6 +84,22 @@ export function reducer(s: SessionState, a: SessionAction): SessionState {
       released[released.length - 1] = { ...last, timeline: a.timeline, applied: 0 }
       return { ...s, status: 'revealing', released }
     }
+    case 'retime': {
+      const released = [...s.released]
+      const last = released[released.length - 1]
+      if (!last) return s
+      /* `applied` is an index into the event list, and the event list is the
+       * same at every pace — chunkText takes no pace, so chunk boundaries and
+       * their order do not move. Event N means the same thing whether it
+       * arrives at 16 or 40 characters a second, which is exactly why the
+       * count can be carried across unchanged. */
+      released[released.length - 1] = { ...last, timeline: a.timeline }
+      return { ...s, released }
+    }
+    case 'hydrate':
+      /* A resumed lesson lands at a checkpoint: everything restored is behind
+       * the learner, and the next step still waits for them to ask. */
+      return { ...s, status: 'checkpoint', released: a.released, pace: a.pace }
   }
 }
 
@@ -92,10 +116,24 @@ export interface SessionApi extends SessionState {
   reducedMotion: boolean
 }
 
+/* HOW A SESSION BEGINS. Three cases, stated rather than inferred, because
+ * "has the saved position arrived yet" and "there is no saved position" look
+ * identical from inside the hook and mean opposite things: starting fresh
+ * while a resume is still loading would release step one over the top of a
+ * lesson the learner had already worked through. */
+export type SessionStartup =
+  /* A resume is being looked up. Release nothing yet. */
+  | { kind: 'wait' }
+  /* No saved position, or it was stale. Release step one. */
+  | { kind: 'fresh' }
+  /* Install these already-revealed steps and hold at a checkpoint. */
+  | { kind: 'resume'; released: ReleasedStep[]; pace: PaceProfileName }
+
 export function useTeachingSession(
   plan: TeachingPlan | null,
   extras?: { anotherExample?: TeachingStep },
   onStepReleased?: (index: number, clarification: boolean) => void,
+  startup: SessionStartup = { kind: 'fresh' },
 ): SessionApi {
   const [state, dispatch] = useReducer(reducer, { status: 'loading', released: [], pace: 'standard' })
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -159,14 +197,30 @@ export function useTeachingSession(
     }
   }, [plan, reducedMotion, onStepReleased])
 
-  /* Session start: release step 1 when the plan arrives. */
+  /* SESSION START — once, and once only.
+   *
+   * The `started` latch matters more now that there are two ways in. Without
+   * it, a resume that resolves after a fresh start would release step one and
+   * then install the restored lesson on top of it, and the learner would find
+   * the opening step sitting below where they actually were. */
   const started = useRef(false)
   useEffect(() => {
     if (!plan || started.current) return
+    if (startup.kind === 'wait') return          // the lookup is still running
     started.current = true
     mark('session-start')
+    if (startup.kind === 'resume') {
+      mark('resume-start')
+      dispatch({ kind: 'hydrate', released: startup.released, pace: startup.pace })
+      /* The camera follows the last restored step, exactly as it would have
+       * followed a freshly released one. */
+      onStepReleased?.(startup.released.length - 1, false)
+      mark('resume-complete')
+      measureFrom('resume-start', 'resume-to-visible')
+      return
+    }
     void release()
-  }, [plan, release])
+  }, [plan, release, startup, onStepReleased])
 
   /* THE ONE TIMER OWNER. revealing → walk the timeline; settled → schedule
    * the checkpoint after the settle pause; paused → silence. The cleanup
@@ -184,6 +238,36 @@ export function useTeachingSession(
   }, [state.status, state.released.length, state.released[state.released.length - 1]?.timeline, play, reducedMotion])
 
   const currentStep = state.released[state.released.length - 1] ?? null
+
+  /* A PACE CHANGE APPLIES NOW, NOT NEXT TIME.
+   *
+   * Choosing "calm" halfway through a paragraph used to change nothing until
+   * the next step — the learner pressed a control that appeared to do nothing,
+   * which is worse than not offering it. The current step is re-timed in
+   * place: what has been revealed stays revealed, and the remainder arrives at
+   * the new speed.
+   *
+   * A clarification is left alone. It was released at calm deliberately, and
+   * speeding up the explanation someone just asked to have slowed down would
+   * undo the thing they asked for. */
+  const pace = state.pace
+  useEffect(() => {
+    if (state.status !== 'revealing' && state.status !== 'paused') return
+    const cur = stateRef.current.released[stateRef.current.released.length - 1]
+    if (!cur || cur.clarification) return
+    const base = stepTimeline(cur.step.blocks, PACE_PROFILES[pace])
+    const next = reducedMotion ? reducedTimeline(base) : base
+    /* The event list is pace-invariant, so the applied count carries over and
+     * the playhead moves to where that same event sits in the new schedule. */
+    const applied = Math.min(cur.applied, next.events.length)
+    playhead.current = {
+      elapsed: applied > 0 ? next.events[applied - 1].at : 0,
+      eventIndex: applied,
+    }
+    dispatch({ kind: 'retime', timeline: next })
+    // The timeline object identity change restarts the play effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pace])
 
   const finishNow = useCallback(() => {
     const cur = stateRef.current.released[stateRef.current.released.length - 1]

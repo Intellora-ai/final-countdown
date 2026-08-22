@@ -73,6 +73,49 @@ describe('session reducer transitions', () => {
     expect(f.error).toBe('boom')
   })
 
+  it('retime swaps the schedule without restarting or releasing anything', () => {
+    const revealing = { ...at('revealing') }
+    revealing.released = [{ ...revealing.released[0], applied: 1 }]
+    /* Same events in the same order, arriving sooner — which is exactly what a
+     * pace change produces, because chunk boundaries do not depend on pace. */
+    const faster: RevealTimeline = {
+      events: [TL.events[0], { ...TL.events[1], at: 250 }],
+      endMs: 250, checkpointAtMs: 650,
+    }
+
+    const out = reducer(revealing, { kind: 'retime', timeline: faster })
+
+    /* What has been shown stays shown: applied is an index into an event list
+     * that is the same at every pace. */
+    expect(out.released[0].applied).toBe(1)
+    expect(out.released[0].timeline).toBe(faster)
+    expect(out.released).toHaveLength(1)
+    /* Unlike replay, it does not reset the status or the progress. */
+    expect(out.status).toBe('revealing')
+  })
+
+  it('retime on an empty session is a no-op rather than a crash', () => {
+    const empty = { status: 'loading' as const, released: [], pace: 'standard' as const }
+    expect(reducer(empty, { kind: 'retime', timeline: TL })).toBe(empty)
+  })
+
+  it('hydrate installs a resumed lesson at a checkpoint, not mid-reveal', () => {
+    const empty = { status: 'loading' as const, released: [], pace: 'standard' as const }
+    const restored = [
+      { step: STEP, timeline: TL, applied: TL.events.length },
+      { step: { ...STEP, id: 'step-2' }, timeline: TL, applied: TL.events.length },
+    ]
+
+    const out = reducer(empty, { kind: 'hydrate', released: restored, pace: 'calm' })
+
+    /* A returning learner finds where they were — and the next step still
+     * waits for them to ask for it. */
+    expect(out.status).toBe('checkpoint')
+    expect(out.released).toHaveLength(2)
+    expect(out.pace).toBe('calm')
+    expect(out.released.every((r) => r.applied === r.timeline.events.length)).toBe(true)
+  })
+
   it('CHECKPOINT BLOCKING: exhaustively, only release escapes to revealing', () => {
     const cp = at('checkpoint')
     const everyAction: SessionAction[] = [
@@ -80,6 +123,9 @@ describe('session reducer transitions', () => {
       { kind: 'pause' }, { kind: 'resume' },
       { kind: 'settled' }, { kind: 'checkpoint' },
       { kind: 'pace', pace: 'fast' },
+      /* Re-timing at a checkpoint changes a schedule nothing is playing. It
+       * must not become a way to start revealing again. */
+      { kind: 'retime', timeline: TL },
       /* replay is a learner-facing re-run of the CURRENT step — permitted. */
     ]
     for (const a of everyAction) {

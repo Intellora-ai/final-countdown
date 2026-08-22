@@ -955,8 +955,39 @@
   min-height: 44px;
 }
 
-[data-board='quiz-option']:hover:not(:disabled) { border-color: var(--board-accent); }
-[data-board='quiz-option']:disabled { cursor: default; }
+/* The lock moved from `disabled` to `aria-disabled` so an answered option
+   keeps its place in the tab order and the learner does not lose focus at the
+   moment they answer. These selectors follow it; a :disabled rule here would
+   now match nothing. */
+[data-board='quiz-option']:hover:not([aria-disabled]) { border-color: var(--board-accent); }
+[data-board='quiz-option'][aria-disabled] { cursor: default; }
+
+/* One tab stop, arrows within — so the focus ring must be unmistakable. */
+[data-board='quiz-option']:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+}
+
+[data-board='quiz-option'] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+[data-board='quiz-option-label'] { flex: 1; }
+
+/* State is never colour alone: this is the ✓ or ✕ a learner reads when the
+   border tints are indistinguishable to them. */
+[data-board='quiz-option-marker'] {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1;
+  flex: none;
+}
+[data-board='quiz-option-marker'][data-state='right'],
+[data-board='quiz-option-marker'][data-state='reveal'] { color: var(--board-accent); }
+[data-board='quiz-option-marker'][data-state='wrong'] { color: var(--agabi-amber-500); }
 [data-board='quiz-option'][data-state='right'] { border-color: var(--board-accent); background: rgba(56, 228, 215, 0.10); }
 [data-board='quiz-option'][data-state='wrong'] { border-color: var(--agabi-amber-500); opacity: 0.8; }
 [data-board='quiz-option'][data-state='reveal'] { border-color: rgba(56, 228, 215, 0.5); }

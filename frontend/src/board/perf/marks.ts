@@ -14,6 +14,10 @@ export type MarkName =
   | 'step-request-start' | 'first-reveal' | 'step-reveal-complete'
   | 'checkpoint-visible' | 'continue-click' | 'clarification-click'
   | 'next-step-visible' | 'camera-input' | 'camera-frame'
+  /* Phase 5 — learner progress and quiz interaction. */
+  | 'progress-save' | 'progress-restore'
+  | 'resume-start' | 'resume-complete'
+  | 'quiz-select' | 'quiz-feedback'
   /* Phase 7 — camera interaction and focus transitions. */
   | 'focus-transition' | 'select-input' | 'reset-input'
 

@@ -35,6 +35,10 @@ export interface CameraApi {
   /** Centre a world rect. respectManual: skip if the learner wandered. */
   focusRect: (rect: WorldRect, opts?: { respectManual?: boolean }) => void
   resetToFocus: () => void
+  /** Put the camera back where a resumed session left it. Marked as manual so
+   *  the first auto-focus does not immediately overrule the position the
+   *  learner chose before they closed the tab. */
+  restore: (camera: CanvasCamera) => void
 }
 
 export function useCamera(): CameraApi {
@@ -246,6 +250,17 @@ export function useCamera(): CameraApi {
     }
   }, [focusRect])
 
+  const restore = useCallback((next: CanvasCamera) => {
+    cam.current = { x: next.x, y: next.y, zoom: clampZoom(next.zoom) }
+    /* Treated as a manual position: the learner chose it, even if they chose
+     * it yesterday. Without this the session's first focusRect would move the
+     * camera the moment the restored step is placed, and the restore would be
+     * invisible. */
+    manualSince.current = true
+    schedule()
+    commit()
+  }, [schedule, commit])
+
   return useMemo(() => ({
     camera: committed,
     viewportRef,
@@ -255,7 +270,8 @@ export function useCamera(): CameraApi {
     wanderedAway: () => manualSince.current,
     focusRect,
     resetToFocus,
-  }), [committed, viewportRef, worldRef, zoomStep, focusRect, resetToFocus])
+    restore,
+  }), [committed, viewportRef, worldRef, zoomStep, focusRect, resetToFocus, restore])
 }
 
 function isEditable(t: EventTarget | null): boolean {

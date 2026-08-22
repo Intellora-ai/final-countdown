@@ -1,10 +1,14 @@
-import React, { Suspense, lazy, useMemo } from 'react'
+import React, { Suspense, lazy, useMemo, useRef, useState, useLayoutEffect } from 'react'
 import type { Lesson, LessonElement, RepresentationContext } from '../contract/types'
 import { select, contractFor } from '../contract/registry'
 import { loaderFor, isRendererKey, type PanelProps } from './renderers'
 import { color, type, space, radius, stroke, ink } from '../design/tokens'
 import { selectArchetype, compositionFor, GRID_COLUMNS } from '../layout/archetypes'
 import { contentMass, climbLadder } from '../layout/disclosure'
+import {
+  validateAndRepair, type LayoutFrame, type PlacedBlock, type ValidationOutcome,
+} from '../layout/validate'
+import { useElementSize, useBlockMeasurements, type BlockMeasurement } from './measure'
 
 /* THE MISSING LAYER — root cause A.
  *
@@ -132,18 +136,45 @@ function Unrenderable({ element, reason }: { element: LessonElement; reason: str
   )
 }
 
+/* THE FALLBACK VIEWPORT, and why it is small rather than comfortable.
+ *
+ * Before the first measurement lands there is genuinely no viewport to read.
+ * The old code guessed 1200x800 — a wide desktop — so every capacity decision
+ * on a phone was made for a screen four times its width, and the guess was
+ * never corrected because nothing measured afterwards. Guessing SMALL is the
+ * safe direction: a layout computed for 360px and then measured at 1440px
+ * discloses less than it could for one frame, which is recoverable. The
+ * reverse ships an overflowing frame. */
+const UNMEASURED_VIEWPORT = { width: 360, height: 640 } as const
+
+/* Measure -> validate -> repair -> re-measure can in principle oscillate if a
+ * repair changes the geometry that triggered it. Two applied repairs is enough
+ * for every fixture in the suite; beyond that the frame is held and reported
+ * rather than allowed to loop in front of a learner. */
+const MAX_REPAIR_ROUNDS = 2
+
 export function LessonRenderer({ lesson, viewport, explain = false }: LessonRendererProps) {
+  const rootRef = useRef<HTMLDivElement>(null)
+  const measuredSize = useElementSize(rootRef)
+  const { register, measureAll } = useBlockMeasurements()
+
+  /* Precedence: an explicit prop (a test, or an embedding that knows better),
+   * then the real measured container, then the small safe guess. */
+  const effectiveViewport = viewport ?? measuredSize ?? UNMEASURED_VIEWPORT
+  const measurementSource: 'prop' | 'measured' | 'unmeasured' =
+    viewport ? 'prop' : measuredSize ? 'measured' : 'unmeasured'
+
   const ctx: RepresentationContext = useMemo(() => ({
     element: lesson.elements[0],
     lessonPurpose: lesson.question,
     sourceDataProfile: {},
-    viewport: viewport ?? { width: 1200, height: 800 },
+    viewport: effectiveViewport,
     availableRenderers: [],
     existingRelationships: lesson.relationships ?? [],
     accessibilityRequirements: {
       contrastRatio: 4.5, minTapTarget: 40, textAlternativeRequired: true,
     },
-  }), [lesson, viewport])
+  }), [lesson, effectiveViewport])
 
   const resolved = useMemo(
     () => lesson.elements.map((e) => resolveElement(e, ctx)),
@@ -167,14 +198,100 @@ export function LessonRenderer({ lesson, viewport, explain = false }: LessonRend
       return { id: e.id, col: slot.col, span: slot.span, band }
     })
 
-    const bands = [...new Set(placements.map((p) => p.band))].sort((a, b) => a - b)
-    return { decision, ladder, composition, placements, bands }
+    return { decision, ladder, composition, placements, mass }
   }, [lesson])
+
+  /* ── the repair loop ──────────────────────────────────────────────────
+   *
+   * The proposed placement above is a PREDICTION. It becomes a frame only
+   * after the DOM has been measured and the validator has had a say.
+   *
+   * BE PRECISE ABOUT WHAT THIS GUARANTEES, because the phrase "never paints a
+   * failing frame" was previously in the codebase and was not true. A browser
+   * cannot measure a box it has not laid out. What happens here is:
+   * predict -> paint -> measure -> validate -> repair -> repaint. The repair
+   * runs in useLayoutEffect, which fires after layout but BEFORE the browser
+   * paints, so a repaired frame reaches the screen without the broken one
+   * being visible. That is a real guarantee, and it is narrower than the one
+   * the old comment claimed. */
+  const [outcome, setOutcome] = useState<ValidationOutcome | null>(null)
+  const rounds = useRef(0)
+
+  useLayoutEffect(() => {
+    rounds.current = 0
+    setOutcome(null)
+  }, [lesson, effectiveViewport.width, effectiveViewport.height])
+
+  useLayoutEffect(() => {
+    if (rounds.current >= MAX_REPAIR_ROUNDS) return
+
+    const measured = measureAll()
+    const active = outcome?.frame.blocks ?? plan.placements.map((p) => ({
+      ...p, rows: 1, overflows: false,
+    })) as PlacedBlock[]
+
+    const blocks: PlacedBlock[] = active.map((p) => {
+      const m: BlockMeasurement | undefined = measured[p.id]
+      return {
+        ...p,
+        /* Measured, not assumed. These two fields were the constants
+         * `rows: 3` and `overflows: false` that made the validator vacuous. */
+        rows: m?.rows ?? p.rows ?? 1,
+        overflows: m?.overflows ?? false,
+        ...(m?.tapTarget !== undefined ? { tapTarget: m.tapTarget } : {}),
+        ...(m?.truncatedLabel !== undefined
+          ? { truncatedLabel: m.truncatedLabel, hasTooltip: m.hasTooltip }
+          : {}),
+      }
+    })
+
+    const frame: LayoutFrame = {
+      archetype: outcome?.frame.archetype ?? plan.ladder.archetype,
+      blocks,
+      /* Relationships are the connectors the validator checks for orphans. */
+      edges: (lesson.relationships ?? []).map((r) => ({ from: r.from, to: r.to })),
+      mass: plan.mass,
+    }
+
+    const next = validateAndRepair(frame, lesson.elements.length)
+
+    /* Only re-render when the repair actually changed the geometry. Without
+     * this the measure -> setState -> measure cycle never settles. */
+    const changed = !outcome
+      || next.frame.archetype !== outcome.frame.archetype
+      || next.frame.blocks.some((b, i) => {
+        const prev = outcome.frame.blocks[i]
+        return !prev || prev.col !== b.col || prev.span !== b.span || prev.band !== b.band
+      })
+      || next.passed !== outcome.passed
+
+    if (changed) {
+      rounds.current += 1
+      setOutcome(next)
+    }
+  })
+
+  const placements = outcome?.frame.blocks ?? plan.placements
+  const archetype = outcome?.frame.archetype ?? plan.ladder.archetype
+  const bands = [...new Set(placements.map((p) => p.band))].sort((a, b) => a - b)
+
+  const failedChecks = (outcome?.checks ?? []).filter((c) => !c.holds)
 
   const byId = new Map(resolved.map((r) => [r.element.id, r]))
 
   return (
-    <div data-canvas="lesson" data-archetype={plan.ladder.archetype}
+    <div ref={rootRef}
+      data-canvas="lesson"
+      data-archetype={archetype}
+      /* The validator's verdict, on the element, so a browser test can assert
+       * that validation actually ran rather than trusting that it did. */
+      data-validated={outcome ? 'true' : 'pending'}
+      data-validation-passed={outcome ? String(outcome.passed) : undefined}
+      data-repairs={outcome ? String(outcome.repairs.length) : undefined}
+      data-used-fallback={outcome ? String(outcome.usedFallback) : undefined}
+      data-viewport-source={measurementSource}
+      data-viewport-width={String(Math.round(effectiveViewport.width))}
+      data-failed-checks={failedChecks.map((c) => c.name).join(',') || undefined}
       style={{ display: 'flex', flexDirection: 'column', gap: space.xl }}>
       <h2 style={{
         fontFamily: type.display.family, fontSize: type.display.size,
@@ -189,11 +306,17 @@ export function LessonRenderer({ lesson, viewport, explain = false }: LessonRend
           fontFamily: type.mono.family, fontSize: type.mono.size,
           color: color.accent, margin: 0,
         }}>
-          {plan.ladder.archetype} · {plan.decision.rule} · {plan.ladder.policy.density}
+          {archetype} · {plan.decision.rule} · {plan.ladder.policy.density}
+          {outcome && outcome.repairs.length > 0 && (
+            <> · repaired ×{outcome.repairs.length}: {outcome.repairs.map((x) => x.action).join(' ')}</>
+          )}
+          {failedChecks.length > 0 && (
+            <> · unresolved: {failedChecks.map((c) => c.name).join(', ')}</>
+          )}
         </p>
       )}
 
-      {plan.bands.map((band) => (
+      {bands.map((band) => (
         <div
           key={band}
           data-canvas="band"
@@ -204,7 +327,7 @@ export function LessonRenderer({ lesson, viewport, explain = false }: LessonRend
             alignItems: 'start',
           }}
         >
-      {plan.placements.filter((p) => p.band === band).map((p) => {
+      {placements.filter((p) => p.band === band).map((p) => {
         const r = byId.get(p.id)!
         const Component = r.rendererKey && isRendererKey(r.rendererKey)
           ? componentFor(r.rendererKey)
@@ -213,7 +336,9 @@ export function LessonRenderer({ lesson, viewport, explain = false }: LessonRend
         return (
           <section
             key={r.element.id}
+            ref={(el) => register(r.element.id, el)}
             data-canvas="block"
+            data-block-id={r.element.id}
             data-kind={r.kind ?? 'unknown'}
             style={{ gridColumn: `${p.col} / span ${p.span}`, minWidth: 0 }}
           >

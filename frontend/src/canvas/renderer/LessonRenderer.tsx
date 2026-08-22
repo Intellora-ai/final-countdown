@@ -8,7 +8,9 @@ import { contentMass, climbLadder } from '../layout/disclosure'
 import {
   validateAndRepair, type LayoutFrame, type PlacedBlock, type ValidationOutcome,
 } from '../layout/validate'
-import { useElementSize, useBlockMeasurements, type BlockMeasurement } from './measure'
+import {
+  useElementSize, useBlockMeasurements, usePrefersReducedMotion, type BlockMeasurement,
+} from './measure'
 
 /* THE MISSING LAYER — root cause A.
  *
@@ -364,13 +366,27 @@ function gutterFor(bandWidth: number): number {
 export function LessonRenderer({ lesson, viewport, explain = false }: LessonRendererProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const measuredSize = useElementSize(rootRef)
+  const reducedMotion = usePrefersReducedMotion()
   const { register, measureAll } = useBlockMeasurements()
 
   /* Precedence: an explicit prop (a test, or an embedding that knows better),
    * then the real measured container, then the small safe guess. */
-  const effectiveViewport = viewport ?? measuredSize ?? UNMEASURED_VIEWPORT
+  const baseViewport = viewport ?? measuredSize ?? UNMEASURED_VIEWPORT
   const measurementSource: 'prop' | 'measured' | 'unmeasured' =
     viewport ? 'prop' : measuredSize ? 'measured' : 'unmeasured'
+
+  /* The reader's motion preference is part of the viewport a contract decides
+   * from, so it is merged here rather than read inside a panel. An explicit
+   * `viewport` prop still wins -- a test that states reducedMotion means it,
+   * and must not have the host machine's setting override it.
+   *
+   * Memoised on the two primitives, not rebuilt inline: `ctx` below is keyed on
+   * this object's identity, and a fresh object every render would re-run
+   * selection, capacity and derive on every paint. */
+  const effectiveViewport = useMemo(
+    () => (viewport ? baseViewport : { ...baseViewport, reducedMotion }),
+    [viewport, baseViewport, reducedMotion],
+  )
 
   const ctx: RepresentationContext = useMemo(() => ({
     element: lesson.elements[0],

@@ -329,3 +329,53 @@ describe('the contract obeys the four laws', () => {
     for (const key of banned) expect(seen).not.toContain(`"${key}":`)
   })
 })
+
+/* THE ACCOMMODATION THAT WAS READ AND NEVER WRITTEN.
+ *
+ * `derive` has always branched on `ctx.viewport.reducedMotion`, and until
+ * Phase 5 nothing in production ever set it: a grep for `matchMedia` across
+ * src/canvas found the two reads in this contract and no writer at all. The
+ * flag looked covered because the fitness test above passes it by hand -- a
+ * branch proven correct in isolation while nothing in the running app could
+ * reach it.
+ *
+ * The five-project browser matrix is what exposed it, and only after the
+ * matrix itself was repaired: Playwright 1.62.1 does not apply a project's
+ * `use.reducedMotion` to the page fixture, so the reduced-motion project had
+ * been running as a second copy of desktop-1440.
+ *
+ * These assert what `derive` promises, so the promise cannot quietly change.
+ */
+describe('derive spends WebGL only where it is worth it', () => {
+  it('draws in 3D on a wide viewport with motion allowed', () => {
+    const d = simulationContract.derive(norm(gas()), ctx({ width: 1440 }))
+    expect(d.dimension).toBe('3D')
+    expect(d.animate).toBe(true)
+    expect(d.particles).toBeGreaterThan(0)
+  })
+
+  it('drops to 2D on a phone, where a 215 KB chunk is not worth it', () => {
+    const d = simulationContract.derive(norm(gas()), ctx({ width: 375 }))
+    expect(d.dimension).toBe('2D')
+  })
+
+  it('treats 900px as not wide — the boundary, not near it', () => {
+    expect(simulationContract.derive(norm(gas()), ctx({ width: 900 })).dimension).toBe('2D')
+    expect(simulationContract.derive(norm(gas()), ctx({ width: 901 })).dimension).toBe('3D')
+  })
+
+  it('honours reduced motion even on a wide screen, and stops animating', () => {
+    /* Width alone must not win. A reader who asked for less motion on a large
+     * display is the exact case a width-only rule gets wrong. */
+    const d = simulationContract.derive(norm(gas()), ctx({ width: 1440, reducedMotion: true }))
+    expect(d.dimension).toBe('2D')
+    expect(d.animate).toBe(false)
+    expect(d.particles).toBe(0)
+  })
+
+  it('still names a driver variable and keeps the controls', () => {
+    const d = simulationContract.derive(norm(gas()), ctx({ width: 1440, reducedMotion: true }))
+    expect(d.driverVar).toBe('T')
+    expect(d.controlVars).toEqual(['T'])
+  })
+})

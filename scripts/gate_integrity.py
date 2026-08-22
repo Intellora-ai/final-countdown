@@ -419,7 +419,7 @@ PLAYWRIGHT_EXEMPT: dict[str, str] = {}
 # the commit that introduced this check; a change that lowers either one is
 # removing a defect the suite can currently see, which needs to be a deliberate
 # and visible act rather than a deletion nobody reviewed.
-MUTATION_COUNT_FLOOR = 26
+MUTATION_COUNT_FLOOR = 27
 MUTATION_FILE_FLOOR = 9
 
 QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")

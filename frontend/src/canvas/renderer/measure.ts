@@ -181,3 +181,40 @@ function sameMeasurements(
       && x.hasTooltip === y.hasTooltip
   })
 }
+
+/* THE ACCOMMODATION THAT WAS DECLARED AND NEVER CONNECTED.
+ *
+ * `RepresentationContext.viewport.reducedMotion` has existed since the contract
+ * was written, and simulation.ts reads it twice: `fitness` drops to 0.4 under
+ * it, and `derive` uses it to choose a 2D stage, stop animating and set the
+ * particle count to zero. A grep for `matchMedia` or `prefers-reduced-motion`
+ * across src/canvas returned those two reads and NOTHING that writes. The flag
+ * was never set by anything in production, so all four behaviours were dead.
+ *
+ * It looked covered because the unit tests pass the flag by hand -- a branch
+ * proven correct in isolation while nothing in the running app can reach it.
+ * The five-project browser matrix is what exposed it: the reduced-motion
+ * project rendered an animated 3D WebGL box, exactly as the desktop project
+ * did, because the preference never arrived.
+ *
+ * Subscribed rather than read once. A reader can turn the preference on while
+ * the page is open, and an accommodation that needs a reload to take effect is
+ * one the person who needs it will not get.
+ */
+export function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return false
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  })
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const onChange = () => setReduced(mq.matches)
+    onChange()
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
+  return reduced
+}

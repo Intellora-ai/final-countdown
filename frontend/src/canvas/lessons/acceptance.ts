@@ -192,6 +192,42 @@ export const quadraticFormula: Lesson = {
 }
 
 /* 6 — simulation-dominant: the reference scene, as a lesson */
+/* THE GAS LESSON'S PHYSICS, STATED ONCE.
+ *
+ * The chart used to carry `data: []`. A browser probe of the composed renderer
+ * showed the consequence exactly: box, chain and law rendered, and the graph
+ * block came back `refusal: true` -- the chart contract correctly refusing to
+ * draw a relationship it has no points for. The legacy scene drew a real P-T
+ * curve there, so pointing /canvas/gas at the composed renderer without this
+ * fix would have traded a working graph for a refusal box.
+ *
+ * The points are DERIVED here rather than typed as a literal table. Typing
+ * them would give the chart and the simulation each their own copy of the same
+ * physics, and the first edit to V or n would silently make the graph disagree
+ * with the gauge beside it while both still looked fine. One source, two
+ * consumers, no drift.
+ *
+ * No schema field and no appearance is added. Sample points of a relationship
+ * are exactly the semantic content a chart payload carries. Deriving the curve
+ * at render time from another block's model would be a cross-block
+ * relationship -- a later phase and a different mechanism.
+ */
+const GAS_R = 8.314   // J/(mol K)
+const GAS_V = 24      // L, held: the lesson asks what T alone does
+const GAS_N = 1       // mol, held
+const GAS_T_MIN = 100
+const GAS_T_MAX = 600
+const GAS_T_START = 450
+
+/** P = nRT/V. kPa exactly, because kPa*L = J. */
+const gasPressureAt = (t: number): number =>
+  Math.round((GAS_N * GAS_R * t / GAS_V) * 10) / 10
+
+const GAS_PT_CURVE = Array.from({ length: 11 }, (_, i) => {
+  const T = GAS_T_MIN + (i * (GAS_T_MAX - GAS_T_MIN)) / 10
+  return { T, P: gasPressureAt(T) }
+})
+
 export const gasPressure: Lesson = {
   id: 'gas-pressure',
   question: 'Why does increasing temperature increase pressure in a gas?',
@@ -218,13 +254,13 @@ export const gasPressure: Lesson = {
         simulation: 'particle-box',
         model: {
           vars: [
-            { id: 'T', label: 'Temperature', value: 450, min: 100, max: 600, unit: 'K' },
-            { id: 'V', label: 'Volume', value: 24, min: 10, max: 50, unit: 'L' },
-            { id: 'n', label: 'Amount of gas', value: 1, min: 0.5, max: 2, unit: 'mol' },
+            { id: 'T', label: 'Temperature', value: GAS_T_START, min: GAS_T_MIN, max: GAS_T_MAX, unit: 'K' },
+            { id: 'V', label: 'Volume', value: GAS_V, min: 10, max: 50, unit: 'L' },
+            { id: 'n', label: 'Amount of gas', value: GAS_N, min: 0.5, max: 2, unit: 'mol' },
           ],
           derived: [
-            { id: 'P', label: 'Pressure', expr: 'n * 8.314 * T / V', unit: 'kPa', precision: 0 },
-            { id: 'KE', label: 'Mean kinetic energy', expr: '1.5 * 8.314 * T', unit: 'J/mol', precision: 0 },
+            { id: 'P', label: 'Pressure', expr: `n * ${GAS_R} * T / V`, unit: 'kPa', precision: 0 },
+            { id: 'KE', label: 'Mean kinetic energy', expr: `1.5 * ${GAS_R} * T`, unit: 'J/mol', precision: 0 },
           ],
         },
         /* Only temperature moves. The lesson asks what raising T does at
@@ -262,7 +298,7 @@ export const gasPressure: Lesson = {
       payload: {
         intent: 'relationship',
         fields: [{ name: 'T', role: 'x', type: 'quantitative', unit: 'K' }, { name: 'P', role: 'y', type: 'quantitative', unit: 'kPa' }],
-        data: [],
+        data: GAS_PT_CURVE,
       },
     },
   ],

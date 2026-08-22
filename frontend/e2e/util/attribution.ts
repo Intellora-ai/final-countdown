@@ -52,3 +52,23 @@ export function attribute(testInfo: TestInfo, rendererKeys: Iterable<string | nu
     testInfo.annotations.push({ type: SOURCE_ANNOTATION, description: file })
   }
 }
+
+/**
+ * Name source files directly, for a failure no renderer key can locate.
+ *
+ * `attribute()` resolves the panel that drew the pixels, which is the right
+ * answer when the drawing is wrong. It is the wrong answer when the DATA is
+ * wrong: the gas lesson's chart carried `data: []`, and the block that
+ * "failed" was ChartPanel correctly refusing to plot nothing. Annotating
+ * ChartPanel would have sent a reader to a file with no bug in it.
+ *
+ * Deliberately not merged into `attribute()`. That function's contract is
+ * "renderer key in, panel file out", and `renderers.parity.spec` holds its map
+ * exactly equal to the registry's keys. Accepting free-form paths there would
+ * make the map's completeness unprovable.
+ */
+export function attributeFiles(testInfo: TestInfo, files: readonly string[]): void {
+  for (const file of [...new Set(files)].sort()) {
+    testInfo.annotations.push({ type: SOURCE_ANNOTATION, description: file })
+  }
+}

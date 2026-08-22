@@ -1,5 +1,6 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Page, type TestInfo } from '@playwright/test'
 import { attribute } from './util/attribution'
+import { applyProjectMedia } from './util/media'
 import { type as typeTokens } from '../src/canvas/design/tokens'
 
 /* THE CHECK THAT DID NOT EXIST, AND WHY THAT MATTERED.
@@ -89,7 +90,11 @@ function collect(page: Page): Collected {
  *
  * So this now waits for CONTENT, not for scaffolding, and every wait is a
  * lower bound that a blank page cannot satisfy. */
-async function open(page: Page) {
+async function open(page: Page, testInfo: TestInfo) {
+  /* The reduced-motion project declares the preference but Playwright 1.62.1
+   * does not apply project `use.reducedMotion` to the page fixture, so the
+   * project silently ran as a second desktop-1440. See e2e/util/media.ts. */
+  await applyProjectMedia(page, testInfo)
   await page.goto(ROUTE)
   await page.waitForSelector('[data-canvas="lesson"]')
 
@@ -134,10 +139,10 @@ async function open(page: Page) {
 
 test.describe('the composed renderer runs clean', () => {
   for (const vp of VIEWPORTS) {
-    test(`no runtime errors at ${vp.name}px`, async ({ page }) => {
+    test(`no runtime errors at ${vp.name}px`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width: vp.width, height: vp.height })
       const c = collect(page)
-      await open(page)
+      await open(page, testInfo)
       expect(c.pageErrors, 'uncaught exceptions').toEqual([])
       expect(c.consoleErrors, 'console errors').toEqual([])
       expect(c.failedRequests, 'failed network requests').toEqual([])
@@ -149,7 +154,7 @@ test.describe('no content is clipped where a learner cannot reach it', () => {
   for (const vp of VIEWPORTS) {
     test(`content stays reachable at ${vp.name}px`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width: vp.width, height: vp.height })
-      await open(page)
+      await open(page, testInfo)
 
       const lost = await page.evaluate(() => {
         /* An element is LOST when it extends past the right edge of an
@@ -213,7 +218,7 @@ test.describe('text stays readable', () => {
   for (const vp of VIEWPORTS) {
     test(`no text below ${MIN_READABLE_PX}px at ${vp.name}px`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width: vp.width, height: vp.height })
-      await open(page)
+      await open(page, testInfo)
 
       const tiny = await page.evaluate((floor) => {
         const out: Array<{ text: string; px: number; renderer: string | null }> = []
@@ -256,9 +261,9 @@ test.describe('text stays readable', () => {
 })
 
 test.describe('the document is well formed', () => {
-  test('no duplicate element ids', async ({ page }) => {
+  test('no duplicate element ids', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1280, height: 800 })
-    await open(page)
+    await open(page, testInfo)
     const dupes = await page.evaluate(() => {
       const seen = new Map<string, number>()
       for (const el of Array.from(document.querySelectorAll('[id]'))) {
@@ -269,9 +274,9 @@ test.describe('the document is well formed', () => {
     expect(dupes, 'duplicate ids break every aria and url(#) reference').toEqual([])
   })
 
-  test('every control has a distinguishable accessible name', async ({ page }) => {
+  test('every control has a distinguishable accessible name', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1280, height: 800 })
-    await open(page)
+    await open(page, testInfo)
     const names = await page.evaluate(() =>
       Array.from(document.querySelectorAll('button, a[href]')).map(
         (el) => (el.getAttribute('aria-label') ?? el.textContent ?? '').trim(),
@@ -284,9 +289,9 @@ test.describe('the document is well formed', () => {
     ).toEqual([])
   })
 
-  test('a horizontally scrollable region is reachable by keyboard', async ({ page }) => {
+  test('a horizontally scrollable region is reachable by keyboard', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 375, height: 812 })
-    await open(page)
+    await open(page, testInfo)
     const unreachable = await page.evaluate(() =>
       Array.from(document.querySelectorAll('[data-canvas="block"] *'))
         .filter((el) => {

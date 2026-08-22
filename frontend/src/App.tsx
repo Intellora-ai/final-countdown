@@ -20,8 +20,12 @@ const LessonGallery = React.lazy(() =>
   import('./canvas/LessonGallery').then((m) => ({ default: m.LessonGallery })),
 )
 
-const GasPressureScene = React.lazy(() =>
-  import('./canvas/GasPressureScene').then((m) => ({ default: m.GasPressureScene })),
+/* /canvas/gas now renders the gas lesson through the composed renderer. The
+ * hand-placed GasPressureScene it replaced stated every panel position in a
+ * 1408x768 coordinate table, which is the one thing the layout grammar exists
+ * to make unnecessary. */
+const GasLesson = React.lazy(() =>
+  import('./canvas/GasLesson').then((m) => ({ default: m.GasLesson })),
 )
 
 function SceneFallback() {
@@ -83,7 +87,7 @@ export default function App() {
   if (loc.pathname === '/canvas/gas') {
     return (
       <React.Suspense fallback={<SceneFallback />}>
-        <GasPressureScene />
+        <GasLesson />
       </React.Suspense>
     )
   }

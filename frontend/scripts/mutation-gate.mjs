@@ -274,6 +274,13 @@ const MUTANTS = [
     breaks: 'compact density discloses as much as relaxed; the ladder does nothing',
   },
   {
+    id: 'simulation-reduced-motion',
+    file: 'src/canvas/contract/representations/simulation.ts',
+    from: "      dimension: wide && !reduced ? '3D' : '2D',",
+    to: "      dimension: wide ? '3D' : '2D',",
+    breaks: 'a reader who asked for less motion gets the animated WebGL box anyway',
+  },
+  {
     id: 'disclosure-compact-strategies',
     file: 'src/canvas/layout/disclosure.ts',
     from: '    collapseAsides: true, allowPagination: true,',

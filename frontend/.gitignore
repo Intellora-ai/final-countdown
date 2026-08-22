@@ -1,0 +1,8 @@
+
+# Written by e2e/reporters/canvas-reporter.ts on every Playwright run and
+# uploaded as a CI artifact. A run product, never source.
+ci-findings.json
+
+# Breadcrumb written by scripts/mutation-gate.mjs while a source file holds
+# mutated bytes. Present only during a run, or after one was SIGKILLed.
+scripts/.mutation-gate.lock

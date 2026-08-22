@@ -35,12 +35,19 @@ export default defineConfig({
    * census of 8,236 log lines across 19 jobs returned zero `##[error]` entries
    * even though the gate is capable of failing.
    *
-   * Playwright's `github` reporter emits `::error file=...,line=...,col=...`
-   * workflow commands. GitHub turns each into a run annotation and an
-   * `##[error]` line in the raw log, so a failure names its own source
-   * location instead of hiding in scrollback. Kept alongside `list` so a local
-   * run still reads normally. */
-  reporter: process.env.CI ? [['github'], ['list']] : [['list']],
+   * THE STOCK `github` REPORTER WAS REPLACED, and the reason is measured. It
+   * emitted `::error file=...` naming the SPEC: all 49 annotations this branch
+   * ever produced pointed at composed-renderer.spec.ts, which is where the
+   * assertion lives and never where the defect lives. It also annotated every
+   * retry attempt, so run 32589708228 showed 13 annotations for 5 real
+   * failures, and it left nothing machine-readable behind.
+   *
+   * canvas-reporter emits one annotation per test, on the panel source the
+   * test attributed via `attribute()`, and writes ci-findings.json for the
+   * workflow to upload. `list` stays so a local run still reads normally. */
+  reporter: process.env.CI
+    ? [['./e2e/reporters/canvas-reporter.ts'], ['list']]
+    : [['list']],
   globalTeardown: './e2e/util/teardown.ts',
 
   use: {

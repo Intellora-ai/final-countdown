@@ -569,6 +569,20 @@ export function LessonRenderer({ lesson, viewport, explain = false }: LessonRend
             data-canvas="block"
             data-block-id={r.element.id}
             data-kind={r.kind ?? 'unknown'}
+            /* WHICH COMPONENT DREW THIS, stated in the DOM.
+             *
+             * A browser test that finds clipped content knows the block id and
+             * the representation kind, and neither of those is a file. So every
+             * Playwright annotation pointed at the SPEC LINE that noticed the
+             * problem rather than the source that caused it: 49 annotations on
+             * this branch, every one of them naming composed-renderer.spec.ts.
+             * Finding the actual file meant reading the contract registry by
+             * hand, every time.
+             *
+             * `rendererKey` is already resolved here and maps 1:1 to a file in
+             * renderers.ts. Emitting it costs one attribute and lets the
+             * reporter say ChartPanel.tsx instead of spec.ts:134. */
+            data-renderer={r.rendererKey ?? 'none'}
             style={{ gridColumn: `${p.col} / span ${p.span}`, minWidth: 0 }}
           >
             {r.violated && r.violated.length > 0 ? (

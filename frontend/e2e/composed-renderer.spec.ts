@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
+import { attribute } from './util/attribution'
 import { type as typeTokens } from '../src/canvas/design/tokens'
 
 /* THE CHECK THAT DID NOT EXIST, AND WHY THAT MATTERED.
@@ -146,7 +147,7 @@ test.describe('the composed renderer runs clean', () => {
 
 test.describe('no content is clipped where a learner cannot reach it', () => {
   for (const vp of VIEWPORTS) {
-    test(`content stays reachable at ${vp.name}px`, async ({ page }) => {
+    test(`content stays reachable at ${vp.name}px`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width: vp.width, height: vp.height })
       await open(page)
 
@@ -155,7 +156,7 @@ test.describe('no content is clipped where a learner cannot reach it', () => {
          * ancestor that clips without scrolling. Content inside an
          * `overflow-x: auto` box is reachable and is not a fault -- that is
          * the table contract's disclosure plan working. */
-        const out: Array<{ text: string; clippedBy: number; block: string }> = []
+        const out: Array<{ text: string; clippedBy: number; block: string; renderer: string | null }> = []
         for (const el of Array.from(document.querySelectorAll('[data-canvas="block"] *'))) {
           const r = el.getBoundingClientRect()
           if (r.width === 0 || r.height === 0) continue
@@ -181,6 +182,9 @@ test.describe('no content is clipped where a learner cannot reach it', () => {
                 text: own.slice(0, 40),
                 clippedBy: Math.round(r.right - box.right),
                 block: block?.getAttribute('data-kind') ?? '?',
+                /* The panel that drew it. This is what turns the annotation
+                 * from "the spec noticed something" into "ChartPanel.tsx". */
+                renderer: block?.getAttribute('data-renderer') ?? null,
               })
               break
             }
@@ -189,6 +193,11 @@ test.describe('no content is clipped where a learner cannot reach it', () => {
         }
         return out
       })
+
+      /* BEFORE the assertion, never after: a failed expect throws, and an
+       * attribution added below it would never run. Attributing on a passing
+       * test costs nothing -- the reporter only reads it from failures. */
+      attribute(testInfo, lost.map((l) => l.renderer))
 
       const worst = lost.sort((a, b) => b.clippedBy - a.clippedBy).slice(0, 5)
       expect(
@@ -202,12 +211,12 @@ test.describe('no content is clipped where a learner cannot reach it', () => {
 
 test.describe('text stays readable', () => {
   for (const vp of VIEWPORTS) {
-    test(`no text below ${MIN_READABLE_PX}px at ${vp.name}px`, async ({ page }) => {
+    test(`no text below ${MIN_READABLE_PX}px at ${vp.name}px`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width: vp.width, height: vp.height })
       await open(page)
 
       const tiny = await page.evaluate((floor) => {
-        const out: Array<{ text: string; px: number }> = []
+        const out: Array<{ text: string; px: number; renderer: string | null }> = []
         for (const el of Array.from(document.querySelectorAll('[data-canvas="block"] text, [data-canvas="block"] p, [data-canvas="block"] span, [data-canvas="block"] td, [data-canvas="block"] th, [data-canvas="block"] h3'))) {
           /* Strip zero-width characters: KaTeX struts are not readable text
            * and would otherwise dominate this census as false positives. */
@@ -222,10 +231,19 @@ test.describe('text stays readable', () => {
             const vb = svg.viewBox.baseVal
             if (vb && vb.width) px *= svg.getBoundingClientRect().width / vb.width
           }
-          if (px > 0 && px < floor) out.push({ text: t.slice(0, 30), px: Math.round(px * 100) / 100 })
+          if (px > 0 && px < floor) {
+            const block = el.closest('[data-canvas="block"]')
+            out.push({
+              text: t.slice(0, 30),
+              px: Math.round(px * 100) / 100,
+              renderer: block?.getAttribute('data-renderer') ?? null,
+            })
+          }
         }
         return out
       }, MIN_READABLE_PX)
+
+      attribute(testInfo, tiny.map((t) => t.renderer))
 
       const worst = tiny.sort((a, b) => a.px - b.px).slice(0, 5)
       expect(

@@ -408,6 +408,7 @@ FRONTEND_JOB = "frontend"
 FRONTEND_GATE_STEP = "Verification gate"
 PLAYWRIGHT_CONFIG = Path("frontend/playwright.config.ts")
 MUTATION_CATALOGUE = Path("frontend/scripts/mutation-gate.mjs")
+ATTRIBUTION_MAP = Path("frontend/e2e/util/attribution.ts")
 
 # A Playwright project declared but never run is a verification dimension that
 # exists on paper only. Exempting one is allowed; doing it silently is not, so
@@ -660,6 +661,228 @@ def check_frontend(g: Gate) -> bool:
                 fix=f"Add `env:\\n  STEP_OUTCOME: ${{{{ steps.<id>.outcome }}}}` "
                 f"to '{name}'.",
             )
+
+    # (i) THE REPORTER THAT NAMES THE DEFECT MUST STAY WIRED.
+    #
+    # Playwright's stock `github` reporter annotates the SPEC line -- all 49
+    # annotations this branch ever produced named composed-renderer.spec.ts,
+    # never the panel that drew the pixels -- and it annotates every retry, so
+    # `retries: 1` doubled the list. canvas-reporter fixes both. Reverting the
+    # config line silently restores the old behaviour, and the run stays green
+    # while doing it, so nothing but this check would notice.
+    if PLAYWRIGHT_CONFIG.is_file():
+        cfg = PLAYWRIGHT_CONFIG.read_text(encoding="utf-8")
+        reporter_block = cfg.partition("reporter:")[2].partition("\n  globalTeardown")[0]
+        if "canvas-reporter" not in reporter_block:
+            ok = False
+            g.check("playwright uses canvas-reporter", False, "not in reporter config")
+            g.fail(
+                what="the source-attributing Playwright reporter is not wired in",
+                where=f"{PLAYWRIGHT_CONFIG} -> reporter",
+                why="without it every browser failure annotates the spec line "
+                "that noticed the problem instead of the panel that caused it, "
+                "and every retry is annotated separately",
+                requirement="The CI reporter list includes canvas-reporter.",
+                fix="Restore './e2e/reporters/canvas-reporter.ts' in the CI "
+                "branch of `reporter:`.",
+            )
+        if "'github'" in reporter_block or '"github"' in reporter_block:
+            ok = False
+            g.check("stock github reporter is not used", False, "it is")
+            g.fail(
+                what="the stock github reporter is back",
+                where=f"{PLAYWRIGHT_CONFIG} -> reporter",
+                why="it annotates the spec line rather than the source, and "
+                "once per retry rather than once per test -- 13 annotations "
+                "for 5 real failures, measured on run 32589708228",
+                requirement="canvas-reporter replaces it, not sits beside it.",
+                fix="Remove ['github'] from the reporter list.",
+            )
+
+    # (j) THE FINDINGS ARTIFACT MUST BE UPLOADED.
+    #
+    # canvas-reporter writes ci-findings.json so the whole failure set is one
+    # download instead of a log crawl. A reporter writing a file nobody
+    # retrieves is the same as not writing it.
+    def uploads_findings(step: dict[str, Any]) -> bool:
+        if "upload-artifact" not in str(step.get("uses", "")):
+            return False
+        with_block = cast("dict[str, Any]", step.get("with") or {})
+        return "ci-findings.json" in str(with_block.get("path", ""))
+
+    uploads = [s for s in steps if uploads_findings(s)]
+    if not uploads:
+        ok = False
+        g.check("findings artifact uploaded", False, "no upload step")
+        g.fail(
+            what="ci-findings.json is written and never uploaded",
+            where=f"{FRONTEND_WF} -> {FRONTEND_JOB}",
+            why="the reporter's machine-readable output cannot leave the "
+            "runner, so reading a failed run goes back to grepping logs",
+            requirement="An upload-artifact step publishes frontend/ci-findings.json.",
+            fix="Restore the 'Upload failure findings' step.",
+        )
+    else:
+        for s in uploads:
+            if str(s.get("if", "")).strip() != "always()":
+                ok = False
+                g.check("findings artifact uploads unconditionally", False,
+                        f"if: {s.get('if')!r}")
+                g.fail(
+                    what="the findings artifact is not uploaded on failure",
+                    where=f"{FRONTEND_WF} -> {s.get('name')}",
+                    why="a findings file that only survives a green run is "
+                    "useless: the run it is needed for is the red one",
+                    requirement="The findings upload runs with `if: always()`.",
+                    fix="Set `if: always()` on the findings upload step.",
+                )
+
+    # (k) NO ANNOTATION WITHOUT A LOCATION.
+    #
+    # `::error title=...` with no `file=` does not go nowhere. GitHub pins it to
+    # the workflow YAML at the emitting step's line, so run 32589708228 carried
+    # `.github:6` and `.github:7` in the same annotation list as the real
+    # findings -- three of thirteen annotations pointing at a line that had
+    # nothing to do with any failure.
+    #
+    # The annotation list is an index of LOCATIONS. Anything that is not a
+    # location belongs in $GITHUB_STEP_SUMMARY, which renders at the top of the
+    # run and costs the index nothing.
+    for step in steps:
+        run = str(step.get("run", ""))
+        for match in re.finditer(r"::(error|warning)([^:\n]*)::", run):
+            if "file=" in match.group(2):
+                continue
+            ok = False
+            name = str(step.get("name", "<unnamed>"))
+            g.check(f"'{name}' annotation has a location", False, match.group(0))
+            g.fail(
+                what=f"step '{name}' emits an annotation with no file",
+                where=f"{FRONTEND_WF} -> {name}",
+                why="GitHub pins a fileless annotation to this YAML file, so it "
+                "lands in the annotation list pointing at a workflow line that "
+                "explains nothing, next to the findings that do",
+                requirement="Every ::error or ::warning in a run body carries "
+                "file=. Summaries go to $GITHUB_STEP_SUMMARY instead.",
+                fix=f"Add `file=` to {match.group(0)}, or move the text to "
+                "$GITHUB_STEP_SUMMARY.",
+            )
+
+    # (l) EVERY ATTRIBUTED SOURCE PATH MUST EXIST.
+    #
+    # e2e/util/attribution.ts maps a renderer key to the file canvas-reporter
+    # puts in `::error file=`. A stale path is worse than no path: it sends
+    # whoever clicks the annotation to a file that had nothing to do with the
+    # failure, which is a slower way to be wrong than the spec-line annotations
+    # this replaced.
+    #
+    # The companion assertion -- that the map's KEYS equal the registry's --
+    # lives in src/canvas/renderer/attribution.parity.test.ts. It is pure data
+    # and belongs in vitest. This half touches the filesystem, and a test under
+    # src/ cannot: node:fs and __dirname typecheck in vitest and fail `tsc -b`,
+    # because the src tsconfig carries no node types.
+    if ATTRIBUTION_MAP.is_file():
+        text = ATTRIBUTION_MAP.read_text(encoding="utf-8")
+
+        # PARSED AS KEY -> VALUE, not harvested as "strings that look like
+        # paths". Harvesting was the first cut and it had a hole a probe found
+        # immediately: replacing a value with 'x' simply stopped matching, the
+        # remaining entries still looked fine, and the check stayed green while
+        # one renderer silently lost its source. Reading the entries means a
+        # malformed value is a value, and gets judged.
+        block = text.partition("RENDERER_SOURCE")[2].partition("}")[0]
+        entries = dict(re.findall(r"(\w+):\s*'([^']*)'", block))
+        fallback = re.search(r"RENDERER_FALLBACK\s*=\s*'([^']*)'", text)
+        if fallback:
+            entries["<fallback>"] = fallback.group(1)
+
+        bad_shape = {
+            k: v for k, v in entries.items()
+            if not (v.startswith("frontend/src/canvas/") and v.endswith((".ts", ".tsx")))
+        }
+        for key, value in sorted(bad_shape.items()):
+            ok = False
+            g.check(f"attribution value is a canvas path: {key}", False, repr(value))
+            g.fail(
+                what=f"'{key}' maps to something that is not a canvas source path",
+                where=f"{ATTRIBUTION_MAP} -> {key}: '{value}'",
+                why="canvas-reporter puts this straight into `::error file=`, "
+                "so a value GitHub cannot resolve produces an annotation that "
+                "points nowhere and silently loses the finding's location",
+                requirement="Every value is a frontend/src/canvas/… .ts or "
+                ".tsx path.",
+                fix=f"Point '{key}' at the panel that renders it.",
+            )
+
+        paths = {v for v in entries.values() if v not in bad_shape.values()}
+        g.set_scope(attributed_sources=len(entries))
+        if not entries:
+            ok = False
+            g.check("attribution map has entries", False, "none matched")
+            g.fail(
+                what="the renderer-to-source map is empty or unparseable",
+                where=str(ATTRIBUTION_MAP),
+                why="with no entries every browser failure falls back to one "
+                "file, so the annotation stops naming the panel that broke",
+                requirement="The map lists a frontend/src/canvas path per renderer.",
+                fix=f"Restore the RENDERER_SOURCE entries in {ATTRIBUTION_MAP}.",
+            )
+        for rel in sorted(paths):
+            if not Path(rel).is_file():
+                ok = False
+                g.check(f"attributed source exists: {rel}", False, "missing")
+                g.fail(
+                    what="an annotation would point at a file that does not exist",
+                    where=f"{ATTRIBUTION_MAP} -> '{rel}'",
+                    why="a renamed or moved panel leaves the map pointing at "
+                    "nothing, and the reader is sent somewhere irrelevant",
+                    requirement="Every path in RENDERER_SOURCE resolves.",
+                    fix=f"Update '{rel}' in {ATTRIBUTION_MAP} to the panel's "
+                    "current path.",
+                )
+    else:
+        ok = False
+        g.check("attribution map exists", False, str(ATTRIBUTION_MAP))
+        g.fail(
+            what="the renderer-to-source map is gone",
+            where=str(ATTRIBUTION_MAP),
+            why="canvas-reporter cannot name a source without it",
+            requirement="The map exists.",
+            fix=f"Restore {ATTRIBUTION_MAP}.",
+        )
+
+    # (m) THE MUTATION GATE MUST CLEAN UP AFTER ITSELF.
+    #
+    # It edits real source files in the working tree. Between writing the
+    # mutated bytes and writing the originals back, the repository holds
+    # deliberately broken code, and the first version of the script had no
+    # try/finally and no signal handlers -- a Ctrl-C or a CI timeout in that
+    # window left the corruption in place, with a plausible-looking diff that a
+    # hurried `git commit -a` would capture. Earlier on this branch a mutation
+    # run and a `git checkout --` overlapped and destroyed uncommitted work.
+    #
+    # Checking for the three layers rather than for one, because each covers a
+    # death the others cannot: finally for a throw, handlers for SIGINT/SIGTERM,
+    # a lock file for SIGKILL, which no handler can catch.
+    if MUTATION_CATALOGUE.is_file():
+        guard = MUTATION_CATALOGUE.read_text(encoding="utf-8")
+        for token, why in (
+            ("} finally {", "a thrown exception would leave the source mutated"),
+            ("process.on(signal", "Ctrl-C would leave the source mutated"),
+            ("uncaughtException", "a crash would leave the source mutated"),
+            (".mutation-gate.lock", "a SIGKILL would leave no trace of which file was corrupted"),
+        ):
+            if token not in guard:
+                ok = False
+                g.check(f"mutation gate restores on failure: {token}", False, "absent")
+                g.fail(
+                    what="the mutation gate can leave corrupted source behind",
+                    where=f"{MUTATION_CATALOGUE} (missing {token!r})",
+                    why=f"this tool rewrites files under src/, and without it {why}",
+                    requirement="Mutation is wrapped in finally, guarded by "
+                    "signal and crash handlers, and breadcrumbed by a lock file.",
+                    fix=f"Restore the {token!r} safety layer in {MUTATION_CATALOGUE}.",
+                )
 
     # (g) THE RATCHET. The catalogue is a list; lists shrink quietly.
     if MUTATION_CATALOGUE.is_file():

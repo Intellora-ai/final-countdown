@@ -311,14 +311,68 @@ jobs:
           steps.build.outcome == 'failure' ||
           steps.budget.outcome == 'failure' ||
           steps.playwright.outcome == 'failure'
+        # THE FILELESS ::error WAS DELETED, and it is not an oversight.
+        #
+        # `::error title=...` with no `file=` does not vanish: GitHub attaches
+        # it to the workflow file at whatever line the step sits on. On run
+        # 32589708228 that produced `.github:6` and `.github:7` -- two
+        # annotations pointing at a YAML line that has nothing to do with any
+        # failure, sitting in the same list as the real ones. Three of that
+        # run's thirteen annotations were this noise.
+        #
+        # The annotation list is for LOCATIONS. A summary of which steps failed
+        # is not a location, so it belongs in the step summary, which renders
+        # as a table at the top of the run and costs the annotation list
+        # nothing.
+        shell: bash
         run: |
-          echo "::error title=frontend verification::One or more checks failed. Every failing step ran, so the annotations on this run list all of them, not just the first."
+          set -o pipefail
+          {
+            echo "### Frontend verification failed"
+            echo
+            echo "Every step ran, so this is the complete list, not the first failure."
+            echo
+            echo "| step | outcome |"
+            echo "| --- | --- |"
+            echo "| typecheck | ${{ steps.typecheck.outcome }} |"
+            echo "| lint | ${{ steps.lint.outcome }} |"
+            echo "| unit | ${{ steps.unit.outcome }} |"
+            echo "| mutation | ${{ steps.mutation.outcome }} |"
+            echo "| build | ${{ steps.build.outcome }} |"
+            echo "| budget | ${{ steps.budget.outcome }} |"
+            echo "| playwright | ${{ steps.playwright.outcome }} |"
+            echo
+            echo "Browser failures are annotated on the panel source that drew them."
+            echo "Download the \`learning-canvas-frontend-findings\` artifact for the"
+            echo "machine-readable set: every failure with its source file, spec"
+            echo "location, attempt count and message, in one file."
+          } >> "$GITHUB_STEP_SUMMARY"
           exit 1
 
       # `if: always()` so a failed build still uploads whatever it produced -- the partial output
       # is often what identifies the failure. `if-no-files-found: ignore` because a failure before
       # the build step legitimately leaves no dist/ at all, and a missing artifact is not itself
       # a second failure to report.
+      # ONE DOWNLOAD INSTEAD OF A LOG CRAWL.
+      #
+      # Reconstructing what a run found used to take several round trips: `gh
+      # run view --log | grep`, then the annotations API per job, then reading
+      # the spec to work out what an assertion meant. canvas-reporter already
+      # knows all of it, so it writes ci-findings.json and this uploads it --
+      # every failure with its source file, spec location, attempt count and
+      # message, in one artifact.
+      #
+      # `if: always()` because a green run's findings file is the useful
+      # baseline: count 0 proves the reporter ran and found nothing, which is a
+      # different claim from the file being absent.
+      - name: Upload failure findings
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: learning-canvas-frontend-findings
+          path: frontend/ci-findings.json
+          if-no-files-found: warn
+
       - name: Upload build output
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

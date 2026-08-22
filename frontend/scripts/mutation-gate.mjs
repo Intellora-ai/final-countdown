@@ -36,9 +36,55 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdtempSync, existsSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
+/* CRASH SAFETY, because this tool edits real source files in the working tree.
+ *
+ * The first version had no try/finally and no signal handlers. Between
+ * `writeFileSync(mutated)` and `writeFileSync(original)` the repository holds
+ * deliberately broken code, and a Ctrl-C, a CI timeout or a thrown exception in
+ * that window left it broken PERMANENTLY -- with a plausible-looking diff that
+ * a hurried `git commit -a` would happily capture. Earlier on this branch a
+ * mutation run and a `git checkout --` overlapped and destroyed uncommitted
+ * work; this is the same hazard from the other direction.
+ *
+ * Three layers, because one is not enough:
+ *
+ *   try/finally      restores after a normal throw
+ *   signal handlers  restore on SIGINT and SIGTERM, then re-raise
+ *   a lock file      survives SIGKILL, which no handler can catch. It names
+ *                    the file left mutated, and the next run REFUSES to start
+ *                    until it is resolved -- so a hard kill costs one clear
+ *                    error instead of a silent corruption nobody attributes.
+ */
+const LOCK = 'scripts/.mutation-gate.lock'
+
+/** The file currently holding mutated bytes, and what to put back. */
+let inFlight = null
+
+function restoreInFlight() {
+  if (!inFlight) return
+  writeFileSync(inFlight.file, inFlight.original)
+  inFlight = null
+  try { rmSync(LOCK, { force: true }) } catch { /* nothing left to clean */ }
+}
+
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.on(signal, () => {
+    restoreInFlight()
+    process.stdout.write(`\ncanvas-mutation-gate: ${signal} — source restored.\n`)
+    /* Default disposition, so the caller sees a real signal death rather than
+     * a tidy exit code that hides an interrupted run. */
+    process.kill(process.pid, signal)
+  })
+}
+process.on('uncaughtException', (e) => {
+  restoreInFlight()
+  process.stdout.write(`canvas-mutation-gate: crashed, source restored. ${e?.stack ?? e}\n`)
+  process.exit(1)
+})
 
 /** Each mutant re-creates a defect that shipped, or inverts a stated rule. */
 const MUTANTS = [
@@ -254,6 +300,20 @@ function vitest(outFile) {
   }
 }
 
+/* A lock from a previous run means that run died without restoring. Refusing
+ * is the only safe move: mutating on top of already-mutated source would make
+ * every later result meaningless and bury the original damage. */
+if (existsSync(LOCK)) {
+  const stale = readFileSync(LOCK, 'utf8').trim()
+  process.stdout.write(
+    `::error file=frontend/${LOCK},title=mutation gate did not clean up::`
+    + `A previous run was killed while ${stale} held mutated source. `
+    + `Restore that file with \`git checkout -- <file>\` after confirming you have no `
+    + `uncommitted work in it, then delete frontend/${LOCK}.\n`,
+  )
+  process.exit(1)
+}
+
 const tmp = mkdtempSync(join(tmpdir(), 'canvas-mutation-'))
 const out = join(tmp, 'run.json')
 
@@ -277,9 +337,16 @@ for (const m of MUTANTS) {
     process.stdout.write(`  STALE     ${m.id}\n`)
     continue
   }
-  writeFileSync(m.file, original.replace(m.from, m.to))
-  const r = vitest(out)
-  writeFileSync(m.file, original)
+  let r
+  inFlight = { file: m.file, original }
+  writeFileSync(LOCK, `${m.id} -> ${m.file}`)
+  try {
+    writeFileSync(m.file, original.replace(m.from, m.to))
+    r = vitest(out)
+  } finally {
+    /* Unconditional. A throw anywhere above must not leave the tree broken. */
+    restoreInFlight()
+  }
 
   if (!r || r.numTotalTests !== BASE_TOTAL) {
     /* A syntax error reports zero tests and exits non-zero, which is

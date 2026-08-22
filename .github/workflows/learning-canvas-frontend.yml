@@ -73,8 +73,31 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # EVERY VERIFICATION STEP RUNS, EVEN AFTER ONE FAILS.
+      #
+      # These steps used to stop the job at the first non-zero exit. A branch
+      # with a type error therefore never learned whether it also had a lint
+      # error, a failing test, a budget overrun or a broken render: you fixed
+      # one, pushed, waited for a full runner, and discovered the next. Serial
+      # discovery across N defects costs N round trips.
+      #
+      # `continue-on-error` lets the whole battery run and report together, and
+      # the gate at the end of the job restores the failing verdict. One push,
+      # every error.
+      #
+      # Each step also writes machine-readable output that the next step turns
+      # into `::error file=...,line=...` workflow commands. Without those, a
+      # failure is text inside a collapsed log group with no source location;
+      # with them, GitHub pins an annotation to the exact line and the raw log
+      # carries an `##[error]` entry that a census can count.
       - name: Typecheck
-        run: npm run typecheck
+        id: typecheck
+        continue-on-error: true
+        run: npm run typecheck 2>&1 | tee "$RUNNER_TEMP/tsc.log"
+
+      - name: Annotate typecheck
+        if: always()
+        run: node scripts/gh-annotate.mjs tsc < "$RUNNER_TEMP/tsc.log"
 
       # LAW 4, ENFORCED RATHER THAN REQUESTED.
       #
@@ -88,12 +111,26 @@ jobs:
       # the dashboard, they are out of scope for this refactor, and pointing a canvas
       # token rule at them would restyle a design nobody asked to change.
       - name: Lint
-        run: npm run lint
+        id: lint
+        continue-on-error: true
+        run: npx eslint src/canvas --max-warnings 0 --format json -o "$RUNNER_TEMP/eslint.json"
+
+      - name: Annotate lint
+        if: always()
+        run: node scripts/gh-annotate.mjs eslint < "$RUNNER_TEMP/eslint.json"
 
       - name: Unit tests
-        run: npm test -- --run
+        id: unit
+        continue-on-error: true
+        run: npm test -- --run --reporter=json --outputFile="$RUNNER_TEMP/vitest.json"
+
+      - name: Annotate unit tests
+        if: always()
+        run: node scripts/gh-annotate.mjs vitest < "$RUNNER_TEMP/vitest.json"
 
       - name: Build
+        id: build
+        continue-on-error: true
         run: npm run build
 
       # THE BUDGET WAS UNENFORCED, WHICH IS THE SAME AS ABSENT.
@@ -106,6 +143,8 @@ jobs:
       # It runs AFTER build because it reads dist/, and it needs no path filter of its own: this
       # whole workflow is already scoped to `frontend/**`.
       - name: Bundle budget
+        id: budget
+        continue-on-error: true
         run: npm run budget
 
       # THE COMPUTED-STYLE GUARDS NEED A REAL BROWSER, SO CI GETS ONE.
@@ -128,8 +167,49 @@ jobs:
       - name: Install Chromium
         run: npx playwright install chromium
 
+      # `composed-renderer.spec.ts` JOINS THE GATE, AND WHY THAT IS CONSISTENT
+      # WITH THE PARAGRAPH ABOVE.
+      #
+      # The exclusion above is not "one spec forever", it is "no spec that
+      # makes a timing claim". `scene-regressions.spec.ts` qualifies because
+      # every assertion is a DOM fact; the perf suite does not because a p95
+      # measured on a shared runner goes red on a neighbour.
+      #
+      # The composed renderer had NO browser coverage at all. That spec pins
+      # `const SCENE = '/#/canvas/gas'` at line 16 and every one of its seven
+      # tests goes there -- the legacy scene. A search of the repository finds
+      # `renderer=v2` in one file, where it is defined, and `canvas/lessons` in
+      # one file, where the route is declared. Neither appears in any test. So
+      # the renderer this branch exists to build had never been rendered in a
+      # browser by any automated check, and a census of 8,236 CI log lines
+      # returned zero errors because nothing looked.
+      #
+      # `composed-renderer.spec.ts` makes no timing claims either: console
+      # errors, clipped-and-unreachable content, effective font size, duplicate
+      # ids, accessible names. All DOM facts, all deterministic.
       - name: Scene regression guards
-        run: npx playwright test -c playwright.config.ts e2e/scene-regressions.spec.ts --project=desktop-1440
+        id: playwright
+        continue-on-error: true
+        run: npx playwright test -c playwright.config.ts e2e/scene-regressions.spec.ts e2e/composed-renderer.spec.ts --project=desktop-1440
+
+      # THE VERDICT, RESTORED.
+      #
+      # `continue-on-error` above makes each step report instead of halt, which
+      # would leave the job green with failures in it. This step is the gate:
+      # it reads every outcome and fails the job if any of them failed. The
+      # annotations are already on the run by the time it executes, so the
+      # summary names what to look at rather than repeating it.
+      - name: Verification gate
+        if: >-
+          steps.typecheck.outcome == 'failure' ||
+          steps.lint.outcome == 'failure' ||
+          steps.unit.outcome == 'failure' ||
+          steps.build.outcome == 'failure' ||
+          steps.budget.outcome == 'failure' ||
+          steps.playwright.outcome == 'failure'
+        run: |
+          echo "::error title=frontend verification::One or more checks failed. Every failing step ran, so the annotations on this run list all of them, not just the first."
+          exit 1
 
       # `if: always()` so a failed build still uploads whatever it produced -- the partial output
       # is often what identifies the failure. `if-no-files-found: ignore` because a failure before

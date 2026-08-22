@@ -27,7 +27,20 @@ export default defineConfig({
   timeout: 90_000,
   expect: { timeout: 10_000 },
 
-  reporter: [['list']],
+  /* GITHUB MUST BE ABLE TO POINT AT THE LINE.
+   *
+   * `list` prints to stdout and stdout alone. A failure in CI therefore
+   * appeared only as a wall of text inside a collapsed log group, with no
+   * annotation on the run, no file, and no line number -- which is why a
+   * census of 8,236 log lines across 19 jobs returned zero `##[error]` entries
+   * even though the gate is capable of failing.
+   *
+   * Playwright's `github` reporter emits `::error file=...,line=...,col=...`
+   * workflow commands. GitHub turns each into a run annotation and an
+   * `##[error]` line in the raw log, so a failure names its own source
+   * location instead of hiding in scrollback. Kept alongside `list` so a local
+   * run still reads normally. */
+  reporter: process.env.CI ? [['github'], ['list']] : [['list']],
   globalTeardown: './e2e/util/teardown.ts',
 
   use: {

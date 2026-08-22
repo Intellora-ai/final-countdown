@@ -1,0 +1,223 @@
+import { test, expect, type Page } from '@playwright/test'
+
+/* THE CHECK THAT DID NOT EXIST, AND WHY THAT MATTERED.
+ *
+ * `e2e/scene-regressions.spec.ts:16` pins `const SCENE = '/#/canvas/gas'`, and
+ * every one of its seven tests goes there. A search of the whole repository
+ * finds `renderer=v2` in exactly one file -- `LessonGallery.tsx`, where it is
+ * defined -- and `canvas/lessons` in exactly one -- `App.tsx`, where the route
+ * is declared. Neither string appears in any test.
+ *
+ * So the composed renderer, which is the entire point of this branch, had
+ * never been rendered in a browser by any automated check. A census of 8,236
+ * log lines across 19 CI jobs returned zero `##[error]` entries -- not because
+ * nothing was broken, but because nothing looked. You cannot grep an error out
+ * of a log for a test that never ran.
+ *
+ * The irony is that the flag was correct engineering. LessonGallery.tsx:55
+ * states its purpose: "Default behaviour is unchanged, so the new path has to
+ * be asked for and can be abandoned by removing a query parameter rather than
+ * a revert." The safety mechanism and the blind spot are the same mechanism.
+ *
+ * WHAT THIS FILE ASSERTS is what a learner would notice: nothing crashes,
+ * nothing is silently deleted, and nothing is too small to read. Every failure
+ * is reported through Playwright's `github` reporter, which emits
+ * `::error file=...,line=...` so the run annotates the exact source location
+ * instead of burying it in a collapsed log group.
+ */
+
+const ROUTE = '/#/canvas/lessons?renderer=v2'
+
+/** Sizes the product claims to support. */
+const VIEWPORTS = [
+  { name: '320', width: 320, height: 568 },
+  { name: '375', width: 375, height: 812 },
+  { name: '390', width: 390, height: 844 },
+  { name: '768', width: 768, height: 1024 },
+  { name: '1024', width: 1024, height: 768 },
+  { name: '1280', width: 1280, height: 800 },
+  { name: '1440', width: 1440, height: 900 },
+]
+
+/* The smallest type role in tokens.ts is `micro` at 10.5px. Anything rendering
+ * below 10px is therefore not a token decision -- it is a container shrinking
+ * text to fit, which the design system forbids outright. */
+const MIN_READABLE_PX = 10
+
+interface Collected {
+  consoleErrors: string[]
+  pageErrors: string[]
+  failedRequests: string[]
+}
+
+function collect(page: Page): Collected {
+  const c: Collected = { consoleErrors: [], pageErrors: [], failedRequests: [] }
+  page.on('console', (m) => { if (m.type() === 'error') c.consoleErrors.push(m.text()) })
+  page.on('pageerror', (e) => c.pageErrors.push(e.message))
+  page.on('requestfailed', (r) => c.failedRequests.push(`${r.url()} ${r.failure()?.errorText ?? ''}`))
+  page.on('response', (r) => { if (r.status() >= 400) c.failedRequests.push(`${r.status()} ${r.url()}`) })
+  return c
+}
+
+async function open(page: Page) {
+  await page.goto(ROUTE, { waitUntil: 'networkidle' })
+  await page.waitForSelector('[data-canvas="lesson"]')
+  /* Panels are React.lazy; give the dynamic chunks a chance to land so an
+   * assertion does not read a frame of Suspense fallbacks. */
+  await page.waitForFunction(() => document.querySelectorAll('[data-canvas="block"]').length > 0)
+}
+
+test.describe('the composed renderer runs clean', () => {
+  for (const vp of VIEWPORTS) {
+    test(`no runtime errors at ${vp.name}px`, async ({ page }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height })
+      const c = collect(page)
+      await open(page)
+      expect(c.pageErrors, 'uncaught exceptions').toEqual([])
+      expect(c.consoleErrors, 'console errors').toEqual([])
+      expect(c.failedRequests, 'failed network requests').toEqual([])
+    })
+  }
+})
+
+test.describe('no content is clipped where a learner cannot reach it', () => {
+  for (const vp of VIEWPORTS) {
+    test(`content stays reachable at ${vp.name}px`, async ({ page }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height })
+      await open(page)
+
+      const lost = await page.evaluate(() => {
+        /* An element is LOST when it extends past the right edge of an
+         * ancestor that clips without scrolling. Content inside an
+         * `overflow-x: auto` box is reachable and is not a fault -- that is
+         * the table contract's disclosure plan working. */
+        const out: Array<{ text: string; clippedBy: number; block: string }> = []
+        for (const el of Array.from(document.querySelectorAll('[data-canvas="block"] *'))) {
+          const r = el.getBoundingClientRect()
+          if (r.width === 0 || r.height === 0) continue
+
+          /* Only TEXT-BEARING elements count. KaTeX draws its radical tail as
+           * a 13000px-wide <path> inside `span.hide-tail { overflow: hidden }`;
+           * it is stock glyph geometry, invisible on screen, and reporting it
+           * would put a 12952px "loss" on every viewport including desktop --
+           * drowning the real finding, which is equation content genuinely
+           * cut off below 390px. A learner loses words, not path data. */
+          const own = (el.textContent ?? '').replace(/[​-‍﻿]/g, '').trim()
+          if (own.length === 0) continue
+          let node: Element | null = el.parentElement
+          while (node && node !== document.body) {
+            const cs = getComputedStyle(node)
+            const box = node.getBoundingClientRect()
+            const clipsX = cs.overflowX === 'hidden' || cs.overflowX === 'clip'
+            const scrollsX = cs.overflowX === 'auto' || cs.overflowX === 'scroll'
+            if (scrollsX) break
+            if (clipsX && r.right > box.right + 1) {
+              const block = el.closest('[data-canvas="block"]')
+              out.push({
+                text: own.slice(0, 40),
+                clippedBy: Math.round(r.right - box.right),
+                block: block?.getAttribute('data-kind') ?? '?',
+              })
+              break
+            }
+            node = node.parentElement
+          }
+        }
+        return out
+      })
+
+      const worst = lost.sort((a, b) => b.clippedBy - a.clippedBy).slice(0, 5)
+      expect(
+        lost.length,
+        `${lost.length} element(s) clipped and unreachable. Worst: `
+        + worst.map((l) => `[${l.block}] "${l.text}" cut by ${l.clippedBy}px`).join(' | '),
+      ).toBe(0)
+    })
+  }
+})
+
+test.describe('text stays readable', () => {
+  for (const vp of VIEWPORTS) {
+    test(`no text below ${MIN_READABLE_PX}px at ${vp.name}px`, async ({ page }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height })
+      await open(page)
+
+      const tiny = await page.evaluate((floor) => {
+        const out: Array<{ text: string; px: number }> = []
+        for (const el of Array.from(document.querySelectorAll('[data-canvas="block"] text, [data-canvas="block"] p, [data-canvas="block"] span, [data-canvas="block"] td, [data-canvas="block"] th, [data-canvas="block"] h3'))) {
+          /* Strip zero-width characters: KaTeX struts are not readable text
+           * and would otherwise dominate this census as false positives. */
+          const t = (el.textContent ?? '').replace(/[​-‍﻿]/g, '').trim()
+          if (t.length < 2) continue
+          if (el.getClientRects().length === 0) continue
+          const cs = getComputedStyle(el)
+          if (cs.visibility === 'hidden' || cs.display === 'none') continue
+          let px = parseFloat(cs.fontSize)
+          const svg = (el as SVGElement).ownerSVGElement
+          if (svg) {
+            const vb = svg.viewBox.baseVal
+            if (vb && vb.width) px *= svg.getBoundingClientRect().width / vb.width
+          }
+          if (px > 0 && px < floor) out.push({ text: t.slice(0, 30), px: Math.round(px * 100) / 100 })
+        }
+        return out
+      }, MIN_READABLE_PX)
+
+      const worst = tiny.sort((a, b) => a.px - b.px).slice(0, 5)
+      expect(
+        tiny.length,
+        `${tiny.length} text node(s) below ${MIN_READABLE_PX}px. Smallest: `
+        + worst.map((t) => `"${t.text}" at ${t.px}px`).join(' | '),
+      ).toBe(0)
+    })
+  }
+})
+
+test.describe('the document is well formed', () => {
+  test('no duplicate element ids', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await open(page)
+    const dupes = await page.evaluate(() => {
+      const seen = new Map<string, number>()
+      for (const el of Array.from(document.querySelectorAll('[id]'))) {
+        seen.set(el.id, (seen.get(el.id) ?? 0) + 1)
+      }
+      return [...seen.entries()].filter(([, n]) => n > 1).map(([id, n]) => `${id} x${n}`)
+    })
+    expect(dupes, 'duplicate ids break every aria and url(#) reference').toEqual([])
+  })
+
+  test('every control has a distinguishable accessible name', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await open(page)
+    const names = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('button, a[href]')).map(
+        (el) => (el.getAttribute('aria-label') ?? el.textContent ?? '').trim(),
+      ).filter(Boolean),
+    )
+    const dupes = names.filter((n, i) => names.indexOf(n) !== i)
+    expect(
+      [...new Set(dupes)],
+      'controls sharing one name cannot be told apart from a screen-reader list',
+    ).toEqual([])
+  })
+
+  test('a horizontally scrollable region is reachable by keyboard', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await open(page)
+    const unreachable = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('[data-canvas="block"] *'))
+        .filter((el) => {
+          const cs = getComputedStyle(el)
+          if (cs.overflowX !== 'auto' && cs.overflowX !== 'scroll') return false
+          return el.scrollWidth > el.clientWidth + 1
+        })
+        .filter((el) => el.getAttribute('tabindex') === null && el.getAttribute('role') === null)
+        .map((el) => el.tagName.toLowerCase()),
+    )
+    expect(
+      unreachable,
+      'a scroll container with no tabindex and no role cannot be scrolled without a mouse (WCAG 2.1.1)',
+    ).toEqual([])
+  })
+})

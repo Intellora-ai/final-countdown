@@ -96,8 +96,27 @@ export function TablePanel({
   return (
     <div>
       {/* Wide tables scroll INSIDE their own box. The page never scrolls
-        * sideways — a horizontally scrolling document is a broken document. */}
-      <div style={{
+        * sideways — a horizontally scrolling document is a broken document.
+        *
+        * `data-overflow="scroll"` is what tells the measurement layer that
+        * this box scrolls ON PURPOSE. renderer/measure.ts:65 queries for that
+        * attribute and, finding none, was counting every table's scroller as a
+        * layout fault — the precise thing its own comment says it exists to
+        * avoid: "Treating intentional scroll as overflow would make the honest
+        * fix look like the bug." The query was written; the attribute never
+        * was, so the escape hatch was dead code and the validator saw a
+        * defect in working disclosure.
+        *
+        * `tabIndex={0}` and the group role are not decoration either. A box
+        * that scrolls with a mouse and cannot be reached with a keyboard fails
+        * WCAG 2.1.1, and this one holds the only copy of the columns it
+        * clips. */}
+      <div
+        data-overflow="scroll"
+        tabIndex={0}
+        role="group"
+        aria-label={caption ? `${caption} (scrollable)` : 'Scrollable table'}
+        style={{
         overflowX: 'auto',
         ...(scrolls ? { maxHeight: ROW_HEIGHT * (perPage + 1), overflowY: 'auto' } : {}),
         border: `${stroke.hair}px solid ${color.border}`,

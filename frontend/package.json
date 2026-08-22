@@ -10,7 +10,7 @@
     "typecheck": "tsc -b --pretty false",
     "test": "vitest",
     "budget": "node scripts/canvas-bundle-budget.mjs",
-    "lint": "eslint src/canvas"
+    "lint": "eslint src/canvas --max-warnings 0"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",

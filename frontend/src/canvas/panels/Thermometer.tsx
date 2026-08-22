@@ -1,6 +1,6 @@
 import React, { useCallback, useRef } from 'react'
 import { useValue, type ModelStore } from '../model/modelStore'
-import { color, pending, pendingSize, space } from '../design/tokens'
+import { color, particle, space, typeLegacy } from '../design/tokens'
 
 /* THE ONE CONTROL ON THE BOARD — a thermometer that writes to the model.
  *
@@ -53,13 +53,13 @@ export function Thermometer({
           />
           <defs>
             <linearGradient id="therm" x1="0" y1="1" x2="0" y2="0">
-              <stop offset="0%" stopColor={pending.particleCore} />
+              <stop offset="0%" stopColor={particle.core} />
               <stop offset="100%" stopColor={color.accentGlow} />
             </linearGradient>
           </defs>
           <circle cx={13} cy={2 + (height - bulbR - 6) * (1 - frac)} r={5.5}
-            fill={pending.thermoBulb} stroke={pending.particleCore} strokeWidth={1.5} />
-          <circle cx={13} cy={height - bulbR} r={bulbR} fill={pending.particleCore} opacity={0.9} />
+            fill={particle.bright} stroke={particle.core} strokeWidth={1.5} />
+          <circle cx={13} cy={height - bulbR} r={bulbR} fill={particle.core} opacity={0.9} />
         </svg>
         <input
           ref={ref}
@@ -79,7 +79,7 @@ export function Thermometer({
           }}
         />
       </div>
-      <span style={{ fontFamily: 'var(--sc-mono)', fontSize: pendingSize.font12, color: 'var(--sc-accent-soft)' }}>
+      <span style={{ fontFamily: 'var(--sc-mono)', fontSize: typeLegacy.bodyLegacy.size, color: 'var(--sc-accent-soft)' }}>
         {Math.round(value)}{unit ?? ''}
       </span>
     </div>

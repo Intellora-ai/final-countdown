@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { scaleLinear } from 'd3-scale'
 import { useResolved, type ModelStore } from '../model/modelStore'
-import { color, pending } from '../design/tokens'
+import { color, ink, overlay } from '../design/tokens'
 
 /* PANEL ④ — Pressure against Temperature, with an axis that cannot be wrong.
  *
@@ -107,23 +107,23 @@ export function PressureGraph({
       <g transform={`translate(${pad.left},${pad.top})`}>
         {/* grid */}
         {yTicks.map((t) => (
-          <line key={`gy${t}`} x1={0} x2={iw} y1={y(t)} y2={y(t)} stroke={pending.white07} />
+          <line key={`gy${t}`} x1={0} x2={iw} y1={y(t)} y2={y(t)} stroke={overlay.low} />
         ))}
         {xTicks.map((t) => (
-          <line key={`gx${t}`} y1={0} y2={ih} x1={x(t)} x2={x(t)} stroke={pending.white055} />
+          <line key={`gx${t}`} y1={0} y2={ih} x1={x(t)} x2={x(t)} stroke={overlay.softer} />
         ))}
 
         {/* axes */}
-        <line x1={0} y1={ih} x2={iw} y2={ih} stroke={pending.white32} />
-        <line x1={0} y1={0} x2={0} y2={ih} stroke={pending.white32} />
+        <line x1={0} y1={ih} x2={iw} y2={ih} stroke={overlay.axis} />
+        <line x1={0} y1={0} x2={0} y2={ih} stroke={overlay.axis} />
 
         {yTicks.map((t) => (
           <text key={`ty${t}`} x={-8} y={y(t)} textAnchor="end" dominantBaseline="middle"
-            fill={pending.inkAxis} fontSize={10} fontFamily="ui-monospace, monospace">{t}</text>
+            fill={ink.axis} fontSize={10} fontFamily="ui-monospace, monospace">{t}</text>
         ))}
         {xTicks.map((t) => (
           <text key={`tx${t}`} x={x(t)} y={ih + 13} textAnchor="middle"
-            fill={pending.inkAxis} fontSize={10} fontFamily="ui-monospace, monospace">{t}</text>
+            fill={ink.axis} fontSize={10} fontFamily="ui-monospace, monospace">{t}</text>
         ))}
 
         {/* the relation */}
@@ -135,8 +135,8 @@ export function PressureGraph({
         {/* where the learner is standing */}
         {hasMarker && (
           <g>
-            <line x1={0} y1={my} x2={mx} y2={my} stroke={pending.white42} strokeDasharray="3 3" />
-            <line x1={mx} y1={my} x2={mx} y2={ih} stroke={pending.white42} strokeDasharray="3 3" />
+            <line x1={0} y1={my} x2={mx} y2={my} stroke={overlay.markStrong} strokeDasharray="3 3" />
+            <line x1={mx} y1={my} x2={mx} y2={ih} stroke={overlay.markStrong} strokeDasharray="3 3" />
             <circle cx={mx} cy={my} r={5.5} fill={color.bg} stroke={color.accentGlow} strokeWidth={2} />
             <text x={mx + 10} y={my + 12} fill={color.text} fontSize={10.5} fontFamily="ui-monospace, monospace">
               {Math.round(current)}{meta[xVar]?.unit ?? ''}
@@ -144,7 +144,7 @@ export function PressureGraph({
           </g>
         )}
 
-        <text x={iw * 0.52} y={12} fill={pending.inkAnnotation} fontSize={11} fontStyle="italic"
+        <text x={iw * 0.52} y={12} fill={ink.annotation} fontSize={11} fontStyle="italic"
           fontFamily="'Fraunces', Georgia, serif">(P = kT)</text>
 
         <text x={iw / 2} y={ih + 27} textAnchor="middle" fill={color.accent} fontSize={10}

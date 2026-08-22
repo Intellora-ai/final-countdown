@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { space, type, color, series, radius, stroke, motion, COLLAPSE_CANDIDATES } from './tokens'
+import {
+  space, spaceLegacy, type, typeLegacy, color, series, radius, stroke, motion,
+  glass, particle, ink, overlay, accentAlpha, heat, shadow, status,
+  NORMALISATION_BACKLOG, ACCENT_OWNERSHIP,
+} from './tokens'
 import { cssVariables, cssText } from './generateCss'
 
 /* THE TOKEN LAYER'S OWN GUARDS.
@@ -33,11 +37,11 @@ describe('the scale is the scale', () => {
     }
   })
 
-  it('has exactly the fourteen semantic colour roles plus bgDeep', () => {
+  it('keeps the semantic layer to a vocabulary, not a palette', () => {
     expect(Object.keys(color).sort()).toEqual([
-      'accent', 'accentDim', 'accentGlow', 'bg', 'bgDeep', 'border', 'borderStrong',
-      'negative', 'positive', 'surface', 'surfaceRaised', 'text', 'textFaint',
-      'textMuted', 'warning',
+      'accent', 'accentDim', 'accentGlow', 'bg', 'bgDeep', 'bgMid', 'border',
+      'borderStrong', 'negative', 'positive', 'surface', 'surfaceRaised', 'text',
+      'textFaint', 'textMuted', 'warning',
     ])
   })
 
@@ -59,7 +63,7 @@ describe('the scale is the scale', () => {
   })
 
   it('keeps radius and stroke to the named steps', () => {
-    expect(Object.keys(radius)).toEqual(['sm', 'md', 'lg', 'xl', 'pill'])
+    expect(Object.keys(radius)).toEqual(['xs', 'sm', 'md', 'lg', 'xl', 'pill'])
     expect(Object.keys(stroke)).toEqual(['hair', 'base', 'bold'])
   })
 })
@@ -105,7 +109,7 @@ describe('CSS is derived from tokens, never authored beside them', () => {
   })
 
   it('carries no value the token layer does not define', () => {
-    const values = new Set(Object.values(vars))
+    const values = new Set(Object.values(vars) as string[])
     const known = new Set<string>([
       ...Object.values(color),
       ...series,
@@ -121,16 +125,69 @@ describe('CSS is derived from tokens, never authored beside them', () => {
   })
 })
 
-describe('the collapse candidates are recorded, not silently applied', () => {
-  it('lists every value that would change a pixel if absorbed into a role', () => {
-    const all = Object.values(COLLAPSE_CANDIDATES).flat()
-    expect(all.length, 'candidates are documented').toBeGreaterThan(30)
+describe('the component layer preserves visual truth', () => {
+  const layers = { glass, particle, ink, overlay, accentAlpha, heat, shadow, status }
+
+  it('exposes every component group a panel needs', () => {
+    for (const [name, group] of Object.entries(layers)) {
+      expect(Object.keys(group).length, name).toBeGreaterThan(0)
+    }
   })
 
-  it('never lists a value that is already a role — that would be a no-op claim', () => {
-    const roles = new Set<string>(Object.values(color))
-    for (const v of Object.values(COLLAPSE_CANDIDATES).flat()) {
-      expect(roles.has(v), `${v} is already a role and is not a candidate`).toBe(false)
+  it('keeps visually distinct values distinct', () => {
+    /* Extraction is not normalisation. Nine ink weights and twenty-one overlay
+     * alphas were tuned by eye against the reference; if two entries in a group
+     * were ever made identical, one of them is dead and the hierarchy it drew
+     * has quietly collapsed. */
+    for (const [name, group] of Object.entries(layers)) {
+      const values = Object.values(group) as string[]
+      expect(new Set(values).size, `${name} has duplicate values — a distinction was lost`)
+        .toBe(values.length)
+    }
+  })
+
+  it('resolves every component token to a real colour, never undefined', () => {
+    for (const [name, group] of Object.entries(layers)) {
+      for (const [k, v] of Object.entries(group)) {
+        expect(typeof v, `${name}.${k}`).toBe('string')
+        expect(String(v), `${name}.${k}`).toMatch(/^(#[0-9a-fA-F]{3,8}|rgba?\()/)
+      }
+    }
+  })
+
+  it('records what is still unresolved rather than pretending it is done', () => {
+    expect(Object.keys(NORMALISATION_BACKLOG).length).toBeGreaterThan(3)
+    for (const v of Object.values(NORMALISATION_BACKLOG)) expect(String(v).length).toBeGreaterThan(20)
+  })
+
+  it('states accent ownership, and that no canvas teal was merged', () => {
+    expect(ACCENT_OWNERSHIP.canvas).toBe(color.accent)
+    expect(ACCENT_OWNERSHIP.dashboard).toContain('#0C9B8E')
+    /* The dashboard's accents must not be reachable as canvas tokens. */
+    const canvasValues = new Set(Object.values(color))
+    for (const d of ACCENT_OWNERSHIP.dashboard) expect(canvasValues.has(d)).toBe(false)
+  })
+})
+
+describe('legacy scales are named for their job, not their pixels', () => {
+  it('preserves the off-scale spacing the reference scene uses', () => {
+    expect(Object.values(spaceLegacy)).toEqual([1, 2, 5, 6, 10, 14])
+  })
+
+  it('preserves the type sizes the seven roles do not model', () => {
+    /* Mathematics is why these exist: P proportional-to T at 46px and PV = nRT
+     * at 30px are a display hierarchy `display` alone cannot express. */
+    expect(typeLegacy.gasRelation.size).toBe(46)
+    expect(typeLegacy.gasLaw.size).toBe(30)
+    for (const [k, v] of Object.entries(typeLegacy)) {
+      expect(v.size, k).toBeGreaterThan(0)
+      expect(v.lineHeight, k).toBeGreaterThan(0)
+    }
+  })
+
+  it('names them by role so a later normalisation has a target', () => {
+    for (const k of [...Object.keys(spaceLegacy), ...Object.keys(typeLegacy)]) {
+      expect(k, k).not.toMatch(/^(gap|font|pad|size)?\d/)
     }
   })
 })

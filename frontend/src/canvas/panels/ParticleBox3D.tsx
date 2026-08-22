@@ -2,7 +2,7 @@ import React, { useMemo, useRef } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { ModelStore } from '../model/modelStore'
-import { color, pending } from '../design/tokens'
+import { color, glass, particle } from '../design/tokens'
 
 /* PANEL ① / ⑤ — a glass box of gas, in WebGL, telling the truth about speed.
  *
@@ -135,11 +135,11 @@ function Swarm({ speedRef, showVectors }: { speedRef: React.MutableRefObject<num
       )}
       <instancedMesh ref={halo} args={[undefined, undefined, COUNT]} frustumCulled={false}>
         <sphereGeometry args={[0.062, 12, 12]} />
-        <meshBasicMaterial color={pending.particleCore} transparent opacity={0.22} blending={THREE.AdditiveBlending} depthWrite={false} />
+        <meshBasicMaterial color={particle.core} transparent opacity={0.22} blending={THREE.AdditiveBlending} depthWrite={false} />
       </instancedMesh>
       <instancedMesh ref={core} args={[undefined, undefined, COUNT]} frustumCulled={false}>
         <sphereGeometry args={[0.062, 16, 16]} />
-        <meshStandardMaterial color={pending.particleBright} emissive={pending.particleEmissive} emissiveIntensity={3.4} roughness={0.25} />
+        <meshStandardMaterial color={particle.bright} emissive={particle.emissive} emissiveIntensity={3.4} roughness={0.25} />
       </instancedMesh>
     </>
   )
@@ -159,7 +159,7 @@ function GlassCube() {
           * gives the reference's frosted slab, and costs one pass instead of
           * two. */}
         <meshPhysicalMaterial
-          color={pending.glassBody}
+          color={glass.face}
           transparent
           opacity={0.15}
           roughness={0.18}
@@ -171,7 +171,7 @@ function GlassCube() {
         />
       </mesh>
       <lineSegments geometry={edges}>
-        <lineBasicMaterial color={pending.glassEdge} transparent opacity={0.7} />
+        <lineBasicMaterial color={glass.edge} transparent opacity={0.7} />
       </lineSegments>
     </group>
   )
@@ -195,7 +195,7 @@ function Rig({ store, tempVar, showVectors }: { store: ModelStore; tempVar: stri
     <>
       <ambientLight intensity={0.55} />
       <directionalLight position={[3, 4, 5]} intensity={1.1} />
-      <pointLight position={[-3, -2, -3]} intensity={0.5} color={pending.particleCore} />
+      <pointLight position={[-3, -2, -3]} intensity={0.5} color={particle.core} />
       <GlassCube />
       <Swarm speedRef={speedRef} showVectors={showVectors} />
     </>

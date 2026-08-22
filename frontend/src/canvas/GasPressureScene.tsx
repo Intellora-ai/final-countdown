@@ -17,7 +17,7 @@ import { SketchNote } from './panels/SketchNote'
 import {
   DimensionToggle, ZoomRail, IconBack, IconLayers, IconPanel, IconZoom, IconFit,
 } from './chrome/SceneChrome'
-import { color, pending, pendingSize, space, type } from './design/tokens'
+import { color, overlay, radius, space, spaceLegacy, status, type, typeLegacy } from './design/tokens'
 import { cssVariables } from './design/generateCss'
 
 const ParticleBox3D = React.lazy(() =>
@@ -178,25 +178,25 @@ export function GasPressureScene() {
           <Node x={L.p1GasNote.x} y={L.p1GasNote.y}>
             <span className="sc-note">gas</span>
             <svg width={44} height={26} style={{ display: 'block', marginTop: -2, marginLeft: -34 }} aria-hidden="true">
-              <path d="M42 2 C 30 8, 18 14, 6 22" fill="none" stroke={pending.white50} strokeWidth={1} />
-              <path d="M4 16 L4 23 L11 22" fill="none" stroke={pending.white50} strokeWidth={1} />
+              <path d="M42 2 C 30 8, 18 14, 6 22" fill="none" stroke={overlay.strongest} strokeWidth={1} />
+              <path d="M4 16 L4 23 L11 22" fill="none" stroke={overlay.strongest} strokeWidth={1} />
             </svg>
           </Node>
 
           <Node x={L.p1SpeedNote.x} y={L.p1SpeedNote.y}>
             <svg width={40} height={12} style={{ display: 'block', marginLeft: -46 }} aria-hidden="true">
-              <line x1={38} y1={6} x2={6} y2={6} stroke={pending.white55} strokeWidth={1} />
-              <path d="M11 2.5 L5 6 L11 9.5" fill="none" stroke={pending.white55} strokeWidth={1} />
+              <line x1={38} y1={6} x2={6} y2={6} stroke={overlay.full} strokeWidth={1} />
+              <path d="M11 2.5 L5 6 L11 9.5" fill="none" stroke={overlay.full} strokeWidth={1} />
             </svg>
             <span className="sc-note">speed</span>
             <svg width={40} height={14} style={{ display: 'block', marginTop: space.xs }} aria-hidden="true">
-              <line x1={2} y1={7} x2={34} y2={7} stroke={pending.white55} strokeWidth={1} />
-              <path d="M29 3.5 L35 7 L29 10.5" fill="none" stroke={pending.white55} strokeWidth={1} />
+              <line x1={2} y1={7} x2={34} y2={7} stroke={overlay.full} strokeWidth={1} />
+              <path d="M29 3.5 L35 7 L29 10.5" fill="none" stroke={overlay.full} strokeWidth={1} />
             </svg>
           </Node>
 
           <Node x={L.p1Caption.x} y={L.p1Caption.y} w={140}>
-            <span className="sc-note" style={{ fontStyle: 'normal', lineHeight: pendingSize.line135, display: 'block' }}>
+            <span className="sc-note" style={{ fontStyle: 'normal', lineHeight: typeLegacy.annotation.lineHeight, display: 'block' }}>
               gas particles<br />shove the container
             </span>
           </Node>
@@ -207,7 +207,7 @@ export function GasPressureScene() {
             <CausalChain steps={CHAIN} />
           </Node>
           <Node x={1150} y={214}>
-            <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: pendingSize.fontDisplayLg, color: 'var(--sc-ink)' }}>P</span>
+            <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: typeLegacy.gasSymbol.size, color: 'var(--sc-ink)' }}>P</span>
           </Node>
 
           {/* ── ③ the relation ───────────────────────────────────────── */}
@@ -241,8 +241,8 @@ export function GasPressureScene() {
               display: 'grid',
               gridTemplateColumns: '52px 1fr 84px',
               alignItems: 'center',
-              padding: `${pendingSize.pad12}px ${pendingSize.pad14}px`,
-              gap: pendingSize.gap6,
+              padding: `${space.md}px ${spaceLegacy.wide}px`,
+              gap: spaceLegacy.cosy,
             }}>
               <Thermometer store={store} varId="T" min={100} max={600} unit="K" height={126} />
               <div style={{ display: 'grid', placeItems: 'center' }}>
@@ -325,8 +325,8 @@ export function GasPressureScene() {
       {model.problems.length > 0 && (
         <div className="sc-chrome" role="status" style={{
           left: '50%', bottom: 60, transform: 'translateX(-50%)',
-          background: pending.errorSurface, border: `1px solid ${pending.errorBorder}`,
-          borderRadius: pendingSize.radius8, padding: `${pendingSize.pad6}px ${pendingSize.pad12}px`, fontSize: pendingSize.font12, color: color.negative,
+          background: status.errorSurface, border: `1px solid ${status.errorBorder}`,
+          borderRadius: radius.sm, padding: `${spaceLegacy.cosy}px ${space.md}px`, fontSize: typeLegacy.bodyLegacy.size, color: color.negative,
         }}>
           {model.problems[0]}
         </div>

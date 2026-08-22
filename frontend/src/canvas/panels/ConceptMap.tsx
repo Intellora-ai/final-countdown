@@ -1,5 +1,5 @@
 import React from 'react'
-import { color, pending } from '../design/tokens'
+import { accentAlpha, color, ink, overlay } from '../design/tokens'
 
 /* PANEL ⑥ — the four quantities, and the one place they meet.
  *
@@ -49,7 +49,7 @@ export function ConceptMap({
             key={i}
             d={`M ${ax} ${ay} C ${ax + dx} ${ay}, ${bx - dx} ${by}, ${bx} ${by}`}
             fill="none"
-            stroke={pending.accent50}
+            stroke={accentAlpha.line}
             strokeWidth={1.15}
           />
         )
@@ -61,14 +61,14 @@ export function ConceptMap({
           <g key={n.id}>
             <rect
               x={n.x} y={n.y} width={w} height={NODE_H} rx={NODE_H / 2}
-              fill={n.accent ? pending.accent10 : pending.white045}
-              stroke={n.accent ? pending.accent75 : pending.white16}
+              fill={n.accent ? accentAlpha.wash : overlay.soft}
+              stroke={n.accent ? accentAlpha.node : overlay.edge}
               strokeWidth={1}
             />
             <text
               x={n.x + w / 2} y={n.y + NODE_H / 2 + 0.5}
               textAnchor="middle" dominantBaseline="middle"
-              fontSize={11} fill={n.accent ? color.positive : pending.inkNode}
+              fontSize={11} fill={n.accent ? color.positive : ink.node}
               fontFamily="system-ui, sans-serif"
             >
               {n.label}

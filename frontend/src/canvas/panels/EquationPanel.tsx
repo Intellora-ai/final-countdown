@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
-import { color, pending, pendingSize } from '../design/tokens'
+import { color, ink, radius, spaceLegacy, typeLegacy } from '../design/tokens'
 
 /* PANEL ③ — mathematics set as mathematics.
  *
@@ -61,20 +61,20 @@ export function EquationPanel({
   emphasise?: string
 }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: pendingSize.gap14 }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: pendingSize.gap2 }}>
-        <div style={{ fontSize: pendingSize.fontDisplayXl, lineHeight: pendingSize.line1, color: pending.inkBright }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: spaceLegacy.wide }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: spaceLegacy.tight }}>
+        <div style={{ fontSize: typeLegacy.gasRelation.size, lineHeight: typeLegacy.gasRelation.lineHeight, color: ink.bright }}>
           <Katex latex={relation} />
         </div>
         {constants && (
-          <div style={{ fontSize: pendingSize.font125, color: color.textMuted, fontStyle: 'italic', fontFamily: "'Fraunces', Georgia, serif" }}>
+          <div style={{ fontSize: typeLegacy.constants.size, color: color.textMuted, fontStyle: 'italic', fontFamily: "'Fraunces', Georgia, serif" }}>
             {constants}
           </div>
         )}
       </div>
 
       {law && (
-        <div style={{ position: 'relative', fontSize: pendingSize.fontDisplayMd, lineHeight: pendingSize.line1, color: color.text, textAlign: 'center' }}>
+        <div style={{ position: 'relative', fontSize: typeLegacy.gasLaw.size, lineHeight: typeLegacy.gasRelation.lineHeight, color: color.text, textAlign: 'center' }}>
           <Katex latex={law} />
           {emphasise && (
             /* The mark is a rule under the emphasised tail of the law, drawn in
@@ -86,7 +86,7 @@ export function EquationPanel({
               style={{
                 position: 'absolute', right: '0.6em', bottom: -4,
                 width: `${Math.max(1, emphasise.length) * 0.62}em`, height: 2,
-                background: 'var(--sc-accent)', borderRadius: pendingSize.radius2,
+                background: 'var(--sc-accent)', borderRadius: radius.xs,
               }}
             />
           )}

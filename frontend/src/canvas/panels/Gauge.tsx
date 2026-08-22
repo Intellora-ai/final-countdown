@@ -1,7 +1,7 @@
 import React from 'react'
 import { useResolved, type ModelStore } from '../model/modelStore'
 import { formatValue } from '../model/resolve'
-import { color, pending, pendingSize, type } from '../design/tokens'
+import { color, overlay, spaceLegacy, type } from '../design/tokens'
 
 /* THE PRESSURE DIAL — a derived value, drawn as an arc.
  *
@@ -53,10 +53,10 @@ export function Gauge({
   const needle = START + SWEEP * frac
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: pendingSize.gap5 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: spaceLegacy.snug }}>
       <svg width={size} height={size} role="img"
         aria-label={`${meta?.label ?? valueId} ${formatValue(value, meta?.precision)} ${meta?.unit ?? ''}`}>
-        <path d={arc(START, START + SWEEP)} fill="none" stroke={pending.white12} strokeWidth={5} strokeLinecap="round" />
+        <path d={arc(START, START + SWEEP)} fill="none" stroke={overlay.line} strokeWidth={5} strokeLinecap="round" />
         <path d={arc(START, needle)} fill="none" stroke={color.accent} strokeWidth={5} strokeLinecap="round" />
         <line
           x1={cx} y1={cy}

@@ -109,3 +109,24 @@ export function baseline(scale: LinearScale): number {
   const zero = Math.max(d0, Math.min(d1, 0))
   return scale(zero)
 }
+
+/* Fit an axis label into the width one tick actually has.
+ *
+ * The validator caps labels at 60 characters, which stops a label from being
+ * unbounded but does nothing about twelve of them sharing 380 pixels: they
+ * overlap into an unreadable smear. Truncation is chosen over rotation because
+ * rotating labels changes the rendered HEIGHT of the chart, and step height is
+ * what the world layout measures — a chart that resized itself by the length
+ * of its longest label would move every step below it.
+ *
+ * The full label never disappears: callers keep it in a <title> and in the
+ * chart's text summary, so the pointer and the screen reader both still get
+ * the whole thing.
+ */
+export function fitLabel(label: string, maxChars: number): string {
+  /* Two characters is the floor: one letter plus the ellipsis still says
+   * "there was more here", which a bare ellipsis does not. */
+  const cap = Math.max(2, Math.floor(maxChars))
+  if (label.length <= cap) return label
+  return `${label.slice(0, cap - 1)}…`
+}

@@ -16,6 +16,7 @@
  * never culled.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { BlackboardShell } from './shell/BlackboardShell'
 import { NoticeBar } from './shell/NoticeBar'
 import { BoardEmpty, BoardError, BoardLoading } from './shell/BoardStates'
@@ -25,7 +26,7 @@ import { snapToGrid, visibleWorldRect, rectsIntersect, type WorldRect } from './
 import { validateBoard } from './renderer/validateBoard'
 import { ConnectorLayer } from './shell/ConnectorLayer'
 import { useBoardSource } from './hooks/useBoardSource'
-import { FIXTURES } from './fixtures'
+import { FIXTURES, featuredFixtures } from './fixtures'
 import { planFromBoard, planFromSteps } from './teaching/plan'
 import { useTeachingSession, type ReleasedStep } from './teaching/useTeachingSession'
 import { StepView } from './teaching/StepView'
@@ -66,7 +67,17 @@ const CHEM_EXTRA: TeachingStep = {
 interface Placement { rect: WorldRect; measured: boolean }
 
 export function BoardView() {
-  const [fixtureId, setFixtureId] = useState(FIXTURES[0].id)
+  /* The URL owns which board is open. Two things follow from that and both
+   * matter: a scenario can be linked to and reloaded, and the gallery can hand
+   * over without this component needing to know the gallery exists. An id that
+   * names no fixture falls through to useBoardSource, which already reports it
+   * as a board that could not be found. */
+  const [params, setParams] = useSearchParams()
+  const fixtureId = params.get('fixture') ?? FIXTURES[0].id
+  const setFixtureId = useCallback(
+    (id: string) => setParams({ fixture: id }, { replace: true }),
+    [setParams],
+  )
   /* Everything stateful about a lesson lives below this key: switch the
    * fixture and the camera, placements and session REMOUNT. A fresh lesson
    * cannot inherit a stale session, because the components holding one are
@@ -202,15 +213,21 @@ function TeachingBoard({ fixtureId, setFixtureId }: { fixtureId: string; setFixt
   const title = prepared && 'title' in prepared && prepared.title ? prepared.title : src.status === 'failed' ? 'Learning canvas' : 'Loading…'
   const notices: Notice[] = prepared?.notices ?? []
 
+  /* Only the featured boards get a pill. Twenty-five pills is not a choice —
+   * it is a wall, and on a phone it is a wall that scrolls. The rest live in
+   * the gallery, one link away. */
   const picker = (
     <div data-board="picker" role="group" aria-label="Choose a board">
-      {FIXTURES.map((f) => (
+      {featuredFixtures().map((f) => (
         <button key={f.id} type="button" data-board="picker-pill"
           data-active={f.id === fixtureId ? 'true' : 'false'}
           onClick={() => setFixtureId(f.id)}>
           {f.label}
         </button>
       ))}
+      <Link to="/canvas/gallery" data-board="picker-pill" data-link="true">
+        All scenarios
+      </Link>
     </div>
   )
 

@@ -491,6 +491,148 @@
   background: rgba(56, 228, 215, 0.10);
 }
 
+/* The gallery link wears the pill shape but is an anchor, so it needs the
+   text-decoration and line-height a <button> gets for free. Dashed border
+   marks it as leaving the board rather than switching it. */
+[data-board='picker-pill'][data-link='true'] {
+  border-style: dashed;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ── the scenario gallery ─────────────────────────────────────────────────
+   Links and headings only. Nothing here renders a block, and nothing here
+   should ever need to: the gallery hands over to the board, it does not
+   become a second one. */
+[data-board='gallery'] {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6) var(--space-10);
+  color: var(--board-text);
+}
+
+[data-board='gallery-head'] { margin-bottom: var(--space-8); }
+
+[data-board='gallery-eyebrow'] {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--board-accent);
+  margin: 0 0 var(--space-2);
+}
+
+[data-board='gallery-title'] {
+  font-size: 30px;
+  line-height: 1.15;
+  margin: 0 0 var(--space-3);
+  font-weight: 500;
+}
+
+[data-board='gallery-lede'] {
+  margin: 0;
+  color: var(--board-text-secondary);
+  max-width: 70ch;
+  line-height: 1.6;
+}
+
+[data-board='gallery-warning'] {
+  margin: var(--space-4) 0 0;
+  padding: 10px 14px;
+  border: 1px solid var(--board-border);
+  border-left: 3px solid var(--board-accent);
+  border-radius: var(--radius-sm, 8px);
+  color: var(--board-text);
+  font-size: 14px;
+}
+
+[data-board='gallery-group'] { margin-top: var(--space-8); }
+
+[data-board='gallery-group-title'] {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--board-text-secondary);
+  margin: 0 0 var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--board-border);
+}
+
+[data-board='gallery-list'] {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+  /* 320px is the minimum block width the layout contract names; a card that
+     cannot hold one has no business claiming a column. */
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+[data-board='gallery-card'] {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  /* 44px is the interactive-target floor; these are far taller, but the rule
+     is stated so a future denser card cannot quietly drop under it. */
+  min-height: 44px;
+  padding: 14px 16px;
+  border: 1px solid var(--board-border);
+  border-radius: var(--radius-md, 12px);
+  background: var(--board-panel);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--duration-base) var(--ease-out);
+}
+
+[data-board='gallery-card']:hover { border-color: var(--board-accent); }
+
+[data-board='gallery-card-label'] { font-size: 16px; font-weight: 500; }
+
+[data-board='gallery-card-eyebrow'] {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--board-text-secondary);
+}
+
+[data-board='gallery-badge'] {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--board-border);
+  color: var(--board-text-secondary);
+}
+
+/* The badge states the expectation in words as well as colour — a reader who
+   cannot distinguish the border tints still learns which boards repair. */
+[data-board='gallery-badge'][data-expect='repaired'] { border-color: var(--board-series-2, var(--board-accent)); }
+[data-board='gallery-badge'][data-expect='failed'] { border-color: var(--board-series-4, var(--board-accent)); }
+
+[data-board='gallery-tags'] { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px; }
+
+[data-board='gallery-tag'] {
+  font-size: 11px;
+  color: var(--board-text-secondary);
+  border: 1px solid var(--board-border);
+  border-radius: var(--radius-full);
+  padding: 2px 8px;
+}
+
+@media (max-width: 640px) {
+  [data-board='gallery'] { padding: var(--space-6) var(--space-4) var(--space-8); }
+  [data-board='gallery-title'] { font-size: 24px; }
+  [data-board='gallery-list'] { grid-template-columns: 1fr; }
+}
+
 /* ── Notices ────────────────────────────────────────────────────────── */
 [data-board='notices'] {
   border: 1px solid var(--board-border);
@@ -881,8 +1023,28 @@
   flex: none;
 }
 
-[data-board='legend-label'] { flex: 1; color: var(--board-text); }
+/* A 60-character legend label is legal (the validator's cap) and must wrap
+ * rather than push the percentage off the card. overflow-wrap handles the
+ * pathological case of one long unbroken word, which break-word alone misses. */
+[data-board='legend-label'] {
+  flex: 1;
+  color: var(--board-text);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 [data-board='legend-value'] { font-family: var(--font-mono); font-size: 12px; color: var(--board-text-secondary); }
+
+/* Shown only when a chart component is handed no usable data at all. From a
+ * validated board this never renders — the validator has already dropped or
+ * tabled the chart and said so in a notice. It exists so that a chart which
+ * somehow reaches the tree empty says something instead of vanishing. */
+[data-board='chart-empty'] {
+  margin: 0;
+  padding: 16px 0;
+  color: var(--board-text-secondary);
+  font-size: 14px;
+  font-style: italic;
+}
 
 [data-board='gridline'] { stroke: rgba(255, 255, 255, 0.06); stroke-width: 1; }
 [data-board='axis'] { stroke: var(--board-border); stroke-width: 1; }

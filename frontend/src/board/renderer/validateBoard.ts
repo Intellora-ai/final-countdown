@@ -94,6 +94,18 @@ const BASE_KEYS = ['id', 'type', 'title', 'eyebrow', 'layout'] as const
 
 type BlockValidator = (b: Record<string, unknown>, id: string, ctx: Ctx) => Block | null
 
+/* What an unusable chart value looks like in the table that replaces it.
+ * A finite number is the number. Anything else — missing, NaN, Infinity, a
+ * string where a number belonged — becomes an em-dash, because "NaN" is a
+ * floating-point term and the person reading the board is learning chemistry.
+ * The one exception is a non-empty string, which is shown as written: it may
+ * be wrong for a chart, but it is something the learner can actually read. */
+function fallbackCell(value: unknown): string | number {
+  if (isNum(value)) return value
+  if (isStr(value) && value.trim()) return value
+  return '—'
+}
+
 function chartTableFallback(
   id: string,
   title: unknown,
@@ -183,7 +195,7 @@ const VALIDATORS: Record<BlockType, BlockValidator> = {
     const total = valid.reduce((n, d) => n + d.value, 0)
     if (!valid.length || total <= 0) {
       if (labelled.length) {
-        return chartTableFallback(id, b.title, ['Label', 'Value'], labelled.map((d) => [d.label, isNum(d.value) ? d.value : String(d.value ?? '—')]), ctx)
+        return chartTableFallback(id, b.title, ['Label', 'Value'], labelled.map((d) => [d.label, fallbackCell(d.value)]), ctx)
       }
       repair(ctx, 'A chart had no usable data and was omitted.', id)
       return null
@@ -201,7 +213,7 @@ const VALIDATORS: Record<BlockType, BlockValidator> = {
     if (valid.length < labelled.length) repair(ctx, 'Some chart values were invalid and were left out.', id)
     if (!valid.length) {
       if (labelled.length) {
-        return chartTableFallback(id, b.title, ['Label', 'Value'], labelled.map((d) => [d.label, isNum(d.value) ? d.value : String(d.value ?? '—')]), ctx)
+        return chartTableFallback(id, b.title, ['Label', 'Value'], labelled.map((d) => [d.label, fallbackCell(d.value)]), ctx)
       }
       repair(ctx, 'A chart had no usable data and was omitted.', id)
       return null
@@ -216,15 +228,29 @@ const VALIDATORS: Record<BlockType, BlockValidator> = {
   line_chart: (b, id, ctx) => {
     const raw = Array.isArray(b.points) ? b.points : []
     if (!raw.length) { repair(ctx, 'A chart had no data and was omitted.', id); return null }
-    const points = raw
+    /* Two filters, deliberately separate: a point with a readable x still
+     * carries a label the learner can use, even when its y is unusable. Pie
+     * and bar already keep such rows by falling back to a table; a line chart
+     * that dropped them silently would be the one chart type where broken data
+     * costs the learner the labels as well as the picture. */
+    const labelled = raw
       .filter((p): p is Record<string, unknown> => isObj(p) && (isStr(p.x) || isNum(p.x)))
-      .filter((p) => {
-        if (isNum(p.y)) return true
-        return false
-      })
+    const points = labelled
+      .filter((p) => isNum(p.y))
       .map((p) => ({ x: p.x as string | number, y: p.y as number }))
     if (points.length < raw.length) repair(ctx, 'Some chart points were invalid and were left out.', id)
-    if (!points.length) { repair(ctx, 'A chart had no usable data and was omitted.', id); return null }
+    if (!points.length) {
+      if (labelled.length) {
+        return chartTableFallback(
+          id, b.title,
+          [isStr(b.xLabel) ? b.xLabel : 'X', isStr(b.yLabel) ? b.yLabel : 'Y'],
+          labelled.map((p) => [String(p.x), fallbackCell(p.y)]),
+          ctx,
+        )
+      }
+      repair(ctx, 'A chart had no usable data and was omitted.', id)
+      return null
+    }
     let highlightIndex = b.highlightIndex
     if (highlightIndex !== undefined && (!isNum(highlightIndex) || highlightIndex < 0 || highlightIndex >= points.length)) {
       repair(ctx, 'A chart highlight pointed at a missing point and was removed.', id)

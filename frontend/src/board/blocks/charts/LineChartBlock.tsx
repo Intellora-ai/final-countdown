@@ -1,6 +1,7 @@
 import React from 'react'
 import type { LineChartBlock as LineChartBlockData } from '../../types/learningBoard'
-import { linearScale, ticks, linePath, baseline } from '../../lib/chartGeometry'
+import { linearScale, ticks, linePath, baseline, fitLabel } from '../../lib/chartGeometry'
+import { sample } from '../../perf/marks'
 
 /* An ordered series. X positions come from point ORDER when x is categorical
  * and from value when numeric — the heating-curve fixture uses numeric heat
@@ -11,7 +12,10 @@ const W = 460, H = 240, PAD_L = 46, PAD_R = 16, PAD_T = 14, PAD_B = 34
 
 export function LineChartBlock({ block }: { block: LineChartBlockData }) {
   const pts = Array.isArray(block.points) ? block.points : []
-  if (!pts.length) return null
+  /* Unreachable from a validated board; visible rather than silent if a future
+   * caller ever bypasses the validator. */
+  if (!pts.length) return <p data-board="chart-empty">No data to draw.</p>
+  const t0 = performance.now()
   const numericX = pts.every((p) => typeof p.x === 'number')
   const xsRaw = numericX ? pts.map((p) => p.x as number) : pts.map((_, i) => i)
   const ys = pts.map((p) => p.y)
@@ -21,6 +25,11 @@ export function LineChartBlock({ block }: { block: LineChartBlockData }) {
   const X = xsRaw.map((v) => x(v)), Y = ys.map((v) => y(v))
   const hl = typeof block.highlightIndex === 'number' && pts[block.highlightIndex] ? block.highlightIndex : null
   const tks = ticks(lo, hi)
+  /* Categorical ticks are already thinned to at most eight; the width each
+   * survivor gets is what decides how much of its label can be drawn. */
+  const shownTicks = Math.min(pts.length, 8)
+  const labelCap = Math.max(3, Math.floor((W - PAD_L - PAD_R) / shownTicks / 6.5))
+  sample('chart-geometry-ms', performance.now() - t0)
 
   return (
     <div data-board="chart">
@@ -41,7 +50,10 @@ export function LineChartBlock({ block }: { block: LineChartBlockData }) {
         ))}
         {!numericX && pts.map((p, i) => (
           (pts.length <= 8 || i % Math.ceil(pts.length / 8) === 0) &&
-          <text key={'l' + i} x={X[i]} y={H - PAD_B + 16} data-board="tick" textAnchor="middle">{String(p.x)}</text>
+          <text key={'l' + i} x={X[i]} y={H - PAD_B + 16} data-board="tick" textAnchor="middle">
+            <title>{`${p.x}: ${p.y}`}</title>
+            {fitLabel(String(p.x), labelCap)}
+          </text>
         ))}
       </svg>
       {(block.xLabel || block.yLabel) && (

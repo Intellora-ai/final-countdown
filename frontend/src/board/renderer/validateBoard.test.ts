@@ -211,8 +211,12 @@ describe('chart edge cases', () => {
       ] }],
     }))
     if (r.status === 'failed') throw new Error('unexpected fail')
-    expect(r.board.blocks[0].type).toBe('table')
+    const t = r.board.blocks[0]
+    if (t.type !== 'table') throw new Error('expected a table fallback')
     expect(r.notices.some((n) => n.message === 'Chart data was incomplete, so a table is shown.')).toBe(true)
+    /* NaN reaches the table as an em-dash, and a negative — unusable in a pie,
+     * but a real reading — is kept as the number it is. */
+    expect(t.rows).toEqual([['NaN', '—'], ['Negative', -1]])
   })
 
   it('keeps valid points and drops invalid ones with a notice', () => {
@@ -225,6 +229,78 @@ describe('chart edge cases', () => {
     const c = r.board.blocks[0]
     if (c.type !== 'line_chart') throw new Error('expected line_chart')
     expect(c.points).toHaveLength(2)
+  })
+
+  it('truncates an over-long string and says so — the cap had no test until now', () => {
+    /* MAX_STRING is 4000. A board that ships 5000 characters keeps the first
+     * 4000 and the learner is told, rather than quietly reading a sentence
+     * that stops mid-word for no stated reason. */
+    const long = 'a'.repeat(5000)
+    const r = validateBoard(base({ blocks: [{ id: 'e', type: 'explanation', content: long }] }))
+    if (r.status === 'failed') throw new Error('unexpected fail')
+    const e = r.board.blocks[0]
+    if (e.type !== 'explanation') throw new Error('expected explanation')
+    expect(e.content).toHaveLength(4000)
+    expect(r.status).toBe('repaired')
+    expect(r.notices.some((n) => n.message === 'An explanation was truncated to 4000 characters.')).toBe(true)
+  })
+
+  it('leaves a string exactly at the cap alone', () => {
+    const exact = 'b'.repeat(4000)
+    const r = validateBoard(base({ blocks: [{ id: 'e', type: 'explanation', content: exact }] }))
+    expect(r.status).toBe('ok')
+    expect(r.notices).toEqual([])
+  })
+
+  it('falls back to a table when every line y is unusable, keeping the labels', () => {
+    const r = validateBoard(base({
+      blocks: [{ id: 'c', type: 'line_chart', title: 'Readings', xLabel: 'Hour', yLabel: 'Temp',
+        points: [
+          { x: 'Mon', y: Number.NaN },
+          { x: 'Tue', y: 'warm' },
+        ] }],
+    }))
+    if (r.status === 'failed') throw new Error('unexpected fail')
+    const t = r.board.blocks[0]
+    if (t.type !== 'table') throw new Error('expected a table fallback')
+    /* The axis labels become the column headings — the learner keeps the
+     * meaning of each column, not just the values. NaN is shown as an
+     * em-dash: "NaN" is a floating-point term, not a reading. */
+    expect(t.columns).toEqual(['Hour', 'Temp'])
+    expect(t.rows).toEqual([['Mon', '—'], ['Tue', 'warm']])
+    expect(r.notices.some((n) => n.message === 'Chart data was incomplete, so a table is shown.')).toBe(true)
+  })
+
+  it('names the columns X and Y when a broken line chart declared no axis labels', () => {
+    const r = validateBoard(base({
+      blocks: [{ id: 'c', type: 'line_chart', points: [{ x: 1, y: null }] }],
+    }))
+    if (r.status === 'failed') throw new Error('unexpected fail')
+    const t = r.board.blocks[0]
+    if (t.type !== 'table') throw new Error('expected a table fallback')
+    expect(t.columns).toEqual(['X', 'Y'])
+  })
+
+  it('omits a line chart whose points have no readable x at all', () => {
+    const r = validateBoard(base({
+      blocks: [{ id: 'c', type: 'line_chart', points: [{ y: 1 }, { nope: true }] }],
+    }))
+    if (r.status === 'failed') throw new Error('unexpected fail')
+    /* Nothing survives that a table could show: no labels, no values. */
+    expect(r.board.blocks).toHaveLength(0)
+    expect(r.notices.some((n) => n.message === 'A chart had no usable data and was omitted.')).toBe(true)
+  })
+
+  it('does not apply a highlight to a line chart that became a table', () => {
+    const r = validateBoard(base({
+      blocks: [{ id: 'c', type: 'line_chart', highlightIndex: 0, points: [{ x: 'a', y: Number.NaN }] }],
+    }))
+    if (r.status === 'failed') throw new Error('unexpected fail')
+    const t = r.board.blocks[0]
+    expect(t.type).toBe('table')
+    /* The fallback returns before the highlight check, so no notice claims a
+     * highlight was removed from a chart that no longer exists. */
+    expect(r.notices.some((n) => n.message === 'A chart highlight pointed at a missing point and was removed.')).toBe(false)
   })
 
   it('accepts negatives in bar charts and a single line point — both are legal charts', () => {
@@ -328,25 +404,17 @@ describe('the invalid-board fixture', () => {
   })
 })
 
+/* The per-fixture sweep — "validates with zero notices", "is labelled
+ * fixture", "the registry can draw every block" — moved to
+ * fixtures/fixtures.test.ts, where it iterates the MANIFEST. It used to be a
+ * hand-written list of five boards here, which meant a sixth fixture could be
+ * added and covered by nothing while this file still went green.
+ *
+ * What stays below are the checks that need a specific board and specific
+ * expected wording: the empty state, the nine planted faults, the root
+ * refusal, and the block-type breadth of the reference board. A generic loop
+ * cannot assert those messages, and asserting them is the point. */
 describe('the fixtures', () => {
-  const valid: Array<[string, LearningBoard]> = [
-    ['change-of-state', CHANGE_OF_STATE_BOARD],
-    ['maths-quadratic', MATHS_QUADRATIC_BOARD],
-    ['history-timeline', HISTORY_TIMELINE_BOARD],
-    ['data-lesson', DATA_LESSON_BOARD],
-    ['biology-cell', BIOLOGY_CELL_BOARD],
-  ]
-
-  it.each(valid)('%s validates ok with zero notices — "repaired" must keep meaning something', (_name, board) => {
-    const r = validateBoard(board as BoardSource)
-    expect(r.status).toBe('ok')
-    expect(r.notices).toEqual([])
-  })
-
-  it.each(valid)('%s is labelled fixture and never learner data', (_name, board) => {
-    expect(board.metadata?.source).toBe('fixture')
-  })
-
   it('the empty board validates ok with zero blocks', () => {
     const r = validateBoard(EMPTY_BOARD as BoardSource)
     expect(r.status).toBe('ok')

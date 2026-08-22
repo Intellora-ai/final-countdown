@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pieArcs, linearScale, ticks, linePath, baseline } from './chartGeometry'
+import { pieArcs, linearScale, ticks, linePath, baseline, fitLabel } from './chartGeometry'
 
 /* The arithmetic behind every chart, tested where it lives. The components
  * contain only markup; if these pass, a wrong chart is a wrong INPUT. */
@@ -96,5 +96,44 @@ describe('baseline', () => {
   it('clamps to the domain edge when zero is outside', () => {
     const s = linearScale(10, 30, 100, 0)
     expect(baseline(s)).toBe(s(10))
+  })
+})
+
+describe('fitLabel', () => {
+  it('leaves a label that already fits completely alone', () => {
+    expect(fitLabel('Mon', 10)).toBe('Mon')
+  })
+
+  it('leaves a label exactly at the cap alone — no ellipsis for nothing', () => {
+    expect(fitLabel('Monday', 6)).toBe('Monday')
+  })
+
+  it('truncates and marks the loss so the reader knows there was more', () => {
+    const out = fitLabel('Photosynthesis', 6)
+    expect(out).toBe('Photo…')
+    expect(out).toHaveLength(6)
+  })
+
+  it('never returns more characters than the cap', () => {
+    const long = 'a'.repeat(60)
+    for (const cap of [2, 3, 5, 9, 17, 40]) {
+      expect(fitLabel(long, cap).length).toBeLessThanOrEqual(cap)
+    }
+  })
+
+  it('floors at two characters, so one letter always survives beside the ellipsis', () => {
+    expect(fitLabel('Photosynthesis', 0)).toBe('P…')
+    expect(fitLabel('Photosynthesis', 1)).toBe('P…')
+    expect(fitLabel('Photosynthesis', -5)).toBe('P…')
+  })
+
+  it('handles a fractional cap by flooring it, since half a character cannot be drawn', () => {
+    expect(fitLabel('Photosynthesis', 6.9)).toBe('Photo…')
+  })
+
+  it('is a pure function of its inputs — same label, same cap, same answer', () => {
+    const a = fitLabel('Precipitation rate', 8)
+    const b = fitLabel('Precipitation rate', 8)
+    expect(a).toBe(b)
   })
 })

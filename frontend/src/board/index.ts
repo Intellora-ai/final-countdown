@@ -1,6 +1,7 @@
 /* The board's public surface. Everything outside frontend/src/board imports
  * from here, so the internal file layout stays free to change. */
 export { BoardView } from './BoardView'
+export { GalleryView } from './GalleryView'
 export { validateBoard } from './renderer/validateBoard'
 export type {
   LearningBoard,

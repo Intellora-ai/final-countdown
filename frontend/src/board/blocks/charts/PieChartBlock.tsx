@@ -1,6 +1,7 @@
 import React from 'react'
 import type { PieChartBlock as PieChartBlockData } from '../../types/learningBoard'
 import { pieArcs } from '../../lib/chartGeometry'
+import { sample } from '../../perf/marks'
 
 /* A ring chart, drawn from data. All arithmetic lives in chartGeometry (where
  * it is unit-tested); this file is markup. Colours come from the board ramp
@@ -16,8 +17,13 @@ const R_IN = 56
 
 export function PieChartBlock({ block }: { block: PieChartBlockData }) {
   const data = Array.isArray(block.data) ? block.data : []
+  const t0 = performance.now()
   const arcs = pieArcs(data.map((d) => d.value), SIZE / 2, SIZE / 2, R_OUT, R_IN)
-  if (!arcs.length) return null
+  sample('chart-geometry-ms', performance.now() - t0)
+  /* Unreachable from a validated board; visible rather than silent if a future
+   * caller ever bypasses the validator. Legend labels wrap in HTML, so a pie
+   * needs no truncation the way an axis does. */
+  if (!arcs.length) return <p data-board="chart-empty">No data to draw.</p>
   const total = data.reduce((n, d) => n + d.value, 0)
   return (
     <div data-board="chart">

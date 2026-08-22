@@ -146,8 +146,28 @@ export function useViewport(initial: Viewport) {
   return { vp, ref, panning, zoomTo, zoomAt, reset, autoFit, markTouched, handlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp } }
 }
 
-/** The transform that fits a world box into a viewport box, centred. */
+/** The transform that fits a world box into a viewport box, centred.
+ *
+ * A NON-POSITIVE MEASUREMENT IS REFUSED, NOT SCALED.
+ *
+ * This is the function that produced matrix(0.35,0,0,0.35,-246.4,-134.4) and
+ * pinned the whole board into a corner for a session. Handed viewW = 0 it
+ * computed min(0/W, 0/H) = 0, clamped that UP to MIN_SCALE, and returned a
+ * viewport that was perfectly well-formed and completely wrong — the worst
+ * kind of answer, because nothing downstream could tell it was garbage.
+ *
+ * An element that has not been laid out yet has no size, and there is no
+ * correct way to fit a world into no space. Identity is the honest answer:
+ * content at its natural size, which a later observation corrects. Guarding
+ * here rather than at each call site means a future caller cannot reintroduce
+ * the bug by forgetting to check.
+ */
 export function fitViewport(worldW: number, worldH: number, viewW: number, viewH: number, margin = 0): Viewport {
-  const scale = clampScale(Math.min((viewW - margin * 2) / worldW, (viewH - margin * 2) / worldH))
+  const availW = viewW - margin * 2
+  const availH = viewH - margin * 2
+  if (!(availW > 0) || !(availH > 0) || !(worldW > 0) || !(worldH > 0)) {
+    return { x: 0, y: 0, scale: 1 }
+  }
+  const scale = clampScale(Math.min(availW / worldW, availH / worldH))
   return { scale, x: (viewW - worldW * scale) / 2, y: (viewH - worldH * scale) / 2 }
 }

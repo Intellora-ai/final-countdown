@@ -82,6 +82,41 @@ jobs:
       - name: Build
         run: npm run build
 
+      # THE BUDGET WAS UNENFORCED, WHICH IS THE SAME AS ABSENT.
+      #
+      # `scripts/canvas-bundle-budget.mjs` has measured the initial canvas payload and exited
+      # non-zero on an overrun since it was written -- and nothing ever called it. A ceiling
+      # nothing checks is a comment. It caught a real 186.55 KB regression against the 150 KB
+      # limit only because it was run by hand; the next one would have shipped.
+      #
+      # It runs AFTER build because it reads dist/, and it needs no path filter of its own: this
+      # whole workflow is already scoped to `frontend/**`.
+      - name: Bundle budget
+        run: npm run budget
+
+      # THE COMPUTED-STYLE GUARDS NEED A REAL BROWSER, SO CI GETS ONE.
+      #
+      # Two of the four bugs these specs cover were computed-style defects: a
+      # correctly-written rule losing to an element selector, and KaTeX's own
+      # display margin. Neither is observable without layout, so vitest cannot
+      # see them and a stylesheet grep proves only that a rule was typed.
+      #
+      # DELIBERATELY ONE SPEC AND ONE PROJECT, not `npm run test:canvas`. The
+      # rest of that suite asserts frame-interval and input-latency p95s, and
+      # percentiles measured on a shared runner go red on neighbour noise
+      # rather than on regressions -- a gate that fails randomly teaches people
+      # to ignore gates. This spec makes no timing claims: every assertion is a
+      # DOM fact. Widening it to the perf suite is a separate decision that
+      # needs a dedicated runner, not a line in this file.
+      #
+      # No `--with-deps`: the runner image already ships Chromium's shared
+      # libraries, matching the reasoning already recorded in e2e.yml.
+      - name: Install Chromium
+        run: npx playwright install chromium
+
+      - name: Scene regression guards
+        run: npx playwright test -c playwright.config.ts e2e/scene-regressions.spec.ts --project=desktop-1440
+
       # `if: always()` so a failed build still uploads whatever it produced -- the partial output
       # is often what identifies the failure. `if-no-files-found: ignore` because a failure before
       # the build step legitimately leaves no dist/ at all, and a missing artifact is not itself

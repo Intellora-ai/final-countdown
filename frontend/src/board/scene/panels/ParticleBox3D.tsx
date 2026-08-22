@@ -21,6 +21,22 @@ import type { ModelStore } from '../../model/modelStore'
  * same box renders identically on every load and a screenshot test is stable.
  */
 
+/* THE RENDERER SETTINGS, NAMED SO THEY CAN BE ASSERTED.
+ *
+ * Inline in the JSX this was a magic object literal that looked like noise and
+ * invited tidying back to the default. It is not noise: r3f defaults to
+ * ACESFilmic tone mapping, a film curve that rolls highlights toward white,
+ * and an emissive cyan particle IS a highlight — the curve desaturated every
+ * one of them and the box rendered as a wireframe full of grey dust. These
+ * particles are a diagram drawn in a chosen colour, not photographic light.
+ * Exported because a test asserts it, so the next person to "clean this up"
+ * gets a failure instead of a silently grey scene. */
+export const CANVAS_GL = {
+  antialias: true,
+  alpha: true,
+  toneMapping: THREE.NoToneMapping,
+} as const
+
 const COUNT = 22
 /* Half-extent of the cube interior. Particles bounce inside ±LIMIT. */
 const LIMIT = 0.86
@@ -211,16 +227,7 @@ export function ParticleBox3D({
       <Canvas
         camera={camera}
         dpr={[1, 2]}
-        /* NO TONE MAPPING, AND THAT IS THE WHOLE REASON THE GLOW READS.
-         *
-         * r3f defaults to ACESFilmic, a film curve that deliberately rolls
-         * highlights off toward white. An emissive cyan particle is exactly a
-         * highlight, so the curve was desaturating every one of them into a
-         * grey dot and the box looked like a wireframe with dust in it. These
-         * particles are not photographic light; they are a diagram drawn in a
-         * chosen colour, and the renderer should hand that colour back
-         * unmodified. */
-        gl={{ antialias: true, alpha: true, toneMapping: THREE.NoToneMapping }}
+        gl={CANVAS_GL}
         style={{ width: '100%', height: '100%' }}
       >
         <Rig store={store} tempVar={tempVar} showVectors={showVectors} />

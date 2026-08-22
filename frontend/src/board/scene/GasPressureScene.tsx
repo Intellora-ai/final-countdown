@@ -107,10 +107,12 @@ export function GasPressureScene() {
 
   useEffect(() => autoFit(WORLD_W, WORLD_H), [autoFit])
 
+  /* No zero-size guard here: fitViewport refuses a degenerate measurement on
+   * its own, so every caller gets the same safe answer without remembering to
+   * ask for it. */
   const fit = () => {
     const el = ref.current
-    if (!el || el.clientWidth <= 0) return
-    reset(fitViewport(WORLD_W, WORLD_H, el.clientWidth, el.clientHeight))
+    if (el) reset(fitViewport(WORLD_W, WORLD_H, el.clientWidth, el.clientHeight))
   }
 
   /* Every wire on the board, in world coordinates. */

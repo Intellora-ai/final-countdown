@@ -65,7 +65,7 @@ export function Gauge({
         />
         <circle cx={cx} cy={cy} r={2.6} fill="#e8eef2" />
       </svg>
-      <span style={{ fontFamily: 'var(--sc-mono)', fontSize: 11.5, color: 'var(--sc-ink)' }}>
+      <span data-sc="gauge-value" style={{ fontFamily: 'var(--sc-mono)', fontSize: 11.5, color: 'var(--sc-ink)' }}>
         {formatValue(value, meta?.precision)} {meta?.unit ?? ''}
       </span>
     </div>

@@ -143,6 +143,32 @@ jobs:
         continue-on-error: true
         run: node scripts/gh-annotate.mjs vitest < "$RUNNER_TEMP/vitest.json"
 
+      # THE GATE THAT TESTS THE TESTS.
+      #
+      # Every step above asks "does the code work". None of them asks "would
+      # these tests notice if it stopped". Six gates in ci/gates.toml already
+      # answer that second question -- mutmut, spec-strength, spec-composition,
+      # vacuity-check, counterexample-search, honest-report -- and every one of
+      # them is scoped to `src/` Python and `specs/` Lean. `pyproject.toml`
+      # pins `paths_to_mutate = ["src/"]`, ten statements of integer
+      # arithmetic. Not one mutates a line of TypeScript, and the frontend has
+      # no stryker, no mutmut, no property-testing library at all.
+      #
+      # So this suite could rot silently. It was not hypothetical: the gate's
+      # FIRST run reported a survivor. Deleting the simulation contract's
+      # refusal of a named model -- `model: 'ideal-gas'`, the hardcoded physics
+      # this whole refactor exists to remove -- broke none of the 418 tests,
+      # because that contract had no test file of its own. It has one now, and
+      # the mutant dies.
+      #
+      # Runs before Build on purpose: it needs only src/ and node_modules, and
+      # a suite that cannot see defects is worth knowing about before spending
+      # a build and a browser install on it.
+      - name: Mutation gate
+        id: mutation
+        continue-on-error: true
+        run: npm run test:mutation
+
       - name: Build
         id: build
         continue-on-error: true
@@ -235,6 +261,7 @@ jobs:
           steps.typecheck.outcome == 'failure' ||
           steps.lint.outcome == 'failure' ||
           steps.unit.outcome == 'failure' ||
+          steps.mutation.outcome == 'failure' ||
           steps.build.outcome == 'failure' ||
           steps.budget.outcome == 'failure' ||
           steps.playwright.outcome == 'failure'

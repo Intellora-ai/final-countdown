@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest",
+    "test:mutation": "node scripts/mutation-gate.mjs",
     "budget": "node scripts/canvas-bundle-budget.mjs",
     "lint": "eslint src/canvas --max-warnings 0"
   },

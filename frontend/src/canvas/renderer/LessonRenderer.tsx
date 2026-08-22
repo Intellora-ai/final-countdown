@@ -3,6 +3,8 @@ import type { Lesson, LessonElement, RepresentationContext } from '../contract/t
 import { select, contractFor } from '../contract/registry'
 import { loaderFor, isRendererKey, type PanelProps } from './renderers'
 import { color, type, space, radius, stroke, ink } from '../design/tokens'
+import { selectArchetype, compositionFor, GRID_COLUMNS } from '../layout/archetypes'
+import { contentMass, climbLadder } from '../layout/disclosure'
 
 /* THE MISSING LAYER — root cause A.
  *
@@ -26,10 +28,20 @@ import { color, type, space, radius, stroke, ink } from '../design/tokens'
  * renderer KEY; the map names a component. Three hops, each closed, so no
  * lesson can name a component that this build did not choose to register.
  *
- * DETERMINISTIC PLACEMENT, DELIBERATELY SIMPLE. This slice stacks blocks in a
- * readable column. The archetype grammar exists and is tested, but wiring it in
- * here would make one change carry two risks; that is the next step, not this
- * one.
+ * PLACEMENT COMES FROM THE ARCHETYPE GRAMMAR. Until now this stacked blocks in
+ * a column while the engine computed a composition and then ignored it — the
+ * selector would decide PROCESS, log why, and the screen would show a stack
+ * anyway. The grammar is now the thing that places, so what the engine decides
+ * is what the learner sees.
+ *
+ * The density ladder runs first and may return a SIMPLER archetype than the
+ * selector chose. That is not a fallback in the apologetic sense: a lesson with
+ * more blocks than slots genuinely reads better in a plainer composition, and
+ * the ladder logs which rung fired.
+ *
+ * Blocks past the last slot stack into fresh bands rather than piling into the
+ * final one, which would recreate the overlap the layout validator exists to
+ * refuse.
  */
 
 export interface LessonRendererProps {
@@ -138,8 +150,32 @@ export function LessonRenderer({ lesson, viewport, explain = false }: LessonRend
     [lesson, ctx],
   )
 
+  /* The composition, decided the same way the gallery reports it. */
+  const plan = useMemo(() => {
+    const decision = selectArchetype(lesson.elements)
+    const mass = contentMass(lesson.elements)
+    const first = compositionFor(decision.archetype)
+    const ladder = climbLadder(decision.archetype, mass, first.slots.length, lesson.elements.length)
+    const composition = compositionFor(ladder.archetype)
+
+    const placements = lesson.elements.map((e, i) => {
+      const slot = composition.slots[Math.min(i, composition.slots.length - 1)]
+      /* Past the last slot, stack into new bands rather than overlapping. */
+      const band = i < composition.slots.length
+        ? slot.band
+        : slot.band + (i - composition.slots.length) + 1
+      return { id: e.id, col: slot.col, span: slot.span, band }
+    })
+
+    const bands = [...new Set(placements.map((p) => p.band))].sort((a, b) => a - b)
+    return { decision, ladder, composition, placements, bands }
+  }, [lesson])
+
+  const byId = new Map(resolved.map((r) => [r.element.id, r]))
+
   return (
-    <div data-canvas="lesson" style={{ display: 'flex', flexDirection: 'column', gap: space.xl }}>
+    <div data-canvas="lesson" data-archetype={plan.ladder.archetype}
+      style={{ display: 'flex', flexDirection: 'column', gap: space.xl }}>
       <h2 style={{
         fontFamily: type.display.family, fontSize: type.display.size,
         fontWeight: type.display.weight, letterSpacing: type.display.tracking,
@@ -148,13 +184,39 @@ export function LessonRenderer({ lesson, viewport, explain = false }: LessonRend
         {lesson.question}
       </h2>
 
-      {resolved.map((r) => {
+      {explain && (
+        <p data-canvas="composition" style={{
+          fontFamily: type.mono.family, fontSize: type.mono.size,
+          color: color.accent, margin: 0,
+        }}>
+          {plan.ladder.archetype} · {plan.decision.rule} · {plan.ladder.policy.density}
+        </p>
+      )}
+
+      {plan.bands.map((band) => (
+        <div
+          key={band}
+          data-canvas="band"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${GRID_COLUMNS}, 1fr)`,
+            gap: space.lg,
+            alignItems: 'start',
+          }}
+        >
+      {plan.placements.filter((p) => p.band === band).map((p) => {
+        const r = byId.get(p.id)!
         const Component = r.rendererKey && isRendererKey(r.rendererKey)
           ? componentFor(r.rendererKey)
           : null
 
         return (
-          <section key={r.element.id} data-canvas="block" data-kind={r.kind ?? 'unknown'}>
+          <section
+            key={r.element.id}
+            data-canvas="block"
+            data-kind={r.kind ?? 'unknown'}
+            style={{ gridColumn: `${p.col} / span ${p.span}`, minWidth: 0 }}
+          >
             {Component ? (
               <Suspense fallback={<Skeleton />}>
                 <Component
@@ -180,6 +242,8 @@ export function LessonRenderer({ lesson, viewport, explain = false }: LessonRend
           </section>
         )
       })}
+        </div>
+      ))}
     </div>
   )
 }

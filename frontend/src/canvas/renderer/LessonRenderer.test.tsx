@@ -120,6 +120,78 @@ describe('the renderer draws real content, not placeholders', () => {
   })
 })
 
+describe('placement comes from the archetype grammar, not a stack', () => {
+  it('composes on the twelve-column grid', () => {
+    const { container } = render(<LessonRenderer lesson={lesson} />)
+    const bands = container.querySelectorAll('[data-canvas="band"]')
+    expect(bands.length, 'blocks must be placed in bands').toBeGreaterThan(0)
+    for (const b of bands) {
+      expect((b as HTMLElement).style.gridTemplateColumns).toBe('repeat(12, 1fr)')
+    }
+  })
+
+  it('gives every block a grid column, never a bare stack', () => {
+    const { container } = render(<LessonRenderer lesson={lesson} />)
+    const blocks = [...container.querySelectorAll('[data-canvas="block"]')] as HTMLElement[]
+    expect(blocks).toHaveLength(3)
+    for (const b of blocks) {
+      expect(b.style.gridColumn, 'a block with no column is a stacked block').toMatch(/^\d+ \/ span \d+$/)
+    }
+  })
+
+  it('keeps every placement inside the twelve columns', () => {
+    const { container } = render(<LessonRenderer lesson={lesson} />)
+    for (const b of container.querySelectorAll('[data-canvas="block"]')) {
+      /* "1 / span 12" splits to ['1','/','span','12'] — the width is index 3. */
+      const [start, , , span] = (b as HTMLElement).style.gridColumn.split(' ')
+      expect(Number(start) + Number(span) - 1, (b as HTMLElement).style.gridColumn)
+        .toBeLessThanOrEqual(12)
+    }
+  })
+
+  it('records which composition it used', () => {
+    const { container } = render(<LessonRenderer lesson={lesson} />)
+    const root = container.querySelector('[data-canvas="lesson"]') as HTMLElement
+    expect(root.dataset.archetype).toBeTruthy()
+  })
+
+  it('gives DIFFERENT lessons DIFFERENT compositions', () => {
+    /* The claim the whole project rests on, asserted at render time rather
+     * than in the engine: two semantic profiles must not produce one shape. */
+    const proseOnly: Lesson = {
+      id: 'p', question: 'Prose?',
+      elements: Array.from({ length: 3 }, (_, i) => ({
+        id: `t${i}`, kind: 'text' as const, purpose: 'explain' as const,
+        payload: { paragraphs: ['words'] },
+      })),
+    }
+    const a = render(<LessonRenderer lesson={proseOnly} />)
+      .container.querySelector('[data-canvas="lesson"]') as HTMLElement
+    const archA = a.dataset.archetype
+    cleanup()
+
+    const b = render(<LessonRenderer lesson={lesson} />)
+      .container.querySelector('[data-canvas="lesson"]') as HTMLElement
+    expect(b.dataset.archetype, 'prose and mixed data produced the same composition').not.toBe(archA)
+  })
+
+  it('stacks overflow into new bands rather than overlapping', () => {
+    /* More elements than slots must not pile into the final slot — that is
+     * exactly the collision the layout validator refuses. */
+    const many: Lesson = {
+      id: 'm', question: 'Many?',
+      elements: Array.from({ length: 9 }, (_, i) => ({
+        id: `e${i}`, kind: 'text' as const, purpose: 'explain' as const,
+        payload: { paragraphs: [`block ${i}`] },
+      })),
+    }
+    const { container } = render(<LessonRenderer lesson={many} />)
+    const bands = container.querySelectorAll('[data-canvas="band"]')
+    expect(bands.length, 'nine blocks should occupy several bands').toBeGreaterThan(1)
+    expect(container.querySelectorAll('[data-canvas="block"]')).toHaveLength(9)
+  })
+})
+
 describe('unknown kinds fail visibly, never silently', () => {
   const broken: Lesson = {
     id: 'b', question: 'What happens to a kind nothing can draw?',

@@ -37,5 +37,16 @@ export default defineConfig({
      * assertion about the stub. Those claims belong to the browser harness. */
     include: ['src/**/*.{test,spec}.{ts,tsx}', 'eslint-rules/**/*.test.ts'],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
+
+    /* jsdom ONLY where a test opts in, via a per-file
+     *   // @vitest-environment jsdom
+     * docblock. The engine tests are DOM-free by design and must stay that
+     * way -- jsdom performs no layout and implements no container queries, so
+     * a layout assertion made against it would be an assertion about the stub.
+     *
+     * What jsdom CAN prove is the thing 252 tests could not: that a lesson
+     * turns into elements with real text in them. That gap is precisely how a
+     * renderer came to be missing while every gate stayed green. */
+    environmentMatchGlobs: [['src/canvas/renderer/**', 'jsdom']],
   },
 })

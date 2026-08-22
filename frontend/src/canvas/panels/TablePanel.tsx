@@ -47,7 +47,15 @@ function formatCell(value: unknown, col: DerivedColumn): string {
         minimumFractionDigits: col.precision ?? 0,
         maximumFractionDigits: col.precision ?? 0,
       })
-      return col.type === 'currency' ? `₹${s}` : s
+      /* The symbol comes from the column's UNIT, not from a hardcoded guess.
+       * The first cut prefixed every currency column with a rupee sign, so a
+       * column declared in USD would have rendered Indian currency -- a wrong
+       * number presented with total confidence. Unknown codes fall back to the
+       * code itself, which is honest rather than convenient. */
+      if (col.type !== 'currency') return s
+      const SYMBOLS: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£', JPY: '¥' }
+      const symbol = col.unit ? (SYMBOLS[col.unit.toUpperCase()] ?? `${col.unit} `) : ''
+      return `${symbol}${s}`
     }
     case 'percent': {
       const n = Number(value)

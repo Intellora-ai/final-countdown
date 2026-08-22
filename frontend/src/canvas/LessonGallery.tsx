@@ -7,6 +7,8 @@ import { financialCrisis } from './lessons/demo'
 import { selectArchetype, compositionFor, GRID_COLUMNS } from './layout/archetypes'
 import { contentMass, climbLadder } from './layout/disclosure'
 import { checkFrame, type LayoutFrame, type PlacedBlock } from './layout/validate'
+import { LessonRenderer } from './renderer/LessonRenderer'
+import { registerRepresentations } from './contract/bootstrap'
 
 /* THE ENGINE, MADE VISIBLE.
  *
@@ -49,6 +51,15 @@ function frameFor(lesson: (typeof ACCEPTANCE_LESSONS)[number]): {
 
 export function LessonGallery() {
   const [open, setOpen] = useState<string | null>(null)
+
+  /* THE FEATURE FLAG. ?renderer=v2 draws real content through the registry;
+   * anything else keeps the slot view. Default behaviour is unchanged, so the
+   * new path has to be asked for and can be abandoned by removing a query
+   * parameter rather than a revert. */
+  const dynamic = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('renderer') === 'v2'
+
+  if (dynamic) registerRepresentations()
 
   return (
     <div className="scene" style={{ ...(cssVariables() as React.CSSProperties), overflowY: 'auto' }}>
@@ -99,7 +110,16 @@ export function LessonGallery() {
                 )}
               </div>
 
-              {/* the composition, on the real grid */}
+              {dynamic ? (
+                <div style={{
+                  border: `${stroke.hair}px solid ${color.border}`,
+                  borderRadius: radius.lg, padding: space.xl,
+                  background: color.surface,
+                }}>
+                  <LessonRenderer lesson={lesson as never} explain />
+                </div>
+              ) : (
+              /* the composition, on the real grid */
               <div style={{
                 border: `${stroke.hair}px solid ${color.border}`,
                 borderRadius: radius.lg, padding: space.lg,
@@ -141,6 +161,7 @@ export function LessonGallery() {
                   </div>
                 ))}
               </div>
+              )}
 
               <button
                 onClick={() => setOpen(isOpen ? null : lesson.id)}

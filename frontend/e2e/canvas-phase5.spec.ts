@@ -272,3 +272,100 @@ test.describe('the learner controls do what they say', () => {
     await waitForCheckpoint(page)
   })
 })
+
+test.describe('the remaining learner interactions', () => {
+  test('a worked example arrives a move at a time, answer last', async ({ page }) => {
+    await clearProgress(page)
+    await openBoard(page, QUIZ)
+    const example = page.locator('[data-board="example"]').first()
+    await example.waitFor({ timeout: 20_000 })
+
+    /* Caught mid-reveal: the result must not already be on screen while the
+     * working is still arriving. Showing every line at once is showing the
+     * answer. */
+    const early = (await example.textContent()) ?? ''
+    const hasResultEarly = early.includes('9/12')
+
+    await waitForCheckpoint(page)
+    const late = (await example.textContent()) ?? ''
+
+    expect(late, 'the finished example states its result').toContain('9/12')
+    expect(late.length, 'the example grew as it was revealed')
+      .toBeGreaterThanOrEqual(early.length)
+    if (hasResultEarly) {
+      /* Reduced motion collapses the schedule to zero delay, so everything is
+       * present immediately and this ordering cannot be observed. Order is
+       * still asserted, in reveal.test.ts, on the timeline itself. */
+      expect(testInfoReducedMotion(test.info())).toBe(true)
+    }
+  })
+
+  test('selecting a diagram node highlights what it touches', async ({ page }) => {
+    await clearProgress(page)
+    await openBoard(page, '/#/canvas?fixture=economics-supply-demand')
+    await page.evaluate(() => window.__boardHarness!.fastForward(8))
+    const select = page.locator('[data-board="diagram-list-select"]').first()
+    await select.waitFor({ state: 'attached', timeout: 20_000 })
+
+    /* Driven by KEYBOARD, because that is what this control is for. At board
+     * widths above 600px the list is the screen-reader rendering of the
+     * diagram and is visually clipped; focus brings it back into view, which
+     * is the behaviour a sighted keyboard user depends on. Clicking it with a
+     * mouse is not the path — the SVG nodes are, and they are tested by the
+     * dimming assertions below. */
+    await expect(select).toHaveAttribute('aria-pressed', 'false')
+    await select.focus()
+    await expect(select, 'focus must reveal the clipped list').toBeVisible()
+    await page.keyboard.press('Enter')
+    await expect(select).toHaveAttribute('aria-pressed', 'true')
+
+    /* Something is emphasised and something is dimmed — the point of a concept
+     * map is seeing what touches what. */
+    const dimmed = await page.locator('[data-board="diagram-node"][data-state="dimmed"]').count()
+    const selected = await page.locator('[data-board="diagram-node"][data-state="selected"]').count()
+    expect(selected).toBe(1)
+    expect(dimmed).toBeGreaterThan(0)
+
+    /* Choosing it again clears the selection: a learner can always get back to
+     * the whole picture. */
+    await select.focus()
+    await page.keyboard.press('Enter')
+    await expect(select).toHaveAttribute('aria-pressed', 'false')
+    expect(await page.locator('[data-board="diagram-node"][data-state="dimmed"]').count()).toBe(0)
+  })
+
+  test('the lesson has a transcript and announces what changed', async ({ page }) => {
+    await clearProgress(page)
+    await openBoard(page, CHEM)
+    await waitForCheckpoint(page)
+
+    const live = page.locator('[role="status"][aria-live="polite"]').first()
+    await expect(live).toHaveCount(1)
+    /* At a checkpoint the announcement is the decision the learner has to
+     * make, not the prose that just finished typing. */
+    expect((await live.textContent()) ?? '').toMatch(/step 1/i)
+
+    const transcript = page.locator('#lesson-transcript')
+    await expect(transcript).toHaveCount(1)
+    const text = (await transcript.textContent()) ?? ''
+    expect(text).toContain('Lesson transcript')
+    expect(text).toMatch(/1 step so far/)
+  })
+
+  test('a checkpoint puts focus on the choice it is waiting for', async ({ page }) => {
+    await clearProgress(page)
+    await openBoard(page, CHEM)
+    await waitForCheckpoint(page)
+
+    /* The one moment the board genuinely needs an answer. A keyboard learner
+     * should not have to hunt for the control that just appeared. */
+    const focused = await page.evaluate(() =>
+      (document.activeElement as HTMLElement | null)?.dataset?.primary ?? null)
+    expect(focused).toBe('true')
+  })
+})
+
+/** Whether this project emulates prefers-reduced-motion. */
+function testInfoReducedMotion(info: { project: { use: { reducedMotion?: string } } }): boolean {
+  return info.project.use.reducedMotion === 'reduce'
+}

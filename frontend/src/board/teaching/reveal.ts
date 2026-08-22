@@ -25,11 +25,12 @@ export interface RevealEvent {
     | 'text-chunk'       // prose visible up to charEnd
     | 'diagram-node' | 'diagram-edge'
     | 'equation-group'
+    | 'example-piece'    // prompt, given, one line of working, or the result
     | 'chart-axes' | 'chart-data'
     | 'visual'           // any other visual body appears whole
   /** For text-chunk: visible-character end index into the block's full text. */
   charEnd?: number
-  /** For node/edge/equation-group: which piece. */
+  /** For node/edge/equation-group/example-piece: which piece. */
   pieceIndex?: number
 }
 
@@ -133,6 +134,26 @@ function blockEvents(blockIndex: number, block: Block, cps: number, t0: number):
       for (let g = 0; g < groups; g++) {
         t += TIMING.equationGroupMs
         events.push({ at: t, blockIndex, kind: 'equation-group', pieceIndex: g })
+      }
+      break
+    }
+    case 'example': {
+      /* A worked example is a sequence of moves, and showing all of them at
+       * once is showing the answer. The pieces arrive in the order a teacher
+       * would write them: the question, what is given, each line of working,
+       * then the result — so a learner reading along has a moment to try the
+       * next line before it appears.
+       *
+       * Spaced at the equation-group interval because a line of working IS an
+       * equation step; giving it a different rhythm would say it was a
+       * different kind of thing. */
+      const pieces = 1                                     // the prompt
+        + (block.input ? 1 : 0)
+        + block.working.length
+        + (block.result ? 1 : 0)
+      for (let p = 0; p < pieces; p++) {
+        t += TIMING.equationGroupMs
+        events.push({ at: t, blockIndex, kind: 'example-piece', pieceIndex: p })
       }
       break
     }

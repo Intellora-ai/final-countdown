@@ -5,7 +5,7 @@
  * lesson provides one) another example. There is no timer on any of these.
  * Everything is a real button with a real 44px target and visible focus.
  */
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import type { SessionApi } from './useTeachingSession'
 import type { PaceProfileName } from './types'
 
@@ -52,7 +52,21 @@ export function TeachingControls({ session }: { session: SessionApi }) {
 
 export function CheckpointPanel({ session }: { session: SessionApi }) {
   const s = session
-  if (s.status !== 'checkpoint' || !s.currentStep) return null
+  const primary = useRef<HTMLButtonElement | null>(null)
+  const atCheckpoint = s.status === 'checkpoint'
+
+  /* MOVE FOCUS WHEN THE LESSON STOPS AND WAITS.
+   *
+   * A checkpoint is the one moment the board genuinely needs an answer, and a
+   * keyboard learner would otherwise have to hunt for the control that appeared
+   * somewhere below content they cannot see. Focus goes to the primary choice,
+   * once, when the checkpoint arrives — not on every render, which would fight
+   * a learner who deliberately tabbed to "Explain again". */
+  useEffect(() => {
+    if (atCheckpoint) primary.current?.focus()
+  }, [atCheckpoint, s.released.length])
+
+  if (!atCheckpoint || !s.currentStep) return null
   /* The question AND its button labels are authored content — chrome renders
    * what the checkpoint says, never a hardcoded pair of words. */
   const cp = s.currentStep.step.checkpoint ?? {
@@ -62,7 +76,7 @@ export function CheckpointPanel({ session }: { session: SessionApi }) {
     <div data-board="checkpoint" role="group" aria-label="Checkpoint">
       <p data-board="checkpoint-question">{cp.question}</p>
       <div data-board="checkpoint-actions">
-        <button type="button" data-board="teach-btn" data-primary="true" onClick={s.continueNext}>
+        <button ref={primary} type="button" data-board="teach-btn" data-primary="true" onClick={s.continueNext}>
           {cp.continueLabel}
         </button>
         <button type="button" data-board="teach-btn" onClick={s.explainAgain}>

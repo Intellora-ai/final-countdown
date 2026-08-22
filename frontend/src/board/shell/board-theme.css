@@ -1182,6 +1182,19 @@
     clip-path: inset(50%);
     overflow: hidden;
   }
+
+  /* …unless a keyboard is in it. The list is the screen-reader rendering of
+     the diagram AND the only way to select a node without a pointer. Clipped
+     but focusable is right for a screen reader and wrong for a sighted
+     keyboard user, who would otherwise be tabbing through controls they
+     cannot see. Focus brings it back. */
+  [data-board='diagram-list']:focus-within {
+    position: static;
+    width: auto; height: auto;
+    margin: var(--space-4) 0 0;
+    clip-path: none;
+    overflow: visible;
+  }
 }
 
 @container broot (max-width: 599px) {
@@ -1593,3 +1606,43 @@
   color: var(--board-accent);
   margin: 0 0 var(--space-2);
 }
+
+
+/* ── diagram selection ────────────────────────────────────────────────────
+   Choosing a node dims what it does not touch. The dimming is the answer to
+   "what is connected to this?", so it must be legible rather than decorative:
+   related nodes keep full contrast, unrelated ones drop but stay readable —
+   a learner should still be able to see what they deselected. */
+[data-board='diagram-node'][data-state='selected'] {
+  stroke: var(--board-accent);
+  stroke-width: 2;
+}
+[data-board='diagram-node'][data-state='related'] { stroke: var(--board-accent); }
+[data-board='diagram-node'][data-state='dimmed'] { opacity: 0.35; }
+[data-board='diagram-edge'][data-state='related'] { stroke: var(--board-accent); }
+[data-board='diagram-edge'][data-state='dimmed'] { opacity: 0.25; }
+
+/* The list is the keyboard and screen-reader path, so its selected state must
+   not rely on the SVG being visible — at phone width the SVG is not. */
+[data-board='diagram-list-select'] {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  /* The label is inline text inside a list item, so the WCAG inline exception
+     applies; the tap area is still enlarged to a comfortable size. */
+  min-height: 24px;
+}
+[data-board='diagram-list-select']:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+[data-board='diagram-list-select'][aria-pressed='true'] [data-board='diagram-list-label'] {
+  color: var(--board-accent);
+}
+[data-board='diagram-list-node'][data-state='dimmed'] { opacity: 0.5; }

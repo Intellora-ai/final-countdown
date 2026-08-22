@@ -1,6 +1,7 @@
 import React from 'react'
 import type { DiagramBlock as DiagramBlockData } from '../types/learningBoard'
 import { layoutDiagram, NODE_W, NODE_H } from '../lib/diagramLayout'
+import { useBoardInteraction } from '../teaching/BoardInteractionContext'
 
 /* Nodes and relationships, spatial INSIDE this block's own viewBox and
  * nowhere else. The board's grid places the block; the block places its
@@ -13,13 +14,47 @@ import { layoutDiagram, NODE_W, NODE_H } from '../lib/diagramLayout'
  * concept map scaled to a phone is a smudge, and the list carries the same
  * nodes and relationships in reading order. The list doubles as the
  * accessible description at EVERY width.
+ *
+ * SELECTION, AND WHY IT LIVES IN THE LIST.
+ * Choosing a node dims everything it is not connected to, which is the whole
+ * point of a concept map: seeing what touches what. The SVG is aria-hidden, so
+ * putting focusable controls inside it would create things a keyboard can
+ * reach and a screen reader cannot describe. The list items become the
+ * buttons instead — they are already the accessible rendering of the same
+ * graph — and the SVG mirrors the selection visually. Pointer users click the
+ * shapes; everyone else uses the list; both drive one piece of state.
  */
 export function DiagramBlock({ block }: { block: DiagramBlockData }) {
+  const interaction = useBoardInteraction()
   const nodes = Array.isArray(block.nodes) ? block.nodes : []
   const edges = Array.isArray(block.edges) ? block.edges : []
   if (!nodes.length) return null
   const lay = layoutDiagram(nodes)
   const byId = new Map(nodes.map((n) => [n.id, n]))
+
+  /* Selection is board state, so a diagram rendered without a board — a
+   * fixture, a test, the gallery — simply has none, and every node draws
+   * plainly. Nothing here needs a board to work. */
+  const selected = interaction?.selectedNodeId ?? null
+  const selectedExists = selected !== null && byId.has(selected)
+  const activeId = selectedExists ? selected : null
+
+  /* A node is related to the selection if an edge touches both. Computed from
+   * the edges the block declares, never from proximity on screen: two nodes
+   * can sit beside each other and mean nothing to one another. */
+  const related = new Set<string>()
+  if (activeId) {
+    related.add(activeId)
+    for (const e of edges) {
+      if (e.from === activeId) related.add(e.to)
+      if (e.to === activeId) related.add(e.from)
+    }
+  }
+  const nodeState = (id: string) =>
+    !activeId ? 'plain' : id === activeId ? 'selected' : related.has(id) ? 'related' : 'dimmed'
+  const edgeState = (from: string, to: string) =>
+    !activeId ? 'plain' : from === activeId || to === activeId ? 'related' : 'dimmed'
+  const toggle = (id: string) => interaction?.selectNode(activeId === id ? null : id)
 
   return (
     <div data-board="diagram">
@@ -36,7 +71,8 @@ export function DiagramBlock({ block }: { block: DiagramBlockData }) {
           return (
             <g key={i}>
               <path d={`M ${sx1} ${sy1} C ${sx1} ${my} ${sx2} ${my} ${sx2} ${sy2}`}
-                data-board="diagram-edge" data-kind={e.kind || 'reference'} fill="none" />
+                data-board="diagram-edge" data-kind={e.kind || 'reference'}
+                data-state={edgeState(e.from, e.to)} fill="none" />
               {e.label && (
                 <text x={(sx1 + sx2) / 2} y={my - 6} data-board="diagram-edge-label" textAnchor="middle">{e.label}</text>
               )}
@@ -48,7 +84,12 @@ export function DiagramBlock({ block }: { block: DiagramBlockData }) {
           if (!p) return null
           return (
             <g key={n.id}>
-              <rect x={p.x} y={p.y} width={NODE_W} height={NODE_H} rx={12} data-board="diagram-node" />
+              <rect x={p.x} y={p.y} width={NODE_W} height={NODE_H} rx={12}
+                data-board="diagram-node" data-state={nodeState(n.id)}
+                /* Pointer only. The keyboard path is the list below, which a
+                 * screen reader can actually describe. */
+                onPointerUp={interaction ? () => toggle(n.id) : undefined}
+                style={interaction ? { cursor: 'pointer' } : undefined} />
               <foreignObject x={p.x} y={p.y} width={NODE_W} height={NODE_H} style={{ pointerEvents: 'none' }}>
                 <div data-board="diagram-node-body">
                   <div data-board="diagram-node-label">{n.label}</div>
@@ -64,8 +105,19 @@ export function DiagramBlock({ block }: { block: DiagramBlockData }) {
         {nodes.map((n) => {
           const out = edges.filter((e) => e.from === n.id && byId.has(e.to))
           return (
-            <li key={n.id} data-board="diagram-list-node">
-              <span data-board="diagram-list-label">{n.label}</span>
+            <li key={n.id} data-board="diagram-list-node" data-state={nodeState(n.id)}>
+              {interaction ? (
+                <button
+                  type="button"
+                  data-board="diagram-list-select"
+                  aria-pressed={activeId === n.id}
+                  onClick={() => toggle(n.id)}
+                >
+                  <span data-board="diagram-list-label">{n.label}</span>
+                </button>
+              ) : (
+                <span data-board="diagram-list-label">{n.label}</span>
+              )}
               {n.detail ? <span data-board="diagram-list-detail">{n.detail}</span> : null}
               {out.length > 0 && (
                 <span data-board="diagram-list-edges">

@@ -437,7 +437,7 @@ function TeachingBoard({ fixtureId, setFixtureId }: { fixtureId: string; setFixt
           </CameraWorld>
         </BoardViewport>
       </BoardInteractionProvider>
-      <AccessibleLesson released={session.released} />
+      <AccessibleLesson released={session.released} status={session.status} />
     </BlackboardShell>
   )
 }

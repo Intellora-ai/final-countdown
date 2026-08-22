@@ -92,7 +92,7 @@ export function useCamera(): CameraApi {
     let inputT0 = 0
 
     const isPanStart = (e: PointerEvent) =>
-      e.button === 1 || (e.button === 0 && (spaceHeld.current || !(e.target as HTMLElement).closest('button, input, a, [data-board="quiz-option"]')))
+      e.button === 1 || (e.button === 0 && (spaceHeld.current || !(e.target as HTMLElement).closest('button, input, a, [data-board="quiz-option"], [data-board="diagram-node"]')))
 
     const down = (e: PointerEvent) => {
       if (!isPanStart(e)) return

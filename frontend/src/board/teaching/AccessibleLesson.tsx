@@ -37,20 +37,68 @@ function textEquivalent(b: Block): string {
   }
 }
 
-export function AccessibleLesson({ released }: { released: ReleasedStep[] }) {
+export function AccessibleLesson({ released, status }: {
+  released: ReleasedStep[]
+  /** Session status, announced politely when it changes. */
+  status?: string
+}) {
+  /* WHAT IS ANNOUNCED, AND WHAT IS NOT.
+   *
+   * A live region that spoke every revealed chunk would talk over a learner
+   * continuously — text arrives a few words at a time. What matters is when
+   * something CHANGES for them: a new step, or a checkpoint waiting for a
+   * decision. Those are announced; the typing is not. */
+  const count = released.length
+  const current = released[count - 1]
+  const announcement = !current
+    ? ''
+    : status === 'checkpoint'
+      ? `Step ${count} finished. ${current.step.checkpoint?.question ?? 'Ready to continue?'}`
+      : status === 'complete'
+        ? 'Lesson complete.'
+        : `Step ${count}${current.step.title ? `: ${current.step.title}` : ''}.`
+
   return (
-    <section data-board="visually-hidden" aria-label="Lesson so far, in reading order">
-      <ol>
-        {released.map((r) => (
-          <li key={r.step.id}>
-            {r.step.title ? <h3>{r.step.title}</h3> : null}
-            {r.step.blocks.map((b) => <p key={b.id}>{textEquivalent(b)}</p>)}
-            {(r.step.connectors ?? []).map((c) => (
-              <p key={c.id}>Relationship: {c.from} {c.kind === 'causal' ? 'leads to' : c.kind === 'sequence' ? 'is followed by' : 'references'} {c.to}{c.label ? ` (${c.label})` : ''}.</p>
-            ))}
-          </li>
-        ))}
-      </ol>
-    </section>
+    <>
+      {/* Polite, atomic, and always present in the DOM — a live region added
+        * at the moment it has something to say is often missed, because the
+        * technology was not watching the node yet. */}
+      <div
+        data-board="visually-hidden"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {announcement}
+      </div>
+
+      <section
+        id="lesson-transcript"
+        data-board="visually-hidden"
+        aria-label="Lesson so far, in reading order"
+        tabIndex={-1}
+      >
+        <h2>Lesson transcript</h2>
+        <p>
+          {count === 0
+            ? 'Nothing has been taught yet.'
+            : `${count} step${count === 1 ? '' : 's'} so far. The board shows the same content spatially.`}
+        </p>
+        <ol>
+          {released.map((r, i) => (
+            <li key={r.step.id} id={`lesson-step-${i + 1}`}>
+              <h3>
+                {r.step.title ?? `Step ${i + 1}`}
+                {r.clarification ? ' (explained again)' : ''}
+              </h3>
+              {r.step.blocks.map((b) => <p key={b.id}>{textEquivalent(b)}</p>)}
+              {(r.step.connectors ?? []).map((c) => (
+                <p key={c.id}>Relationship: {c.from} {c.kind === 'causal' ? 'leads to' : c.kind === 'sequence' ? 'is followed by' : 'references'} {c.to}{c.label ? ` (${c.label})` : ''}.</p>
+              ))}
+            </li>
+          ))}
+        </ol>
+      </section>
+    </>
   )
 }

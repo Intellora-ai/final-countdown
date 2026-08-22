@@ -24,6 +24,8 @@ interface BlockRevealState {
   nodes: number
   edges: number
   equationGroups: number
+  /** How many pieces of a worked example have arrived. */
+  examplePieces: number
   chartAxes: boolean
   chartData: boolean
   visual: boolean
@@ -32,7 +34,7 @@ interface BlockRevealState {
 function revealStateFor(released: ReleasedStep): BlockRevealState[] {
   const states: BlockRevealState[] = released.step.blocks.map(() => ({
     mounted: false, charEnd: 0, nodes: 0, edges: 0, equationGroups: 0,
-    chartAxes: false, chartData: false, visual: false,
+    examplePieces: 0, chartAxes: false, chartData: false, visual: false,
   }))
   for (let i = 0; i < released.applied; i++) {
     const e = released.timeline.events[i]
@@ -44,6 +46,7 @@ function revealStateFor(released: ReleasedStep): BlockRevealState[] {
       case 'diagram-node': s.nodes = Math.max(s.nodes, (e.pieceIndex ?? 0) + 1); break
       case 'diagram-edge': s.edges = Math.max(s.edges, (e.pieceIndex ?? 0) + 1); break
       case 'equation-group': s.equationGroups = Math.max(s.equationGroups, (e.pieceIndex ?? 0) + 1); break
+      case 'example-piece': s.examplePieces = Math.max(s.examplePieces, (e.pieceIndex ?? 0) + 1); break
       case 'chart-axes': s.chartAxes = true; break
       case 'chart-data': s.chartData = true; break
       case 'visual': s.visual = true; break
@@ -62,6 +65,24 @@ function partialBlock(block: Block, s: BlockRevealState): Block | null {
       /* Edges appear in edge order, and only ever between revealed nodes. */
       const edges = block.edges.slice(0, s.edges).filter((e) => ids.has(e.from) && ids.has(e.to))
       return { ...block, nodes, edges }
+    }
+    case 'example': {
+      /* Pieces arrive in the order a teacher writes them: the question, what
+       * is given, each line of working, then the result. Slicing here rather
+       * than hiding in CSS means an unreached line is ABSENT — a learner
+       * cannot select the answer before it has been shown. */
+      if (s.examplePieces === 0) return null
+      let left = s.examplePieces - 1                       // the prompt is piece 0
+      const input = block.input && left > 0 ? (left--, block.input) : undefined
+      const working = block.working.slice(0, Math.max(0, Math.min(block.working.length, left)))
+      left -= working.length
+      const result = block.result && left > 0 ? block.result : undefined
+      return {
+        ...block,
+        ...(input ? { input } : { input: undefined }),
+        working,
+        ...(result ? { result } : { result: undefined }),
+      }
     }
     case 'equation': {
       if (s.equationGroups === 0) return null

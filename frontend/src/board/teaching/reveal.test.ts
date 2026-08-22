@@ -151,3 +151,55 @@ describe('proseOf', () => {
     expect(proseOf({ id: 'q', type: 'equation', latex: 'x' } as Block)).toBeNull()
   })
 })
+
+describe('a worked example arrives one move at a time', () => {
+  const EXAMPLE: Block = {
+    id: 'ex', type: 'example',
+    prompt: 'How much heat melts 0.5 kg of ice?',
+    input: 'm = 0.5 kg, L = 334,000 J/kg',
+    working: ['Q = m · L', 'Q = 0.5 × 334,000', 'Q = 167,000 J'],
+    result: 'Q = 167 kJ',
+  } as Block
+
+  it('emits one piece per move, in writing order', () => {
+    const tl = stepTimeline([EXAMPLE], PACE_PROFILES.standard)
+    const pieces = tl.events.filter((e) => e.kind === 'example-piece')
+    /* prompt + given + three lines of working + result */
+    expect(pieces).toHaveLength(6)
+    expect(pieces.map((e) => e.pieceIndex)).toEqual([0, 1, 2, 3, 4, 5])
+  })
+
+  it('counts only the moves the example actually has', () => {
+    const bare = { id: 'ex2', type: 'example', prompt: 'Why?', working: ['because'] } as Block
+    const pieces = stepTimeline([bare], PACE_PROFILES.standard).events
+      .filter((e) => e.kind === 'example-piece')
+    /* No given, no result: prompt plus one line. Emitting placeholders for
+     * absent fields would reveal blanks the learner has to wait through. */
+    expect(pieces).toHaveLength(2)
+  })
+
+  it('never shows the answer before the working', () => {
+    /* The whole reason this is progressive. Every piece is strictly ordered,
+     * so the result cannot arrive before the lines that justify it. */
+    const tl = stepTimeline([EXAMPLE], PACE_PROFILES.standard)
+    const pieces = tl.events.filter((e) => e.kind === 'example-piece')
+    for (let i = 1; i < pieces.length; i++) {
+      expect(pieces[i].at).toBeGreaterThan(pieces[i - 1].at)
+    }
+  })
+
+  it('mounts before it reveals, like every other block', () => {
+    const tl = stepTimeline([EXAMPLE], PACE_PROFILES.standard)
+    const first = tl.events[0]
+    expect(first.kind).toBe('block-mount')
+    expect(tl.events.filter((e) => e.kind === 'example-piece')[0].at)
+      .toBeGreaterThan(first.at)
+  })
+
+  it('keeps its order under reduced motion', () => {
+    const red = reducedTimeline(stepTimeline([EXAMPLE], PACE_PROFILES.standard))
+    const pieces = red.events.filter((e) => e.kind === 'example-piece')
+    expect(pieces.map((e) => e.pieceIndex)).toEqual([0, 1, 2, 3, 4, 5])
+    expect(pieces.every((e) => e.at === 0)).toBe(true)
+  })
+})

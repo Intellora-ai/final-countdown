@@ -626,6 +626,41 @@ def check_frontend(g: Gate) -> bool:
             fix=f"Restore {PLAYWRIGHT_CONFIG}.",
         )
 
+    # (h) AN ANNOTATOR THAT CANNOT REPORT ITS OWN BLINDNESS.
+    #
+    # gh-annotate.mjs turns tool output into `::error file=,line=` so a failure
+    # has a location instead of being text in a collapsed log group. It decides
+    # whether it is blind by comparing the annotated step's outcome against how
+    # many annotations it emitted: failed step, zero annotations, and the
+    # failure has no location anywhere on the run. It learns that outcome from
+    # STEP_OUTCOME.
+    #
+    # Without the env wiring the comparison silently degrades to always-quiet,
+    # which is the pre-existing behaviour and the reason a census of 8,236 log
+    # lines once returned zero error lines. Same shape as check (c): the
+    # capability exists, one line connects it, and nothing but memory was
+    # holding that line in place.
+    for step in steps:
+        run = str(step.get("run", ""))
+        if "gh-annotate.mjs" not in run:
+            continue
+        name = str(step.get("name", "<unnamed>"))
+        env = step.get("env")
+        if not (isinstance(env, dict) and "STEP_OUTCOME" in cast("dict[str, Any]", env)):
+            ok = False
+            g.check(f"'{name}' passes STEP_OUTCOME", False, "missing env")
+            g.fail(
+                what=f"annotator step '{name}' cannot tell whether it went blind",
+                where=f"{FRONTEND_WF} -> {name}",
+                why="without STEP_OUTCOME the annotator cannot distinguish "
+                "'nothing was wrong' from 'nothing was looking', so a failed "
+                "step with an unparseable log reports no file and no line",
+                requirement="Every step running gh-annotate.mjs sets "
+                "STEP_OUTCOME from the step it annotates.",
+                fix=f"Add `env:\\n  STEP_OUTCOME: ${{{{ steps.<id>.outcome }}}}` "
+                f"to '{name}'.",
+            )
+
     # (g) THE RATCHET. The catalogue is a list; lists shrink quietly.
     if MUTATION_CATALOGUE.is_file():
         src = MUTATION_CATALOGUE.read_text(encoding="utf-8")

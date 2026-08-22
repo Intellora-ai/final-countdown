@@ -112,6 +112,11 @@ jobs:
       - name: Annotate typecheck
         if: always()
         continue-on-error: true
+        # STEP_OUTCOME lets the annotator detect the one state that made
+        # these logs useless: a failed step with no location anywhere on the
+        # run. Passed through env, not interpolated into the run body.
+        env:
+          STEP_OUTCOME: ${{ steps.typecheck.outcome }}
         run: node scripts/gh-annotate.mjs tsc < "$RUNNER_TEMP/tsc.log"
 
       # LAW 4, ENFORCED RATHER THAN REQUESTED.
@@ -136,6 +141,11 @@ jobs:
       - name: Annotate lint
         if: always()
         continue-on-error: true
+        # STEP_OUTCOME lets the annotator detect the one state that made
+        # these logs useless: a failed step with no location anywhere on the
+        # run. Passed through env, not interpolated into the run body.
+        env:
+          STEP_OUTCOME: ${{ steps.lint.outcome }}
         run: node scripts/gh-annotate.mjs eslint < "$RUNNER_TEMP/eslint.json"
 
       - name: Unit tests
@@ -146,6 +156,11 @@ jobs:
       - name: Annotate unit tests
         if: always()
         continue-on-error: true
+        # STEP_OUTCOME lets the annotator detect the one state that made
+        # these logs useless: a failed step with no location anywhere on the
+        # run. Passed through env, not interpolated into the run body.
+        env:
+          STEP_OUTCOME: ${{ steps.unit.outcome }}
         run: node scripts/gh-annotate.mjs vitest < "$RUNNER_TEMP/vitest.json"
 
       # THE GATE THAT TESTS THE TESTS.

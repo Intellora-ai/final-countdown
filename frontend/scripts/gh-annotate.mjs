@@ -20,8 +20,32 @@
  *   node scripts/gh-annotate.mjs eslint  < eslint.json
  *   node scripts/gh-annotate.mjs vitest  < vitest.json
  *
- * Always exits 0. A broken annotator must never be the thing that fails a
- * build; the step it annotates carries the real verdict.
+ * EXIT STATUS, and why it is no longer unconditionally 0.
+ *
+ * This file used to end in `process.exit(0)` with three bare `catch {}` blocks
+ * above it, on the reasoning that a broken annotator must never fail a build.
+ * That reasoning has one hole, and the hole is the entire complaint this file
+ * exists to answer: if the parser silently returns 0 for input that plainly
+ * describes failures, you get a red build with NO locations and nothing
+ * anywhere saying the annotator is the reason. A census of 8,236 CI log lines
+ * once returned zero error lines, and no signal distinguished "nothing was
+ * wrong" from "nothing was looking".
+ *
+ * So the rule is now precise rather than blanket:
+ *
+ *   step failed  + 0 annotations  ->  ::error naming THIS script, exit 1
+ *   step failed  + n annotations  ->  exit 0
+ *   step passed  + any count      ->  exit 0
+ *
+ * The first case cannot make a green build red: the step it annotates already
+ * failed, so the job was going to fail anyway. All it does is name the
+ * blindness instead of leaving it to be discovered by reading logs by hand.
+ *
+ * The step's outcome arrives through the STEP_OUTCOME environment variable,
+ * set from `${{ steps.<id>.outcome }}` in the workflow. Read from env rather
+ * than interpolated into the `run:` body -- the value is GitHub-controlled and
+ * safe either way, but env is the shape this repository uses so no reviewer has
+ * to decide whether a given interpolation is the dangerous kind.
  */
 
 import { readFileSync } from 'node:fs'
@@ -86,8 +110,16 @@ function annotateEslint(text) {
   let results
   try {
     results = JSON.parse(text)
-  } catch {
-    return 0
+  } catch (e) {
+    /* Reported, not swallowed. A parse failure here means every eslint finding
+     * on this run is invisible, which is worse than the findings themselves. */
+    emit('error', {
+      file: 'frontend/scripts/gh-annotate.mjs',
+      title: 'gh-annotate could not parse eslint output',
+      message: `${e instanceof Error ? e.message : String(e)}. `
+        + `Received ${text.length} byte(s). Every eslint finding on this run is unreported.`,
+    })
+    return NaN
   }
   let n = 0
   for (const file of results) {
@@ -110,8 +142,14 @@ function annotateVitest(text) {
   let report
   try {
     report = JSON.parse(text)
-  } catch {
-    return 0
+  } catch (e) {
+    emit('error', {
+      file: 'frontend/scripts/gh-annotate.mjs',
+      title: 'gh-annotate could not parse vitest output',
+      message: `${e instanceof Error ? e.message : String(e)}. `
+        + `Received ${text.length} byte(s). Every failing test on this run is unreported.`,
+    })
+    return NaN
   }
   let n = 0
   for (const suite of report.testResults ?? []) {
@@ -156,5 +194,22 @@ if (!handler) {
 }
 
 const count = handler(input)
-process.stdout.write(`gh-annotate(${mode}): ${count} annotation(s) emitted\n`)
+const parseFailed = Number.isNaN(count)
+process.stdout.write(
+  `gh-annotate(${mode}): ${parseFailed ? 'PARSE FAILED' : `${count} annotation(s) emitted`}\n`,
+)
+
+/* THE CONTRADICTION CHECK. A failed step with nothing to point at is the exact
+ * state that made GitHub logs useless: red, and silent about where. */
+const outcome = process.env.STEP_OUTCOME ?? ''
+if (outcome === 'failure' && (parseFailed || count === 0)) {
+  process.stdout.write(
+    `::error file=frontend/scripts/gh-annotate.mjs,title=${mode} failed with no annotations::`
+    + `The '${mode}' step failed and this annotator produced no locations for it, `
+    + `so the failure has no file or line anywhere on this run. `
+    + `That is a defect in the annotator or in what it was fed, not an absence of errors. `
+    + `Read the '${mode}' step's own log and fix the parser for that output shape.\n`,
+  )
+  process.exit(1)
+}
 process.exit(0)

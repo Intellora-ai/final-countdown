@@ -129,7 +129,14 @@ export function useTeachingSession(
       let j = i
       while (j < events.length && events[j].at <= events[i].at) j++
       playhead.current = { elapsed: events[i].at, eventIndex: j }
-      if (i === 0) { mark('first-reveal'); measureFrom('step-request-start', 'step-to-first-reveal') }
+      if (i === 0) {
+        mark('first-reveal')
+        measureFrom('step-request-start', 'step-to-first-reveal')
+        /* The learner-facing latency: from the Continue press to the first
+         * thing appearing. Distinct from step-to-first-reveal, which starts
+         * when the plan was asked and so excludes the learner's own action. */
+        measureFrom('continue-click', 'event-to-first-reveal')
+      }
       dispatch({ kind: 'apply', upTo: j })
       play()
     }, delay)

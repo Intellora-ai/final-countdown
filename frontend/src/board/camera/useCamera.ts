@@ -21,6 +21,7 @@ import {
   type CanvasCamera, type WorldRect,
 } from './camera'
 import { mark, sample } from '../perf/marks'
+import { sampleCameraInputToPaint, sampleInputToPaint } from '../perf/harness'
 
 export interface CameraApi {
   /** Committed camera — updates when an interaction settles. */
@@ -133,6 +134,10 @@ export function useCamera(): CameraApi {
       set(panBy(cam.current, e.clientX - lastX, e.clientY - lastY), true)
       lastX = e.clientX; lastY = e.clientY
       sample('pan-handler-js', performance.now() - t0)
+      /* Input → next paint: measured from the event's own timestamp to two
+       * animation frames later, which is when the compositor has actually put
+       * the moved world on screen. Handler duration alone would flatter it. */
+      sampleCameraInputToPaint(t0)
       if (inputT0) { sample('input-to-camera', performance.now() - inputT0); inputT0 = 0 }
     }
 
@@ -155,6 +160,7 @@ export function useCamera(): CameraApi {
       const factor = Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.002))
       set(zoomAround(cam.current, factor, e.clientX - rect.left, e.clientY - rect.top), true)
       sample('input-to-camera', performance.now() - t0)
+      sampleCameraInputToPaint(t0)
       commit()
     }
 
@@ -193,7 +199,9 @@ export function useCamera(): CameraApi {
       if (dir && !isEditable(e.target)) {
         e.preventDefault()
         mark('camera-input')
+        const t0 = performance.now()
         set(panByKey(cam.current, dir[0], dir[1]), true)
+        sampleCameraInputToPaint(t0)
         commit()
       }
     }
@@ -207,7 +215,9 @@ export function useCamera(): CameraApi {
     const el = viewportEl.current
     const rect = el?.getBoundingClientRect()
     mark('camera-input')
+    const t0 = performance.now()
     set(zoomAround(cam.current, factor, (rect?.width ?? 0) / 2, (rect?.height ?? 0) / 2), true)
+    sampleCameraInputToPaint(t0)
     commit()
   }, [set, commit])
 
@@ -225,8 +235,14 @@ export function useCamera(): CameraApi {
 
   const resetToFocus = useCallback(() => {
     if (lastFocus.current) {
+      mark('reset-input')
+      const t0 = performance.now()
       manualSince.current = false
       focusRect(lastFocus.current)
+      /* Both channels measure to PAINT, two frames out. The reset label is
+       * separate so the Phase 7 reset budget is not diluted by drag samples. */
+      sampleCameraInputToPaint(t0)
+      sampleInputToPaint(t0, 'camera-reset-to-paint')
     }
   }, [focusRect])
 

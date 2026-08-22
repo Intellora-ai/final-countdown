@@ -14,6 +14,8 @@ export type MarkName =
   | 'step-request-start' | 'first-reveal' | 'step-reveal-complete'
   | 'checkpoint-visible' | 'continue-click' | 'clarification-click'
   | 'next-step-visible' | 'camera-input' | 'camera-frame'
+  /* Phase 7 — camera interaction and focus transitions. */
+  | 'focus-transition' | 'select-input' | 'reset-input'
 
 /* No vite/client type lib is wired into this tsconfig, so the env probe is
  * defensive: Vite statically replaces import.meta.env.DEV, and the cast keeps
@@ -74,8 +76,28 @@ export function measureFrom(start: MarkName, label: string): void {
   store()?.add(label, ms)
 }
 
+/* The harness needs JS work bucketed PER FRAME, which no per-handler sample
+ * can answer on its own. Rather than have the harness guess by re-reading the
+ * percentile store, every sample is forwarded to an optional sink that the
+ * harness installs; it sums the handler durations inside the current frame and
+ * closes the bucket on the next rAF. One sample stream, two readers. */
+type SampleSink = (label: string, ms: number) => void
+let sampleSink: SampleSink | null = null
+
+/** DEV-only: install (or clear) the harness's sample sink. */
+export function setSampleSink(next: SampleSink | null): void {
+  if (!DEV) return
+  sampleSink = next
+}
+
 /** Record a raw duration sample (frame times, handler times). */
 export function sample(label: string, ms: number): void {
   if (!DEV) return
   store()?.add(label, ms)
+  sampleSink?.(label, ms)
+}
+
+/** Read percentiles for one label without going through window. */
+export function report(): Record<string, { count: number; p50: number; p75: number; p95: number }> {
+  return store()?.report() ?? {}
 }

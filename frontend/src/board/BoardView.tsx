@@ -34,6 +34,8 @@ import { AccessibleLesson } from './teaching/AccessibleLesson'
 import type { TeachingPlan, TeachingStep } from './teaching/types'
 import type { Notice } from './types/learningBoard'
 import { mark } from './perf/marks'
+import { registerBoardHarness } from './perf/harness'
+import { registeredTypes } from './renderer/blockRegistry'
 
 mark('canvas-route-start')
 
@@ -176,6 +178,25 @@ function TeachingBoard({ fixtureId, setFixtureId }: { fixtureId: string; setFixt
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.released.length])
 
+  /* ── harness registration (DEV-only; no-op in production) ─────────────── */
+  const sessionRef = useRef(session)
+  sessionRef.current = session
+  useEffect(() => registerBoardHarness({
+    getReleasedStepIds: () => sessionRef.current.released.map((r) => r.step.id),
+    getReleasedBlocks: () => sessionRef.current.released.flatMap((r) =>
+      r.step.blocks.map((b) => ({ id: b.id, type: b.type }))),
+    /* Zero by construction today: nothing fetches ahead. Phase 6 replaces this
+     * getter with the coordinator's buffered count, and the ≤1 invariant then
+     * has something real to measure. */
+    getPrefetchedStepCount: () => 0,
+    getPlacements: () => [...placements.current.entries()].map(([stepId, p]) => ({
+      stepId, x: p.rect.x, y: p.rect.y, width: p.rect.width, height: p.rect.height, measured: p.measured,
+    })),
+    getStatus: () => sessionRef.current.status,
+    continueNext: () => sessionRef.current.continueNext(),
+    registeredBlockTypes: registeredTypes(),
+  }), [])
+
   /* ── render ──────────────────────────────────────────────────────────── */
   const eyebrow = src.status === 'ok' ? src.eyebrow : ''
   const title = prepared && 'title' in prepared && prepared.title ? prepared.title : src.status === 'failed' ? 'Learning canvas' : 'Loading…'
@@ -285,6 +306,10 @@ function WorldStep({
     <section
       ref={ref}
       data-board="world-step"
+      /* The harness audits mounted content against the session's released
+       * ids; without the id on the element, "was this step released?" is not
+       * answerable from outside. */
+      data-step-id={released.step.id}
       data-current={isCurrent ? 'true' : 'false'}
       style={{ left: rect.x, top: rect.y, width: rect.width, ...(culled ? { height: rect.height } : {}) }}
       aria-label={released.step.title ?? released.step.id}

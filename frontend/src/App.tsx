@@ -7,7 +7,6 @@ import { SetupFlow } from './components/SetupFlow'
 import { TodayView } from './components/TodayView'
 import { ChapterView } from './components/ChapterView'
 import { Placeholder } from './components/Placeholder'
-import { BoardView, GalleryView } from './board'
 
 /* THE SCENE IS LOADED ON DEMAND, AND THE BUDGET IS WHY.
  *
@@ -18,7 +17,7 @@ import { BoardView, GalleryView } from './board'
  * arrives only when someone actually opens the canvas, and three.js — already
  * lazy one level deeper — arrives only when the 3D panel first mounts. */
 const GasPressureScene = React.lazy(() =>
-  import('./board/scene/GasPressureScene').then((m) => ({ default: m.GasPressureScene })),
+  import('./canvas/GasPressureScene').then((m) => ({ default: m.GasPressureScene })),
 )
 
 function SceneFallback() {
@@ -96,18 +95,11 @@ export default function App() {
               <Route path="/practice" element={<Placeholder kind="practice" />} />
               <Route path="/quick-question" element={<Placeholder kind="quick-question" />} />
               <Route path="/misconception" element={<Placeholder kind="misconception" />} />
-              {/* THE LEARNING CANVAS IS BACK, ON A NEW ENGINE.
-                *
-                * It was disconnected in 7ad4f6d because the design was wrong:
-                * every board rendered through one twelve-column grid, every
-                * block's width was a per-type constant, and no two lessons
-                * could differ in shape. That is what changed — the board now
-                * composes its own layout from what the content IS, and blocks
-                * share one reactive model instead of each owning private
-                * state. The gallery is declared before the board so the more
-                * specific path wins regardless of matcher order changes. */}
-              <Route path="/canvas/gallery" element={<GalleryView />} />
-              <Route path="/canvas" element={<BoardView />} />
+              {/* The blackboard's two routes are gone with the blackboard itself
+                * (see docs/migrations/step-0-blackboard-deletion.md). The
+                * explanation canvas is returned above, before the shell, because
+                * it owns the whole window. Any surviving /canvas link falls
+                * through to the catch-all rather than a blank screen. */}
               <Route path="*" element={<Navigate to="/today" replace />} />
             </Routes>
           </main>

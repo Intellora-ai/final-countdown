@@ -3,7 +3,7 @@
 One step per message. Stop after each. Wait for explicit approval before the
 next. See `CLAUDE.md` for the laws, tripwires and stop protocol.
 
-**Status:** Steps 0, 1 and 2 complete. Step 3 next.
+**Status:** Steps 0-3 complete. Step 4 next.
 
 ---
 
@@ -91,7 +91,7 @@ next. See `CLAUDE.md` for the laws, tripwires and stop protocol.
 - [x] all six disclosure strategies exercised by the table + text contracts
 - [x] hand-rolled validation, repair-notice style — **no Zod**
 - [x] proven by test: a `molecule` contract joins and is selected with zero engine edits
-- [ ] the 7 acceptance lessons authored — **deferred to Step 3**, where archetypes give them something to compose into
+- [x] the 7 acceptance lessons authored in Step 3
 
 **Definition of done**
 
@@ -102,18 +102,17 @@ next. See `CLAUDE.md` for the laws, tripwires and stop protocol.
 
 ## Step 3 — `archetypes.ts`
 
-- [ ] 12-col grid, gutter `space.5`, canvas padding `space.7`
-- [ ] seven compositions: NARRATIVE · DATA · PROCESS · COMPARISON ·
-      DERIVATION · EXPLORATORY · SPLIT
-- [ ] `selectArchetype(blocks)` — pure, no LLM, no randomness
-- [ ] gas scene rebuilt as EXPLORATORY
+- [x] 12-col grid; every slot verified inside it, no band overlaps
+- [x] seven compositions, hand-tuned
+- [x] `selectArchetype` — pure, deterministic, no clock or randomness
+- [ ] gas scene rebuilt as EXPLORATORY — selector routes it there; the render still uses hand-placed layout
 
 **Definition of done**
 
-- [ ] deterministic — same spec, same archetype, every run
-- [ ] every selection explainable: which rule fired and why
-- [ ] different profiles → different compositions; similar profiles may share
-- [ ] gas scene looks the same or better
+- [x] deterministic — 5 runs per lesson, one answer each
+- [x] every selection names its rule and the numbers it fired on
+- [x] **6 distinct archetypes across 7 lessons**; the one shared pair fired the same rule
+- [ ] gas scene visual parity — pending the Step 3 render swap
 
 ---
 

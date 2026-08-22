@@ -234,8 +234,11 @@ describe('the renderer map is the only route from data to a component', () => {
   })
 
   it('exposes a closed set of keys', () => {
+    /* SimulationPanel joined when the simulation contract landed. The set is
+     * asserted rather than counted precisely so that adding a renderer is a
+     * deliberate edit here, not something that slips in unnoticed. */
     expect(rendererKeys().sort()).toEqual(
-      ['ChartPanel', 'DiagramPanel', 'EquationPanel', 'TablePanel', 'TextPanel'],
+      ['ChartPanel', 'DiagramPanel', 'EquationPanel', 'SimulationPanel', 'TablePanel', 'TextPanel'],
     )
   })
 })

@@ -4,6 +4,7 @@ import { tableContract } from './representations/table'
 import { chartContract } from './representations/chart'
 import { diagramContract } from './representations/diagram'
 import { equationContract } from './representations/equation'
+import { simulationContract } from './representations/simulation'
 
 /* REGISTRATION, IN ONE PLACE AND ONCE.
  *
@@ -26,6 +27,7 @@ export function registerRepresentations(): void {
   register(chartContract)
   register(diagramContract)
   register(equationContract)
+  register(simulationContract)
   done = true
 }
 

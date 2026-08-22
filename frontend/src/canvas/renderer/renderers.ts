@@ -29,6 +29,7 @@ export type RendererKey =
   | 'ChartPanel'
   | 'EquationPanel'
   | 'DiagramPanel'
+  | 'SimulationPanel'
 
 /** What every registered panel receives. Deliberately narrow: the derived
  *  state a contract computed, and nothing else. A panel cannot reach the
@@ -62,6 +63,11 @@ const REGISTRY: Record<RendererKey, () => Promise<{ default: ComponentType<Panel
   ChartPanel: () => import('../panels/ChartPanel').then((m) => ({ default: m.ChartPanel })),
   EquationPanel: () => import('../panels/EquationPanelAdapter').then((m) => ({ default: m.EquationPanelAdapter })),
   DiagramPanel: () => import('../panels/DiagramPanel').then((m) => ({ default: m.DiagramPanel })),
+  /* Lazy is not optional here. SimulationPanel reaches ParticleBox3D, which
+   * pulls three.js at 215 KB gzip -- more than three times the entire 150 KB
+   * initial budget. A static import anywhere on this path would weld it into
+   * whatever chunk imports the registry. */
+  SimulationPanel: () => import('../panels/SimulationPanel').then((m) => ({ default: m.SimulationPanel })),
 }
 
 export function isRendererKey(value: unknown): value is RendererKey {

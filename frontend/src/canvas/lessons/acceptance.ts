@@ -199,7 +199,39 @@ export const gasPressure: Lesson = {
     {
       id: 'box', kind: 'simulation', purpose: 'demonstrate', priority: 'primary',
       title: 'Particle model',
-      payload: { model: 'ideal-gas', controls: ['T'], readouts: ['P', 'KE'] },
+      /* THE MODEL IS DECLARED HERE, NOT NAMED.
+       *
+       * This payload used to read `model: 'ideal-gas'` -- a name, with the
+       * physics living wherever something chose to interpret that string. The
+       * simulation contract refuses a named model on purpose: resolving one
+       * would put a lookup table of hardcoded physics back inside the engine,
+       * which is the thing this refactor removes.
+       *
+       * The old `model:` block on the Lesson had `P = n * 8.314 * T / V` while
+       * declaring only `T`. `n` and `V` were never variables, so `P` could
+       * never evaluate and the gauge could only ever show a dash. `KE` was
+       * listed as a readout with no formula at all. Both are declared now.
+       *
+       * Units are consistent rather than decorative: with V in litres and R in
+       * J/(mol K), n*R*T/V is kPa exactly, because kPa*L = J. */
+      payload: {
+        simulation: 'particle-box',
+        model: {
+          vars: [
+            { id: 'T', label: 'Temperature', value: 450, min: 100, max: 600, unit: 'K' },
+            { id: 'V', label: 'Volume', value: 24, min: 10, max: 50, unit: 'L' },
+            { id: 'n', label: 'Amount of gas', value: 1, min: 0.5, max: 2, unit: 'mol' },
+          ],
+          derived: [
+            { id: 'P', label: 'Pressure', expr: 'n * 8.314 * T / V', unit: 'kPa', precision: 0 },
+            { id: 'KE', label: 'Mean kinetic energy', expr: '1.5 * 8.314 * T', unit: 'J/mol', precision: 0 },
+          ],
+        },
+        /* Only temperature moves. The lesson asks what raising T does at
+         * constant volume, so V and n are declared and held. */
+        controls: ['T'],
+        readouts: ['P', 'KE'],
+      },
     },
     {
       id: 'chain', kind: 'diagram', purpose: 'explain', priority: 'supporting',
@@ -234,10 +266,6 @@ export const gasPressure: Lesson = {
       },
     },
   ],
-  model: {
-    vars: [{ id: 'T', label: 'Temperature', value: 450, min: 100, max: 600, unit: 'K' }],
-    derived: [{ id: 'P', label: 'Pressure', expr: 'n * 8.314 * T / V', unit: 'kPa', precision: 0 }],
-  },
 }
 
 /* 7 — mixed */

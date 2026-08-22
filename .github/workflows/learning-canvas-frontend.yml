@@ -371,7 +371,15 @@ jobs:
         with:
           name: learning-canvas-frontend-findings
           path: frontend/ci-findings.json
-          if-no-files-found: warn
+          # `error`, not `warn`, and the first green run is why. The reporter
+          # defaulted its output to `config.rootDir`, which is the common root
+          # of the TEST FILES -- frontend/e2e, not frontend -- so the findings
+          # landed one directory below this path. `warn` turned a completely
+          # missing artifact into a single grey annotation nobody would read,
+          # which is the same "absence looks like health" failure the reporter
+          # exists to close. ci/gates.toml already requires `error` on every
+          # gate artifact for exactly this reason.
+          if-no-files-found: error
 
       - name: Upload build output
         if: always()

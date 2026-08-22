@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type {
   FullConfig, FullResult, Reporter, Suite, TestCase, TestResult,
 } from '@playwright/test/reporter'
@@ -73,8 +74,20 @@ export default class CanvasReporter implements Reporter {
   private readonly findings = new Map<string, Finding>()
   private outFile = 'ci-findings.json'
 
-  onBegin(config: FullConfig, _suite: Suite): void {
-    this.outFile = process.env.CANVAS_FINDINGS || `${config.rootDir}/ci-findings.json`
+  onBegin(_config: FullConfig, _suite: Suite): void {
+    /* NOT `config.rootDir`. That was the first cut and CI proved it wrong on
+     * the first green run: rootDir is the common root of the TEST FILES --
+     * measured as frontend/e2e, not frontend -- so the findings landed one
+     * directory below where the upload step looked, and the artifact came back
+     * empty with only an `if-no-files-found: warn` annotation to say so.
+     *
+     * The local check missed it because it passed CANVAS_FINDINGS explicitly,
+     * which is exactly the path CI does not take.
+     *
+     * Resolving from this file's own location is independent of rootDir, of
+     * the working directory, and of which config invoked it. */
+    const here = dirname(fileURLToPath(import.meta.url))
+    this.outFile = process.env.CANVAS_FINDINGS || resolve(here, '../../ci-findings.json')
   }
 
   onTestEnd(test: TestCase, result: TestResult): void {

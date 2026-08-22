@@ -2,6 +2,8 @@ import { register, registeredKinds } from './registry'
 import { textContract } from './representations/text'
 import { tableContract } from './representations/table'
 import { chartContract } from './representations/chart'
+import { diagramContract } from './representations/diagram'
+import { equationContract } from './representations/equation'
 
 /* REGISTRATION, IN ONE PLACE AND ONCE.
  *
@@ -22,6 +24,8 @@ export function registerRepresentations(): void {
   register(textContract)
   register(tableContract)
   register(chartContract)
+  register(diagramContract)
+  register(equationContract)
   done = true
 }
 

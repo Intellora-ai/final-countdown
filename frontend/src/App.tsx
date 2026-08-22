@@ -7,6 +7,32 @@ import { SetupFlow } from './components/SetupFlow'
 import { TodayView } from './components/TodayView'
 import { ChapterView } from './components/ChapterView'
 import { Placeholder } from './components/Placeholder'
+import { BoardView, GalleryView } from './board'
+
+/* THE SCENE IS LOADED ON DEMAND, AND THE BUDGET IS WHY.
+ *
+ * Imported statically it pulled KaTeX, d3-scale, every panel and the whole
+ * explanation canvas into the entry chunk: initial JavaScript went to 186.55
+ * KB gzip against this repo's stated 150 KB ceiling. A learner opening Today
+ * has no use for a typesetting engine. As a lazy route it becomes a chunk that
+ * arrives only when someone actually opens the canvas, and three.js — already
+ * lazy one level deeper — arrives only when the 3D panel first mounts. */
+const GasPressureScene = React.lazy(() =>
+  import('./board/scene/GasPressureScene').then((m) => ({ default: m.GasPressureScene })),
+)
+
+function SceneFallback() {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, display: 'grid', placeItems: 'center',
+      background: '#0e1113', color: '#5b666f',
+      fontFamily: 'ui-monospace, monospace', fontSize: 11, letterSpacing: '.18em',
+      textTransform: 'uppercase',
+    }}>
+      Opening the canvas…
+    </div>
+  )
+}
 
 export default function App() {
   const store = useStore()
@@ -35,6 +61,22 @@ export default function App() {
 
   if (inSetup) return <SetupFlow />
 
+  /* THE EXPLANATION CANVAS OWNS THE WHOLE WINDOW.
+   *
+   * It is returned BEFORE the shell rather than inside it, because the shell
+   * is not decoration it can sit under: the sidebar takes a column and the top
+   * bar takes a strip, and a board whose layout is stated in exact coordinates
+   * cannot be handed an unpredictable fraction of the screen. Every other
+   * route keeps the curriculum around it; this one replaces it, and the back
+   * button in its own chrome is how the learner returns. */
+  if (loc.pathname === '/canvas/gas') {
+    return (
+      <React.Suspense fallback={<SceneFallback />}>
+        <GasPressureScene />
+      </React.Suspense>
+    )
+  }
+
   const closeOnPhone = () => { if (narrow) setDrawer(false) }
 
   return (
@@ -54,17 +96,18 @@ export default function App() {
               <Route path="/practice" element={<Placeholder kind="practice" />} />
               <Route path="/quick-question" element={<Placeholder kind="quick-question" />} />
               <Route path="/misconception" element={<Placeholder kind="misconception" />} />
-              {/* THE LEARNING CANVAS IS DISCONNECTED, NOT DELETED.
+              {/* THE LEARNING CANVAS IS BACK, ON A NEW ENGINE.
                 *
-                * It worked, and it was the wrong design — so it is out of the
-                * product rather than patched inside it. Every file under
-                * src/board/ is intact and still builds; nothing routes to it.
-                * The catch-all below sends any surviving /canvas link to Today
-                * rather than a blank screen.
-                *
-                * When there is a design worth wiring up, the routes come back
-                * here. The reasoning behind what is parked lives in the commit
-                * messages from 14b589c to 7b1a1a0. */}
+                * It was disconnected in 7ad4f6d because the design was wrong:
+                * every board rendered through one twelve-column grid, every
+                * block's width was a per-type constant, and no two lessons
+                * could differ in shape. That is what changed — the board now
+                * composes its own layout from what the content IS, and blocks
+                * share one reactive model instead of each owning private
+                * state. The gallery is declared before the board so the more
+                * specific path wins regardless of matcher order changes. */}
+              <Route path="/canvas/gallery" element={<GalleryView />} />
+              <Route path="/canvas" element={<BoardView />} />
               <Route path="*" element={<Navigate to="/today" replace />} />
             </Routes>
           </main>

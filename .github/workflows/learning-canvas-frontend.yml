@@ -113,7 +113,10 @@ jobs:
       - name: Lint
         id: lint
         continue-on-error: true
-        run: npx eslint src/canvas --max-warnings 0 --format json -o "$RUNNER_TEMP/eslint.json"
+        run: |
+          npx eslint src/canvas --max-warnings 0 --format json -o "$RUNNER_TEMP/eslint.json" \
+            && echo "eslint: clean" \
+            || { npx eslint src/canvas --max-warnings 0 --format stylish || true; exit 1; }
 
       - name: Annotate lint
         if: always()
@@ -122,7 +125,7 @@ jobs:
       - name: Unit tests
         id: unit
         continue-on-error: true
-        run: npm test -- --run --reporter=json --outputFile="$RUNNER_TEMP/vitest.json"
+        run: npm test -- --run --reporter=default --reporter=json --outputFile="$RUNNER_TEMP/vitest.json"
 
       - name: Annotate unit tests
         if: always()
@@ -145,7 +148,19 @@ jobs:
       - name: Bundle budget
         id: budget
         continue-on-error: true
-        run: npm run budget
+        run: npm run budget 2>&1 | tee "$RUNNER_TEMP/budget.log"
+
+      # The budget step had no annotation path, so an overrun was a number
+      # buried in a log group like every other failure before this change.
+      - name: Annotate bundle budget
+        if: always()
+        run: |
+          if grep -q "canvas-bundle-budget: FAIL" "$RUNNER_TEMP/budget.log"; then
+            LINE=$(grep "canvas-bundle-budget: FAIL" "$RUNNER_TEMP/budget.log" | head -1)
+            echo "::error file=frontend/scripts/canvas-bundle-budget.mjs,title=bundle budget::$LINE"
+          else
+            grep "canvas-bundle-budget:" "$RUNNER_TEMP/budget.log" | head -1 || true
+          fi
 
       # THE COMPUTED-STYLE GUARDS NEED A REAL BROWSER, SO CI GETS ONE.
       #

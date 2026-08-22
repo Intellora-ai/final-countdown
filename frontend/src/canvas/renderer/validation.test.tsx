@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, cleanup, act } from '@testing-library/react'
+import { render, cleanup, act, waitFor } from '@testing-library/react'
 import React from 'react'
 import { LessonRenderer } from './LessonRenderer'
 import { measureBlock, GRID_ROW_PX } from './measure'
@@ -303,5 +303,95 @@ describe('the fabricated inputs are gone', () => {
     geometry = { rootWidth: 1200, rootHeight: 800, blocks: { over: { scrollWidth: 800, clientWidth: 300 } } }
     document.body.appendChild(el)
     expect(measureBlock(el).overflows).toBe(true)
+  })
+})
+
+/* ── invariants run, and a violation is never drawn ─────────────────────── */
+
+/* The gas lesson's `graph` element carries two points. chart fitness scores it
+ * 0.1, `enoughPointsToPlot` reports holds:false, and before this it rendered
+ * anyway: a confident two-point trend line. The contract knew and the renderer
+ * never asked. */
+const twoPointChart: Lesson = {
+  id: 'thin', question: 'Can two points be a trend?',
+  elements: [{
+    id: 'graph', kind: 'chart', purpose: 'quantify', title: 'Pressure vs temperature',
+    payload: {
+      intent: 'trend',
+      fields: [
+        { name: 't', role: 'x', type: 'quantitative' },
+        { name: 'p', role: 'y', type: 'quantitative', unit: 'kPa' },
+      ],
+      data: [{ t: 300, p: 100 }, { t: 400, p: 133 }],
+    },
+  }],
+}
+
+describe('a representation that fails its own invariants is refused, not drawn', () => {
+  it('refuses a two-point trend instead of drawing one', () => {
+    const { container } = render(<LessonRenderer lesson={twoPointChart} />)
+    expect(container.querySelector('[data-canvas="invariant-refusal"]')).not.toBeNull()
+  })
+
+  it('names the invariant that failed', () => {
+    const { container } = render(<LessonRenderer lesson={twoPointChart} />)
+    const r = container.querySelector('[data-canvas="invariant-refusal"]')!
+    expect(r.getAttribute('data-violated')).toContain('enoughPointsToPlot')
+  })
+
+  it('draws no chart marks at all for the refused block', () => {
+    /* The whole point: no line, no area, no dots. Nothing that reads as data. */
+    const { container } = render(<LessonRenderer lesson={twoPointChart} />)
+    expect(container.querySelector('[data-mark]')).toBeNull()
+  })
+
+  it('explains the refusal in words a learner can act on', () => {
+    const { container } = render(<LessonRenderer lesson={twoPointChart} />)
+    expect(container.textContent).toContain('Fewer than three points')
+  })
+
+  it('keeps the block title, so the lesson still reads as a sequence', () => {
+    const { container } = render(<LessonRenderer lesson={twoPointChart} />)
+    expect(container.textContent).toContain('Pressure vs temperature')
+  })
+
+  it('announces the refusal to assistive technology', () => {
+    const { container } = render(<LessonRenderer lesson={twoPointChart} />)
+    const r = container.querySelector('[data-canvas="invariant-refusal"]')!
+    expect(r.getAttribute('role')).toBe('status')
+  })
+
+  it('does not refuse a chart whose invariants all hold', async () => {
+    const fine: Lesson = {
+      id: 'fine', question: 'Three points?',
+      elements: [{
+        id: 'g', kind: 'chart', purpose: 'quantify',
+        payload: {
+          intent: 'trend',
+          fields: [
+            { name: 't', role: 'x', type: 'quantitative' },
+            { name: 'p', role: 'y', type: 'quantitative' },
+          ],
+          data: [{ t: 1, p: 2 }, { t: 2, p: 4 }, { t: 3, p: 9 }],
+        },
+      }],
+    }
+    const { container } = render(<LessonRenderer lesson={fine} />)
+    expect(container.querySelector('[data-canvas="invariant-refusal"]')).toBeNull()
+    /* ChartPanel is React.lazy, so the first synchronous frame is the Suspense
+     * fallback and the dynamic import resolves over several microtasks. The
+     * refusal path above is NOT lazy, which is why only this case waits. */
+    await waitFor(() => {
+      expect(container.querySelector('[data-mark]')).not.toBeNull()
+    })
+  })
+
+  it('a refusal is distinct from "this build has no renderer"', () => {
+    /* Two different failures with two different causes must not collapse into
+     * one message: "we cannot draw this" and "this would be a lie" are
+     * different things to tell a learner. */
+    const { container } = render(<LessonRenderer lesson={twoPointChart} />)
+    expect(container.querySelector('[data-canvas="unrenderable"]')).toBeNull()
+    expect(container.querySelector('[data-canvas="invariant-refusal"]')).not.toBeNull()
   })
 })

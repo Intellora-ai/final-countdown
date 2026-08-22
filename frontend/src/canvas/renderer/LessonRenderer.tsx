@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useMemo, useRef, useState, useLayoutEffect } from 'react'
-import type { Lesson, LessonElement, RepresentationContext } from '../contract/types'
+import type { Lesson, LessonElement, RepresentationContext, Invariant } from '../contract/types'
 import { select, contractFor } from '../contract/registry'
 import { loaderFor, isRendererKey, type PanelProps } from './renderers'
 import { color, type, space, radius, stroke, ink } from '../design/tokens'
@@ -64,6 +64,8 @@ interface Resolved {
   disclosure?: PanelProps['disclosure']
   reason: string
   fallbackFrom?: string
+  /** Invariants this representation failed. Non-empty means: do not draw it. */
+  violated?: Invariant[]
 }
 
 function resolveElement(element: LessonElement, ctx: RepresentationContext): Resolved {
@@ -80,6 +82,20 @@ function resolveElement(element: LessonElement, ctx: RepresentationContext): Res
   const normalized = chosen.normalized
   const context = { ...ctx, element }
 
+  /* INVARIANTS RUN HERE, IN THE RENDER PATH.
+   *
+   * Every contract has declared them since Step 2 and nothing ever called them
+   * outside a unit test. The cost was visible on the gas lesson: its `graph`
+   * element carries two points, chart fitness scores it 0.1, and
+   * `enoughPointsToPlot` reports holds:false — and it rendered anyway, as a
+   * confident two-point trend line. The contract knew the chart was dishonest
+   * and the renderer never asked.
+   *
+   * A violated invariant is not a warning to log. It means this representation
+   * cannot state this data truthfully, so the renderer must not draw it. */
+  const invariants = contract.invariants(normalized, context)
+  const violated = invariants.filter((i) => !i.holds)
+
   const plans = contract.disclosure(normalized, context)
   const derived = contract.derive(normalized, context) as Record<string, unknown>
 
@@ -89,10 +105,56 @@ function resolveElement(element: LessonElement, ctx: RepresentationContext): Res
     rendererKey: contract.renderer,
     data: normalized,
     derived,
+    violated,
     ...(plans[0] ? { disclosure: plans[0] } : {}),
     reason: chosen.reason,
     ...(chosen.fallbackFrom ? { fallbackFrom: chosen.fallbackFrom } : {}),
   }
+}
+
+/* WHAT A LEARNER SEES WHEN A REPRESENTATION CANNOT BE HONEST.
+ *
+ * Not nothing, and not a plausible-looking chart. The block states which
+ * invariant failed and in whose words, keeps the block's title so the lesson
+ * still reads as a sequence, and stays inside the token system so a refusal
+ * looks like part of the product rather than a crash. */
+function InvariantRefusal({
+  element, kind, violated,
+}: { element: LessonElement; kind: string; violated: Invariant[] }) {
+  return (
+    <div
+      data-canvas="invariant-refusal"
+      data-kind={kind}
+      data-violated={violated.map((v) => v.name).join(',')}
+      role="status"
+      style={{
+        border: `${stroke.hair}px dashed ${color.border}`,
+        borderRadius: radius.md, padding: space.lg, background: color.surface,
+      }}
+    >
+      {element.title && (
+        <h3 style={{
+          fontFamily: type.title.family, fontSize: type.title.size,
+          fontWeight: type.title.weight, letterSpacing: type.title.tracking,
+          textTransform: 'uppercase', color: color.text, margin: 0, marginBottom: space.sm,
+        }}>{element.title}</h3>
+      )}
+      <p style={{
+        fontFamily: type.mono.family, fontSize: type.mono.size,
+        color: color.warning, margin: 0,
+      }}>
+        Not shown as a {kind}: it would misstate the data.
+      </p>
+      <ul style={{
+        fontFamily: type.body.family, fontSize: type.label.size,
+        color: ink.axis, margin: 0, marginTop: space.xs, paddingLeft: space.lg,
+      }}>
+        {violated.map((v) => (
+          <li key={v.name}>{v.detail ?? v.name}</li>
+        ))}
+      </ul>
+    </div>
+  )
 }
 
 /* One lazy component per key, created once. Rebuilding lazy() per render would
@@ -342,7 +404,11 @@ export function LessonRenderer({ lesson, viewport, explain = false }: LessonRend
             data-kind={r.kind ?? 'unknown'}
             style={{ gridColumn: `${p.col} / span ${p.span}`, minWidth: 0 }}
           >
-            {Component ? (
+            {r.violated && r.violated.length > 0 ? (
+              /* The contract said this cannot be drawn honestly. That outranks
+               * having a renderer available for it. */
+              <InvariantRefusal element={r.element} kind={r.kind ?? 'unknown'} violated={r.violated} />
+            ) : Component ? (
               <Suspense fallback={<Skeleton />}>
                 <Component
                   data={r.data}
@@ -362,6 +428,9 @@ export function LessonRenderer({ lesson, viewport, explain = false }: LessonRend
               }}>
                 {r.fallbackFrom ? `${r.fallbackFrom} → ` : ''}{r.kind ?? 'none'} · {r.reason}
                 {r.disclosure ? ` · ${r.disclosure.strategy}` : ''}
+                {r.violated && r.violated.length > 0
+                  ? ` · REFUSED: ${r.violated.map((v) => v.name).join(', ')}`
+                  : ''}
               </p>
             )}
           </section>

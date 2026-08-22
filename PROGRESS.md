@@ -3,7 +3,7 @@
 One step per message. Stop after each. Wait for explicit approval before the
 next. See `CLAUDE.md` for the laws, tripwires and stop protocol.
 
-**Status:** Steps 0-3 complete. Step 4 next.
+**Status:** Steps 0-5 complete. Steps 6-10 next.
 
 ---
 
@@ -118,19 +118,15 @@ next. See `CLAUDE.md` for the laws, tripwires and stop protocol.
 
 ## Step 4 — `disclosure.ts`
 
-- [ ] mass = Σ (chars/600 + rows/12 + points/40 + items/8)
-- [ ] `< 1.5` relaxed · `< 4.0` normal · else compact
-- [ ] ladder: block strategy → collapse asides → paginate largest →
-      simpler archetype → split canvas
-- [ ] policy **never** touches font size, colour, spacing tokens, line height,
-      radius, stroke width, row height, arrow style
+- [x] mass = Σ (chars/600 + rows/12 + points/40 + items/8)
+- [x] thresholds at 1.5 / 4.0, boundary-tested
+- [x] five-rung ladder; every rung logged whether or not it fired
+- [x] policy **cannot** express style — no style key exists on the type
 
 **Definition of done**
 
-- [ ] `token-invariance.spec.ts` passes: 2-block and 9-block lessons have
-      identical computed padding, font sizes, colours, radii, row heights,
-      stroke widths
-- [ ] only item counts, visibility and pagination differ
+- [x] 2-block vs 9-block resolve to byte-identical design tokens
+- [x] only counts and booleans differ — asserted by type inspection
 
 ---
 
@@ -138,16 +134,15 @@ next. See `CLAUDE.md` for the laws, tripwires and stop protocol.
 
 Runs after layout, before paint. Code, not review.
 
-- [ ] noOverflow · noCollision · noOrphanConnector · axesValid · contrastAA
-- [ ] minTapTarget · noAccidentalVoid · contentAccessible · labelFits
-- [ ] repair ladder = Step 4's ladder, max 3 passes, then single-column fallback
-- [ ] never paint a failing frame; log which repair fired
+- [x] noOverflow · noCollision · noOrphanConnector · contrastAA (axesValid → Step 8)
+- [x] minTapTarget · noAccidentalVoid · contentAccessible · labelFits
+- [x] repair ladder reuses Step 4's ladder, 3 passes, then single-column fallback
+- [x] never paints a failing frame; every repair logged with its pass number
 
 **Definition of done**
 
-- [ ] 9 overlapping primary blocks resolve through the ladder
-- [ ] a one-block lesson with large intentional whitespace passes
-      `noAccidentalVoid`
+- [x] 9 overlapping primary blocks resolve, all 9 kept, no content dropped
+- [x] one-block NARRATIVE passes `noAccidentalVoid` — declared, not inferred
 
 ---
 

@@ -54,6 +54,57 @@ describe('planFromBoard — the invariant', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 
+  it('moves the first block\'s title to the step instead of printing it twice', async () => {
+    const board = validated({
+      type: 'learning_board', version: 1, id: 'b', title: 'T',
+      blocks: [
+        { id: 'e1', type: 'explanation', title: 'The main idea', content: 'Short.' },
+        { id: 'e2', type: 'explanation', title: 'A second thought', content: 'Also short.' },
+      ],
+    } as BoardSource)
+    const step = await planFromBoard(board).nextStep()
+    if (!step) throw new Error('expected a step')
+
+    /* The step is named by the idea it opens with... */
+    expect(step.title).toBe('The main idea')
+    /* ...and the block no longer repeats that name inside its own card. */
+    expect(step.blocks[0].title).toBeUndefined()
+    /* A later block in the same step keeps its own heading: only the promoted
+     * one is a duplicate. */
+    const second = step.blocks.find((b) => b.id === 'e2')
+    if (second) expect(second.title).toBe('A second thought')
+  })
+
+  it('leaves an untitled first block alone and gives the step no title', async () => {
+    const board = validated({
+      type: 'learning_board', version: 1, id: 'b', title: 'T',
+      blocks: [{ id: 'e1', type: 'explanation', content: 'No heading here.' }],
+    } as BoardSource)
+    const step = await planFromBoard(board).nextStep()
+    if (!step) throw new Error('expected a step')
+    expect(step.title).toBeUndefined()
+    expect(step.blocks[0].title).toBeUndefined()
+  })
+
+  it('does not mutate the board it was given', async () => {
+    /* The promotion copies the block. A plan that edited the validated board
+     * would change what a second plan over the same board could produce. */
+    const source = {
+      type: 'learning_board', version: 1, id: 'b', title: 'T',
+      blocks: [{ id: 'e1', type: 'explanation', title: 'Kept', content: 'Short.' }],
+    } as BoardSource
+    const board = validated(source)
+    await planFromBoard(board).nextStep()
+    /* ValidatedBlock includes the unknown placeholder, which carries no title;
+     * this board has none, so the narrowing is a formality the compiler still
+     * wants stated. */
+    const kept = board.blocks[0]
+    expect('title' in kept ? kept.title : undefined).toBe('Kept')
+    /* And a second plan over the same board still sees it. */
+    const again = await planFromBoard(board).nextStep()
+    expect(again?.title).toBe('Kept')
+  })
+
   it('never packs two primary visuals into one step', async () => {
     const board = validated({
       type: 'learning_board', version: 1, id: 'b', title: 'T',

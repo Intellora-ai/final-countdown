@@ -34,6 +34,11 @@ const opening: ExplanationBlock = {
   ...(block('explanation-1') as ExplanationBlock),
   id: 'lesson-opening',
   content: (block('explanation-1') as ExplanationBlock).content.split(/\n{2,}/)[0],
+  /* The step this block belongs to is already called "The main idea". The
+   * block inherits that title from the board fixture it is spread from, and
+   * keeping it would print the same heading twice — once as the step, once
+   * inside its only card. The step owns the name here. */
+  title: undefined,
 }
 
 export const CHANGE_OF_STATE_LESSON: {

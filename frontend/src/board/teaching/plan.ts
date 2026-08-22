@@ -145,11 +145,23 @@ export function planFromBoard(board: ValidatedBoard): TeachingPlan {
       ready.forEach((c) => emittedConnectors.add(c.id))
       const first = draft.blocks[0]
       const checkpoint: Checkpoint = DEFAULT_CHECKPOINTS[(stepNo - 1) % DEFAULT_CHECKPOINTS.length]
+      /* The first block's title becomes the STEP's title — it is the name of
+       * the idea being taught, and the step is what teaches it.
+       *
+       * Moving it means removing it from where it was. Leaving it on the block
+       * too made the board render the same heading twice, once above the card
+       * and once inside it, on every board whose first block was titled. The
+       * same rule already governs split explanations a few lines up, where
+       * later parts drop the title rather than repeat it. */
+      const promotedTitle = ('title' in first && first.title) || undefined
+      const blocks = promotedTitle
+        ? [{ ...first, title: undefined }, ...draft.blocks.slice(1)]
+        : draft.blocks
       return Promise.resolve({
         id: `step-${stepNo}`,
-        purpose: derivePurpose(draft.blocks),
-        title: ('title' in first && first.title) || undefined,
-        blocks: draft.blocks,
+        purpose: derivePurpose(blocks),
+        title: promotedTitle,
+        blocks,
         connectors: ready,
         checkpoint,
       })

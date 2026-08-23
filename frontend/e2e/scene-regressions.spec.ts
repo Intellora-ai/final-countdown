@@ -119,11 +119,13 @@ test.describe('explanation canvas regressions', () => {
        * None of those may ever appear, and that is what this asserts.
        *
        * `FigureView` also renders a `.lc-refusal` WITHOUT `role="alert"` for a
-       * shape it has no renderer for yet -- `IMPLEMENTED` currently holds
-       * series, matrix and parts, so the civics lesson shows four of them. That
-       * is a feature that has not been built, not a defect, and it deliberately
-       * carries no alert role because nothing went wrong. Asserting zero of
-       * those here would be asserting a roadmap. */
+       * shape it has no renderer for yet. That is a feature that has not been
+       * built, not a defect, and it deliberately carries no alert role because
+       * nothing went wrong. Asserting zero of those here would be asserting a
+       * roadmap, and the roadmap moves: when this was written the civics lesson
+       * showed four of them and an hour later it showed none, because the
+       * remaining shapes landed. The check below is written to be true on both
+       * sides of that change. */
       const refused = await page.locator('.lc-refusal[role="alert"]').allTextContents()
       expect(refused, 'blocks refused as wrong').toEqual([])
 
@@ -606,6 +608,35 @@ async function expectFits(
   selector: string,
   what: string,
 ): Promise<void> {
+  /* MEASURE A STAGE THAT HAS FINISHED SIZING ITSELF, OR MEASURE NOTHING.
+   *
+   * react-three-fiber mounts a <canvas> at the HTML default 300x150 and resizes
+   * it from a ResizeObserver one frame later. Measured on mobile-375: 300x150
+   * at mount, 213x133 once the observer runs -- so a test that measured on
+   * arrival reported a 70px overhang against a stage that fits perfectly. That
+   * is the same class of mistake as the readiness check that passed on an empty
+   * page, just pointed the other way: an assertion that fires before the
+   * subject exists tells you about the harness, not the product.
+   *
+   * Two consecutive identical boxes, then measure. */
+  let previous = ''
+  await expect
+    .poll(
+      async () => {
+        const sig = await block.evaluate((host, sel) => {
+          const stage = host.querySelector(sel)
+          if (!stage) return 'absent'
+          const r = stage.getBoundingClientRect()
+          return `${Math.round(r.width)}x${Math.round(r.height)}`
+        }, selector)
+        const stable = sig !== 'absent' && sig === previous
+        previous = sig
+        return stable
+      },
+      { timeout: 20_000 },
+    )
+    .toBe(true)
+
   const fit = await block.evaluate((host, sel) => {
     const stage = host.querySelector(sel)
     if (!stage) return null

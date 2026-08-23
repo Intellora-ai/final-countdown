@@ -461,11 +461,31 @@ export function IntervalsShape({ data, at }: { data: IntervalsData; at?: string 
               stroke={tokens.color.surfaceLift}
               strokeWidth={scalar(tokens.stroke.hair)}
             />
+            {/*
+              THE END TICKS ANCHOR INWARD, THE REST STAY CENTRED.
+              --------------------------------------------------
+              A centred label on the LAST tick puts half its width past the
+              right edge of the viewBox, because that tick sits exactly at the
+              plot's end. Measured in a browser, the "20" on the civics session
+              timeline was painted 7.4px outside the box — and text outside an
+              `<svg>` does not extend an ancestor's `scrollWidth`, so no amount
+              of scrolling reaches it. The same holds mirrored at the first tick.
+
+              Anchoring the two end ticks inward keeps every label inside the
+              box at any width, and costs nothing: a label that reads "20" is
+              still unambiguously the label for the tick it touches.
+            */}
             <text
               className="lc-flow__node"
               x={tick.x}
               y={layout.height - AXIS_H / 2}
-              textAnchor="middle"
+              textAnchor={
+                tick.x >= layout.width - 1
+                  ? 'end'
+                  : tick.x <= LABEL_W + 1
+                    ? 'start'
+                    : 'middle'
+              }
             >
               {tick.label}
             </text>

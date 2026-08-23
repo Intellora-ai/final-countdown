@@ -162,7 +162,17 @@ export function FigureView({ block }: { block: FigureBlock }) {
         intentional scroll region is not counted as a layout fault. Without it
         the overflow check would report every wide figure as clipped content.
       */}
-      <div className="lc-figure-scroll" data-overflow="scroll">
+      <div
+        className="lc-figure-scroll"
+        data-overflow="scroll"
+        /* `role` + `tabIndex` for the same reason `.lc-table-wrap` carries them:
+           a region only a mouse can move hides half the figure from anyone using
+           a keyboard (WCAG 2.1.1). Named, so a screen-reader list of regions does
+           not read as several identical "scrollable" entries. */
+        role="region"
+        tabIndex={0}
+        aria-label={`${block.title ?? block.as}, scrollable figure`}
+      >
         <Suspense fallback={<p className="lc-caption">Loading {block.data.shape}…</p>}>
           {drawing}
         </Suspense>

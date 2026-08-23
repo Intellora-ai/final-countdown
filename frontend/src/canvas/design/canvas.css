@@ -292,6 +292,14 @@
 /* -- Chart -------------------------------------------------------------- */
 .lc-chart { width: 100%; aspect-ratio: 16 / 10; min-height: 0; }
 
+/* A chart whose labels sit OUTSIDE the plotted marks needs a floor on its
+   width, or the library lays out into a box too narrow to place them and
+   paints them past its own edge. See the note in FlowWeightedShape for why the
+   figure scroller cannot rescue that on its own. 480px is the measured point at
+   which the civics sankey's longest stage label ("Lapsed or withdrawn") lands
+   inside the plot at every viewport this product supports. */
+.lc-chart--wide { min-width: 480px; }
+
 /* -- Flow --------------------------------------------------------------- */
 /*
  * A FIGURE THAT IS WIDER THAN THE SCREEN SCROLLS. IT DOES NOT SHRINK.

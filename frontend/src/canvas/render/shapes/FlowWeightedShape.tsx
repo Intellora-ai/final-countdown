@@ -367,6 +367,10 @@ function sankeyOption(
   ordered: readonly { id: string; label: string; depth: number }[],
   data: FlowWeightedData,
 ): EChartsOption {
+  /* The rightmost stage, so its labels can be turned inward below. `ordered` is
+     never empty here — the shape invariants refuse a flow with no stages. */
+  const lastDepth = ordered.reduce((max, n) => (n.depth > max ? n.depth : max), 0)
+
   return {
     aria: { enabled: true },
     textStyle: { color: tokens.color.ink, fontSize: scalar(tokens.type.body.size) },
@@ -395,12 +399,35 @@ function sankeyOption(
         label: { color: tokens.color.inkMuted, fontSize: TICK_FONT },
         lineStyle: { color: 'gradient', opacity: 0.32, curveness: 0.5 },
         itemStyle: { borderColor: tokens.color.void, borderWidth: HAIR },
+        /*
+         * THE LAST COLUMN LABELS INWARD. EVERY OTHER COLUMN LABELS OUTWARD.
+         *
+         * ECharts places a sankey label to the RIGHT of its node by default,
+         * which is correct for every stage except the final one — there the
+         * node already sits at the right edge of the plot, so the label is
+         * drawn past the edge of echarts' own `<svg>`. Measured in a browser,
+         * "Lapsed or withdrawn" was painted 78px outside the box at a 320px
+         * viewport, and still 7.4px outside at 768px.
+         *
+         * That text is not merely off-screen, it is UNREACHABLE: content
+         * overflowing an `<svg>` does not contribute to an ancestor's
+         * `scrollWidth`, so the figure's scroll container has nothing to scroll
+         * and no amount of scrolling reveals it. Widening the host only moves
+         * the problem, because the label follows the node to the new right edge.
+         *
+         * Flipping the last column's label inward keeps it inside the plot at
+         * every width, which is the only version of this that is true
+         * independently of the container.
+         */
         data: ordered.map((node, i) => ({
           name: node.id,
           value: undefined,
           depth: node.depth,
           itemStyle: { color: flowColor(i) },
-          label: { formatter: node.label.replace(/[{}]/g, '') },
+          label: {
+            formatter: node.label.replace(/[{}]/g, ''),
+            position: node.depth === lastDepth ? ('left' as const) : ('right' as const),
+          },
         })),
         /* The value goes through untouched: no scaling, no minimum width. */
         links: data.links.map((link) => ({ source: link.from, target: link.to, value: link.value })),
@@ -515,7 +542,26 @@ export function FlowWeightedShape({ data, at }: { data: FlowWeightedData; at?: s
 
   return (
     <div>
-      <div className="lc-chart" ref={plotRef}>
+      {/*
+        A SANKEY NEEDS ROOM FOR ITS LABELS, NOT JUST FOR ITS RIBBONS.
+        --------------------------------------------------------------
+        echarts paints stage labels OUTSIDE the node rectangles, and it lays out
+        into whatever width the host gives it. At `width: 100%` on a 320px
+        screen that meant "Lapsed or withdrawn" was drawn 78px past the right
+        edge of echarts' own `<svg>`.
+
+        The `.lc-figure-scroll` wrapper around every figure did NOT rescue it,
+        and the reason is worth knowing: content that overflows an `<svg>` box
+        does not contribute to an ancestor's `scrollWidth`. So the scroller had
+        nothing to scroll — `scrollWidth === clientWidth` — and the text was
+        genuinely unreachable, not merely off-screen. A check that only asks
+        "is there a scrollable ancestor?" reports this as fine. It is not.
+
+        `--wide` gives the host a real minimum width, so echarts lays out where
+        the labels fit, the wrapper gains real overflow, and the scroll becomes
+        something a reader can actually perform.
+      */}
+      <div className="lc-chart lc-chart--wide" ref={plotRef}>
         {built.option !== null && (
           <ReactECharts
             echarts={echarts}

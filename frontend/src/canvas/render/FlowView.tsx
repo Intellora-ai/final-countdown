@@ -32,7 +32,13 @@ export function FlowView({ block }: { block: FlowBlock }) {
   return (
     /* A `flow` block reaches the page through BlockView, not FigureView, so it
        needs its own scroller — the one FigureView adds never wraps this. */
-    <div className="lc-figure-scroll" data-overflow="scroll">
+    <div
+      className="lc-figure-scroll"
+      data-overflow="scroll"
+      role="region"
+      tabIndex={0}
+      aria-label={`${block.title ?? 'Flow'}, scrollable figure`}
+    >
     <FigureSvg
       viewBox={`0 0 ${layout.width} ${layout.height}`}
       role="img"

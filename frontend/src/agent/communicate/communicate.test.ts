@@ -74,10 +74,43 @@ describe('representation is chosen to preserve the structure', () => {
   })
 
   it('does NOT choose a table for a single fact', () => {
-    /* A grid around one number is scaffolding with nothing to hold. The
-       cardinality gate is what prevents it. */
+    /* A grid around one number is scaffolding with nothing to hold. */
     const u = read('What is inflation?')
     expect(chooseRepresentations(readStructure('', u), u)).toEqual(['prose'])
+  })
+
+  it('does NOT compare when the language is comparative but there is ONE subject', () => {
+    /* THE TEST THAT ACTUALLY EXERCISES THE CARDINALITY GATE.
+     *
+     * The test above looks like it covers this and does not. "What is
+     * inflation?" never sets `comparative`, so `s.comparative && plural`
+     * short-circuits on the first term and the gate is never reached --- it
+     * passes identically with the gate removed. A mutation run proved it:
+     * flipping `cardinality >= 2` to `true` survived.
+     *
+     * This is the case that needs the gate. "Better" and "worse" are
+     * comparative markers, so the structure reads as comparative, but there is
+     * only one subject on the table. Without the gate that produces a
+     * comparison of a thing against nothing. */
+    const u = read('Is inflation better or worse now?')
+    const s = readStructure('', u)
+    expect(s.comparative, 'precondition: the structure must read as comparative').toBe(true)
+    expect(s.cardinality, 'precondition: there must be fewer than two subjects').toBeLessThan(2)
+
+    const reps = chooseRepresentations(s, u)
+    expect(reps).not.toContain('comparison')
+    expect(reps).not.toContain('table')
+    expect(reps).not.toContain('matrix')
+  })
+
+  it('DOES compare once a second subject is on the table', () => {
+    /* The other half of the gate: it must not be so tight that a genuine
+       comparison is refused. Without this, deleting the feature entirely
+       would also pass the test above. */
+    const u = read('Compare LIFO and FIFO')
+    const s = readStructure('', u)
+    expect(s.cardinality).toBeGreaterThanOrEqual(2)
+    expect(chooseRepresentations(s, u)).toContain('comparison')
   })
 
   it('chooses an equation for a derivation', () => {

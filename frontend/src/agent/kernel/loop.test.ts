@@ -420,6 +420,57 @@ describe('MINIMALITY — the loop runs only what it selected', () => {
 })
 
 describe('the loop never throws, whatever the ports do', () => {
+  /* THE NAME OF THIS BLOCK WAS A CLAIM THE BLOCK DID NOT CHECK.
+   *
+   * It faulted the search port, an empty turn, and a missing concept graph.
+   * The search port is the ONE port with a boundary already --- `research()`
+   * wraps `port.search` in the only try/catch reachable from here --- so the
+   * single port that was fault-tested was the single port that could not fail
+   * the test. `loop.ts` itself contained zero `try`.
+   *
+   * That left the model call unguarded, which is the worst one to miss: it is
+   * the only network call in the loop and the most likely thing to 502, and a
+   * provider error propagated out of `handle()` as an unhandled rejection.
+   * The three tests below are the ones that were absent. */
+
+  it('survives a MODEL port that rejects', async () => {
+    /* A 502 from the provider must degrade to something the user can read,
+       not take the turn down. Everything upstream --- the reading, the
+       routing, the memory, the verification --- has already succeeded by the
+       time this fails, and throwing discards all of it. */
+    const p = ports({ model: { calls: [], async generate() { throw new Error('502 upstream') } } as Spy })
+    const out = await handle(ask('What is inflation?'), NEW_SESSION, p)
+    expect(out.result.answer.length).toBeGreaterThan(0)
+    /* And it must SAY it failed rather than emitting a confident empty
+       answer, which would be indistinguishable from a real one. */
+    expect(out.result.answer.toLowerCase()).toContain('could not')
+    expect(out.trace.capabilities.length).toBeGreaterThan(0)
+  })
+
+  it('survives a memory port whose retrieve rejects', async () => {
+    /* Memory is an enhancement, not a precondition. A store that is down
+       should cost personalisation, not the answer. */
+    const p = ports()
+    const broken = { ...p.memory, async retrieve() { throw new Error('store offline') } }
+    const out = await handle(ask('What is inflation?'), NEW_SESSION, { ...p, memory: broken })
+    expect(out.result.answer.length).toBeGreaterThan(0)
+    expect(out.trace.capabilities).toContain('communicate')
+  })
+
+  it('survives a memory port whose capture rejects', async () => {
+    /* Failing to WRITE a memory must not lose the turn that produced it. */
+    const p = ports()
+    const broken = { ...p.memory, async capture() { throw new Error('disk full') } }
+    const out = await handle(
+      ask('Remember that I struggle with percentages'),
+      NEW_SESSION,
+      { ...p, memory: broken },
+    )
+    expect(out.result.answer.length).toBeGreaterThan(0)
+    /* Nothing was stored, and the result must not claim otherwise. */
+    expect(out.result.remembered).toEqual([])
+  })
+
   it('survives a search port that rejects', async () => {
     const p = ports({ search: { async search() { throw new Error('offline') } } })
     const out = await handle(ask('What is the latest repo rate?'), NEW_SESSION, p)

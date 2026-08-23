@@ -11,7 +11,7 @@
     "test": "vitest",
     "test:mutation": "node scripts/mutation-gate.mjs",
     "budget": "node scripts/canvas-bundle-budget.mjs",
-    "lint": "eslint src/canvas src/practice --max-warnings 0"
+    "lint": "eslint src/canvas src/practice src/agent --max-warnings 0"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",

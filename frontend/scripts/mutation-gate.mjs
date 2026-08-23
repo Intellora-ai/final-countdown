@@ -482,6 +482,99 @@ const MUTANTS = [
     to: '        milestone: false,',
     breaks: '"royal assent" — a dated event with no duration — is drawn as a rectangle of no width, which paints nothing, so the milestone is simply absent from the schedule',
   },
+
+  /* ================================================================== */
+  /* THE AI CAPABILITY LAYER                                            */
+  /* ================================================================== */
+  /* `src/agent/**` arrived with 433 tests and, until these, nothing
+   * checking that any of them could fail — the exact condition the header
+   * of this file describes the canvas having been in. Test COUNT is not
+   * evidence: a suite can be broad in kind (unit, integration, end-to-end,
+   * regression) and still assert only that dispatch happened.
+   *
+   * Every mutant below inverts a promise the layer states in writing, and
+   * each one is aimed at a decision that FAILS SILENTLY when broken. That
+   * is the selection rule: a mutant whose damage would be obvious in the
+   * output teaches nothing, because a human would catch it. These all
+   * produce a confident, well-formed, wrong result. */
+
+  {
+    id: 'agent-arithmetic-verification-always-passes',
+    file: 'src/agent/verify/verify.ts',
+    from: '  const ok = Math.abs(actual - stated) <= Math.max(tolerance, Math.abs(actual) * 1e-9)',
+    to: '  const ok = true',
+    breaks: 'the one check a user cannot perform themselves stops performing it: "17.5% of 2400 = 380" ships carrying a passing arithmetic verification, which is worse than shipping unverified because the verification is what earns the trust',
+  },
+  {
+    id: 'agent-explicit-deletion-is-only-a-hide',
+    file: 'src/agent/memory/memory.ts',
+    from: '      p.write(p.read().filter((r) => r.id !== id))',
+    to: '      p.write(p.read())',
+    breaks: 'a user asks for something to be forgotten, is told it was, and the record stays on disk — a lie told with their own data, and the kind that only surfaces when someone reads the store directly',
+  },
+  {
+    id: 'agent-every-tool-failure-is-retried',
+    file: 'src/agent/tools/tools.ts',
+    from: '    if (last.failure !== \'transient\') return last',
+    to: '    if (false) return last',
+    breaks: 'malformed arguments are re-sent unchanged and a DENIED action is attempted a second time — the recovery layer stops distinguishing weather from a decision somebody made',
+  },
+  {
+    id: 'agent-effectful-tools-run-ungated',
+    file: 'src/agent/tools/tools.ts',
+    from: '  if (tool.effectful && !opts.allowEffects) {',
+    to: '  if (false) {',
+    breaks: 'anything that changes the world runs without permission, and it cannot be un-run; the gate exists precisely because a malformed delete is still a delete attempt',
+  },
+  {
+    id: 'agent-partial-work-reported-as-finished',
+    file: 'src/agent/execute/execute.ts',
+    from: '    complete: done === steps.length && steps.length > 0,',
+    to: '    complete: steps.length > 0,',
+    breaks: 'a task whose remaining steps are all BLOCKED has also run out of things to do, so it reports itself complete — half-done work delivered as done, with a journal that says so',
+  },
+  {
+    id: 'agent-disagreement-presented-at-full-confidence',
+    file: 'src/agent/knowledge/knowledge.ts',
+    from: '      confidence: conflict ? Math.min(base, 0.4) : base,',
+    to: '      confidence: base,',
+    breaks: 'two sources saying 6.2% and 4.9% produce one confidently-stated number; the split is laundered into certainty, which is the single failure the whole research path was shaped to prevent',
+  },
+  {
+    id: 'agent-negation-stops-being-read',
+    file: 'src/agent/understand/understand.ts',
+    from: '    if (cur) scores.delete(n.kind)',
+    to: '    if (false) scores.delete(n.kind)',
+    breaks: '"explain closures, but do not search for this" searches anyway — the request is read as a bag of keywords, and the word the user used to REFUSE something becomes evidence for it',
+  },
+  {
+    id: 'agent-unanswerable-requests-answered-anyway',
+    file: 'src/agent/kernel/loop.ts',
+    from: "  if (action.action === 'ask') {",
+    to: '  if (false) {',
+    breaks: '"fix it" with nothing yet named is handed to the model, which answers about whatever it guesses — a fluent, well-sourced answer to a question nobody asked, and harder to catch than no answer',
+  },
+  {
+    id: 'agent-referent-ambiguity-no-longer-blocks',
+    file: 'src/agent/kernel/router.ts',
+    from: '  if (blocking) {',
+    to: '  if (false) {',
+    breaks: 'certainty about the verb is treated as certainty about the noun, so the agent acts confidently on a referent that does not exist',
+  },
+  {
+    id: 'agent-single-fact-forced-into-a-table',
+    file: 'src/agent/communicate/communicate.ts',
+    from: '  const plural = s.cardinality >= 2',
+    to: '  const plural = true',
+    breaks: 'one number is rendered as a one-row comparison table — scaffolding built around nothing, which is how a system that "chooses representations" quietly becomes one that decorates',
+  },
+  {
+    id: 'agent-a-stated-struggle-resets-the-learner',
+    file: 'src/agent/learn/learn.ts',
+    from: "      mastery.set(concept.id, 'partial')",
+    to: "      mastery.set(concept.id, 'unknown')",
+    breaks: 'someone who says "I struggle with integration" is treated as never having met integration, so the curriculum restarts them on material they have already sat through — the fastest way to lose a learner',
+  },
 ]
 
 /*

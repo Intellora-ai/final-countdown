@@ -115,6 +115,10 @@ export interface LoopResult {
     action: string
     research?: Research
     selfChecks: readonly SelfCheck[]
+    /** Set when a port failed and the turn continued without it. */
+    degraded?: string
+    /** True when memory was unavailable, so personalisation was skipped. */
+    memoryUnavailable: boolean
   }
 }
 
@@ -129,11 +133,25 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
   /* Retrieved BEFORE routing, because whether anything relevant is stored is
      an input to the routing decision --- `memoryHits` is what lets the router
      leave `memory-read` off when there is genuinely nothing to load. */
-  const memories = await ports.memory.retrieve({
-    goal: u.goal,
-    entities: u.entities.map((e) => e.label),
-    limit: 5,
-  })
+  /* EVERY PORT CALL IN THIS FILE IS A BOUNDARY, AND EACH ONE DEGRADES.
+     `research()` already does this for search; nothing else did, and the test
+     block asserting "the loop never throws" only faulted search --- the one
+     port that could not fail it. The rule now: a port that fails costs the
+     capability it provides, never the turn.
+
+     Memory is an ENHANCEMENT. A store that is down should cost
+     personalisation and prior context, not the answer. */
+  let memories: readonly MemoryRecord[] = []
+  let memoryFailed = false
+  try {
+    memories = await ports.memory.retrieve({
+      goal: u.goal,
+      entities: u.entities.map((e) => e.label),
+      limit: 5,
+    })
+  } catch {
+    memoryFailed = true
+  }
 
   const ctx: RouteContext = {
     ...NO_CONTEXT,
@@ -148,6 +166,12 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
 
   /* ---- 5. Choose where the answer comes from -------------------------- */
   const sourceDecision = decideSource(u, ctx)
+
+  /* Set when a port failed and the turn continued without it. Surfaced on the
+     trace so a degraded turn is DISTINGUISHABLE from a healthy one --- a
+     system that silently drops memory or the model and returns something
+     anyway is the failure this whole boundary layer exists to prevent. */
+  let degraded: string | undefined
 
   let working = absorb(session.working, u)
   const claims: Claim[] = []
@@ -235,14 +259,33 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
     question = u.ambiguities.find((a) => a.blocking)?.what ?? action.because
     answer = `Before I answer: ${question}`
   } else {
-    answer = await ports.model.generate({
-      understanding: u,
-      communication,
-      claims,
-      working,
-      capabilities: plan.selected,
-      computed,
-    })
+    try {
+      answer = await ports.model.generate({
+        understanding: u,
+        communication,
+        claims,
+        working,
+        capabilities: plan.selected,
+        computed,
+      })
+    } catch (e) {
+      /* THE MOST IMPORTANT BOUNDARY IN THE FILE.
+         This is the only network call in the loop and the likeliest thing to
+         fail, and every other stage --- reading, routing, memory, research,
+         computation, verification --- has already SUCCEEDED by the time it
+         does. Throwing here discards all of that work and hands the caller an
+         unhandled rejection.
+
+         The degraded answer SAYS it failed. An empty string would be
+         indistinguishable from a real answer, and a cheerful apology would be
+         worse: verification runs over whatever is returned, so a fabricated
+         answer would be checked and reported on as though it were one. */
+      const why = e instanceof Error ? e.message : String(e)
+      answer =
+        `I worked out what to do but could not produce the answer: ${why}. ` +
+        `Nothing above this point failed, so retrying is likely to work.`
+      degraded = why
+    }
   }
 
   /* ---- 7 again. Verify what was produced ------------------------------ */
@@ -269,15 +312,24 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
   if (selected.has('memory-write')) {
     const decision = worthRemembering(text, u)
     if (decision) {
-      remembered.push(
-        await ports.memory.capture({
-          kind: decision.kind,
-          content: decision.content,
-          strength: decision.source === 'user-stated' ? 0.9 : 0.6,
-          supersedes: [],
-          source: decision.source,
-        }),
-      )
+      try {
+        remembered.push(
+          await ports.memory.capture({
+            kind: decision.kind,
+            content: decision.content,
+            strength: decision.source === 'user-stated' ? 0.9 : 0.6,
+            supersedes: [],
+            source: decision.source,
+          }),
+        )
+      } catch (e) {
+        /* Failing to WRITE must not lose the turn that produced it. Note that
+           `remembered` stays empty --- the result reports what was actually
+           stored, so nothing downstream can tell the user their fact was kept
+           when it was not. */
+        memoryFailed = true
+        degraded = degraded ?? (e instanceof Error ? e.message : String(e))
+      }
     }
   }
 
@@ -313,6 +365,8 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
       action: action.action,
       ...(researchResult ? { research: researchResult } : {}),
       selfChecks,
+      ...(degraded ? { degraded } : {}),
+      memoryUnavailable: memoryFailed,
     },
   }
 }

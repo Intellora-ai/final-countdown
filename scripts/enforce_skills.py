@@ -55,9 +55,36 @@ import json
 import os
 import sys
 
-# The two the user named. Deliberately short: forcing sixteen skills costs more
-# context than it saves, and a gate nobody can afford gets switched off.
-REQUIRED = ("rtk", "investigate")
+# The skills the user named, as BARE names.
+#
+# Plugin skills are invoked as "plugin:skill" (`superpowers:systematic-debugging`)
+# and the scanner normalises to the last segment, so `systematic-debugging` is
+# what matches. Writing the prefixed form here would never match anything and
+# the gate would block forever on a skill that had in fact been invoked.
+#
+# On cost: the user was explicitly asked to accept it and did. The first
+# invocation of each per session pays its preamble; every re-invocation after
+# that returns "already loaded above; instructions unchanged" at effectively
+# zero tokens, so the recurring cost of a nine-skill gate is close to the cost
+# of a two-skill one. The one-off cost is real and is the trade being made.
+REQUIRED = (
+    "rtk",
+    "investigate",
+    # `caveman` also ships its own SessionStart and UserPromptSubmit hooks, so
+    # it is already active every turn and this entry is belt-and-braces rather
+    # than the thing switching it on. Kept because the user asked for it
+    # explicitly after being told that: a gate listing every skill the user
+    # wants held is easier to reason about than one with a silent exception in
+    # it, and the marginal cost of a re-invocation is near zero.
+    "caveman",
+    "mutate",
+    "test-driven-development",
+    "proptest",
+    "adversarial-reviewer",
+    "chaos-engineer",
+    "chaos-engineering",
+    "systematic-debugging",
+)
 
 # "turn"    --- both skills must be re-invoked for EVERY user prompt.
 # "session" --- once per session is enough.

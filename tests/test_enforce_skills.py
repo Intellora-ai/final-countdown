@@ -27,6 +27,29 @@ from pathlib import Path
 HOOK = Path(__file__).resolve().parents[1] / "scripts" / "enforce_skills.py"
 
 
+def _load_hook_module():
+    """
+    Import the hook to read its REQUIRED tuple.
+
+    The tests drive the hook as a SUBPROCESS --- that is what exercises the
+    real entry point --- but they also need to know which skills it wants, and
+    hardcoding that list means every change to it silently turns these tests
+    into assertions about a stale expectation rather than about the gate.
+    Safe to import: the module body defines only constants and functions, and
+    everything that acts is behind `if __name__ == "__main__"`.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("enforce_skills", HOOK)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+REQUIRED = _load_hook_module().REQUIRED
+
+
 def run_hook(**event) -> dict | None:
     """Run the hook with an event on stdin. Returns its decision, or None."""
     proc = subprocess.run(
@@ -68,26 +91,29 @@ def test_blocks_when_no_required_skill_was_invoked(tmp_path):
     result = run_hook(transcript_path=transcript(tmp_path), session_id="a")
     assert result is not None
     assert result["decision"] == "block"
-    assert "/rtk" in result["reason"]
-    assert "/investigate" in result["reason"]
+    for s in REQUIRED:
+        assert f"/{s}" in result["reason"]
 
 
-def test_passes_when_both_required_skills_were_invoked(tmp_path):
-    path = transcript(tmp_path, "rtk", "investigate")
+def test_passes_when_every_required_skill_was_invoked(tmp_path):
+    path = transcript(tmp_path, *REQUIRED)
     assert run_hook(transcript_path=path, session_id="b") is None
 
 
 def test_names_only_the_missing_skill(tmp_path):
     """A gate that re-lists satisfied requirements teaches people to skim it."""
-    result = run_hook(transcript_path=transcript(tmp_path, "rtk"), session_id="c")
+    satisfied = [s for s in REQUIRED if s != "investigate"]
+    result = run_hook(transcript_path=transcript(tmp_path, *satisfied), session_id="c")
     assert result is not None
     assert "/investigate" in result["reason"]
-    assert "/rtk" not in result["reason"]
+    for s in satisfied:
+        assert f"/{s}" not in result["reason"]
 
 
 def test_accepts_plugin_prefixed_and_slash_prefixed_names(tmp_path):
     """`pr-review-toolkit:rtk` and `/rtk` are the same skill to a human."""
-    path = transcript(tmp_path, "pr-review-toolkit:rtk", "/investigate")
+    path = transcript(tmp_path, "pr-review-toolkit:rtk", "superpowers:systematic-debugging",
+                      *[s for s in REQUIRED if s not in ("rtk", "systematic-debugging")])
     assert run_hook(transcript_path=path, session_id="d") is None
 
 
@@ -132,7 +158,7 @@ def test_unreadable_transcript_fails_open(tmp_path):
 
 def test_truncated_final_line_does_not_crash(tmp_path):
     """The transcript is appended to while this reads it."""
-    path = transcript(tmp_path, "rtk", "investigate", truncated=True)
+    path = transcript(tmp_path, *REQUIRED, truncated=True)
     assert run_hook(transcript_path=path, session_id="j") is None
 
 
@@ -210,8 +236,7 @@ def test_skills_invoked_before_the_late_last_prompt_record_still_count(tmp_path)
     path = turn_transcript(
         tmp_path,
         ("prompt", "do the thing"),
-        ("skill", "rtk"),
-        ("skill", "investigate"),
+        *[("skill", s) for s in REQUIRED],
         ("injected", "Base directory for this skill: /Users/x/.claude/skills/rtk"),
         ("prompt-record", "do the thing"),
         ("skill", "some-other-skill"),
@@ -231,8 +256,7 @@ def test_truncated_last_prompt_still_finds_its_turn(tmp_path):
     path = turn_transcript(
         tmp_path,
         ("prompt", "an earlier prompt entirely"),
-        ("skill", "rtk"),
-        ("skill", "investigate"),
+        *[("skill", s) for s in REQUIRED],
         ("prompt-record", "an earlier prompt entirely"),
         ("prompt", long_prompt),
         ("prompt-record", long_prompt[:180] + "…"),
@@ -255,27 +279,24 @@ def test_credit_does_not_carry_across_turns(tmp_path):
     path = turn_transcript(
         tmp_path,
         ("prompt", "first question"),
-        ("skill", "rtk"),
-        ("skill", "investigate"),
+        *[("skill", s) for s in REQUIRED],
         ("prompt-record", "first question"),
         ("prompt", "second question"), ("prompt-record", "second question"),
         ("prompt-record", "second question"),
     )
     result = run_hook(transcript_path=path, session_id="t1")
     assert result is not None
-    assert "/rtk" in result["reason"]
-    assert "/investigate" in result["reason"]
+    for s in REQUIRED:
+        assert f"/{s}" in result["reason"]
 
 
 def test_skills_rerun_in_the_new_turn_satisfy_it(tmp_path):
     path = turn_transcript(
         tmp_path,
         ("prompt", "first question"),
-        ("skill", "rtk"),
-        ("skill", "investigate"),
+        *[("skill", s) for s in REQUIRED],
         ("prompt", "second question"), ("prompt-record", "second question"),
-        ("skill", "rtk"),
-        ("skill", "investigate"),
+        *[("skill", s) for s in REQUIRED],
     )
     assert run_hook(transcript_path=path, session_id="t2") is None
 
@@ -293,9 +314,9 @@ def test_repeated_last_prompt_records_are_one_turn(tmp_path):
         # proceeds. That repetition is what the retry path depended on, and it
         # must not move the boundary or clear credit.
         ("prompt", "one question"),
-        ("skill", "rtk"),
+        *[("skill", s) for s in REQUIRED[:2]],
         ("prompt-record", "one question"),
-        ("skill", "investigate"),
+        *[("skill", s) for s in REQUIRED[2:]],
         ("prompt-record", "one question"),
         ("prompt-record", "one question"),
     )
@@ -304,26 +325,21 @@ def test_repeated_last_prompt_records_are_one_turn(tmp_path):
 
 def test_skill_body_injection_does_not_reset_the_turn(tmp_path):
     """
-    THE BUG THAT MADE `last-prompt` THE BOUNDARY.
+    THE BUG THAT MADE THE `user` RECORD CARRYING THE PROMPT THE BOUNDARY.
 
-    Invoking a skill injects its body as a `type: "user"` record. A boundary
-    built on "last user record" would reset on /investigate's own preamble, so
-    the gate would clear the credit it had just been given, forever.
+    Invoking a skill injects its body back as a `type: "user"` record. A
+    boundary built on "last user record" would reset on every skill preamble,
+    so the gate would clear the credit it had just been given, forever.
     """
-    path = tmp_path / "injected.jsonl"
-    path.write_text(
-        json.dumps({"type": "last-prompt", "lastPrompt": "q"}) + "\n"
-        + json.dumps({"message": {"content": [
-            {"type": "tool_use", "name": "Skill", "input": {"skill": "rtk"}}]}}) + "\n"
+    lines = [json.dumps({"type": "last-prompt", "lastPrompt": "q"})]
+    for skill in REQUIRED:
+        lines.append(json.dumps({"message": {"content": [
+            {"type": "tool_use", "name": "Skill", "input": {"skill": skill}}]}}))
         # The skill body coming back, exactly as the host writes it.
-        + json.dumps({"type": "user", "message": {"role": "user", "content":
-            "Base directory for this skill: /Users/x/.claude/skills/rtk"}}) + "\n"
-        + json.dumps({"message": {"content": [
-            {"type": "tool_use", "name": "Skill", "input": {"skill": "investigate"}}]}}) + "\n"
-        + json.dumps({"type": "user", "message": {"role": "user", "content":
-            "Base directory for this skill: /Users/x/.claude/skills/investigate"}}) + "\n",
-        encoding="utf-8",
-    )
+        lines.append(json.dumps({"type": "user", "message": {"role": "user", "content":
+            f"Base directory for this skill: /Users/x/.claude/skills/{skill}"}}))
+    path = tmp_path / "injected.jsonl"
+    path.write_text("".join(x + "\n" for x in lines), encoding="utf-8")
     assert run_hook(transcript_path=str(path), session_id="t4") is None
 
 

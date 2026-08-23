@@ -51,4 +51,29 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     },
   },
+  /* src/agent is the AI capability layer, and it was in exactly the position
+   * src/practice was in above: outside every `files` block, and therefore
+   * silently unlinted. Flat config does not warn about this --- a path with no
+   * matching block is reported as "ignored", which reads like a deliberate
+   * exclusion rather than an omission. Adding the directory to the lint SCRIPT
+   * without adding a block here would have changed nothing at all, and the
+   * gate would have looked green over several thousand unchecked lines.
+   *
+   * `canvas/design-value` is deliberately NOT applied. It encodes the canvas
+   * design system, and this layer emits no styling of any kind --- it chooses
+   * WHICH representation and hands that to the renderer. The Four Laws
+   * guarantee for it is asserted directly instead, by a test that serialises a
+   * communication plan and fails on any hex, rgb(), px/rem, or positional key.
+   * A rule about token NAMES here would check the wrong thing and pass.
+   *
+   * `no-explicit-any` is an ERROR rather than off: this code is new, so there
+   * is no pre-existing `any` to bury the rule under. */
+  {
+    files: ['src/agent/**/*.{ts,tsx}'],
+    extends: [...tseslint.configs.recommended],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
 )

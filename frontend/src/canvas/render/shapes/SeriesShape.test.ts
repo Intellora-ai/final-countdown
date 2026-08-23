@@ -400,7 +400,23 @@ describe('axis ticks are monotonic and evenly spaced', () => {
     }
   })
 
-  it('stays honest over twenty random ranges, for every cartesian chart type', () => {
+  /*
+   * AN EXPLICIT TIMEOUT, BECAUSE THIS TEST IS GENUINELY SLOW.
+   *
+   * Twenty ranges across every cartesian chart type builds a full ECharts
+   * option per combination and reads the ticks back off it. Measured: ~2.6s
+   * running alone, ~10.9s inside the full suite, reproduced 2 for 2. The inputs
+   * are a seeded LCG, so the work is identical every run — the only variable is
+   * how much else is executing in parallel, and under load it crosses vitest's
+   * 5s default.
+   *
+   * The tempting fix is to cut the twenty ranges or the chart types. That would
+   * make it fast and would delete the exact coverage this file exists for: a
+   * build once shipped a y-axis reading 200, 150, 100, 110. A slow test that
+   * checks the right thing is not a problem to be optimised away; claiming it is
+   * fast is the only thing actually wrong here, so the number is stated instead.
+   */
+  it('stays honest over twenty random ranges, for every cartesian chart type', { timeout: 30_000 }, () => {
     for (const name of CARTESIAN) {
       for (const band of bands(name.length * 977 + 13)) {
         const ticks = renderedTicks(optionOf(name, band), valueAxisOf(name))

@@ -139,9 +139,12 @@ export async function teach(page: Page, label: LessonLabel): Promise<void> {
  *
  * So every wait below is a LOWER BOUND that an unfinished page cannot satisfy:
  *
- *   1. No Suspense fallback is still mounted. `BlockView` renders every lazy
- *      renderer behind `<p role="status">Loading …</p>`, and that fallback is
- *      the one piece of scaffolding that proves a chunk has NOT landed.
+ *   1. No Suspense fallback is still mounted. Every lazy renderer sits behind
+ *      one, and a mounted fallback is the one piece of scaffolding that proves
+ *      a chunk has NOT landed. Both spellings are checked -- `BlockView` gives
+ *      its fallback `role="status"`, `FigureView` gives its shapes a plain
+ *      `.lc-caption` -- because a census that only knew the first would have
+ *      measured a page whose figures had not arrived.
  *   2. Every block has resolved to real content -- a table, an SVG, a canvas,
  *      typeset mathematics, or text.
  *   3. Fonts have loaded, because font metrics decide every effective-size and
@@ -152,7 +155,10 @@ export async function teach(page: Page, label: LessonLabel): Promise<void> {
  */
 export async function settle(page: Page): Promise<void> {
   await page.waitForFunction(
-    () => document.querySelectorAll('.lc-block [role="status"]').length === 0,
+    () =>
+      ![...document.querySelectorAll('.lc-block [role="status"], .lc-block .lc-caption')].some(
+        (el) => /^Loading\b/.test((el.textContent ?? '').trim()),
+      ),
     undefined,
     { timeout: 30_000 },
   )
@@ -178,7 +184,16 @@ export async function settle(page: Page): Promise<void> {
 
   await page.waitForFunction(
     () => {
-      const sig = [...document.querySelectorAll('.lc-block')]
+      /* THE BLOCK BOXES ARE NOT ENOUGH ON THEIR OWN.
+       *
+       * A block's outer box is decided by the grid and is stable from the first
+       * commit; the ECharts SVG and the r3f canvas INSIDE it are sized by their
+       * own ResizeObservers a frame or two later. Watching only the outer boxes
+       * declares a page settled while a chart is still at its mounting width,
+       * and a clipping census taken then reports text spilling out of a figure
+       * that fits perfectly a moment afterwards. The drawing surfaces are in
+       * the signature for that reason. */
+      const sig = [...document.querySelectorAll('.lc-block, .lc-block svg, .lc-block canvas')]
         .map((b) => {
           const r = b.getBoundingClientRect()
           return `${Math.round(r.width)}x${Math.round(r.height)}`

@@ -105,6 +105,12 @@ const PATTERNS: readonly Pattern[] = [
   { kind: 'explanation', weight: 4, because: 'asks for simpler framing', test: /\b(explain|eli5|simpler|in plain|like i'?m (new|five)|dumb it down)\b/i },
   { kind: 'information', weight: 3, because: 'asks for a fact', test: /\b(when|who|where|which year|how old|how far|how long)\b/i },
   { kind: 'information', weight: 3, because: 'asks to be told something', test: /\btell me\b/i },
+  /* The plain request forms. Their absence was a real hole rather than a
+     stylistic gap: "give me short answers about inflation" matched nothing at
+     all, fell to the `conversation` default at 0.15 confidence, and the
+     uncertainty layer correctly refused to answer a request it could not
+     read. The refusal was right; not being able to read it was not. */
+  { kind: 'information', weight: 3, because: 'a plain request for something', test: /\b(give me|show me|list|what are|i (?:want|need) (?:to know|a|an|the))\b/i },
   { kind: 'information', weight: 3, because: 'asks for a summary of given material', test: /\b(summari[sz]e|summary|tl;?dr|gist|key points)\b/i },
 
   /* Recommendation, action, correction, conversation. */

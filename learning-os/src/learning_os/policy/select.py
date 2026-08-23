@@ -75,8 +75,10 @@ class ReasonCode(StrEnum):
     # the target. Explaining another layer's decision is how two layers end up
     # disagreeing about what happened.
     #
-    # Deleted rather than implemented. `test_every_reason_code_is_reachable`
-    # now fails if a code is added without a branch that emits it.
+    # Deleted rather than implemented. `test_every_reason_code_changes_a_decision`
+    # now fails if a code is added without a branch that CHANGES the decision --
+    # a stronger property than merely being emitted, and the one that caught
+    # DIAGNOSTIC_NEEDED announcing a diagnostic it did not perform.
     #: A named misconception is live; repairing beats re-explaining.
     MISCONCEPTION_LIVE = "misconception_live"
     #: The previously chosen strategy failed here and was excluded.
@@ -159,7 +161,14 @@ _ACTION_FOR: dict[Strategy, ActionKind] = {
 #: that is not a paraphrase. Section 45: the next intervention must change the
 #: MECHANISM.
 _STRATEGIES_FOR: dict[DiagnosisKind, tuple[Strategy, ...]] = {
-    DiagnosisKind.TERM_GAP: (Strategy.WORKED_EXAMPLE, Strategy.CONTRAST, Strategy.ANALOGY),
+    # CONTRAST FIRST, NOT A WORKED EXAMPLE.
+    #
+    # A term gap is a BOUNDARY problem: what does this word include, and what
+    # does it exclude. Contrast is the mechanism for a boundary. A worked example
+    # demonstrates a procedure and can be followed start to finish without the
+    # term ever landing — the learner completes it and still cannot say what the
+    # word means. Argued by session final-countdown-6a; I had it the other way.
+    DiagnosisKind.TERM_GAP: (Strategy.CONTRAST, Strategy.WORKED_EXAMPLE, Strategy.ANALOGY),
     DiagnosisKind.CONCEPT_GAP: (
         Strategy.WORKED_EXAMPLE,
         Strategy.CONTRAST,
@@ -179,7 +188,11 @@ _STRATEGIES_FOR: dict[DiagnosisKind, tuple[Strategy, ...]] = {
         Strategy.GUIDED_REASONING,
     ),
     DiagnosisKind.REPRESENTATION_FAILURE: (Strategy.ANALOGY, Strategy.CONTRAST),
-    DiagnosisKind.LANGUAGE_FAILURE: (Strategy.WORKED_EXAMPLE, Strategy.ANALOGY),
+    # ANALOGY FIRST. The learner HAS the concept and lacks the phrasing, so a
+    # worked example in the same phrasing is the least likely mechanism to help —
+    # it repeats the exact thing that did not land. An analogy restates in
+    # different terms, which is the thing actually missing. Also 6a's.
+    DiagnosisKind.LANGUAGE_FAILURE: (Strategy.ANALOGY, Strategy.WORKED_EXAMPLE),
     DiagnosisKind.COGNITIVE_OVERLOAD: (Strategy.DECOMPOSITION, Strategy.WORKED_EXAMPLE),
     DiagnosisKind.TRANSFER_FAILURE: (Strategy.NEW_CONTEXT, Strategy.TRANSFER_CHALLENGE),
 }
@@ -365,21 +378,51 @@ def select_action(
     required = tuple(concept.technical_terms) if concept is not None else ()
     forbidden = tuple(concept.forbidden_simplifications) if concept is not None else ()
 
+    # A DIAGNOSTIC IS AN ACTION, NOT A LABEL.
+    #
+    # `DIAGNOSTIC_NEEDED` used to be emitted while the contract stayed identical
+    # to the confident case — so the engine announced it needed evidence and then
+    # taught exactly as though it did not. A reason code whose consequence does
+    # not exist is worse than a missing one: it reads as adaptation that never
+    # happened, and any analysis of when diagnostics help would be counting
+    # decisions that were not diagnostics.
+    #
+    # Found by strengthening the reason-code test from REACHABILITY to
+    # CONSEQUENCE, which is the property session final-countdown-6a argued for.
+    # It caught this on the first run.
+    #
+    # The learner still experiences teaching, per section 29 — the strategy and
+    # its wording are unchanged. What changes is what the runtime does with the
+    # response: `DIAGNOSE` collects evidence about which hypothesis holds, rather
+    # than evidence of mastery, and the success condition is stated accordingly.
+    action = ActionKind.DIAGNOSE if bottleneck.needs_diagnostic else _ACTION_FOR[strategy]
+    evidence_required = (
+        f"the response distinguishes which hypothesis about {_plain(skill_id)} holds"
+        if bottleneck.needs_diagnostic
+        else _evidence_for(strategy, skill_id)
+    )
+
     contract = InstructionContract(
         target_skill=skill_id,
         question=question,
         diagnosis=diagnosis,
         strategy=strategy,
-        action=_ACTION_FOR[strategy],
+        action=action,
         known_prerequisites=known_prerequisites,
         weak_subskills=(skill_id,),
         preferred_representations=worked,
         simplicity=constraints,
         required_terms=required,
         forbidden_phrases=forbidden,
-        success_evidence_required=_evidence_for(strategy, skill_id),
+        success_evidence_required=evidence_required,
     )
     return Decision(contract=contract, reasons=tuple(reasons), excluded=excluded)
+
+
+def _plain(skill_id: str) -> str:
+    """The leaf of a skill id, in words. Ids are for machines; this is for the
+    sentence a human reads in a success condition."""
+    return skill_id.rsplit(".", 1)[-1].replace("_", " ")
 
 
 def _evidence_for(strategy: Strategy, skill_id: str) -> str:
@@ -389,7 +432,7 @@ def _evidence_for(strategy: Strategy, skill_id: str) -> str:
     every intervention ends up looking successful, and it is the single easiest
     way for a system like this to fool the people building it.
     """
-    name = skill_id.rsplit(".", 1)[-1].replace("_", " ")
+    name = _plain(skill_id)
     if strategy in (Strategy.TRANSFER_CHALLENGE, Strategy.NEW_CONTEXT):
         return f"learner applies {name} unaided in a context they have not seen"
     if strategy is Strategy.BROKEN_EXAMPLE_REPAIR:

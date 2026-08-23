@@ -369,60 +369,109 @@ def test_choose_strategy_never_returns_an_unmapped_strategy(diagnosis: Diagnosis
     assert strategy in _ACTION_FOR
 
 
-def test_every_reason_code_is_reachable() -> None:
-    """A reason code no branch emits is a vocabulary entry pretending to be a
-    code path.
+def test_every_reason_code_changes_a_decision() -> None:
+    """REACHABILITY IS THE WEAKER PROPERTY. CONSEQUENCE IS THE ONE THAT MATTERS.
 
-    It makes the policy look as though it weighs something it does not, and any
-    analysis counting reason codes waits for a decision that cannot occur.
-    `PREREQUISITE_FIRST` was exactly that — defined, documented, never emitted —
-    and it survived every other test in this file because nothing asserted the
-    set was covered.
+    The first version of this test asserted every code was *emitted* somewhere.
+    Session final-countdown-6a pointed out that a code can be emitted and change
+    nothing — which is worse than a missing code, because it reads as evidence
+    the policy adapted when the decision was identical either way.
 
-    Enumerating rather than spot-checking: a test naming the codes it expects
-    would pass the day an eleventh was added and never emitted.
+    So each code is paired with two states differing only in the condition that
+    emits it, and the DECISIONS must differ.
+
+    `ANNOTATES_ONLY` is the escape hatch, and it is a named list rather than a
+    silent default: a code that legitimately annotates without steering has to be
+    argued for here, in writing, where somebody can disagree with it.
     """
-    emitted: set[ReasonCode] = set()
+    #: Codes that describe the decision without altering it. Each needs a reason.
+    ANNOTATES_ONLY = {
+        # Emitted when the bottleneck already carries enough confidence. It is
+        # the ABSENCE of a diagnostic step, and absence has no separate branch to
+        # compare against — the contrast is DIAGNOSTIC_NEEDED, which is tested.
+        ReasonCode.EVIDENCE_ALREADY_SUFFICIENT,
+        # True of a first attempt by definition; the consequence is that nothing
+        # was excluded, which AVOIDED_FAILED_STRATEGY tests from the other side.
+        ReasonCode.FIRST_ATTEMPT,
+        # KNOWN GAP, NOT AN ARGUMENT. This one does not steer and should.
+        # A subskill whose operation is TRANSFER gets whatever the diagnosis
+        # implies, plus a code announcing readiness for transfer — so the
+        # decision and its stated reason disagree. Listed here to keep the test
+        # honest while the fix is decided, NOT because annotating is correct.
+        ReasonCode.READY_FOR_TRANSFER,
+    }
 
-    for diagnosis in DiagnosisKind:
-        emitted.update(_decide(_Bottleneck(TRACE), MemoryStore(), diagnosis).reasons)
+    fresh = MemoryStore()
 
-    emitted.update(
-        _decide(
-            _Bottleneck(TRACE, confidence=0.3, needs_diagnostic=True),
-            MemoryStore(),
-            DiagnosisKind.CONCEPT_GAP,
-        ).reasons
-    )
-    emitted.update(_decide(_Bottleneck(TRANSFER), MemoryStore(), DiagnosisKind.CONCEPT_GAP).reasons)
+    def burned() -> MemoryStore:
+        m = MemoryStore()
+        m.record_attempt(_attempt(TRACE, Strategy.WORKED_EXAMPLE, Outcome.FAILURE))
+        return m
+
+    def all_burned() -> MemoryStore:
+        m = MemoryStore()
+        for s in (Strategy.PREREQUISITE_REPAIR, Strategy.DECOMPOSITION):
+            m.record_attempt(_attempt(TRACE, s, Outcome.FAILURE))
+        return m
+
+    def succeeded() -> MemoryStore:
+        m = MemoryStore()
+        m.record_attempt(
+            Attempt(
+                skill_id=TRACE,
+                action=ActionKind.TEACH_BY_EXAMPLE,
+                representation="call_stack_diagram",
+                outcome=Outcome.SUCCESS,
+                mechanism=Strategy.CONTRAST.value,
+            )
+        )
+        return m
 
     skill, misconception = _skill_with_a_catalogued_misconception()
-    emitted.update(
-        _decide(
-            _Bottleneck(skill),
-            MemoryStore(),
-            DiagnosisKind.CONCEPT_GAP,
-            live_misconceptions=(misconception,),
-        ).reasons
+
+    #: code -> (with-condition, without-condition). The two must decide differently.
+    PAIRS: dict[ReasonCode, tuple[Decision, Decision]] = {
+        ReasonCode.DIAGNOSTIC_NEEDED: (
+            _decide(_Bottleneck(TRACE, needs_diagnostic=True), fresh, DiagnosisKind.CONCEPT_GAP),
+            _decide(_Bottleneck(TRACE, needs_diagnostic=False), fresh, DiagnosisKind.CONCEPT_GAP),
+        ),
+        ReasonCode.MISCONCEPTION_LIVE: (
+            _decide(_Bottleneck(skill), fresh, DiagnosisKind.CONCEPT_GAP,
+                    live_misconceptions=(misconception,)),
+            _decide(_Bottleneck(skill), fresh, DiagnosisKind.CONCEPT_GAP),
+        ),
+        ReasonCode.AVOIDED_FAILED_STRATEGY: (
+            _decide(_Bottleneck(TRACE), burned(), DiagnosisKind.CONCEPT_GAP),
+            _decide(_Bottleneck(TRACE), fresh, DiagnosisKind.CONCEPT_GAP),
+        ),
+        ReasonCode.STRATEGIES_EXHAUSTED: (
+            _decide(_Bottleneck(TRACE), all_burned(), DiagnosisKind.PREREQUISITE_GAP),
+            _decide(_Bottleneck(TRACE), fresh, DiagnosisKind.PREREQUISITE_GAP),
+        ),
+        ReasonCode.REPRESENTATION_WORKED_BEFORE: (
+            _decide(_Bottleneck(TRACE), succeeded(), DiagnosisKind.CONCEPT_GAP),
+            _decide(_Bottleneck(TRACE), fresh, DiagnosisKind.CONCEPT_GAP),
+        ),
+        ReasonCode.DECOMPOSED_FOR_LOAD: (
+            _decide(_Bottleneck(TRACE), fresh, DiagnosisKind.COGNITIVE_OVERLOAD),
+            _decide(_Bottleneck(TRACE), fresh, DiagnosisKind.CONCEPT_GAP),
+        ),
+    }
+
+    covered = set(PAIRS) | ANNOTATES_ONLY
+    missing = set(ReasonCode) - covered
+    assert not missing, (
+        f"reason codes with neither a consequence pair nor a written "
+        f"annotation argument: {sorted(c.value for c in missing)}"
     )
 
-    one_failed = MemoryStore()
-    one_failed.record_attempt(_attempt(TRACE, Strategy.WORKED_EXAMPLE, Outcome.FAILURE))
-    emitted.update(_decide(_Bottleneck(TRACE), one_failed, DiagnosisKind.CONCEPT_GAP).reasons)
-
-    all_failed = MemoryStore()
-    for strategy in (Strategy.PREREQUISITE_REPAIR, Strategy.DECOMPOSITION):
-        all_failed.record_attempt(_attempt(TRACE, strategy, Outcome.FAILURE))
-    emitted.update(
-        _decide(_Bottleneck(TRACE), all_failed, DiagnosisKind.PREREQUISITE_GAP).reasons
-    )
-
-    succeeded = MemoryStore()
-    succeeded.record_attempt(_attempt(TRACE, Strategy.CONTRAST, Outcome.SUCCESS))
-    emitted.update(_decide(_Bottleneck(TRACE), succeeded, DiagnosisKind.CONCEPT_GAP).reasons)
-
-    unreachable = set(ReasonCode) - emitted
-    assert not unreachable, f"reason codes no branch emits: {sorted(c.value for c in unreachable)}"
+    for code, (with_it, without_it) in PAIRS.items():
+        assert code in with_it.reasons, f"{code.value} was not emitted by its own case"
+        assert code not in without_it.reasons, f"{code.value} leaked into the control"
+        assert with_it.contract != without_it.contract or with_it.excluded != without_it.excluded, (
+            f"{code.value} is emitted but changes nothing: both states produced "
+            f"an identical decision, so the code reads as adaptation that did not happen"
+        )
 
 
 def test_an_override_does_not_repeal_a_capacity_limit() -> None:

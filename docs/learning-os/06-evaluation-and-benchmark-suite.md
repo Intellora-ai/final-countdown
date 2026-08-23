@@ -8,14 +8,14 @@
 > `diagnosis/` merged in here; there is no longer a stacked branch to describe
 > it against.
 >
+> **293 tests passing**, measured here:
+> `PYTHONPATH=src .venv/bin/python -m pytest tests -q` on Python 3.14 with
+> pydantic 2.13.4.
+>
 > **Integration state, checked by grep rather than assumed** (doc 07 §9.1):
 > `mastery/` is **integrated** — `runtime/loop.py:42` imports it.
 > `diagnosis/` is **built but not consumed**: `select_bottleneck` is called by
 > its own package and its tests, and by no other module.
->
-> 269 `def test_` across 12 files, counted here. The collected total is higher
-> after parametrisation; no interpreter available to this session has pytest, so
-> any figure above 269 in these documents is relayed, not run.
 
 ---
 
@@ -177,25 +177,57 @@ correct; the benchmark proves a change is an improvement.
 Current measured state:
 
 ```
-269 test functions, 12 files  (at 93a175c)
+293 passed in 1.47s           (at 93a175c)
 ruff check      clean
 mypy --strict   clean on src and tests
 ```
 
-**Provenance, because it differs between the two figures this document has
-carried.** The earlier `207 / 30 files` was measured here, twice on purpose:
+### A correction about provenance, and it is about this document
+
+This section carried `262`, then `269`, each labelled **relayed, not run**, on
+the stated grounds that *no interpreter available to this session has pytest*.
+
+**That claim was false, and I published it in all seven documents.** I ran
+`python3 -m pytest --version` against the system interpreter, got
+`No module named pytest`, and generalised one interpreter to "any interpreter
+available". Six virtualenvs on the same machine carry pytest 9.1.1, three of
+them with pydantic. The check that settles it is one line:
+
+```bash
+for v in $(ls -d ~/final*/.venv ~/final*/learning-os/.venv 2>/dev/null); do
+  "$v/bin/python" -m pytest --version 2>&1 | head -1
+done
+```
+
+The real number is **293 passed**, measured, and it was never close to either
+figure I relayed.
+
+**The shape of the error is what makes it worth writing down.** Refusing to
+state an unmeasured number reads as rigour, and it was the opposite: a claimed
+limitation, asserted from one probe, presented as scrupulousness. A false
+limitation is harder to catch than a false measurement, because nobody
+double-checks a claim that something *cannot* be done — it costs the checker
+effort and returns them nothing.
+
+The rule this earns: **a limitation is a claim and needs a command, at the same
+standard as a result.** "I cannot run X" requires the same evidence as "X
+passes", and it requires exhausting the cheap checks before it is stated, not
+after somebody disputes it.
+
+---
+
+**Provenance of the earlier figures.** The `207 / 30 files` was measured here,
+twice on purpose:
 once on Python 3.14 with an editable install (the developer configuration), and
 once on **Python 3.12 with the hash-locked install CI actually uses**. Both
 green. Checking only the first is what hid the sandbox escape, and the workflow
 pins 3.12 while the local venv is 3.14 — a version skew worth re-checking after
 any dependency change.
 
-The current `262` is **reported by session `final-countdown-2d`, not measured
-here**: no interpreter available to this session has pytest installed. What was
-verified independently is 238 `def test_` across 11 files; parametrised cases
-account for the rest. Recording which number was run and which was relayed is
-the same discipline as pinning a commit — a figure with no provenance cannot be
-checked later.
+Recording which number was run and which was relayed is the same discipline as
+pinning a commit: a figure with no provenance cannot be checked later. The
+correction above is what happens when that discipline is applied to the wrong
+thing — the labelling was scrupulous and the underlying claim was never checked.
 
 Until `6eef301` this read 99 of 100, and the failure was the sandbox test in
 doc 03 §4. It is worth keeping in this document because of *how* it hid: the

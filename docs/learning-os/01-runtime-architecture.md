@@ -8,14 +8,14 @@
 > `diagnosis/` merged in here; there is no longer a stacked branch to describe
 > it against.
 >
+> **293 tests passing**, measured here:
+> `PYTHONPATH=src .venv/bin/python -m pytest tests -q` on Python 3.14 with
+> pydantic 2.13.4.
+>
 > **Integration state, checked by grep rather than assumed** (doc 07 §9.1):
 > `mastery/` is **integrated** — `runtime/loop.py:42` imports it.
 > `diagnosis/` is **built but not consumed**: `select_bottleneck` is called by
 > its own package and its tests, and by no other module.
->
-> 269 `def test_` across 12 files, counted here. The collected total is higher
-> after parametrisation; no interpreter available to this session has pytest, so
-> any figure above 269 in these documents is relayed, not run.
 
 ---
 
@@ -385,7 +385,7 @@ Measured against the tree, not quoted:
 ```bash
 cd learning-os
 python3 -m venv .venv && ./.venv/bin/pip install -e ".[dev]"
-PYTHONPATH=src ./.venv/bin/python -m pytest tests -q    # 269 test functions at 93a175c
+PYTHONPATH=src ./.venv/bin/python -m pytest tests -q    # 293 passed at 93a175c
 ./.venv/bin/ruff check src tests            # clean
 MYPYPATH=src ./.venv/bin/mypy --strict src/learning_os   # clean, 11 files
 ```

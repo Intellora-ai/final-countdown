@@ -9,14 +9,14 @@ This document describes it.
 > `diagnosis/` merged in here; there is no longer a stacked branch to describe
 > it against.
 >
+> **293 tests passing**, measured here:
+> `PYTHONPATH=src .venv/bin/python -m pytest tests -q` on Python 3.14 with
+> pydantic 2.13.4.
+>
 > **Integration state, checked by grep rather than assumed** (doc 07 §9.1):
 > `mastery/` is **integrated** — `runtime/loop.py:42` imports it.
 > `diagnosis/` is **built but not consumed**: `select_bottleneck` is called by
 > its own package and its tests, and by no other module.
->
-> 269 `def test_` across 12 files, counted here. The collected total is higher
-> after parametrisation; no interpreter available to this session has pytest, so
-> any figure above 269 in these documents is relayed, not run.
 
 ---
 

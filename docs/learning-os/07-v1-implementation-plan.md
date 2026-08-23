@@ -9,14 +9,14 @@
 > `diagnosis/` merged in here; there is no longer a stacked branch to describe
 > it against.
 >
+> **293 tests passing**, measured here:
+> `PYTHONPATH=src .venv/bin/python -m pytest tests -q` on Python 3.14 with
+> pydantic 2.13.4.
+>
 > **Integration state, checked by grep rather than assumed** (doc 07 §9.1):
 > `mastery/` is **integrated** — `runtime/loop.py:42` imports it.
 > `diagnosis/` is **built but not consumed**: `select_bottleneck` is called by
 > its own package and its tests, and by no other module.
->
-> 269 `def test_` across 12 files, counted here. The collected total is higher
-> after parametrisation; no interpreter available to this session has pytest, so
-> any figure above 269 in these documents is relayed, not run.
 
 ---
 
@@ -81,10 +81,8 @@ learner who was doing fine.
 | `runtime/loop.py` | `teach_once()`, threading `proficiency` through to the policy |
 | `api/figure.py` | The figure boundary; its test parses `representations.ts` to check the shape map against the other side |
 
-**269 `def test_` across 12 files at `93a175c`** — counted here. The collected
-total is higher after parametrisation and is not stated, because no interpreter
-available to this session has pytest and a relayed figure should not be written
-as a measured one. Doc 06 §7 keeps the full provenance note.
+**293 passed at `93a175c`**, run here. Doc 06 §7 keeps the provenance note,
+including a correction worth reading before trusting any figure in this set.
 `ruff check` clean; `mypy --strict` clean on `src` and `tests`, on Python 3.12 with the hash-locked install CI uses.
 
 An earlier revision of this section recorded 99 of 100 with

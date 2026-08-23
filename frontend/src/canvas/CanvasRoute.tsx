@@ -5,6 +5,17 @@ import { cssVariables } from './design/tokens'
 import { billBecomesLaw } from './lessons/billBecomesLaw'
 import { classifierEvaluation } from './lessons/classifierEvaluation'
 import { gasPressure } from './lessons/gasPressure'
+/* Engine output, not hand-authored. `learning-os` generates these from two
+   learners with IDENTICAL knowledge and different histories -- see
+   `learning_os/api/demo.py`, whose --check keeps them from drifting. The picker
+   shows the ENGINE choosing differently, not a human writing two lessons. */
+import learnerA from './lessons/generated/learner-a-first-attempt.json'
+import learnerB from './lessons/generated/learner-b-preferred-mechanism-failed.json'
+/* NOT engine output. Prose written by hand to the same contract, because the
+   fake model deliberately writes badly (see llm/client.py) and thin skeletons
+   make it impossible to see what the contract does to real sentences. Labelled
+   as hand-written wherever it appears, so nobody reads it as a model's work. */
+import byHand from './lessons/handwritten/contract-honoured-by-hand.json'
 import { validateLesson, type Issue } from './spec/validate'
 import { TeachView } from './teach/TeachView'
 
@@ -39,6 +50,9 @@ const LESSONS = [
   { id: 'gas', label: 'Physics', spec: gasPressure },
   { id: 'bill', label: 'Civics', spec: billBecomesLaw },
   { id: 'ml', label: 'Machine learning', spec: classifierEvaluation },
+  { id: 'engine-a', label: 'Engine: first attempt', spec: learnerA },
+  { id: 'engine-b', label: 'Engine: preferred mechanism failed', spec: learnerB },
+  { id: 'by-hand', label: 'Same contract, written by hand', spec: byHand },
 ] as const
 
 export default function CanvasRoute() {

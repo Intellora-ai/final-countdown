@@ -165,8 +165,14 @@ Current measured state:
 ```
 105 tests, all passing
 ruff check      clean
-mypy --strict   clean on src and tests
+mypy --strict   clean on src and tests (16 files)
 ```
+
+Verified twice, on purpose: once on Python 3.14 with an editable install (the
+developer configuration), and once on **Python 3.12 with the hash-locked install
+CI actually uses**. Both green. Checking only the first is what hid the sandbox
+escape, and the workflow pins 3.12 while the local venv is 3.14 — a version skew
+worth re-checking after any dependency change.
 
 Until `6eef301` this read 99 of 100, and the failure was the sandbox test in
 doc 03 §4. It is worth keeping in this document because of *how* it hid: the
@@ -178,22 +184,22 @@ environment measures that environment. Run it the way production runs, or it
 will be green for the same bad reason — and a benchmark is far harder to
 re-audit than a unit test, because nobody reads a green metric twice.
 
-### Two CI gaps, found while verifying the above
+### Two CI gaps, found while verifying the above — one now closed
 
-Neither is fixed, and neither belongs to a session that owns the workflow file.
-
-**`tests/` is not type-checked in CI.** `learning-os.yml` runs
+**`tests/` was not type-checked in CI.** `learning-os.yml` ran
 `mypy --strict src/learning_os`. The tests are where the invariants are actually
-asserted — a test that constructs a violating object and asserts it raises is
-the enforcement — so leaving them unchecked is the more consequential half. Six
-type errors sat in the test files unnoticed; they have since been fixed by hand,
-but the gate that would have caught them still does not exist. The fix is
-`mypy --strict src/learning_os tests`.
+asserted — a test that constructs a violating object and asserts it raises *is*
+the enforcement — so leaving them unchecked was the more consequential half. Six
+type errors sat in the test files unnoticed.
 
-**`mypy>=1.11` has no upper bound** in `pyproject.toml`. A mypy release can
-break the gate with no code change, which turns a green CI into a time bomb
-dependent on when it next runs. Pin an upper bound, or accept that "clean" means
-"clean against whatever version resolved today".
+**Closed in `59bfaaf`:** the step now runs `mypy --strict src/learning_os tests`.
+The same commit SHA-pins the actions and replaces the install with
+`pip install --require-hashes -r requirements-learning-os.lock`.
+
+**Still open — `mypy>=1.11` has no upper bound** in `pyproject.toml`. A mypy
+release can break the gate with no code change, which turns a green CI into a
+time bomb dependent on when it next runs. Pin an upper bound, or accept that
+"clean" means "clean against whatever version resolved today".
 
 ### In CI, the load-bearing sandbox test is not the obvious one
 
@@ -207,6 +213,20 @@ passes for the wrong reason, exactly as it did locally before the fix.
 the property in CI. `pydantic` arrives through the hash-locked install into real
 site-packages, so if the child cannot reach pydantic it cannot reach anything
 else installed either.
+
+**Measured, in a venv built exactly as CI builds one** — Python 3.12,
+`pip install --require-hashes -r requirements-learning-os.lock`, `PYTHONPATH=src`,
+no editable install:
+
+```
+learning_os importable from site-packages:  False
+pydantic    importable from site-packages:  True
+```
+
+That is the proof rather than the argument. `learning_os` is not in
+site-packages under the CI install, so the child could not import it whatever
+the flags were — the engine-import test cannot fail there. `pydantic` is, so the
+dependency test is the only one of the three that can.
 
 **The test that looks incidental is the one doing the work, and the one that
 looks important is decorative in that environment.** Do not "simplify" the suite

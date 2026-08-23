@@ -63,7 +63,7 @@ learner who was doing fine.
 | `verifiers/` | `DomainVerifier`, `Task`, `Judgement`, `UnsupportedVerifier`, `PythonVerifier` |
 
 **Measured independently, not quoted:** **105 tests, all passing**.
-`ruff check` clean; `mypy --strict` clean on `src` and `tests`.
+`ruff check` clean; `mypy --strict` clean on `src` and `tests`. Verified on Python 3.14 (editable) and on Python 3.12 with the hash-locked install CI uses.
 
 The failure is `test_verifier.py::test_learner_code_cannot_import_the_engine` —
 a real sandbox defect, not a flaky test. See doc 03 §4. It passes only under

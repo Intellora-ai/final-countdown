@@ -24,13 +24,19 @@ lives only in a document is a suggestion; the ones below fail at construction:
   5  every tool result has provenance and timestamp   -> ToolResult.source + retrieved_at required
   7  a failed strategy cannot repeat without a reason -> Decision.repeat_justification
   8  self-report cannot override objective evidence   -> EvidenceStrength.SELF_REPORT floor
- 10  a mastery claim requires independent evidence    -> LearnerSkillState.can_claim_mastery()
- 11  unsupported domains produce uncertainty          -> Verifiability.UNSUPPORTED -> no claim
+  9  production policy cannot update unevaluated      -> PolicyUpdate._live_policy_was_approved
+ 10  a mastery claim requires independent evidence    -> SkillEstimate.can_claim_mastery()
+ 11  unsupported domains produce uncertainty          -> ToolResult._unsupported_cannot_be_confident
  12  every decision is replayable from the log        -> DecisionEvent carries every input
 
-Invariants 4, 6 and 9 are architectural rather than structural -- they are
-enforced by module boundaries and by the policy pipeline, and are named in the
+Invariants 4 and 6 are architectural rather than structural -- memory is scoped
+so that only decision-bearing facts are kept, and the knowledge model is frozen
+so the LLM layer is never handed a writable reference. Both are named in the
 docstrings of the places that enforce them.
+
+(9 was listed as architectural here and that was wrong: it is a constructor
+validator, so a PolicyUpdate cannot even be built in a live state. Corrected
+after a reviewer went looking for an enforcement that was already present.)
 """
 
 from __future__ import annotations

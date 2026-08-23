@@ -482,11 +482,45 @@ const MUTANTS = [
   },
 ]
 
-function vitest(outFile) {
+/*
+ * SCOPED FIRST, FULL ONLY TO CONFIRM A SURVIVOR.
+ *
+ * Running all 950 tests per mutant is what makes this gate 512 seconds of a
+ * 14-minute CI job — 39 mutants x ~13s on a runner, which matches the measured
+ * total to the second.
+ *
+ * The obvious cure is to run only the tests "related to" the mutated file, and
+ * on its own that is a WEAKENING, not an optimisation: a mutant killed only by
+ * a distant test would report as SURVIVING, and the gate would then claim a
+ * coverage gap that does not exist. A gate lying in the direction that looks
+ * like rigour is worse than a slow one, because a false survivor generates work
+ * to fix nothing and spends the credibility of every real survivor after it.
+ *
+ * What makes scoping sound here is the asymmetry: a scoped run can produce a
+ * false SURVIVOR, but never a false KILL. If a test in the scoped subset fails,
+ * a real test really did fail on this mutant, and the full suite contains that
+ * same test. So a scoped kill is final, and only a scoped SURVIVAL is
+ * re-checked against everything. The verdict set comes out identical to running
+ * the full suite every time; only the wall clock moves.
+ *
+ * `--changed HEAD` is how the subset is chosen, and it is chosen by vitest's own
+ * module graph rather than by a list here that would drift: the gate has already
+ * written the mutant into the file, so vitest sees exactly one changed file and
+ * walks its importers. Measured on this repo, mutating GraphShape selects 4 test
+ * files including FigureView's, which imports it transitively — the case a
+ * hand-written mapping gets wrong.
+ *
+ * PRECISION IS NOT A CORRECTNESS REQUIREMENT. If the subset is too narrow the
+ * mutant survives it and gets the full run anyway. Being wrong here costs time,
+ * never accuracy, which is the property that makes this safe to ship.
+ */
+function vitest(outFile, { scoped = false } = {}) {
+  const args = ['vitest', 'run', '--reporter=json', `--outputFile=${outFile}`]
+  if (scoped) args.push('--changed', 'HEAD')
   try {
     execFileSync(
       'npx',
-      ['vitest', 'run', '--reporter=json', `--outputFile=${outFile}`],
+      args,
       { stdio: 'ignore', cwd: process.cwd() },
     )
   } catch {
@@ -541,7 +575,42 @@ const survived = []
 const invalid = []
 let killed = 0
 
-for (const m of MUTANTS) {
+/*
+ * SHARDING: WALL CLOCK ONLY, NEVER COVERAGE.
+ *
+ * `--shard i/n` runs every n-th mutant. Each shard is a separate CI runner with
+ * its own checkout, so no two shards ever mutate the same working tree — which
+ * matters more than it sounds: this script rewrites real source files and
+ * restores them in a `finally`, and two writers in one tree could leave a
+ * mutant behind that the lock file names singularly.
+ *
+ * Every mutant still runs against the whole catalogue's rules. Nothing is
+ * skipped, nothing is sampled — the set is partitioned, and the union of the
+ * shards is exactly the set one machine would have run. A shard that reports
+ * 10/10 killed is not claiming the other 29 passed; the workflow requires all
+ * shards to succeed.
+ */
+const shardArg = process.argv.find((a) => a.startsWith('--shard='))
+let shardIndex = 1
+let shardCount = 1
+if (shardArg) {
+  const [i, n] = shardArg.slice('--shard='.length).split('/').map(Number)
+  if (!Number.isInteger(i) || !Number.isInteger(n) || n < 1 || i < 1 || i > n) {
+    process.stdout.write(`canvas-mutation-gate: bad --shard value ${shardArg}\n`)
+    process.exit(1)
+  }
+  shardIndex = i
+  shardCount = n
+}
+
+const MINE = MUTANTS.filter((_, at) => at % shardCount === shardIndex - 1)
+if (shardCount > 1) {
+  process.stdout.write(
+    `canvas-mutation-gate: shard ${shardIndex}/${shardCount} — ${MINE.length} of ${MUTANTS.length} mutants\n\n`,
+  )
+}
+
+for (const m of MINE) {
   const original = readFileSync(m.file, 'utf8')
   if (!original.includes(m.from)) {
     invalid.push({ ...m, why: 'the mutation target no longer exists in the source' })
@@ -549,33 +618,49 @@ for (const m of MUTANTS) {
     continue
   }
   let r
+  let scopedOnly = false
   inFlight = { file: m.file, original }
   writeFileSync(LOCK, `${m.id} -> ${m.file}`)
   try {
     writeFileSync(m.file, original.replace(m.from, m.to))
-    r = vitest(out)
+    /* Scoped first. A kill here is final — see the note on `vitest()`. */
+    r = vitest(out, { scoped: true })
+    scopedOnly = r !== null && r.numFailedTests > 0
+    if (!scopedOnly) {
+      /* Survived the subset, or the subset could not be scored. Either way the
+         answer is not trustworthy yet, so pay for the full suite. */
+      r = vitest(out)
+    }
   } finally {
     /* Unconditional. A throw anywhere above must not leave the tree broken. */
     restoreInFlight()
   }
 
-  if (!r || r.numTotalTests !== BASE_TOTAL) {
+  if (!r || (!scopedOnly && r.numTotalTests !== BASE_TOTAL)) {
     /* A syntax error reports zero tests and exits non-zero, which is
-     * indistinguishable from a kill unless the count is checked. */
+     * indistinguishable from a kill unless the count is checked.
+     *
+     * The count is only meaningful against a FULL run, so it is skipped when a
+     * scoped subset already killed the mutant — that subset legitimately ran
+     * fewer tests than the baseline. A scoped run that fails to score at all
+     * (`r === null`) still falls through to the full run above, so a syntax
+     * break cannot hide here. */
     invalid.push({ ...m, why: `ran ${r ? r.numTotalTests : 0} tests, expected ${BASE_TOTAL}` })
     process.stdout.write(`  INVALID   ${m.id}\n`)
     continue
   }
   if (r.numFailedTests > 0) {
     killed++
-    process.stdout.write(`  killed    ${m.id}  (${r.numFailedTests} test(s) caught it)\n`)
+    process.stdout.write(
+      `  killed    ${m.id}  (${r.numFailedTests} test(s) caught it${scopedOnly ? ', scoped' : ''})\n`,
+    )
   } else {
     survived.push(m)
     process.stdout.write(`  SURVIVED  ${m.id}\n`)
   }
 }
 
-const scored = MUTANTS.length - invalid.length
+const scored = MINE.length - invalid.length
 const score = scored ? killed / scored : 0
 process.stdout.write(`\ncanvas-mutation-gate: ${killed}/${scored} killed (${(score * 100).toFixed(0)}%)\n`)
 

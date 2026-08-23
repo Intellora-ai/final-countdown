@@ -25,16 +25,28 @@ So budgets are carried with the separation quality that produced them, and are
 only applied where that quality clears a floor. `MIN_SEPARATION` is the honesty
 gate: below it the answer is "length is not the lever here", not a number.
 
-LEVER 2 -- WHERE THE ANSWER SITS
---------------------------------
-For status questions, what predicts the complaint is not length but position:
+LEVER 2 -- WHERE THE ANSWER SITS, AND ONLY FOR SOME QUESTIONS
+--------------------------------------------------------------
+Somebody asking "is it merged" wants the word yes. Everything before it reads as
+padding however short it is -- which is why the length measure came out flat on
+status, and why the two levers are kept separate rather than summed.
 
-    leads with the verdict      n= 80    TOO_LONG 10.0%
-    verdict buried             n=259    TOO_LONG 19.7%     1.97x
+The obvious next move was to apply it everywhere. Tested, and REJECTED:
 
-Somebody asking "is it merged" wants the word yes. Everything before it is read
-as padding however short it is -- which is exactly why the length measure came
-out flat there, and why the two levers had to be separated rather than summed.
+    howto     2.21x   n=774    leading helps -- the strongest effect measured
+    status    1.72x   n=342    leading helps
+    compare   0.98x   n=171    no effect
+    debug     0.41x   n=216    leading HURTS: 53.7% against 22.1%
+
+Shipping it as a universal rule would have made debug answers 2.4x worse. A
+verdict word is an ANSWER to "is it merged" and a RESTATEMENT of "why is it
+failing" -- the same opening does opposite work depending on the question.
+
+The mechanism for debug is NOT established. Splitting its first sentences into
+cause-first versus restatement-first left n=6 and n=8, which decides nothing. So
+debug is EXCLUDED on the evidence that the rule correlates with harm there, not
+on a story about why. `compare` is excluded for having no measured effect --
+a rule that does nothing still costs the reader something.
 
 WHY THIS RETURNS A DECISION AND NOT A SCORE
 -------------------------------------------
@@ -81,6 +93,19 @@ SEPARATION: dict[QuestionType, float] = {
     QuestionType.COMPARE: 0.28,
     QuestionType.DEBUG: 0.20,
     QuestionType.STATUS: 0.12,
+}
+
+
+#: Where leading with the answer was MEASURED to help, with the effect size and
+#: sample behind each. Absence is a finding, not an oversight:
+#:
+#:   debug     0.41x, n=216 -- leading HURTS. Excluded on evidence.
+#:   compare   0.98x, n=171 -- no effect. A rule that does nothing still costs.
+#:   number    n=11         -- unfittable.
+#:   design    n=17         -- unfittable.
+LEADS_WITH_ANSWER: dict[QuestionType, tuple[float, int]] = {
+    QuestionType.HOWTO: (2.21, 774),
+    QuestionType.STATUS: (1.72, 342),
 }
 
 
@@ -154,11 +179,12 @@ def shape_for(
     moves: list[Move] = []
     reasons: list[str] = []
 
-    if kind is QuestionType.STATUS:
+    if kind in LEADS_WITH_ANSWER:
         moves.append(Move.LEAD_WITH_THE_ANSWER)
+        effect, n = LEADS_WITH_ANSWER[kind]
         reasons.append(
-            "status questions where the verdict is buried draw 19.7% too-long "
-            "against 10.0% when it leads (n=339)"
+            f"{kind.value} answers that bury the verdict draw {effect:.2f}x more "
+            f"too-long than ones that lead with it (n={n})"
         )
 
     if budget is not None and draft and word_count(draft) > budget:

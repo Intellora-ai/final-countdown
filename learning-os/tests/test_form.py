@@ -23,6 +23,7 @@ from learning_os.form.request import (
 )
 from learning_os.form.shape import (
     FITTED_BUDGET,
+    LEADS_WITH_ANSWER,
     MIN_SEPARATION,
     SEPARATION,
     Move,
@@ -312,3 +313,42 @@ def test_an_exchange_reports_its_response_length() -> None:
         previous_user_text=None, label=Label.NEUTRAL,
     )
     assert exchange.response_words == 3
+
+
+# --------------------------------------------------------------------------
+# The rule that was nearly shipped universally, and the evidence against it
+# --------------------------------------------------------------------------
+
+
+def test_leading_with_the_answer_is_applied_where_it_was_measured_to_help() -> None:
+    """howto is the strongest effect in the whole corpus: 2.21x at n=774."""
+    assert Move.LEAD_WITH_THE_ANSWER in shape_for("explain recursion").moves
+    assert Move.LEAD_WITH_THE_ANSWER in shape_for("is it merged").moves
+
+
+def test_it_is_never_applied_to_debug_where_it_measured_harmful() -> None:
+    """THE REJECTED HYPOTHESIS.
+
+    Leading with a verdict on a debug question measured 0.41x -- 53.7% too-long
+    against 22.1%. A verdict word ANSWERS "is it merged" and RESTATES "why is it
+    failing"; the same opening does opposite work.
+
+    Shipping the rule universally would have made debug answers 2.4x worse.
+    """
+    assert Move.LEAD_WITH_THE_ANSWER not in shape_for("why is the build failing").moves
+    assert QuestionType.DEBUG not in LEADS_WITH_ANSWER
+
+
+def test_it_is_not_applied_where_it_measured_no_effect() -> None:
+    """compare came out 0.98x. A rule that does nothing still costs the reader
+    attention, so no-effect is a reason to omit it rather than a free win."""
+    assert Move.LEAD_WITH_THE_ANSWER not in shape_for("sqlite vs jsonl").moves
+    assert QuestionType.COMPARE not in LEADS_WITH_ANSWER
+
+
+def test_every_type_the_rule_fires_for_carries_its_effect_and_sample() -> None:
+    """An effect size with no n behind it is folklore. Both travel with the rule
+    so a later corpus can re-fit it and see which way it moved."""
+    for kind, (effect, n) in LEADS_WITH_ANSWER.items():
+        assert effect > 1.0, f"{kind.value} is listed as helping but measured {effect}"
+        assert n >= 100, f"{kind.value} was fitted on only {n} samples"

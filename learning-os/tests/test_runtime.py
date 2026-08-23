@@ -16,8 +16,9 @@ from datetime import UTC, datetime
 from learning_os.domain.python_recursion import GRAPH
 from learning_os.llm.client import FailureMode, FakeLLMClient, GeneratedContent, LLMClient
 from learning_os.llm.contract import DiagnosisKind, InstructionContract, Strategy
+from learning_os.mastery import Belief
 from learning_os.memory.store import Attempt, MemoryStore, Outcome
-from learning_os.models.contracts import ActionKind
+from learning_os.models.contracts import ActionKind, SkillEstimate
 from learning_os.runtime import MAX_GENERATION_ATTEMPTS, Turn, TurnStatus, teach_once
 
 
@@ -243,19 +244,64 @@ def test_the_same_state_produces_the_same_turn() -> None:
     assert a.content == b.content
 
 
-def test_proficiency_reaches_the_policy() -> None:
+def _belief(estimate: float, *, count: int = 6, diversity: int = 4) -> Belief:
+    return Belief(
+        estimate=SkillEstimate(
+            skill_id=TRACE,
+            estimate=estimate,
+            confidence=0.8,
+            evidence_count=count,
+            evidence_diversity=diversity,
+            evidence_ids=("ev1", "ev2"),
+        )
+    )
+
+
+def test_a_belief_reaches_the_policy_as_proficiency() -> None:
     """A PARAMETER NOTHING PASSES IS DEAD CODE WEARING AN INTERFACE.
 
     `select_action` gained `proficiency` so a procedural failure could diverge on
     whether the learner ever had the procedure. If the runtime — the only caller,
-    and the only layer holding the learner state — does not pass it, the whole
+    and the only layer holding the learner model — does not supply it, the whole
     fix is inert in production and lives only in the policy's own tests.
 
-    That is the same shape as a reason code no branch emits, which this session
-    already fixed once. Asserting the effect end-to-end rather than asserting the
-    argument was forwarded: forwarding can be correct and still reach a policy
-    that ignores it.
+    Asserting the EFFECT end to end rather than that the argument was forwarded:
+    forwarding can be correct and still reach a policy that ignores it.
     """
-    nearly = _run(FakeLLMClient(), diagnosis=DiagnosisKind.PROCEDURAL_FAILURE, proficiency=0.7)
-    never = _run(FakeLLMClient(), diagnosis=DiagnosisKind.PROCEDURAL_FAILURE, proficiency=0.1)
+    nearly = _run(FakeLLMClient(), diagnosis=DiagnosisKind.PROCEDURAL_FAILURE,
+                  belief=_belief(0.7))
+    never = _run(FakeLLMClient(), diagnosis=DiagnosisKind.PROCEDURAL_FAILURE,
+                 belief=_belief(0.1))
     assert nearly.contract.strategy is not never.contract.strategy
+
+
+def test_thin_evidence_does_not_steer_the_policy() -> None:
+    """THE REASON THE RUNTIME TRANSLATES RATHER THAN FORWARDS.
+
+    An estimate from one observation is a guess with a decimal point. Passing it
+    as proficiency would let thin evidence steer a strategy choice as confidently
+    as solid evidence — the exact failure `MasteryState` exists to make visible.
+    INSUFFICIENT_EVIDENCE means "do not use this number yet", and the runtime
+    honours that by sending None.
+
+    THE ESTIMATE HERE IS LOW ON PURPOSE, AND THE FIRST VERSION WAS NOT.
+
+    Written with 0.9, this test passed with the state gate AND without it: 0.9
+    clears NEARLY_RIGHT, so the ungated path picks the same strategy as the
+    gated one and the assertion cannot tell them apart. Mutation testing caught
+    it — deleting the gate failed nothing.
+
+    0.1 is on the other side of the threshold, so the two paths genuinely
+    diverge: gated gives None and the authored ordering, ungated gives a
+    worked example chosen on one observation.
+    """
+    thin = _run(FakeLLMClient(), diagnosis=DiagnosisKind.PROCEDURAL_FAILURE,
+                belief=_belief(0.1, count=1, diversity=1))
+    unknown = _run(FakeLLMClient(), diagnosis=DiagnosisKind.PROCEDURAL_FAILURE)
+    assert thin.contract.strategy is unknown.contract.strategy
+    assert thin.contract.strategy is Strategy.BROKEN_EXAMPLE_REPAIR
+
+
+def test_no_belief_leaves_the_ordering_as_authored() -> None:
+    plain = _run(FakeLLMClient(), diagnosis=DiagnosisKind.PROCEDURAL_FAILURE)
+    assert plain.contract.strategy is Strategy.BROKEN_EXAMPLE_REPAIR

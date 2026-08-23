@@ -39,6 +39,7 @@ from learning_os.domain.knowledge import KnowledgeGraph
 from learning_os.llm.client import GeneratedContent, LLMClient, LLMUnavailable
 from learning_os.llm.contract import DiagnosisKind, InstructionContract
 from learning_os.llm.validation import Violation, is_repairable, is_usable, validate
+from learning_os.mastery.estimate import Belief, MasteryState, state_of
 from learning_os.memory.store import Attempt, MemoryStore, Outcome
 from learning_os.policy.select import BottleneckLike, Decision, ReasonCode, select_action
 
@@ -100,7 +101,7 @@ def teach_once(
     now: Callable[[], datetime],
     known_prerequisites: tuple[str, ...] = (),
     live_misconceptions: tuple[str, ...] = (),
-    proficiency: float | None = None,
+    belief: Belief | None = None,
 ) -> Turn:
     """Decide, generate, check, and record. One turn.
 
@@ -122,12 +123,19 @@ def teach_once(
         question=question,
         known_prerequisites=known_prerequisites,
         live_misconceptions=live_misconceptions,
-        # Threaded through rather than defaulted here. The runtime is the layer
-        # that holds the learner state; the policy is the layer that needs the
-        # number. Adding the parameter to the policy and not passing it would
-        # have made it dead in production -- the same defect as a reason code no
-        # branch emits, which this session had already fixed once.
-        proficiency=proficiency,
+        # DERIVED HERE, NOT PASSED THROUGH.
+        #
+        # The runtime is the only layer that can do this translation. `mastery`
+        # owns `Belief`, which carries an estimate AND the confidence and
+        # diversity behind it; `policy` takes a bare float because it must not
+        # reach into the learner model. Putting the conversion in the middle is
+        # what keeps both boundaries honest.
+        #
+        # It also gives `mastery/` a consumer. Before this, nothing outside
+        # `test_mastery.py` imported it -- and a module whose only caller is its
+        # own suite has never had its interface used in anger, which is where
+        # interface defects hide. Observed by session final-countdown-6a.
+        proficiency=_proficiency_of(belief),
     )
     contract = decision.contract
 
@@ -215,3 +223,26 @@ def _record(
             example_signature=content.text if content is not None else "",
         )
     )
+
+
+def _proficiency_of(belief: Belief | None) -> float | None:
+    """The estimate, but only when the system has earned the right to use it.
+
+    `None` for no belief at all, and ALSO `None` for a belief the mastery model
+    does not yet stand behind. That second case is the point.
+
+    An estimate of 0.9 from two observations is a guess with a decimal point, and
+    handing it to the policy would let thin evidence steer a strategy choice as
+    confidently as solid evidence does -- the exact failure `MasteryState`
+    exists to make visible. `UNKNOWN` and `INSUFFICIENT_EVIDENCE` are the model
+    saying "do not use this number yet", so the runtime does not.
+
+    `None` is a real answer downstream: the policy keeps its authored ordering
+    rather than guessing, so the cost of withholding is a compromise rather than
+    a wrong turn.
+    """
+    if belief is None:
+        return None
+    if state_of(belief.estimate) in (MasteryState.UNKNOWN, MasteryState.INSUFFICIENT_EVIDENCE):
+        return None
+    return belief.estimate.estimate

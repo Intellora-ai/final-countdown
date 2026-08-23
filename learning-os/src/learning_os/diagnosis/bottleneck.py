@@ -37,12 +37,13 @@ not rewriting the module.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
+from types import MappingProxyType
 from typing import Annotated, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from learning_os.domain.knowledge import KnowledgeGraph, Subskill
+from learning_os.domain.knowledge import CognitiveOperation, KnowledgeGraph, Subskill
+from learning_os.llm.contract import DiagnosisKind
 from learning_os.memory.store import MemoryStore, Outcome
 from learning_os.models.contracts import Confidence, LearnerState, SkillEstimate, SkillId
 
@@ -63,24 +64,47 @@ SUFFICIENT_CONFIDENCE = 0.55
 COMPETENT_ENOUGH = 0.8
 
 
-class HypothesisKind(StrEnum):
-    """The competing explanations for a failure.
+# THERE IS ONE ENUM OF FAILURE KINDS, AND IT IS NOT DEFINED HERE.
+#
+# This module used to declare its own `HypothesisKind` -- ten members, closed
+# set, good docstring. `llm.contract.DiagnosisKind` declares the same ten, and
+# `policy.select` routes a strategy off THAT one. Compared member by member the
+# two were byte-identical: same names, same values, nothing keeping them so.
+#
+# Two identical enums across a seam is not duplication that costs a little
+# typing. It is a diagnosis this module can name and the policy cannot route,
+# waiting on whichever of the two someone extends first -- and both test suites
+# stay green while it happens, because each only ever sees its own copy.
+#
+# So the duplicate is deleted rather than synchronised. Importing the policy's
+# enum makes the seam a type error instead of a silent mismatch, which is the
+# same reason the verifier stopped keeping a private list of what it could check.
+HypothesisKind = DiagnosisKind
 
-    A closed set, for the same reason the learner model's signals are closed:
-    an open one accumulates prose, and prose about a learner becomes a label.
-    Every member here names a fault in the LEARNING, never in the person.
-    """
-
-    TERM_GAP = "term_gap"
-    CONCEPT_GAP = "concept_gap"
-    PREREQUISITE_GAP = "prerequisite_gap"
-    MISCONCEPTION = "misconception"
-    CAUSAL_REASONING_FAILURE = "causal_reasoning_failure"
-    PROCEDURAL_FAILURE = "procedural_failure"
-    REPRESENTATION_FAILURE = "representation_failure"
-    LANGUAGE_FAILURE = "language_failure"
-    COGNITIVE_OVERLOAD = "cognitive_overload"
-    TRANSFER_FAILURE = "transfer_failure"
+# EVERY COGNITIVE OPERATION MAPS TO A KIND, AND THE TEST SAYS SO.
+#
+# Read with a bare `[]` on purpose: a missing operation should stop the
+# diagnosis, not quietly become a default kind that reads like a real finding.
+# But `KeyError` during a live diagnosis is a poor place to learn about it, so
+# `test_every_cognitive_operation_has_a_hypothesis_kind` enumerates the enum
+# rather than spot-checking members -- it fails the day a ninth operation is
+# added, in CI, instead of in front of a learner.
+#
+# Not every DiagnosisKind appears here, and that is correct rather than a gap:
+# REPRESENTATION_FAILURE, LANGUAGE_FAILURE and COGNITIVE_OVERLOAD are properties
+# of how the material was DELIVERED, not of the operation the subskill demands.
+# Nothing in a knowledge graph can imply them; they are raised by the runtime
+# from what happened in a turn, and the policy handles all ten.
+_KIND_BY_OPERATION: MappingProxyType[CognitiveOperation, DiagnosisKind] = MappingProxyType({
+    CognitiveOperation.RECOGNISE: DiagnosisKind.TERM_GAP,
+    CognitiveOperation.RECALL: DiagnosisKind.TERM_GAP,
+    CognitiveOperation.EXPLAIN: DiagnosisKind.CONCEPT_GAP,
+    CognitiveOperation.PREDICT: DiagnosisKind.CAUSAL_REASONING_FAILURE,
+    CognitiveOperation.APPLY: DiagnosisKind.PROCEDURAL_FAILURE,
+    CognitiveOperation.DEBUG: DiagnosisKind.PROCEDURAL_FAILURE,
+    CognitiveOperation.CONSTRUCT: DiagnosisKind.PROCEDURAL_FAILURE,
+    CognitiveOperation.TRANSFER: DiagnosisKind.TRANSFER_FAILURE,
+})
 
 
 class _Frozen(BaseModel):
@@ -94,7 +118,7 @@ class Hypothesis(_Frozen):
     ranking device, and it updates as evidence arrives.
     """
 
-    kind: HypothesisKind
+    kind: DiagnosisKind
     probability: Confidence
     evidence_ids: tuple[str, ...] = ()
 
@@ -284,30 +308,18 @@ def _hypotheses(
     so the next interaction can be chosen to TELL THEM APART, rather than to
     confirm the first guess.
     """
-    from learning_os.domain.knowledge import CognitiveOperation
-
     out: list[Hypothesis] = []
     ids = estimate.evidence_ids
 
     if subskill.misconceptions:
-        out.append(Hypothesis(kind=HypothesisKind.MISCONCEPTION, probability=0.4, evidence_ids=ids))
+        out.append(Hypothesis(kind=DiagnosisKind.MISCONCEPTION, probability=0.4, evidence_ids=ids))
     if subskill.prerequisites:
         out.append(
-            Hypothesis(kind=HypothesisKind.PREREQUISITE_GAP, probability=0.3, evidence_ids=ids)
+            Hypothesis(kind=DiagnosisKind.PREREQUISITE_GAP, probability=0.3, evidence_ids=ids)
         )
 
-    by_operation = {
-        CognitiveOperation.RECOGNISE: HypothesisKind.TERM_GAP,
-        CognitiveOperation.RECALL: HypothesisKind.TERM_GAP,
-        CognitiveOperation.EXPLAIN: HypothesisKind.CONCEPT_GAP,
-        CognitiveOperation.PREDICT: HypothesisKind.CAUSAL_REASONING_FAILURE,
-        CognitiveOperation.APPLY: HypothesisKind.PROCEDURAL_FAILURE,
-        CognitiveOperation.DEBUG: HypothesisKind.PROCEDURAL_FAILURE,
-        CognitiveOperation.CONSTRUCT: HypothesisKind.PROCEDURAL_FAILURE,
-        CognitiveOperation.TRANSFER: HypothesisKind.TRANSFER_FAILURE,
-    }
     out.append(
-        Hypothesis(kind=by_operation[subskill.operation], probability=0.3, evidence_ids=ids)
+        Hypothesis(kind=_KIND_BY_OPERATION[subskill.operation], probability=0.3, evidence_ids=ids)
     )
     return tuple(out)
 

@@ -213,7 +213,27 @@ class Belief:
     """
 
     estimate: SkillEstimate
-    seen_strengths: frozenset[EvidenceStrength] = frozenset()
+    #: The distinct (representation, novel-context) pairs seen for this skill.
+    #:
+    #: DIVERSITY IS COUNTED HERE, AND IT USED TO BE COUNTED ON STRENGTH.
+    #:
+    #: That was wrong in a way that inverted the mastery gate. Production emits
+    #: three of the ten `EvidenceStrength` members and two of those are unhinted,
+    #: so a third DISTINCT strength could only ever be `ANSWER_AFTER_HINT`. A
+    #: learner answering fifty questions perfectly and unaided reached STRONG and
+    #: could not reach MASTERED; one hinted answer took them to MASTERED. The
+    #: gate requiring varied STRONG evidence was requiring a WEAK kind.
+    #:
+    #: Strength is the one axis where more variety means the evidence got
+    #: WEAKER, so it can never measure breadth. Section 18 names the axes that
+    #: can: representation and context. Those widen when a learner demonstrates
+    #: the same competence in a new form or an unfamiliar setting, and a hint
+    #: cannot widen them at all.
+    #:
+    #: Strength still decides WEIGHT, in `evidence_weight`. The two questions are
+    #: separate: how much this observation is worth, and how many different ways
+    #: the learner has now shown it.
+    seen_contexts: frozenset[tuple[str, bool]] = frozenset()
 
     @property
     def state(self) -> MasteryState:
@@ -245,25 +265,33 @@ def update(
     delta = learning_rate * weight * (evidence.observed_performance - old.estimate)
     estimate = _clamp(old.estimate + delta)
 
-    # The set, not a count. A repeat of a kind already seen leaves diversity
+    # The set, not a count. A repeat of a form already seen leaves diversity
     # unchanged, which is the entire reason this is a set.
-    strengths = prior.seen_strengths | {evidence.strength}
+    #
+    # Keyed on (representation, was-the-context-novel) because those are the axes
+    # section 18 names and the axes a learner widens by demonstrating the same
+    # competence differently. `context_novelty` is banded to a bool rather than
+    # kept as a float: two 0.8-novel tasks are not two different contexts, and a
+    # continuous key would let rounding noise manufacture diversity.
+    contexts = prior.seen_contexts | {
+        (evidence.representation, evidence.context_novelty >= 0.5)
+    }
     count = old.evidence_count + 1
 
     return Belief(
         estimate=SkillEstimate(
             skill_id=old.skill_id,
             estimate=estimate,
-            confidence=confidence_from(count, len(strengths)),
+            confidence=confidence_from(count, len(contexts)),
             evidence_count=count,
-            evidence_diversity=len(strengths),
+            evidence_diversity=len(contexts),
             #: Bounded. Provenance matters, and an unbounded id list on a
             #: long-lived learner is a slow leak nobody notices until it is large.
             evidence_ids=(*old.evidence_ids, evidence.evidence_id)[-16:],
             state=old.state,
             last_updated=now(),
         ),
-        seen_strengths=strengths,
+        seen_contexts=contexts,
     )
 
 

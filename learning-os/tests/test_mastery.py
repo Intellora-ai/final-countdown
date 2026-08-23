@@ -59,6 +59,7 @@ def _evidence(
     novelty: float = 1.0,
     reliability: float = 1.0,
     eid: str = "ev1",
+    representation: str = "prose",
 ) -> Evidence:
     return Evidence(
         evidence_id=eid,
@@ -72,7 +73,7 @@ def _evidence(
         hint_factor=hint_factor,
         context_novelty=novelty,
         response_time_ms=1000,
-        representation="prose",
+        representation=representation,
         attempt_number=1,
     )
 
@@ -88,34 +89,40 @@ def test_ten_identical_observations_do_not_equal_four_varied_ones() -> None:
     Repetition is cheap and variety is not, so a confidence that grew with volume
     would peak exactly where the system has learned least — and the engine would
     then stop asking, having convinced itself.
+
+    VARIED HERE MEANS VARIED IN FORM, AND IT USED TO MEAN VARIED IN STRENGTH.
+
+    The original construction proved diversity by cycling through
+    EvidenceStrength values, which is the axis that inverted the mastery gate:
+    production emits three of the ten and two are unhinted, so a third distinct
+    strength could only be ANSWER_AFTER_HINT. This test PASSED on that axis,
+    which is how the defect survived — the property was right and the axis it was
+    measured on was wrong.
     """
     repetitive = _belief()
     for i in range(10):
         repetitive = update(
             repetitive,
-            _evidence(EvidenceStrength.RECOGNITION, eid=f"r{i}"),
+            _evidence(EvidenceStrength.RECOGNITION, eid=f"r{i}", representation="prose"),
             now=_now,
         )
 
     varied = _belief()
-    for i, strength in enumerate(
-        (
-            EvidenceStrength.RECOGNITION,
-            EvidenceStrength.PREDICTION,
-            EvidenceStrength.OWN_WORD_EXPLANATION,
-            EvidenceStrength.INDEPENDENT_APPLICATION,
+    for i, form in enumerate(("prose", "call_stack_diagram", "table", "worked_trace")):
+        varied = update(
+            varied,
+            _evidence(EvidenceStrength.RECOGNITION, eid=f"v{i}", representation=form),
+            now=_now,
         )
-    ):
-        varied = update(varied, _evidence(strength, eid=f"v{i}"), now=_now)
 
     assert repetitive.estimate.evidence_count == 10
     assert varied.estimate.evidence_count == 4
     assert varied.estimate.confidence > repetitive.estimate.confidence, (
-        "four varied observations must beat ten identical ones"
+        "four varied demonstrations must beat ten identical ones"
     )
 
 
-def test_repeating_a_kind_does_not_raise_diversity() -> None:
+def test_repeating_a_form_does_not_raise_diversity() -> None:
     """The bug the first implementation had.
 
     `SkillEstimate` stores diversity as a COUNT, and reconstructing a set from a
@@ -129,12 +136,28 @@ def test_repeating_a_kind_does_not_raise_diversity() -> None:
     assert b.estimate.evidence_count == 5
 
 
-def test_a_new_kind_does_raise_diversity() -> None:
+def test_a_new_form_does_raise_diversity() -> None:
     """The negative control: a diversity that never moves would pass the test
     above while measuring nothing."""
-    b = update(_belief(), _evidence(EvidenceStrength.RECALL), now=_now)
-    b = update(b, _evidence(EvidenceStrength.PREDICTION, eid="e2"), now=_now)
+    b = update(_belief(), _evidence(EvidenceStrength.RECALL, representation="prose"), now=_now)
+    b = update(
+        b,
+        _evidence(EvidenceStrength.RECALL, eid="e2", representation="call_stack_diagram"),
+        now=_now,
+    )
     assert b.estimate.evidence_diversity == 2
+
+
+def test_a_new_STRENGTH_alone_does_not_raise_diversity() -> None:
+    """The inversion, asserted directly.
+
+    Strength is the one axis where more variety means the evidence got WEAKER.
+    Counting it as breadth is what let a single hinted answer unlock a mastery
+    claim that fifty perfect unaided answers could not.
+    """
+    b = update(_belief(), _evidence(EvidenceStrength.INDEPENDENT_APPLICATION), now=_now)
+    b = update(b, _evidence(EvidenceStrength.ANSWER_AFTER_HINT, eid="e2"), now=_now)
+    assert b.estimate.evidence_diversity == 1
 
 
 def test_confidence_saturates_on_count_alone() -> None:
@@ -365,3 +388,79 @@ def test_a_freshly_updated_estimate_is_not_yet_due() -> None:
     fresh = SkillEstimate(skill_id=SKILL, estimate=0.9, confidence=0.9, evidence_count=8,
                           evidence_diversity=4, evidence_ids=("a",), last_updated=NOW)
     assert is_due_for_retrieval(fresh, now=NOW) is False
+
+
+# --------------------------------------------------------------------------
+# Diversity must not be satisfiable by getting WEAKER
+# --------------------------------------------------------------------------
+
+
+def _ev(strength: EvidenceStrength, i: int, *, representation: str = "prose",
+        novelty: float = 1.0, hint: float = 0.0) -> Evidence:
+    return Evidence(
+        evidence_id=f"e{i}", event_id=f"v{i}", skill_id=SKILL, strength=strength,
+        observed_performance=1.0, task_difficulty=0.7, task_reliability=1.0,
+        independence=1.0 - hint, hint_factor=hint, context_novelty=novelty,
+        response_time_ms=900, representation=representation, attempt_number=i + 1,
+    )
+
+
+def _fresh() -> Belief:
+    return Belief(estimate=SkillEstimate(skill_id=SKILL, estimate=0.0, confidence=0.0,
+                                         evidence_count=0, evidence_diversity=0))
+
+
+def test_perfect_unaided_work_can_reach_mastery_without_a_hint() -> None:
+    """THE DEFECT THIS SECTION EXISTS FOR, AND IT INVERTED THE GATE.
+
+    Diversity counted distinct EvidenceStrength values. Production emits only
+    three of the ten, and two of those are unhinted — so the third distinct kind
+    could only ever be ANSWER_AFTER_HINT.
+
+    A learner who answered fifty questions perfectly and unaided reached STRONG
+    and could not reach MASTERED. Adding one HINTED answer took them to MASTERED.
+    The gate written to require varied STRONG evidence required a WEAK kind, and
+    the two were indistinguishable from inside the module, which is why every
+    mastery test passed.
+
+    Diversity now counts what section 18 actually names — representation and
+    context — axes that vary with BREADTH and cannot be widened by getting
+    weaker. Reported by session final-countdown-45.
+    """
+    forms = ("prose", "call_stack_diagram", "table")
+    b = _fresh()
+    for i in range(12):
+        b = update(b, _ev(EvidenceStrength.INDEPENDENT_APPLICATION, i,
+                          representation=forms[i % 3]), now=_now)
+    assert state_of(b.estimate) is MasteryState.MASTERED
+
+
+def test_a_hint_cannot_manufacture_diversity() -> None:
+    """The inverse, and the reason strength is the wrong axis.
+
+    Same work, same single form, plus one hinted answer. A hint is WEAKER
+    evidence; it must not be the thing that unlocks a mastery claim.
+    """
+    b = _fresh()
+    for i in range(12):
+        b = update(b, _ev(EvidenceStrength.INDEPENDENT_APPLICATION, i), now=_now)
+    b = update(b, _ev(EvidenceStrength.ANSWER_AFTER_HINT, 99, hint=0.8), now=_now)
+    assert state_of(b.estimate) is not MasteryState.MASTERED
+
+
+def test_repetition_in_one_form_still_does_not_buy_confidence() -> None:
+    """The property the old axis DID protect, which the fix must not lose."""
+    b = _fresh()
+    for i in range(20):
+        b = update(b, _ev(EvidenceStrength.RECOGNITION, i), now=_now)
+    assert b.estimate.evidence_diversity == 1
+    assert state_of(b.estimate) is not MasteryState.MASTERED
+
+
+def test_a_familiar_context_is_not_the_same_evidence_as_a_novel_one() -> None:
+    """Section 18 names context diversity separately from representation.
+    The same form in a familiar and a novel setting are two demonstrations."""
+    b = _fresh()
+    b = update(b, _ev(EvidenceStrength.INDEPENDENT_APPLICATION, 0, novelty=0.0), now=_now)
+    b = update(b, _ev(EvidenceStrength.INDEPENDENT_APPLICATION, 1, novelty=1.0), now=_now)
+    assert b.estimate.evidence_diversity == 2

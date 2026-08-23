@@ -50,14 +50,18 @@ def _now() -> datetime:
 
 
 def _run(
-    client: LLMClient, memory: MemoryStore | None = None, **over: object
+    client: LLMClient,
+    memory: MemoryStore | None = None,
+    *,
+    diagnosis: DiagnosisKind = DiagnosisKind.CONCEPT_GAP,
+    **over: object,
 ) -> Turn:
     return teach_once(
         GRAPH,
         memory if memory is not None else MemoryStore(),
         client,
         _Bottleneck(TRACE),
-        DiagnosisKind.CONCEPT_GAP,
+        diagnosis,
         question=QUESTION,
         now=_now,
         **over,  # type: ignore[arg-type]
@@ -237,3 +241,21 @@ def test_the_same_state_produces_the_same_turn() -> None:
     assert a.status == b.status
     assert a.contract == b.contract
     assert a.content == b.content
+
+
+def test_proficiency_reaches_the_policy() -> None:
+    """A PARAMETER NOTHING PASSES IS DEAD CODE WEARING AN INTERFACE.
+
+    `select_action` gained `proficiency` so a procedural failure could diverge on
+    whether the learner ever had the procedure. If the runtime — the only caller,
+    and the only layer holding the learner state — does not pass it, the whole
+    fix is inert in production and lives only in the policy's own tests.
+
+    That is the same shape as a reason code no branch emits, which this session
+    already fixed once. Asserting the effect end-to-end rather than asserting the
+    argument was forwarded: forwarding can be correct and still reach a policy
+    that ignores it.
+    """
+    nearly = _run(FakeLLMClient(), diagnosis=DiagnosisKind.PROCEDURAL_FAILURE, proficiency=0.7)
+    never = _run(FakeLLMClient(), diagnosis=DiagnosisKind.PROCEDURAL_FAILURE, proficiency=0.1)
+    assert nearly.contract.strategy is not never.contract.strategy

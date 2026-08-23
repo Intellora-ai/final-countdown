@@ -100,6 +100,7 @@ def teach_once(
     now: Callable[[], datetime],
     known_prerequisites: tuple[str, ...] = (),
     live_misconceptions: tuple[str, ...] = (),
+    proficiency: float | None = None,
 ) -> Turn:
     """Decide, generate, check, and record. One turn.
 
@@ -121,6 +122,12 @@ def teach_once(
         question=question,
         known_prerequisites=known_prerequisites,
         live_misconceptions=live_misconceptions,
+        # Threaded through rather than defaulted here. The runtime is the layer
+        # that holds the learner state; the policy is the layer that needs the
+        # number. Adding the parameter to the policy and not passing it would
+        # have made it dead in production -- the same defect as a reason code no
+        # branch emits, which this session had already fixed once.
+        proficiency=proficiency,
     )
     contract = decision.contract
 

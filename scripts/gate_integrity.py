@@ -419,8 +419,18 @@ PLAYWRIGHT_EXEMPT: dict[str, str] = {}
 # the commit that introduced this check; a change that lowers either one is
 # removing a defect the suite can currently see, which needs to be a deliberate
 # and visible act rather than a deletion nobody reviewed.
-MUTATION_COUNT_FLOOR = 27
-MUTATION_FILE_FLOOR = 9
+#
+# RAISED TO THE MEASURED STATE, because a floor set once and left behind stops
+# ratcheting. 27 over 9 was true when this check was written. The catalogue has
+# since grown to 39 over 17, so twelve mutants and eight files could have been
+# deleted with this gate still green -- the exact silent shrink it exists to
+# refuse, happening underneath its own threshold.
+#
+# These are the output of check (g)'s own regexes against the catalogue at
+# 3b0a154, not a count done by eye. Raise them again whenever the catalogue
+# grows. That is the ratchet working, not maintenance overhead.
+MUTATION_COUNT_FLOOR = 39
+MUTATION_FILE_FLOOR = 17
 
 QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
 SINGLE_PIPE = re.compile(r"(?<!\|)\|(?!\|)")

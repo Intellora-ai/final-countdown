@@ -28,8 +28,10 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import TypeVar
 
 from learning_os.models.contracts import (
     ActionKind,
@@ -90,6 +92,9 @@ _NOISE = frozenset(
 )
 
 _WORD = re.compile(r"[a-z0-9']+")
+
+#: What `_burned` groups by: an ActionKind or a mechanism string.
+_K = TypeVar("_K")
 
 
 def _content_words(text: str) -> list[str]:
@@ -164,21 +169,48 @@ class MemoryStore:
     def attempts_on(self, skill_id: str) -> tuple[Attempt, ...]:
         return tuple(a for a in self.attempts if a.skill_id == skill_id)
 
-    def failed_strategies(self, skill_id: str) -> frozenset[ActionKind]:
-        """Actions that have failed here and have never succeeded.
+    def _burned(self, skill_id: str, key: Callable[[Attempt], _K]) -> frozenset[_K]:
+        """Whatever `key` names that has failed here and has never worked.
 
-        The "never succeeded" half matters. An action that failed once and
-        worked twice is not a failed strategy -- it is a strategy, and banning
-        it on a single bad outcome would throw away the approach that mostly
-        works for this learner.
+        THE ASYMMETRY LIVES HERE, ONCE.
+
+        "Failed and never succeeded" rather than "failed": something that failed
+        once and worked twice is not a failed approach, it is an approach, and
+        banning it on a single bad outcome throws away what mostly works for this
+        learner.
+
+        Extracted because the same rule is needed at two granularities and a
+        second copy would drift -- which is the bug that has already had to be
+        deleted from the verifier once.
         """
-        failed = {a.action for a in self.attempts_on(skill_id) if a.outcome is Outcome.FAILURE}
+        attempts = self.attempts_on(skill_id)
+        failed = {key(a) for a in attempts if a.outcome is Outcome.FAILURE}
         worked = {
-            a.action
-            for a in self.attempts_on(skill_id)
-            if a.outcome in (Outcome.SUCCESS, Outcome.PARTIAL)
+            key(a) for a in attempts if a.outcome in (Outcome.SUCCESS, Outcome.PARTIAL)
         }
         return frozenset(failed - worked)
+
+    def failed_strategies(self, skill_id: str) -> frozenset[ActionKind]:
+        """Actions that have failed here and have never succeeded."""
+        return self._burned(skill_id, lambda a: a.action)
+
+    def failed_mechanisms(self, skill_id: str) -> frozenset[str]:
+        """Mechanisms that have failed here and have never succeeded.
+
+        WHY THIS EXISTS ALONGSIDE `failed_strategies`, WHICH LOOKS IDENTICAL.
+
+        Granularity, and the difference is not cosmetic. Several distinct
+        teaching mechanisms share one `ActionKind` -- a worked example, a
+        contrast, an analogy and a decomposition all arrive as
+        `TEACH_BY_EXAMPLE`. Asking at action granularity therefore reports all
+        four as burned when one of them fails, and the fallback engine concludes
+        it has run out of ideas after a single attempt.
+
+        The policy layer chooses between MECHANISMS, so it has to ask in that
+        vocabulary. `failed_strategies` stays for callers reasoning about what
+        the runtime performs rather than about what was taught.
+        """
+        return self._burned(skill_id, lambda a: a.mechanism)
 
     def succeeded_with(self, skill_id: str) -> frozenset[str]:
         """Representations that have worked here.

@@ -180,6 +180,74 @@ test.describe('no content is clipped where a learner cannot reach it', () => {
   }
 })
 
+/* THE DOCUMENT ITSELF NEVER SCROLLS SIDEWAYS.
+ *
+ * The guard above and the keyboard guard below both have the same blind spot,
+ * and it is not a small one: the first only counts elements inside an ancestor
+ * that CLIPS, and the second only inspects elements that ALREADY scroll. An
+ * element that simply pushes the whole document wider is invisible to both.
+ *
+ * That blind spot shipped a real defect. Giving `.lc-chart` a minimum width so
+ * echarts had room for its labels fixed a 2px clip in one lesson and, at the
+ * same time, put the physics lesson's two chart blocks at 480px inside a 320px
+ * column with nothing to scroll — `documentElement.scrollWidth` 544 against
+ * `clientWidth` 320. Every gate stayed green. It was found by hand.
+ *
+ * A page that scrolls sideways is a broken frame, and on a phone it is the
+ * failure a reader notices first: the text column drifts under the thumb and
+ * every line needs a horizontal scrub to finish. So it is asserted directly,
+ * on the document, where no ancestor's overflow setting can hide it.
+ */
+test.describe('the page never scrolls sideways', () => {
+  for (const vp of VIEWPORTS) {
+    test(`the document fits its own width at ${vp.name}px`, async ({ page }, testInfo) => {
+      const overflowing: string[] = []
+
+      await sweep(page, testInfo, vp, async (lesson) => {
+        const over = await page.evaluate(() => {
+          const de = document.documentElement
+          /* `+1` absorbs sub-pixel rounding: a fractional layout width reports
+           * a scrollWidth one larger than clientWidth on some zoom levels, and
+           * a guard that fires on that is a guard people learn to ignore. */
+          if (de.scrollWidth <= de.clientWidth + 1) return null
+
+          /* Name the widest offender, or the report says only "something is too
+           * wide" and the next reader starts the same hunt over again. */
+          let worst: { sel: string; right: number } | null = null
+          for (const el of Array.from(document.querySelectorAll('.lc-teach *'))) {
+            const r = el.getBoundingClientRect()
+            if (r.width === 0 || r.height === 0) continue
+            if (r.right <= de.clientWidth + 1) continue
+            if (worst === null || r.right > worst.right) {
+              const cls = typeof el.className === 'string' ? el.className : ''
+              worst = { sel: `${el.tagName.toLowerCase()}.${cls}`.trim(), right: Math.round(r.right) }
+            }
+          }
+          return {
+            by: de.scrollWidth - de.clientWidth,
+            scrollWidth: de.scrollWidth,
+            clientWidth: de.clientWidth,
+            worst,
+          }
+        })
+        if (over !== null) {
+          overflowing.push(
+            `${lesson}: document is ${over.by}px too wide `
+            + `(scrollWidth ${over.scrollWidth} vs clientWidth ${over.clientWidth})`
+            + (over.worst ? `, widest: ${over.worst.sel} reaching ${over.worst.right}px` : ''),
+          )
+        }
+      })
+
+      expect(
+        overflowing,
+        'the whole page scrolls sideways, so the text column drifts under the '
+        + 'reader and no ancestor overflow setting reports it',
+      ).toEqual([])
+    })
+  }
+})
+
 test.describe('text stays readable', () => {
   for (const vp of VIEWPORTS) {
     test(`no text below ${MIN_READABLE_PX}px at ${vp.name}px`, async ({ page }, testInfo) => {

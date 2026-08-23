@@ -46,6 +46,7 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
+from learning_os.form.shape import LEADS_WITH_ANSWER, Move, shape_for
 from learning_os.llm.client import API_KEY_ENV, GeneratedContent, LLMUnavailable
 from learning_os.llm.contract import InstructionContract
 
@@ -120,6 +121,17 @@ summary of what you are about to say, no encouragement. Start with the idea."""
 def build_prompt(contract: InstructionContract) -> str:
     """The contract, as the model reads it.
 
+    INCLUDES THE FORM MEASUREMENTS, WHICH IT DID NOT UNTIL THIS WAS CAUGHT.
+
+    `form/shape.py` measured the only two things that predict whether a reply
+    lands -- length against a budget fitted per question kind, and whether the
+    answer arrives in the first sentence -- and had ZERO callers. The prompt
+    said what to teach and nothing about how long or in what order.
+
+    So a response could honour every term, avoid every forbidden phrase, and
+    still be the 432-word wall the corpus says draws a complaint. The measuring
+    half and the writing half never touched.
+
     Every constraint the validator will check appears here. That symmetry is the
     point: a rule enforced after generation but never stated before it turns the
     model's job into a guess, and turns the validator into a random tax.
@@ -167,7 +179,40 @@ def build_prompt(contract: InstructionContract) -> str:
     if contract.preferred_representations:
         lines.append("HAS WORKED BEFORE: " + ", ".join(contract.preferred_representations))
 
+    lines.extend(_form_rules(contract.question))
     return "\n".join(lines)
+
+
+def _form_rules(question: str) -> list[str]:
+    """The measured shape rules, as instructions.
+
+    Each line carries its effect size and sample. That is not decoration for a
+    human reader -- an instruction with a number behind it is followed more
+    reliably than a bare imperative, and it means a later reader can check the
+    rule against the corpus instead of taking it on faith.
+
+    Silence where nothing was measured. `design` and `number` have no fitted
+    budget (n=17, n=11) and `debug` measured HARM from leading with the answer,
+    so for those questions this adds nothing at all. A rule invented to fill the
+    gap would be exactly the hand-set threshold this package exists to delete.
+    """
+    shape = shape_for(question)
+    rules: list[str] = []
+
+    if shape.budget is not None:
+        rules.append(
+            f"LENGTH: aim under {shape.budget} words. Fitted on 1831 labelled turns; "
+            f"replies past it draw ~2x the 'too long' complaints for a "
+            f"{shape.question_type.value} question."
+        )
+    if Move.LEAD_WITH_THE_ANSWER in shape.moves:
+        effect, n = LEADS_WITH_ANSWER[shape.question_type]
+        rules.append(
+            f"ORDER: put the answer in the FIRST sentence. Burying it draws "
+            f"{effect:.2f}x more 'too long' complaints on {shape.question_type.value} "
+            f"questions (n={n}). No preamble, no restating the question."
+        )
+    return rules
 
 
 def parse_blocks(payload: str) -> GeneratedContent:

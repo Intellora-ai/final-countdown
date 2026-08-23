@@ -24,6 +24,7 @@ from learning_os.llm.anthropic_client import (
     RESPONSE_SCHEMA,
     SYSTEM,
     AnthropicClient,
+    _form_rules,
     build_prompt,
     parse_blocks,
 )
@@ -238,3 +239,51 @@ def test_the_response_schema_only_admits_buildable_kinds() -> None:
     in prose is what produced a `table` built from a sentence."""
     kinds = RESPONSE_SCHEMA["properties"]["blocks"]["items"]["properties"]["kind"]["enum"]
     assert sorted(kinds) == sorted(BUILDABLE)
+
+
+# --------------------------------------------------------------------------
+# The two halves that were never connected
+# --------------------------------------------------------------------------
+
+
+def test_the_prompt_carries_the_fitted_length_budget() -> None:
+    """THE GAP. `shape.py` measured the only two things that predict whether a
+    reply lands, and had zero callers. A response could honour every term,
+    avoid every forbidden phrase, and still be the 432-word wall the corpus
+    says draws a complaint."""
+    prompt = build_prompt(_contract(question="explain what a function is"))
+    assert "LENGTH:" in prompt
+    assert "280" in prompt
+
+
+def test_the_prompt_tells_it_to_answer_first_where_that_was_measured() -> None:
+    prompt = build_prompt(_contract(question="is it merged"))
+    assert "ORDER:" in prompt
+    assert "FIRST sentence" in prompt
+
+
+def test_no_length_rule_where_no_budget_was_fitted() -> None:
+    """`design` has n=17. Inventing a budget to fill the gap is the hand-set
+    threshold this package exists to delete."""
+    prompt = build_prompt(_contract(question="how should we design the parser"))
+    assert "LENGTH:" not in prompt
+
+
+def test_no_order_rule_where_leading_measured_harmful() -> None:
+    """debug measured 0.41x -- leading with a verdict there makes it WORSE. The
+    prompt must stay silent rather than repeat a rule that backfires."""
+    prompt = build_prompt(_contract(question="why is the build failing"))
+    assert "ORDER:" not in prompt
+
+
+def test_every_form_rule_states_its_evidence() -> None:
+    """An instruction with a number behind it is followed more reliably than a
+    bare imperative, and a later reader can check it against the corpus."""
+    for rule in _form_rules("explain what a function is"):
+        assert any(c.isdigit() for c in rule), f"rule with no evidence: {rule}"
+        assert "n=" in rule or "1831" in rule
+
+
+def test_a_question_with_nothing_measured_adds_nothing() -> None:
+    """Silence is the correct output, not a default."""
+    assert _form_rules("how should we design the parser") == []

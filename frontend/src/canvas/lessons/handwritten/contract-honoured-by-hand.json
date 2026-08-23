@@ -1,0 +1,47 @@
+{
+  "blocks": [
+    {
+      "body": "Every time a function calls itself, Python sets aside a new frame to hold that call's own variables. The frames pile onto the call stack, one per call still waiting to finish. Nothing has returned yet, so nothing is cleared away.",
+      "emphasis": "primary",
+      "id": "prose-0",
+      "kind": "prose"
+    },
+    {
+      "body": "The base case is the branch that returns a value WITHOUT calling itself again. It is what lets the pile start unwinding. The recursive case is the other branch, the one that adds another frame. A function needs both: the recursive case makes progress toward the base case, and the base case stops it.",
+      "emphasis": "supporting",
+      "id": "prose-1",
+      "kind": "prose"
+    },
+    {
+      "body": "Without a base case the stack depth just grows. Python stops you at its recursion limit and raises RecursionError, so the failure is a crash rather than a hang.",
+      "emphasis": "supporting",
+      "id": "callout-2",
+      "kind": "callout"
+    },
+    {
+      "body": "So when you read a recursive function, find the branch with no self-call first. That is the base case. If you cannot find one, the function cannot terminate.",
+      "emphasis": "supporting",
+      "id": "prose-3",
+      "kind": "prose"
+    }
+  ],
+  "id": "engine-real-lesson",
+  "question": "Why does a recursive function need a base case?",
+  "relations": [
+    {
+      "from": "prose-1",
+      "kind": "supports",
+      "to": "prose-0"
+    },
+    {
+      "from": "callout-2",
+      "kind": "supports",
+      "to": "prose-0"
+    },
+    {
+      "from": "prose-3",
+      "kind": "supports",
+      "to": "prose-0"
+    }
+  ]
+}

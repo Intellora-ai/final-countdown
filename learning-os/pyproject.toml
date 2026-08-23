@@ -8,10 +8,18 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Upper bounds on the three tools that GATE, because an unbounded floor means a
+# release breaks CI with no code change -- and a green result that depends on
+# when it last ran is not evidence, for the same reason a test that depends on
+# how the package was installed is not evidence.
+#
+# These floors are INTENT. requirements-learning-os.lock is the fact: exact
+# versions with hashes, and the only thing CI installs. The bounds here stop a
+# regenerated lock from silently crossing a major boundary.
 dev = [
-    "pytest>=8",
-    "ruff>=0.6",
-    "mypy>=1.11",
+    "pytest>=8,<10",
+    "ruff>=0.6,<1",
+    "mypy>=1.11,<3",
 ]
 
 [build-system]

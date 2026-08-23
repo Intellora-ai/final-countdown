@@ -1,0 +1,361 @@
+/* The canvas's visual language.
+
+   Read off the reference composition and stated once, so a chart, a table and a
+   simulation cannot drift into three different products.
+
+   NO RAW VALUE APPEARS BELOW THE TOKEN BLOCK. Every colour, space, radius and
+   type role is a custom property published by `tokens.ts` at runtime, so there
+   is no generated stylesheet that can fall out of step with the source. */
+
+/* -------------------------------------------------------------------------- */
+/* The field                                                                  */
+/* -------------------------------------------------------------------------- */
+
+.lc-root {
+  position: relative;
+  min-height: 100%;
+  background: var(--c-void);
+  color: var(--c-ink);
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Lit from above, like the reference. A flat black field makes every panel look
+   pasted on; the gradient is what makes content sit IN the page. */
+.lc-root::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 70% at 50% -10%, var(--c-surface-lift) 0%, var(--c-void) 60%);
+}
+
+.lc-stage {
+  position: relative;
+  padding: var(--s-xxxl) var(--s-xxl);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The question                                                               */
+/* -------------------------------------------------------------------------- */
+
+.lc-question {
+  position: relative;
+  margin: 0 auto var(--s-xxxl);
+  max-width: 62ch;
+  text-align: center;
+  font-size: var(--type-question-size);
+  font-weight: var(--type-question-weight);
+  line-height: var(--type-question-height);
+  color: var(--c-ink);
+}
+
+/* Short, not full-width. A full-width rule reads as a divider between sections;
+   a short one reads as an underline belonging to the title. */
+.lc-question__rule {
+  display: block;
+  width: 42%;
+  height: var(--stroke-thin);
+  margin: var(--s-md) auto 0;
+  background: linear-gradient(90deg, transparent, var(--c-accent), transparent);
+  opacity: 0.75;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Section markers                                                            */
+/* -------------------------------------------------------------------------- */
+
+.lc-section-label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-sm);
+  margin-bottom: var(--s-md);
+}
+
+.lc-marker {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 1.55em;
+  height: 1.55em;
+  border: var(--stroke-hair) solid var(--c-line-strong);
+  border-radius: var(--r-pill);
+  font-size: var(--type-caption-size);
+  font-variant-numeric: tabular-nums;
+  color: var(--c-ink-muted);
+  transform: translateY(0.1em);
+}
+
+.lc-section-label__text {
+  font-size: var(--type-section-title-size);
+  font-weight: var(--type-section-title-weight);
+  letter-spacing: var(--type-section-title-tracking);
+  line-height: var(--type-section-title-height);
+  text-transform: uppercase;
+  color: var(--c-ink);
+}
+
+/* The parenthetical under a section title — "(CONSTANT VOLUME)" in the
+   reference. Quieter and smaller, on its own line. */
+.lc-section-label__sub {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--type-label-size);
+  font-weight: 400;
+  letter-spacing: var(--type-label-tracking);
+  color: var(--c-ink-faint);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Surfaces — used sparingly on purpose                                       */
+/* -------------------------------------------------------------------------- */
+
+.lc-panel {
+  border: var(--stroke-hair) solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-panel);
+  backdrop-filter: blur(10px);
+  padding: var(--s-lg);
+}
+
+.lc-panel--glow {
+  border-color: color-mix(in srgb, var(--c-accent) 28%, transparent);
+  box-shadow: 0 0 var(--s-xxl) var(--c-accent-glow);
+}
+
+.lc-pill {
+  display: inline-block;
+  padding: var(--s-xs) var(--s-md);
+  border: var(--stroke-hair) solid var(--c-line-strong);
+  border-radius: var(--r-pill);
+  font-size: var(--type-caption-size);
+  color: var(--c-ink-muted);
+  white-space: nowrap;
+  transition: border-color var(--t-base) var(--ease), color var(--t-base) var(--ease);
+}
+
+.lc-pill--active {
+  border-color: color-mix(in srgb, var(--c-accent) 60%, transparent);
+  color: var(--c-accent-soft);
+}
+
+/* Glow, never fill. A lit node reads as energy; a filled one reads as a button
+   and invites a click that does nothing. */
+.lc-glow {
+  display: inline-block;
+  border-radius: var(--r-pill);
+  background: var(--c-accent);
+  box-shadow: 0 0 var(--s-md) var(--c-accent-glow), 0 0 var(--s-xs) var(--c-accent-soft);
+}
+.lc-glow--sm { width: 5px; height: 5px; }
+.lc-glow--md { width: 8px; height: 8px; }
+.lc-glow--lg { width: 12px; height: 12px; }
+
+/* -------------------------------------------------------------------------- */
+/* Blocks                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.lc-grid {
+  display: grid;
+  gap: var(--s-xxl) var(--s-xl);
+  align-items: start;
+}
+
+.lc-block {
+  min-width: 0; /* without this a grid child refuses to shrink and overflows */
+}
+
+/* Emphasis is a ROLE, and the design system decides what it looks like.
+   `primary` gets presence through space and brightness, never through a border. */
+.lc-block[data-emphasis='primary'] .lc-section-label__text { color: var(--c-ink); }
+.lc-block[data-emphasis='aside'] { opacity: 0.82; }
+.lc-block[data-emphasis='aside'] .lc-section-label__text { color: var(--c-ink-muted); }
+
+.lc-body {
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-height);
+  color: var(--c-ink-muted);
+  max-width: 62ch;
+  margin: 0;
+}
+
+.lc-caption {
+  margin: var(--s-md) 0 0;
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-height);
+  color: var(--c-ink-faint);
+}
+
+/* -- Callout: a rule on the left, no box. The reference has almost no boxes. */
+.lc-callout {
+  padding-left: var(--s-lg);
+  border-left: var(--stroke-thick) solid var(--c-accent);
+}
+.lc-callout[data-tone='warning'] { border-left-color: var(--c-warning); }
+.lc-callout[data-tone='result'] { border-left-color: var(--c-result); }
+
+/* -- Metric ------------------------------------------------------------- */
+.lc-metric__value {
+  font-size: var(--type-metric-size);
+  font-weight: var(--type-metric-weight);
+  line-height: var(--type-metric-height);
+  font-variant-numeric: tabular-nums;
+  color: var(--c-ink);
+}
+.lc-metric__unit {
+  margin-left: var(--s-xs);
+  font-size: var(--type-caption-size);
+  color: var(--c-ink-faint);
+}
+.lc-metric__delta { font-size: var(--type-caption-size); font-variant-numeric: tabular-nums; }
+.lc-metric__delta[data-good='true'] { color: var(--c-accent); }
+.lc-metric__delta[data-good='false'] { color: var(--c-warning); }
+.lc-metric__delta[data-good='neutral'] { color: var(--c-ink-muted); }
+
+/* -- Equation ----------------------------------------------------------- */
+/* Serif italic, large, and CENTRED in its block — the reference treats an
+   equation as a statement, not as a line of body text. */
+.lc-equation {
+  display: flex;
+  justify-content: center;
+  padding: var(--s-md) 0;
+  color: var(--c-ink);
+}
+.lc-equation .katex { font-size: 1.9em; }
+
+/* A highlighted term gets an accent underline, exactly as `RT` does in the
+   reference. The author names the TERM; this decides it becomes an underline. */
+.lc-equation mark {
+  background: none;
+  color: var(--c-ink);
+  border-bottom: var(--stroke-thin) solid var(--c-accent);
+  padding-bottom: 1px;
+}
+
+/* -- Table -------------------------------------------------------------- */
+/* Hairlines and air. The reference has no filled table chrome anywhere, so a
+   table earns its structure from alignment and one rule under the header. */
+.lc-table-wrap { overflow: auto; max-height: 22rem; }
+.lc-table { width: 100%; border-collapse: collapse; font-size: var(--type-body-size); }
+.lc-table th,
+.lc-table td {
+  padding: var(--s-sm) var(--s-md);
+  border-bottom: var(--stroke-hair) solid var(--c-line);
+  text-align: left;
+}
+.lc-table th {
+  position: sticky;
+  top: 0;
+  background: var(--c-surface);
+  font-size: var(--type-label-size);
+  font-weight: var(--type-label-weight);
+  letter-spacing: var(--type-label-tracking);
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+  border-bottom-color: var(--c-line-strong);
+}
+.lc-table td { color: var(--c-ink-muted); }
+/* Numeric columns right-align and use tabular figures so digits stack. */
+.lc-table [data-numeric='true'] { text-align: right; font-variant-numeric: tabular-nums; }
+.lc-table tbody tr:hover td { background: var(--c-panel); color: var(--c-ink); }
+.lc-table__empty { color: var(--c-ink-faint); }
+
+/* -- Chart -------------------------------------------------------------- */
+.lc-chart { width: 100%; aspect-ratio: 16 / 10; min-height: 0; }
+
+/* -- Flow --------------------------------------------------------------- */
+.lc-flow { width: 100%; overflow: visible; }
+.lc-flow__node {
+  font-size: var(--type-caption-size);
+  fill: var(--c-ink-muted);
+}
+.lc-flow__node--emph { fill: var(--c-accent); }
+/* The crisp pass — carries the line and the arrowhead. */
+.lc-flow__link {
+  stroke: var(--c-accent);
+  stroke-width: var(--stroke-thin);
+  fill: none;
+  opacity: 0.7;
+}
+/* The bloom pass, drawn underneath. A wide low-opacity stroke reads as glow and,
+   unlike an SVG filter, does not depend on the path having a non-zero bbox
+   height — which a horizontal connector does not have. */
+.lc-flow__link-glow {
+  stroke: var(--c-accent);
+  stroke-width: calc(var(--stroke-thin) * 4);
+  fill: none;
+  opacity: 0.14;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Controls                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.lc-toggle {
+  display: inline-flex;
+  padding: 2px;
+  border: var(--stroke-hair) solid var(--c-line);
+  border-radius: var(--r-pill);
+  background: var(--c-panel);
+}
+.lc-toggle button {
+  padding: var(--s-xs) var(--s-md);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: none;
+  font: inherit;
+  font-size: var(--type-caption-size);
+  color: var(--c-ink-faint);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.lc-toggle button[aria-pressed='true'] { background: var(--c-panel-hover); color: var(--c-ink); }
+.lc-toggle button:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+
+.lc-slider { width: 100%; accent-color: var(--c-accent); cursor: pointer; }
+.lc-slider:focus-visible { outline: 2px solid var(--c-accent); outline-offset: var(--s-xs); }
+
+/* -------------------------------------------------------------------------- */
+/* Refusal — a lesson that fails its checks says so, and shows nothing else    */
+/* -------------------------------------------------------------------------- */
+
+.lc-refusal {
+  max-width: 70ch;
+  margin: var(--s-xxxl) auto;
+  padding: var(--s-xl);
+  border: var(--stroke-hair) solid var(--c-line-strong);
+  border-left: var(--stroke-thick) solid var(--c-warning);
+  border-radius: var(--r-md);
+  background: var(--c-panel);
+}
+.lc-refusal h2 {
+  margin: 0 0 var(--s-md);
+  font-size: var(--type-block-title-size);
+  color: var(--c-ink);
+}
+.lc-refusal ul { margin: 0; padding-left: var(--s-lg); }
+.lc-refusal li {
+  font-size: var(--type-caption-size);
+  line-height: 1.7;
+  color: var(--c-ink-muted);
+}
+.lc-refusal code { color: var(--c-warning); }
+
+.lc-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lc-root *,
+  .lc-root *::before,
+  .lc-root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

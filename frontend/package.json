@@ -5,24 +5,27 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.canvas.json && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b --pretty false",
+    "typecheck": "tsc --noEmit -p tsconfig.json --pretty false && tsc --noEmit -p tsconfig.canvas.json --pretty false",
     "test": "vitest",
     "test:mutation": "node scripts/mutation-gate.mjs",
     "budget": "node scripts/canvas-bundle-budget.mjs",
-    "lint": "eslint src/canvas --max-warnings 0"
+    "lint": "eslint src/canvas src/practice --max-warnings 0"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
     "@visx/scale": "^4.0.0",
     "d3-scale": "^4.0.2",
+    "echarts": "^6.1.0",
+    "echarts-for-react": "^3.0.6",
     "katex": "^0.18.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.0",
     "three": "^0.169.0",
+    "zod": "^3.25.76",
     "zustand": "^5.0.15"
   },
   "devDependencies": {

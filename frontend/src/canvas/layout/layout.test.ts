@@ -1,0 +1,166 @@
+import { describe, expect, it } from 'vitest'
+
+import { validateLesson } from '../spec/validate'
+import { gasPressure } from '../lessons/gasPressure'
+import type { Lesson } from '../spec/spec'
+import {
+  checkFrame,
+  frameIsSafe,
+  plan,
+  profile,
+  selectArchetype,
+  type Archetype,
+} from './layout'
+
+/** The real lesson, through the real gate — a fixture that lies is worse than none. */
+function realLesson(): Lesson {
+  const result = validateLesson(gasPressure)
+  if (!result.ok) throw new Error(`fixture is invalid: ${JSON.stringify(result.issues)}`)
+  return result.lesson
+}
+
+const WIDE = { width: 1440, height: 900 }
+const NARROW = { width: 600, height: 900 }
+
+/** A minimal lesson of one repeated kind, for profiling the selector. */
+function lessonOf(kind: Lesson['blocks'][number]['kind'], count: number): Lesson {
+  const blocks = Array.from({ length: count }, (_, i) => body(kind, `b${i}`))
+  const result = validateLesson({ id: 'x', question: 'Q?', blocks })
+  if (!result.ok) throw new Error(JSON.stringify(result.issues))
+  return result.lesson
+}
+
+function body(kind: string, id: string): Record<string, unknown> {
+  const base = { id, kind, emphasis: 'supporting', tone: 'neutral' }
+  if (kind === 'prose' || kind === 'callout') return { ...base, body: 'text' }
+  if (kind === 'metric') return { ...base, value: 1 }
+  if (kind === 'equation') return { ...base, latex: 'x' }
+  if (kind === 'table')
+    return { ...base, columns: [{ key: 'a', label: 'A', type: 'text' }], rows: [{ a: '1' }] }
+  if (kind === 'chart')
+    return {
+      ...base,
+      chartType: 'line',
+      series: [{ name: 's', colorIndex: 0, points: [{ x: 1, y: 1 }] }],
+    }
+  if (kind === 'flow')
+    return {
+      ...base,
+      nodes: [
+        { id: 'a', label: 'A' },
+        { id: 'b', label: 'B' },
+      ],
+      links: [{ from: 'a', to: 'b' }],
+    }
+  return {
+    ...base,
+    model: 'ideal-gas',
+    controls: [{ key: 'temperature', label: 'T', min: 1, max: 2, initial: 1 }],
+    readouts: ['pressure'],
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+
+describe('the selector', () => {
+  it('lets a simulation claim the composition', () => {
+    const { archetype } = selectArchetype(profile(lessonOf('simulation', 1)))
+    expect(archetype).toBe<Archetype>('centrepiece')
+  })
+
+  it('reads a table-and-chart lesson as reference material', () => {
+    const mixed = validateLesson({
+      id: 'x',
+      question: 'Q?',
+      blocks: [body('table', 't'), body('chart', 'c')],
+    })
+    if (!mixed.ok) throw new Error('fixture invalid')
+    expect(selectArchetype(profile(mixed.lesson)).archetype).toBe<Archetype>('reference')
+  })
+
+  it('reads a wall of prose as discourse', () => {
+    expect(selectArchetype(profile(lessonOf('prose', 5))).archetype).toBe<Archetype>('discourse')
+  })
+
+  it('always explains itself', () => {
+    /* "If the selector cannot justify its archetype choice, the selector
+       failed." An empty or boilerplate reason is that failure, so it is
+       asserted rather than trusted. */
+    for (const kind of ['simulation', 'prose', 'chart', 'flow'] as const) {
+      const { explain } = selectArchetype(profile(lessonOf(kind, 2)))
+      expect(explain.length).toBeGreaterThan(30)
+      expect(explain).toMatch(/[a-z]/)
+    }
+  })
+})
+
+describe('placement', () => {
+  it('never violates an invariant on the real lesson', () => {
+    const frame = plan(realLesson(), WIDE)
+    const failures = checkFrame(frame).filter((c) => !c.ok)
+    expect(failures, JSON.stringify(failures)).toHaveLength(0)
+    expect(frameIsSafe(frame)).toBe(true)
+  })
+
+  it('holds every invariant across a range of viewport widths', () => {
+    const lesson = realLesson()
+    for (const width of [420, 600, 900, 1200, 1440, 2200]) {
+      const frame = plan(lesson, { width, height: 900 })
+      const failures = checkFrame(frame).filter((c) => !c.ok)
+      expect(failures, `width ${width}: ${JSON.stringify(failures)}`).toHaveLength(0)
+    }
+  })
+
+  it('collapses to one column when narrow, without dropping a block', () => {
+    const lesson = realLesson()
+    const frame = plan(lesson, NARROW)
+    expect(frame.columns).toBe(1)
+    // "Make it smaller so it fits" is banned; the frame gets fewer columns and
+    // every block survives at its designed size.
+    expect(frame.blocks).toHaveLength(lesson.blocks.length)
+  })
+
+  it('places every block exactly once, at every width', () => {
+    const lesson = realLesson()
+    for (const width of [600, 1440]) {
+      const ids = plan(lesson, { width, height: 900 }).blocks.map((b) => b.id)
+      expect(new Set(ids).size).toBe(ids.length)
+      expect(new Set(ids)).toEqual(new Set(lesson.blocks.map((b) => b.id)))
+    }
+  })
+
+  it('is deterministic', () => {
+    const lesson = realLesson()
+    expect(plan(lesson, WIDE)).toEqual(plan(lesson, WIDE))
+  })
+})
+
+describe('a derived block stacks under its source', () => {
+  /*
+   * REGRESSION GUARD — this shipped wrong.
+   *
+   * `PV = nRT` declares `derives` from `P ∝ T`. Laid out by width alone the two
+   * equations landed side by side, which reads as "here are two facts" when the
+   * author said "this one comes FROM that one". Reading order carries the
+   * argument, so the derived block belongs directly beneath its source.
+   */
+  it('matches the source column and width, in a later band', () => {
+    const frame = plan(realLesson(), WIDE)
+    const source = frame.blocks.find((b) => b.id === 'proportionality')
+    const derived = frame.blocks.find((b) => b.id === 'ideal-gas-law')
+
+    expect(source).toBeDefined()
+    expect(derived).toBeDefined()
+    expect(derived?.col).toBe(source?.col)
+    expect(derived?.span).toBe(source?.span)
+    expect(derived?.band).toBeGreaterThan(source?.band ?? 0)
+  })
+
+  it('still passes the collision check with the stack in place', () => {
+    // Stacking writes a band directly; the guard proves nothing else was
+    // already sitting there.
+    const frame = plan(realLesson(), WIDE)
+    const collision = checkFrame(frame).find((c) => c.name === 'noCollision')
+    expect(collision?.ok, JSON.stringify(collision?.offenders)).toBe(true)
+  })
+})

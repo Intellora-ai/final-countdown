@@ -16,17 +16,24 @@ import { Placeholder } from './components/Placeholder'
  * has no use for a typesetting engine. As a lazy route it becomes a chunk that
  * arrives only when someone actually opens the canvas, and three.js — already
  * lazy one level deeper — arrives only when the 3D panel first mounts. */
-const LessonGallery = React.lazy(() =>
-  import('./canvas/LessonGallery').then((m) => ({ default: m.LessonGallery })),
-)
+/* ONE CANVAS ROUTE NOW, WHERE THERE WERE TWO.
+ *
+ * `/canvas/gas` and `/canvas/lessons` were two entry points to two components:
+ * a single hand-built gas lesson, and a gallery. Both are gone with the canvas
+ * they belonged to. The engine that replaced them treats a lesson as data, so
+ * "which lesson" is a choice made INSIDE the canvas rather than a different URL
+ * and a different component — one route is the whole surface.
+ *
+ * The two old paths still resolve (see the redirects below) because they were
+ * linked from elsewhere and a dead bookmark is a worse outcome than a redirect
+ * nobody notices. */
+const CanvasRoute = React.lazy(() => import('./canvas/CanvasRoute'))
 
-/* /canvas/gas now renders the gas lesson through the composed renderer. The
- * hand-placed GasPressureScene it replaced stated every panel position in a
- * 1408x768 coordinate table, which is the one thing the layout grammar exists
- * to make unnecessary. */
-const GasLesson = React.lazy(() =>
-  import('./canvas/GasLesson').then((m) => ({ default: m.GasLesson })),
-)
+/* The practice map. Lazy for the same reason the canvas is: it carries the
+ * whole curriculum and its own stylesheet, and a learner on /today should not
+ * pay for either. Nothing outside `src/practice/` imports it, and it imports
+ * nothing from the canvas or the dashboard. */
+const PracticeView = React.lazy(() => import('./practice/PracticeView'))
 
 function SceneFallback() {
   return (
@@ -76,18 +83,17 @@ export default function App() {
    * cannot be handed an unpredictable fraction of the screen. Every other
    * route keeps the curriculum around it; this one replaces it, and the back
    * button in its own chrome is how the learner returns. */
-  if (loc.pathname === '/canvas/lessons') {
-    return (
-      <React.Suspense fallback={<SceneFallback />}>
-        <LessonGallery />
-      </React.Suspense>
-    )
+  /* The two retired paths. They land on the canvas rather than on the
+   * catch-all, which would have sent an old bookmark silently to /today and
+   * looked like the feature had been removed. */
+  if (loc.pathname === '/canvas/gas' || loc.pathname === '/canvas/lessons') {
+    return <Navigate to="/canvas" replace />
   }
 
-  if (loc.pathname === '/canvas/gas') {
+  if (loc.pathname === '/canvas') {
     return (
       <React.Suspense fallback={<SceneFallback />}>
-        <GasLesson />
+        <CanvasRoute />
       </React.Suspense>
     )
   }
@@ -108,14 +114,21 @@ export default function App() {
               <Route path="/" element={<Navigate to="/today" replace />} />
               <Route path="/today" element={<TodayView />} />
               <Route path="/chapter/:subjectId/:chapterId" element={<ChapterView />} />
-              <Route path="/practice" element={<Placeholder kind="practice" />} />
+              <Route
+                path="/practice"
+                element={
+                  <React.Suspense fallback={<SceneFallback />}>
+                    <PracticeView />
+                  </React.Suspense>
+                }
+              />
               <Route path="/quick-question" element={<Placeholder kind="quick-question" />} />
               <Route path="/misconception" element={<Placeholder kind="misconception" />} />
               {/* The blackboard's two routes are gone with the blackboard itself
                 * (see docs/migrations/step-0-blackboard-deletion.md). The
                 * explanation canvas is returned above, before the shell, because
-                * it owns the whole window. Any surviving /canvas link falls
-                * through to the catch-all rather than a blank screen. */}
+                * it owns the whole window — so no /canvas path reaches this list
+                * at all, and the catch-all below never sees one. */}
               <Route path="*" element={<Navigate to="/today" replace />} />
             </Routes>
           </main>

@@ -5,30 +5,65 @@ import type { TestInfo } from '@playwright/test'
  * Every Playwright annotation this branch has ever produced -- 49 of them --
  * named `composed-renderer.spec.ts`. That is where the ASSERTION is. It is
  * never where the DEFECT is. A clipped chart annotated the spec line that
- * measured the clipping, and finding ChartPanel.tsx meant reading the contract
- * registry by hand, every single time.
+ * measured the clipping, and finding the renderer meant reading the dispatch
+ * table by hand, every single time.
  *
- * The DOM already knows: LessonRenderer stamps `data-renderer` on every block
- * with the key the contract resolved. This maps that key to the file, and
- * `attribute()` hands it to the reporter through Playwright's own annotation
- * API, so the ::error lands on the panel that drew the pixels.
+ * The DOM already knows: `BlockView` stamps `data-kind` on every block it
+ * paints, and that attribute IS the dispatch key -- `BlockView`'s switch is
+ * exhaustive on it, with a `never` in the default arm. This maps that key to
+ * the file that draws it, and `attribute()` hands the result to the reporter
+ * through Playwright's own annotation API, so the ::error lands on the module
+ * that produced the pixels.
  *
- * KEPT HONEST BY A TEST. `renderers.parity.spec` asserts this map's keys equal
- * `rendererKeys()` exactly, so adding a renderer without adding its path is a
- * failure rather than a silent fallback to the spec line.
+ * WHAT THIS MAP USED TO SAY, AND WHY IT WAS WORTHLESS.
+ * ---------------------------------------------------
+ * It keyed on `data-renderer` -- a `TextPanel` / `ChartPanel` / `SimulationPanel`
+ * vocabulary -- and named six files under `src/canvas/panels/`. That whole
+ * directory is gone with the hand-positioned canvas it belonged to. Six of six
+ * paths pointed at nothing, so every attribution silently degraded to the
+ * fallback and the reporter went back to naming the spec. A map of dead paths
+ * is worse than no map: it fails without saying so.
+ *
+ * KEPT HONEST BY A TEST, FOR REAL THIS TIME. The previous version of this
+ * comment cited `renderers.parity.spec`, which does not exist in this
+ * repository and cannot be found in its history -- the claim that something
+ * held the map to the registry was itself unbacked. `composed-renderer.spec.ts`
+ * now carries two checks that are real: every `data-kind` the running canvas
+ * emits has an entry here, and every path this file names exists on disk.
  */
 
+/**
+ * Block kind -> the module that draws it.
+ *
+ * Four kinds share `BlockView.tsx` because that file draws them inline rather
+ * than delegating: prose, callout, metric and equation are a paragraph, a
+ * bordered paragraph, a number and a KaTeX host respectively, and none of them
+ * earned a module. Pointing all four at the same file is the truth, not a
+ * shortcut.
+ */
 export const RENDERER_SOURCE: Record<string, string> = {
-  TextPanel: 'frontend/src/canvas/panels/TextPanel.tsx',
-  TablePanel: 'frontend/src/canvas/panels/TablePanelAdapter.tsx',
-  ChartPanel: 'frontend/src/canvas/panels/ChartPanel.tsx',
-  EquationPanel: 'frontend/src/canvas/panels/EquationPanelAdapter.tsx',
-  DiagramPanel: 'frontend/src/canvas/panels/DiagramPanel.tsx',
-  SimulationPanel: 'frontend/src/canvas/panels/SimulationPanel.tsx',
+  prose: 'frontend/src/canvas/render/BlockView.tsx',
+  callout: 'frontend/src/canvas/render/BlockView.tsx',
+  metric: 'frontend/src/canvas/render/BlockView.tsx',
+  equation: 'frontend/src/canvas/render/BlockView.tsx',
+  flow: 'frontend/src/canvas/render/FlowView.tsx',
+  chart: 'frontend/src/canvas/render/ChartView.tsx',
+  table: 'frontend/src/canvas/render/TableView.tsx',
+  simulation: 'frontend/src/canvas/render/SimulationView.tsx',
+  /* All 137 named representations arrive as one kind. `FigureView` resolves the
+     name to a shape and hands it to one of `render/shapes/`; which shape is not
+     in the DOM, so this is as precise as an attribution can honestly be. */
+  figure: 'frontend/src/canvas/render/FigureView.tsx',
 }
 
-/** Where a block with no renderer, or an unknown one, is decided. */
-export const RENDERER_FALLBACK = 'frontend/src/canvas/renderer/LessonRenderer.tsx'
+/**
+ * Where an element that belongs to no block was placed.
+ *
+ * The teaching view owns everything outside a `.lc-block`: the question, the
+ * grid the blocks sit in, the checkpoint, and the answer surface a doubt
+ * renders into. A failure with no `data-kind` under it is that view's.
+ */
+export const RENDERER_FALLBACK = 'frontend/src/canvas/teach/TeachView.tsx'
 
 export function sourceForRenderer(key: string | null | undefined): string {
   return (key && RENDERER_SOURCE[key]) || RENDERER_FALLBACK
@@ -45,27 +80,27 @@ export const SOURCE_ANNOTATION = 'canvas-source'
  * correct and free -- the reporter only reads attributions from tests that
  * actually failed.
  */
-export function attribute(testInfo: TestInfo, rendererKeys: Iterable<string | null | undefined>): void {
+export function attribute(testInfo: TestInfo, blockKinds: Iterable<string | null | undefined>): void {
   const files = new Set<string>()
-  for (const key of rendererKeys) files.add(sourceForRenderer(key))
+  for (const key of blockKinds) files.add(sourceForRenderer(key))
   for (const file of [...files].sort()) {
     testInfo.annotations.push({ type: SOURCE_ANNOTATION, description: file })
   }
 }
 
 /**
- * Name source files directly, for a failure no renderer key can locate.
+ * Name source files directly, for a failure no block kind can locate.
  *
- * `attribute()` resolves the panel that drew the pixels, which is the right
+ * `attribute()` resolves the module that drew the pixels, which is the right
  * answer when the drawing is wrong. It is the wrong answer when the DATA is
- * wrong: the gas lesson's chart carried `data: []`, and the block that
- * "failed" was ChartPanel correctly refusing to plot nothing. Annotating
- * ChartPanel would have sent a reader to a file with no bug in it.
+ * wrong: a chart carrying `data: []` produces a block that "failed" only
+ * because the chart contract correctly refused to plot nothing. Annotating
+ * `ChartView` would have sent a reader to a file with no bug in it.
  *
  * Deliberately not merged into `attribute()`. That function's contract is
- * "renderer key in, panel file out", and `renderers.parity.spec` holds its map
- * exactly equal to the registry's keys. Accepting free-form paths there would
- * make the map's completeness unprovable.
+ * "block kind in, renderer file out", and the parity check in
+ * `composed-renderer.spec.ts` holds its keys against what the canvas actually
+ * emits. Accepting free-form paths there would make that check meaningless.
  */
 export function attributeFiles(testInfo: TestInfo, files: readonly string[]): void {
   for (const file of [...new Set(files)].sort()) {

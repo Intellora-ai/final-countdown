@@ -1,144 +1,181 @@
-import { expect, test } from '@playwright/test'
-import { attribute, attributeFiles } from './util/attribution'
-import { applyProjectMedia, prefersReducedMotion } from './util/media'
+import { expect, test, type Page } from '@playwright/test'
 
-/* THE BUGS THAT SHIPPED, ASSERTED AGAINST THE ENGINE THAT REPLACED THE SCENE.
+import { gasPressure } from '../src/canvas/lessons/gasPressure'
+import { attribute, attributeFiles } from './util/attribution'
+import {
+  LESSONS,
+  bodyBlocks,
+  chromeText,
+  open,
+  settle,
+  shownTitles,
+  teach,
+} from './util/canvas'
+
+/* THE BUGS THAT SHIPPED, RE-DECIDED AGAINST THE ENGINE THAT REPLACED THE SCENE
+ * -- AND THE TEACHING MODEL, WHICH NOTHING HAD EVER LOOKED AT.
  *
- * These guards were written against GasPressureScene: 331 lines of hand-placed
- * panels reading a 75-line table of absolute pixel coordinates. Phase 5 deleted
- * that scene and pointed /canvas/gas at the composed renderer, so every guard
- * had to be re-decided rather than re-pointed. A guard is worth keeping only if
- * the PROPERTY it defends still exists; two of the seven defended properties of
- * the old architecture itself.
+ * This file pinned `const SCENE = '/#/canvas/gas'` and every test went there.
+ * That path now redirects to `/#/canvas`, so each guard had to be re-decided
+ * rather than re-pointed: a guard is worth keeping only if the PROPERTY it
+ * defends still exists, and a guard silently aimed at a redirect is worse than
+ * no guard, because a green row reads as evidence.
  *
- * KEPT, because the defect they describe is still possible:
- *   headings are sans          -- the dashboard styles h1/h2 BY ELEMENT, and an
- *                                 element rule beats an inherited value. The
- *                                 composed route renders under the same
- *                                 stylesheet, so the collision is unchanged.
- *   katex vertical rhythm      -- KaTeX still ships margin:1em on display math.
- *   WebGL context acquired     -- r3f still dies on a second React instance.
- *   one variable drives all    -- the architectural claim, now through the
- *                                 simulation contract instead of a hand-wired
- *                                 store.
- *   axis monotonic and even    -- the reference image's y-axis reads 200, 150,
- *                                 100, 110. Still the defect to prevent.
+ * KEPT, because the defect each describes is still possible:
  *
- * REMOVED, with the reason recorded rather than the test quietly dropped:
+ *   every declared block reaches the screen   -- a beat that drops a block
+ *     presents a lesson missing its conclusion and nothing else notices.
+ *     Re-pointed: the old version named four block ids from a deleted lesson
+ *     file and looked for `[data-canvas="invariant-refusal"]`. Both are gone.
+ *     The kinds are now read out of the lesson SOURCE, so editing a lesson
+ *     cannot leave a stale expectation here.
  *
- *   "the extracted primitives render exactly what the CSS did" asserted exact
- *   computed values on [data-canvas="section-title"|"section-sub"|"badge"|
- *   "scene-label"|"panel"]. A browser probe of the migrated route returns 0 for
- *   all five. Those primitives were extracted FROM scene.css FOR that scene;
- *   the composed panels read tokens directly. Nothing renders them any more, so
- *   the test had no subject. Keeping it pointed at the old route would have
- *   been a guard on a page no user can reach.
+ *   the question appears exactly once         -- it once rendered as an <h1> by
+ *     the route and as an <h2> by the renderer, and 155 assertions across five
+ *     projects missed it because not one of them counted.
  *
- *   "the board fits its viewport instead of pinning into a corner" solved
- *   matrix(0.35,0,0,0.35,-246.4,-134.4) back through (viewW - worldW*scale)/2
- *   to prove the fit was computed before layout. It asserts a 1408x768 world
- *   scaled by a CSS transform. The composed renderer has no world and no
- *   transform: it reflows on a twelve-column grid, which is the entire point of
- *   the replacement. The property that replaced it -- content stays reachable
- *   and readable as the viewport shrinks -- is asserted in
- *   composed-renderer.spec.ts across five viewport projects.
+ *   headings are sans, not the dashboard serif -- `src/styles/tokens/base.css`
+ *     styles h1..h6 BY ELEMENT, and an element rule beats an inherited value.
+ *     The canvas renders under that same stylesheet, so the collision is
+ *     unchanged. THIS TEST CURRENTLY FAILS; see the note on it.
  *
- * ADDED: the migration's own acceptance criterion. Before the gas lesson's
- * chart carried real data it declared `data: []`, and the chart contract
- * correctly refused to draw a relationship with no points -- so the migration
- * would have traded a working P-T graph for a refusal box while every other
- * guard here still passed. Nothing asserted "no block refused". Now something
- * does.
+ *   mathematics keeps the vertical rhythm     -- display math with margins on
+ *     it pushed the relation onto the panel below. KaTeX styles `.katex-display`
+ *     itself, so a version bump can put the margin back.
+ *
+ *   the simulation renders a stage it can afford, with no duplicate React --
+ *     every <Canvas> once threw "Cannot read properties of null (reading
+ *     'useMemo')" and the cubes vanished, because r3f had been handed a second
+ *     React instance. The symptom was zero canvases.
+ *
+ *   one control moves every readout that depends on it -- the architectural
+ *     claim, checked through the UI rather than the model.
+ *
+ *   the axis is monotonic and evenly spaced   -- the reference image's y-axis
+ *     reads 200, 150, 100, 110. Still the defect to prevent, and the DOM check
+ *     is not the same as `ChartView.test.ts`: that one asserts the option the
+ *     component computes, this one asserts the ticks a browser actually drew.
+ *
+ * DELETED, with the reason recorded rather than the assertion quietly dropped:
+ *
+ *   THE EQUATION BLOCK'S 260px HEIGHT BOUND, which lived inside the KaTeX test.
+ *   It read `[data-block-id="law"]` -- an attribute the engine does not emit --
+ *   and 260 was calibrated against a hand-placed panel in a fixed-size world.
+ *   The block now sits in a reflowing grid whose height is a function of the
+ *   viewport, so there is no honest number to put in its place. The margin
+ *   assertions, which are what actually caught the bug, are untouched.
+ *
+ *   THE VIEWPORT-DERIVED 3D BRANCH in the simulation test. It computed
+ *   `expect3D = viewport.width > 900 && !reducedMotion` because the old
+ *   contract chose the dimension for the learner. The engine does not: 2D/3D is
+ *   a toggle in the route bar, available at every width. Asserting a derivation
+ *   the product no longer performs would have been asserting the absence of a
+ *   feature. Replaced by something stronger -- BOTH stages are exercised, at
+ *   every project viewport, because both are reachable at every width.
+ *
+ * ADDED: the teaching model. `/#/canvas` shows one beat, keeps what came
+ * before, answers a doubt without advancing, and never tells the learner how
+ * many parts are left. Not one of those had a browser assertion.
+ *
+ * WHY THE NEW TESTS ARE IN THIS FILE AND NOT A NEW ONE. The gate at
+ * `.github/workflows/learning-canvas-frontend.yml` names its two spec files
+ * literally. A third file would have run locally, passed, and been dark in CI
+ * -- the exact failure this whole exercise exists to undo.
  */
 
-const SCENE = '/#/canvas/gas'
+const physics = LESSONS[0]
+const civics = LESSONS[1]
 
 /** P = nRT/V with n = 1 mol and V = 24 L, the constants the lesson declares. */
-const P_AT_200K = 69   // 8.314 * 200 / 24 = 69.28
-const P_AT_600K = 208  // 8.314 * 600 / 24 = 207.85
+const P_AT_200K = '69.3' // 8.314 * 200 / 24 = 69.28
+const P_AT_600K = '207.9' // 8.314 * 600 / 24 = 207.85
 
-async function openScene(
-  page: import('@playwright/test').Page,
-  testInfo: import('@playwright/test').TestInfo,
-) {
-  /* Before navigation: the contract reads the motion preference during the
-   * first render, and applying it after paint would exercise the resize path
-   * instead of the initial one. */
-  await applyProjectMedia(page, testInfo)
-  await page.goto(SCENE)
-  await page.locator('[data-canvas="lesson"]').waitFor({ timeout: 30_000 })
-  /* Wait for the measured pass, not the first paint. The renderer paints a
-   * predicted frame, measures it, then repairs -- asserting against the
-   * prediction would be asserting against a frame no learner sees. */
-  await page.waitForFunction(
-    () => document.querySelector('[data-canvas="lesson"]')?.getAttribute('data-validated') === 'true',
-    null, { timeout: 30_000 },
-  )
-  await page.locator('[data-canvas="block"]').first().waitFor({ timeout: 30_000 })
-}
+/* -------------------------------------------------------------------------- */
+/* The shipped defects                                                        */
+/* -------------------------------------------------------------------------- */
 
 test.describe('explanation canvas regressions', () => {
-  test('every declared element renders, and none of them refuses', async ({ page }, testInfo) => {
-    attributeFiles(testInfo, [
-      'frontend/src/canvas/lessons/acceptance.ts',
-      'frontend/src/canvas/renderer/LessonRenderer.tsx',
-    ])
-    await openScene(page, testInfo)
+  for (const lesson of LESSONS) {
+    test(`${lesson.label}: every declared block reaches the screen, and none is refused`, async ({ page }, testInfo) => {
+      attributeFiles(testInfo, [
+        'frontend/src/canvas/teach/beats.ts',
+        'frontend/src/canvas/teach/TeachView.tsx',
+      ])
+      await open(page, testInfo)
+      await teach(page, lesson.label)
 
-    const state = await page.evaluate(() => {
-      const blocks = [...document.querySelectorAll('[data-canvas="block"]')]
-      return {
-        ids: blocks.map((b) => b.getAttribute('data-block-id')),
-        refused: blocks
-          .filter((b) => b.querySelector('[data-canvas="invariant-refusal"]'))
-          .map((b) => b.getAttribute('data-block-id')),
-        unrenderable: blocks
-          .filter((b) => b.querySelector('[data-canvas="unrenderable"]'))
-          .map((b) => b.getAttribute('data-block-id')),
+      const kinds = await bodyBlocks(page).evaluateAll((els) =>
+        els.map((el) => el.getAttribute('data-kind')),
+      )
+      /* Compared as an ORDERED list, not a count. A beat derivation that
+       * reordered blocks would keep the count and break the argument. */
+      expect(kinds, 'kinds rendered, in order').toEqual(lesson.spec.blocks.map((b) => b.kind))
+
+      /* A REFUSAL AND A GAP ARE NOT THE SAME THING, AND THE DOM SAYS WHICH.
+       *
+       * `role="alert"` marks the refusals that mean something is WRONG: a
+       * lesson that failed validation, a cut that failed `checkBeats`, a frame
+       * that failed `checkFrame`, a figure whose data contradicts its own type.
+       * None of those may ever appear, and that is what this asserts.
+       *
+       * `FigureView` also renders a `.lc-refusal` WITHOUT `role="alert"` for a
+       * shape it has no renderer for yet -- `IMPLEMENTED` currently holds
+       * series, matrix and parts, so the civics lesson shows four of them. That
+       * is a feature that has not been built, not a defect, and it deliberately
+       * carries no alert role because nothing went wrong. Asserting zero of
+       * those here would be asserting a roadmap. */
+      const refused = await page.locator('.lc-refusal[role="alert"]').allTextContents()
+      expect(refused, 'blocks refused as wrong').toEqual([])
+
+      /* A placeholder must still name what is missing. A blank one would be
+       * indistinguishable from a renderer that crashed. */
+      const placeholders = await page.locator('.lc-refusal:not([role="alert"]) h2').allTextContents()
+      for (const text of placeholders) {
+        expect(text.trim(), 'an unimplemented shape names itself').toMatch(/^No renderer yet for \S+/)
       }
     })
 
-    /* The four elements the lesson declares. Named individually so a silently
-     * dropped block fails here rather than passing a count check. */
-    expect(state.ids.sort()).toEqual(['box', 'chain', 'graph', 'law'])
-    expect(state.refused, 'blocks whose invariants refused').toEqual([])
-    expect(state.unrenderable, 'blocks with no renderer').toEqual([])
-  })
+    test(`${lesson.label}: the lesson question appears exactly once`, async ({ page }, testInfo) => {
+      attributeFiles(testInfo, [
+        'frontend/src/canvas/CanvasRoute.tsx',
+        'frontend/src/canvas/teach/TeachView.tsx',
+      ])
+      await open(page, testInfo)
+      await teach(page, lesson.label)
 
-  test('the lesson question appears exactly once', async ({ page }, testInfo) => {
-    attributeFiles(testInfo, [
-      'frontend/src/canvas/GasLesson.tsx',
-      'frontend/src/canvas/renderer/LessonRenderer.tsx',
-    ])
-    await openScene(page, testInfo)
-    /* SHIPPED, AND CAUGHT BY LOOKING AT A SCREENSHOT RATHER THAN BY A TEST.
-     * The route rendered the question as its own <h1> while LessonRenderer
-     * rendered the same string as the lesson's <h2>, so the page opened with
-     * the question printed twice. 155 browser assertions across five projects
-     * passed: they checked that headings are sans, that every block renders
-     * and that nothing refuses. Not one of them counted. */
-    const question = await page.evaluate(() => {
-      const heads = [...document.querySelectorAll('h1, h2, h3')]
-        .map((h) => (h.textContent ?? '').trim())
-      const target = heads.find((t) => t.includes('increase pressure in a gas'))
-      return { target, occurrences: heads.filter((t) => t === target).length, heads }
+      /* SHIPPED, AND CAUGHT BY LOOKING AT A SCREENSHOT RATHER THAN BY A TEST.
+       * The route rendered the question as its own <h1> while the renderer
+       * rendered the same string as the lesson's <h2>, so the page opened with
+       * the question printed twice. 155 browser assertions across five projects
+       * passed: they checked that headings are sans, that every block renders
+       * and that nothing refuses. Not one of them counted. */
+      const heads = await page.evaluate(() =>
+        [...document.querySelectorAll('h1, h2, h3')].map((h) => (h.textContent ?? '').trim()),
+      )
+      const hits = heads.filter((t) => t === lesson.spec.question)
+      expect(hits.length, `headings were: ${JSON.stringify(heads)}`).toBe(1)
     })
-    expect(question.target, 'the lesson question is rendered somewhere').toBeTruthy()
-    expect(question.occurrences, `headings were: ${JSON.stringify(question.heads)}`).toBe(1)
-  })
+  }
 
   test('headings are sans, not the dashboard serif', async ({ page }, testInfo) => {
-    attributeFiles(testInfo, ['frontend/src/canvas/design/tokens.ts'])
-    await openScene(page, testInfo)
-    /* OBSERVED: computed font-family was "Fraunces, Georgia, serif" on the
-     * board title and every panel heading. The scene set a sans family on its
-     * container, but the dashboard styles h1/h2 BY ELEMENT, and an element rule
-     * beats an inherited value. The composed route renders under the same
-     * stylesheet, so the collision is unchanged. */
+    /* OBSERVED, AND STILL TRUE ON `/#/canvas`: the lesson question computes to
+     * "Fraunces, Georgia, serif". `src/styles/tokens/base.css:17` sets
+     * `font-family: var(--font-display)` on h1..h6 BY ELEMENT; `.lc-teach` sets
+     * a sans family on the container and an element rule beats an inherited
+     * value, so the canvas's own family never reaches its own <h1>.
+     *
+     * The fix belongs in the canvas stylesheet -- a family on `.lc-question`
+     * and `.lc-refusal h2`, which is where this annotation points. The
+     * dashboard's rule is out of scope and must not be edited to satisfy the
+     * canvas. */
+    attributeFiles(testInfo, ['frontend/src/canvas/design/canvas.css'])
+    await open(page, testInfo)
+    await settle(page)
+
     const families = await page.evaluate(() =>
-      [...document.querySelectorAll('h1, h2, h3')].map((h) => ({
+      [...document.querySelectorAll('.lc-root h1, .lc-root h2, .lc-root h3')].map((h) => ({
         tag: h.tagName,
-        text: (h.textContent ?? '').slice(0, 30),
+        text: (h.textContent ?? '').slice(0, 40),
         stack: getComputedStyle(h).fontFamily,
       })),
     )
@@ -156,11 +193,15 @@ test.describe('explanation canvas regressions', () => {
   })
 
   test('mathematics keeps the board’s vertical rhythm', async ({ page }, testInfo) => {
-    attribute(testInfo, ['EquationPanel'])
-    await openScene(page, testInfo)
+    attribute(testInfo, ['equation'])
+    await open(page, testInfo)
+    await teach(page, physics.label)
+
     /* OBSERVED: the equation panel measured 305px tall and pushed PV = nRT down
-     * onto the panel below, because KaTeX ships margin:1em on display math --
-     * 46px of air at the size the relation is set in. */
+     * onto the panel below, because display math carried 1em of margin --
+     * 46px of air at the size the relation is set in. KaTeX styles
+     * `.katex-display` itself, so this survives a version bump only by being
+     * checked. */
     const displays = page.locator('.katex-display')
     const n = await displays.count()
     expect(n, 'rendered display equations').toBeGreaterThan(0)
@@ -168,97 +209,91 @@ test.describe('explanation canvas regressions', () => {
     for (let i = 0; i < n; i++) {
       const box = await displays.nth(i).evaluate((el) => {
         const s = getComputedStyle(el)
-        return { mt: parseFloat(s.marginTop), mb: parseFloat(s.marginBottom) }
+        return { mt: Number.parseFloat(s.marginTop), mb: Number.parseFloat(s.marginBottom) }
       })
       expect(box.mt, `katex-display[${i}] margin-top`).toBe(0)
       expect(box.mb, `katex-display[${i}] margin-bottom`).toBe(0)
     }
-
-    /* The height bound the margin bug blew through. Asserted on the equation
-     * BLOCK, which is what the grid has to place. */
-    const h = (await page.locator('[data-block-id="law"]').boundingBox())?.height ?? 0
-    expect(h, 'equation block height').toBeGreaterThan(0)
-    expect(h, 'equation block height (was 305px when the margins leaked)').toBeLessThan(260)
   })
 
-  test('the simulation renders the stage its viewport can afford', async ({ page }, testInfo) => {
-    attribute(testInfo, ['SimulationPanel'])
-    attributeFiles(testInfo, [
-      'frontend/src/canvas/panels/ParticleBox3D.tsx',
-      'frontend/src/canvas/contract/representations/simulation.ts',
-    ])
+  test('the simulation renders a stage its viewport can afford', async ({ page }, testInfo) => {
+    attribute(testInfo, ['simulation'])
+    attributeFiles(testInfo, ['frontend/src/canvas/render/GasScene3D.tsx'])
+
     const errors: string[] = []
     page.on('pageerror', (e) => errors.push(e.message))
-    await openScene(page, testInfo)
 
-    /* THE FIRST VERSION OF THIS TEST ASSERTED ONE CANVAS EVERYWHERE AND WAS
-     * WRONG. simulation.ts derives `dimension: wide && !reduced ? '3D' : '2D'`
-     * with `wide = viewport.width > 900`, because a WebGL context costs a
-     * 215 KB chunk that is not worth it on a phone and is not honest under
-     * reduced motion. So the correct expectation is a FUNCTION of the project,
-     * and asserting a constant made square-900 and mobile-375 fail against
-     * behaviour that was right.
-     *
-     * Running that first version is also what exposed a real defect:
-     * reduced-motion rendered the animated 3D box exactly like desktop,
-     * because `viewport.reducedMotion` was declared in the context type, read
-     * twice by the contract, and never written by anything in production. The
-     * accommodation was dead. LessonRenderer now subscribes to
-     * prefers-reduced-motion, so this assertion has something real to check. */
-    const vp = testInfo.project.use.viewport!
-    const reduced = prefersReducedMotion(testInfo)
-    const expect3D = vp.width > 900 && !reduced
+    await open(page, testInfo)
+    await settle(page)
 
-    const stage = page.locator('[data-canvas="simulation"]')
-    await expect(stage).toHaveAttribute('data-dimension', expect3D ? '3D' : '2D', { timeout: 30_000 })
+    const block = page.locator('.lc-block[data-kind="simulation"]').first()
+    await expect(block).toBeVisible()
 
-    const canvases = page.locator('[data-block-id="box"] canvas')
-    if (expect3D) {
-      /* OBSERVED: every <Canvas> threw "Cannot read properties of null
-       * (reading 'useMemo')" and the cubes vanished, because r3f had been
-       * handed a second React instance. The symptom was zero canvases. */
-      await expect(canvases).toHaveCount(1, { timeout: 30_000 })
-      const size = await canvases.first().evaluate((el) => ({
-        w: (el as HTMLCanvasElement).width, h: (el as HTMLCanvasElement).height,
-      }))
-      expect(size.w, 'canvas backing width').toBeGreaterThan(0)
-      expect(size.h, 'canvas backing height').toBeGreaterThan(0)
-    } else {
-      /* The 2D fallback must be a real stage, not an empty box: no WebGL, but
-       * still something that depicts the particles. */
-      await expect(canvases).toHaveCount(0)
-      const marks = await page.locator('[data-canvas="simulation-stage"] svg *').count()
-      expect(marks, '2D stage draws something').toBeGreaterThan(0)
-    }
+    /* THE 2D STAGE IS THE DEFAULT, AND IT MUST DEPICT SOMETHING.
+     * Not an empty box: no WebGL, but still a picture of the particles. */
+    const marks = await block.locator('svg *').count()
+    expect(marks, '2D stage draws something').toBeGreaterThan(0)
+    await expectFits(block, 'svg', '2D stage')
 
-    /* Interactive in every case. A simulation nobody can move is a diagram. */
-    await expect(page.locator('[data-block-id="box"] input[type=range]')).toHaveCount(1)
+    /* Interactive in every case. A simulation nobody can move is a diagram, and
+     * the count comes from the lesson so adding a control cannot silently pass. */
+    const sim = gasPressure.blocks.find((b) => b.kind === 'simulation')
+    const controls = sim && 'controls' in sim ? sim.controls.length : 0
+    expect(controls, 'the lesson declares controls').toBeGreaterThan(0)
+    await expect(block.locator('input[type=range]')).toHaveCount(controls)
 
-    await page.waitForTimeout(500)
+    /* THE 3D STAGE IS A TOGGLE, NOT A DERIVATION -- so it is exercised at every
+     * viewport this suite runs, including 375px, because a learner can reach it
+     * at every viewport. three.js arrives as a lazy chunk on first use. */
+    await page.getByRole('button', { name: '3D', exact: true }).click()
+    const canvases = block.locator('canvas')
+    await expect(canvases).toHaveCount(1, { timeout: 30_000 })
+    const size = await canvases.first().evaluate((el) => ({
+      w: (el as HTMLCanvasElement).width,
+      h: (el as HTMLCanvasElement).height,
+    }))
+    expect(size.w, 'canvas backing width').toBeGreaterThan(0)
+    expect(size.h, 'canvas backing height').toBeGreaterThan(0)
+    await expectFits(block, 'canvas', '3D stage')
+
+    /* OBSERVED: every <Canvas> threw "Cannot read properties of null (reading
+     * 'useMemo')" and the cubes vanished, because r3f had been handed a second
+     * React instance. The symptom was zero canvases, so the count above is the
+     * first half of this check and the error census is the second. */
     expect(errors.filter((e) => /useMemo|Invalid hook call/.test(e))).toEqual([])
+
+    /* Back to 2D: a toggle that only goes one way is a trap. */
+    await page.getByRole('button', { name: '2D', exact: true }).click()
+    await expect(canvases).toHaveCount(0)
+    expect(await block.locator('svg *').count(), '2D stage returns').toBeGreaterThan(0)
   })
 
-  test('one variable drives every representation', async ({ page }, testInfo) => {
-    attribute(testInfo, ['SimulationPanel'])
-    attributeFiles(testInfo, ['frontend/src/canvas/contract/representations/simulation.ts'])
-    await openScene(page, testInfo)
-    /* The architectural claim, checked through the UI rather than the model:
-     * move temperature, and every readout that depends on it must agree.
-     *
-     * The expected numbers changed with the migration and that is the point.
-     * The legacy scene's hardcoded GAS_MODEL gave 73 and 220 kPa; the lesson
-     * now DECLARES n = 1 mol and V = 24 L, so nRT/V gives 69 and 208. The
-     * physics moved out of the engine and into the lesson, which is what Phase
-     * 4 was for -- these constants are the evidence it actually happened. */
-    const slider = page.locator('[data-block-id="box"] input[type=range]').first()
-    await expect(slider).toBeVisible()
+  test('one control moves every readout that depends on it', async ({ page }, testInfo) => {
+    attribute(testInfo, ['simulation'])
+    await open(page, testInfo)
+    await settle(page)
 
-    /* The dial's own readout, not the graph's y-axis label -- a text match on
-     * /kPa/ alone finds the axis first. */
-    const pressure = page.locator('[data-sc="gauge-value"]').filter({ hasText: 'kPa' }).first()
+    /* The architectural claim, checked through the UI rather than the model:
+     * move temperature, and every readout derived from it must agree.
+     *
+     * The numbers are stated here rather than imported from `gasModel`, on
+     * purpose: importing `pressureKPa` would make this test agree with the
+     * implementation by construction and it would survive the formula being
+     * wrong. 8.314 * 200 / 24 and 8.314 * 600 / 24 are arithmetic anyone can
+     * check, and the exact 3x below is the physics, not the code. */
+    const block = page.locator('.lc-block[data-kind="simulation"]').first()
+
+    const sim = gasPressure.blocks.find((b) => b.kind === 'simulation')
+    const controlKeys = sim && 'controls' in sim ? sim.controls.map((c) => c.key) : []
+    const tempAt = controlKeys.indexOf('temperature')
+    expect(tempAt, 'the lesson declares a temperature control').toBeGreaterThanOrEqual(0)
+    const slider = block.locator('input[type=range]').nth(tempAt)
+    await expect(slider).toBeVisible()
 
     const setTemp = async (v: string) => {
       await slider.evaluate((el: HTMLInputElement, val) => {
+        /* React listens on the native setter, so assigning `.value` directly
+         * updates the DOM and leaves the component's state behind. */
         const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
         set.call(el, val)
         el.dispatchEvent(new Event('input', { bubbles: true }))
@@ -266,26 +301,39 @@ test.describe('explanation canvas regressions', () => {
     }
 
     await setTemp('200')
-    await expect(pressure).toHaveText(new RegExp(`${P_AT_200K}\\s*kPa`), { timeout: 5_000 })
+    await expect.poll(async () => (await readouts(page)).K, { timeout: 5_000 }).toBe('200')
+    await expect.poll(async () => (await readouts(page)).kPa, { timeout: 5_000 }).toBe(P_AT_200K)
 
     await setTemp('600')
     /* 3x the temperature is exactly 3x the pressure at constant V and n. */
-    await expect(pressure).toHaveText(new RegExp(`${P_AT_600K}\\s*kPa`), { timeout: 5_000 })
-    expect(P_AT_600K).toBe(P_AT_200K * 3 + 1) // 69*3 = 207, +1 from rounding 207.85
+    await expect.poll(async () => (await readouts(page)).K, { timeout: 5_000 }).toBe('600')
+    await expect.poll(async () => (await readouts(page)).kPa, { timeout: 5_000 }).toBe(P_AT_600K)
+
+    expect(Number(P_AT_600K)).toBeCloseTo(Number(P_AT_200K) * 3, 1)
   })
 
   test('the pressure axis is monotonic and evenly spaced', async ({ page }, testInfo) => {
-    attribute(testInfo, ['ChartPanel'])
-    await openScene(page, testInfo)
-    /* The reference image's y-axis reads 200, 150, 100, 110. Ticks here come
-     * from d3-scale's .nice(), so this asserts the property that choice buys.
+    attribute(testInfo, ['chart'])
+    await open(page, testInfo)
+    await teach(page, physics.label)
+
+    /* The reference image's y-axis reads 200, 150, 100, 110. ECharts' interval
+     * scale picks the ticks -- nothing in `ChartView` hands it an array -- so
+     * this asserts the property that choice is supposed to buy, in the DOM.
      *
-     * Scoped to the graph BLOCK. The legacy version read every `.scene svg
-     * text` on the page, which swept in the causal chain's node labels and
-     * survived only because none of them parse as numbers. */
-    const ticks = await page.locator('[data-block-id="graph"] svg text').evaluateAll((els) =>
-      els.map((e) => (e.textContent ?? '').trim())
-        .filter((t) => /^-?\d+(\.\d+)?$/.test(t)).map(Number),
+     * Scoped to ONE chart block by its authored title. The gas lesson draws two
+     * charts, and the pie's "60%" slice labels are numbers that would join the
+     * census and break the run-splitting below. */
+    const chartBlock = page
+      .locator('.lc-block[data-kind="chart"]')
+      .filter({ hasText: 'Pressure vs temperature' })
+    await expect(chartBlock).toHaveCount(1)
+
+    const ticks = await chartBlock.locator('svg text').evaluateAll((els) =>
+      els
+        .map((e) => (e.textContent ?? '').trim())
+        .filter((t) => /^-?\d+(\.\d+)?$/.test(t))
+        .map(Number),
     )
     expect(ticks.length, 'numeric axis labels found').toBeGreaterThan(3)
 
@@ -299,9 +347,275 @@ test.describe('explanation canvas regressions', () => {
     }
     runs.push(run)
     const longest = runs.sort((a, b) => b.length - a.length)[0]
-    expect(longest.length, 'longest ascending tick run').toBeGreaterThanOrEqual(4)
+    expect(longest.length, `longest ascending tick run of ${JSON.stringify(ticks)}`)
+      .toBeGreaterThanOrEqual(4)
 
     const steps = longest.slice(1).map((v, i) => v - longest[i])
-    for (const s of steps) expect(s).toBeCloseTo(steps[0], 6)
+    for (const s of steps) expect(s, `tick steps were ${JSON.stringify(steps)}`).toBeCloseTo(steps[0], 6)
   })
 })
+
+/* -------------------------------------------------------------------------- */
+/* The teaching model                                                         */
+/* -------------------------------------------------------------------------- */
+
+test.describe('the lesson is taught, not printed', () => {
+  for (const lesson of LESSONS) {
+    test(`${lesson.label}: only the opening beat is on screen at first`, async ({ page }, testInfo) => {
+      attributeFiles(testInfo, ['frontend/src/canvas/teach/beats.ts'])
+      await open(page, testInfo)
+      await page.getByRole('button', { name: lesson.label, exact: true }).click()
+      await settle(page)
+
+      const declared = lesson.spec.blocks
+      const shown = await bodyBlocks(page).count()
+      expect(shown, 'blocks on screen before any Continue').toBeGreaterThan(0)
+      expect(shown, `the lesson declares ${declared.length} blocks and printed all of them`)
+        .toBeLessThan(declared.length)
+
+      const titles = await shownTitles(page)
+      expect(titles, 'the first block is what a learner meets')
+        .toContain(declared[0].title)
+      /* The LAST block, specifically: every lesson here cuts into at least
+       * three beats, so its closing block cannot legitimately be on screen
+       * before a single Continue has been pressed. */
+      expect(titles, 'a later beat leaked into the opening one')
+        .not.toContain(declared[declared.length - 1].title)
+
+      await expect(page.locator('.lc-teach__more')).toHaveText('There is more after this.')
+    })
+
+    test(`${lesson.label}: Continue adds the next beat and keeps the last one`, async ({ page }, testInfo) => {
+      attributeFiles(testInfo, ['frontend/src/canvas/teach/TeachView.tsx'])
+      await open(page, testInfo)
+      await page.getByRole('button', { name: lesson.label, exact: true }).click()
+      await settle(page)
+
+      const before = await bodyBlocks(page).count()
+      const openingTitles = await shownTitles(page)
+
+      await page.getByRole('button', { name: 'Continue', exact: true }).click()
+      await expect.poll(() => bodyBlocks(page).count(), { timeout: 10_000 })
+        .toBeGreaterThan(before)
+      await settle(page)
+
+      /* CUMULATIVE, NOT A SLIDESHOW. This is the assertion that separates the
+       * teaching model from a carousel: what the learner already read is still
+       * in front of them when they are asked about it. */
+      const after = await shownTitles(page)
+      for (const title of openingTitles) {
+        expect(after, `"${title}" was dropped when the next beat arrived`).toContain(title)
+      }
+    })
+
+    test(`${lesson.label}: the end asks what is unclear instead of offering Continue`, async ({ page }, testInfo) => {
+      attributeFiles(testInfo, ['frontend/src/canvas/teach/beats.ts'])
+      await open(page, testInfo)
+      await teach(page, lesson.label)
+
+      /* There is nothing to continue TO, so there is no button offering it --
+       * a disabled Continue would be a dead control and an enabled one a lie. */
+      await expect(page.getByRole('button', { name: 'Continue', exact: true })).toHaveCount(0)
+      await expect(page.getByRole('button', { name: 'Ask', exact: true })).toBeVisible()
+
+      const more = page.locator('.lc-teach__more')
+      await expect(more).toHaveAttribute('data-end', 'true')
+      await expect(more).toHaveText('That is the end of this lesson.')
+
+      const closing = (await page.locator('.lc-teach__question').textContent() ?? '').trim()
+      expect(closing, 'the closing checkpoint is a question').toMatch(/\?$/)
+      expect(closing, 'the closing checkpoint asks about what did not land')
+        .toMatch(/unclear|cleared up|not adding up/i)
+    })
+  }
+
+  test('asking a doubt answers it without advancing the lesson', async ({ page }, testInfo) => {
+    attributeFiles(testInfo, [
+      'frontend/src/canvas/teach/doubt.ts',
+      'frontend/src/canvas/teach/TeachView.tsx',
+    ])
+    await open(page, testInfo)
+    await settle(page)
+
+    const before = await bodyBlocks(page).count()
+    const checkpointBefore = await page.locator('.lc-teach__question').textContent()
+
+    await page.getByRole('textbox', { name: 'Ask about this part of the lesson' })
+      .fill('what is pressure')
+    await page.getByRole('button', { name: 'Ask', exact: true }).click()
+
+    const answer = page.locator('.lc-teach__answer')
+    await expect(answer).toHaveCount(1, { timeout: 10_000 })
+    await expect(answer).not.toHaveClass(/lc-teach__answer--refusal/)
+    /* An answer is a lesson, so it renders through the same machinery. If it
+     * came out empty the feature would be a label with nothing under it. */
+    expect(
+      await answer.locator('.lc-block').count(),
+      'the answer drew something',
+    ).toBeGreaterThan(0)
+
+    /* THE POINT OF THE FEATURE: there is no route from a doubt to the next
+     * beat. The body is untouched and the same checkpoint is asked again. */
+    expect(await bodyBlocks(page).count(), 'the lesson advanced while answering').toBe(before)
+    expect(await page.locator('.lc-teach__question').textContent()).toBe(checkpointBefore)
+    await expect(page.locator('.lc-teach__more')).toHaveText('There is more after this.')
+    await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeVisible()
+  })
+
+  test('a question the lesson cannot answer is refused, not invented', async ({ page }, testInfo) => {
+    attributeFiles(testInfo, ['frontend/src/canvas/teach/doubt.ts'])
+    await open(page, testInfo)
+    await settle(page)
+
+    const before = await bodyBlocks(page).count()
+
+    await page.getByRole('textbox', { name: 'Ask about this part of the lesson' })
+      .fill('zzzz qqqq wubbleflarp')
+    await page.getByRole('button', { name: 'Ask', exact: true }).click()
+
+    /* A resolver that always produces something is a resolver that invents
+     * things, and a confident wrong answer to a learner who has just admitted
+     * confusion is the worst output this software can make. */
+    const refusal = page.locator('.lc-teach__answer--refusal')
+    await expect(refusal).toHaveCount(1, { timeout: 10_000 })
+    expect((await refusal.textContent() ?? '').trim().length, 'the refusal says why')
+      .toBeGreaterThan(0)
+
+    expect(await bodyBlocks(page).count(), 'a refusal advanced the lesson').toBe(before)
+    await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeVisible()
+  })
+
+  test('switching lessons starts the new one at its beginning', async ({ page }, testInfo) => {
+    attributeFiles(testInfo, ['frontend/src/canvas/CanvasRoute.tsx'])
+    await open(page, testInfo)
+    await teach(page, physics.label)
+    expect(await bodyBlocks(page).count()).toBe(physics.spec.blocks.length)
+
+    await page.getByRole('button', { name: civics.label, exact: true }).click()
+    await settle(page)
+
+    /* Position is state, and state must not survive a change of subject. A
+     * learner who picks civics after finishing physics must not land three
+     * beats into a lesson they have not begun. */
+    const declared = civics.spec.blocks
+    expect(await bodyBlocks(page).count(), 'the new lesson opened partway through')
+      .toBeLessThan(declared.length)
+
+    const titles = await shownTitles(page)
+    expect(titles).toContain(declared[0].title)
+    expect(titles).not.toContain(declared[declared.length - 1].title)
+
+    await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeVisible()
+    await expect(page.locator('.lc-teach__more')).toHaveText('There is more after this.')
+    await expect(page.locator('h1')).toHaveText(civics.spec.question)
+  })
+
+  test('the learner is never shown a step count', async ({ page }, testInfo) => {
+    attributeFiles(testInfo, [
+      'frontend/src/canvas/teach/contract.ts',
+      'frontend/src/canvas/teach/beats.ts',
+    ])
+    await open(page, testInfo)
+
+    /* TWO PATTERNS, TWO SCOPES, AND THE SCOPES ARE THE WHOLE CRAFT OF THIS TEST.
+     *
+     * "step 3" cannot appear in this product's content, so it is checked
+     * against the WHOLE page -- an aria-label is exactly the crack a step
+     * number slips through, and a page-wide sweep sees those.
+     *
+     * "n of m" is different: the machine-learning lesson's own caption reads
+     * "It catches 55 of 300 frauds", which is the lesson talking about fraud
+     * counts. So that pattern is checked only against the teaching CHROME with
+     * lesson content subtracted -- see `chromeText`. Widening it to the page
+     * would fail on correct content, and the test would be deleted for crying
+     * wolf, which is how a rule like this actually dies. */
+    const COUNTS = /\b\d+\s*(of|\/)\s*\d/i
+    const STEPS = /\bstep\s*\d/i
+
+    for (const lesson of LESSONS) {
+      await page.getByRole('button', { name: lesson.label, exact: true }).click()
+      await settle(page)
+
+      /* Every beat, not just the first and last: a count that only appears in
+       * the middle of a lesson is still a count. */
+      for (let beat = 0; beat < 24; beat++) {
+        const chrome = await chromeText(page)
+        for (const text of chrome) {
+          expect(text, `${lesson.label} chrome names a position`).not.toMatch(COUNTS)
+          expect(text, `${lesson.label} chrome names a step`).not.toMatch(STEPS)
+        }
+
+        const body = await page.evaluate(() => document.body.innerText)
+        expect(body, `${lesson.label} page names a step`).not.toMatch(STEPS)
+
+        const go = page.getByRole('button', { name: 'Continue', exact: true })
+        if ((await go.count()) === 0) break
+        const before = await bodyBlocks(page).count()
+        await go.click()
+        await expect.poll(() => bodyBlocks(page).count(), { timeout: 10_000 })
+          .toBeGreaterThan(before)
+      }
+
+      /* And once more with an answer on screen, because an answer is chrome
+       * that carries a whole rendered lesson inside it. */
+      await page.getByRole('textbox', { name: 'Ask about this part of the lesson' })
+        .fill('why')
+      await page.getByRole('button', { name: 'Ask', exact: true }).click()
+      await expect(page.locator('.lc-teach__answer')).toHaveCount(1, { timeout: 10_000 })
+      for (const text of await chromeText(page)) {
+        expect(text, `${lesson.label} answer chrome names a position`).not.toMatch(COUNTS)
+        expect(text, `${lesson.label} answer chrome names a step`).not.toMatch(STEPS)
+      }
+    }
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The simulation's readouts, keyed by their unit.
+ *
+ * Keyed by unit rather than read positionally, because `block.readouts` is the
+ * author's emphasis and reordering it is a lesson edit, not a regression.
+ */
+async function readouts(page: Page): Promise<Record<string, string>> {
+  return page.evaluate(() => {
+    const block = document.querySelector('.lc-block[data-kind="simulation"]')
+    const out: Record<string, string> = {}
+    if (!block) return out
+    for (const value of block.querySelectorAll('.lc-metric__value')) {
+      const unit = (value.nextElementSibling?.textContent ?? '').trim()
+      if (unit) out[unit] = (value.textContent ?? '').trim()
+    }
+    return out
+  })
+}
+
+/**
+ * A stage must sit inside the block that owns it.
+ *
+ * "The size its viewport can afford" is not a pixel count -- the frame reflows,
+ * so any number written here would be calibrated against one viewport and wrong
+ * on the other four. What is true at every width is that the stage is drawn,
+ * and that it does not spill past the column the planner gave it.
+ */
+async function expectFits(
+  block: ReturnType<Page['locator']>,
+  selector: string,
+  what: string,
+): Promise<void> {
+  const fit = await block.evaluate((host, sel) => {
+    const stage = host.querySelector(sel)
+    if (!stage) return null
+    const a = stage.getBoundingClientRect()
+    const b = host.getBoundingClientRect()
+    return { w: a.width, h: a.height, overhang: Math.round(a.right - b.right) }
+  }, selector)
+
+  expect(fit, `${what} is present`).not.toBeNull()
+  expect(fit!.w, `${what} width`).toBeGreaterThan(0)
+  expect(fit!.h, `${what} height`).toBeGreaterThan(0)
+  expect(fit!.overhang, `${what} spills past its block by ${fit!.overhang}px`).toBeLessThanOrEqual(1)
+}

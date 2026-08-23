@@ -47,3 +47,20 @@ frontend/tsconfig.tsbuildinfo
 frontend/e2e/report/
 .DS_Store
 screenshots/
+
+# Browser-automation scratch: timestamped console logs and accessibility-tree
+# dumps written per run. Same reasoning as frontend/e2e/report/ above — the
+# filenames carry a timestamp, so every session adds files that can never be
+# updated, only accumulated, and none of it is reviewable as code.
+.playwright-mcp/
+
+# Next.js build output for practice-map/.
+#
+# `node_modules/` above is matched at any depth, so practice-map's install was
+# already covered; `.next/` was NOT, and nothing else in this file matches it.
+# It is 55 MB of generated output sitting untracked in a directory that is
+# itself untracked, so `git add -A` — the obvious command for staging this
+# work — would have swept roughly three hundred build artefacts into history in
+# one commit. Ignored by pattern rather than by path, because the same trap
+# waits in any other Next.js app added later.
+.next/

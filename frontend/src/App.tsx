@@ -8,6 +8,46 @@ import { TodayView } from './components/TodayView'
 import { ChapterView } from './components/ChapterView'
 import { Placeholder } from './components/Placeholder'
 
+/* THE SCENE IS LOADED ON DEMAND, AND THE BUDGET IS WHY.
+ *
+ * Imported statically it pulled KaTeX, d3-scale, every panel and the whole
+ * explanation canvas into the entry chunk: initial JavaScript went to 186.55
+ * KB gzip against this repo's stated 150 KB ceiling. A learner opening Today
+ * has no use for a typesetting engine. As a lazy route it becomes a chunk that
+ * arrives only when someone actually opens the canvas, and three.js — already
+ * lazy one level deeper — arrives only when the 3D panel first mounts. */
+/* ONE CANVAS ROUTE NOW, WHERE THERE WERE TWO.
+ *
+ * `/canvas/gas` and `/canvas/lessons` were two entry points to two components:
+ * a single hand-built gas lesson, and a gallery. Both are gone with the canvas
+ * they belonged to. The engine that replaced them treats a lesson as data, so
+ * "which lesson" is a choice made INSIDE the canvas rather than a different URL
+ * and a different component — one route is the whole surface.
+ *
+ * The two old paths still resolve (see the redirects below) because they were
+ * linked from elsewhere and a dead bookmark is a worse outcome than a redirect
+ * nobody notices. */
+const CanvasRoute = React.lazy(() => import('./canvas/CanvasRoute'))
+
+/* The practice map. Lazy for the same reason the canvas is: it carries the
+ * whole curriculum and its own stylesheet, and a learner on /today should not
+ * pay for either. Nothing outside `src/practice/` imports it, and it imports
+ * nothing from the canvas or the dashboard. */
+const PracticeView = React.lazy(() => import('./practice/PracticeView'))
+
+function SceneFallback() {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, display: 'grid', placeItems: 'center',
+      background: '#0e1113', color: '#5b666f',
+      fontFamily: 'ui-monospace, monospace', fontSize: 11, letterSpacing: '.18em',
+      textTransform: 'uppercase',
+    }}>
+      Opening the canvas…
+    </div>
+  )
+}
+
 export default function App() {
   const store = useStore()
   const narrow = useNarrow()
@@ -35,6 +75,29 @@ export default function App() {
 
   if (inSetup) return <SetupFlow />
 
+  /* THE EXPLANATION CANVAS OWNS THE WHOLE WINDOW.
+   *
+   * It is returned BEFORE the shell rather than inside it, because the shell
+   * is not decoration it can sit under: the sidebar takes a column and the top
+   * bar takes a strip, and a board whose layout is stated in exact coordinates
+   * cannot be handed an unpredictable fraction of the screen. Every other
+   * route keeps the curriculum around it; this one replaces it, and the back
+   * button in its own chrome is how the learner returns. */
+  /* The two retired paths. They land on the canvas rather than on the
+   * catch-all, which would have sent an old bookmark silently to /today and
+   * looked like the feature had been removed. */
+  if (loc.pathname === '/canvas/gas' || loc.pathname === '/canvas/lessons') {
+    return <Navigate to="/canvas" replace />
+  }
+
+  if (loc.pathname === '/canvas') {
+    return (
+      <React.Suspense fallback={<SceneFallback />}>
+        <CanvasRoute />
+      </React.Suspense>
+    )
+  }
+
   const closeOnPhone = () => { if (narrow) setDrawer(false) }
 
   return (
@@ -51,10 +114,21 @@ export default function App() {
               <Route path="/" element={<Navigate to="/today" replace />} />
               <Route path="/today" element={<TodayView />} />
               <Route path="/chapter/:subjectId/:chapterId" element={<ChapterView />} />
-              <Route path="/practice" element={<Placeholder kind="practice" />} />
+              <Route
+                path="/practice"
+                element={
+                  <React.Suspense fallback={<SceneFallback />}>
+                    <PracticeView />
+                  </React.Suspense>
+                }
+              />
               <Route path="/quick-question" element={<Placeholder kind="quick-question" />} />
               <Route path="/misconception" element={<Placeholder kind="misconception" />} />
-              <Route path="/canvas" element={<Placeholder kind="canvas" />} />
+              {/* The blackboard's two routes are gone with the blackboard itself
+                * (see docs/migrations/step-0-blackboard-deletion.md). The
+                * explanation canvas is returned above, before the shell, because
+                * it owns the whole window — so no /canvas path reaches this list
+                * at all, and the catch-all below never sees one. */}
               <Route path="*" element={<Navigate to="/today" replace />} />
             </Routes>
           </main>

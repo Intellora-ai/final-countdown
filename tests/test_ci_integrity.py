@@ -56,14 +56,52 @@ def run(
     )
 
 
+#: What a sandbox has to contain for `gate_integrity.py` to be able to pass.
+#:
+#: THE FRONTEND ENTRIES ARE NOT OPTIONAL, AND LEAVING THEM OUT WAS A REAL BUG.
+#:
+#: This fixture copied `scripts`, `ci` and `.github/workflows` only. That was a
+#: complete copy of the verification system when it was written. It stopped
+#: being one when `gate_integrity.py` grew checks that reach into `frontend/`:
+#: it stats `playwright.config.ts`, it stats `e2e/util/attribution.ts`, it reads
+#: the mutation catalogue out of `scripts/mutation-gate.mjs`, and it stats every
+#: canvas source path the attribution map names.
+#:
+#: None of those existed in the sandbox, so the gate reported four missing files
+#: and exited 1 no matter what the test did. Five tests assert
+#: `integrity(sandbox).returncode == 0` — they were not testing the behaviour
+#: named in their own titles, they were failing on absent fixtures, and the
+#: failure looked like five unrelated CI-integrity bugs.
+#:
+#: The fix is the fixture, not the gate. Relaxing the gate when `frontend/` is
+#: absent would make a genuine deletion of any of these files pass silently,
+#: which is the exact thing it exists to catch.
+SANDBOX_PATHS = (
+    "scripts",
+    "ci",
+    ".github/workflows",
+    "frontend/playwright.config.ts",
+    "frontend/scripts",
+    "frontend/e2e/util",
+    # Whole directory rather than the handful of files the attribution map
+    # currently names: pinning the list here would mean this fixture had to be
+    # edited every time a renderer moved, and the day someone forgot, these
+    # tests would fail for a reason that has nothing to do with them.
+    "frontend/src/canvas",
+)
+
+
 @pytest.fixture
 def sandbox(tmp_path: Path) -> Path:
     """A copy of the verification system that tests may sabotage freely."""
-    for rel in ("scripts", "ci", ".github/workflows"):
+    for rel in SANDBOX_PATHS:
         src = REPO / rel
         dst = tmp_path / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(src, dst)
+        if src.is_dir():
+            shutil.copytree(src, dst)
+        else:
+            shutil.copy2(src, dst)
     (tmp_path / "reports").mkdir()
     return tmp_path
 

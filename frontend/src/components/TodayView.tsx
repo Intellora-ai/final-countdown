@@ -13,10 +13,14 @@ export function TodayView() {
 
   const start = (chId: string, cId: string) => {
     const cur = store.stateOf(chId, cId)
-    /* Every start is a write first and a navigation second — the record, the
-     * sidebar counts, today's plan and the node move together. */
+    /* The write, which was always the durable half of starting. The record,
+     * the sidebar counts, today's plan and the node still move together.
+     *
+     * The navigation is gone: it went to the learning canvas, which is
+     * disconnected while its design is reconsidered. Pressing start therefore
+     * marks the concept in progress and shows that immediately, rather than
+     * opening something that should not be opened yet. */
     if (cur !== 'inProgress' && cur !== 'mastered') store.setConceptState(chId, cId, 'inProgress', 'session')
-    nav('/canvas')
   }
 
   return (

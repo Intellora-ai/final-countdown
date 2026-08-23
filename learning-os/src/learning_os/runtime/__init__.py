@@ -11,10 +11,14 @@ from learning_os.runtime.loop import (
     TurnStatus,
     teach_once,
 )
+from learning_os.runtime.observe import PARTIAL_FLOOR, Observation, observe
 
 __all__ = [
     "MAX_GENERATION_ATTEMPTS",
+    "PARTIAL_FLOOR",
+    "Observation",
     "Turn",
     "TurnStatus",
+    "observe",
     "teach_once",
 ]

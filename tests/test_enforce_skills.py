@@ -23,11 +23,19 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any, cast
 
 HOOK = Path(__file__).resolve().parents[1] / "scripts" / "enforce_skills.py"
 
+# What the hook prints when it blocks. Named so every `result` below has a
+# concrete type rather than `dict[Unknown, Unknown]`.
+Decision = dict[str, str]
 
-def _load_hook_module():
+# One ("prompt" | "prompt-record" | "injected" | "skill", value) pair.
+Event = tuple[str, str]
+
+
+def _load_hook_module() -> Any:
     """
     Import the hook to read its REQUIRED tuple.
 
@@ -47,11 +55,19 @@ def _load_hook_module():
     return module
 
 
-REQUIRED = _load_hook_module().REQUIRED
+REQUIRED: tuple[str, ...] = _load_hook_module().REQUIRED
 
 
-def run_hook(**event) -> dict | None:
-    """Run the hook with an event on stdin. Returns its decision, or None."""
+def run_hook(**event: object) -> Decision | None:
+    """
+    Run the hook with an event on stdin. Returns its decision, or None.
+
+    Annotated to the parameter and cast on the way out because pyright runs
+    strict here: an untyped `**event` and a bare `dict` return made every
+    `result` in every test below partially-unknown, and pyright reported that
+    as twenty-one errors in files that were otherwise correct. The types are
+    not decoration --- without them the gate cannot see this file at all.
+    """
     proc = subprocess.run(
         [sys.executable, str(HOOK)],
         input=json.dumps(event),
@@ -64,7 +80,9 @@ def run_hook(**event) -> dict | None:
     # than in a test of its own.
     assert proc.returncode == 0, proc.stderr
     out = proc.stdout.strip()
-    return json.loads(out) if out else None
+    if not out:
+        return None
+    return cast(Decision, json.loads(out))
 
 
 def transcript(tmp_path: Path, *skills: str, truncated: bool = False) -> str:
@@ -87,7 +105,7 @@ def transcript(tmp_path: Path, *skills: str, truncated: bool = False) -> str:
     return str(path)
 
 
-def test_blocks_when_no_required_skill_was_invoked(tmp_path):
+def test_blocks_when_no_required_skill_was_invoked(tmp_path: Path):
     result = run_hook(transcript_path=transcript(tmp_path), session_id="a")
     assert result is not None
     assert result["decision"] == "block"
@@ -95,12 +113,12 @@ def test_blocks_when_no_required_skill_was_invoked(tmp_path):
         assert f"/{s}" in result["reason"]
 
 
-def test_passes_when_every_required_skill_was_invoked(tmp_path):
+def test_passes_when_every_required_skill_was_invoked(tmp_path: Path):
     path = transcript(tmp_path, *REQUIRED)
     assert run_hook(transcript_path=path, session_id="b") is None
 
 
-def test_names_only_the_missing_skill(tmp_path):
+def test_names_only_the_missing_skill(tmp_path: Path):
     """A gate that re-lists satisfied requirements teaches people to skim it."""
     satisfied = [s for s in REQUIRED if s != "investigate"]
     result = run_hook(transcript_path=transcript(tmp_path, *satisfied), session_id="c")
@@ -110,14 +128,14 @@ def test_names_only_the_missing_skill(tmp_path):
         assert f"/{s}" not in result["reason"]
 
 
-def test_accepts_plugin_prefixed_and_slash_prefixed_names(tmp_path):
+def test_accepts_plugin_prefixed_and_slash_prefixed_names(tmp_path: Path):
     """`pr-review-toolkit:rtk` and `/rtk` are the same skill to a human."""
     path = transcript(tmp_path, "pr-review-toolkit:rtk", "superpowers:systematic-debugging",
                       *[s for s in REQUIRED if s not in ("rtk", "systematic-debugging")])
     assert run_hook(transcript_path=path, session_id="d") is None
 
 
-def test_stop_hook_active_never_blocks(tmp_path):
+def test_stop_hook_active_never_blocks(tmp_path: Path):
     """Brake 1. Blocking while already resumed by a Stop hook IS the loop."""
     result = run_hook(
         transcript_path=transcript(tmp_path),
@@ -127,7 +145,7 @@ def test_stop_hook_active_never_blocks(tmp_path):
     assert result is None
 
 
-def test_ledger_caps_repeated_blocks(tmp_path):
+def test_ledger_caps_repeated_blocks(tmp_path: Path):
     """Brake 2. Independent of brake 1, so either alone ends the loop."""
     path = transcript(tmp_path)
     assert run_hook(transcript_path=path, session_id="f") is not None
@@ -136,7 +154,7 @@ def test_ledger_caps_repeated_blocks(tmp_path):
     assert run_hook(transcript_path=path, session_id="f") is None
 
 
-def test_ledger_is_per_session(tmp_path):
+def test_ledger_is_per_session(tmp_path: Path):
     """One session exhausting its blocks must not disarm the next one."""
     path = transcript(tmp_path)
     for _ in range(3):
@@ -144,7 +162,7 @@ def test_ledger_is_per_session(tmp_path):
     assert run_hook(transcript_path=path, session_id="h") is not None
 
 
-def test_unreadable_transcript_fails_open(tmp_path):
+def test_unreadable_transcript_fails_open(tmp_path: Path):
     """
     THE REGRESSION. No evidence of a violation is not evidence of one.
 
@@ -156,7 +174,7 @@ def test_unreadable_transcript_fails_open(tmp_path):
     assert run_hook(transcript_path=missing, session_id="i") is None
 
 
-def test_truncated_final_line_does_not_crash(tmp_path):
+def test_truncated_final_line_does_not_crash(tmp_path: Path):
     """The transcript is appended to while this reads it."""
     path = transcript(tmp_path, *REQUIRED, truncated=True)
     assert run_hook(transcript_path=path, session_id="j") is None
@@ -179,7 +197,7 @@ def test_missing_transcript_path_fails_open():
     assert run_hook(session_id="k") is None
 
 
-def turn_transcript(tmp_path: Path, *events) -> str:
+def turn_transcript(tmp_path: Path, *events: Event) -> str:
     """
     A transcript with real turn boundaries, IN THE ORDER THE HOST WRITES THEM.
 
@@ -196,10 +214,10 @@ def turn_transcript(tmp_path: Path, *events) -> str:
     suite was green against a fiction while the real hook blocked compliant
     turns. Use ("prompt-record",) to place the late record explicitly.
     """
-    lines = []
+    lines: list[str] = []
     for event in events:
         kind = event[0]
-        value = event[1] if len(event) > 1 else None
+        value = event[1] if len(event) > 1 else ""
         if kind == "prompt":
             lines.append(json.dumps({"type": "user", "message": {"role": "user", "content": value}}))
         elif kind == "prompt-record":
@@ -218,7 +236,7 @@ def turn_transcript(tmp_path: Path, *events) -> str:
     return str(path)
 
 
-def test_skills_invoked_before_the_late_last_prompt_record_still_count(tmp_path):
+def test_skills_invoked_before_the_late_last_prompt_record_still_count(tmp_path: Path):
     """
     THE REGRESSION. The gate blocked turns that had complied FIRST THING.
 
@@ -244,7 +262,7 @@ def test_skills_invoked_before_the_late_last_prompt_record_still_count(tmp_path)
     assert run_hook(transcript_path=path, session_id="late") is None
 
 
-def test_truncated_last_prompt_still_finds_its_turn(tmp_path):
+def test_truncated_last_prompt_still_finds_its_turn(tmp_path: Path):
     """
     `lastPrompt` is ellipsis-truncated for long prompts.
 
@@ -268,7 +286,7 @@ def test_truncated_last_prompt_still_finds_its_turn(tmp_path):
     assert "/rtk" in result["reason"]
 
 
-def test_credit_does_not_carry_across_turns(tmp_path):
+def test_credit_does_not_carry_across_turns(tmp_path: Path):
     """
     THE POINT OF `turn` SCOPE.
 
@@ -290,7 +308,7 @@ def test_credit_does_not_carry_across_turns(tmp_path):
         assert f"/{s}" in result["reason"]
 
 
-def test_skills_rerun_in_the_new_turn_satisfy_it(tmp_path):
+def test_skills_rerun_in_the_new_turn_satisfy_it(tmp_path: Path):
     path = turn_transcript(
         tmp_path,
         ("prompt", "first question"),
@@ -301,7 +319,7 @@ def test_skills_rerun_in_the_new_turn_satisfy_it(tmp_path):
     assert run_hook(transcript_path=path, session_id="t2") is None
 
 
-def test_repeated_last_prompt_records_are_one_turn(tmp_path):
+def test_repeated_last_prompt_records_are_one_turn(tmp_path: Path):
     """
     The host rewrites `last-prompt` with the SAME text many times inside one
     turn. Treating each write as a new turn would clear the credit the model
@@ -323,7 +341,7 @@ def test_repeated_last_prompt_records_are_one_turn(tmp_path):
     assert run_hook(transcript_path=path, session_id="t3") is None
 
 
-def test_skill_body_injection_does_not_reset_the_turn(tmp_path):
+def test_skill_body_injection_does_not_reset_the_turn(tmp_path: Path):
     """
     THE BUG THAT MADE THE `user` RECORD CARRYING THE PROMPT THE BOUNDARY.
 
@@ -343,7 +361,7 @@ def test_skill_body_injection_does_not_reset_the_turn(tmp_path):
     assert run_hook(transcript_path=str(path), session_id="t4") is None
 
 
-def test_ledger_budget_is_per_turn_not_per_session(tmp_path):
+def test_ledger_budget_is_per_turn_not_per_session(tmp_path: Path):
     """
     A session-keyed ledger would spend its whole budget on turn one and leave
     every later prompt ungated --- the gate switching itself off while still

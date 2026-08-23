@@ -6,10 +6,16 @@ import type { Lesson } from '../spec/spec'
 import {
   checkFrame,
   frameIsSafe,
+  noAccidentalVoid,
+  noCollision,
+  noOrphanEdge,
+  noOverflow,
   plan,
   profile,
   selectArchetype,
   type Archetype,
+  type Frame,
+  type Placed,
 } from './layout'
 
 /** The real lesson, through the real gate — a fixture that lies is worse than none. */
@@ -162,5 +168,107 @@ describe('a derived block stacks under its source', () => {
     const frame = plan(realLesson(), WIDE)
     const collision = checkFrame(frame).find((c) => c.name === 'noCollision')
     expect(collision?.ok, JSON.stringify(collision?.offenders)).toBe(true)
+  })
+})
+
+
+/* -------------------------------------------------------------------------- */
+/* The detectors, pointed at frames that are actually broken                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * WHY THESE EXIST, AND WHAT THEY CAUGHT.
+ *
+ * Every other test in this file runs the layout checks over a frame `plan`
+ * produced, and `plan` is correct — so the four detectors were only ever
+ * observed AGREEING with it. The mutation gate proved what that costs: changing
+ * `noCollision` to `return { ok: true }` unconditionally killed no test at all.
+ * A frame with two blocks sitting on top of each other would have shipped, and
+ * `frameIsSafe` would have said it was fine.
+ *
+ * That is the vacuous-validator failure this repo has hit before. The fix is
+ * not more lessons — a valid lesson can never produce an invalid frame — it is
+ * to hand-build the broken frames `plan` will never emit and check that each
+ * detector says no, and names the right offenders.
+ */
+
+function placed(over: Partial<Placed> & Pick<Placed, 'id'>): Placed {
+  return {
+    kind: 'prose',
+    band: 0,
+    col: 0,
+    span: 6,
+    rows: 2,
+    emphasis: 'supporting',
+    tone: 'neutral',
+    ...over,
+  }
+}
+
+function frameOf(blocks: Placed[], edges: Frame['edges'] = []): Frame {
+  return { archetype: 'reference', explain: 'hand-built for a detector test', columns: 12, blocks, edges }
+}
+
+describe('the layout detectors can actually fail', () => {
+  it('noCollision refuses two blocks overlapping in one band, and names both', () => {
+    const frame = frameOf([
+      placed({ id: 'left', band: 0, col: 0, span: 8 }),
+      placed({ id: 'right', band: 0, col: 6, span: 6 }),
+    ])
+    const result = noCollision(frame)
+    expect(result.ok, 'an overlap in band 0 was not detected').toBe(false)
+    expect([...result.offenders].sort()).toEqual(['left', 'right'])
+  })
+
+  it('noCollision allows the same columns in DIFFERENT bands', () => {
+    /* Without this, "detects a collision" could be satisfied by a check that
+       simply refuses every frame with two blocks in it. */
+    const frame = frameOf([
+      placed({ id: 'above', band: 0, col: 0, span: 12 }),
+      placed({ id: 'below', band: 1, col: 0, span: 12 }),
+    ])
+    expect(noCollision(frame).ok).toBe(true)
+  })
+
+  it('noCollision allows blocks that merely touch', () => {
+    /* col 0..5 and col 6..11 share an edge and no column. An off-by-one in the
+       comparison would report this as an overlap. */
+    const frame = frameOf([
+      placed({ id: 'a', band: 0, col: 0, span: 6 }),
+      placed({ id: 'b', band: 0, col: 6, span: 6 }),
+    ])
+    expect(noCollision(frame).ok).toBe(true)
+  })
+
+  it('noOverflow refuses a block running past the last column', () => {
+    const frame = frameOf([placed({ id: 'wide', band: 0, col: 8, span: 8 })])
+    const result = noOverflow(frame)
+    expect(result.ok, 'a block ending at column 16 of 12 was not detected').toBe(false)
+    expect(result.offenders).toContain('wide')
+  })
+
+  it('noOrphanEdge refuses an edge pointing at a block that was not placed', () => {
+    const frame = frameOf(
+      [placed({ id: 'real', band: 0, col: 0, span: 12 })],
+      [{ from: 'real', to: 'ghost', kind: 'supports' }],
+    )
+    const result = noOrphanEdge(frame)
+    expect(result.ok, 'an edge to a missing block was not detected').toBe(false)
+  })
+
+  it('frameIsSafe is false when any single detector is', () => {
+    /* The aggregate must not be an independent opinion. If it can be true while
+       noCollision is false, the checks below it are decoration. */
+    const broken = frameOf([
+      placed({ id: 'left', band: 0, col: 0, span: 8 }),
+      placed({ id: 'right', band: 0, col: 6, span: 6 }),
+    ])
+    expect(noCollision(broken).ok).toBe(false)
+    expect(frameIsSafe(broken)).toBe(false)
+
+    const clean = frameOf([placed({ id: 'only', band: 0, col: 0, span: 12 })])
+    expect(noCollision(clean).ok).toBe(true)
+    expect(noAccidentalVoid(clean).ok).toBe(true)
+    expect(frameIsSafe(clean)).toBe(true)
   })
 })

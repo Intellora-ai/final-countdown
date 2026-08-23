@@ -244,9 +244,16 @@
 /* -- Equation ----------------------------------------------------------- */
 /* Serif italic, large, and CENTRED in its block — the reference treats an
    equation as a statement, not as a line of body text. */
+/* `safe center`, not `center`, because this now sits inside a scroller.
+   A centred flex item that is WIDER than its box overflows equally on both
+   sides, and the left half lands before the scroll origin where no scrollbar
+   reaches it — the content is centred and half of it is unreachable. `safe`
+   keeps the centring while it fits and falls back to start alignment once it
+   does not, which is the same rule `.lc-figure-scroll > .lc-flow` states for
+   figures. */
 .lc-equation {
   display: flex;
-  justify-content: center;
+  justify-content: safe center;
   padding: var(--s-md) 0;
   color: var(--c-ink);
 }
@@ -375,8 +382,33 @@
 /* Controls                                                                   */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * IT WRAPS, BECAUSE THE LABELS ARE THE POINT.
+ *
+ * `inline-flex` with no wrap makes this pill ATOMIC: three lesson names come to
+ * about 398px, so at any viewport narrower than that the toggle is wider than
+ * the screen and pushes the whole DOCUMENT sideways. Measured: 78px of page
+ * overflow at 320, 23px at 375, 8px at 390 — exactly 398 minus the viewport
+ * each time, which is what identified this rather than the charts.
+ *
+ * `flex-wrap` on the toolbar around it cannot fix that. A flex container only
+ * breaks BETWEEN its children, and this pill is one child; the toolbar moves it
+ * to its own line and it is still too wide for the line.
+ *
+ * A page that scrolls sideways is worse than it sounds: the text column drifts
+ * under the reader's thumb on every vertical scroll, on the phone widths this
+ * product is most used at. Shrinking the labels to fit is the other option and
+ * it is the one this project forbids — disclose, don't shrink. So the pill
+ * wraps to a second row and every lesson name stays readable.
+ */
 .lc-toggle {
   display: inline-flex;
+  flex-wrap: wrap;
+  /* `min-width: 0` is what actually lets the wrap happen. A flex child defaults
+     to `min-width: auto`, which refuses to shrink below its own content — so
+     the pill stayed at its full width and `flex-wrap` never got a line short
+     enough to break. Adding the wrap alone changed nothing; measured. */
+  min-width: 0;
   padding: 2px;
   border: var(--stroke-hair) solid var(--c-line);
   border-radius: var(--r-pill);

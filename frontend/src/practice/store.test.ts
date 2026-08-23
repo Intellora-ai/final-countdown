@@ -5,6 +5,7 @@ import {
   MAX_QUESTIONS,
   MIN_QUESTIONS,
   TIMER_CHOICES,
+  TIMER_MAX_MINUTES,
   chapterCoverageOf,
   chapterLastPracticed,
   isChapterOpen,
@@ -87,9 +88,16 @@ describe("timer", () => {
     expect(settings.timerMinutes).toBe(30);
   });
 
+  /*
+   * This asserted `180` until the block below was written, and it PASSED — it
+   * was pinning the bug in place rather than catching it. A test can only
+   * check that the code does what it does; whether that is what was promised
+   * is a separate question, and this one never asked it. Corrected to the
+   * promised bound, not relaxed to fit the code.
+   */
   it("clamps absurd durations", () => {
     usePracticeStore.getState().setSettings({ timerMinutes: 9999 });
-    expect(usePracticeStore.getState().settings.timerMinutes).toBe(180);
+    expect(usePracticeStore.getState().settings.timerMinutes).toBe(TIMER_MAX_MINUTES);
   });
 });
 
@@ -407,7 +415,9 @@ describe("the cap survives the route the setter cannot see", () => {
 
     const settings = fresh.usePracticeStore.getState().settings;
     expect(settings.questionCount).toBe(fresh.MAX_QUESTIONS);
-    expect(settings.timerMinutes).toBe(180);
+    // Was `180`. This test closed the back door for the count and walked past
+    // the timer standing open right beside it — see the timer block above.
+    expect(settings.timerMinutes).toBe(fresh.TIMER_MAX_MINUTES);
 
     vi.unstubAllGlobals();
   });

@@ -91,6 +91,24 @@ function practiceStorage() {
 
 export const MAX_QUESTIONS = 15;
 export const MIN_QUESTIONS = 1;
+
+/**
+ * The timer bound the product promises: no shorter than 5 minutes, no longer
+ * than 30.
+ *
+ * THESE ARE THE RULE. `TIMER_CHOICES` IS ONLY A MENU.
+ * --------------------------------------------------
+ * The clamps below used to read `1, 180` while the menu offered 5 through 30,
+ * and because every button press lands on a menu value, nothing ever exercised
+ * the gap. Restored `localStorage` does not press buttons: a saved
+ * `{"timerMinutes":9999}` came back as a 166-hour "practice session" with the
+ * bound never consulted. The rule now lives in one place and both clamps read
+ * it, so the menu cannot drift away from the rule without the test below
+ * noticing.
+ */
+export const TIMER_MIN_MINUTES = 5;
+export const TIMER_MAX_MINUTES = 30;
+
 export const TIMER_CHOICES = [5, 10, 15, 20, 30] as const;
 
 const DEFAULT_SETTINGS: SessionSettings = {
@@ -199,7 +217,7 @@ export const usePracticeStore = create<PracticeState>()(
         set({
           settings: {
             timerEnabled: next.timerEnabled,
-            timerMinutes: clamp(next.timerMinutes, 1, 180),
+            timerMinutes: clamp(next.timerMinutes, TIMER_MIN_MINUTES, TIMER_MAX_MINUTES),
             // The cap lives here rather than in the input, so a session cannot
             // be launched with 200 questions by any route into the store.
             questionCount: clamp(Math.round(next.questionCount), MIN_QUESTIONS, MAX_QUESTIONS),
@@ -286,7 +304,7 @@ export const usePracticeStore = create<PracticeState>()(
           ...saved,
           settings: {
             timerEnabled: Boolean(settings.timerEnabled),
-            timerMinutes: clamp(settings.timerMinutes, 1, 180),
+            timerMinutes: clamp(settings.timerMinutes, TIMER_MIN_MINUTES, TIMER_MAX_MINUTES),
             questionCount: clamp(Math.round(settings.questionCount), MIN_QUESTIONS, MAX_QUESTIONS),
           },
         }

@@ -1,0 +1,54 @@
+[project]
+name = "learning-os"
+version = "0.1.0"
+description = "A replayable, verifiable instructional decision engine."
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# `-q` keeps CI logs readable; the annotator downstream reads the JSON report,
+# not this text.
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+packages = ["learning_os"]
+mypy_path = "src"
+warn_unreachable = true
+
+# `disallow_any_explicit` was set here and removed. It sounds right for a
+# decision engine -- an untyped dict crossing the policy layer is exactly what
+# makes a wrong decision unexplainable later -- but it does not do that job. It
+# fired on every `class X(_Frozen)` line, because pydantic's own `BaseModel`
+# signature is typed with `Any`, so the twelve errors it produced were all about
+# pydantic and none about this code.
+#
+# Silencing them would have meant an ignore on every model in the file, which
+# trains the eye to skim exactly the lines the rule exists to make you read.
+# `strict = true` already forbids untyped defs and implicit Any, which is the
+# part that actually protects the state.

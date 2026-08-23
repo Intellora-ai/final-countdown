@@ -64,3 +64,10 @@ screenshots/
 # one commit. Ignored by pattern rather than by path, because the same trap
 # waits in any other Next.js app added later.
 .next/
+
+# learning-os has its own virtualenv; it is machine-local.
+learning-os/.venv/
+learning-os/*.egg-info/
+learning-os/.pytest_cache/
+learning-os/.mypy_cache/
+learning-os/.ruff_cache/

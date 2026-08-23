@@ -172,7 +172,12 @@ def teach_once(
 
         violations = validate(contract, content)
         if is_usable(violations):
-            _record(memory, contract, Outcome.SUCCESS, content=content)
+            # DELIVERED, not SUCCESS. What just happened is that the model
+            # honoured its contract -- which says nothing about whether the
+            # learner understood. `observe` writes the real outcome when they
+            # answer. Recording SUCCESS here made every mechanism permanently
+            # un-burnable; see `Outcome.DELIVERED`.
+            _record(memory, contract, Outcome.DELIVERED, content=content)
             return Turn(
                 status=TurnStatus.TAUGHT,
                 decision=decision,

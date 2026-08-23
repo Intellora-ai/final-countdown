@@ -74,14 +74,35 @@ def _run(
 # --------------------------------------------------------------------------
 
 
-def test_a_good_turn_teaches_and_records_a_success() -> None:
+def test_a_good_turn_teaches_and_records_it_as_delivered() -> None:
+    """REWRITTEN. It asserted `Outcome.SUCCESS` -- the bug stated as a
+    requirement, which is why nothing caught it.
+
+    What a good turn establishes is that the MODEL honoured its contract.
+    Whether the TEACHING worked is unknown until the learner answers, and
+    `observe` writes that separately. Recording success here handed every
+    mechanism a clearing success the instant its content validated, so
+    `failed - worked` was empty forever and nothing could ever be excluded.
+    """
     m = MemoryStore()
     turn = _run(FakeLLMClient(), m)
 
     assert turn.status is TurnStatus.TAUGHT
     assert turn.content is not None
     assert turn.attempts == 1
-    assert m.attempts_on(TRACE)[0].outcome is Outcome.SUCCESS
+    assert m.attempts_on(TRACE)[0].outcome is Outcome.DELIVERED
+
+
+def test_teaching_something_does_not_clear_it_for_future_exclusion() -> None:
+    """The consequence, asserted where a regression would show.
+
+    A mechanism that has only been DELIVERED has neither failed nor worked, so
+    it stays available now and stays burnable once an answer arrives.
+    """
+    m = MemoryStore()
+    _run(FakeLLMClient(), m)
+    assert m.succeeded_with(TRACE) == frozenset(), "delivery counted as teaching success"
+    assert m.failed_mechanisms(TRACE) == frozenset(), "delivery counted as failure"
 
 
 def test_content_is_validated_rather_than_trusted() -> None:

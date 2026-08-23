@@ -54,6 +54,26 @@ class Outcome(StrEnum):
     PARTIAL = "partial"
     FAILURE = "failure"
 
+    #: Content was generated and passed validation. The LEARNER has not answered
+    #: yet, so nothing is known about whether the teaching worked.
+    #:
+    #: THIS STATE WAS MISSING, AND ITS ABSENCE DISABLED THE FALLBACK ENGINE.
+    #:
+    #: `teach_once` records an attempt on every terminal state, correctly -- the
+    #: policy has to know a mechanism was tried. But it recorded a successful
+    #: GENERATION as `SUCCESS`, and `_burned` reads a success as "this teaching
+    #: worked on this learner". Two different claims, one field.
+    #:
+    #: The consequence was total rather than partial. Every taught mechanism
+    #: acquired a SUCCESS the moment its content validated, so `failed - worked`
+    #: was empty for it forever and nothing could ever be burned. The fallback
+    #: engine could not fire in the live loop at any point in its history.
+    #:
+    #: It looked healthy because every test exercising exclusion built the
+    #: memory by hand -- a bare FAILURE attempt, which the live loop never
+    #: produces. The mechanism was verified on input production cannot generate.
+    DELIVERED = "delivered"
+
 
 @dataclass(frozen=True, slots=True)
 class Attempt:
@@ -185,6 +205,10 @@ class MemoryStore:
         """
         attempts = self.attempts_on(skill_id)
         failed = {key(a) for a in attempts if a.outcome is Outcome.FAILURE}
+        # DELIVERED is deliberately in NEITHER set. Content reaching the learner
+        # is not evidence the teaching worked, and counting it as `worked` is
+        # what silently disabled exclusion: a mechanism can never be burned if
+        # merely being tried clears it.
         worked = {
             key(a) for a in attempts if a.outcome in (Outcome.SUCCESS, Outcome.PARTIAL)
         }

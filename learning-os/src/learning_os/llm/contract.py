@@ -71,6 +71,16 @@ class Strategy(StrEnum):
     WORKED_EXAMPLE = "worked_example"
     BROKEN_EXAMPLE_REPAIR = "broken_example_repair"
     TRANSFER_CHALLENGE = "transfer_challenge"
+    #: Say the same thing in a different FORM -- a diagram where prose failed, a
+    #: table where a chart failed.
+    #:
+    #: Added because `REPRESENTATION_FAILURE` had no mechanism that addressed it.
+    #: The diagnosis existed, the table mapped it to analogy and contrast, and
+    #: neither of those changes the representation -- so the policy was picking
+    #: the least-bad neighbour and could not say so. A diagnosis whose mechanism
+    #: does not exist is a diagnosis the engine cannot act on, which is worse
+    #: than not having the diagnosis. Reported by session final-countdown-6a.
+    CHANGE_REPRESENTATION = "change_representation"
     CONTRAST = "contrast"
     DECOMPOSITION = "decomposition"
     ANALOGY = "analogy"
@@ -163,6 +173,19 @@ class InstructionContract(_Frozen):
     #: learner's evidence. Law 3 bans colour, size and spacing; it does not ban
     #: saying what has taught this person before.
     preferred_representations: tuple[str, ...] = ()
+
+    #: Representations already used on this skill, whatever the outcome.
+    #:
+    #: Read by the model as "not these", and the reason `CHANGE_REPRESENTATION`
+    #: can mean anything at all. Without it the instruction is "say it
+    #: differently" with no way to know what has already been said, so the model
+    #: reaches for the most obvious form -- which is the one that just failed.
+    #:
+    #: Distinct from `preferred_representations`, which carries what WORKED. A
+    #: form can be in neither, in one, or in both: tried-and-worked is a
+    #: preference; tried-and-failed is an exclusion; both together mean it has a
+    #: mixed record and the model should decide.
+    avoid_representations: tuple[str, ...] = ()
 
     simplicity: SimplicityConstraints = SimplicityConstraints()
 

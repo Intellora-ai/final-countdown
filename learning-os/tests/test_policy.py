@@ -621,3 +621,58 @@ def test_the_protocol_stayed_narrow() -> None:
     """
     assert not hasattr(_Bottleneck(TRACE), "estimate")
     assert isinstance(_Bottleneck(TRACE), BottleneckLike)
+
+
+def test_representation_failure_leads_with_a_mechanism_that_changes_the_form() -> None:
+    """THE GAP 6a RECORDED AS "A DIAGNOSIS WHOSE MECHANISM DOES NOT EXIST".
+
+    `REPRESENTATION_FAILURE` mapped to analogy and contrast, and neither changes
+    the FORM — they change the words. The ordering was defensible and the
+    vocabulary was short a mechanism, so the table picked the least-bad
+    neighbour and had no way to say so.
+    """
+    d = _decide(_Bottleneck(TRACE), MemoryStore(), DiagnosisKind.REPRESENTATION_FAILURE)
+    assert d.contract.strategy is Strategy.CHANGE_REPRESENTATION
+
+
+def test_forms_already_used_reach_the_model_as_avoid() -> None:
+    """`representations_tried` was built and read by NOTHING outside its own
+    test, which made `store.py`'s claim false that every retrieval exists because
+    some decision reads it.
+
+    It matters here specifically: "say it differently" without knowing what has
+    been said sends the model to the most obvious form, which is the one that
+    just failed.
+    """
+    m = MemoryStore()
+    for rep, outcome in (("prose", Outcome.FAILURE), ("diagram", Outcome.SUCCESS)):
+        m.record_attempt(
+            Attempt(
+                skill_id=TRACE,
+                action=ActionKind.TEACH_BY_EXAMPLE,
+                representation=rep,
+                outcome=outcome,
+                mechanism=f"mech_{rep}",
+            )
+        )
+    d = _decide(_Bottleneck(TRACE), m, DiagnosisKind.REPRESENTATION_FAILURE)
+    assert d.contract.avoid_representations == ("diagram", "prose")
+
+
+def test_avoid_and_preferred_are_different_questions() -> None:
+    """`avoid` is everything TRIED; `preferred` is what WORKED. A form can be in
+    both — tried and worked — which means it has a record rather than a verdict,
+    and the model decides."""
+    m = MemoryStore()
+    m.record_attempt(
+        Attempt(
+            skill_id=TRACE,
+            action=ActionKind.TEACH_BY_EXAMPLE,
+            representation="diagram",
+            outcome=Outcome.SUCCESS,
+            mechanism="mech_diagram",
+        )
+    )
+    c = _decide(_Bottleneck(TRACE), m, DiagnosisKind.CONCEPT_GAP).contract
+    assert c.preferred_representations == ("diagram",)
+    assert c.avoid_representations == ("diagram",)

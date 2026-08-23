@@ -145,6 +145,7 @@ _ACTION_FOR: dict[Strategy, ActionKind] = {
     Strategy.WORKED_EXAMPLE: ActionKind.TEACH_BY_EXAMPLE,
     Strategy.BROKEN_EXAMPLE_REPAIR: ActionKind.REPAIR_BROKEN_EXAMPLE,
     Strategy.TRANSFER_CHALLENGE: ActionKind.TRANSFER_CHALLENGE,
+    Strategy.CHANGE_REPRESENTATION: ActionKind.TEACH_BY_EXAMPLE,
     Strategy.CONTRAST: ActionKind.TEACH_BY_EXAMPLE,
     Strategy.DECOMPOSITION: ActionKind.TEACH_BY_EXAMPLE,
     Strategy.ANALOGY: ActionKind.TEACH_BY_EXAMPLE,
@@ -187,7 +188,17 @@ _STRATEGIES_FOR: dict[DiagnosisKind, tuple[Strategy, ...]] = {
         Strategy.WORKED_EXAMPLE,
         Strategy.GUIDED_REASONING,
     ),
-    DiagnosisKind.REPRESENTATION_FAILURE: (Strategy.ANALOGY, Strategy.CONTRAST),
+    # LEADS WITH THE MECHANISM THAT ACTUALLY ADDRESSES IT.
+    #
+    # This mapped to analogy and contrast, and neither changes the FORM -- they
+    # change the words. The ordering was defensible and the vocabulary was short
+    # a mechanism, so the table was picking the least-bad neighbour with no way
+    # to say so. `CHANGE_REPRESENTATION` is that missing mechanism.
+    DiagnosisKind.REPRESENTATION_FAILURE: (
+        Strategy.CHANGE_REPRESENTATION,
+        Strategy.ANALOGY,
+        Strategy.CONTRAST,
+    ),
     # ANALOGY FIRST. The learner HAS the concept and lacks the phrasing, so a
     # worked example in the same phrasing is the least likely mechanism to help —
     # it repeats the exact thing that did not land. An analogy restates in
@@ -414,6 +425,15 @@ def select_action(
     # Sorted, because a frozenset iterates in an order that depends on the
     # process, and a decision that differs between runs cannot be replayed.
     worked = tuple(sorted(memory.succeeded_with(skill_id)))
+    # Every form already used here, whatever the outcome.
+    #
+    # `representations_tried` was built and read by NOTHING outside its own test
+    # -- which made `store.py`'s own claim false, that every retrieval exists
+    # because some decision reads it. It has a consumer now, and it is the one
+    # that makes `CHANGE_REPRESENTATION` mean something: "say it differently"
+    # without knowing what has been said sends the model to the most obvious
+    # form, which is the one that just failed.
+    tried = tuple(sorted(memory.representations_tried(skill_id)))
     if worked:
         # A preference, never a rule. A system that always repeats its last
         # success stops adapting the moment it finds one.
@@ -460,6 +480,7 @@ def select_action(
         known_prerequisites=known_prerequisites,
         weak_subskills=(skill_id,),
         preferred_representations=worked,
+        avoid_representations=tried,
         simplicity=constraints,
         required_terms=required,
         forbidden_phrases=forbidden,

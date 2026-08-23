@@ -160,6 +160,10 @@ _SKELETONS: dict[Strategy, tuple[tuple[str, str], ...]] = {
         ("prose", "A common belief about {skill}, and the case that breaks it."),
         ("callout", "What is true instead."),
     ),
+    Strategy.CHANGE_REPRESENTATION: (
+        ("prose", "{skill}, in a different form this time."),
+        ("table", "The same thing laid out rather than described."),
+    ),
     Strategy.NEW_CONTEXT: (
         ("prose", "{skill} again, somewhere it has not been seen."),
     ),

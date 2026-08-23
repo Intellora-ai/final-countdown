@@ -136,6 +136,33 @@ called it or what the engine calls it. Doc 03 §3 has the mapping.
 | `similarity(a, b)` | Content-word overlap |
 | `SAME_EXPLANATION = 0.6` | The novelty threshold |
 
+### Invariant 4 — every memory has future decision utility
+
+`relevant(skill_id, limit=8)` is where this is enforced, and the enforcement is
+in the **ordering**, not in what gets written.
+
+Attempts come back ranked by how much they constrain the next decision, not by
+recency:
+
+```python
+rank = {Outcome.FAILURE: 0, Outcome.PARTIAL: 1, Outcome.SUCCESS: 2}
+# failures first, then partials, then successes; recency breaks ties within a band
+```
+
+A failure is the most decision-changing thing in the log because it **removes an
+option**. A success is the least, because it only confirms one. Sorting by
+recency instead would surface whatever happened last, which is unrelated to
+whether it changes anything.
+
+`limit` is the other half. A decision context that grows without bound is
+eventually truncated by something that did not choose what to drop — a token
+window, a prompt builder, a database page. Truncating here means the thing
+dropped is the least relevant one, rather than whichever happened to be last.
+
+That is the whole of invariant 4 in practice: nothing is retained "just in
+case", and retrieval is ordered by decision impact. If a stored field is never
+read by a decision, it fails this invariant and should not be stored.
+
 ### `failed_strategies` excludes anything that also succeeded
 
 Invariant 7 says a failed strategy cannot repeat without a reason. It does not

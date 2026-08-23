@@ -4,21 +4,17 @@
 This document describes it.
 **Read with:** doc 02 §5 (`Decision`, `CandidateAction`), doc 01 §5 (`memory/`).
 
-> **Pinned to `60b3bf4`** on `learning-os/llm`, the integration branch —
-> `api domain llm memory models policy runtime verifiers`. Verified on CI's
-> configuration (Python 3.12, hash-locked install): **207 tests passing**, ruff
-> clean, `mypy --strict` clean over 30 files.
+> **Pinned to `2e0832d`** on `learning-os/llm`, the integration branch —
+> `api domain llm mastery memory models policy runtime verifiers`. **262 tests
+> passing**, ruff clean, `mypy --strict` clean, as measured by session
+> `final-countdown-2d` on CI's configuration (Python 3.12, hash-locked install).
+> Counted independently here: 238 `def test_` across 11 files, the difference
+> being parametrised cases.
 >
-> **§5's reason-code list describes `045cbbe`**, a descendant of the pin —
-> `PREREQUISITE_FIRST` was deleted there, taking the enum from ten to nine.
-> Verified by enumerating the enum at that commit, not by trusting the report.
->
-> `diagnosis/` is described in §9 against **`ebc4059`** on
-> `learning-os/diagnosis`, which is stacked on this branch and **not yet
-> integrated**. `mastery/` **landed at `f4b2fe6`**, after this pin — `mastery/estimate.py`
-> plus `tests/test_mastery.py`. Like `diagnosis/`, it is built and tested and
-> **nothing outside its own tests imports it**. The earlier note here said it
-> was not started; that was true at the pin and is no longer.
+> `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
+> stacked above this pin and **not yet integrated**. `mastery/` is integrated
+> into the branch and **imported by nothing but its own tests** — doc 07 §9.1
+> for why that is a distinct state from done.
 
 ---
 
@@ -441,3 +437,132 @@ never in the person.
 
 Defect 2 is the one to fix first. Defects of that class are invisible to both
 test suites by construction, which is the property that makes them survive.
+
+---
+
+## 10. Choosing the mechanism — `_STRATEGIES_FOR` and proficiency
+
+> Describes **`2e0832d`**. The table was undescribed until now, which is part of
+> why three of its orderings went unexamined for as long as they did.
+
+### 10.1 Ordered preference, not a single answer
+
+Each `DiagnosisKind` maps to a tuple of `Strategy`, best first. Ordered rather
+than singular because the first choice may already have failed for this learner,
+and the fallback needs somewhere to go **that is not a paraphrase**. §45: the
+next intervention must change the *mechanism*.
+
+| Diagnosis | Mechanisms, best first |
+|---|---|
+| `TERM_GAP` | contrast · worked example · analogy |
+| `CONCEPT_GAP` | worked example · contrast · analogy · decomposition |
+| `PREREQUISITE_GAP` | prerequisite repair · decomposition |
+| `MISCONCEPTION` | misconception repair · contrast |
+| `CAUSAL_REASONING_FAILURE` | guided reasoning · contrast · worked example |
+| `PROCEDURAL_FAILURE` | broken-example repair · worked example · guided reasoning |
+| `REPRESENTATION_FAILURE` | analogy · contrast |
+| `LANGUAGE_FAILURE` | analogy · worked example |
+| `COGNITIVE_OVERLOAD` | decomposition · worked example |
+| `TRANSFER_FAILURE` | new context · transfer challenge |
+
+Two of these leads were reversed after review:
+
+**`TERM_GAP` leads with contrast.** A term gap is a **boundary** problem — what
+does this word include, and what does it exclude. Contrast is the mechanism for
+a boundary. A worked example demonstrates a procedure and can be followed start
+to finish without the term ever landing: the learner finishes it and still
+cannot say what the word means.
+
+**`LANGUAGE_FAILURE` leads with analogy.** The learner *has* the concept and
+lacks the phrasing, so a worked example in the same phrasing repeats the exact
+thing that did not land. An analogy restates in different terms, which is the
+thing actually missing.
+
+**One entry is still a known gap.** `REPRESENTATION_FAILURE` maps to analogy and
+contrast, and **neither mechanism changes the representation**. No strategy in
+the enum does. The ordering is defensible; the vocabulary is short a mechanism,
+and the table is picking the least-bad neighbour without being able to say so.
+
+### 10.2 `PROCEDURAL_FAILURE` needed a parameter, not a better ordering
+
+`BROKEN_EXAMPLE_REPAIR` presupposes the learner knows what correct looks like.
+
+- For a learner whose procedure is nearly right, it is the sharpest mechanism
+  available.
+- For a learner who never had the procedure, it asks them to find a fault in
+  something they cannot read. Not a harder task — a different one, and an
+  impossible one.
+
+Those are materially different states, and §67 says materially different states
+must not get the same next action. **One ordering across both is that
+requirement failing quietly**, which is the dangerous kind: the policy looks
+decisive while it is compromising.
+
+The interface was the problem, not the table. `BottleneckLike` exposes
+`skill_id`, `confidence`, `needs_diagnostic` and no estimate, so the policy could
+not distinguish the two learners even in principle. The fix is a parameter:
+
+```python
+NEARLY_RIGHT = 0.55   # above this, treat the procedure as roughly right
+```
+
+`_reorder_for_proficiency` promotes `WORKED_EXAMPLE` to first for
+`PROCEDURAL_FAILURE` below that bar, and leaves every other diagnosis untouched.
+
+**The threshold is calibrated by what each mistake costs, not by data, and the
+source says so.** Handing a broken example to somebody who never had the
+procedure is impossible; handing a worked example to somebody nearly right is
+merely slow. So the bar sits above the midpoint: under uncertainty, make the
+cheaper mistake. That is a recalibratable statement rather than an arguable one.
+
+**`proficiency=None` means the caller does not know, and the ordering stays as
+authored.** Guessing would manufacture divergence out of absent information,
+which is the failure on the other side of §67 — a policy that always diverges is
+exactly as broken as one that never does, and only one of them looks broken.
+
+A default parameter no caller passes is a dead parameter, so the runtime threads
+it: `teach_once` takes `proficiency` and forwards it.
+
+### 10.3 An override changes what is taught, not how much can be held
+
+`_constraints_for` is variadic and takes **both** the arriving diagnosis and the
+final one, applying the tighter.
+
+A misconception override replaces the diagnosis for the purpose of choosing a
+mechanism. It does not repeal a capacity limit. Before this, a learner arriving
+as `COGNITIVE_OVERLOAD` who also held a live misconception silently lost
+`max_blocks=1` **and** lost `DECOMPOSED_FOR_LOAD` from the record — measured at
+1 block becoming 4, the maximum, with no trace that overload had ever been
+diagnosed.
+
+Overload is a capacity condition. It does not stop being true because a
+misconception was also found, and a full-budget repair delivered to an
+overloaded learner is the §52 failure reached by a path that looks like a
+correct override.
+
+### 10.4 `DIAGNOSE` is an action, not a label
+
+When `bottleneck.needs_diagnostic` is true the contract now carries
+`ActionKind.DIAGNOSE` and a success condition stating that the response must
+**distinguish which hypothesis holds** — rather than demonstrate mastery.
+
+The learner still experiences teaching (§29): the strategy and its wording are
+unchanged. What changes is what the runtime does with the response.
+
+This was found by strengthening the reason-code test from reachability to
+consequence — see doc 07 §9.2 — and it was caught on the first run.
+
+### 10.5 `preferred_representations`
+
+`InstructionContract` now carries the representations that have worked for this
+learner on this skill, sorted.
+
+Sorted because a `frozenset` iterates in an order that depends on the process,
+and a decision that differs between runs cannot be replayed (invariant 12). A
+set with no deterministic order is a replayability bug hiding in a field that
+looks like plain data.
+
+Until this existed, `REPRESENTATION_WORKED_BEFORE` was emitted from a truthiness
+check whose value was discarded, into a contract with nowhere to put it — which
+made `MemoryStore.succeeded_with`'s own docstring ("read by the policy layer as
+a preference") false.

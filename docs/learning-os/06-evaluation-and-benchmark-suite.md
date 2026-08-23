@@ -3,16 +3,17 @@
 **Status:** not yet built. This document specifies it.
 **Read with:** doc 02 §6 (`EvaluationStatus`), doc 05 §8 (the safety reading).
 
-> **Pinned to `60b3bf4`** on `learning-os/llm`, the integration branch —
-> `api domain llm memory models policy runtime verifiers`. Verified on CI's
-> configuration (Python 3.12, hash-locked install): **207 tests passing**, ruff
-> clean, `mypy --strict` clean over 30 files.
+> **Pinned to `2e0832d`** on `learning-os/llm`, the integration branch —
+> `api domain llm mastery memory models policy runtime verifiers`. **262 tests
+> passing**, ruff clean, `mypy --strict` clean, as measured by session
+> `final-countdown-2d` on CI's configuration (Python 3.12, hash-locked install).
+> Counted independently here: 238 `def test_` across 11 files, the difference
+> being parametrised cases.
 >
 > `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
-> which is stacked on this branch and **not yet integrated**. `mastery/` **landed at `f4b2fe6`**, after this pin — `mastery/estimate.py`
-> plus `tests/test_mastery.py`. Like `diagnosis/`, it is built and tested and
-> **nothing outside its own tests imports it**. The earlier note here said it
-> was not started; that was true at the pin and is no longer.
+> stacked above this pin and **not yet integrated**. `mastery/` is integrated
+> into the branch and **imported by nothing but its own tests** — doc 07 §9.1
+> for why that is a distinct state from done.
 
 ---
 
@@ -174,16 +175,25 @@ correct; the benchmark proves a change is an improvement.
 Current measured state:
 
 ```
-207 tests, all passing
+262 tests, all passing        (at 2e0832d)
 ruff check      clean
-mypy --strict   clean on src and tests (30 files)
+mypy --strict   clean on src and tests
 ```
 
-Verified twice, on purpose: once on Python 3.14 with an editable install (the
-developer configuration), and once on **Python 3.12 with the hash-locked install
-CI actually uses**. Both green. Checking only the first is what hid the sandbox
-escape, and the workflow pins 3.12 while the local venv is 3.14 — a version skew
-worth re-checking after any dependency change.
+**Provenance, because it differs between the two figures this document has
+carried.** The earlier `207 / 30 files` was measured here, twice on purpose:
+once on Python 3.14 with an editable install (the developer configuration), and
+once on **Python 3.12 with the hash-locked install CI actually uses**. Both
+green. Checking only the first is what hid the sandbox escape, and the workflow
+pins 3.12 while the local venv is 3.14 — a version skew worth re-checking after
+any dependency change.
+
+The current `262` is **reported by session `final-countdown-2d`, not measured
+here**: no interpreter available to this session has pytest installed. What was
+verified independently is 238 `def test_` across 11 files; parametrised cases
+account for the rest. Recording which number was run and which was relayed is
+the same discipline as pinning a commit — a figure with no provenance cannot be
+checked later.
 
 Until `6eef301` this read 99 of 100, and the failure was the sandbox test in
 doc 03 §4. It is worth keeping in this document because of *how* it hid: the

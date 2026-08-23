@@ -9,16 +9,17 @@ above. Where this document and that commit disagree, the commit is right and
 this document is a bug. Naming the commit is what makes that sentence
 checkable — "the code" was five different commits when this was written.
 
-> **Pinned to `60b3bf4`** on `learning-os/llm`, the integration branch —
-> `api domain llm memory models policy runtime verifiers`. Verified on CI's
-> configuration (Python 3.12, hash-locked install): **207 tests passing**, ruff
-> clean, `mypy --strict` clean over 30 files.
+> **Pinned to `2e0832d`** on `learning-os/llm`, the integration branch —
+> `api domain llm mastery memory models policy runtime verifiers`. **262 tests
+> passing**, ruff clean, `mypy --strict` clean, as measured by session
+> `final-countdown-2d` on CI's configuration (Python 3.12, hash-locked install).
+> Counted independently here: 238 `def test_` across 11 files, the difference
+> being parametrised cases.
 >
 > `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
-> which is stacked on this branch and **not yet integrated**. `mastery/` **landed at `f4b2fe6`**, after this pin — `mastery/estimate.py`
-> plus `tests/test_mastery.py`. Like `diagnosis/`, it is built and tested and
-> **nothing outside its own tests imports it**. The earlier note here said it
-> was not started; that was true at the pin and is no longer.
+> stacked above this pin and **not yet integrated**. `mastery/` is integrated
+> into the branch and **imported by nothing but its own tests** — doc 07 §9.1
+> for why that is a distinct state from done.
 
 ---
 
@@ -516,7 +517,7 @@ session:
 
 | Check | Result |
 |---|---|
-| `pytest tests -q` | **207 tests, all passing** |
+| `pytest tests -q` | **262 tests, all passing** at `2e0832d` |
 | `ruff check src tests` | clean |
 | `mypy --strict src/learning_os` | clean on src and tests |
 
@@ -528,3 +529,99 @@ every validator in this document is exercised and green.
 `Outcome`, `similarity()`, `SAME_EXPLANATION`, `failed_strategies()`,
 `succeeded_with()`, `is_repeat()`, `relevant()`). It supplies invariants 4
 and 7; described in doc 01 §5.
+
+---
+
+## 11. `mastery/estimate.py` — the learner model as built
+
+> Describes **`2e0832d`** on `learning-os/llm`. §3 states the *contract* for
+> learner state; this is the module that computes it.
+
+### 11.1 Nine states, because a threshold on a number cannot say the useful thing
+
+```
+UNKNOWN · INSUFFICIENT_EVIDENCE · FRAGILE · DEVELOPING · FUNCTIONAL
+STRONG · MASTERED · DECAYING · MISCONCEIVED
+```
+
+The argument for nine rather than a cutoff is worth keeping, because it is the
+same argument doc 05 §1 makes about closed vocabularies and it lands on the
+opposite conclusion — here the vocabulary needs to be *wider*, not narrower.
+
+- `INSUFFICIENT_EVIDENCE` and `FRAGILE` sit at the same place on any scale and
+  call for **opposite** responses: gather more, versus consolidate what is
+  there.
+- `DECAYING` and `DEVELOPING` can share an estimate and mean the reverse of
+  each other.
+
+A single number cannot distinguish those pairs, so a system built on one will
+respond identically to learners who need opposite things — and will look
+perfectly reasonable doing it.
+
+### 11.2 `EVIDENCE_WEIGHT` — the hierarchy is the claim, the numbers are not
+
+| Evidence | Weight |
+|---|---|
+| `INDEPENDENT_NOVEL_TRANSFER` | 1.00 |
+| `INDEPENDENT_APPLICATION` | 0.85 |
+| `REPAIR_OR_CONSTRUCTION` | 0.75 |
+| `OWN_WORD_EXPLANATION` | 0.60 |
+| `PREDICTION` | 0.50 |
+| `RECALL` | 0.35 |
+| `RECOGNITION` | 0.25 |
+| `ANSWER_AFTER_HINT` | 0.15 |
+| `ANSWER_AFTER_EXPLANATION` | 0.10 |
+| `SELF_REPORT` | **0.05** |
+
+The tests hold **monotonicity**, not the values. That is the right property to
+freeze: the numbers are a starting hypothesis awaiting calibration, and pinning
+them would make recalibration a schema change, while pinning the order means
+recalibration cannot silently invert the hierarchy.
+
+**`SELF_REPORT` at 0.05 is how invariant 8 is satisfied without being a special
+case.** Self-report can nudge an estimate and can never carry one. Compare
+`SELF_REPORT_WEIGHT = 1.25` in doc 04 §9.3, which is the same principle applied
+to a different question: admissible for *where to look*, near-worthless for
+*how good they are*.
+
+**It was missing from this table, and the absence was worse than a wrong
+weight.** `EVIDENCE_WEIGHT[SELF_REPORT]` raised `KeyError` inside `update()`, so
+the first learner to type "I get it" would have crashed the estimator
+mid-lesson. A dict lookup over an enum is an exhaustiveness obligation that
+nothing checks — worth a test that iterates the enum rather than the table.
+
+### 11.3 Two gates that a single number would collapse
+
+```python
+min_evidence_for_any_claim = 2   # below this, an estimate is a guess whatever its value
+min_diversity_for_mastery  = 3   # two demonstrations of one kind are one, repeated
+```
+
+`min_diversity_for_mastery` is invariant 10 in executable form. It is the
+counterpart of `evidence_diversity` in §2: **volume is not variety**, and a
+learner who has answered ten multiple-choice questions has demonstrated one
+thing ten times.
+
+`Gates` is frozen and **passed in**, not read from a module constant, so
+mathematics and vocabulary can disagree about what mastery means without either
+editing the other's definition. Same reasoning for `DomainWeights`: V1 ships one
+set for programming, and the point is that they are **data**, so a new domain
+needs no estimator change.
+
+### 11.4 `LEARNING_RATE = 0.35`
+
+Deliberately small. A rate near 1 makes the newest answer the whole estimate,
+which turns a lucky guess into mastery and a careless slip into a regression.
+The number a learner-facing system must not be jumpy about is this one.
+
+### 11.5 `RETENTION_SCHEDULE` is a default, not a constant
+
+The right spacing is an empirical question per domain, and freezing one schedule
+is how a system stops being able to learn the answer. Consistent with §6: the
+thing that adapts is reviewed and versioned, never adapted live.
+
+### 11.6 Integration status
+
+**Nothing outside `tests/test_mastery.py` imports `mastery`.** It is built,
+tested, and consumed by no other module — the same state `diagnosis/` was in.
+See doc 07 §9 for why that is not "done".

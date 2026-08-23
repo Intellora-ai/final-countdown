@@ -4,16 +4,17 @@
 **V1 domain:** Python programming, specifically recursion.
 **Read with:** doc 02 (contracts), doc 03 (verifier interface).
 
-> **Pinned to `60b3bf4`** on `learning-os/llm`, the integration branch —
-> `api domain llm memory models policy runtime verifiers`. Verified on CI's
-> configuration (Python 3.12, hash-locked install): **207 tests passing**, ruff
-> clean, `mypy --strict` clean over 30 files.
+> **Pinned to `2e0832d`** on `learning-os/llm`, the integration branch —
+> `api domain llm mastery memory models policy runtime verifiers`. **262 tests
+> passing**, ruff clean, `mypy --strict` clean, as measured by session
+> `final-countdown-2d` on CI's configuration (Python 3.12, hash-locked install).
+> Counted independently here: 238 `def test_` across 11 files, the difference
+> being parametrised cases.
 >
 > `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
-> which is stacked on this branch and **not yet integrated**. `mastery/` **landed at `f4b2fe6`**, after this pin — `mastery/estimate.py`
-> plus `tests/test_mastery.py`. Like `diagnosis/`, it is built and tested and
-> **nothing outside its own tests imports it**. The earlier note here said it
-> was not started; that was true at the pin and is no longer.
+> stacked above this pin and **not yet integrated**. `mastery/` is integrated
+> into the branch and **imported by nothing but its own tests** — doc 07 §9.1
+> for why that is a distinct state from done.
 
 ---
 
@@ -72,23 +73,40 @@ learner who was doing fine.
 | `domain/python_recursion.py` | `KNOWLEDGE_VERSION = "python_recursion_v1"`, `RECURSION` and `FUNCTIONS` concepts, 8 subskills, 3 misconceptions, `GRAPH` |
 | `memory/store.py` | `MemoryStore`, `Attempt`, `Outcome`, `similarity()`, `SAME_EXPLANATION`, `failed_strategies()`, `succeeded_with()`, `is_repeat()`, `relevant()` |
 | `verifiers/` | `DomainVerifier`, `Task`, `Judgement`, `UnsupportedVerifier`, `PythonVerifier` |
+| `llm/` | `InstructionContract`, `Strategy`, `DiagnosisKind`, `SimplicityConstraints`, `preferred_representations`, the fake-able client, output validation |
+| `policy/select.py` | `ReasonCode` (nine), `BottleneckLike`, `Decision`, `_STRATEGIES_FOR`, `_reorder_for_proficiency`, `NEARLY_RIGHT`, `choose_strategy()`, `select_action()` — doc 04 §10 |
+| `mastery/estimate.py` | `MasteryState` (nine), `EVIDENCE_WEIGHT`, `Gates`, `DomainWeights`, `Belief`, `update()`, `state_of()`, `RETENTION_SCHEDULE` — doc 02 §11 |
+| `runtime/loop.py` | `teach_once()`, threading `proficiency` through to the policy |
+| `api/figure.py` | The figure boundary; its test parses `representations.ts` to check the shape map against the other side |
 
-**Measured independently, not quoted:** **207 tests, all passing**.
-`ruff check` clean; `mypy --strict` clean on `src` and `tests` (30 files), verified on Python 3.12 with the hash-locked install CI uses.
+**262 tests, all passing at `2e0832d`** — reported by session
+`final-countdown-2d`, not run here (no pytest on any interpreter available to
+this session). Independently counted here: 238 `def test_` across 11 files, the
+difference being parametrised cases. Doc 06 §7 keeps the full provenance note.
+`ruff check` clean; `mypy --strict` clean on `src` and `tests`, on Python 3.12 with the hash-locked install CI uses.
 
-The failure is `test_verifier.py::test_learner_code_cannot_import_the_engine` —
-a real sandbox defect, not a flaky test. See doc 03 §4. It passes only under
-`PYTHONPATH=src` with no install; under the documented setup
-(`pip install -e ".[dev]"`) learner code can import the engine. Being fixed with
-`-S` plus an install-independent regression test.
+An earlier revision of this section recorded 99 of 100 with
+`test_verifier.py::test_learner_code_cannot_import_the_engine` failing. That was
+a real sandbox defect, fixed at `6eef301` with `-S` plus an install-independent
+regression test — doc 03 §4 keeps the account, because *how* it hid is more
+reusable than the fix: it passed under `PYTHONPATH=src` with no install, the one
+configuration in which the escape is impossible.
 
 ```bash
 cd learning-os
-python3 -m venv .venv && ./.venv/bin/pip install -e ".[dev]"
-./.venv/bin/python -m pytest tests -q
+python3 -m venv .venv
+./.venv/bin/pip install --require-hashes -r requirements-learning-os.lock
+PYTHONPATH=src ./.venv/bin/python -m pytest tests -q
 ./.venv/bin/ruff check src tests
-MYPYPATH=src ./.venv/bin/mypy --strict src/learning_os
+MYPYPATH=src ./.venv/bin/mypy --strict src/learning_os tests
 ```
+
+**`pip install -e` deliberately does not appear here.** The repository's
+supply-chain gate forbids it outright, CI cannot use it, and reproducing the
+developer-only editable install is exactly what made the sandbox test green for
+the wrong reason. `mypy` covers `tests` as well as `src` since `59bfaaf` — the
+tests are where the invariants are actually asserted, so leaving them unchecked
+was the more consequential half.
 
 ### Remaining
 
@@ -283,3 +301,78 @@ what `Evidence.context_novelty` records, and `1.0` means never seen before. A
 - **Hard-coded illustrative flows.** The source spec's examples (concert
   tickets, lemonade, equilibrium) are illustrations. The spec says explicitly
   they must not become prescribed flows, so no module may reference them.
+
+---
+
+## 9. Two rules about what "done" means
+
+Both came out of writing these documents rather than out of planning, and both
+describe a way a module can look finished and not be.
+
+### 9.1 A module whose only caller is its own test suite is not done
+
+`mastery/` and `diagnosis/` are each complete, tested, and **imported by
+nothing but `tests/test_mastery.py` and `tests/test_diagnosis.py`.** Verified by
+grep, not assumed.
+
+That is a specific and recognisable state, and it deserves a name rather than a
+tick in a table. A test suite is a **cooperative** caller. It constructs exactly
+the inputs the author had in mind, in the order the author had in mind, and it
+was written by the person who wrote the interface — usually in the same hour.
+It cannot discover that a parameter is confusing, that two modules disagree
+about a type, or that the package does not export what a consumer would reach
+for.
+
+The evidence that this is not theoretical is in doc 04 §9.8. `diagnosis/` had
+**25 passing tests and a 0-byte `__init__.py`**, so
+`from learning_os.diagnosis import select_bottleneck` raised `ImportError`. Not
+one of the 25 tests could catch it, because they all imported the submodule
+directly — which is what an author does and not what a consumer does.
+
+**The rule:** a module is `integrated` when a non-test module imports it. Until
+then it is `built`, and the two must be recorded as different states. §2's table
+records the consumer, not just the state, for exactly this reason.
+
+**The corollary:** the seam is where the untested behaviour is. Two suites can
+both be green while the interface between them is wrong, and neither suite is
+capable of noticing — a `Protocol` drift between `Bottleneck` and
+`BottleneckLike` would leave 264 tests passing. Seam tests are not extra
+coverage of code that is already covered. They are the only coverage of the one
+thing nothing else tests.
+
+The good version of this already exists and is worth copying:
+`tests/test_api_figure.py` parses `representations.ts` — the *other side* of the
+boundary — to verify the shape map. It caught two representation names that had
+been invented, on its first run. **A test that reads the other side of a seam is
+the only kind that can find a disagreement about it.**
+
+### 9.2 Reachability is the weak property; consequence is the strong one
+
+`test_every_reason_code_is_reachable` asserted that every `ReasonCode` was
+emitted by some branch. That is the wrong bar, and it passed for two codes that
+changed nothing:
+
+- `REPRESENTATION_WORKED_BEFORE` — measured: `a.contract == b.contract` was
+  `True`. Identical decision, different explanation.
+- `DIAGNOSTIC_NEEDED` — announced that evidence was needed, then produced a
+  contract identical to the confident case.
+
+A reason code whose consequence does not exist is **worse than a missing one**.
+It reads as adaptation that never happened, and any later analysis asking which
+reasons precede good outcomes would be attributing a difference to a decision
+nobody made.
+
+The test is now `test_every_reason_code_changes_a_decision`: for each code,
+there must exist two states differing only in the condition that emits it, whose
+**decisions** differ. Codes that legitimately annotate live in a named
+`ANNOTATES_ONLY` set where each one has to be argued for in writing.
+
+**The escape hatch is the part that makes this work.** `READY_FOR_TRANSFER` sits
+in that set today labelled *known gap, not an argument* — it does not steer and
+should. A silent default would have hidden it; a list somebody has to write a
+sentence into makes the outstanding item legible.
+
+Generalise past reason codes: **anything that enumerates should be checked for
+consequence, not presence.** `HypothesisKind`, `MasteryState`, `EvidenceStrength`
+and `ReasonCode` are all vocabularies where an unused member is an unfalsifiable
+sentence with a type.

@@ -163,31 +163,10 @@ jobs:
           STEP_OUTCOME: ${{ steps.unit.outcome }}
         run: node scripts/gh-annotate.mjs vitest < "$RUNNER_TEMP/vitest.json"
 
-      # THE GATE THAT TESTS THE TESTS.
-      #
-      # Every step above asks "does the code work". None of them asks "would
-      # these tests notice if it stopped". Six gates in ci/gates.toml already
-      # answer that second question -- mutmut, spec-strength, spec-composition,
-      # vacuity-check, counterexample-search, honest-report -- and every one of
-      # them is scoped to `src/` Python and `specs/` Lean. `pyproject.toml`
-      # pins `paths_to_mutate = ["src/"]`, ten statements of integer
-      # arithmetic. Not one mutates a line of TypeScript, and the frontend has
-      # no stryker, no mutmut, no property-testing library at all.
-      #
-      # So this suite could rot silently. It was not hypothetical: the gate's
-      # FIRST run reported a survivor. Deleting the simulation contract's
-      # refusal of a named model -- `model: 'ideal-gas'`, the hardcoded physics
-      # this whole refactor exists to remove -- broke none of the 418 tests,
-      # because that contract had no test file of its own. It has one now, and
-      # the mutant dies.
-      #
-      # Runs before Build on purpose: it needs only src/ and node_modules, and
-      # a suite that cannot see defects is worth knowing about before spending
-      # a build and a browser install on it.
-      - name: Mutation gate
-        id: mutation
-        continue-on-error: true
-        run: npm run test:mutation
+      # The mutation gate used to sit here, between Unit tests and Build. It now
+      # runs in the `frontend-mutation` job below, four shards wide. Moving it
+      # out is why this job dropped from ~625s to ~75s; the reasoning for why
+      # the gate exists at all moved with it.
 
       - name: Build
         id: build
@@ -224,76 +203,11 @@ jobs:
             grep "canvas-bundle-budget:" "$RUNNER_TEMP/budget.log" | head -1 || true
           fi
 
-      # THE COMPUTED-STYLE GUARDS NEED A REAL BROWSER, SO CI GETS ONE.
-      #
-      # Two of the four bugs these specs cover were computed-style defects: a
-      # correctly-written rule losing to an element selector, and KaTeX's own
-      # display margin. Neither is observable without layout, so vitest cannot
-      # see them and a stylesheet grep proves only that a rule was typed.
-      #
-      # DELIBERATELY ONE SPEC AND ONE PROJECT, not `npm run test:canvas`. The
-      # rest of that suite asserts frame-interval and input-latency p95s, and
-      # percentiles measured on a shared runner go red on neighbour noise
-      # rather than on regressions -- a gate that fails randomly teaches people
-      # to ignore gates. This spec makes no timing claims: every assertion is a
-      # DOM fact. Widening it to the perf suite is a separate decision that
-      # needs a dedicated runner, not a line in this file.
-      #
-      # No `--with-deps`: the runner image already ships Chromium's shared
-      # libraries, matching the reasoning already recorded in e2e.yml.
-      - name: Install Chromium
-        run: npx playwright install chromium
-
-      # `composed-renderer.spec.ts` JOINS THE GATE, AND WHY THAT IS CONSISTENT
-      # WITH THE PARAGRAPH ABOVE.
-      #
-      # The exclusion above is not "one spec forever", it is "no spec that
-      # makes a timing claim". `scene-regressions.spec.ts` qualifies because
-      # every assertion is a DOM fact; the perf suite does not because a p95
-      # measured on a shared runner goes red on a neighbour.
-      #
-      # The composed renderer had NO browser coverage at all. That spec pins
-      # `const SCENE = '/#/canvas/gas'` at line 16 and every one of its seven
-      # tests goes there -- the legacy scene. A search of the repository finds
-      # `renderer=v2` in one file, where it is defined, and `canvas/lessons` in
-      # one file, where the route is declared. Neither appears in any test. So
-      # the renderer this branch exists to build had never been rendered in a
-      # browser by any automated check, and a census of 8,236 CI log lines
-      # returned zero errors because nothing looked.
-      #
-      # `composed-renderer.spec.ts` makes no timing claims either: console
-      # errors, clipped-and-unreachable content, effective font size, duplicate
-      # ids, accessible names. All DOM facts, all deterministic.
-      # ALL FIVE DECLARED PROJECTS, NOT ONE.
-      #
-      # playwright.config.ts declares desktop-1440, square-900, mobile-375,
-      # reduced-motion and keyboard, and CI ran the first. Four verification
-      # dimensions existed in config and had never executed: the 375px viewport
-      # the responsive work was measured against, the reduced-motion path the
-      # simulation contract's fitness function branches on, and the
-      # keyboard-only path the table's scroller was given tabIndex for.
-      #
-      # This does not contradict the exclusion reasoning above, which is about
-      # SPECS that make timing claims, not about viewports. These two specs
-      # make none: every assertion is a DOM fact. Measured before wiring it in
-      # -- 128/128 across the four unused projects in 75.7s locally, so the
-      # dimensions were dark rather than broken.
-      #
-      # `--project` repeated is Playwright's own union syntax; adding one to
-      # the config without adding it here now fails preflight, via
-      # scripts/gate_integrity.py check (f).
-      - name: Scene regression guards
-        id: playwright
-        continue-on-error: true
-        run: >-
-          npx playwright test -c playwright.config.ts
-          e2e/scene-regressions.spec.ts e2e/composed-renderer.spec.ts
-          --project=desktop-1440
-          --project=square-900
-          --project=mobile-375
-          --project=reduced-motion
-          --project=keyboard
-          --fail-on-flaky-tests
+      # The browser guards used to sit here. They now run in the
+      # `frontend-scenes` job below, one runner per Playwright project. That is
+      # the single largest wall-clock change in this file: five projects ran
+      # strictly serially at ~62s each, and they now run concurrently. The
+      # reasoning for what those specs may and may not contain moved with them.
 
       # THE VERDICT, RESTORED.
       #
@@ -303,14 +217,19 @@ jobs:
       # annotations are already on the run by the time it executes, so the
       # summary names what to look at rather than repeating it.
       - name: Verification gate
+        # `mutation` and `playwright` left this condition because their steps
+        # left this job. They are not unenforced -- they are jobs now, and
+        # `frontend-verdict` reads their results exactly as this step reads
+        # these outcomes. gate_integrity check (c) requires every
+        # continue-on-error step WITH AN ID in this job to appear here; after the
+        # move there are five such steps, not seven, and naming a step that no
+        # longer exists would make this condition permanently false for it.
         if: >-
           steps.typecheck.outcome == 'failure' ||
           steps.lint.outcome == 'failure' ||
           steps.unit.outcome == 'failure' ||
-          steps.mutation.outcome == 'failure' ||
           steps.build.outcome == 'failure' ||
-          steps.budget.outcome == 'failure' ||
-          steps.playwright.outcome == 'failure'
+          steps.budget.outcome == 'failure'
         # THE FILELESS ::error WAS DELETED, and it is not an oversight.
         #
         # `::error title=...` with no `file=` does not vanish: GitHub attaches
@@ -330,57 +249,33 @@ jobs:
           {
             echo "### Frontend verification failed"
             echo
-            echo "Every step ran, so this is the complete list, not the first failure."
+            echo "Every step in THIS job ran, so this is the complete list for it,"
+            echo "not the first failure. The mutation and browser jobs report"
+            echo "separately; \`frontend-verdict\` is the run's single verdict."
             echo
             echo "| step | outcome |"
             echo "| --- | --- |"
             echo "| typecheck | ${{ steps.typecheck.outcome }} |"
             echo "| lint | ${{ steps.lint.outcome }} |"
             echo "| unit | ${{ steps.unit.outcome }} |"
-            echo "| mutation | ${{ steps.mutation.outcome }} |"
             echo "| build | ${{ steps.build.outcome }} |"
             echo "| budget | ${{ steps.budget.outcome }} |"
-            echo "| playwright | ${{ steps.playwright.outcome }} |"
-            echo
-            echo "Browser failures are annotated on the panel source that drew them."
-            echo "Download the \`learning-canvas-frontend-findings\` artifact for the"
-            echo "machine-readable set: every failure with its source file, spec"
-            echo "location, attempt count and message, in one file."
           } >> "$GITHUB_STEP_SUMMARY"
           exit 1
+
+      # THE FINDINGS UPLOAD MOVED TO `frontend-scenes`, AND IT HAD TO.
+      #
+      # `ci-findings.json` is written by canvas-reporter, which only runs under
+      # Playwright. With the browser steps gone from this job, this job produces
+      # no findings file -- and the upload carried `if-no-files-found: error`,
+      # so leaving it here would have failed every run for a file that is
+      # correctly absent. It now runs once per project shard, under a per-shard
+      # name, for the reason in that job.
 
       # `if: always()` so a failed build still uploads whatever it produced -- the partial output
       # is often what identifies the failure. `if-no-files-found: ignore` because a failure before
       # the build step legitimately leaves no dist/ at all, and a missing artifact is not itself
       # a second failure to report.
-      # ONE DOWNLOAD INSTEAD OF A LOG CRAWL.
-      #
-      # Reconstructing what a run found used to take several round trips: `gh
-      # run view --log | grep`, then the annotations API per job, then reading
-      # the spec to work out what an assertion meant. canvas-reporter already
-      # knows all of it, so it writes ci-findings.json and this uploads it --
-      # every failure with its source file, spec location, attempt count and
-      # message, in one artifact.
-      #
-      # `if: always()` because a green run's findings file is the useful
-      # baseline: count 0 proves the reporter ran and found nothing, which is a
-      # different claim from the file being absent.
-      - name: Upload failure findings
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: learning-canvas-frontend-findings
-          path: frontend/ci-findings.json
-          # `error`, not `warn`, and the first green run is why. The reporter
-          # defaulted its output to `config.rootDir`, which is the common root
-          # of the TEST FILES -- frontend/e2e, not frontend -- so the findings
-          # landed one directory below this path. `warn` turned a completely
-          # missing artifact into a single grey annotation nobody would read,
-          # which is the same "absence looks like health" failure the reporter
-          # exists to close. ci/gates.toml already requires `error` on every
-          # gate artifact for exactly this reason.
-          if-no-files-found: error
-
       - name: Upload build output
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -388,3 +283,203 @@ jobs:
           name: learning-canvas-frontend-build
           path: frontend/dist
           if-no-files-found: ignore
+
+  # THE MUTATION GATE, FOUR SHARDS WIDE.
+  #
+  # Why the gate exists, unchanged from when it sat inside `frontend`: every
+  # other check asks "does the code work", and none asks "would these tests
+  # notice if it stopped". The six gates in ci/gates.toml that ask the second
+  # question -- mutmut, spec-strength, spec-composition, vacuity-check,
+  # counterexample-search, honest-report -- are all scoped to `src/` Python and
+  # `specs/` Lean. `pyproject.toml` pins `paths_to_mutate = ["src/"]`. Not one
+  # mutates a line of TypeScript, and the frontend has no stryker and no
+  # property-testing library at all, so this suite could rot silently. It was
+  # not hypothetical: the gate's FIRST run reported a survivor.
+  #
+  # DELIBERATELY NOT SHARDED YET, AND THAT IS THE POINT OF SPLITTING FIRST.
+  #
+  # Moving this into its own job already buys most of what it can buy here: it
+  # used to run serially between Unit tests and Build, so its ~209s sat directly
+  # on the critical path. It now runs concurrently with the browser guards, and
+  # the path no longer includes it unless it is the longest job.
+  #
+  # `--shard=i/n` is NOT passed. `scripts/mutation-gate.mjs` has parsed the flag
+  # since bae7377, but the guard that refuses an empty shard lives in 7c0c36a,
+  # which is NOT on main -- verified: `git merge-base --is-ancestor 7c0c36a main`
+  # is false, and `grep 'MINE.length === 0'` on main returns nothing. On main as
+  # it stands, `--shard=99/100` selects no mutants, prints
+  # "PASS -- every curated mutant was killed", and exits 0.
+  #
+  # Wiring the matrix here would therefore turn on a sharding path whose safety
+  # guard is one unmerged commit away, in the same change that makes it
+  # reachable. That is issue #18's shape inside the mutation gate: a required
+  # check reporting success over work it never did. The guard lands first, in
+  # its own change, with its own test. Then the matrix.
+  frontend-mutation:
+    name: mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Mutation gate
+        run: npm run test:mutation
+
+  # THE BROWSER GUARDS, ONE RUNNER PER PROJECT.
+  #
+  # THIS DOES NOT CONTRADICT `workers: 1`, WHICH IS THE FIRST THING A REVIEWER
+  # WILL CHECK. playwright.config.ts:17-25 sets `workers: 1` and
+  # `fullyParallel: false` because the specs measure frame intervals and input
+  # latency, and parallel workers on one CPU fight for it and poison every p95
+  # they touch. That constraint is about parallelism INSIDE a runner. Each shard
+  # here is a separate runner still running one worker, so the measurements keep
+  # the isolation the config demands -- this buys wall clock without touching
+  # the property the config protects.
+  #
+  # Measured before the split: the five projects ran strictly serially in one
+  # step, ~62s apart end to end (13:27:04, 13:28:07, 13:29:08, 13:30:14,
+  # 13:31:14 on run 32642191714). ~310s of that was pure serialisation.
+  #
+  # What these specs may contain is unchanged and still load-bearing: no spec
+  # that makes a timing claim. `scene-regressions.spec.ts` and
+  # `composed-renderer.spec.ts` both qualify because every assertion in them is
+  # a DOM fact. The perf suite does not, because a p95 measured on a shared
+  # runner goes red on a neighbour, and a gate that fails randomly teaches
+  # people to ignore gates.
+  #
+  # No `--with-deps`: the runner image already ships Chromium's shared
+  # libraries, matching the reasoning recorded in e2e.yml.
+  #
+  # `fail-fast: false` so a failure at 375px does not cancel the keyboard run.
+  # Which viewports break is the finding; one of them is not.
+  frontend-scenes:
+    name: scenes ${{ matrix.project }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    strategy:
+      fail-fast: false
+      matrix:
+        # Every project playwright.config.ts declares. gate_integrity check (f)
+        # resolves this matrix through the `env:` binding below and fails if any
+        # declared project is missing from it, so this list cannot silently drift
+        # out of step with the config.
+        project:
+          - desktop-1440
+          - square-900
+          - mobile-375
+          - reduced-motion
+          - keyboard
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install chromium
+
+      - name: Scene regression guards
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: >-
+          npx playwright test -c playwright.config.ts
+          e2e/scene-regressions.spec.ts e2e/composed-renderer.spec.ts
+          --project="$PROJECT"
+          --fail-on-flaky-tests
+
+      # ONE DOWNLOAD INSTEAD OF A LOG CRAWL, NOW ONE PER PROJECT.
+      #
+      # canvas-reporter writes ci-findings.json: every failure with its source
+      # file, spec location, attempt count and message. Uploading it under the
+      # single old name from five concurrent shards would collide, so the name
+      # carries the project. The findings stay machine-readable and now say
+      # which viewport produced them without opening the file.
+      #
+      # `if: always()` because a green shard's findings file is the useful
+      # baseline: count 0 proves the reporter ran and found nothing, which is a
+      # different claim from the file being absent. `error`, not `warn`, for the
+      # reason ci/gates.toml requires on every gate artifact -- a missing
+      # artifact reduced to a grey annotation is the same "absence looks like
+      # health" failure the reporter exists to close.
+      - name: Upload failure findings
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: learning-canvas-frontend-findings-${{ matrix.project }}
+          path: frontend/ci-findings.json
+          if-no-files-found: error
+
+  # THE RUN'S SINGLE VERDICT.
+  #
+  # Splitting one job into three split the verdict with it: three jobs can fail
+  # independently, and a reader scanning a checks list should not have to
+  # reconstruct the answer from them. This job is the answer.
+  #
+  # `if: always()` IS LOAD-BEARING, NOT DEFENSIVE HABIT. Without it, a failed
+  # dependency SKIPS this job, and a skipped job reports neutral rather than
+  # failing -- the exact "absence looks like health" failure this workflow keeps
+  # closing. The job must run precisely when its dependencies did badly.
+  #
+  # NOT NAMED "Verification gate", AND THAT IS DELIBERATE. gate_integrity
+  # requires exactly one step by that name and requires it to live in job
+  # `frontend`; a second one here would trip `found 2` and hard-fail preflight.
+  # `frontend`'s own gate still decides `frontend`. This decides the run.
+  frontend-verdict:
+    name: frontend-verdict
+    runs-on: ubuntu-latest
+    needs: [frontend, frontend-mutation, frontend-scenes]
+    if: always()
+    steps:
+      - name: Aggregate verdict
+        # `!= 'success'` rather than `== 'failure'`: a cancelled or skipped
+        # dependency is also not a pass, and treating either as one is how a
+        # run with no evidence behind it reports green.
+        if: >-
+          needs.frontend.result != 'success' ||
+          needs.frontend-mutation.result != 'success' ||
+          needs.frontend-scenes.result != 'success'
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            echo "### Frontend verification failed"
+            echo
+            echo "All three jobs ran, so this is the complete list, not the"
+            echo "first failure. Open the failing job for its own summary."
+            echo
+            echo "| job | result |"
+            echo "| --- | --- |"
+            echo "| frontend | ${{ needs.frontend.result }} |"
+            echo "| mutation | ${{ needs.frontend-mutation.result }} |"
+            echo "| scenes | ${{ needs.frontend-scenes.result }} |"
+            echo
+            echo "Browser failures are annotated on the panel source that drew"
+            echo "them. The \`learning-canvas-frontend-findings-<project>\`"
+            echo "artifacts carry the machine-readable set per viewport."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1

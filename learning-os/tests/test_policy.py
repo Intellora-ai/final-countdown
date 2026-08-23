@@ -367,3 +367,59 @@ def test_choose_strategy_never_returns_an_unmapped_strategy(diagnosis: Diagnosis
 
     strategy, _, _ = choose_strategy(diagnosis, MemoryStore(), TRACE)
     assert strategy in _ACTION_FOR
+
+
+def test_every_reason_code_is_reachable() -> None:
+    """A reason code no branch emits is a vocabulary entry pretending to be a
+    code path.
+
+    It makes the policy look as though it weighs something it does not, and any
+    analysis counting reason codes waits for a decision that cannot occur.
+    `PREREQUISITE_FIRST` was exactly that — defined, documented, never emitted —
+    and it survived every other test in this file because nothing asserted the
+    set was covered.
+
+    Enumerating rather than spot-checking: a test naming the codes it expects
+    would pass the day an eleventh was added and never emitted.
+    """
+    emitted: set[ReasonCode] = set()
+
+    for diagnosis in DiagnosisKind:
+        emitted.update(_decide(_Bottleneck(TRACE), MemoryStore(), diagnosis).reasons)
+
+    emitted.update(
+        _decide(
+            _Bottleneck(TRACE, confidence=0.3, needs_diagnostic=True),
+            MemoryStore(),
+            DiagnosisKind.CONCEPT_GAP,
+        ).reasons
+    )
+    emitted.update(_decide(_Bottleneck(TRANSFER), MemoryStore(), DiagnosisKind.CONCEPT_GAP).reasons)
+
+    skill, misconception = _skill_with_a_catalogued_misconception()
+    emitted.update(
+        _decide(
+            _Bottleneck(skill),
+            MemoryStore(),
+            DiagnosisKind.CONCEPT_GAP,
+            live_misconceptions=(misconception,),
+        ).reasons
+    )
+
+    one_failed = MemoryStore()
+    one_failed.record_attempt(_attempt(TRACE, Strategy.WORKED_EXAMPLE, Outcome.FAILURE))
+    emitted.update(_decide(_Bottleneck(TRACE), one_failed, DiagnosisKind.CONCEPT_GAP).reasons)
+
+    all_failed = MemoryStore()
+    for strategy in (Strategy.PREREQUISITE_REPAIR, Strategy.DECOMPOSITION):
+        all_failed.record_attempt(_attempt(TRACE, strategy, Outcome.FAILURE))
+    emitted.update(
+        _decide(_Bottleneck(TRACE), all_failed, DiagnosisKind.PREREQUISITE_GAP).reasons
+    )
+
+    succeeded = MemoryStore()
+    succeeded.record_attempt(_attempt(TRACE, Strategy.CONTRAST, Outcome.SUCCESS))
+    emitted.update(_decide(_Bottleneck(TRACE), succeeded, DiagnosisKind.CONCEPT_GAP).reasons)
+
+    unreachable = set(ReasonCode) - emitted
+    assert not unreachable, f"reason codes no branch emits: {sorted(c.value for c in unreachable)}"

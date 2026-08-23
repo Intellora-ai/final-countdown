@@ -62,8 +62,21 @@ class ReasonCode(StrEnum):
     DIAGNOSTIC_NEEDED = "diagnostic_needed"
     #: Confidence sufficed, so no question was asked. Section 28.
     EVIDENCE_ALREADY_SUFFICIENT = "evidence_already_sufficient"
-    #: A prerequisite was weaker than the target, so it goes first.
-    PREREQUISITE_FIRST = "prerequisite_first"
+    # THERE WAS A `PREREQUISITE_FIRST` HERE. IT WAS NEVER EMITTED.
+    #
+    # A reason code no branch produces is a vocabulary entry pretending to be a
+    # code path. It makes the policy look as though it weighs something it does
+    # not, and any later analysis counting reason codes would be waiting for a
+    # decision that cannot occur.
+    #
+    # It was also the wrong layer's explanation. Choosing a prerequisite over the
+    # named target is the BOTTLENECK engine's decision, taken before the policy
+    # is called — the policy receives a skill and does not know whether it was
+    # the target. Explaining another layer's decision is how two layers end up
+    # disagreeing about what happened.
+    #
+    # Deleted rather than implemented. `test_every_reason_code_is_reachable`
+    # now fails if a code is added without a branch that emits it.
     #: A named misconception is live; repairing beats re-explaining.
     MISCONCEPTION_LIVE = "misconception_live"
     #: The previously chosen strategy failed here and was excluded.

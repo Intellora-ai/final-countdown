@@ -10,13 +10,16 @@ call, so the offline property is untouched.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
+from learning_os.domain.python_recursion import GRAPH
 from learning_os.models.contracts import Verifiability
 from learning_os.verifiers.base import Judgement, Task, UnsupportedVerifier
 from learning_os.verifiers.python_verifier import PythonVerifier, run_python
 
-VERIFIER = PythonVerifier(timeout_s=5.0)
+VERIFIER = PythonVerifier(GRAPH, timeout_s=5.0)
 
 GOOD_FACTORIAL = """
 def factorial(n):
@@ -88,7 +91,7 @@ def test_a_syntax_error_is_definitive_not_uncertain() -> None:
 def test_an_infinite_loop_is_a_result_not_a_hang() -> None:
     """Non-termination is the bug this concept is about, so the verifier has to
     survive it and report it rather than blocking the engine."""
-    fast = PythonVerifier(timeout_s=1.0)
+    fast = PythonVerifier(GRAPH, timeout_s=1.0)
     j = fast.evaluate_response(_task(""), "while True:\n    pass")
     assert j.passed is False
     assert "did not finish" in j.detail
@@ -100,10 +103,55 @@ def test_a_crash_does_not_take_the_engine_down() -> None:
     assert result.timed_out is False
 
 
+def test_site_packages_is_not_on_the_child_path() -> None:
+    """The mechanism, asserted directly, so it cannot pass by accident.
+
+    THIS REPLACES A TEST THAT WAS GREEN FOR THE WRONG REASON.
+
+    The old test ran `import learning_os` and asserted it failed. It passed --
+    but only under `PYTHONPATH=src` with no editable install, because `-I` does
+    strip PYTHONPATH. Under `pip install -e .`, which is how any real deployment
+    runs, `learning_os` lives in site-packages, `-I` leaves site-packages on the
+    path, and the import succeeded. **The environment where the test was green
+    was the one where the escape was impossible.**
+
+    So the assertion moved from "one specific module is unreachable" to "the
+    directory installed modules live in is not on the path at all". That is the
+    property `-S` actually provides, and it holds or fails the same way in every
+    environment instead of depending on how the package was installed.
+    """
+    result = run_python("import sys, json; print(json.dumps(sys.path))")
+    assert result.returncode == 0, result.stderr
+    child_path = json.loads(result.stdout)
+    leaked = [p for p in child_path if "site-packages" in p or "dist-packages" in p]
+    assert not leaked, f"installed packages are reachable from learner code: {leaked}"
+
+
+def test_the_child_cannot_import_an_installed_dependency() -> None:
+    """The same property from the other side, using a package that is certainly
+    installed.
+
+    `pydantic` is a hard dependency of this project, so it is in site-packages
+    in every environment this suite can run in -- which is exactly the situation
+    `learning_os` is in once the engine is deployed. If the child cannot reach
+    pydantic it cannot reach the engine either, however the engine was installed.
+
+    Deliberately not `learning_os`: that module's reachability varies with the
+    install layout, which is the ambiguity that hid the bug.
+    """
+    result = run_python("import pydantic")
+    assert result.returncode != 0, "an installed package was importable from learner code"
+    assert "ModuleNotFoundError" in result.stderr
+
+
 def test_learner_code_cannot_import_the_engine() -> None:
-    """`-I` isolated mode. Without it the learner's code sits on a path that
-    can reach the engine's own modules, and an exercise could rewrite the thing
-    marking it."""
+    """The original property, kept.
+
+    Weaker than the two above because it can pass for environmental reasons, but
+    it is the thing that would actually go wrong -- an exercise reaching into the
+    engine and rewriting the code that is grading it -- so it stays as the
+    statement of intent.
+    """
     result = run_python("import learning_os")
     assert result.returncode != 0
     assert "ModuleNotFoundError" in result.stderr
@@ -271,3 +319,54 @@ def test_a_claim_that_is_genuinely_false_still_says_so() -> None:
     assert j.verifiability is Verifiability.VERIFIABLE
     assert j.passed is False
     assert "is false" in j.detail
+
+
+# --------------------------------------------------------------------------
+# One source of truth for verifiability
+# --------------------------------------------------------------------------
+
+
+def test_the_verifier_never_disagrees_with_the_graph() -> None:
+    """The regression test for a deleted second list.
+
+    `PythonVerifier` used to keep its own `_NOT_EXECUTABLE` set naming the
+    skills it would not run, while `Subskill.verifiability` named the same fact
+    in the graph. Two sources of truth for one fact, and they had already
+    diverged -- the graph marked three subskills HUMAN_REVIEW_REQUIRED and the
+    set listed one, so the verifier silently claimed it could check two skills
+    the knowledge model said it could not.
+
+    Checking every skill rather than the three that were wrong: a test naming
+    specific skills would pass again the moment a fourth was added.
+    """
+    for concept in GRAPH.concepts:
+        for sub in concept.subskills:
+            assert VERIFIER.verifiability_of(sub.skill_id) is sub.verifiability, (
+                f"{sub.skill_id}: verifier says "
+                f"{VERIFIER.verifiability_of(sub.skill_id)}, graph says {sub.verifiability}"
+            )
+
+
+def test_an_unknown_skill_is_not_claimed_checkable() -> None:
+    """The asymmetry that decides the default.
+
+    Under-claiming produces a visible "somebody needs to look at this".
+    Over-claiming produces a fabricated pass that reads exactly like a real one.
+    Only one of those gets noticed, so the unknown case takes the other branch.
+    """
+    assert VERIFIER.verifiability_of("nope.not.a.skill") is Verifiability.HUMAN_REVIEW_REQUIRED
+
+
+def test_a_skill_the_graph_calls_unverifiable_is_not_executed() -> None:
+    """Reading the graph has to change behaviour, not just the reported label.
+
+    `identify_base_case` was one of the two the old list got wrong: RECOGNISE,
+    settled by picking an option, with nothing to execute. It must come back as
+    needing review rather than as a run result.
+    """
+    j = VERIFIER.evaluate_response(
+        _task("print('CHECK PASS')", skill="python.recursion.identify_base_case"),
+        GOOD_FACTORIAL,
+    )
+    assert j.verifiability is Verifiability.HUMAN_REVIEW_REQUIRED
+    assert j.passed is False

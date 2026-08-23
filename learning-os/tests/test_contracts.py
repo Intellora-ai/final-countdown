@@ -47,7 +47,7 @@ def _action(kind: ActionKind = ActionKind.TEACH_BY_EXAMPLE, **over: float) -> Ca
         expected_learning_gain=over.pop("expected_learning_gain", 0.5),
         probability_of_success=over.pop("probability_of_success", 0.6),
         expected_cost_seconds=over.pop("expected_cost_seconds", 60.0),
-        **over,  # type: ignore[arg-type]
+        **over,
     )
 
 
@@ -148,7 +148,7 @@ def test_a_diagnosis_cannot_be_smuggled_through_misconceptions() -> None:
         LearnerState(
             learner_id="l1",
             version=1,
-            misconceptions=("the student is lazy and probably has ADHD",),  # type: ignore[arg-type]
+            misconceptions=("the student is lazy and probably has ADHD",),
         )
 
 
@@ -421,7 +421,7 @@ def test_contracts_are_immutable() -> None:
         knowledge_version="python_v1",
     )
     with pytest.raises(ValidationError):
-        e.learner_id = "someone_else"  # type: ignore[misc]
+        e.learner_id = "someone_else"
 
 
 def test_a_typo_in_a_field_name_is_refused_not_ignored() -> None:
@@ -432,7 +432,9 @@ def test_a_typo_in_a_field_name_is_refused_not_ignored() -> None:
         SkillEstimate(
             skill_id=SKILL, estimate=0.5, confidence=0.5,
             evidence_count=0, evidence_diversity=0,
-            evidence_id=("ev1",),  # type: ignore[call-arg] -- singular, wrong
+            # `evidence_id` is singular and wrong; the real field is
+            # `evidence_ids`. Kept deliberately so `extra="forbid"` is exercised.
+            evidence_id=("ev1",),  # type: ignore[call-arg]
         )
 
 

@@ -12,22 +12,52 @@ What IS enforced:
     rather than a hang -- which matters here because non-termination is the
     exact bug this concept is about
   - a fresh temporary directory per run, removed afterwards
-  - `-I` isolated mode, so the learner's code cannot import from the engine's
-    own tree or be steered by PYTHONPATH
+  - `-I -S`, which together strip the script directory, PYTHONPATH, user site,
+    AND the interpreter's regular site-packages
   - no shell: argv is a list, so nothing in the learner's text is interpreted
     as a command
+
+WHY BOTH FLAGS, AND WHY `-I` ALONE WAS A FALSE GREEN
+----------------------------------------------------
+This said `-I` for a while and claimed it stopped learner code importing the
+engine. That was wrong. `-I` implies `-E` and `-s` -- no PYTHONPATH, no *user*
+site -- and does not imply `-S`. Regular site-packages stays on the path:
+
+    $ python -I  -c "import sys; print(sys.path[-1])"
+    .../.venv/lib/python3.14/site-packages      <-- still there
+    $ python -I -S -c "import sys; print(sys.path[-1])"
+    .../lib-dynload                             <-- gone
+
+So wherever the engine is pip-installed -- which is every real deployment --
+`import learning_os` from learner code succeeded.
+
+The test meant to catch this passed, and that is the more important half of the
+story. It passed only because the suite was run with `PYTHONPATH=src` and no
+editable install, and `-I` genuinely does strip PYTHONPATH. **The configuration
+where the test was green was the one where the escape was impossible; the escape
+was live everywhere else.** A security property that holds under one install
+layout is not a property, it is a coincidence. The test now plants a module where
+a real install puts it instead of trusting the ambient environment, so it fails
+in the environment where the escape exists.
 
 What is NOT enforced, and what that means:
   - filesystem access outside the temp directory
   - network access
   - resource limits beyond time (memory, file descriptors, subprocesses)
+  - deliberate `sys.path` manipulation. `-S` closes the ACCIDENTAL import; code
+    that writes to `sys.path` on purpose can still reach anything on disk, and
+    no flag closes that.
 
 So this is safe against a MISTAKE and not against an ATTACK. It is the right
 level for a learner working through recursion exercises. It is NOT sufficient
 for untrusted input from the open internet, and anything moving in that
-direction needs a real container or seccomp, not another flag here. Written down
-because the next person will otherwise assume the word "sandbox" covers more
-than it does.
+direction needs a real container or seccomp, not another flag here.
+
+One consequence of `-S` to know before extending this: it disables `site`
+wholesale, so the child cannot import third-party packages at all. Correct for
+V1. If a later verifier must hand learner code a curated allowlist -- `pytest`,
+say -- the shape is an explicit `env` plus a constructed `sys.path`, NOT another
+flag. Flags are a blunt instrument that has already been misread once here.
 """
 
 from __future__ import annotations
@@ -38,6 +68,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from learning_os.domain.knowledge import KnowledgeGraph
 from learning_os.models.contracts import EvidenceStrength, Verifiability
 from learning_os.verifiers.base import Judgement, Task
 
@@ -46,14 +77,17 @@ from learning_os.verifiers.base import Judgement, Task
 #: before this; the timeout is for the loop that does not.
 DEFAULT_TIMEOUT_S = 5.0
 
-#: Skills whose evidence comes from prose, not execution. Listed explicitly
-#: rather than inferred, so adding a skill forces a decision about how it can be
-#: checked instead of silently defaulting to "verifiable".
-_NOT_EXECUTABLE = frozenset(
-    {
-        "python.recursion.explain_termination",
-    }
-)
+# THERE WAS A SECOND LIST OF NON-EXECUTABLE SKILLS HERE, AND IT WAS THE BUG.
+#
+# `_NOT_EXECUTABLE` named the skills this verifier would not run, while
+# `Subskill.verifiability` in the knowledge graph named the same fact. Two
+# sources of truth for one fact, and they had already diverged: the graph marked
+# three subskills HUMAN_REVIEW_REQUIRED and this set listed one, so the verifier
+# was quietly more permissive than the declaration for the other two.
+#
+# The fix is deleting the list, not extending it. An extended list drifts again
+# the next time a subskill is added; deriving from the graph cannot drift,
+# because there is nothing left to disagree with.
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,7 +118,10 @@ def run_python(source: str, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> RunResul
         path.write_text(source, encoding="utf-8")
         try:
             proc = subprocess.run(
-                [sys.executable, "-I", str(path)],
+                # -S as well as -I. See the module docstring: -I does not imply
+                # -S, so without it the venv's site-packages stays on sys.path
+                # and an installed engine is importable from learner code.
+                [sys.executable, "-I", "-S", str(path)],
                 capture_output=True,
                 text=True,
                 timeout=timeout_s,
@@ -122,13 +159,33 @@ class PythonVerifier:
 
     domain = "python"
 
-    def __init__(self, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> None:
+    def __init__(self, graph: KnowledgeGraph, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> None:
+        #: The graph is REQUIRED, not optional with a default.
+        #:
+        #: A verifier constructed without one would need a private opinion about
+        #: which skills it can check, and a private opinion is precisely the
+        #: thing that drifted from the graph and produced the bug recorded above.
+        #: Making it a construction argument means the disagreement cannot be
+        #: reintroduced by forgetting something.
+        self.graph = graph
         self.timeout_s = timeout_s
 
     def verifiability_of(self, skill_id: str) -> Verifiability:
-        if skill_id in _NOT_EXECUTABLE:
+        """Read the graph. Do not decide.
+
+        The knowledge model is the single place that says how far a claim about
+        a subskill can be machine-checked, and this verifier's job is to honour
+        that, not to hold a second view of it.
+
+        An unknown skill is HUMAN_REVIEW_REQUIRED rather than VERIFIABLE. The
+        two failure modes are not symmetric: under-claiming produces a visible
+        "somebody needs to look at this", over-claiming produces a fabricated
+        pass that reads exactly like a real one.
+        """
+        sub = self.graph.subskill(skill_id)
+        if sub is None:
             return Verifiability.HUMAN_REVIEW_REQUIRED
-        return Verifiability.VERIFIABLE
+        return sub.verifiability
 
     def validate_claim(self, claim: str, context: str = "") -> Judgement:
         """Check a claim by executing it as an assertion.
@@ -216,7 +273,7 @@ class PythonVerifier:
         nearly right and one that is unrelated, and that difference is what
         decides whether the next move is a nudge or a different approach.
         """
-        if task.skill_id in _NOT_EXECUTABLE:
+        if self.verifiability_of(task.skill_id) is not Verifiability.VERIFIABLE:
             return Judgement(
                 passed=False,
                 performance=0.0,

@@ -205,7 +205,7 @@ def test_the_knowledge_model_cannot_be_mutated() -> None:
     """
     recursion = next(c for c in GRAPH.concepts if c.concept_id == "python.recursion")
     with pytest.raises(ValidationError):
-        recursion.definition = "something the model made up"  # type: ignore[misc]
+        recursion.definition = "something the model made up"
 
 
 def test_a_misconception_id_is_a_reference_not_prose() -> None:

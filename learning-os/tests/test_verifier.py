@@ -370,3 +370,49 @@ def test_a_skill_the_graph_calls_unverifiable_is_not_executed() -> None:
     )
     assert j.verifiability is Verifiability.HUMAN_REVIEW_REQUIRED
     assert j.passed is False
+
+
+# --------------------------------------------------------------------------
+# The uncheckable branch: no checks, so the exit code is the whole verdict
+# --------------------------------------------------------------------------
+
+
+def test_a_crashing_program_is_not_reported_as_a_pass() -> None:
+    """THE HIGHEST-SEVERITY GAP THIS SUITE HAD, AND IT HAD NO TEST AT ALL.
+
+    When a task carries no checks, `total_n == 0` and the verdict reduces to one
+    comparison: `result.returncode == 0`. Mutating that single `==` to `!=`
+    inverts it — every crash reports `passed=True` and every clean run reports
+    `passed=False` — and the entire suite of 349 tests still passed.
+
+    Demonstrated rather than argued. Under the mutant:
+
+        learner code: raise SystemExit(3)
+        verifier says passed = True
+
+    That is a verifier asserting a crashing program worked. This module's whole
+    authority comes from execution, and the one line that turns execution into a
+    verdict was unguarded — so the failure mode was not a wrong answer, it was
+    fabricated confidence, which is the exact thing `Verifiability` exists to
+    prevent one layer up.
+
+    Found by session final-countdown-6a's mutation audit of the test suite.
+    """
+    task = _task("", skill="python.recursion.write_recursive_function")
+    j = VERIFIER.evaluate_response(task, "raise SystemExit(3)")
+    assert j.passed is False, "a crashing program was reported as a pass"
+    assert j.performance == 0.0
+
+
+def test_a_clean_run_with_no_checks_is_a_pass() -> None:
+    """The other half of the same comparison.
+
+    Without this, the guard above could be satisfied by returning False always —
+    which would make every uncheckable task fail and be just as wrong in the
+    other direction. Both sides of `==` need pinning, or the mutant simply moves.
+    """
+    task = _task("", skill="python.recursion.write_recursive_function")
+    j = VERIFIER.evaluate_response(task, "x = 1 + 1")
+    assert j.passed is True
+    assert j.performance == 1.0
+    assert any("only proves it ran" in lim for lim in j.limitations)

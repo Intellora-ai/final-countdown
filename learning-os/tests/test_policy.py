@@ -423,3 +423,89 @@ def test_every_reason_code_is_reachable() -> None:
 
     unreachable = set(ReasonCode) - emitted
     assert not unreachable, f"reason codes no branch emits: {sorted(c.value for c in unreachable)}"
+
+
+def test_an_override_does_not_repeal_a_capacity_limit() -> None:
+    """THE BUG SESSION 6a FOUND, AND IT WAS REACHED BY A CORRECT-LOOKING PATH.
+
+    `_constraints_for` ran on the OVERRIDDEN diagnosis, so a learner arriving as
+    COGNITIVE_OVERLOAD who also held a live misconception silently lost
+    `max_blocks=1` and lost DECOMPOSED_FOR_LOAD.
+
+    Overload is a capacity condition. It does not stop being true because a
+    misconception was also found, and a full-budget repair delivered to an
+    overloaded learner is the section 52 failure — arrived at through an override
+    that reads as correct.
+    """
+    skill, misconception = _skill_with_a_catalogued_misconception()
+    d = _decide(
+        _Bottleneck(skill),
+        MemoryStore(),
+        DiagnosisKind.COGNITIVE_OVERLOAD,
+        live_misconceptions=(misconception,),
+    )
+    assert d.contract.diagnosis is DiagnosisKind.MISCONCEPTION, "the override should still happen"
+    assert ReasonCode.MISCONCEPTION_LIVE in d.reasons
+    assert d.contract.simplicity.max_blocks == 1, "the capacity limit was repealed"
+    assert ReasonCode.DECOMPOSED_FOR_LOAD in d.reasons
+
+
+def test_a_representation_that_worked_reaches_the_contract() -> None:
+    """`REPRESENTATION_WORKED_BEFORE` used to announce a preference with nowhere
+    to go: the policy read `succeeded_with` as a boolean, threw the value away,
+    and `InstructionContract` had no field to carry it.
+
+    A reason code whose consequence does not exist is worse than a missing one —
+    it reads as evidence the policy adapted.
+    """
+    m = MemoryStore()
+    m.record_attempt(
+        Attempt(
+            skill_id=TRACE,
+            action=ActionKind.TEACH_BY_EXAMPLE,
+            representation="call_stack_diagram",
+            outcome=Outcome.SUCCESS,
+            mechanism=Strategy.CONTRAST.value,
+        )
+    )
+    d = _decide(_Bottleneck(TRACE), m, DiagnosisKind.CONCEPT_GAP)
+    assert ReasonCode.REPRESENTATION_WORKED_BEFORE in d.reasons
+    assert d.contract.preferred_representations == ("call_stack_diagram",)
+
+
+def test_preferred_representations_are_ordered_deterministically() -> None:
+    """`succeeded_with` returns a frozenset, whose iteration order depends on the
+    process. An unsorted tuple would make the contract differ between runs, and a
+    decision that differs between runs cannot be replayed."""
+    m = MemoryStore()
+    for rep in ("prose", "call_stack_diagram", "table"):
+        m.record_attempt(
+            Attempt(
+                skill_id=TRACE,
+                action=ActionKind.TEACH_BY_EXAMPLE,
+                representation=rep,
+                outcome=Outcome.SUCCESS,
+                mechanism=Strategy.CONTRAST.value,
+            )
+        )
+    d = _decide(_Bottleneck(TRACE), m, DiagnosisKind.CONCEPT_GAP)
+    reps = d.contract.preferred_representations
+    assert reps == tuple(sorted(reps))
+    assert reps == ("call_stack_diagram", "prose", "table")
+
+
+def test_the_strategy_vocabulary_matches_what_memory_records() -> None:
+    """A stringly-typed seam, closed.
+
+    `choose_strategy` compares `Strategy.value` against `frozenset[str]` from
+    `failed_mechanisms`. It works because both are strings today. Rename a
+    `Strategy` value and exclusion silently stops matching — no type error, no
+    failing test, and the fallback quietly starts repeating failures.
+    """
+    m = MemoryStore()
+    for strategy in Strategy:
+        m.record_attempt(_attempt(TRACE, strategy, Outcome.FAILURE))
+    burned = m.failed_mechanisms(TRACE)
+    assert {s.value for s in Strategy} == burned, (
+        "the mechanism vocabulary the policy writes and the one it reads disagree"
+    )

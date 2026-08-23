@@ -149,6 +149,21 @@ class InstructionContract(_Frozen):
     known_prerequisites: tuple[SkillId, ...] = ()
     weak_subskills: tuple[SkillId, ...] = ()
 
+    #: Representations that have already worked for THIS learner on THIS skill.
+    #:
+    #: A preference the model may honour, never an instruction. `MemoryStore`
+    #: documents itself as "read by the policy layer as a preference, never as a
+    #: rule", and until this field existed the policy read it as a boolean and
+    #: discarded the value -- so `REPRESENTATION_WORKED_BEFORE` announced a
+    #: preference with nowhere to go, and the memory module's docstring was
+    #: false about its only consumer.
+    #:
+    #: NOT a styling field. Which FORM an explanation takes -- a call-stack
+    #: diagram versus prose -- is an instructional decision grounded in this
+    #: learner's evidence. Law 3 bans colour, size and spacing; it does not ban
+    #: saying what has taught this person before.
+    preferred_representations: tuple[str, ...] = ()
+
     simplicity: SimplicityConstraints = SimplicityConstraints()
 
     #: Terms the generated content MUST contain, verbatim. This is section 9 in

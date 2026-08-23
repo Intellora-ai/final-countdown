@@ -240,16 +240,24 @@ def choose_strategy(
 
 
 def _constraints_for(
-    diagnosis: DiagnosisKind,
+    *diagnoses: DiagnosisKind,
 ) -> tuple[SimplicityConstraints, tuple[ReasonCode, ...]]:
-    """Narrow the budget when the diagnosis IS load.
+    """Narrow the budget when ANY of these diagnoses is load.
 
     Section 52 says load is a constraint, not a fact about the human mind. So the
     response to overload is to reduce simultaneous novelty -- one block, one
     concept -- rather than to re-explain the same amount more slowly, which is
     the intuitive move and adds load rather than removing it.
+
+    VARIADIC BECAUSE A DIAGNOSIS CAN BE OVERRIDDEN AND STILL BE TRUE.
+
+    A misconception override replaces the diagnosis for the purpose of choosing a
+    MECHANISM. It does not repeal a capacity limit: a learner who was overloaded
+    a moment ago is still overloaded while their misconception is repaired. Taking
+    the tighter of the arriving and the final diagnosis is what stops an override
+    quietly loosening a constraint that still applies.
     """
-    if diagnosis is DiagnosisKind.COGNITIVE_OVERLOAD:
+    if DiagnosisKind.COGNITIVE_OVERLOAD in diagnoses:
         return SimplicityConstraints(max_blocks=1), (ReasonCode.DECOMPOSED_FOR_LOAD,)
     return SimplicityConstraints(), ()
 
@@ -306,6 +314,21 @@ def select_action(
     # The catalogue says what CAN go wrong here. `live_misconceptions` says what
     # HAS gone wrong for this learner. Only the intersection is a reason to
     # change course.
+    # THE ORIGINAL DIAGNOSIS IS KEPT, BECAUSE THE OVERRIDE USED TO DISCARD IT.
+    #
+    # Overriding to MISCONCEPTION changed which strategy was chosen AND which
+    # constraints applied, because `_constraints_for` ran on the overridden
+    # value. A learner arriving as COGNITIVE_OVERLOAD who also held a live
+    # misconception silently lost `max_blocks=1` and lost DECOMPOSED_FOR_LOAD.
+    #
+    # Overload is a CAPACITY condition. It does not stop being true because a
+    # misconception was also found, and delivering a full-budget repair to an
+    # overloaded learner is the section 52 failure reached by a path that looks
+    # like a correct override. The override should change what is TAUGHT, not how
+    # much the learner can hold.
+    #
+    # Reported by session final-countdown-6a.
+    arrived_as = diagnosis
     if subskill is not None and live_misconceptions:
         held = set(subskill.misconceptions) & set(live_misconceptions)
         if held:
@@ -318,12 +341,25 @@ def select_action(
     if subskill is not None and subskill.operation is CognitiveOperation.TRANSFER:
         reasons.append(ReasonCode.READY_FOR_TRANSFER)
 
-    if memory.succeeded_with(skill_id):
+    # Representations that have worked here, as a PREFERENCE the model can see.
+    #
+    # This used to be a truthiness check whose value was thrown away, while
+    # `InstructionContract` had no field to carry it -- so the reason code
+    # announced a preference that had nowhere to go. `MemoryStore.succeeded_with`
+    # documents itself as "read by the policy layer as a preference"; reading it
+    # as a boolean made that docstring false.
+    #
+    # Sorted, because a frozenset iterates in an order that depends on the
+    # process, and a decision that differs between runs cannot be replayed.
+    worked = tuple(sorted(memory.succeeded_with(skill_id)))
+    if worked:
         # A preference, never a rule. A system that always repeats its last
         # success stops adapting the moment it finds one.
         reasons.append(ReasonCode.REPRESENTATION_WORKED_BEFORE)
 
-    constraints, load_reasons = _constraints_for(diagnosis)
+    # Constraints come from the TIGHTER of the two diagnoses, so an override
+    # cannot loosen a capacity limit that still applies.
+    constraints, load_reasons = _constraints_for(arrived_as, diagnosis)
     reasons.extend(load_reasons)
 
     required = tuple(concept.technical_terms) if concept is not None else ()
@@ -337,6 +373,7 @@ def select_action(
         action=_ACTION_FOR[strategy],
         known_prerequisites=known_prerequisites,
         weak_subskills=(skill_id,),
+        preferred_representations=worked,
         simplicity=constraints,
         required_terms=required,
         forbidden_phrases=forbidden,

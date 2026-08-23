@@ -223,6 +223,37 @@ Also true today, and not to be papered over:
 | Chart ticks | property test — 20 random ranges per chart type, monotonic and evenly spaced |
 | Goal 2 coverage | adversarial fixtures + screenshot regression (built at Step 10) |
 | No regression | the 7 acceptance lessons after every step |
+| `/rtk` + `/investigate` every session | `scripts/enforce_skills.py` — a **Stop** hook, tested by `tests/test_enforce_skills.py` |
+
+### Why the skill rule is a Stop hook and not a prompt
+
+Three `UserPromptSubmit` hooks already told every session to invoke sixteen
+skills. Measured across the eight most recent transcripts in this repo, `/rtk`
+was invoked **0 times** — including in a 34 MB session — and `/investigate` in
+four of eight, once each. A 0% enforcement rate is not a tuning problem. It is
+what "add text to the prompt" buys, because text is a request and a model that
+decides `/rtk` is "for PRs, and this isn't a PR" has not disobeyed anything.
+
+`Stop` is the only hook event that can refuse. It fires when the turn tries to
+END, and `{"decision": "block"}` sends the model back to work. The check reads
+the transcript's `Skill` `tool_use` records, so a model's belief that it already
+complied is not evidence and cannot satisfy the gate.
+
+Two things follow, and both are deliberate:
+
+- **The list is two skills, not sixteen.** Forcing sixteen does not save
+  context, it spends it — `/investigate` alone injects ~8 KB of preamble per
+  session. A gate expensive enough to resent is a gate that gets switched off.
+- **It fails OPEN, never closed.** An unreadable transcript, a malformed
+  payload, or an unexpected exception all exit 0 and let the turn end. A Stop
+  hook that blocks by mistake cannot be recovered from inside the tool — you
+  would edit `settings.json` from another editor to escape it. `stop_hook_active`
+  and a per-session block ledger are two independent brakes on that loop, and
+  either alone is sufficient.
+
+Registered in `~/.claude/settings.json` under `hooks.Stop`; the copy that runs
+lives at `~/.claude/hooks/enforce_skills.py`. `scripts/enforce_skills.py` is the
+source of truth and the one the tests run against — if you change one, copy it.
 
 ---
 

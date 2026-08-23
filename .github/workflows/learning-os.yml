@@ -1,0 +1,89 @@
+name: learning-os
+
+# Scoped to its own directory on purpose.
+#
+# The Learning OS is a separate package with a separate dependency set, and the
+# frontend job already takes 12-18 minutes on this repository. A workflow that
+# fired on every push would make every frontend change wait on a Python suite
+# that could not possibly be affected by it, and vice versa. Paths keep the two
+# independent.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "learning-os/**"
+      - ".github/workflows/learning-os.yml"
+  pull_request:
+    paths:
+      - "learning-os/**"
+      - ".github/workflows/learning-os.yml"
+
+# Supersede only within the same pull request, matching the convention the other
+# workflows in this repository already follow: a newer commit on the SAME PR
+# obsoletes the older result, but a push to main is the authoritative
+# verification of an already-merged commit and must never be cancelled.
+concurrency:
+  group: learning-os-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  learning-os:
+    name: learning-os
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: learning-os
+
+    # THIS JOB MUST PASS WITH NO NETWORK AND NO API KEY.
+    #
+    # The engine's tests run against a deterministic fake LLM. That is not a
+    # convenience: a suite that needs a real model is a suite that is skipped
+    # the first time a key expires, and the tests that would then stop running
+    # are precisely the ones asserting the engine does not fabricate confidence.
+    # No step below may read LEARNING_OS_LLM_API_KEY.
+    env:
+      PYTHONHASHSEED: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check src tests
+
+      - name: Types
+        # --strict, because the whole value of this engine is that its state can
+        # be trusted after the fact. An untyped value crossing the policy layer
+        # is what makes a wrong decision unexplainable.
+        run: mypy --strict src/learning_os
+
+      - name: Tests
+        run: pytest tests -q
+
+      - name: No credential may be committed
+        # Cheap, and it catches the one mistake that cannot be undone by a
+        # revert. Looks for an assigned key rather than the bare name, so the
+        # env-var reference in this file and in the README does not self-trip.
+        run: |
+          if grep -rInE "LEARNING_OS_LLM_API_KEY[[:space:]]*=[[:space:]]*['\"][^'\"]+" \
+               --include='*.py' --include='*.toml' --include='*.json' . ; then
+            echo "::error::a value is assigned to LEARNING_OS_LLM_API_KEY in tracked source"
+            exit 1
+          fi
+          echo "no assigned credential found"
+
+      # The offline guarantee is enforced in tests/conftest.py, not here.
+      # A CI-only check would pass locally on a machine with wifi on the day
+      # someone introduced a live call, and only fail later on somebody else's
+      # branch. The autouse fixture fails in the run that adds the dependency.

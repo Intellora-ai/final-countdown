@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Design tokens.
+
+   These are the same values the map was designed against — a near-black slate
+   ground and one desaturated teal accent. The expensive look does not come
+   from many colours; it comes from lighting, transparency, blur and space. A
+   sixth hue would cost more than it bought.
+
+   Every colour in the map traces to this block. Nothing below `@theme` states
+   a raw colour.
+--------------------------------------------------------------------------- */
+
+@theme {
+  /* -- Surfaces ----------------------------------------------------------- */
+  --color-void: #161a1d;
+  --color-void-lift: #1d2125;
+  --color-panel: rgb(255 255 255 / 0.038);
+  --color-panel-hover: rgb(255 255 255 / 0.07);
+  --color-line: rgb(255 255 255 / 0.08);
+  --color-line-strong: rgb(255 255 255 / 0.16);
+
+  /* -- Type --------------------------------------------------------------- */
+  --color-ink: #e8eef4;
+  --color-ink-muted: #93a3ae;
+  --color-ink-faint: #5f707b;
+
+  /* -- The accent. Teal, and only teal. ----------------------------------- */
+  --color-accent: #72cbca;
+  --color-accent-soft: #a8dedd;
+  --color-accent-deep: #387076;
+  --color-accent-glow: rgb(114 203 202 / 0.38);
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--color-void);
+  color: var(--color-ink);
+  overscroll-behavior: none;
+}
+
+body {
+  font-family:
+    ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI",
+    system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  margin: 0;
+}
+
+/* The surface says what it is doing with the cursor: an open hand is a lie
+   while nothing is being dragged. */
+[data-surface] {
+  cursor: grab;
+}
+[data-surface][data-panning="true"] {
+  cursor: grabbing;
+}
+
+/* The map's only ambient motion.
+
+   Seven seconds a cycle, and only ever on nodes the learner has already
+   practised — so the movement carries a meaning ("you have been here") rather
+   than being decoration. Anything faster than about five seconds stops reading
+   as breathing and starts reading as blinking, which is the difference between
+   a calm study surface and a notification. */
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.62;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

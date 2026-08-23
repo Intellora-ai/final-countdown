@@ -48,7 +48,12 @@ jobs:
   frontend:
     name: frontend
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 15 was sized for a job that ran 1.2-2.1 min. Two checks have since been
+    # added that trade wall clock for defect-finding: the mutation gate reruns
+    # the unit suite once per mutant (115s measured on a runner) and the
+    # browser step went from one Playwright project to five. 25 leaves room for
+    # both to grow without the timeout becoming the thing that fails.
+    timeout-minutes: 25
 
     defaults:
       run:
@@ -73,19 +78,309 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # EVERY VERIFICATION STEP RUNS, EVEN AFTER ONE FAILS.
+      #
+      # These steps used to stop the job at the first non-zero exit. A branch
+      # with a type error therefore never learned whether it also had a lint
+      # error, a failing test, a budget overrun or a broken render: you fixed
+      # one, pushed, waited for a full runner, and discovered the next. Serial
+      # discovery across N defects costs N round trips.
+      #
+      # `continue-on-error` lets the whole battery run and report together, and
+      # the gate at the end of the job restores the failing verdict. One push,
+      # every error.
+      #
+      # Each step also writes machine-readable output that the next step turns
+      # into `::error file=...,line=...` workflow commands. Without those, a
+      # failure is text inside a collapsed log group with no source location;
+      # with them, GitHub pins an annotation to the exact line and the raw log
+      # carries an `##[error]` entry that a census can count.
       - name: Typecheck
-        run: npm run typecheck
+        id: typecheck
+        continue-on-error: true
+        # `set -o pipefail` is load-bearing. GitHub's default shell is
+        # `bash -e`, NOT `bash -eo pipefail`, so `npm run typecheck | tee`
+        # reports tee's exit status and the step could never fail. This clause
+        # of the verification gate was dead until this line existed. Every
+        # other workflow in this repository already sets it -- verify.yml:821,
+        # e2e.yml:108, deep-verify.yml in eight places.
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run typecheck 2>&1 | tee "$RUNNER_TEMP/tsc.log"
+
+      - name: Annotate typecheck
+        if: always()
+        continue-on-error: true
+        # STEP_OUTCOME lets the annotator detect the one state that made
+        # these logs useless: a failed step with no location anywhere on the
+        # run. Passed through env, not interpolated into the run body.
+        env:
+          STEP_OUTCOME: ${{ steps.typecheck.outcome }}
+        run: node scripts/gh-annotate.mjs tsc < "$RUNNER_TEMP/tsc.log"
+
+      # LAW 4, ENFORCED RATHER THAN REQUESTED.
+      #
+      # `design-value` is a local AST rule -- no third-party plugin -- that refuses a
+      # raw colour or an arbitrary size anywhere the canvas can paint from JavaScript:
+      # JSX style objects, SVG presentation attributes, and three.js material props.
+      # That last surface is the reason the token layer is TypeScript rather than CSS:
+      # `<meshStandardMaterial color="var(--x)" />` does not resolve, it throws.
+      #
+      # Scoped to src/canvas deliberately. src/components, src/data and src/styles are
+      # the dashboard, they are out of scope for this refactor, and pointing a canvas
+      # token rule at them would restyle a design nobody asked to change.
+      - name: Lint
+        id: lint
+        continue-on-error: true
+        run: |
+          npx eslint src/canvas --max-warnings 0 --format json -o "$RUNNER_TEMP/eslint.json" \
+            && echo "eslint: clean" \
+            || { npx eslint src/canvas --max-warnings 0 --format stylish || true; exit 1; }
+
+      - name: Annotate lint
+        if: always()
+        continue-on-error: true
+        # STEP_OUTCOME lets the annotator detect the one state that made
+        # these logs useless: a failed step with no location anywhere on the
+        # run. Passed through env, not interpolated into the run body.
+        env:
+          STEP_OUTCOME: ${{ steps.lint.outcome }}
+        run: node scripts/gh-annotate.mjs eslint < "$RUNNER_TEMP/eslint.json"
 
       - name: Unit tests
-        run: npm test -- --run
+        id: unit
+        continue-on-error: true
+        run: npm test -- --run --reporter=default --reporter=json --outputFile="$RUNNER_TEMP/vitest.json"
+
+      - name: Annotate unit tests
+        if: always()
+        continue-on-error: true
+        # STEP_OUTCOME lets the annotator detect the one state that made
+        # these logs useless: a failed step with no location anywhere on the
+        # run. Passed through env, not interpolated into the run body.
+        env:
+          STEP_OUTCOME: ${{ steps.unit.outcome }}
+        run: node scripts/gh-annotate.mjs vitest < "$RUNNER_TEMP/vitest.json"
+
+      # THE GATE THAT TESTS THE TESTS.
+      #
+      # Every step above asks "does the code work". None of them asks "would
+      # these tests notice if it stopped". Six gates in ci/gates.toml already
+      # answer that second question -- mutmut, spec-strength, spec-composition,
+      # vacuity-check, counterexample-search, honest-report -- and every one of
+      # them is scoped to `src/` Python and `specs/` Lean. `pyproject.toml`
+      # pins `paths_to_mutate = ["src/"]`, ten statements of integer
+      # arithmetic. Not one mutates a line of TypeScript, and the frontend has
+      # no stryker, no mutmut, no property-testing library at all.
+      #
+      # So this suite could rot silently. It was not hypothetical: the gate's
+      # FIRST run reported a survivor. Deleting the simulation contract's
+      # refusal of a named model -- `model: 'ideal-gas'`, the hardcoded physics
+      # this whole refactor exists to remove -- broke none of the 418 tests,
+      # because that contract had no test file of its own. It has one now, and
+      # the mutant dies.
+      #
+      # Runs before Build on purpose: it needs only src/ and node_modules, and
+      # a suite that cannot see defects is worth knowing about before spending
+      # a build and a browser install on it.
+      - name: Mutation gate
+        id: mutation
+        continue-on-error: true
+        run: npm run test:mutation
 
       - name: Build
+        id: build
+        continue-on-error: true
         run: npm run build
+
+      # THE BUDGET WAS UNENFORCED, WHICH IS THE SAME AS ABSENT.
+      #
+      # `scripts/canvas-bundle-budget.mjs` has measured the initial canvas payload and exited
+      # non-zero on an overrun since it was written -- and nothing ever called it. A ceiling
+      # nothing checks is a comment. It caught a real 186.55 KB regression against the 150 KB
+      # limit only because it was run by hand; the next one would have shipped.
+      #
+      # It runs AFTER build because it reads dist/, and it needs no path filter of its own: this
+      # whole workflow is already scoped to `frontend/**`.
+      - name: Bundle budget
+        id: budget
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run budget 2>&1 | tee "$RUNNER_TEMP/budget.log"
+
+      # The budget step had no annotation path, so an overrun was a number
+      # buried in a log group like every other failure before this change.
+      - name: Annotate bundle budget
+        if: always()
+        continue-on-error: true
+        run: |
+          if grep -q "canvas-bundle-budget: FAIL" "$RUNNER_TEMP/budget.log"; then
+            LINE=$(grep "canvas-bundle-budget: FAIL" "$RUNNER_TEMP/budget.log" | head -1)
+            echo "::error file=frontend/scripts/canvas-bundle-budget.mjs,title=bundle budget::$LINE"
+          else
+            grep "canvas-bundle-budget:" "$RUNNER_TEMP/budget.log" | head -1 || true
+          fi
+
+      # THE COMPUTED-STYLE GUARDS NEED A REAL BROWSER, SO CI GETS ONE.
+      #
+      # Two of the four bugs these specs cover were computed-style defects: a
+      # correctly-written rule losing to an element selector, and KaTeX's own
+      # display margin. Neither is observable without layout, so vitest cannot
+      # see them and a stylesheet grep proves only that a rule was typed.
+      #
+      # DELIBERATELY ONE SPEC AND ONE PROJECT, not `npm run test:canvas`. The
+      # rest of that suite asserts frame-interval and input-latency p95s, and
+      # percentiles measured on a shared runner go red on neighbour noise
+      # rather than on regressions -- a gate that fails randomly teaches people
+      # to ignore gates. This spec makes no timing claims: every assertion is a
+      # DOM fact. Widening it to the perf suite is a separate decision that
+      # needs a dedicated runner, not a line in this file.
+      #
+      # No `--with-deps`: the runner image already ships Chromium's shared
+      # libraries, matching the reasoning already recorded in e2e.yml.
+      - name: Install Chromium
+        run: npx playwright install chromium
+
+      # `composed-renderer.spec.ts` JOINS THE GATE, AND WHY THAT IS CONSISTENT
+      # WITH THE PARAGRAPH ABOVE.
+      #
+      # The exclusion above is not "one spec forever", it is "no spec that
+      # makes a timing claim". `scene-regressions.spec.ts` qualifies because
+      # every assertion is a DOM fact; the perf suite does not because a p95
+      # measured on a shared runner goes red on a neighbour.
+      #
+      # The composed renderer had NO browser coverage at all. That spec pins
+      # `const SCENE = '/#/canvas/gas'` at line 16 and every one of its seven
+      # tests goes there -- the legacy scene. A search of the repository finds
+      # `renderer=v2` in one file, where it is defined, and `canvas/lessons` in
+      # one file, where the route is declared. Neither appears in any test. So
+      # the renderer this branch exists to build had never been rendered in a
+      # browser by any automated check, and a census of 8,236 CI log lines
+      # returned zero errors because nothing looked.
+      #
+      # `composed-renderer.spec.ts` makes no timing claims either: console
+      # errors, clipped-and-unreachable content, effective font size, duplicate
+      # ids, accessible names. All DOM facts, all deterministic.
+      # ALL FIVE DECLARED PROJECTS, NOT ONE.
+      #
+      # playwright.config.ts declares desktop-1440, square-900, mobile-375,
+      # reduced-motion and keyboard, and CI ran the first. Four verification
+      # dimensions existed in config and had never executed: the 375px viewport
+      # the responsive work was measured against, the reduced-motion path the
+      # simulation contract's fitness function branches on, and the
+      # keyboard-only path the table's scroller was given tabIndex for.
+      #
+      # This does not contradict the exclusion reasoning above, which is about
+      # SPECS that make timing claims, not about viewports. These two specs
+      # make none: every assertion is a DOM fact. Measured before wiring it in
+      # -- 128/128 across the four unused projects in 75.7s locally, so the
+      # dimensions were dark rather than broken.
+      #
+      # `--project` repeated is Playwright's own union syntax; adding one to
+      # the config without adding it here now fails preflight, via
+      # scripts/gate_integrity.py check (f).
+      - name: Scene regression guards
+        id: playwright
+        continue-on-error: true
+        run: >-
+          npx playwright test -c playwright.config.ts
+          e2e/scene-regressions.spec.ts e2e/composed-renderer.spec.ts
+          --project=desktop-1440
+          --project=square-900
+          --project=mobile-375
+          --project=reduced-motion
+          --project=keyboard
+          --fail-on-flaky-tests
+
+      # THE VERDICT, RESTORED.
+      #
+      # `continue-on-error` above makes each step report instead of halt, which
+      # would leave the job green with failures in it. This step is the gate:
+      # it reads every outcome and fails the job if any of them failed. The
+      # annotations are already on the run by the time it executes, so the
+      # summary names what to look at rather than repeating it.
+      - name: Verification gate
+        if: >-
+          steps.typecheck.outcome == 'failure' ||
+          steps.lint.outcome == 'failure' ||
+          steps.unit.outcome == 'failure' ||
+          steps.mutation.outcome == 'failure' ||
+          steps.build.outcome == 'failure' ||
+          steps.budget.outcome == 'failure' ||
+          steps.playwright.outcome == 'failure'
+        # THE FILELESS ::error WAS DELETED, and it is not an oversight.
+        #
+        # `::error title=...` with no `file=` does not vanish: GitHub attaches
+        # it to the workflow file at whatever line the step sits on. On run
+        # 32589708228 that produced `.github:6` and `.github:7` -- two
+        # annotations pointing at a YAML line that has nothing to do with any
+        # failure, sitting in the same list as the real ones. Three of that
+        # run's thirteen annotations were this noise.
+        #
+        # The annotation list is for LOCATIONS. A summary of which steps failed
+        # is not a location, so it belongs in the step summary, which renders
+        # as a table at the top of the run and costs the annotation list
+        # nothing.
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            echo "### Frontend verification failed"
+            echo
+            echo "Every step ran, so this is the complete list, not the first failure."
+            echo
+            echo "| step | outcome |"
+            echo "| --- | --- |"
+            echo "| typecheck | ${{ steps.typecheck.outcome }} |"
+            echo "| lint | ${{ steps.lint.outcome }} |"
+            echo "| unit | ${{ steps.unit.outcome }} |"
+            echo "| mutation | ${{ steps.mutation.outcome }} |"
+            echo "| build | ${{ steps.build.outcome }} |"
+            echo "| budget | ${{ steps.budget.outcome }} |"
+            echo "| playwright | ${{ steps.playwright.outcome }} |"
+            echo
+            echo "Browser failures are annotated on the panel source that drew them."
+            echo "Download the \`learning-canvas-frontend-findings\` artifact for the"
+            echo "machine-readable set: every failure with its source file, spec"
+            echo "location, attempt count and message, in one file."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
 
       # `if: always()` so a failed build still uploads whatever it produced -- the partial output
       # is often what identifies the failure. `if-no-files-found: ignore` because a failure before
       # the build step legitimately leaves no dist/ at all, and a missing artifact is not itself
       # a second failure to report.
+      # ONE DOWNLOAD INSTEAD OF A LOG CRAWL.
+      #
+      # Reconstructing what a run found used to take several round trips: `gh
+      # run view --log | grep`, then the annotations API per job, then reading
+      # the spec to work out what an assertion meant. canvas-reporter already
+      # knows all of it, so it writes ci-findings.json and this uploads it --
+      # every failure with its source file, spec location, attempt count and
+      # message, in one artifact.
+      #
+      # `if: always()` because a green run's findings file is the useful
+      # baseline: count 0 proves the reporter ran and found nothing, which is a
+      # different claim from the file being absent.
+      - name: Upload failure findings
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: learning-canvas-frontend-findings
+          path: frontend/ci-findings.json
+          # `error`, not `warn`, and the first green run is why. The reporter
+          # defaulted its output to `config.rootDir`, which is the common root
+          # of the TEST FILES -- frontend/e2e, not frontend -- so the findings
+          # landed one directory below this path. `warn` turned a completely
+          # missing artifact into a single grey annotation nobody would read,
+          # which is the same "absence looks like health" failure the reporter
+          # exists to close. ci/gates.toml already requires `error` on every
+          # gate artifact for exactly this reason.
+          if-no-files-found: error
+
       - name: Upload build output
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

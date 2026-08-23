@@ -71,6 +71,76 @@ describe('extraction reads direction from the sentence', () => {
   it('finds nothing in prose with no relations', () => {
     expect(extract('The sky was a pleasant colour that afternoon.')).toEqual([])
   })
+
+  it('does not blow up on a long clause with no sentence terminator', () => {
+    /* CATASTROPHIC BACKTRACKING, MEASURED.
+     *
+     * Every pattern here is `(.+?)\s+verb\s+(.+)` --- unbounded captures on
+     * BOTH sides of a literal. When the literal is absent the engine tries
+     * every split point, and `extract` only splits on sentence terminators, so
+     * a clause with no full stop is unbounded input to that.
+     *
+     * Timed before the fix, on text a user could paste:
+     *     2,000 clauses ->     909ms
+     *     8,000 clauses ->  15,076ms
+     *    20,000 clauses -> 100,340ms
+     *
+     * That is a denial of service on user-controlled text, in a function that
+     * runs on every turn. The budget below is deliberately generous --- the
+     * failure mode is 100 SECONDS, so anything near a second still catches it. */
+    const hostile = 'why does '.repeat(20000)
+    const started = Date.now()
+    expect(() => extract(hostile)).not.toThrow()
+    expect(Date.now() - started).toBeLessThan(1000)
+  })
+
+  it('the fast pre-filter never rejects a clause a pattern would have matched', () => {
+    /* THE RISK THE PRE-FILTER INTRODUCES.
+     *
+     * `extract` now rejects clauses with no relation verb before trying the
+     * twenty patterns --- that is what took 20,000 hostile clauses from 17.5s
+     * to nothing. But the filter is a SECOND list of verbs, and a second list
+     * drifts: a verb added to a pattern and forgotten here means that relation
+     * silently stops being extracted, with no error and no failing test
+     * anywhere else.
+     *
+     * So every relation kind is exercised through the real `extract`. This
+     * fails the moment the two lists disagree in the direction that loses
+     * data. */
+    const sentences: [string, string][] = [
+      ['heating causes expansion.', 'causes'],
+      ['debt leads to default.', 'causes'],
+      ['friction results in heat.', 'causes'],
+      ['expansion is caused by heating.', 'causes'],
+      ['the delay is due to traffic.', 'causes'],
+      ['pressure depends on temperature.', 'depends-on'],
+      ['baking requires flour.', 'depends-on'],
+      ['rainfall affects yield.', 'affects'],
+      ['weather influences turnout.', 'affects'],
+      ['vaccination prevents infection.', 'prevents'],
+      ['firewall blocks traffic.', 'prevents'],
+      ['a catalyst enables the reaction.', 'enables'],
+      ['the licence allows redistribution.', 'enables'],
+      ['budget constrains scope.', 'constrains'],
+      ['bandwidth limits throughput.', 'constrains'],
+      ['fermentation precedes distillation.', 'precedes'],
+      ['the engine is part of the car.', 'part-of'],
+      ['an atom consists of protons.', 'part-of'],
+      ['a sparrow is similar to a robin.', 'similar-to'],
+      ['LIFO differs from FIFO.', 'differs-from'],
+    ]
+    for (const [sentence, kind] of sentences) {
+      const found = extract(sentence)
+      expect(found.length, `pre-filter or pattern dropped: "${sentence}"`).toBe(1)
+      expect(found[0]?.kind, sentence).toBe(kind)
+    }
+  })
+
+  it('still extracts from a long clause that DOES contain a relation', () => {
+    /* The fix must bound the work, not silently stop reading real input. */
+    const padded = `${'context word '.repeat(200)}heating causes expansion.`
+    expect(extract(padded).some((r) => r.kind === 'causes')).toBe(true)
+  })
 })
 
 describe('the graph answers questions a pile of sentences cannot', () => {

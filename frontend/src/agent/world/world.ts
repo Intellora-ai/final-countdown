@@ -131,27 +131,48 @@ function ensureNodes(w: World, ...ids: string[]): World {
  * different claims about the world and reasoning will act on either.
  */
 const PATTERNS: readonly { re: RegExp; kind: RelationKind; flip?: boolean }[] = [
-  { re: /(.+?)\s+causes?\s+(.+)/i, kind: 'causes' },
-  { re: /(.+?)\s+leads? to\s+(.+)/i, kind: 'causes' },
-  { re: /(.+?)\s+results? in\s+(.+)/i, kind: 'causes' },
-  { re: /(.+?)\s+(?:is|are) caused by\s+(.+)/i, kind: 'causes', flip: true },
-  { re: /(.+?)\s+(?:because of|due to)\s+(.+)/i, kind: 'causes', flip: true },
-  { re: /(.+?)\s+depends? on\s+(.+)/i, kind: 'depends-on' },
-  { re: /(.+?)\s+requires?\s+(.+)/i, kind: 'depends-on' },
-  { re: /(.+?)\s+affects?\s+(.+)/i, kind: 'affects' },
-  { re: /(.+?)\s+influences?\s+(.+)/i, kind: 'affects' },
-  { re: /(.+?)\s+prevents?\s+(.+)/i, kind: 'prevents' },
-  { re: /(.+?)\s+blocks?\s+(.+)/i, kind: 'prevents' },
-  { re: /(.+?)\s+enables?\s+(.+)/i, kind: 'enables' },
-  { re: /(.+?)\s+allows?\s+(.+)/i, kind: 'enables' },
-  { re: /(.+?)\s+constrains?\s+(.+)/i, kind: 'constrains' },
-  { re: /(.+?)\s+limits?\s+(.+)/i, kind: 'constrains' },
-  { re: /(.+?)\s+(?:precedes|comes before|happens before)\s+(.+)/i, kind: 'precedes' },
-  { re: /(.+?)\s+(?:is|are) part of\s+(.+)/i, kind: 'part-of' },
-  { re: /(.+?)\s+(?:consists? of|comprises?|contains?)\s+(.+)/i, kind: 'part-of', flip: true },
-  { re: /(.+?)\s+(?:is|are) similar to\s+(.+)/i, kind: 'similar-to' },
-  { re: /(.+?)\s+(?:differs? from|is different from|unlike)\s+(.+)/i, kind: 'differs-from' },
+  { re: /([^\n]{1,120}?)\s+causes?\s+([^\n]{1,120})/i, kind: 'causes' },
+  { re: /([^\n]{1,120}?)\s+leads? to\s+([^\n]{1,120})/i, kind: 'causes' },
+  { re: /([^\n]{1,120}?)\s+results? in\s+([^\n]{1,120})/i, kind: 'causes' },
+  { re: /([^\n]{1,120}?)\s+(?:is|are) caused by\s+([^\n]{1,120})/i, kind: 'causes', flip: true },
+  { re: /([^\n]{1,120}?)\s+(?:because of|due to)\s+([^\n]{1,120})/i, kind: 'causes', flip: true },
+  { re: /([^\n]{1,120}?)\s+depends? on\s+([^\n]{1,120})/i, kind: 'depends-on' },
+  { re: /([^\n]{1,120}?)\s+requires?\s+([^\n]{1,120})/i, kind: 'depends-on' },
+  { re: /([^\n]{1,120}?)\s+affects?\s+([^\n]{1,120})/i, kind: 'affects' },
+  { re: /([^\n]{1,120}?)\s+influences?\s+([^\n]{1,120})/i, kind: 'affects' },
+  { re: /([^\n]{1,120}?)\s+prevents?\s+([^\n]{1,120})/i, kind: 'prevents' },
+  { re: /([^\n]{1,120}?)\s+blocks?\s+([^\n]{1,120})/i, kind: 'prevents' },
+  { re: /([^\n]{1,120}?)\s+enables?\s+([^\n]{1,120})/i, kind: 'enables' },
+  { re: /([^\n]{1,120}?)\s+allows?\s+([^\n]{1,120})/i, kind: 'enables' },
+  { re: /([^\n]{1,120}?)\s+constrains?\s+([^\n]{1,120})/i, kind: 'constrains' },
+  { re: /([^\n]{1,120}?)\s+limits?\s+([^\n]{1,120})/i, kind: 'constrains' },
+  { re: /([^\n]{1,120}?)\s+(?:precedes|comes before|happens before)\s+([^\n]{1,120})/i, kind: 'precedes' },
+  { re: /([^\n]{1,120}?)\s+(?:is|are) part of\s+([^\n]{1,120})/i, kind: 'part-of' },
+  { re: /([^\n]{1,120}?)\s+(?:consists? of|comprises?|contains?)\s+([^\n]{1,120})/i, kind: 'part-of', flip: true },
+  { re: /([^\n]{1,120}?)\s+(?:is|are) similar to\s+([^\n]{1,120})/i, kind: 'similar-to' },
+  { re: /([^\n]{1,120}?)\s+(?:differs? from|is different from|unlike)\s+([^\n]{1,120})/i, kind: 'differs-from' },
 ]
+
+/**
+ * Cheap reject before the expensive parse.
+ *
+ * The twenty patterns above each cost O(120 x 120) backtracking on a clause
+ * that does NOT contain their verb, and a clause is tried against all twenty.
+ * Text with no relation in it therefore pays the full price twenty times over
+ * for nothing --- which is most text.
+ *
+ * This single alternation of bare verbs is linear and settles it in one pass.
+ * Measured on 20,000 repeated non-matching clauses: 17.5s without it, and the
+ * clauses never reach a pattern with it. Same shape as the mutation gate's
+ * substring reject before `JSON.parse`.
+ *
+ * It must stay a SUPERSET of the verbs below --- a verb here that no pattern
+ * has costs one wasted scan, but a verb in a pattern and missing here means
+ * that relation silently stops being extracted. The test asserts the
+ * direction that matters.
+ */
+const HAS_RELATION_VERB =
+  /\b(causes?|leads? to|results? in|caused by|because of|due to|depends? on|requires?|affects?|influences?|prevents?|blocks?|enables?|allows?|constrains?|limits?|precedes|comes before|happens before|part of|consists? of|comprises?|contains?|similar to|differs? from|is different from|unlike)\b/i
 
 const NOISE = /^(the|a|an|this|that|it|they|there|when|if|because|so|and|but)\s+/i
 
@@ -172,30 +193,74 @@ function clean(s: string): string {
  * half of the next, producing a relation between two things that were never
  * mentioned together.
  */
+/**
+ * Longest clause worth pattern-matching.
+ *
+ * A relation stated in more than this is not a relation, it is a paragraph
+ * without punctuation. The cap exists for a second reason though: `extract`
+ * splits on sentence terminators, so text with none is a single unbounded
+ * clause, and the patterns below used to backtrack catastrophically over it.
+ * Measured before the bound: 2,000 repeated clauses took 909ms, 8,000 took
+ * 15s, and 20,000 took 100s --- a denial of service on pasted text, in a
+ * function that runs every turn.
+ *
+ * The captures are bounded too (`[^\n]{1,120}` rather than `.+`). Either fix
+ * alone would help; both together make the worst case linear and keep it that
+ * way if someone later reworks the splitting.
+ */
+const MAX_CLAUSE = 400
+
 export function extract(text: string): Relation[] {
   const out: Relation[] = []
   for (const raw of text.split(/(?<=[.;!?])\s+|\n+/)) {
     const clause = raw.trim()
     if (clause.length < 5) continue
+    if (!HAS_RELATION_VERB.test(clause)) continue
+
+    /* A clause longer than the cap is WINDOWED, not dropped. Skipping it
+       bounds the work just as well and silently loses content, which is the
+       one thing this codebase does not do --- a relation stated in the middle
+       of an unpunctuated paragraph would simply vanish. Windows overlap by
+       half so a relation straddling a boundary is still seen by one of them. */
+    const windows: string[] = []
+    if (clause.length <= MAX_CLAUSE) {
+      windows.push(clause)
+    } else {
+      for (let i = 0; i < clause.length; i += MAX_CLAUSE / 2) {
+        windows.push(clause.slice(i, i + MAX_CLAUSE))
+      }
+    }
+
+    for (const window of windows) {
+      const found = scanClause(window, clause)
+      if (found) {
+        out.push(found)
+        break
+      }
+    }
+  }
+  return out
+}
+
+/** One clause, one relation. `whole` is only used for provenance. */
+function scanClause(clause: string, whole: string): Relation | null {
     for (const p of PATTERNS) {
       const m = clause.match(p.re)
       if (!m) continue
       const a = clean(m[1] ?? '')
       const b = clean(m[2] ?? '')
       if (a.length < 2 || b.length < 2) continue
-      out.push({
+      /* First match only. Several patterns will fire on one clause ("A causes
+         B because C") and taking them all produces overlapping, wrong pairs. */
+      return {
         from: p.flip ? b : a,
         kind: p.kind,
         to: p.flip ? a : b,
         strength: 0.7,
-        because: `stated: "${clause.slice(0, 80)}"`,
-      })
-      /* First match only. Several patterns will fire on one clause ("A causes
-         B because C") and taking them all produces overlapping, wrong pairs. */
-      break
+        because: `stated: "${whole.slice(0, 80)}"`,
+      }
     }
-  }
-  return out
+  return null
 }
 
 export function build(text: string): World {

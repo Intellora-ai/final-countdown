@@ -7,10 +7,10 @@ is, and the schema is named.
 **Read with:** doc 02 §7 (the no-diagnosis constraint as implemented), doc 02 §8
 (replay).
 
-> **Pinned to `71aae09`** on `learning-os/llm`, the integration branch —
-> `domain llm memory models policy verifiers`. Verified on CI's configuration
-> (Python 3.12, hash-locked install): **168 tests passing**, ruff clean,
-> `mypy --strict` clean over 24 files.
+> **Pinned to `15aabe8`** on `learning-os/llm`, the integration branch —
+> `domain llm memory models policy runtime verifiers`. Verified on CI's
+> configuration (Python 3.12, hash-locked install): **181 tests passing**, ruff
+> clean, `mypy --strict` clean over 27 files.
 >
 > `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
 > which is stacked on this branch and **not yet integrated**. `mastery/` is

@@ -9,10 +9,10 @@ above. Where this document and that commit disagree, the commit is right and
 this document is a bug. Naming the commit is what makes that sentence
 checkable — "the code" was five different commits when this was written.
 
-> **Pinned to `71aae09`** on `learning-os/llm`, the integration branch —
-> `domain llm memory models policy verifiers`. Verified on CI's configuration
-> (Python 3.12, hash-locked install): **168 tests passing**, ruff clean,
-> `mypy --strict` clean over 24 files.
+> **Pinned to `15aabe8`** on `learning-os/llm`, the integration branch —
+> `domain llm memory models policy runtime verifiers`. Verified on CI's
+> configuration (Python 3.12, hash-locked install): **181 tests passing**, ruff
+> clean, `mypy --strict` clean over 27 files.
 >
 > `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
 > which is stacked on this branch and **not yet integrated**. `mastery/` is
@@ -514,7 +514,7 @@ session:
 
 | Check | Result |
 |---|---|
-| `pytest tests -q` | **168 tests, all passing** |
+| `pytest tests -q` | **181 tests, all passing** |
 | `ruff check src tests` | clean |
 | `mypy --strict src/learning_os` | clean on src and tests |
 

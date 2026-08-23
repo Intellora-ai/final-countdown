@@ -4,10 +4,10 @@
 **V1 domain:** Python programming, specifically recursion.
 **Read with:** doc 02 (contracts), doc 03 (verifier interface).
 
-> **Pinned to `71aae09`** on `learning-os/llm`, the integration branch —
-> `domain llm memory models policy verifiers`. Verified on CI's configuration
-> (Python 3.12, hash-locked install): **168 tests passing**, ruff clean,
-> `mypy --strict` clean over 24 files.
+> **Pinned to `15aabe8`** on `learning-os/llm`, the integration branch —
+> `domain llm memory models policy runtime verifiers`. Verified on CI's
+> configuration (Python 3.12, hash-locked install): **181 tests passing**, ruff
+> clean, `mypy --strict` clean over 27 files.
 >
 > `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
 > which is stacked on this branch and **not yet integrated**. `mastery/` is
@@ -71,8 +71,8 @@ learner who was doing fine.
 | `memory/store.py` | `MemoryStore`, `Attempt`, `Outcome`, `similarity()`, `SAME_EXPLANATION`, `failed_strategies()`, `succeeded_with()`, `is_repeat()`, `relevant()` |
 | `verifiers/` | `DomainVerifier`, `Task`, `Judgement`, `UnsupportedVerifier`, `PythonVerifier` |
 
-**Measured independently, not quoted:** **168 tests, all passing**.
-`ruff check` clean; `mypy --strict` clean on `src` and `tests` (24 files), verified on Python 3.12 with the hash-locked install CI uses.
+**Measured independently, not quoted:** **181 tests, all passing**.
+`ruff check` clean; `mypy --strict` clean on `src` and `tests` (27 files), verified on Python 3.12 with the hash-locked install CI uses.
 
 The failure is `test_verifier.py::test_learner_code_cannot_import_the_engine` —
 a real sandbox defect, not a flaky test. See doc 03 §4. It passes only under

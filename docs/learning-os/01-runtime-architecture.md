@@ -3,10 +3,10 @@
 **Package:** `final-countdown/learning-os/`, a Python package.
 **Read with:** doc 02 (the contracts every boundary speaks).
 
-> **Pinned to `71aae09`** on `learning-os/llm`, the integration branch —
-> `domain llm memory models policy verifiers`. Verified on CI's configuration
-> (Python 3.12, hash-locked install): **168 tests passing**, ruff clean,
-> `mypy --strict` clean over 24 files.
+> **Pinned to `15aabe8`** on `learning-os/llm`, the integration branch —
+> `domain llm memory models policy runtime verifiers`. Verified on CI's
+> configuration (Python 3.12, hash-locked install): **181 tests passing**, ruff
+> clean, `mypy --strict` clean over 27 files.
 >
 > `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
 > which is stacked on this branch and **not yet integrated**. `mastery/` is
@@ -73,7 +73,7 @@ credentials. If a test needs a key to pass, the boundary is in the wrong place.
 | `diagnosis/` | Estimating skill from evidence; selecting the bottleneck | **done at `ebc4059`**, not yet integrated |
 | `mastery/` | Learner model, mastery states, retention | **not started** — branch cut, no source |
 | `policy/` | Candidate actions, ranking, the `Decision` | **done** — `select.py` |
-| `runtime/` | The loop; `Judgement` → `ToolResult`; `LessonSpec` emission | not started |
+| `runtime/` | The loop; `Judgement` → `ToolResult`; `LessonSpec` emission | **partly done** — `loop.py`; no `LessonSpec` emitter yet |
 | `api/` | Transport. No decisions. | not started |
 
 `diagnosis/` exists at `ebc4059` on a branch stacked above the pinned commit;
@@ -215,6 +215,65 @@ texts that share a mechanism in different vocabulary. That is why
 `Attempt.mechanism` is **recorded** rather than inferred from the text — the
 weak measure never carries the load alone.
 
+### `runtime/loop.py` — where the modules are composed
+
+Every other module answers one question well. This is the only place they are
+put together, and **composition is where the interesting failures live**: a
+validator that works and is never consulted, a memory that records nothing
+because the caller forgot, a repair path that loops because nothing counts
+attempts. None of those are visible inside the modules; all of them are visible
+here.
+
+```python
+MAX_GENERATION_ATTEMPTS = 2
+
+class TurnStatus(StrEnum):
+    TAUGHT                  # content generated and honoured its contract
+    UNAVAILABLE             # the model could not be reached
+    CONTRACT_UNSATISFIABLE  # content broke the contract in ways rewriting cannot fix
+    EXHAUSTED               # every mechanism for this diagnosis has failed here
+
+@dataclass(frozen=True, slots=True)
+class Turn:
+    status: TurnStatus
+    decision: Decision
+    content: GeneratedContent | None = None
+    violations: tuple[Violation, ...] = ()
+    attempts: int = 0
+    at: datetime | None = None
+```
+
+**The loop records even when it fails.** The tempting shape — generate,
+validate, return on success, raise on failure — throws away the most valuable
+thing the system produces. A generation that broke its contract twice and was
+abandoned is exactly what the policy needs next time, and a loop that raises
+leaves no trace, so the same strategy is chosen again, fails again, and the
+engine never learns because nobody wrote it down.
+
+Every terminal state records an `Attempt`. `Outcome.FAILURE` on the way out is
+the output, not an error path.
+
+**Four statuses rather than a bool**, because the right next move differs for
+each and collapsing them forces the caller to re-derive which happened from
+whatever incidental detail survived. `CONTRACT_UNSATISFIABLE` in particular
+means the *policy* must choose differently — regenerating is the blind repeat
+invariant 7 exists to stop.
+
+**`content` is `None` unless `status is TAUGHT`**, structurally rather than by
+convention. A caller cannot accidentally render content that failed validation,
+because on that path there is nothing to render.
+
+**Two generation attempts, not three.** Content failing its contract twice is
+evidence about the *contract*; a third attempt spends money to learn nothing the
+second did not already say.
+
+### Still missing from `runtime/`
+
+**No `LessonSpec` emitter exists.** `grep -i lessonspec` over the Python tree
+returns nothing. The contract is specified (§9), agreed with the canvas owner,
+and unimplemented — it is expected to land with `api/`, which does not exist
+either. That is the last gap between this engine and a learner seeing anything.
+
 ---
 
 ## 6. `domain/` — the subject is data
@@ -270,7 +329,7 @@ Measured against the tree, not quoted:
 ```bash
 cd learning-os
 python3 -m venv .venv && ./.venv/bin/pip install -e ".[dev]"
-./.venv/bin/python -m pytest tests -q       # 168 tests, all passing
+./.venv/bin/python -m pytest tests -q       # 181 tests, all passing
 ./.venv/bin/ruff check src tests            # clean
 MYPYPATH=src ./.venv/bin/mypy --strict src/learning_os   # clean, 11 files
 ```

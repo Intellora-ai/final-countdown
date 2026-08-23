@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { ArrowDefs, GlowDot, Pill, arrowRef, curvePath, useArrowScope } from '../../design/primitives'
+import { ArrowDefs, FigureSvg, GlowDot, Pill, arrowRef, curvePath, useArrowScope } from '../../design/primitives'
 import { tokens } from '../../design/tokens'
 import { checkGraph, findBipartiteConflict, findCycle } from '../../spec/shapeInvariants'
 import type { GraphData, ShapeIssue } from '../../spec/shapeInvariants'
@@ -1382,7 +1382,7 @@ export function GraphShape({
 
   return (
     <>
-      <svg className="lc-flow" viewBox={layout.viewBox} role="img" aria-label={describeGraph(data)}>
+      <FigureSvg viewBox={layout.viewBox} role="img" aria-label={describeGraph(data)}>
         <ArrowDefs scope={arrowScope} />
 
         {/*
@@ -1451,7 +1451,7 @@ export function GraphShape({
             </text>
           </g>
         ))}
-      </svg>
+      </FigureSvg>
 
       {/*
         POSITION IS READ AS MEANING WHETHER OR NOT IT HAS ANY.

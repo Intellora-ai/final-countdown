@@ -230,3 +230,71 @@ export function Question({ children }: { children: ReactNode }) {
 function r(value: number): number {
   return Math.round(value * 100) / 100
 }
+
+/**
+ * An SVG figure drawn at ONE-TO-ONE, inside a container that scrolls.
+ *
+ * THE BUG THIS EXISTS TO KILL
+ * ---------------------------
+ * `.lc-flow` was `width: 100%` over a fixed `viewBox`, which means the browser
+ * scales the whole coordinate system to the container. Text inside is measured
+ * in user units, so it scales too:
+ *
+ *     on-screen px  =  font-size  ×  container width ÷ viewBox width
+ *
+ * The civics process diagram is 33 nodes wide. Measured in a browser, its
+ * labels rendered at 1.29px at a 320px viewport and still only 8.84px at
+ * 1440px — against a smallest type token of 11px. Not small text. Invisible
+ * text, at every width the product supports.
+ *
+ * WHY NOT JUST MAKE THE FONT BIGGER
+ * ---------------------------------
+ * Because the size depends on the container, so there is no font-size that is
+ * correct at more than one width — and because CLAUDE.md says it outright:
+ * "Make the text smaller so it fits" — never. Disclose, don't shrink. A
+ * diagram too wide for the screen is a disclosure problem, not a type problem.
+ *
+ * WHY EXACTLY 1:1, RATHER THAN A FLOOR
+ * ------------------------------------
+ * `min-width` alone would stop text shrinking but would let it GROW on a wide
+ * screen — a 600-unit diagram at 1440px would render its labels at 28px while
+ * the paragraph beside it stayed at 14px. Goal 1 says font sizes are constant
+ * across the design system, so the scale factor has to be pinned at 1, not
+ * merely bounded below. A diagram is then always drawn at the size it was laid
+ * out for, and the container scrolls when the screen is narrower.
+ */
+export function FigureSvg({
+  viewBox,
+  className = 'lc-flow',
+  children,
+  ...rest
+}: {
+  viewBox: string
+  className?: string
+  children: ReactNode
+} & Omit<React.SVGProps<SVGSVGElement>, 'viewBox' | 'className' | 'children'>) {
+  /* The viewBox is `minX minY width height`. A malformed one falls back to
+     leaving the sizing alone rather than emitting `width="NaN"`, which browsers
+     treat as zero and would hide the figure entirely. */
+  const parts = viewBox.trim().split(/\s+/).map(Number)
+  const [, , w, h] = parts
+  const sized =
+    parts.length === 4 &&
+    w !== undefined &&
+    h !== undefined &&
+    Number.isFinite(w) &&
+    Number.isFinite(h) &&
+    w > 0 &&
+    h > 0
+
+  return (
+    <svg
+      className={className}
+      viewBox={viewBox}
+      {...(sized ? { width: w, height: h } : {})}
+      {...rest}
+    >
+      {children}
+    </svg>
+  )
+}

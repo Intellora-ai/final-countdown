@@ -1,4 +1,4 @@
-import { ArrowDefs, arrowRef, useArrowScope } from '../../design/primitives'
+import { ArrowDefs, FigureSvg, arrowRef, useArrowScope } from '../../design/primitives'
 import { tokens } from '../../design/tokens'
 
 /**
@@ -1687,7 +1687,7 @@ export function GeometryShape({ data, at }: { data: GeometryData; at?: string })
 
   return (
     <div>
-      <svg className="lc-flow" viewBox={figure.viewBox} role="img" aria-label={built.description}>
+      <FigureSvg viewBox={figure.viewBox} role="img" aria-label={built.description}>
         {/*
           NO `lc-bloom` ANYWHERE BELOW. Its region is in percentages of the
           object bounding box, and an axis — or any horizontal segment — has a
@@ -1696,7 +1696,7 @@ export function GeometryShape({ data, at }: { data: GeometryData; at?: string })
         */}
         <ArrowDefs scope={arrowScope} />
         <Marks arrowScope={arrowScope} marks={figure.marks} />
-      </svg>
+      </FigureSvg>
 
       <p className="lc-caption">{built.note}</p>
 

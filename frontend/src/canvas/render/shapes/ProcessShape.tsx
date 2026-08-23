@@ -1,4 +1,4 @@
-import { ArrowDefs, arrowRef, curvePath, useArrowScope } from '../../design/primitives'
+import { ArrowDefs, FigureSvg, arrowRef, curvePath, useArrowScope } from '../../design/primitives'
 import { tokens } from '../../design/tokens'
 import { checkProcess, type ProcessData, type ShapeIssue } from '../../spec/shapeInvariants'
 
@@ -506,8 +506,7 @@ export function ProcessShape({ data, at }: { data: ProcessData; at?: string }) {
 
   return (
     <div>
-      <svg
-        className="lc-flow"
+      <FigureSvg
         viewBox={`0 0 ${layout.width} ${layout.height}`}
         role="img"
         aria-label={describeProcess(data)}
@@ -622,7 +621,7 @@ export function ProcessShape({ data, at }: { data: ProcessData; at?: string }) {
             </text>
           </g>
         ))}
-      </svg>
+      </FigureSvg>
       <p className="lc-caption">{built.caption}</p>
     </div>
   )

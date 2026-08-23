@@ -1,3 +1,4 @@
+import { FigureSvg } from '../../design/primitives'
 import { useEffect, useRef } from 'react'
 import ReactECharts, { echarts } from '../echarts'
 import type { EChartsOption } from 'echarts'
@@ -467,8 +468,7 @@ export function FlowWeightedShape({ data, at }: { data: FlowWeightedData; at?: s
     const extent = chord.radius + scalar(tokens.space.xxxl)
     return (
       <div>
-        <svg
-          className="lc-flow"
+        <FigureSvg
           viewBox={`${-extent} ${-extent} ${extent * 2} ${extent * 2}`}
           role="img"
           aria-label={describeFlow(data)}
@@ -507,7 +507,7 @@ export function FlowWeightedShape({ data, at }: { data: FlowWeightedData; at?: s
               </text>
             </g>
           ))}
-        </svg>
+        </FigureSvg>
         <p className="lc-caption">{built.caption}</p>
       </div>
     )

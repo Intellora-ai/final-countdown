@@ -1,3 +1,4 @@
+import { FigureSvg } from '../../design/primitives'
 import { useEffect, useRef } from 'react'
 import ReactECharts, { echarts } from '../echarts'
 import type { EChartsOption } from 'echarts'
@@ -629,8 +630,7 @@ export function PartsShape({ data, at }: { data: PartsData; at?: string }) {
     const step = CELL + CELL_GAP
     return (
       <div>
-        <svg
-          className="lc-flow"
+        <FigureSvg
           viewBox={`0 0 ${grid.columns * step - CELL_GAP} ${grid.rows * step - CELL_GAP}`}
           role="img"
           aria-label={describeParts(data, built.whole)}
@@ -663,7 +663,7 @@ export function PartsShape({ data, at }: { data: PartsData; at?: string }) {
               <title>{cell.label}</title>
             </rect>
           ))}
-        </svg>
+        </FigureSvg>
         <p className="lc-caption">{built.caption}</p>
       </div>
     )
@@ -674,8 +674,7 @@ export function PartsShape({ data, at }: { data: PartsData; at?: string }) {
     const width = 100
     return (
       <div>
-        <svg
-          className="lc-flow"
+        <FigureSvg
           viewBox={`0 0 ${width} ${BAND_H}`}
           preserveAspectRatio="none"
           role="img"
@@ -695,7 +694,7 @@ export function PartsShape({ data, at }: { data: PartsData; at?: string }) {
               <title>{band.label}</title>
             </rect>
           ))}
-        </svg>
+        </FigureSvg>
         <p className="lc-caption">{built.caption}</p>
       </div>
     )

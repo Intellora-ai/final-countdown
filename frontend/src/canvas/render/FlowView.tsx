@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { ArrowDefs, arrowRef, curvePath, useArrowScope } from '../design/primitives'
+import { ArrowDefs, FigureSvg, arrowRef, curvePath, useArrowScope } from '../design/primitives'
 import type { Block } from '../spec/spec'
 
 type FlowBlock = Extract<Block, { kind: 'flow' }>
@@ -30,8 +30,10 @@ export function FlowView({ block }: { block: FlowBlock }) {
   const layout = useMemo(() => layoutChain(block), [block])
 
   return (
-    <svg
-      className="lc-flow"
+    /* A `flow` block reaches the page through BlockView, not FigureView, so it
+       needs its own scroller — the one FigureView adds never wraps this. */
+    <div className="lc-figure-scroll" data-overflow="scroll">
+    <FigureSvg
       viewBox={`0 0 ${layout.width} ${layout.height}`}
       role="img"
       aria-label={describe(block)}
@@ -77,7 +79,8 @@ export function FlowView({ block }: { block: FlowBlock }) {
           </text>
         </g>
       ))}
-    </svg>
+    </FigureSvg>
+    </div>
   )
 }
 

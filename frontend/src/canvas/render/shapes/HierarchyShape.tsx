@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { GlowDot, Pill } from '../../design/primitives'
+import { FigureSvg, GlowDot, Pill } from '../../design/primitives'
 import { tokens } from '../../design/tokens'
 import { checkHierarchy } from '../../spec/shapeInvariants'
 import type { HierarchyData, ShapeIssue } from '../../spec/shapeInvariants'
@@ -997,7 +997,7 @@ export function HierarchyShape({
 
   return (
     <>
-      <svg className="lc-flow" viewBox={layout.viewBox} role="img" aria-label={describeHierarchy(data)}>
+      <FigureSvg viewBox={layout.viewBox} role="img" aria-label={describeHierarchy(data)}>
         {/*
           NO `lc-bloom` ANYWHERE BELOW.
           Its region is in percentages, resolved against the object bounding
@@ -1059,7 +1059,7 @@ export function HierarchyShape({
             )}
           </g>
         ))}
-      </svg>
+      </FigureSvg>
 
       <p className="lc-caption">
         <GlowDot size="sm" /> {root ? `${root.label}. ` : ''}

@@ -293,7 +293,35 @@
 .lc-chart { width: 100%; aspect-ratio: 16 / 10; min-height: 0; }
 
 /* -- Flow --------------------------------------------------------------- */
-.lc-flow { width: 100%; overflow: visible; }
+/*
+ * A FIGURE THAT IS WIDER THAN THE SCREEN SCROLLS. IT DOES NOT SHRINK.
+ *
+ * `.lc-flow` used to be `width: 100%` over a fixed viewBox, which scales the
+ * whole coordinate system — including text, which is measured in user units.
+ * The civics process diagram (33 nodes) rendered its labels at 1.29px at a
+ * 320px viewport and 8.84px at 1440px, against a smallest type token of 11px.
+ * `FigureSvg` now gives every SVG its natural pixel size so the scale factor is
+ * exactly 1, and this is where the resulting overflow becomes reachable.
+ *
+ * `overflow-y` is hidden rather than auto on purpose: the height always fits,
+ * and leaving it auto produces a second scrollbar on some platforms that steals
+ * a few pixels and starts a horizontal/vertical feedback loop.
+ *
+ * `overscroll-behavior-x: contain` stops a sideways swipe inside a diagram from
+ * turning into a browser back-navigation once it reaches the end.
+ */
+.lc-figure-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+}
+
+/* Centred while it fits, left-aligned once it does not — `margin: auto` on the
+   child would push a too-wide figure half out of the scroll origin. */
+.lc-figure-scroll > .lc-flow { display: block; margin-inline: auto; }
+
+.lc-flow { max-width: none; overflow: visible; }
 .lc-flow__node {
   font-size: var(--type-caption-size);
   fill: var(--c-ink-muted);

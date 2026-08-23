@@ -1,3 +1,4 @@
+import { FigureSvg } from '../../design/primitives'
 import { tokens } from '../../design/tokens'
 import { checkLogic, findCycle } from '../../spec/shapeInvariants'
 import type { LogicData, ShapeIssue } from '../../spec/shapeInvariants'
@@ -565,8 +566,7 @@ export function LogicShape({ data, at }: { data: LogicData; at?: string }) {
 
   return (
     <div>
-      <svg
-        className="lc-flow"
+      <FigureSvg
         viewBox={`0 0 ${layout.width} ${layout.height}`}
         role="img"
         aria-label={describeLogic(data)}
@@ -652,7 +652,7 @@ export function LogicShape({ data, at }: { data: LogicData; at?: string }) {
             )}
           </g>
         ))}
-      </svg>
+      </FigureSvg>
       <p className="lc-caption">{built.caption}</p>
       <Warnings warnings={built.warnings} />
     </div>

@@ -152,9 +152,21 @@ export function FigureView({ block }: { block: FigureBlock }) {
 
   return (
     <>
-      <Suspense fallback={<p className="lc-caption">Loading {block.data.shape}…</p>}>
-        {drawing}
-      </Suspense>
+      {/*
+        THE FIGURE SCROLLS; THE TEXT INSIDE IT DOES NOT SHRINK.
+        ------------------------------------------------------
+        Every SVG shape now draws at 1:1 (see `FigureSvg`), so a wide diagram is
+        genuinely wider than a narrow screen. That has to be reachable, and
+        `data-overflow="scroll"` is the attribute this codebase already uses to
+        say a scroller is DELIBERATE — the measurement layer reads it so an
+        intentional scroll region is not counted as a layout fault. Without it
+        the overflow check would report every wide figure as clipped content.
+      */}
+      <div className="lc-figure-scroll" data-overflow="scroll">
+        <Suspense fallback={<p className="lc-caption">Loading {block.data.shape}…</p>}>
+          {drawing}
+        </Suspense>
+      </div>
       {block.caption && <Caption>{block.caption}</Caption>}
     </>
   )

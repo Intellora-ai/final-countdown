@@ -403,6 +403,24 @@ jobs:
       - name: Install Chromium
         run: npx playwright install chromium
 
+      # TEMPORARY — REVERTED IN THE NEXT COMMIT ON THIS BRANCH.
+      #
+      # Proves the one piece of wiring this change introduces and nothing else
+      # exercises: that a RED SHARD reddens `frontend-verdict` through `needs:`.
+      # A failing `frontend` job proves only the old path, which failed the same
+      # way before the split. `needs:` propagation from a matrix leg is new, and
+      # an aggregator that cannot see it is issue #18's shape with nine jobs
+      # hidden behind it.
+      - name: Deliberate shard failure (red-before-green probe)
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: |
+          if [ "$PROJECT" = "keyboard" ]; then
+            echo "Failing this shard on purpose. frontend-verdict must go red."
+            exit 1
+          fi
+          echo "shard $PROJECT unaffected"
+
       - name: Scene regression guards
         env:
           PROJECT: ${{ matrix.project }}

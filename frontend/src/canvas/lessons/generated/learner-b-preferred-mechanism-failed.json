@@ -1,0 +1,36 @@
+{
+  "blocks": [
+    {
+      "body": "Two cases that look alike and are not.",
+      "emphasis": "primary",
+      "id": "prose-0",
+      "kind": "prose"
+    },
+    {
+      "body": "The difference is the single row that disagrees.",
+      "emphasis": "supporting",
+      "id": "table-1",
+      "kind": "table"
+    },
+    {
+      "body": "Terms that stay: base case, recursive case, call stack, frame, stack depth",
+      "emphasis": "supporting",
+      "id": "prose-2",
+      "kind": "prose"
+    }
+  ],
+  "id": "python-recursion-identify-base-case",
+  "question": "Why does a recursive function need a base case?",
+  "relations": [
+    {
+      "from": "table-1",
+      "kind": "supports",
+      "to": "prose-0"
+    },
+    {
+      "from": "prose-2",
+      "kind": "supports",
+      "to": "prose-0"
+    }
+  ]
+}

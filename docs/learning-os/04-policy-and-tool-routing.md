@@ -9,9 +9,14 @@ This document describes it.
 > configuration (Python 3.12, hash-locked install): **207 tests passing**, ruff
 > clean, `mypy --strict` clean over 30 files.
 >
-> `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
-> which is stacked on this branch and **not yet integrated**. `mastery/` is
-> **not started** — its branch is cut but carries no `learning_os` source.
+> **§5's reason-code list describes `045cbbe`**, a descendant of the pin —
+> `PREREQUISITE_FIRST` was deleted there, taking the enum from ten to nine.
+> Verified by enumerating the enum at that commit, not by trusting the report.
+>
+> `diagnosis/` is described in §9 against **`ebc4059`** on
+> `learning-os/diagnosis`, which is stacked on this branch and **not yet
+> integrated**. `mastery/` is **not started** — its branch is cut but carries no
+> `learning_os` source.
 
 ---
 
@@ -166,22 +171,44 @@ Two things the validators will not let you skip:
 means seeing what it was chosen over; a selection with no alternatives in the
 log is unfalsifiable.
 
-### `reason_codes` — the ten in `policy/select.py`
+### `reason_codes` — the nine in `policy/select.py`
 
 Machine-readable, stable, enumerated. They make a population of decisions
 queryable rather than merely readable.
 
 ```
 diagnostic_needed              evidence_already_sufficient
-prerequisite_first             misconception_live
-avoided_failed_strategy        representation_worked_before
-first_attempt                  ready_for_transfer
-strategies_exhausted           decomposed_for_load
+misconception_live             avoided_failed_strategy
+representation_worked_before   first_attempt
+ready_for_transfer             strategies_exhausted
+decomposed_for_load
 ```
 
-**Every one corresponds to a branch the selector actually takes.** They were
-derived from the code paths rather than invented as a vocabulary, which is why
-a reason code can never describe a decision the policy could not have made.
+**Every one corresponds to a branch the selector actually takes** — and as of
+`045cbbe` that sentence is enforced rather than asserted. It was not true when
+this document first made the claim.
+
+#### `prerequisite_first`, and the claim that was wrong
+
+This list held ten codes until `045cbbe`. `PREREQUISITE_FIRST` was **defined and
+never emitted** — no branch produced it. This document nonetheless stated that
+every code corresponded to a real branch, which was an unverified claim of mine
+about someone else's module, and it was false.
+
+It was **deleted rather than implemented**, and that is the right call: choosing
+a prerequisite over the target is the *bottleneck engine's* decision (§9.6),
+taken before the policy is called. A policy explaining another layer's decision
+is how two layers end up disagreeing about what happened.
+
+The general fix outlives the instance. `test_every_reason_code_is_reachable`
+drives every emitting branch and asserts the union of what was emitted covers
+the enum. Enumerating rather than spot-checking is the point: a test naming the
+codes it expects would pass on the day an eleventh was added and never emitted,
+which is exactly how this one survived ten other tests. Mutation-checked —
+re-adding the dead code fails the test by name.
+
+**A vocabulary entry no branch produces is an unfalsifiable sentence with a
+type.** Look for the same shape anywhere else something enumerates.
 
 An earlier draft of this document proposed eight codes of my own. They were a
 specification written before the module existed; these are the description.
@@ -241,3 +268,174 @@ other policy change.
 - A `Decision` whose `selected` is not among `candidate_actions` must raise.
 - Ranking must be deterministic for identical input. A policy that reorders
   between runs cannot be replayed, and invariant 12 is the whole point.
+
+---
+
+## 9. `diagnosis/bottleneck.py` — choosing what to work on
+
+> Described against **`ebc4059`** on `learning-os/diagnosis`, stacked above this
+> document's pin and **not yet integrated into `learning-os/llm`**. Integration
+> has been probed and works: nine modules, **264 tests**, ruff clean,
+> `mypy --strict` clean over 36 files. Two defects found in that probe are
+> recorded in §9.8 as reported-and-open.
+
+The policy decides *what to do*. This decides *what to do it about*, and it runs
+first. A perfect intervention aimed at the wrong subskill is a wasted turn the
+learner pays for.
+
+The measured end-to-end case, from the integration probe:
+
+```
+learner: trace_calls 0.9 | identify_base_case 0.2 | write_recursive_function 0.4
+target : write_recursive_function
+  -> bottleneck: identify_base_case | confidence 0.8 | needs_diagnostic False
+  -> policy   : worked_example, reasons [evidence_already_sufficient, first_attempt]
+  -> lesson   : python-recursion-identify-base-case, 3 blocks / 2 relations
+```
+
+The bottleneck is a **prerequisite** — not the named target, and not merely the
+lowest number on the board. That is the whole claim the module exists to make.
+
+### 9.1 Three floors, applied before anything is ranked
+
+```python
+MAX_TARGETED_DIAGNOSTICS = 2   # past this a diagnostic stops feeling like
+                               # learning and starts feeling like a test
+SUFFICIENT_CONFIDENCE = 0.55   # below this an estimate is not safe to act on alone
+COMPETENT_ENOUGH = 0.8         # at or above this, not a bottleneck whatever else
+                               # is true
+```
+
+`COMPETENT_ENOUGH` is the one that is easy to leave out and the one that matters
+most. Without a floor, "the weakest available skill" **always returns
+something** — and an engine that always finds a problem will always teach one.
+The floor is what lets the system conclude that nothing needs fixing, which is
+the state `DO_NOTHING` (§3) exists to serve.
+
+`SUFFICIENT_CONFIDENCE` is documented in the source with the failure on **each**
+side: lower and the engine commits off one lucky answer; higher and it
+interrogates learners it already knows enough about. That is the right way to
+write a threshold — it makes the number recalibratable against a real cohort
+instead of arguable.
+
+### 9.2 Five factors, multiplied — not summed
+
+| Factor | Answers | Shape |
+|---|---|---|
+| `need(subskill)` | How much leans on this? | `subskill.criticality` |
+| `weakness(estimate)` | How far below mastery? | `1.0 - estimate` |
+| `causal_relevance(graph, target, candidate)` | Could failing here explain failing there? | `1 / (1 + distance)` |
+| `evidence_confidence(estimate)` | How much can the estimate be trusted? | `confidence * (0.6*volume + 0.4*variety)` |
+| `recency(memory, skill_id)` | How recently did this go wrong? | `0.5 + 0.5*(bad/recent)` |
+
+**Multiplication is the design decision, and it is deliberate.** Any factor at
+zero zeroes the result: an irrelevant skill, or one with no evidence, is not a
+bottleneck no matter how good the other factors look. A weighted sum would let
+three strong factors carry one that is disqualifying — which is precisely the
+failure mode of a scoring blob.
+
+Each factor is a separate function with its own test, so **a wrong diagnosis
+traces to the factor that produced it.** The module's own docstring calls the
+heuristic replaceable; keeping the factors separable is what makes replacing one
+of them cheap.
+
+`evidence_confidence` weights volume at 0.6 and variety at 0.4 — it reads
+`evidence_diversity`, not just `evidence_count`, for the reason doc 02 §3 gives:
+ten identical multiple-choice answers are not ten observations.
+
+### 9.3 `SELF_REPORT_WEIGHT = 1.25` does not contradict invariant 8
+
+It looks like it should. It does not, and the distinction is worth stating
+precisely because a reader will otherwise reach for a bug report.
+
+Invariant 8 forbids self-report **raising an estimate**. A learner saying "I
+understand recursion now" must not move their skill estimate.
+
+`SELF_REPORT_WEIGHT` is a multiplier on the **selection score**, not on the
+estimate. A learner saying "I'm stuck on base cases" is genuine information
+about *where to look*. The constant's own comment states the bound: large enough
+to break a tie between two similar candidates, *far too small to lift a
+well-evidenced strong skill over a well-evidenced weak one*.
+
+The test case is the one to keep in mind: a learner says "graphs confuse me",
+the evidence says graph-*reading* is strong and graph-*interpretation* is weak.
+A 1.25 boost that still loses to the evidence is doing exactly what is wanted —
+**self-report is evidence, not truth.**
+
+*Which skill to work on* and *how good the learner is at it* are different
+questions. Self-report is admissible on the first and inadmissible on its own
+for the second.
+
+### 9.4 Disagreement with the learner is written down
+
+`Bottleneck.contradicting_evidence` is not decoration. When the learner names a
+skill and the engine picks a different one, the disagreement is recorded with
+the self-reported skill's actual estimate and confidence.
+
+The reasoning in the source is the correct one: a diagnosis listing only what
+agrees with it is an argument, not an assessment — and overruling silently is
+what makes a considered call indistinguishable from a bug six weeks later. This
+is the audit surface for §9.3. Without it, invariant 8 compliance would be
+unverifiable after the fact.
+
+### 9.5 Two structural locks in the types
+
+**An uncertain diagnosis must ask, not assert.** `Bottleneck` carries a
+validator: confidence below `SUFFICIENT_CONFIDENCE` with `needs_diagnostic`
+false raises. A confident-looking diagnosis built on thin evidence is the worst
+output this module can produce, so the two are tied together in the type rather
+than left to a caller's discipline.
+
+**`DiagnosticBudget` is frozen.** `spend()` returns a *new* budget the caller has
+to carry, rather than decrementing a counter. A mutable counter can be reset by
+anything holding a reference; this cannot, so the ceiling stops being advisory.
+Same shape as `Event` being append-only (doc 05 §3).
+
+### 9.6 Ranking, determinism, and the honest `None`
+
+Candidates are the target **plus its prerequisites only**. Relevance is applied
+*before* ranking rather than as a tiebreak afterwards — nothing outside that set
+can be the blocker, so nothing outside it is scored.
+
+The sort key is `(-score, skill_id)`. The `skill_id` tiebreak is load-bearing:
+two equal scores must not depend on dict ordering, or a replayed decision can
+reach a different bottleneck than the original. That is invariant 12 reaching
+down into a sort key.
+
+`select_bottleneck` returns `None` when the evidence will not support a
+diagnosis, and **the policy layer must treat that as a real answer**: no
+diagnosis means gather more, never "nothing is wrong". Note the asymmetry with
+§9.1 — a learner above `COMPETENT_ENOUGH` also yields `None`, so the caller
+distinguishes the two by the learner state, not by the return value.
+
+### 9.7 Hypotheses are plural on purpose
+
+`_hypotheses()` emits competing explanations: `MISCONCEPTION` at 0.4 when the
+subskill has any, `PREREQUISITE_GAP` at 0.3 when it has prerequisites, and
+always one derived from the subskill's `CognitiveOperation` at 0.3.
+
+The point is **not to be right first time.** It is to hold more than one
+candidate so the next interaction can be chosen to *tell them apart*, rather
+than to confirm the first guess. That is what makes `ActionKind.DIAGNOSE` a real
+move rather than a stall.
+
+`Hypothesis.probability` is explicitly not a belief the system defends — it is a
+ranking device. Worth saying, because the values do not sum to 1 unless both
+conditional hypotheses fire, and a reader expecting a distribution would file
+that as a bug.
+
+`HypothesisKind` is a **closed** set of ten, for the same reason the learner
+model's signals are closed (doc 05 §1): an open one accumulates prose, and prose
+about a learner becomes a label. Every member names a fault in the *learning*,
+never in the person.
+
+### 9.8 Open defects — reported, not yet fixed
+
+| # | Defect | Consequence |
+|---|---|---|
+| 1 | `diagnosis/__init__.py` is **0 bytes** | `from learning_os.diagnosis import select_bottleneck` raises `ImportError`; consumers must know the internal file layout. Every other module exports through its `__init__`. `bottleneck.py` does define `__all__` — the gap is only the package door. |
+| 2 | **Nothing tests the seam** | 25 tests cover `diagnosis`, 240 cover everything else, zero cover both. A Protocol drift between `Bottleneck` and `BottleneckLike` would leave both suites green. |
+| 3 | `_hypotheses(graph, ...)` never reads `graph` | Found while writing this section. Harmless today; it is the same shape as a reason code no branch emits — a parameter that looks like a dependency and is not. Either use it or drop it. |
+
+Defect 2 is the one to fix first. Defects of that class are invisible to both
+test suites by construction, which is the property that makes them survive.

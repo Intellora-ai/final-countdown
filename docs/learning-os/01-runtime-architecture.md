@@ -70,7 +70,7 @@ credentials. If a test needs a key to pass, the boundary is in the wrong place.
 | `memory/` | What was tried, what failed, what is worth retrieving | done |
 | `verifiers/` | Whether a claim can be checked, and what a check established | done |
 | `llm/` | Generation behind a fake-able protocol | **done** — `contract.py`, `client.py`, `validation.py` |
-| `diagnosis/` | Estimating skill from evidence; selecting the bottleneck | **done at `ebc4059`**, not yet integrated |
+| `diagnosis/` | Estimating skill from evidence; selecting the bottleneck | **done at `ebc4059`**, not yet integrated — doc 04 §9 |
 | `mastery/` | Learner model, mastery states, retention | **not started** — branch cut, no source |
 | `policy/` | Candidate actions, ranking, the `Decision` | **done** — `select.py` |
 | `runtime/` | The teaching loop | **done** — `loop.py` |

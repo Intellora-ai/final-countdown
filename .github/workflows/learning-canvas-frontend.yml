@@ -296,32 +296,61 @@ jobs:
   # property-testing library at all, so this suite could rot silently. It was
   # not hypothetical: the gate's FIRST run reported a survivor.
   #
-  # DELIBERATELY NOT SHARDED YET, AND THAT IS THE POINT OF SPLITTING FIRST.
+  # THE PRECONDITION THIS COMMENT USED TO STATE IS NOW MET.
   #
-  # Moving this into its own job already buys most of what it can buy here: it
-  # used to run serially between Unit tests and Build, so its ~209s sat directly
-  # on the critical path. It now runs concurrently with the browser guards, and
-  # the path no longer includes it unless it is the longest job.
+  # The previous version of this block said, correctly, that `--shard=i/n` must
+  # NOT be passed: `scripts/mutation-gate.mjs` had parsed the flag since bae7377,
+  # but the guard refusing an empty shard lived in 7c0c36a, which was not on main.
+  # Wiring the matrix then would have turned on a sharding path whose safety guard
+  # was one unmerged commit away -- issue #18's shape inside the mutation gate, a
+  # required check reporting success over work it never did. It set its own exit
+  # condition: "the guard lands first, in its own change, with its own test. Then
+  # the matrix."
   #
-  # `--shard=i/n` is NOT passed. `scripts/mutation-gate.mjs` has parsed the flag
-  # since bae7377, but the guard that refuses an empty shard lives in 7c0c36a,
-  # which is NOT on main -- verified: `git merge-base --is-ancestor 7c0c36a main`
-  # is false, and `grep 'MINE.length === 0'` on main returns nothing. On main as
-  # it stands, `--shard=99/100` selects no mutants, prints
-  # "PASS -- every curated mutant was killed", and exits 0.
+  # Both landed. The guard is on main via #59 (4cf16f8) and its process-level test
+  # via #63 (99763ee). Re-verified against this branch's base rather than taken on
+  # trust, because the whole point of that condition was that nobody assume it:
   #
-  # Wiring the matrix here would therefore turn on a sharding path whose safety
-  # guard is one unmerged commit away, in the same change that makes it
-  # reachable. That is issue #18's shape inside the mutation gate: a required
-  # check reporting success over work it never did. The guard lands first, in
-  # its own change, with its own test. Then the matrix.
+  #     npm run test:mutation -- --shard=99/100
+  #       -> FAIL, shard 99/100 selected no mutants from a catalogue of 39. exit 1
+  #     npm run test:mutation -- --shard=abc
+  #       -> bad --shard value --shard=abc. exit 1
+  #
+  # Both refusals land in under a second. #59 hoisted the argument checks above
+  # the ~950-test baseline, so a misconfigured shard costs nothing instead of a
+  # full suite per shard -- which is exactly the failure a matrix multiplies.
+  #
+  # WHY FOUR. The catalogue is 39 mutants, so 4 shards is 10/10/10/9 and no shard
+  # can be empty. The guard therefore stays dead code at this width, which is the
+  # correct state for a guard: present, tested, and not load-bearing. It becomes
+  # reachable only if someone sets n above the catalogue size, which is the
+  # misconfiguration it exists to catch. gate_integrity's MUTATION_COUNT_FLOOR of
+  # 27 is the floor that keeps 4 safe as the catalogue changes -- a catalogue that
+  # shrank below 4 would make an empty shard reachable, and that floor forbids it.
+  #
+  # `$MUTATION_SHARD` goes through `env:`, never `${{ }}` inside `run:`. codeql
+  # analyses `languages: actions` here, and an interpolated run body is precisely
+  # the script-injection finding that analysis exists to catch. `frontend-scenes`
+  # below binds its matrix the same way.
+  #
+  # `needs.frontend-mutation.result` in frontend-verdict aggregates the shards:
+  # any shard failing makes the whole job's result 'failure'. That is not an
+  # assumption about matrices -- frontend-scenes has been a matrix behind that
+  # same needs entry since #61, and run 32658532840 proved it in the red
+  # direction, one deliberately broken shard turning the verdict red.
   frontend-mutation:
-    name: mutation
+    name: mutation ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
       run:
         working-directory: frontend
+    strategy:
+      # A surviving mutant in shard 2 says nothing about shard 3, and killing the
+      # siblings would hide three quarters of the answer behind the first failure.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
@@ -337,7 +366,9 @@ jobs:
         run: npm ci
 
       - name: Mutation gate
-        run: npm run test:mutation
+        env:
+          MUTATION_SHARD: ${{ matrix.shard }}
+        run: npm run test:mutation -- --shard="$MUTATION_SHARD/4"
 
   # THE BROWSER GUARDS, ONE RUNNER PER PROJECT.
   #

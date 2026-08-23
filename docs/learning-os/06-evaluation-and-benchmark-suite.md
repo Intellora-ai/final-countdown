@@ -3,17 +3,19 @@
 **Status:** not yet built. This document specifies it.
 **Read with:** doc 02 §6 (`EvaluationStatus`), doc 05 §8 (the safety reading).
 
-> **Pinned to `2e0832d`** on `learning-os/llm`, the integration branch —
-> `api domain llm mastery memory models policy runtime verifiers`. **262 tests
-> passing**, ruff clean, `mypy --strict` clean, as measured by session
-> `final-countdown-2d` on CI's configuration (Python 3.12, hash-locked install).
-> Counted independently here: 238 `def test_` across 11 files, the difference
-> being parametrised cases.
+> **Pinned to `93a175c`** on `learning-os/llm`, the integration branch —
+> `api diagnosis domain llm mastery memory models policy runtime verifiers`.
+> `diagnosis/` merged in here; there is no longer a stacked branch to describe
+> it against.
 >
-> `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
-> stacked above this pin and **not yet integrated**. `mastery/` is integrated
-> into the branch and **imported by nothing but its own tests** — doc 07 §9.1
-> for why that is a distinct state from done.
+> **Integration state, checked by grep rather than assumed** (doc 07 §9.1):
+> `mastery/` is **integrated** — `runtime/loop.py:42` imports it.
+> `diagnosis/` is **built but not consumed**: `select_bottleneck` is called by
+> its own package and its tests, and by no other module.
+>
+> 269 `def test_` across 12 files, counted here. The collected total is higher
+> after parametrisation; no interpreter available to this session has pytest, so
+> any figure above 269 in these documents is relayed, not run.
 
 ---
 
@@ -175,7 +177,7 @@ correct; the benchmark proves a change is an improvement.
 Current measured state:
 
 ```
-262 tests, all passing        (at 2e0832d)
+269 test functions, 12 files  (at 93a175c)
 ruff check      clean
 mypy --strict   clean on src and tests
 ```

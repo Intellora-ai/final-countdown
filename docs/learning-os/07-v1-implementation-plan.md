@@ -4,17 +4,19 @@
 **V1 domain:** Python programming, specifically recursion.
 **Read with:** doc 02 (contracts), doc 03 (verifier interface).
 
-> **Pinned to `2e0832d`** on `learning-os/llm`, the integration branch —
-> `api domain llm mastery memory models policy runtime verifiers`. **262 tests
-> passing**, ruff clean, `mypy --strict` clean, as measured by session
-> `final-countdown-2d` on CI's configuration (Python 3.12, hash-locked install).
-> Counted independently here: 238 `def test_` across 11 files, the difference
-> being parametrised cases.
+> **Pinned to `93a175c`** on `learning-os/llm`, the integration branch —
+> `api diagnosis domain llm mastery memory models policy runtime verifiers`.
+> `diagnosis/` merged in here; there is no longer a stacked branch to describe
+> it against.
 >
-> `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
-> stacked above this pin and **not yet integrated**. `mastery/` is integrated
-> into the branch and **imported by nothing but its own tests** — doc 07 §9.1
-> for why that is a distinct state from done.
+> **Integration state, checked by grep rather than assumed** (doc 07 §9.1):
+> `mastery/` is **integrated** — `runtime/loop.py:42` imports it.
+> `diagnosis/` is **built but not consumed**: `select_bottleneck` is called by
+> its own package and its tests, and by no other module.
+>
+> 269 `def test_` across 12 files, counted here. The collected total is higher
+> after parametrisation; no interpreter available to this session has pytest, so
+> any figure above 269 in these documents is relayed, not run.
 
 ---
 
@@ -79,10 +81,10 @@ learner who was doing fine.
 | `runtime/loop.py` | `teach_once()`, threading `proficiency` through to the policy |
 | `api/figure.py` | The figure boundary; its test parses `representations.ts` to check the shape map against the other side |
 
-**262 tests, all passing at `2e0832d`** — reported by session
-`final-countdown-2d`, not run here (no pytest on any interpreter available to
-this session). Independently counted here: 238 `def test_` across 11 files, the
-difference being parametrised cases. Doc 06 §7 keeps the full provenance note.
+**269 `def test_` across 12 files at `93a175c`** — counted here. The collected
+total is higher after parametrisation and is not stated, because no interpreter
+available to this session has pytest and a relayed figure should not be written
+as a measured one. Doc 06 §7 keeps the full provenance note.
 `ruff check` clean; `mypy --strict` clean on `src` and `tests`, on Python 3.12 with the hash-locked install CI uses.
 
 An earlier revision of this section recorded 99 of 100 with
@@ -113,11 +115,11 @@ was the more consequential half.
 **Every V1 module now has source.** What is left is not writing them — it is
 wiring them together.
 
-| Module | State | Consumed by |
+| Module | State at `93a175c` | Consumed by |
 |---|---|---|
-| `mastery/` | done at `f4b2fe6` | nothing but `tests/test_mastery.py` |
-| `diagnosis/` | done at `ebc4059`, on a branch stacked above the pin | nothing but `tests/test_diagnosis.py` |
-| everything else | done and integrated | `models domain memory verifiers llm policy runtime api` |
+| `mastery/` | **integrated** | `runtime/loop.py` |
+| `diagnosis/` | merged onto the branch, **built not consumed** | its own package and `tests/test_diagnosis.py`; `tests/test_seam.py` now covers the join |
+| everything else | integrated | `models domain memory verifiers llm policy runtime api` |
 
 Both remaining modules are in the same state, and it is a state worth naming
 rather than calling done: **built, tested, and imported by nobody.** A module
@@ -333,6 +335,19 @@ directly — which is what an author does and not what a consumer does.
 then it is `built`, and the two must be recorded as different states. §2's table
 records the consumer, not just the state, for exactly this reason.
 
+**The rule has since been applied, and it moved one module and not the other.**
+At `93a175c`, `mastery/` is integrated — `runtime/loop.py` imports it — and
+`diagnosis/` is merged onto the branch but still called by nothing outside its
+own package and tests. A single "done" column would have shown those two as the
+same thing on the day they stopped being the same thing.
+
+What the integration produced is the part worth noting: `_proficiency_of` (doc
+02 §11.6) exists only because something outside the tests had to consume a
+`Belief`, and it encodes a decision no test suite had forced anybody to make —
+that a low-confidence estimate must reach the policy as `None` rather than as a
+number. **The interface got a real question asked of it the moment it got a real
+caller.**
+
 **The corollary:** the seam is where the untested behaviour is. Two suites can
 both be green while the interface between them is wrong, and neither suite is
 capable of noticing — a `Protocol` drift between `Bottleneck` and
@@ -340,11 +355,21 @@ capable of noticing — a `Protocol` drift between `Bottleneck` and
 coverage of code that is already covered. They are the only coverage of the one
 thing nothing else tests.
 
-The good version of this already exists and is worth copying:
+Two good versions now exist and are worth copying.
+
 `tests/test_api_figure.py` parses `representations.ts` — the *other side* of the
 boundary — to verify the shape map. It caught two representation names that had
-been invented, on its first run. **A test that reads the other side of a seam is
-the only kind that can find a disagreement about it.**
+been invented, on its first run.
+
+`tests/test_seam.py` drives a real `Bottleneck` through the real policy rather
+than re-testing either side, and its sharpest test asserts that `diagnosis` does
+not define a **second** failure enum. That guards a failure no type checker
+catches: two modules can each be internally consistent while holding rival
+vocabularies for the same thing, and whichever one the caller happens to import
+wins.
+
+**A test that reads the other side of a seam is the only kind that can find a
+disagreement about it.**
 
 ### 9.2 Reachability is the weak property; consequence is the strong one
 

@@ -505,3 +505,49 @@ __all__ = [
     "select_bottleneck",
     "weakness",
 ]
+
+
+def prerequisite_split(
+    graph: KnowledgeGraph,
+    learner_state: LearnerState,
+    target_skill: str,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Which prerequisites this learner HAS, and which are still weak.
+
+    WHY THIS EXISTS AT ALL: THE CONTRACT FIELD WAS NEVER FILLED.
+
+    `InstructionContract.known_prerequisites` has always been a parameter with a
+    default of `()`. Nothing derived it. So two learners identical except in
+    prerequisite mastery -- one at 0.24 on "one input, one output", one at 0.87 --
+    received byte-identical contracts unless the CALLER happened to compute the
+    split by hand and pass it in. Almost nobody would.
+
+    The data was already there. `learner_state.skills` holds the estimates,
+    `graph.prerequisites_of` holds the chain, and `COMPETENT_ENOUGH` is the same
+    floor `select_bottleneck` uses to decide a skill is not a blocker. Three
+    things in the same module, never joined.
+
+    Returns both halves rather than just the known ones, because they drive
+    opposite instructions: build ON the known, do not lean on the weak. A caller
+    given only `known` has to recompute the complement to get the second, which
+    is how the two drift apart.
+
+    An unevidenced prerequisite counts as NEITHER. "We have never seen them do
+    it" is not evidence they can, and it is not evidence they cannot -- putting
+    it in either bucket would state something the record does not support.
+    """
+    known: list[str] = []
+    weak: list[str] = []
+
+    for skill_id in graph.prerequisites_of(target_skill):
+        if graph.subskill(skill_id) is None:
+            continue
+        estimate = learner_state.skills.get(skill_id)
+        if estimate is None:
+            continue
+        if estimate.estimate >= COMPETENT_ENOUGH:
+            known.append(skill_id)
+        else:
+            weak.append(skill_id)
+
+    return tuple(known), tuple(weak)

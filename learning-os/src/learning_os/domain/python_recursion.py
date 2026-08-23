@@ -27,6 +27,7 @@ from __future__ import annotations
 from learning_os.domain.knowledge import (
     CognitiveOperation,
     Concept,
+    ForbiddenSimplification,
     KnowledgeGraph,
     Misconception,
     Subskill,
@@ -95,9 +96,27 @@ RECURSION = Concept(
         # This is the one that keeps the system honest when a learner struggles.
         # Every entry here is something it is tempting to say because it makes
         # the moment easier and leaves the learner holding something false.
-        "Do not say recursion 'repeats' the function -- that is the loop misconception.",
-        "Do not call the base case optional or 'usually needed'; it is required.",
-        "Do not describe the stack as unlimited; Python has a recursion limit and it matters.",
+        # Each `tells` entry is a phrase that only shows up when the rule has
+        # been broken. They are what the validator actually matches; the `rule`
+        # is what the model reads. Both are needed and they are not the same text.
+        ForbiddenSimplification(
+            rule="Do not say recursion 'repeats' the function -- that is the loop misconception.",
+            tells=("repeats the function", "repeats itself", "just a loop", "like a loop"),
+        ),
+        ForbiddenSimplification(
+            rule="Do not call the base case optional or 'usually needed'; it is required.",
+            tells=(
+                "base case is optional", "usually needed", "often leave it out",
+                "leave it out", "not always necessary", "usually need a base case",
+            ),
+        ),
+        ForbiddenSimplification(
+            rule=(
+                "Do not describe the stack as unlimited; Python has a recursion "
+                "limit and it matters."
+            ),
+            tells=("as many calls as you like", "unlimited", "as deep as you want", "no limit"),
+        ),
     ),
     misconceptions=(_BASE_CASE_OPTIONAL, _RECURSION_IS_A_LOOP, _ACCUMULATOR_CONFUSION),
     subskills=(
@@ -183,8 +202,13 @@ FUNCTIONS = Concept(
     ),
     technical_terms=("argument", "parameter", "return value", "frame", "scope"),
     forbidden_simplifications=(
-        "Do not say a function 'gives back' a value without naming `return`; the "
-        "missing-return bug depends on knowing it is explicit.",
+        ForbiddenSimplification(
+            rule=(
+                "Do not say a function 'gives back' a value without naming `return`; the "
+                "missing-return bug depends on knowing it is explicit."
+            ),
+            tells=("gives back a value", "gives you back", "hands back"),
+        ),
     ),
     subskills=(
         Subskill(

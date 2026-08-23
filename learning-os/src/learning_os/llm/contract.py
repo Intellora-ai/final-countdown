@@ -196,10 +196,22 @@ class InstructionContract(_Frozen):
     #: it later. Checked by the validator, so "must" is literal.
     required_terms: tuple[str, ...] = ()
 
-    #: Substrings that must NOT appear. Populated from the concept's
-    #: `forbidden_simplifications` -- the specific false things it is tempting to
-    #: say about THIS concept, not a generic banned-words list.
+    #: RULES the model is told, from the concept's `forbidden_simplifications` --
+    #: the specific false things it is tempting to say about THIS concept, not a
+    #: generic banned-words list. Full sentences; these reach the prompt.
+    #:
+    #: NOT what the validator matches. They are instructions, and matching an
+    #: instruction against prose fires only when the model quotes it back at
+    #: itself. That was the bug. See `forbidden_tells`.
     forbidden_phrases: tuple[str, ...] = ()
+
+    #: What the validator hunts: short markers that appear only when one of the
+    #: rules above has been broken.
+    #:
+    #: Authored beside the rule, in the same object, so the two cannot drift --
+    #: and `ForbiddenSimplification.tells` is min_length=1, so a rule with no
+    #: detector cannot be written down at all.
+    forbidden_tells: tuple[str, ...] = ()
 
     #: What the learner must do for this intervention to count as having worked.
     #: Fixed HERE, before generation, which is invariant 2: deciding what counts

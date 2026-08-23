@@ -445,7 +445,12 @@ def select_action(
     reasons.extend(load_reasons)
 
     required = tuple(concept.technical_terms) if concept is not None else ()
-    forbidden = tuple(concept.forbidden_simplifications) if concept is not None else ()
+    # SPLIT, NOT FLATTENED. `rule` is prose for the model; `tells` are markers
+    # for the validator. Sending the rules to the validator is what made the
+    # check vacuous -- it can only match an instruction if the model repeats it.
+    _forbidden = concept.forbidden_simplifications if concept is not None else ()
+    forbidden = tuple(f.rule for f in _forbidden)
+    forbidden_tells = tuple(t for f in _forbidden for t in f.tells)
 
     # A DIAGNOSTIC IS AN ACTION, NOT A LABEL.
     #
@@ -484,6 +489,7 @@ def select_action(
         simplicity=constraints,
         required_terms=required,
         forbidden_phrases=forbidden,
+        forbidden_tells=forbidden_tells,
         success_evidence_required=evidence_required,
     )
     return Decision(contract=contract, reasons=tuple(reasons), excluded=excluded)

@@ -35,14 +35,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
-from learning_os.diagnosis.bottleneck import Bottleneck, NoBottleneck
+from learning_os.diagnosis.bottleneck import Bottleneck, NoBottleneck, prerequisite_split
 from learning_os.domain.knowledge import KnowledgeGraph
 from learning_os.llm.client import GeneratedContent, LLMClient, LLMUnavailable
 from learning_os.llm.contract import DiagnosisKind, InstructionContract
 from learning_os.llm.validation import Violation, is_repairable, is_usable, validate
 from learning_os.mastery.estimate import Belief, MasteryState, state_of
 from learning_os.memory.store import Attempt, MemoryStore, Outcome
-from learning_os.models.contracts import ActionKind
+from learning_os.models.contracts import ActionKind, LearnerState
 from learning_os.policy.select import BottleneckLike, Decision, ReasonCode, select_action
 
 #: Generations per turn. Two, not three: content failing its contract twice is
@@ -240,6 +240,7 @@ def teach_next(
     known_prerequisites: tuple[str, ...] = (),
     live_misconceptions: tuple[str, ...] = (),
     belief: Belief | None = None,
+    learner_state: LearnerState | None = None,
 ) -> Turn | NoInstruction:
     """Decide whether to teach at all, then what -- in that order.
 
@@ -266,6 +267,25 @@ def teach_next(
             reason=bottleneck,
             action=_ACTION_FOR_ABSENCE[bottleneck],
             at=now(),
+        )
+
+    # DERIVED HERE, LIKE `proficiency`, AND FOR THE SAME REASON.
+    #
+    # `select_action` must not reach into the learner model, so the policy takes
+    # a bare tuple of skill ids. The runtime is the only layer holding both the
+    # graph and the learner's estimates, which makes it the only place the split
+    # can honestly be computed.
+    #
+    # Before this it was computed nowhere. The parameter existed, was threaded
+    # end to end, and defaulted to `()` -- so a learner competent at every
+    # prerequisite and one competent at none produced identical contracts unless
+    # the caller did the work by hand. The field looked wired and was inert.
+    #
+    # An explicitly passed value still wins: a caller who knows something the
+    # stored state does not should not be overruled by it.
+    if not known_prerequisites and learner_state is not None:
+        known_prerequisites, _ = prerequisite_split(
+            graph, learner_state, bottleneck.skill_id
         )
 
     return teach_once(

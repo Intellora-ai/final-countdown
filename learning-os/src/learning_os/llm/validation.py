@@ -116,7 +116,13 @@ def validate(contract: InstructionContract, content: GeneratedContent) -> list[V
                 )
             )
 
-    for phrase in contract.forbidden_phrases:
+    # MATCH THE TELLS, NOT THE RULES.
+    #
+    # `forbidden_phrases` holds instructions ("Do not say recursion repeats the
+    # function"). Matching those against generated prose fires only when the
+    # model quotes the rule back, and never when it commits the error -- exactly
+    # backwards, and it passed silently for as long as it existed.
+    for phrase in contract.forbidden_tells:
         if phrase.lower() in lowered:
             out.append(
                 Violation(

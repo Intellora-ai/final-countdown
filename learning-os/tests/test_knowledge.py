@@ -192,9 +192,15 @@ def test_recursion_forbids_the_simplifications_that_teach_falsehoods() -> None:
     """These are the things it is tempting to say when a learner is struggling,
     each of which leaves them holding something untrue."""
     recursion = next(c for c in GRAPH.concepts if c.concept_id == "python.recursion")
-    forbidden = " ".join(recursion.forbidden_simplifications).lower()
+    forbidden = " ".join(f.rule for f in recursion.forbidden_simplifications).lower()
     assert "repeats" in forbidden, "the loop misconception must be forbidden explicitly"
     assert "optional" in forbidden, "calling the base case optional must be forbidden"
+
+    # And each rule must be DETECTABLE, not merely stated. A rule with no tell
+    # reads exactly like an enforced one and is enforced by nothing.
+    tells = " ".join(t for f in recursion.forbidden_simplifications for t in f.tells).lower()
+    assert "repeats the function" in tells
+    assert "optional" in tells
 
 
 def test_the_knowledge_model_cannot_be_mutated() -> None:

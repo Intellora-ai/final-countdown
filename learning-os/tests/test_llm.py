@@ -224,7 +224,11 @@ def test_a_forbidden_simplification_is_caught_and_is_not_repairable() -> None:
     contract's strategy led it there, so the same contract leads it there
     again. Retrying unchanged is the blind repeat section 46 forbids.
     """
-    c = _contract(forbidden_phrases=("recursion is just a loop",))
+    # `forbidden_tells`, not `forbidden_phrases`. This test passed under the old
+    # code only because it used a short marker -- the shape a tell has. The real
+    # domain supplies full instruction sentences, which never appear in prose, so
+    # the mechanism was verified here on input production never produces.
+    c = _contract(forbidden_tells=("recursion is just a loop",))
     v = validate(c, GeneratedContent(blocks=(("prose", "Recursion is just a loop."),)))
     assert v[0].kind is ViolationKind.FORBIDDEN_PHRASE
     assert v[0].repairable is False

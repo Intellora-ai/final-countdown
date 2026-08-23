@@ -114,6 +114,60 @@ class Subskill(_Frozen):
     verifiability: Verifiability = Verifiability.HUMAN_REVIEW_REQUIRED
 
 
+class ForbiddenSimplification(_Frozen):
+    """A rule the model must not break, and the strings that show it did.
+
+    THIS USED TO BE A BARE STRING, AND THE CHECK WAS VACUOUS.
+
+    `forbidden_simplifications` held instruction sentences -- "Do not say
+    recursion 'repeats' the function" -- and the validator tested them with a
+    substring match against the generated prose. That fires only if the model
+    quotes the rule back at itself, and never when it commits the error the rule
+    forbids. Measured, on the exact case:
+
+        prose commits the error  ->  0 violations
+        prose quotes the rule    ->  1 violation
+
+    Exactly backwards. The field was doing two jobs with one string: telling the
+    MODEL what not to do, and telling the VALIDATOR what to look for. Those need
+    different text, and collapsing them meant the second job was never done.
+
+    `tells` is `min_length=1` on purpose. A rule nobody can detect is a rule
+    nobody enforces, and the schema should refuse to represent one -- otherwise
+    the next author writes a rule, sees it accepted, and reasonably assumes it
+    is being checked.
+    """
+
+    #: What the model is told. Full sentence, imperative, reaches the prompt.
+    rule: str = Field(min_length=1, max_length=400)
+
+    #: What the validator hunts for in generated prose. Short, lowercase,
+    #: distinctive substrings that only appear when the rule has been broken.
+    #: Not regexes: a domain author should not have to escape anything to make
+    #: a teaching rule enforceable.
+    tells: tuple[str, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _tells_are_short_enough_to_match(self) -> Self:
+        """A tell as long as the rule is the old bug wearing a new field name.
+
+        The failure mode this catches is somebody pasting the rule into `tells`
+        to satisfy the schema. That restores the vacuous check and every test
+        would still pass, because the shape is right and only the content is
+        useless.
+        """
+        for tell in self.tells:
+            if not tell.strip():
+                raise ValueError("a blank tell matches everything; give a real substring")
+            if len(tell) > 60:
+                raise ValueError(
+                    f"tell {tell!r} is {len(tell)} chars -- that is a sentence, not a "
+                    f"marker. A tell must be short enough to appear verbatim in prose "
+                    f"that breaks the rule."
+                )
+        return self
+
+
 class Concept(_Frozen):
     """One teachable idea, decomposed.
 
@@ -135,7 +189,7 @@ class Concept(_Frozen):
 
     technical_terms: tuple[str, ...] = ()
     allowed_simplifications: tuple[str, ...] = ()
-    forbidden_simplifications: tuple[str, ...] = ()
+    forbidden_simplifications: tuple[ForbiddenSimplification, ...] = ()
 
     @model_validator(mode="after")
     def _subskills_belong_to_this_concept(self) -> Self:

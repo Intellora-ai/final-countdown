@@ -431,6 +431,75 @@ def unquoted(text: str) -> str:
     return QUOTED.sub("", mask_expressions(text))
 
 
+#: `--project=NAME`, optionally quoted. The literal spelling.
+PROJECT_LITERAL = re.compile(r"--project=[\"']?([A-Za-z0-9_-]+)")
+#: `--project="$VAR"` / `--project=${VAR}`. The env-indirect spelling, which is
+#: the ONLY one a sharded step may use: the workflow header forbids `${{ }}`
+#: inside `run:`, because codeql analyses `languages: actions` and an
+#: interpolated run body is the script-injection finding that analysis exists to
+#: catch. A check blind to this spelling would be blind to the safe one.
+PROJECT_VIA_ENV = re.compile(r"--project=[\"']?\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?")
+#: `--project=${{ matrix.key }}` written directly in `run:`. Rejected elsewhere,
+#: but resolved here so this check reports "never run" only when a project is
+#: genuinely uncovered, never as a side effect of how it was spelled.
+PROJECT_VIA_MATRIX = re.compile(
+    r"--project=[\"']?\$\{\{\s*matrix\.([A-Za-z0-9_-]+)\s*\}\}"
+)
+#: A whole env value that is exactly one matrix reference: `PROJECT: ${{ matrix.project }}`.
+MATRIX_BINDING = re.compile(r"^\$\{\{\s*matrix\.([A-Za-z0-9_-]+)\s*\}\}$")
+
+
+def projects_invoked(job: dict[str, Any]) -> set[str]:
+    """Every Playwright project this job can actually pass to `--project=`.
+
+    RESOLVES INDIRECTION, DOES NOT ASSUME IT.
+
+    A project counts only when a `--project=` flag reaches it: written
+    literally, bound through `env:` to a matrix value, or interpolated from the
+    matrix directly. Listing a name in `strategy.matrix` is NOT enough on its
+    own -- a matrix nothing feeds to `--project=` covers nothing, and crediting
+    it would turn this check into the coverage claim it exists to refuse.
+
+    That asymmetry is the whole point. Widening the check so a sharded workflow
+    can pass is only safe if the widened version still fails when a declared
+    project is genuinely unexercised. The 4-of-5 case is
+    `test_matrix_missing_one_project_is_caught` in
+    `tests/test_playwright_project_coverage.py`, alongside a test that the same
+    workflow fails under the pre-widening implementation.
+    """
+    steps = steps_of(job)
+    strategy = job.get("strategy")
+    raw_matrix: Any = None
+    if isinstance(strategy, dict):
+        raw_matrix = cast("dict[str, Any]", strategy).get("matrix")
+    matrix: dict[str, list[str]] = {}
+    if isinstance(raw_matrix, dict):
+        for key, values in cast("dict[str, Any]", raw_matrix).items():
+            if isinstance(values, list):
+                matrix[str(key)] = [str(v) for v in cast("list[Any]", values)]
+
+    # env var name -> the literal values it can hold in this job.
+    bindings: dict[str, list[str]] = {}
+    for step in steps:
+        env = step.get("env")
+        if not isinstance(env, dict):
+            continue
+        for key, value in cast("dict[str, Any]", env).items():
+            text = str(value).strip()
+            ref = MATRIX_BINDING.match(text)
+            bindings[str(key)] = matrix.get(ref.group(1), []) if ref else [text]
+
+    found: set[str] = set()
+    for step in steps:
+        run = str(step.get("run", ""))
+        found |= set(PROJECT_LITERAL.findall(run))
+        for var in PROJECT_VIA_ENV.findall(run):
+            found |= set(bindings.get(var, []))
+        for key in PROJECT_VIA_MATRIX.findall(run):
+            found |= set(matrix.get(key, []))
+    return found
+
+
 def check_frontend(g: Gate) -> bool:
     """The frontend workflow's structural integrity.
 
@@ -590,15 +659,31 @@ def check_frontend(g: Gate) -> bool:
             )
 
     # (f) a declared Playwright project that never runs is a dimension on paper.
+    #
+    # EVERY JOB, NOT JUST FRONTEND_JOB, AND THAT WIDENING IS LOAD-BEARING.
+    #
+    # This read `steps` -- job `frontend` alone -- because when it was written
+    # there was one job and the browser step lived in it. Sharding the scene
+    # guards to one runner per project moves those flags into sibling jobs, and
+    # a check that cannot see them reports all five projects as never run: it
+    # would fail hardest exactly when coverage became complete. The question is
+    # "does CI exercise this viewport", and which job does it is not part of
+    # the question.
+    #
+    # The scope counter now reports jobs too, so a run that widened its search
+    # says so in its own output rather than leaving the reader to infer it.
     if PLAYWRIGHT_CONFIG.is_file():
         cfg = PLAYWRIGHT_CONFIG.read_text(encoding="utf-8")
         block = cfg.partition("projects:")[2].partition("webServer:")[0]
         declared = re.findall(r"name:\s*'([^']+)'", block)
-        run_text = "\n".join(str(s.get("run", "")) for s in steps)
-        invoked = set(re.findall(r"--project=([A-Za-z0-9_-]+)", run_text))
+        invoked: set[str] = set()
+        for candidate in jobs.values():
+            if isinstance(candidate, dict):
+                invoked |= projects_invoked(cast("dict[str, Any]", candidate))
         g.set_scope(
             playwright_projects_declared=len(declared),
             playwright_projects_run=len(invoked),
+            playwright_jobs_scanned=len(jobs),
         )
         for name in declared:
             if name in invoked or name in PLAYWRIGHT_EXEMPT:
@@ -704,13 +789,27 @@ def check_frontend(g: Gate) -> bool:
     # canvas-reporter writes ci-findings.json so the whole failure set is one
     # download instead of a log crawl. A reporter writing a file nobody
     # retrieves is the same as not writing it.
+    #
+    # EVERY JOB, for the same reason as check (f) and discovered the same way.
+    # canvas-reporter only runs under Playwright, so the findings file is
+    # produced by whichever job runs the browser. Once that is a shard job, this
+    # check scoped to `frontend` demands an upload of a file that job cannot
+    # produce -- and `if-no-files-found: error` means satisfying it literally
+    # would fail every run. The question is "does the reporter's output leave
+    # the runner", and which job carries it out is not part of the question.
     def uploads_findings(step: dict[str, Any]) -> bool:
         if "upload-artifact" not in str(step.get("uses", "")):
             return False
         with_block = cast("dict[str, Any]", step.get("with") or {})
         return "ci-findings.json" in str(with_block.get("path", ""))
 
-    uploads = [s for s in steps if uploads_findings(s)]
+    uploads = [
+        s
+        for candidate in jobs.values()
+        if isinstance(candidate, dict)
+        for s in steps_of(cast("dict[str, Any]", candidate))
+        if uploads_findings(s)
+    ]
     if not uploads:
         ok = False
         g.check("findings artifact uploaded", False, "no upload step")

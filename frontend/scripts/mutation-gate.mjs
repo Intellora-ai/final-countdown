@@ -548,33 +548,6 @@ if (existsSync(LOCK)) {
   process.exit(1)
 }
 
-const tmp = mkdtempSync(join(tmpdir(), 'canvas-mutation-'))
-const out = join(tmp, 'run.json')
-
-process.stdout.write('canvas-mutation-gate: establishing the baseline\n')
-const base = vitest(out)
-if (!base || base.numFailedTests > 0) {
-  process.stdout.write('::error title=mutation gate::The suite is not green before mutating. Fix the suite first.\n')
-  process.exit(1)
-}
-/*
- * MEASURED, NEVER PINNED.
- *
- * A literal here would be a second place the suite's size is recorded, and the
- * only one nobody updates: it moved 626 -> 718 -> 736 while this catalogue was
- * being rebuilt, in a single afternoon. Pinned, every one of those additions
- * would have reported fifteen INVALID mutants and named the wrong cause. What
- * the gate actually needs is that the count does not move BETWEEN the baseline
- * and a mutated run, which is a comparison against this value, not against a
- * number typed last month.
- */
-const BASE_TOTAL = base.numTotalTests
-process.stdout.write(`canvas-mutation-gate: baseline ${BASE_TOTAL} tests, 0 failed\n\n`)
-
-const survived = []
-const invalid = []
-let killed = 0
-
 /*
  * SHARDING: WALL CLOCK ONLY, NEVER COVERAGE.
  *
@@ -604,6 +577,57 @@ if (shardArg) {
 }
 
 const MINE = MUTANTS.filter((_, at) => at % shardCount === shardIndex - 1)
+
+/*
+ * AN EMPTY SHARD IS A BUG, NOT A PASS.
+ *
+ * Without this, `--shard=99/100` selected nothing, printed
+ * `0/0 killed (0%)` and then `PASS — every curated mutant was killed`, and
+ * exited 0. A gate that reports success on work it never did is worse than no
+ * gate: it is the exact defect this script exists to catch, in the script
+ * itself. `killed/scored` with `scored === 0` is vacuously true, which is how
+ * it read as a pass.
+ *
+ * A shard count above the catalogue size is a configuration mistake — the
+ * workflow asking for more parallelism than there is work. Failing loudly is
+ * the only honest answer, because the alternative is a green check mark that
+ * means nothing.
+ */
+if (MINE.length === 0) {
+  process.stdout.write(
+    `canvas-mutation-gate: FAIL — shard ${shardIndex}/${shardCount} selected no mutants `
+    + `from a catalogue of ${MUTANTS.length}. A shard with nothing to run cannot pass.\n`,
+  )
+  process.exit(1)
+}
+
+const tmp = mkdtempSync(join(tmpdir(), 'canvas-mutation-'))
+const out = join(tmp, 'run.json')
+
+process.stdout.write('canvas-mutation-gate: establishing the baseline\n')
+const base = vitest(out)
+if (!base || base.numFailedTests > 0) {
+  process.stdout.write('::error title=mutation gate::The suite is not green before mutating. Fix the suite first.\n')
+  process.exit(1)
+}
+/*
+ * MEASURED, NEVER PINNED.
+ *
+ * A literal here would be a second place the suite's size is recorded, and the
+ * only one nobody updates: it moved 626 -> 718 -> 736 while this catalogue was
+ * being rebuilt, in a single afternoon. Pinned, every one of those additions
+ * would have reported fifteen INVALID mutants and named the wrong cause. What
+ * the gate actually needs is that the count does not move BETWEEN the baseline
+ * and a mutated run, which is a comparison against this value, not against a
+ * number typed last month.
+ */
+const BASE_TOTAL = base.numTotalTests
+process.stdout.write(`canvas-mutation-gate: baseline ${BASE_TOTAL} tests, 0 failed\n\n`)
+
+const survived = []
+const invalid = []
+let killed = 0
+
 if (shardCount > 1) {
   process.stdout.write(
     `canvas-mutation-gate: shard ${shardIndex}/${shardCount} — ${MINE.length} of ${MUTANTS.length} mutants\n\n`,
@@ -625,7 +649,19 @@ for (const m of MINE) {
     writeFileSync(m.file, original.replace(m.from, m.to))
     /* Scoped first. A kill here is final — see the note on `vitest()`. */
     r = vitest(out, { scoped: true })
-    scopedOnly = r !== null && r.numFailedTests > 0
+    /*
+     * `numTotalTests > 0` is load-bearing and not defensive noise.
+     *
+     * A scoped KILL skips the count check below, because a subset legitimately
+     * runs fewer tests than the baseline. That skip is safe only while a kill
+     * means "a real test failed". If vitest ever counts a suite that failed to
+     * LOAD as a failed test — a syntax break from a bad mutation — then a
+     * broken file would record as a kill in a weak-test detector, which is the
+     * one direction this gate must never be wrong in. Requiring that some test
+     * actually ran costs nothing and closes it without depending on which way
+     * vitest counts.
+     */
+    scopedOnly = r !== null && r.numFailedTests > 0 && r.numTotalTests > 0
     if (!scopedOnly) {
       /* Survived the subset, or the subset could not be scored. Either way the
          answer is not trustworthy yet, so pay for the full suite. */

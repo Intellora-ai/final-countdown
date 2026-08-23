@@ -4,10 +4,10 @@
 **V1 domain:** Python programming, specifically recursion.
 **Read with:** doc 02 (contracts), doc 03 (verifier interface).
 
-> **Pinned to `15aabe8`** on `learning-os/llm`, the integration branch —
-> `domain llm memory models policy runtime verifiers`. Verified on CI's
-> configuration (Python 3.12, hash-locked install): **181 tests passing**, ruff
-> clean, `mypy --strict` clean over 27 files.
+> **Pinned to `60b3bf4`** on `learning-os/llm`, the integration branch —
+> `api domain llm memory models policy runtime verifiers`. Verified on CI's
+> configuration (Python 3.12, hash-locked install): **207 tests passing**, ruff
+> clean, `mypy --strict` clean over 30 files.
 >
 > `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
 > which is stacked on this branch and **not yet integrated**. `mastery/` is
@@ -71,8 +71,8 @@ learner who was doing fine.
 | `memory/store.py` | `MemoryStore`, `Attempt`, `Outcome`, `similarity()`, `SAME_EXPLANATION`, `failed_strategies()`, `succeeded_with()`, `is_repeat()`, `relevant()` |
 | `verifiers/` | `DomainVerifier`, `Task`, `Judgement`, `UnsupportedVerifier`, `PythonVerifier` |
 
-**Measured independently, not quoted:** **181 tests, all passing**.
-`ruff check` clean; `mypy --strict` clean on `src` and `tests` (27 files), verified on Python 3.12 with the hash-locked install CI uses.
+**Measured independently, not quoted:** **207 tests, all passing**.
+`ruff check` clean; `mypy --strict` clean on `src` and `tests` (30 files), verified on Python 3.12 with the hash-locked install CI uses.
 
 The failure is `test_verifier.py::test_learner_code_cannot_import_the_engine` —
 a real sandbox defect, not a flaky test. See doc 03 §4. It passes only under
@@ -90,8 +90,12 @@ MYPYPATH=src ./.venv/bin/mypy --strict src/learning_os
 
 ### Remaining
 
-`llm/`, `diagnosis/`, `policy/`, `runtime/`, `api/`. Plus a `LessonSpec`
-emitter, which has no module yet.
+**One module: `mastery/`.** Not started — its branch is cut at the old canvas
+head and carries no `learning_os` source.
+
+`diagnosis/` is complete at `ebc4059` on a branch stacked above the pin, not yet
+integrated. Everything else on the V1 list is done: `models domain memory
+verifiers llm policy runtime api`.
 
 `diagnosis/` and `mastery/` are being built by other sessions right now and
 their interfaces are **not settled**. Anything this document set says about them

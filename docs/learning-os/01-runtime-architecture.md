@@ -3,10 +3,10 @@
 **Package:** `final-countdown/learning-os/`, a Python package.
 **Read with:** doc 02 (the contracts every boundary speaks).
 
-> **Pinned to `15aabe8`** on `learning-os/llm`, the integration branch —
-> `domain llm memory models policy runtime verifiers`. Verified on CI's
-> configuration (Python 3.12, hash-locked install): **181 tests passing**, ruff
-> clean, `mypy --strict` clean over 27 files.
+> **Pinned to `60b3bf4`** on `learning-os/llm`, the integration branch —
+> `api domain llm memory models policy runtime verifiers`. Verified on CI's
+> configuration (Python 3.12, hash-locked install): **207 tests passing**, ruff
+> clean, `mypy --strict` clean over 30 files.
 >
 > `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
 > which is stacked on this branch and **not yet integrated**. `mastery/` is
@@ -73,8 +73,8 @@ credentials. If a test needs a key to pass, the boundary is in the wrong place.
 | `diagnosis/` | Estimating skill from evidence; selecting the bottleneck | **done at `ebc4059`**, not yet integrated |
 | `mastery/` | Learner model, mastery states, retention | **not started** — branch cut, no source |
 | `policy/` | Candidate actions, ranking, the `Decision` | **done** — `select.py` |
-| `runtime/` | The loop; `Judgement` → `ToolResult`; `LessonSpec` emission | **partly done** — `loop.py`; no `LessonSpec` emitter yet |
-| `api/` | Transport. No decisions. | not started |
+| `runtime/` | The teaching loop | **done** — `loop.py` |
+| `api/` | `LessonSpec` emission. No decisions. | **done** — `emit.py` |
 
 `diagnosis/` exists at `ebc4059` on a branch stacked above the pinned commit;
 statements about it are marked with that commit where they appear. `mastery/`
@@ -267,12 +267,59 @@ because on that path there is nothing to render.
 evidence about the *contract*; a third attempt spends money to learn nothing the
 second did not already say.
 
-### Still missing from `runtime/`
+### Two decisions in the loop that are not obvious
 
-**No `LessonSpec` emitter exists.** `grep -i lessonspec` over the Python tree
-returns nothing. The contract is specified (§9), agreed with the canvas owner,
-and unimplemented — it is expected to land with `api/`, which does not exist
-either. That is the last gap between this engine and a learner seeing anything.
+**An outage records nothing.** `TurnStatus.UNAVAILABLE` writes no `Attempt`.
+Recording it would burn a good mechanism forever on one network timeout — the
+strategy did not fail, the transport did, and `failed_mechanisms` cannot tell
+the difference after the fact.
+
+**Exhaustion is decided before the model is called.** Generating first would
+spend a request producing content the caller has already been told not to
+trust.
+
+---
+
+## 10. `api/emit.py` — the emitter, diffed against the schema
+
+`emit.py` produces `LessonInput`-shaped payloads and **does not describe the
+format**. `validateLesson` remains the only adapter. There is no second schema.
+
+I diffed it against `spec.ts` field by field rather than reading the summary,
+because these constraints are duplicated across a language boundary and
+duplication is what drifts.
+
+| Constraint | `spec.ts` | `emit.py` | |
+|---|---|---|---|
+| `Id` | `^[a-z0-9][a-z0-9-]*$`, 1..64 | `_ID` + `MAX_ID = 64` | match |
+| `question` | 1..200 | `MAX_QUESTION = 200`, raises | match |
+| `Prose` | 1..2000 | `MAX_PROSE`, both bounds raise | match |
+| `blocks` | 1..24 | `MAX_BLOCKS`, empty raises | match |
+| `relations` | max 48, `.default([])` | always emitted, even empty | match |
+| `subject` | `Label.optional()` | **omitted** when absent, never `null` | match |
+
+`subject` is the one that only shows up in a browser: `optional()` accepts a
+missing key, not a `null`, so `"subject": null` fails parsing for a field meant
+to be skipped.
+
+**Block id uniqueness is enforced independently on both sides** — `emit.py`
+raises `EmitError` ("relations would bind to the wrong one") and
+`validate.ts:180` reports a duplicate-id issue. Neither relies on the other.
+
+**One inconsistency, currently unreachable.** Every bound in `emit.py` raises
+except `relations`, which truncates silently via `out[:MAX_RELATIONS]`. It
+cannot fire today: relations are one-per-non-primary-block, so `MAX_BLOCKS = 24`
+caps them at 23 against a limit of 48. It becomes a live silent-data-loss path
+if the block cap ever rises above 49, and relations are load-bearing — dropping
+them changes the beat structure.
+
+**Known gap: `figure`/`data` are not emitted yet.** The emitter produces
+prose-bearing blocks only, so the `figure.as` must agree with `data.shape` rule
+in §9 is **not yet exercised**. The first figure-bearing lesson meets it cold.
+
+Only `supports` relations are emitted. `derives` and `contrasts` would make the
+graph look richer and would be structure the content does not have — and the
+canvas would render the assertion faithfully.
 
 ---
 
@@ -329,7 +376,7 @@ Measured against the tree, not quoted:
 ```bash
 cd learning-os
 python3 -m venv .venv && ./.venv/bin/pip install -e ".[dev]"
-./.venv/bin/python -m pytest tests -q       # 181 tests, all passing
+./.venv/bin/python -m pytest tests -q       # 207 tests, all passing
 ./.venv/bin/ruff check src tests            # clean
 MYPYPATH=src ./.venv/bin/mypy --strict src/learning_os   # clean, 11 files
 ```

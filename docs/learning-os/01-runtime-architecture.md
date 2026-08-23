@@ -241,3 +241,145 @@ MYPYPATH=src ./.venv/bin/mypy --strict src/learning_os   # clean, 11 files
 The failing test is the sandbox one; doc 03 §4. Install the package before
 running — the suite passes under `PYTHONPATH=src` with no install, and that is
 the configuration in which the defect is invisible.
+
+---
+
+## 9. `LessonSpec` — the engine/canvas contract
+
+**Source of truth:** `frontend/src/canvas/spec/spec.ts`,
+`spec/validate.ts`, `spec/figure.ts`, `spec/representations.ts`.
+Confirmed against the canvas owner and read out of the code, not designed here.
+
+The engine emits **`LessonInput`-shaped JSON and nothing else**. Do not invent a
+wire format; the canvas already has the two-stream split an adapter would buy.
+
+```ts
+export type LessonInput = z.input<typeof LessonSpec>   // what a model WRITES: defaults optional
+export type Lesson      = z.output<typeof LessonSpec>  // defaults filled, every field present
+```
+
+`validateLesson(input: unknown) -> {ok: true, lesson} | {ok: false, issues}` in
+`spec/validate.ts` **is** the adapter, at the canvas edge. It parses, applies
+defaults, runs the shape invariants, and returns a discriminated result.
+
+A hand-written adapter on the engine side would be a third shape to keep in step
+with two others, and the day it drifts the same payload renders differently
+depending on which door it came through.
+
+### The shape
+
+```ts
+LessonSpec = {
+  id:        Id
+  question:  string        // 1..200 — the question the lesson answers; rendered as the title
+  subject?:  Label
+  blocks:    Block[]       // 1..24
+  relations: Relation[]    // 0..48, default []
+}.strict()
+
+BlockBase = {
+  id:        Id            // stable and meaningful — relations and doubt answers reference it
+  title?:    Label
+  emphasis:  'primary' | 'supporting' | 'aside'   // default 'supporting'
+  tone:      Tone                                  // default 'neutral'
+}
+
+Relation = { from: Id, to: Id, kind: 'supports' | 'derives' | 'contrasts' | 'exemplifies' }
+```
+
+Eight block kinds: `prose`, `callout`, `metric`, `equation`, `table`, `chart`,
+`flow`, `simulation`.
+
+### `.strict()` — an unknown key is a refusal
+
+Not an ignored field. A silently dropped key is how an engine ships a feature
+the canvas never renders and nobody notices.
+
+The consequence for the engine: **it cannot add a field ahead of the canvas
+supporting it.** Version the spec and let the canvas widen first. This is the
+concrete reason `LessonSpec` versions separately from `CONTRACT_VERSION`.
+
+### `emphasis` and `relations` are load-bearing, not decoration
+
+The single most important thing for an engine author to get right.
+
+**Beats — the units a lesson is taught in — are derived from them.** A `primary`
+block leads a beat and absorbs the `supporting` and `aside` blocks that follow,
+until the next `primary` or until `MAX_BLOCKS_PER_BEAT = 3`.
+
+An engine that emits twelve blocks all at the default `supporting`, with no
+relations, produces **one enormous beat**. That is a lecture, which is the exact
+failure the beat system exists to prevent. The cap is a backstop, and it cuts by
+counting rather than by meaning, so it shows.
+
+`relations` drives three separate things: beat derivation, layout (a `derives`
+edge stacks a block under its source), and the doubt resolver, which uses
+`supports`/`derives` edges to answer "why" questions. Omit them and all three
+degrade quietly.
+
+`emphasis` is three words rather than a number deliberately — a scale invites
+`emphasis: 7`.
+
+### The spec must NOT state beats, or any step count
+
+Beats are derived so they cannot contradict the content. An engine shipping its
+own beat boundaries can place one in the middle of an argument and nothing
+downstream can tell.
+
+`Beat` carries no index and no total, and `checkBeats` rejects a checkpoint
+containing a count. **The learner is never told how many parts remain.**
+
+### `figure.as` must agree with `data.shape`
+
+A figure names one of **137 representations**; each maps to one of **12 data
+shapes** (`series`, `parts`, `distribution`, `matrix`, `graph`, `hierarchy`,
+`intervals`, `process`, `logic`, `geometry`, `tabular`, `flowWeighted`).
+
+`checkFigure` **refuses** a mismatch rather than rendering something wrong:
+`as: 'sankey'` with `parts` data is rejected, not coerced. Naive emitters get
+this wrong constantly, because the representation name is the thing they are
+thinking about and the shape is not.
+
+**Three representations have no renderer** — `circuitSchematic`, `logicCircuit`,
+`experimentalSetup`. Their payloads carry no wiring or gate-type data, so
+drawing them would draw a *different* circuit. They render an honest
+"cannot be drawn" state. The engine should not emit them expecting a picture.
+
+### Shape invariants refuse rather than repair
+
+An engine author will hit these: unordered x on a continuous axis, negative
+values in `parts` (waterfall excepted), a confusion matrix whose axes are not
+identical and in the same order, a declared DAG containing a cycle, a sankey
+whose flow is not conserved, a decision node with fewer than two outcomes.
+
+Each is a refusal with a stated reason. That is the behaviour to want — a chart
+that silently sorts your data is a chart that lies about it.
+
+### Captions are answers, not ornament
+
+The doubt resolver indexes captions as a lower-priority match tier. A block with
+no caption answers fewer of the learner's questions.
+
+### `avoidWhen` is authoring guidance and must never reach a learner
+
+It lives in the representation registry to guide selection. A placeholder once
+printed it to the reader; it reads as an error they caused and can do nothing
+about.
+
+### The third boundary rule
+
+Doc 01 §2 states two rules — versioned separately, and no geometry or style.
+The canvas owner adds a third that subsumes them:
+
+> **The spec may not state anything the canvas can derive.**
+
+Position and style are the obvious cases. Beats, ordering-by-importance, and
+"which representation is best" are the same category: every one is a place where
+the engine can contradict the content it just emitted. If the canvas can compute
+it from *what exists* and *how blocks relate*, the engine stays quiet.
+
+### Before `runtime/` lands
+
+The canvas owner has offered to review the engine's spec module against the
+actual Zod schema before it ships. Take that offer — the comparison is cheap now
+and expensive after two implementations exist.

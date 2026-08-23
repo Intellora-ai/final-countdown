@@ -205,17 +205,21 @@ The engine emits a versioned `LessonSpec`; the TypeScript canvas renders it.
 does not import the canvas, and the canvas does not import it. The only thing
 crossing is JSON.
 
-Concretely, a `LessonSpec` may state *what* exists and *how blocks relate*. It
-may not state `x`, `y`, `width`, `height`, colour, font size, or spacing. Those
-are the canvas's decisions, and a spec that carried them would make the engine
-responsible for a screen it cannot measure.
+**The schema is not hypothetical — it exists, in the canvas.** Full contract,
+field names, and the failure modes an engine author will hit are in doc 01 §9.
+Read it before writing the emitter; it is written from the Zod schema and
+confirmed by the canvas owner.
 
-This mirrors a rule the canvas already enforces on itself, so the contract has a
-second party who will notice if the engine breaks it.
+The three rules in short:
 
-`LessonSpec` is versioned separately from `CONTRACT_VERSION`: the two evolve on
-different clocks, and a renderer pinned to one spec version must not be broken
-by an internal contract bump.
+1. Versioned separately from `CONTRACT_VERSION`.
+2. No `x`, `y`, `width`, `height`, colour, font size or spacing.
+3. **Nothing the canvas can derive** — which also rules out beats, step counts,
+   ordering-by-importance, and choosing the representation.
+
+The one that will bite: `emphasis` and `relations` are load-bearing. Twelve
+blocks at the default `supporting` with no relations produce a single
+twelve-block beat, which is a lecture.
 
 ---
 

@@ -195,6 +195,24 @@ break the gate with no code change, which turns a green CI into a time bomb
 dependent on when it next runs. Pin an upper bound, or accept that "clean" means
 "clean against whatever version resolved today".
 
+### In CI, the load-bearing sandbox test is not the obvious one
+
+The repository's supply-chain gate forbids `pip install -e` outright — every
+install must be `--require-hashes -r <lock>`. CI therefore cannot editable-install
+the engine, and `test_learner_code_cannot_import_the_engine` is **weak in CI by
+construction**: `learning_os` is not in site-packages there, so the assertion
+passes for the wrong reason, exactly as it did locally before the fix.
+
+`test_the_child_cannot_import_an_installed_dependency` is what actually carries
+the property in CI. `pydantic` arrives through the hash-locked install into real
+site-packages, so if the child cannot reach pydantic it cannot reach anything
+else installed either.
+
+**The test that looks incidental is the one doing the work, and the one that
+looks important is decorative in that environment.** Do not "simplify" the suite
+by deleting the pydantic test as redundant — it is the only one of the three
+that fails in CI when the sandbox breaks.
+
 ---
 
 ## 8. Building it

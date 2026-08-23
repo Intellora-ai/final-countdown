@@ -54,6 +54,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from typing import Any, cast
 
 # The skills the user named, as BARE names.
 #
@@ -105,12 +106,21 @@ MAX_BLOCKS = 2
 _PROMPT_MATCH_CHARS = 60
 
 
-def _read_event() -> dict:
-    """Parse the hook payload. A malformed payload is not worth an outage."""
+def _read_event() -> dict[str, Any]:
+    """
+    Parse the hook payload. A malformed payload is not worth an outage.
+
+    Typed `dict[str, Any]` rather than a bare `dict` because pyright runs
+    strict here and a bare one makes every `event.get(...)` below Unknown ---
+    which the gate reported as a wall of errors in code that was correct. The
+    values genuinely ARE heterogeneous (a path, a session id, a bool), so
+    `Any` is the honest annotation and each read is narrowed at its use site.
+    """
     try:
-        return json.loads(sys.stdin.read() or "{}")
+        parsed = json.loads(sys.stdin.read() or "{}")
     except (ValueError, OSError):
         return {}
+    return cast("dict[str, Any]", parsed) if isinstance(parsed, dict) else {}
 
 
 def _invoked_skills(transcript_path: str) -> tuple[set[str], int] | None:
@@ -181,28 +191,33 @@ def _invoked_skills(transcript_path: str) -> tuple[set[str], int] | None:
                     # Cheap substring reject before the expensive parse.
                     continue
                 try:
-                    rec = json.loads(line)
+                    rec: Any = json.loads(line)
                 except ValueError:
                     continue
+                if not isinstance(rec, dict):
+                    continue
+                record = cast("dict[str, Any]", rec)
 
-                kind = rec.get("type")
+                kind = record.get("type")
                 if kind == "last-prompt":
-                    prompt = rec.get("lastPrompt")
+                    prompt = record.get("lastPrompt")
                     if isinstance(prompt, str):
                         final_prompt = prompt
                     continue
 
                 if kind == "user":
-                    content = (rec.get("message") or {}).get("content")
+                    msg: Any = record.get("message") or {}
+                    content: Any = cast("dict[str, Any]", msg).get("content") if isinstance(msg, dict) else None
                     if isinstance(content, str):
                         users.append((index, content))
 
-                for block in _content_blocks(rec):
+                for block in _content_blocks(record):
                     if block.get("type") != "tool_use":
                         continue
                     if block.get("name") != "Skill":
                         continue
-                    skill = (block.get("input") or {}).get("skill")
+                    args: Any = block.get("input") or {}
+                    skill: Any = cast("dict[str, Any]", args).get("skill") if isinstance(args, dict) else None
                     if isinstance(skill, str):
                         # Plugin skills arrive as "plugin:skill"; the bare name
                         # is what REQUIRED is written in.
@@ -231,15 +246,29 @@ def _invoked_skills(transcript_path: str) -> tuple[set[str], int] | None:
     return found, boundary
 
 
-def _content_blocks(rec: dict) -> list:
-    """Content blocks of a transcript record, whatever shape the host used."""
-    message = rec.get("message")
-    if isinstance(message, dict):
-        content = message.get("content")
-        if isinstance(content, list):
-            return content
-    content = rec.get("content")
-    return content if isinstance(content, list) else []
+def _content_blocks(rec: dict[str, Any]) -> list[dict[str, Any]]:
+    """
+    Content blocks of a transcript record, whatever shape the host used.
+
+    The locals are annotated `Any` on purpose. `isinstance(x, dict)` narrows to
+    `dict[Unknown, Unknown]`, so every `.get()` after it is Unknown under
+    strict pyright and the error propagates outward through the caller. Saying
+    `Any` once at the boundary of untrusted JSON is more honest than a cast per
+    access, and it stops there --- the RETURN type is concrete.
+    """
+    message: Any = rec.get("message")
+    content: Any = cast("dict[str, Any]", message).get("content") if isinstance(message, dict) else None
+    if not isinstance(content, list):
+        content = rec.get("content")
+    if not isinstance(content, list):
+        return []
+    blocks: list[dict[str, Any]] = []
+    # `block` is Any here; narrowed and cast rather than left to isinstance,
+    # which only narrows to dict[Unknown, Unknown] and keeps the error.
+    for block in cast("list[Any]", content):
+        if isinstance(block, dict):
+            blocks.append(cast("dict[str, Any]", block))
+    return blocks
 
 
 def _ledger_path(transcript_path: str, session_id: str) -> str:

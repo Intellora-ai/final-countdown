@@ -1,4 +1,4 @@
-import { ArrowDefs, curvePath } from '../../design/primitives'
+import { ArrowDefs, arrowRef, curvePath, useArrowScope } from '../../design/primitives'
 import { tokens } from '../../design/tokens'
 import { checkIntervals, type IntervalsData, type ShapeIssue } from '../../spec/shapeInvariants'
 
@@ -392,6 +392,10 @@ function num(value: number): string {
 /* -------------------------------------------------------------------------- */
 
 export function IntervalsShape({ data, at }: { data: IntervalsData; at?: string }) {
+  /* One scope per mounted diagram: two of these on a page would otherwise
+     share an SVG id, and every arrowhead would resolve to the first. */
+  const arrowScope = useArrowScope()
+
   const built = buildIntervals(data, at)
 
   if (!built.ok) {
@@ -420,7 +424,7 @@ export function IntervalsShape({ data, at }: { data: IntervalsData; at?: string 
         role="img"
         aria-label={describeIntervals(data)}
       >
-        <ArrowDefs />
+        <ArrowDefs scope={arrowScope} />
 
         {/* Lane bands, drawn first and faint: a band is the ground a row sits
             on, not a box around it. */}
@@ -484,7 +488,7 @@ export function IntervalsShape({ data, at }: { data: IntervalsData; at?: string 
             key={`arrow-${i}`}
             className="lc-flow__link"
             d={arrow.d}
-            markerEnd="url(#lc-arrow)"
+            markerEnd={arrowRef(arrowScope)}
             strokeDasharray={arrow.impossible ? `${scalar(tokens.space.xs)} ${scalar(tokens.space.xs)}` : undefined}
           />
         ))}

@@ -11,13 +11,42 @@
 /* The field                                                                  */
 /* -------------------------------------------------------------------------- */
 
+/* The one font stack this file states, named so the heading rule below can
+   repeat it without repeating the list. */
 .lc-root {
+  --lc-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+
   position: relative;
   min-height: 100%;
   background: var(--c-void);
   color: var(--c-ink);
-  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--lc-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * HEADINGS NEED THE FAMILY SAID AGAIN, AND INHERITANCE IS WHY.
+ *
+ * `.lc-root` above sets a sans family and every descendant inherits it — except
+ * headings, because the dashboard's own `src/styles/tokens/base.css` carries
+ * `h1, h2, h3, h4, h5, h6 { font-family: var(--font-display) }`. That is an
+ * ELEMENT rule setting the property directly, and a directly-set value always
+ * beats an inherited one no matter how specific the ancestor's selector is.
+ * Specificity never enters into it; the two rules are not even competing for
+ * the same element.
+ *
+ * So the lesson question rendered in Fraunges, the dashboard's display serif,
+ * inside a canvas whose entire type scale is sans. A browser test caught it;
+ * nothing in the token layer could, because the canvas's own value was correct
+ * and simply never reached the element.
+ *
+ * Fixed HERE rather than by touching that dashboard rule. The dashboard is out
+ * of scope by project rule, and editing a global element selector to suit one
+ * subtree would break the headings of every screen that legitimately wants the
+ * display face.
+ */
+.lc-root :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--lc-sans);
 }
 
 /* Lit from above, like the reference. A flat black field makes every panel look

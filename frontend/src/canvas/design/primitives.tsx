@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 
 import { tokens } from './tokens'
 
@@ -127,12 +127,47 @@ export function curvePath(from: Point, to: Point): string {
  * constant while arrow COUNT is whatever the content needs. Two renderers
  * drawing their own heads is how a page ends up with two arrow languages.
  */
-export function ArrowDefs() {
+/**
+ * A scope for one SVG's defs, unique per mounted component.
+ *
+ * WHY THESE IDS CANNOT BE CONSTANTS
+ * ---------------------------------
+ * `id` is document-global in SVG, and `url(#lc-arrow)` resolves against the
+ * whole document — not the `<svg>` the reference sits in. The civics lesson
+ * renders two diagrams that both mount `ArrowDefs`, so the page carried
+ * `id="lc-arrow"` twice and every arrowhead on it, in BOTH diagrams, resolved
+ * to whichever `<defs>` the browser parsed first.
+ *
+ * It looked correct, because both definitions were identical. It stops looking
+ * correct the moment one diagram wants a different arrow — and a duplicate id
+ * is also an accessibility-tree and validator failure that no visual check
+ * would ever surface.
+ *
+ * `useId` is React's answer and is stable across server and client render, so
+ * this cannot reintroduce a hydration mismatch. The colons React puts in its
+ * ids are legal in an `id` attribute but are a fragment-syntax hazard inside
+ * `url(#…)`, so they are stripped.
+ */
+export function useArrowScope(): string {
+  return useId().replace(/:/g, '')
+}
+
+/** The `markerEnd` value for a scope. Never write `url(#lc-arrow)` by hand. */
+export function arrowRef(scope: string): string {
+  return `url(#${scope}-arrow)`
+}
+
+/** The `filter` value for a scope. Read the warning on the filter first. */
+export function bloomRef(scope: string): string {
+  return `url(#${scope}-bloom)`
+}
+
+export function ArrowDefs({ scope }: { scope: string }) {
   const h = tokens.arrow.head
   return (
     <defs>
       <marker
-        id="lc-arrow"
+        id={`${scope}-arrow`}
         viewBox={`0 0 ${h} ${h}`}
         refX={h - 1}
         refY={h / 2}
@@ -155,7 +190,7 @@ export function ArrowDefs() {
         For lines, glow with a second wider stroke instead — see
         `.lc-flow__link-glow`.
       */}
-      <filter id="lc-bloom" x="-200%" y="-200%" width="500%" height="500%">
+      <filter id={`${scope}-bloom`} x="-200%" y="-200%" width="500%" height="500%">
         <feGaussianBlur stdDeviation="2.5" result="b" />
         <feMerge>
           <feMergeNode in="b" />

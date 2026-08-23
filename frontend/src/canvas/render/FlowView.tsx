@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { ArrowDefs, curvePath } from '../design/primitives'
+import { ArrowDefs, arrowRef, curvePath, useArrowScope } from '../design/primitives'
 import type { Block } from '../spec/spec'
 
 type FlowBlock = Extract<Block, { kind: 'flow' }>
@@ -23,6 +23,10 @@ type FlowBlock = Extract<Block, { kind: 'flow' }>
  * wrapping would silently imply "collisions → temperature".
  */
 export function FlowView({ block }: { block: FlowBlock }) {
+  /* One scope per mounted diagram: two of these on a page would otherwise
+     share an SVG id, and every arrowhead would resolve to the first. */
+  const arrowScope = useArrowScope()
+
   const layout = useMemo(() => layoutChain(block), [block])
 
   return (
@@ -32,7 +36,7 @@ export function FlowView({ block }: { block: FlowBlock }) {
       role="img"
       aria-label={describe(block)}
     >
-      <ArrowDefs />
+      <ArrowDefs scope={arrowScope} />
 
       {/*
         GLOW BY DOUBLE-STROKE, NOT BY FILTER.
@@ -52,7 +56,7 @@ export function FlowView({ block }: { block: FlowBlock }) {
         <path key={`glow-${i}`} className="lc-flow__link-glow" d={link.d} />
       ))}
       {layout.links.map((link, i) => (
-        <path key={i} className="lc-flow__link" d={link.d} markerEnd="url(#lc-arrow)" />
+        <path key={i} className="lc-flow__link" d={link.d} markerEnd={arrowRef(arrowScope)} />
       ))}
 
       {layout.nodes.map((node) => (

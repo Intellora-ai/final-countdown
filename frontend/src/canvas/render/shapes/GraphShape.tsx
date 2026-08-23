@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { ArrowDefs, curvePath, GlowDot, Pill } from '../../design/primitives'
+import { ArrowDefs, GlowDot, Pill, arrowRef, curvePath, useArrowScope } from '../../design/primitives'
 import { tokens } from '../../design/tokens'
 import { checkGraph, findBipartiteConflict, findCycle } from '../../spec/shapeInvariants'
 import type { GraphData, ShapeIssue } from '../../spec/shapeInvariants'
@@ -1370,6 +1370,9 @@ export function GraphShape({
   data: GraphData
   variant?: string
 }) {
+  /* One scope per mounted diagram: two of these on a page would otherwise
+     share an SVG id, and every arrowhead would resolve to the first. */
+  const arrowScope = useArrowScope()
   const layout = useMemo(() => layoutGraph(data, variant), [data, variant])
 
   if (layout.refusals.length > 0)
@@ -1380,7 +1383,7 @@ export function GraphShape({
   return (
     <>
       <svg className="lc-flow" viewBox={layout.viewBox} role="img" aria-label={describeGraph(data)}>
-        <ArrowDefs />
+        <ArrowDefs scope={arrowScope} />
 
         {/*
           GLOW BY DOUBLE-STROKE, NEVER BY FILTER.
@@ -1401,7 +1404,7 @@ export function GraphShape({
             key={i}
             className="lc-flow__link"
             d={edge.d}
-            markerEnd={layout.directed ? 'url(#lc-arrow)' : undefined}
+            markerEnd={layout.directed ? arrowRef(arrowScope) : undefined}
             style={edge.weightRank === 1 ? undefined : { strokeWidth: strokeFor(edge.weightRank) }}
           />
         ))}

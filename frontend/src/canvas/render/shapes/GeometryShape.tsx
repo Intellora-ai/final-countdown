@@ -1,4 +1,4 @@
-import { ArrowDefs } from '../../design/primitives'
+import { ArrowDefs, arrowRef, useArrowScope } from '../../design/primitives'
 import { tokens } from '../../design/tokens'
 
 /**
@@ -1555,7 +1555,15 @@ function fillFor(role: MarkRole): string {
   return role === 'primary' ? tokens.color.accent : tokens.color.result
 }
 
-function Marks({ marks }: { marks: Mark[] }) {
+/*
+ * `arrowScope` is threaded in rather than called here.
+ *
+ * The `<defs>` this references is rendered by `GeometryShape`, not by `Marks`.
+ * If each called `useArrowScope()` they would get DIFFERENT ids, and every
+ * `markerEnd` would point at a marker that does not exist — arrowheads would
+ * simply vanish, with no error anywhere.
+ */
+function Marks({ marks, arrowScope }: { marks: Mark[]; arrowScope: string }) {
   return (
     <>
       {marks.map((mark) => {
@@ -1569,7 +1577,7 @@ function Marks({ marks }: { marks: Mark[] }) {
               y2={mark.y2}
               stroke={strokeFor(mark.role)}
               strokeWidth={widthFor(mark.role)}
-              {...(mark.kind === 'arrow' ? { markerEnd: 'url(#lc-arrow)' } : {})}
+              {...(mark.kind === 'arrow' ? { markerEnd: arrowRef(arrowScope) } : {})}
             />
           )
 
@@ -1641,6 +1649,10 @@ function Marks({ marks }: { marks: Mark[] }) {
 /* -------------------------------------------------------------------------- */
 
 export function GeometryShape({ data, at }: { data: GeometryData; at?: string }) {
+  /* One scope per mounted diagram: two of these on a page would otherwise
+     share an SVG id, and every arrowhead would resolve to the first. */
+  const arrowScope = useArrowScope()
+
   const built = buildGeometry(data, at)
 
   if (!built.ok)
@@ -1682,8 +1694,8 @@ export function GeometryShape({ data, at }: { data: GeometryData; at?: string })
           zero-height box, so the filter output has no area and the line paints
           nothing while every attribute reads correct.
         */}
-        <ArrowDefs />
-        <Marks marks={figure.marks} />
+        <ArrowDefs scope={arrowScope} />
+        <Marks arrowScope={arrowScope} marks={figure.marks} />
       </svg>
 
       <p className="lc-caption">{built.note}</p>

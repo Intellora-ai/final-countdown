@@ -1,4 +1,4 @@
-import { ArrowDefs, curvePath } from '../../design/primitives'
+import { ArrowDefs, arrowRef, curvePath, useArrowScope } from '../../design/primitives'
 import { tokens } from '../../design/tokens'
 import { checkProcess, type ProcessData, type ShapeIssue } from '../../spec/shapeInvariants'
 
@@ -480,6 +480,10 @@ function round(value: number, places: number): number {
 /* -------------------------------------------------------------------------- */
 
 export function ProcessShape({ data, at }: { data: ProcessData; at?: string }) {
+  /* One scope per mounted diagram: two of these on a page would otherwise
+     share an SVG id, and every arrowhead would resolve to the first. */
+  const arrowScope = useArrowScope()
+
   const built = buildProcess(data, at)
 
   if (!built.ok) {
@@ -508,7 +512,7 @@ export function ProcessShape({ data, at }: { data: ProcessData; at?: string }) {
         role="img"
         aria-label={describeProcess(data)}
       >
-        <ArrowDefs />
+        <ArrowDefs scope={arrowScope} />
 
         {/* Lanes as bands, not boxes: a band is the ground an actor's steps
             stand on. A box around each lane would read as a container. */}
@@ -548,7 +552,7 @@ export function ProcessShape({ data, at }: { data: ProcessData; at?: string }) {
             key={`edge-${i}`}
             className="lc-flow__link"
             d={edge.d}
-            markerEnd="url(#lc-arrow)"
+            markerEnd={arrowRef(arrowScope)}
             strokeDasharray={
               edge.back ? `${scalar(tokens.space.xs)} ${scalar(tokens.space.xs)}` : undefined
             }

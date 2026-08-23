@@ -35,12 +35,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
+from learning_os.diagnosis.bottleneck import Bottleneck, NoBottleneck
 from learning_os.domain.knowledge import KnowledgeGraph
 from learning_os.llm.client import GeneratedContent, LLMClient, LLMUnavailable
 from learning_os.llm.contract import DiagnosisKind, InstructionContract
 from learning_os.llm.validation import Violation, is_repairable, is_usable, validate
 from learning_os.mastery.estimate import Belief, MasteryState, state_of
 from learning_os.memory.store import Attempt, MemoryStore, Outcome
+from learning_os.models.contracts import ActionKind
 from learning_os.policy.select import BottleneckLike, Decision, ReasonCode, select_action
 
 #: Generations per turn. Two, not three: content failing its contract twice is
@@ -192,6 +194,91 @@ def teach_once(
         violations=tuple(violations),
         attempts=attempt,
         at=now(),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class NoInstruction:
+    """No lesson was produced, and that is the right answer rather than a failure.
+
+    Distinct from every `TurnStatus`, because those describe a turn that TRIED
+    to teach and could not. This describes a turn that should not have started:
+    nothing was generated, nothing was validated, no model was called, and no
+    attempt is recorded against the learner -- recording one would put a failure
+    on the record of somebody who was never taught anything.
+    """
+
+    reason: NoBottleneck
+    #: What the runtime should actually do. Derived rather than stored by the
+    #: caller, so "mastered" cannot be paired with "diagnose" by accident.
+    action: ActionKind
+    at: datetime | None = None
+
+
+#: Reason -> what to do about it. The whole point of `NoBottleneck` being an
+#: enum: three reasons that look identical from outside and demand different
+#: moves. UNKNOWN_TARGET shares `DO_NOTHING` with MASTERED because there is
+#: equally nothing to teach -- but it is a caller asking about an unmodelled
+#: skill, not a finished learner, and `reason` keeps the two apart for anyone
+#: reading the log later.
+_ACTION_FOR_ABSENCE: dict[NoBottleneck, ActionKind] = {
+    NoBottleneck.MASTERED: ActionKind.DO_NOTHING,
+    NoBottleneck.UNEVIDENCED: ActionKind.DIAGNOSE,
+    NoBottleneck.UNKNOWN_TARGET: ActionKind.DO_NOTHING,
+}
+
+
+def teach_next(
+    graph: KnowledgeGraph,
+    memory: MemoryStore,
+    client: LLMClient,
+    bottleneck: Bottleneck | NoBottleneck,
+    diagnosis: DiagnosisKind,
+    *,
+    question: str,
+    now: Callable[[], datetime],
+    known_prerequisites: tuple[str, ...] = (),
+    live_misconceptions: tuple[str, ...] = (),
+    belief: Belief | None = None,
+) -> Turn | NoInstruction:
+    """Decide whether to teach at all, then what -- in that order.
+
+    THE ORDER IS THE POINT, AND IT WAS MISSING.
+
+    `teach_once` takes a bottleneck and teaches it. Every caller therefore had
+    to have found one, so the engine could not answer "this learner is done":
+    `ActionKind.DO_NOTHING` existed in the enum and was selected by nothing,
+    while `MasteryState.MASTERED` was computed and read by nothing. A system
+    that can only ever teach will teach a finished learner forever.
+
+    Additive on purpose. `teach_once` keeps its exact signature and behaviour,
+    so the ninety-odd call sites that already know they hold a real bottleneck
+    are untouched -- widening `Turn.decision` to an Optional would have made
+    every one of them prove something it already knows.
+    """
+    if isinstance(bottleneck, NoBottleneck):
+        # NOTHING IS RECORDED HERE.
+        #
+        # `teach_once` records an Attempt on every terminal state, and that is
+        # right for a turn that tried. This one did not: no mechanism was
+        # chosen, so burning one would exclude a strategy that was never used.
+        return NoInstruction(
+            reason=bottleneck,
+            action=_ACTION_FOR_ABSENCE[bottleneck],
+            at=now(),
+        )
+
+    return teach_once(
+        graph,
+        memory,
+        client,
+        bottleneck,
+        diagnosis,
+        question=question,
+        now=now,
+        known_prerequisites=known_prerequisites,
+        live_misconceptions=live_misconceptions,
+        belief=belief,
     )
 
 

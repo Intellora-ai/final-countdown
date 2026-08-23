@@ -23,6 +23,7 @@ from learning_os.diagnosis.bottleneck import (
     DiagnosticBudget,
     Hypothesis,
     HypothesisKind,
+    NoBottleneck,
     causal_relevance,
     evidence_confidence,
     need,
@@ -146,7 +147,7 @@ def test_self_report_does_not_override_contradicting_evidence() -> None:
         GRAPH, state, MemoryStore(), PREDICT, self_reported_skill=READ
     )
 
-    assert found is not None
+    assert isinstance(found, Bottleneck), found
     assert found.skill_id == INTERPRET, (
         f"followed the learner's self-report to {found.skill_id} instead of "
         "the skill the evidence actually implicates"
@@ -166,7 +167,7 @@ def test_the_self_report_is_recorded_as_contradicted_not_discarded() -> None:
     found = select_bottleneck(
         GRAPH, state, MemoryStore(), PREDICT, self_reported_skill=READ
     )
-    assert found is not None
+    assert isinstance(found, Bottleneck), found
     assert any(READ in c for c in found.contradicting_evidence), (
         "the self-report was dropped silently rather than recorded as overruled"
     )
@@ -185,7 +186,7 @@ def test_self_report_is_followed_when_evidence_agrees() -> None:
     found = select_bottleneck(
         GRAPH, state, MemoryStore(), PREDICT, self_reported_skill=READ
     )
-    assert found is not None
+    assert isinstance(found, Bottleneck), found
     assert found.skill_id == READ
 
 
@@ -237,7 +238,7 @@ def test_the_lowest_score_is_not_automatically_the_bottleneck() -> None:
         blocking=_estimate("x.c.load_bearing", 0.35),
     )
     found = select_bottleneck(peripheral, state, MemoryStore(), "x.c.target")
-    assert found is not None
+    assert isinstance(found, Bottleneck), found
     assert found.skill_id == "x.c.load_bearing", (
         f"picked {found.skill_id}: sorted by score rather than by what blocks the target"
     )
@@ -251,7 +252,7 @@ def test_a_skill_outside_the_targets_dependencies_is_never_returned() -> None:
         blocking=_estimate(INTERPRET, 0.4),
     )
     found = select_bottleneck(GRAPH, state, MemoryStore(), INTERPRET)
-    assert found is not None
+    assert isinstance(found, Bottleneck), found
     assert found.skill_id != PREDICT
 
 
@@ -263,7 +264,7 @@ def test_the_nearest_weak_prerequisite_wins_over_a_deeper_one() -> None:
         near=_estimate(INTERPRET, 0.32),
     )
     found = select_bottleneck(GRAPH, state, MemoryStore(), PREDICT)
-    assert found is not None
+    assert isinstance(found, Bottleneck), found
     assert found.skill_id == INTERPRET
 
 
@@ -280,7 +281,7 @@ def test_no_diagnostic_is_requested_when_the_evidence_already_settles_it() -> No
         interpret=_estimate(INTERPRET, 0.15, confidence=0.95, count=10, diversity=5),
     )
     found = select_bottleneck(GRAPH, state, MemoryStore(), PREDICT)
-    assert found is not None
+    assert isinstance(found, Bottleneck), found
     assert found.needs_diagnostic is False
 
 
@@ -289,13 +290,58 @@ def test_a_diagnostic_is_requested_when_the_evidence_is_thin() -> None:
         interpret=_estimate(INTERPRET, 0.4, confidence=0.2, count=1, diversity=1),
     )
     found = select_bottleneck(GRAPH, state, MemoryStore(), PREDICT)
-    assert found is None or found.needs_diagnostic is True
+    # Was `found is None or found.needs_diagnostic`, which a test named for
+    # REQUESTING a diagnostic could satisfy by not producing one. It never took
+    # that branch -- thin evidence still yields a bottleneck here, flagged --
+    # so the disjunction bought nothing and hid the case it was covering for.
+    assert isinstance(found, Bottleneck), found
+    assert found.needs_diagnostic is True
 
 
-def test_no_evidence_at_all_returns_none_rather_than_a_guess() -> None:
-    """None is a real answer: "I do not know yet". A confident diagnosis from
-    an empty learner model is the worst output this module can produce."""
-    assert select_bottleneck(GRAPH, _state(), MemoryStore(), PREDICT) is None
+def test_no_evidence_at_all_says_unevidenced_rather_than_guessing() -> None:
+    """"I do not know yet" is a real answer. A confident diagnosis from an empty
+    learner model is the worst output this module can produce.
+
+    Asserts the REASON, not merely the absence. This test previously asserted
+    `is None`, which `test_an_unknown_target_is_refused_rather_than_guessed`
+    also satisfied -- two tests, one value, neither able to tell whether it got
+    the answer it was named for.
+    """
+    assert select_bottleneck(GRAPH, _state(), MemoryStore(), PREDICT) is NoBottleneck.UNEVIDENCED
+
+
+def test_a_mastered_learner_is_not_confused_with_an_unknown_one() -> None:
+    """THE COLLAPSE THIS ENUM EXISTS TO UNDO.
+
+    Both learners produce no bottleneck; the correct next move is opposite for
+    each. Read as "gather more" -- which is what the old docstring instructed --
+    a learner who had finished would be diagnosed forever.
+    """
+    everything = {
+        skill_id: _estimate(skill_id, 0.95)
+        for skill_id in (PREDICT, *GRAPH.prerequisites_of(PREDICT))
+    }
+    mastered = LearnerState(learner_id="done", version=1, skills=everything)
+
+    assert select_bottleneck(GRAPH, mastered, MemoryStore(), PREDICT) is NoBottleneck.MASTERED
+    assert select_bottleneck(GRAPH, _state(), MemoryStore(), PREDICT) is NoBottleneck.UNEVIDENCED
+
+
+def test_partial_competence_is_not_mastery() -> None:
+    """Competent at some, unevidenced at the rest, is a learner mid-way.
+
+    The loose test -- `competent > 0` -- would stop teaching them, and it would
+    do it silently and confidently. The strict one costs nothing.
+    """
+    prerequisites = GRAPH.prerequisites_of(PREDICT)
+    assert prerequisites, "fixture assumes PREDICT rests on something"
+
+    partial = LearnerState(
+        learner_id="halfway",
+        version=1,
+        skills={prerequisites[0]: _estimate(prerequisites[0], 0.95)},
+    )
+    assert select_bottleneck(GRAPH, partial, MemoryStore(), PREDICT) is NoBottleneck.UNEVIDENCED
 
 
 # --------------------------------------------------------------------------
@@ -376,7 +422,7 @@ def test_a_bottleneck_carries_its_provenance() -> None:
         interpret=_estimate(INTERPRET, 0.2),
     )
     found = select_bottleneck(GRAPH, state, MemoryStore(), PREDICT)
-    assert found is not None
+    assert isinstance(found, Bottleneck), found
     assert found.evidence_sources, "no sources recorded"
     assert found.supporting_evidence, "no supporting evidence recorded"
     assert 0.0 <= found.confidence <= 1.0
@@ -421,7 +467,7 @@ def test_hypotheses_are_a_closed_set_with_probabilities() -> None:
 def test_the_diagnosis_is_immutable() -> None:
     state = _state(interpret=_estimate(INTERPRET, 0.2))
     found = select_bottleneck(GRAPH, state, MemoryStore(), PREDICT)
-    assert found is not None
+    assert isinstance(found, Bottleneck), found
     with pytest.raises(Exception):  # noqa: B017
         found.skill_id = "something.else.entirely"
 
@@ -435,14 +481,20 @@ def test_selection_is_deterministic() -> None:
     )
     a = select_bottleneck(GRAPH, state, MemoryStore(), PREDICT)
     b = select_bottleneck(GRAPH, state, MemoryStore(), PREDICT)
-    assert a is not None and b is not None
+    assert isinstance(a, Bottleneck) and isinstance(b, Bottleneck)
     assert a.skill_id == b.skill_id
     assert a.confidence == b.confidence
 
 
 def test_an_unknown_target_is_refused_rather_than_guessed() -> None:
+    """And says so as UNKNOWN_TARGET -- which is not a fact about the learner.
+
+    The learner here HAS evidence. Returning `UNEVIDENCED` would blame their
+    record for what is a caller asking about a skill the domain does not model.
+    """
     state = _state(interpret=_estimate(INTERPRET, 0.2))
-    assert select_bottleneck(GRAPH, state, MemoryStore(), "nope.not.here") is None
+    got = select_bottleneck(GRAPH, state, MemoryStore(), "nope.not.here")
+    assert got is NoBottleneck.UNKNOWN_TARGET
 
 
 def test_evidence_can_be_supplied_and_is_reflected_in_provenance() -> None:
@@ -464,5 +516,5 @@ def test_evidence_can_be_supplied_and_is_reflected_in_provenance() -> None:
     )
     state = _state(interpret=_estimate(INTERPRET, 0.2))
     found = select_bottleneck(GRAPH, state, m, PREDICT)
-    assert found is not None
+    assert isinstance(found, Bottleneck), found
     assert "e1" in found.supporting_evidence

@@ -18,6 +18,7 @@ from learning_os.diagnosis.bottleneck import (
     Bottleneck,
     DiagnosticBudget,
     Hypothesis,
+    NoBottleneck,
     causal_relevance,
     evidence_confidence,
     need,
@@ -44,6 +45,7 @@ __all__ = [
     "DiagnosisKind",
     "DiagnosticBudget",
     "Hypothesis",
+    "NoBottleneck",
     # The five factors are public on purpose. A diagnosis nobody can take apart
     # is a diagnosis nobody can correct, and the whole reason they are separate
     # named functions is so a wrong answer traces to the one that produced it.

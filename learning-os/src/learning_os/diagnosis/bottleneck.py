@@ -37,6 +37,7 @@ not rewriting the module.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from types import MappingProxyType
 from typing import Annotated, Self
 
@@ -62,6 +63,43 @@ SUFFICIENT_CONFIDENCE = 0.55
 #: Without a floor, "weakest available" always returns something, and an engine
 #: that always finds a problem will always teach one.
 COMPETENT_ENOUGH = 0.8
+
+
+class NoBottleneck(StrEnum):
+    """Why there is no bottleneck. Three reasons, three opposite next moves.
+
+    THIS USED TO BE `None`, AND THE COLLAPSE WAS THE BUG.
+
+    A learner who has mastered every candidate and a learner the engine has
+    never seen both produced an empty candidate list and both came back as
+    `None`. The docstring then told the caller how to read it -- "no diagnosis
+    means gather more, never 'nothing is wrong'" -- which is correct for one of
+    those learners and exactly backwards for the other. Followed literally, a
+    learner who had finished would be diagnosed forever.
+
+    The failure was invisible because both tests covering it asserted `is None`
+    and passed, each satisfied by the other's cause. A return type that cannot
+    express the difference cannot be tested for it.
+
+    So this is an enum rather than a bool or a `None`, for the same reason
+    `TurnStatus` is: the right next move differs per case, and collapsing them
+    forces the caller to re-derive which happened from whatever incidental
+    detail survived.
+    """
+
+    #: Every candidate sits at or above `COMPETENT_ENOUGH`. There is nothing to
+    #: teach, and teaching anyway is the failure mode this engine exists to
+    #: avoid. The policy answers with `DO_NOTHING`.
+    MASTERED = "mastered"
+
+    #: No estimate for any candidate. The engine knows nothing yet, which is not
+    #: the same as knowing there is no problem. Diagnose; never conclude.
+    UNEVIDENCED = "unevidenced"
+
+    #: The target is not in the graph. Not a fact about the learner at all --
+    #: a caller asked about a skill this domain does not model, and answering
+    #: would be inventing one.
+    UNKNOWN_TARGET = "unknown_target"
 
 
 # THERE IS ONE ENUM OF FAILURE KINDS, AND IT IS NOT DEFINED HERE.
@@ -329,31 +367,49 @@ def select_bottleneck(
     target_skill: str,
     *,
     self_reported_skill: str | None = None,
-) -> Bottleneck | None:
+) -> Bottleneck | NoBottleneck:
     """The smallest evidenced thing standing between this learner and the target.
 
-    Returns None when the evidence will not support a diagnosis. That is a real
-    answer and the policy layer must treat it as one: no diagnosis means gather
-    more, never "nothing is wrong".
+    Returns a `NoBottleneck` reason rather than `None` when there is nothing to
+    diagnose, because the two ways that happens demand opposite responses:
+    a mastered learner should be taught NOTHING, and an unevidenced one should
+    be diagnosed and never concluded about. See `NoBottleneck`.
     """
     if graph.subskill(target_skill) is None:
-        return None
+        return NoBottleneck.UNKNOWN_TARGET
 
     # The target and everything it rests on. Nothing else can be the blocker,
     # so nothing else is scored -- relevance is applied before ranking rather
     # than as a tiebreak afterwards.
     candidates = (target_skill, *graph.prerequisites_of(target_skill))
 
+    # WHY THESE ARE COUNTED SEPARATELY.
+    #
+    # Both `continue` branches below leave `scored` empty, and an empty list
+    # cannot say WHY it is empty. Counting as we go is what lets the exits be
+    # told apart afterwards without a second pass over the candidates.
+    #
+    # `assessable` counts candidates the graph actually models -- a dangling
+    # prerequisite is not something this learner can be competent at, and
+    # letting it inflate the denominator would put mastery permanently out of
+    # reach for any domain with one bad edge.
+    assessable = 0
+    competent = 0
+
     scored: list[tuple[float, Subskill, SkillEstimate]] = []
     for skill_id in candidates:
         subskill = graph.subskill(skill_id)
+        if subskill is None:
+            continue
+        assessable += 1
         estimate = learner_state.skills.get(skill_id)
-        if subskill is None or estimate is None:
+        if estimate is None:
             continue
         if estimate.estimate >= COMPETENT_ENOUGH:
             # Competent skills are not bottlenecks. Without this an engine
             # always returns its weakest candidate, and one that always finds a
             # problem will always teach one.
+            competent += 1
             continue
         boost = (
             SELF_REPORT_WEIGHT
@@ -365,7 +421,23 @@ def select_bottleneck(
             scored.append((value, subskill, estimate))
 
     if not scored:
-        return None
+        # MASTERED MEANS EVERY ASSESSABLE CANDIDATE, NOT EVERY EVIDENCED ONE.
+        #
+        # The first version of this compared `competent` against the count of
+        # candidates that HAD an estimate. A learner evidenced on one of three
+        # candidates, competent at that one, came back MASTERED -- finished,
+        # according to an engine that had never seen them attempt the target.
+        #
+        # `test_partial_competence_is_not_mastery` catches it. Competent at some
+        # and unknown at the rest is a learner mid-way, and the loose rule stops
+        # teaching them silently and confidently, which is the exact failure
+        # this module exists to avoid.
+        #
+        # Everything else lands on UNEVIDENCED, which is the safe direction:
+        # it asks for more rather than concluding there is no problem.
+        if assessable > 0 and competent == assessable:
+            return NoBottleneck.MASTERED
+        return NoBottleneck.UNEVIDENCED
 
     # Sorted by score, then by skill_id. The tiebreak is what makes selection
     # deterministic: two equal scores must not depend on dict ordering, or a
@@ -425,6 +497,7 @@ __all__ = [
     "DiagnosticBudget",
     "Hypothesis",
     "HypothesisKind",
+    "NoBottleneck",
     "causal_relevance",
     "evidence_confidence",
     "need",

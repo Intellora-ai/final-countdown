@@ -7,8 +7,10 @@ memory nothing writes to, a repair path that loops because nothing counts.
 
 from learning_os.runtime.loop import (
     MAX_GENERATION_ATTEMPTS,
+    NoInstruction,
     Turn,
     TurnStatus,
+    teach_next,
     teach_once,
 )
 from learning_os.runtime.observe import PARTIAL_FLOOR, Observation, observe
@@ -16,9 +18,11 @@ from learning_os.runtime.observe import PARTIAL_FLOOR, Observation, observe
 __all__ = [
     "MAX_GENERATION_ATTEMPTS",
     "PARTIAL_FLOOR",
+    "NoInstruction",
     "Observation",
     "Turn",
     "TurnStatus",
     "observe",
+    "teach_next",
     "teach_once",
 ]

@@ -106,7 +106,9 @@ def test_a_real_bottleneck_drives_a_real_lesson() -> None:
     """
     found = select_bottleneck(GRAPH, _learner(), MemoryStore(), TARGET)
 
-    assert found is not None, "a learner weak at a prerequisite has a bottleneck"
+    assert isinstance(found, Bottleneck), (
+        f"a learner weak at a prerequisite has a bottleneck, got {found!r}"
+    )
     assert found.skill_id != TARGET, (
         "the engine returned the skill it was asked about. A diagnosis that "
         "echoes the target is not a diagnosis -- the point is to name the thing "
@@ -165,7 +167,7 @@ def test_a_confident_diagnosis_lets_the_policy_skip_the_diagnostic() -> None:
     ignored downstream.
     """
     found = select_bottleneck(GRAPH, _learner(), MemoryStore(), TARGET)
-    assert found is not None
+    assert isinstance(found, Bottleneck), found
     assert found.needs_diagnostic is False, (
         "six pieces of evidence at 0.85 confidence is enough to act on; asking "
         "another question here is interrogation, not teaching"

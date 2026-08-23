@@ -298,9 +298,7 @@ def _score(
 SELF_REPORT_WEIGHT = 1.25
 
 
-def _hypotheses(
-    graph: KnowledgeGraph, subskill: Subskill, estimate: SkillEstimate
-) -> tuple[Hypothesis, ...]:
+def _hypotheses(subskill: Subskill, estimate: SkillEstimate) -> tuple[Hypothesis, ...]:
     """Competing explanations for this subskill being weak.
 
     Derived from the operation and the knowledge model, never from prose. The
@@ -413,7 +411,7 @@ def select_bottleneck(
         evidence_sources=tuple(dict.fromkeys(sources)),
         supporting_evidence=tuple(dict.fromkeys(supporting)),
         contradicting_evidence=tuple(contradicting),
-        hypotheses=_hypotheses(graph, best_sub, best_estimate),
+        hypotheses=_hypotheses(best_sub, best_estimate),
         score=best_score,
         needs_diagnostic=needs_diagnostic,
     )

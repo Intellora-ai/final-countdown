@@ -40,7 +40,34 @@ line-length = 100
 src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+# ARG is here because a dead PARAMETER got through every gate.
+#
+# `_hypotheses(graph, subskill, estimate)` never read `graph`. It type-checked
+# under mypy --strict, passed ruff, and passed 269 tests, because F841 catches an
+# unused local and nothing was checking arguments. A parameter that looks like a
+# dependency and is not is worse than a missing one: the next reader threads a
+# graph through a call that has never needed it, and a reviewer reads the
+# signature as a statement about what the function consults.
+#
+# Same shape as the reason code no branch emitted and the enum declared twice.
+# The pattern is a declaration nothing verifies, so the rule that verifies it is
+# the fix; deleting this instance alone would leave the next one to be found by
+# a person again.
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "ARG"]
+
+[tool.ruff.lint.per-file-ignores]
+# ARG002 is unused METHOD arguments, and in exactly two places that is the
+# correct code rather than a defect. Scoped to those files instead of silenced
+# globally, so a dead argument on any ordinary method still fails.
+#
+# `NullVerifier` must accept every argument the verifier interface declares
+# while deliberately ignoring all of them -- returning UNSUPPORTED is its whole
+# job. Renaming them to `_skill_id` would satisfy the linter and break the
+# keyword names callers use.
+"src/learning_os/verifiers/base.py" = ["ARG002"]
+# Test doubles implement `LLMClient` and other protocols for one behaviour; the
+# arguments they ignore are the ones the real implementation reads.
+"tests/**" = ["ARG002"]
 
 [tool.mypy]
 python_version = "3.11"

@@ -3,16 +3,17 @@
 **Package:** `final-countdown/learning-os/`, a Python package.
 **Read with:** doc 02 (the contracts every boundary speaks).
 
-> **Pinned to `60b3bf4`** on `learning-os/llm`, the integration branch —
-> `api domain llm memory models policy runtime verifiers`. Verified on CI's
-> configuration (Python 3.12, hash-locked install): **207 tests passing**, ruff
-> clean, `mypy --strict` clean over 30 files.
+> **Pinned to `2e0832d`** on `learning-os/llm`, the integration branch —
+> `api domain llm mastery memory models policy runtime verifiers`. **262 tests
+> passing**, ruff clean, `mypy --strict` clean, as measured by session
+> `final-countdown-2d` on CI's configuration (Python 3.12, hash-locked install).
+> Counted independently here: 238 `def test_` across 11 files, the difference
+> being parametrised cases.
 >
 > `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
-> which is stacked on this branch and **not yet integrated**. `mastery/` **landed at `f4b2fe6`**, after this pin — `mastery/estimate.py`
-> plus `tests/test_mastery.py`. Like `diagnosis/`, it is built and tested and
-> **nothing outside its own tests imports it**. The earlier note here said it
-> was not started; that was true at the pin and is no longer.
+> stacked above this pin and **not yet integrated**. `mastery/` is integrated
+> into the branch and **imported by nothing but its own tests** — doc 07 §9.1
+> for why that is a distinct state from done.
 
 ---
 
@@ -73,7 +74,7 @@ credentials. If a test needs a key to pass, the boundary is in the wrong place.
 | `verifiers/` | Whether a claim can be checked, and what a check established | done |
 | `llm/` | Generation behind a fake-able protocol | **done** — `contract.py`, `client.py`, `validation.py` |
 | `diagnosis/` | Estimating skill from evidence; selecting the bottleneck | **done at `ebc4059`**, not yet integrated — doc 04 §9 |
-| `mastery/` | Learner model, mastery states, retention | **done at `f4b2fe6`**, not yet consumed by any other module |
+| `mastery/` | Learner model, mastery states, retention | **done at `f4b2fe6`**, integrated into the branch, imported only by its own tests — doc 02 §11 |
 | `policy/` | Candidate actions, ranking, the `Decision` | **done** — `select.py` |
 | `runtime/` | The teaching loop | **done** — `loop.py` |
 | `api/` | `LessonSpec` emission. No decisions. | **done** — `emit.py` |
@@ -378,7 +379,7 @@ Measured against the tree, not quoted:
 ```bash
 cd learning-os
 python3 -m venv .venv && ./.venv/bin/pip install -e ".[dev]"
-./.venv/bin/python -m pytest tests -q       # 207 tests, all passing
+./.venv/bin/python -m pytest tests -q       # 262 tests, all passing at 2e0832d
 ./.venv/bin/ruff check src tests            # clean
 MYPYPATH=src ./.venv/bin/mypy --strict src/learning_os   # clean, 11 files
 ```

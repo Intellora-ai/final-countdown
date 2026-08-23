@@ -384,7 +384,27 @@ describe('every shape with a renderer reaches it through FigureView', () => {
 /* The two shapes that genuinely have no renderer                              */
 /* -------------------------------------------------------------------------- */
 
-const UNDRAWN: { shape: string; representation: string; block: BlockInput }[] = [
+/* -------------------------------------------------------------------------- */
+/* The last two shapes to get a renderer                                       */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * These two used to assert the PLACEHOLDER, and that was correct when written:
+ * `geometry` and `logic` were the only shapes in the registry with nothing to
+ * draw them. Both now have one, so the assertion is inverted rather than
+ * deleted — the thing worth pinning is that every shape the registry declares
+ * reaches a renderer, and that is only checked if something fails when one does
+ * not.
+ *
+ * `geometry` is the interesting case. Its payload carries no coordinates at all
+ * (Law 2 forbids the author from supplying any), so the renderer derives
+ * position from `relation`, `magnitude` and `angleDegrees`. Where the data does
+ * not determine a drawing it refuses in its own words. That refusal is a
+ * DIFFERENT outcome from the placeholder and must not be confused with it: the
+ * placeholder means "we never built this", the refusal means "this data does not
+ * describe a figure".
+ */
+const NOW_DRAWN: { shape: string; representation: string; block: BlockInput }[] = [
   {
     shape: 'logic',
     representation: 'truthTable',
@@ -410,32 +430,32 @@ const UNDRAWN: { shape: string; representation: string; block: BlockInput }[] = 
   },
 ]
 
-describe('the placeholder, for the two shapes nothing can draw yet', () => {
-  for (const undrawn of UNDRAWN) {
-    it(`${undrawn.shape} says so in words a learner can use`, async () => {
-      const container = await settled(<FigureView block={figure(undrawn.block)} />)
+describe('every shape in the registry reaches a renderer', () => {
+  for (const drawn of NOW_DRAWN) {
+    it(`${drawn.shape} is drawn, not deferred to the placeholder`, async () => {
+      const container = await settled(<FigureView block={figure(drawn.block)} />)
 
       const text = container.textContent ?? ''
-      expect(text).toMatch(/cannot be drawn yet/i)
-
-      /*
-       * The old placeholder read "No renderer yet for processdecisionFlow — for
-       * sequence. Avoid it when the branches are not labelled." Two names run
-       * together with no separator, a shape name and an intent the reader has
-       * never met, and authoring advice aimed at someone who is not there. None
-       * of it may come back.
-       */
-      expect(text).not.toContain(undrawn.shape)
-      expect(text).not.toContain(undrawn.representation)
-      expect(text.toLowerCase()).not.toContain('avoid')
+      expect(text, `${drawn.shape} still shows the "not built" placeholder`).not.toMatch(
+        /cannot be drawn yet/i,
+      )
+      expect(
+        container.querySelector('[data-representation]'),
+        'the placeholder box is still being rendered',
+      ).toBeNull()
     })
 
-    it(`${undrawn.shape} still tells a developer which figure it was`, async () => {
-      const container = await settled(<FigureView block={figure(undrawn.block)} />)
+    it(`${drawn.shape} puts something on the page`, async () => {
+      const container = await settled(<FigureView block={figure(drawn.block)} />)
 
-      const box = container.querySelector('[data-representation]')
-      expect(box?.getAttribute('data-representation')).toBe(undrawn.representation)
-      expect(box?.getAttribute('data-shape')).toBe(undrawn.shape)
+      /* Either a drawing or an honest refusal in the renderer's own words. What
+         must NOT happen is an empty box, which is what a wired-but-broken
+         renderer produces and which no other assertion here would catch. */
+      const painted =
+        container.querySelector('svg') ??
+        container.querySelector('table') ??
+        container.querySelector('.lc-refusal')
+      expect(painted, `${drawn.shape} rendered nothing at all`).not.toBeNull()
     })
   }
 })

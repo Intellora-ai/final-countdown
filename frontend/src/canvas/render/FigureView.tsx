@@ -8,11 +8,18 @@ import type {
   GraphData,
   HierarchyData,
   IntervalsData,
+  LogicData,
   MatrixData,
   PartsData,
   ProcessData,
   SeriesData,
 } from '../spec/shapeInvariants'
+/* `GeometryData` lives beside its renderer rather than in shapeInvariants,
+   because geometry is one of the two shapes with no invariants to state —
+   `UNCHECKED_SHAPES` names it — so there was never a payload type there to
+   import. A type import is erased at build time, so naming the module costs
+   the chunk nothing. */
+import type { GeometryData } from './shapes/GeometryShape'
 import type { TableBlock } from './TableView'
 
 /**
@@ -69,6 +76,12 @@ const IntervalsShape = lazy(() =>
 )
 const HierarchyShape = lazy(() =>
   import('./shapes/HierarchyShape').then((m) => ({ default: m.HierarchyShape })),
+)
+const GeometryShape = lazy(() =>
+  import('./shapes/GeometryShape').then((m) => ({ default: m.GeometryShape })),
+)
+const LogicShape = lazy(() =>
+  import('./shapes/LogicShape').then((m) => ({ default: m.LogicShape })),
 )
 /*
  * `tabular` has no shape module and should not get one. A tabular payload and a
@@ -227,17 +240,26 @@ function draw(block: FigureBlock): ReactNode {
     }
 
     /*
-     * No renderer exists for either of these yet, and neither is faked.
+     * These two were the last shapes with no renderer, and the comment that
+     * stood here said a solver was needed rather than a chart. That was right,
+     * and it is now built.
      *
-     * `logic` is truth tables and proof trees; `geometry` is a construction
-     * described by its parts — axes, vectors, bodies, forces — with no
-     * coordinates anywhere in the payload, because Law 2 forbids the author
-     * from supplying any. Turning that description into a drawing is a solver,
-     * not a chart, and half a solver draws a diagram that is confidently wrong.
+     * `geometry` is a construction described by its PARTS — axes, vectors,
+     * bodies, forces — with no coordinates anywhere in the payload, because
+     * Law 2 forbids the author from supplying any. So the renderer derives
+     * position from the semantic `relation`, `magnitude` and `angleDegrees`
+     * fields. Where the data does not determine a drawing it refuses in its own
+     * words rather than inventing a plausible figure, which is the one outcome
+     * worse than an empty box: a diagram that is confidently wrong.
+     *
+     * `logic` is truth tables and proof trees. A ragged truth table and a
+     * cyclic proof are both refused rather than padded or drawn.
      */
-    case 'logic':
     case 'geometry':
-      return null
+      return <GeometryShape data={data as unknown as GeometryData} at={block.id} />
+
+    case 'logic':
+      return <LogicShape data={data as unknown as LogicData} at={block.id} />
 
     default: {
       /* A thirteenth shape added to the registry is a compile error here, not a

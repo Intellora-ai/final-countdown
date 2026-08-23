@@ -297,7 +297,14 @@ const ARC_R = 24
 /* Numbers                                                                    */
 /* -------------------------------------------------------------------------- */
 
-/** Two decimals is below one device pixel at every scale this canvas allows. */
+/**
+ * Two decimals is below one device pixel at every scale this canvas allows.
+ *
+ * Defined here rather than imported from `GraphShape`, which exports the same
+ * four lines: `FigureView` loads each shape lazily so a lesson with one diagram
+ * does not download the others, and one import would drag the whole graph
+ * layout engine into this chunk to reuse a rounding function.
+ */
 export function round(value: number): number {
   return Math.round(value * 100) / 100
 }
@@ -534,8 +541,24 @@ function variantWarnings(data: GeometryData, at: string): string[] {
       out.push(`${at}.elements — ${bodies} bodies; a free-body diagram isolates one, and only the first is drawn at the origin`)
   }
 
-  if (data.variant === 'geometricFigure' && data.elements.some((e) => finite(e.magnitude)))
-    out.push(`${at}.elements — lengths are stated but this figure is drawn at a canonical placement, NOT to scale`)
+  /* An angle counts as much as a length here. A canonical placement honours
+     neither, and a figure carrying "60°" that is drawn at 90° is the exact
+     defect `geometricFigure.avoidWhen` names. */
+  if (
+    data.variant === 'geometricFigure' &&
+    data.elements.some((e) => finite(e.magnitude) || finite(e.angleDegrees))
+  )
+    out.push(`${at}.elements — lengths or angles are stated, but this figure is drawn at a canonical placement, NOT to scale`)
+
+  /* Coordinates are a coordinatePlane's language, not a figure's. Honouring
+     them here would mean two incompatible placement systems in one drawing:
+     some points fixed to a grid and the rest on a polygon that knows nothing
+     about it. Said rather than half-applied. */
+  if (
+    data.variant === 'geometricFigure' &&
+    data.elements.some((e) => e.kind === 'point' && coordsFrom(e.relation) !== null && !ORIGIN.test(e.relation ?? ''))
+  )
+    out.push(`${at}.elements — a point states coordinates; a figure is placed canonically and ignores them, so a coordinatePlane is the representation that would honour them`)
 
   if (data.variant === 'vennDiagram') {
     const sets = data.elements.filter((e) => e.kind === 'set').length
@@ -901,6 +924,8 @@ function buildVectors(data: GeometryData): BuildOutcome {
 
   const largest = Math.max(0, ...arrows.map((a) => Math.abs(a.magnitude ?? 0)))
   const marks: Mark[] = []
+  /** Arrows whose true length would be too short to show a direction at all. */
+  const floored: string[] = []
 
   /*
    * The body is drawn FIRST and the arrows start at the origin, on top of it.
@@ -932,7 +957,13 @@ function buildVectors(data: GeometryData): BuildOutcome {
       arrow.magnitude === null || largest <= 0
         ? ARROW_UNSCALED
         : (Math.abs(arrow.magnitude) / largest) * ARROW_MAX
+    /* A FLOOR, AND IT IS NOT FREE. An arrow scaled to under a couple of units
+       is a dot: it shows no direction, and direction is the one thing every
+       arrow here is carrying. So a tiny magnitude is drawn at the floor and the
+       note says which ones, because at the floor the length overstates the
+       magnitude and nothing on the picture would reveal that. */
     const length = Math.max(TICK * 2, scaled)
+    if (arrow.magnitude !== null && scaled < TICK * 2) floored.push(arrow.element.label)
 
     const tipX = round(CX + dx * length)
     const tipY = round(CY + dy * length)
@@ -964,6 +995,8 @@ function buildVectors(data: GeometryData): BuildOutcome {
   ]
   if (unscaled > 0 && largest > 0)
     parts.push(`${unscaled} arrow${unscaled === 1 ? '' : 's'} state no magnitude and ${unscaled === 1 ? 'is' : 'are'} drawn at a fixed length, so only ${unscaled === 1 ? 'its' : 'their'} direction is meant.`)
+  if (floored.length > 0)
+    parts.push(`${floored.join(', ')} would be too short to show a direction and ${floored.length === 1 ? 'is' : 'are'} drawn at the minimum length, which overstates ${floored.length === 1 ? 'it' : 'them'}.`)
 
   return { ok: true, figure: frame(FRAME_W, FRAME_H, marks), unplaced, note: parts.join(' ') }
 }
@@ -1433,7 +1466,11 @@ function buildFigure(data: GeometryData): BuildOutcome {
       continue
     }
 
-    unplaced.push({ id: element.id, label: element.label, reason: `a ${element.kind} has no boundary this figure can derive` })
+    unplaced.push({
+      id: element.id,
+      label: element.label,
+      reason: `a ${element.kind} is not a point, a segment or an angle, and a figure is built out of those three`,
+    })
   }
 
   for (const point of placed.values()) {

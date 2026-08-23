@@ -335,11 +335,30 @@ function checkSolution(candidate: CandidateQuestion): VerificationFailure[] {
     return out;
   }
 
-  const announcesOnly = /^(option\s+)?[a-d][.)\s]*(is\s+)?(the\s+)?correct\.?$/i.test(solution);
-  if (announcesOnly) {
+  /*
+   * ANNOUNCING IS NOT EXPLAINING, AND LENGTH DOES NOT TELL THEM APART.
+   *
+   * This used to be an anchored pattern matching the whole string —
+   * `^option [a-d] is correct$` — sitting BELOW a 30-character early return.
+   * Every string it could match is shorter than 30 characters, so it never
+   * once executed. Mutation testing found it: deleting the branch entirely
+   * changed nothing, because the branch was already unreachable.
+   *
+   * The real test is not how long the solution is but whether it reasons.
+   * "The correct answer here is option C, as shown above." is fifty-one
+   * characters of nothing. So: naming an option is fine, and naming an option
+   * while offering no because, no arithmetic and no relation is not.
+   */
+  const namesAnOption = /\b(option\s+[a-d]|answer\s*(is|:)?\s*[a-d])\b/i.test(solution);
+  const reasons =
+    /\b(because|since|therefore|thus|hence|so that|gives|equals|means|follows|proportional|ratio|substitut\w*|divid\w*|multipl\w*|subtract\w*|add\w*|scal\w*)\b/i.test(
+      solution,
+    ) || /[=<>]/.test(solution);
+
+  if (namesAnOption && !reasons) {
     out.push({
       check: 'solution_completeness',
-      detail: 'The solution states the answer without justifying it.',
+      detail: 'The solution names an option but gives no reasoning a student could follow.',
     });
   }
 

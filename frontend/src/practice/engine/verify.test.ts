@@ -129,7 +129,17 @@ describe('exactly one correct option', () => {
     expect(checks(outcome)).toContain('single_correct_answer');
   });
 
-  it('rejects a numeric question where no option matches the answer', () => {
+  /*
+   * Asserting the DETAIL, not just the check name.
+   *
+   * Both the zero-match and the key-disagrees branches report
+   * `single_correct_answer`, so a test that only checks the name cannot tell
+   * which fired. Mutation testing proved that mattered: disabling the
+   * zero-match branch left this case caught by key-disagrees instead, which
+   * reported "arithmetic says undefined" — technically a rejection, and a
+   * diagnostic that would send someone the wrong way.
+   */
+  it('rejects a numeric question where no option matches, and says so', () => {
     const outcome = run({
       questionText: NUMERIC_TEXT,
       options: [
@@ -141,7 +151,11 @@ describe('exactly one correct option', () => {
       correctOption: 'A',
       computation: GAS_LAW,
     });
+
     expect(checks(outcome)).toContain('single_correct_answer');
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.failures.map((f) => f.detail).join(' ')).toContain('No option matches');
   });
 
   /*
@@ -275,6 +289,33 @@ describe('the solution has to explain', () => {
 
   it('rejects a solution too short to contain reasoning', () => {
     expect(checks(run({ fullSolution: 'Gas law.' }))).toContain('solution_completeness');
+  });
+
+  /*
+   * THE LENGTH GATE MADE THE ANNOUNCE-ONLY CHECK UNREACHABLE.
+   *
+   * Mutation testing disabled the announce-only branch entirely and every test
+   * still passed. The reason: the check returns early below 30 characters, and
+   * every string the old pattern could match ("Option A is correct.") is
+   * shorter than that. It had never once executed.
+   *
+   * These are the announce-only solutions that actually ship — long enough to
+   * look like an explanation, saying nothing a student who got it wrong could
+   * learn from.
+   */
+  it.each([
+    'The correct answer here is option C, as shown above.',
+    'Option B is the right choice for this particular question.',
+    'Answer: D. That is the correct option for this question.',
+  ])('rejects a long solution that still only announces the answer: %s', (solution) => {
+    expect(checks(run({ fullSolution: solution }))).toContain('solution_completeness');
+  });
+
+  it('accepts a solution of similar length that actually reasons', () => {
+    const real =
+      'Because the volume is fixed, the pressure and the absolute temperature ' +
+      'rise together in the same proportion, so doubling one doubles the other.';
+    expect(checks(run({ fullSolution: real }))).not.toContain('solution_completeness');
   });
 });
 

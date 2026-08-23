@@ -423,7 +423,7 @@ def test_the_diagnosis_is_immutable() -> None:
     found = select_bottleneck(GRAPH, state, MemoryStore(), PREDICT)
     assert found is not None
     with pytest.raises(Exception):  # noqa: B017
-        found.skill_id = "something.else.entirely"  # type: ignore[misc]
+        found.skill_id = "something.else.entirely"
 
 
 def test_selection_is_deterministic() -> None:

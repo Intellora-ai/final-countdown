@@ -63,8 +63,19 @@ export default defineConfig({
      * No environment is set: every vitest test here is DOM-free by design.
      * jsdom is deliberately absent — it performs no layout and implements no
      * container queries, so a "mobile" assertion made against it would be an
-     * assertion about the stub. Those claims belong to the browser harness. */
-    include: ['src/**/*.{test,spec}.{ts,tsx}', 'eslint-rules/**/*.test.ts'],
+     * assertion about the stub. Those claims belong to the browser harness.
+     *
+     * scripts/ is swept too, and it is a THIRD area rather than a widening of
+     * src/. The only test there drives scripts/mutation-gate.mjs as a child
+     * process to prove its empty-shard guard refuses and exits 1. That is safe
+     * only because the guard now sits above the gate's own vitest call: a test
+     * that reached that call would start a suite containing itself. See the
+     * header of scripts/mutation-gate.test.mjs before adding a second case. */
+    include: [
+      'src/**/*.{test,spec}.{ts,tsx}',
+      'eslint-rules/**/*.test.ts',
+      'scripts/**/*.test.mjs',
+    ],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
 
     /* jsdom ONLY where a test opts in, via a per-file

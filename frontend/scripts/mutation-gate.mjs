@@ -548,33 +548,6 @@ if (existsSync(LOCK)) {
   process.exit(1)
 }
 
-const tmp = mkdtempSync(join(tmpdir(), 'canvas-mutation-'))
-const out = join(tmp, 'run.json')
-
-process.stdout.write('canvas-mutation-gate: establishing the baseline\n')
-const base = vitest(out)
-if (!base || base.numFailedTests > 0) {
-  process.stdout.write('::error title=mutation gate::The suite is not green before mutating. Fix the suite first.\n')
-  process.exit(1)
-}
-/*
- * MEASURED, NEVER PINNED.
- *
- * A literal here would be a second place the suite's size is recorded, and the
- * only one nobody updates: it moved 626 -> 718 -> 736 while this catalogue was
- * being rebuilt, in a single afternoon. Pinned, every one of those additions
- * would have reported fifteen INVALID mutants and named the wrong cause. What
- * the gate actually needs is that the count does not move BETWEEN the baseline
- * and a mutated run, which is a comparison against this value, not against a
- * number typed last month.
- */
-const BASE_TOTAL = base.numTotalTests
-process.stdout.write(`canvas-mutation-gate: baseline ${BASE_TOTAL} tests, 0 failed\n\n`)
-
-const survived = []
-const invalid = []
-let killed = 0
-
 /*
  * SHARDING: WALL CLOCK ONLY, NEVER COVERAGE.
  *
@@ -627,6 +600,33 @@ if (MINE.length === 0) {
   )
   process.exit(1)
 }
+
+const tmp = mkdtempSync(join(tmpdir(), 'canvas-mutation-'))
+const out = join(tmp, 'run.json')
+
+process.stdout.write('canvas-mutation-gate: establishing the baseline\n')
+const base = vitest(out)
+if (!base || base.numFailedTests > 0) {
+  process.stdout.write('::error title=mutation gate::The suite is not green before mutating. Fix the suite first.\n')
+  process.exit(1)
+}
+/*
+ * MEASURED, NEVER PINNED.
+ *
+ * A literal here would be a second place the suite's size is recorded, and the
+ * only one nobody updates: it moved 626 -> 718 -> 736 while this catalogue was
+ * being rebuilt, in a single afternoon. Pinned, every one of those additions
+ * would have reported fifteen INVALID mutants and named the wrong cause. What
+ * the gate actually needs is that the count does not move BETWEEN the baseline
+ * and a mutated run, which is a comparison against this value, not against a
+ * number typed last month.
+ */
+const BASE_TOTAL = base.numTotalTests
+process.stdout.write(`canvas-mutation-gate: baseline ${BASE_TOTAL} tests, 0 failed\n\n`)
+
+const survived = []
+const invalid = []
+let killed = 0
 
 if (shardCount > 1) {
   process.stdout.write(

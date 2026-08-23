@@ -74,6 +74,31 @@ class Label(StrEnum):
     TOO_SHORT = "too_short"
     #: Asked the same thing again. A CONTENT failure, not a form one.
     RE_ASK = "re_ask"
+
+    #: Said outright that it did not land -- "I did not understand", "still
+    #: confused", "that made no sense".
+    #:
+    #: SEPARATE FROM RE_ASK BECAUSE THE REMEDY IS OPPOSITE TO TOO_LONG.
+    #:
+    #: This was scored NEUTRAL until somebody asked what happens when a reader
+    #: says they did not understand. 163 turns in the corpus, 10.4%, every one
+    #: invisible -- the plainest statement of failure in the language, filed as
+    #: "carried on with something else".
+    #:
+    #: It missed because RE_ASK was defined as textual similarity to the
+    #: previous turn, copied from the spec. Repeating the question is one way to
+    #: signal this. Saying so directly is the other, and it is commoner.
+    #:
+    #: And the obvious fix is wrong. Measured on what came NEXT after a stated
+    #: confusion:
+    #:
+    #:     next reply SHORTER      n=75   then failed 29.3%
+    #:     next reply LONGER/same  n=87   then failed 18.4%
+    #:
+    #: Cutting is 1.59x worse. TOO_LONG means "too much for what I asked";
+    #: this means "too little of it landed". Treating them alike would apply
+    #: the wrong remedy to one in ten turns.
+    NOT_UNDERSTOOD = "not_understood"
     #: Acknowledged and moved on. Weak positive: nothing was wrong.
     ACCEPT = "accept"
     #: Acted on it -- ran it, shipped it, told it to proceed. Strongest signal
@@ -129,6 +154,18 @@ _ASKS_FOR_MORE = _normalised((
     "more info", "not enough",
 ))
 
+#: Said outright that it did not land. Matched before similarity, because
+#: "I still do not understand X" is both a restatement and a plain statement,
+#: and the plain reading is the one with a measured remedy.
+_NOT_UNDERSTOOD = _normalised((
+    "did not understand", "didnt understand", "did nt understand",
+    "dont understand", "do not understand", "don t understand",
+    "dont get it", "do not get it", "not getting it",
+    "still confused", "im confused", "i am confused", "confused",
+    "makes no sense", "made no sense", "no sense",
+    "not clear", "unclear", "lost me", "went over my head",
+))
+
 #: Turns that close a topic without judging the response.
 _ACCEPTS = frozenset(_normalised((
     "ok", "okay", "k", "fine", "thenfine.", "then fine", "got it", "noted",
@@ -165,6 +202,9 @@ def label_turn(next_turn: str, previous_user_turn: str | None = None) -> Label:
     if any(phrase in text for phrase in _ASKS_FOR_MORE):
         return Label.TOO_SHORT
 
+    if any(phrase in text for phrase in _NOT_UNDERSTOOD):
+        return Label.NOT_UNDERSTOOD
+
     if previous_user_turn and similarity(next_turn, previous_user_turn) >= SAME_QUESTION:
         return Label.RE_ASK
 
@@ -195,6 +235,9 @@ COST: dict[Label, float] = {
     Label.TOO_LONG: 1.0,
     Label.TOO_SHORT: 1.0,
     Label.RE_ASK: 2.0,
+    # Same cost as RE_ASK: both mean the content failed and the exchange is
+    # spent again. The DIFFERENCE between them is the remedy, not the price.
+    Label.NOT_UNDERSTOOD: 2.0,
     Label.ACT: -1.0,
     Label.ACCEPT: 0.0,
     Label.NEUTRAL: 0.0,
@@ -220,5 +263,9 @@ def failure_rate(labels: list[Label]) -> float:
     """
     if not labels:
         return 0.0
-    missed = sum(1 for x in labels if x in (Label.TOO_LONG, Label.TOO_SHORT, Label.RE_ASK))
+    missed = sum(
+        1
+        for x in labels
+        if x in (Label.TOO_LONG, Label.TOO_SHORT, Label.RE_ASK, Label.NOT_UNDERSTOOD)
+    )
     return missed / len(labels)

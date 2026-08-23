@@ -15,8 +15,10 @@ This document describes it.
 >
 > `diagnosis/` is described in §9 against **`ebc4059`** on
 > `learning-os/diagnosis`, which is stacked on this branch and **not yet
-> integrated**. `mastery/` is **not started** — its branch is cut but carries no
-> `learning_os` source.
+> integrated**. `mastery/` **landed at `f4b2fe6`**, after this pin — `mastery/estimate.py`
+> plus `tests/test_mastery.py`. Like `diagnosis/`, it is built and tested and
+> **nothing outside its own tests imports it**. The earlier note here said it
+> was not started; that was true at the pin and is no longer.
 
 ---
 

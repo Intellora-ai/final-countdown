@@ -10,8 +10,10 @@
 > clean, `mypy --strict` clean over 30 files.
 >
 > `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
-> which is stacked on this branch and **not yet integrated**. `mastery/` is
-> **not started** — its branch is cut but carries no `learning_os` source.
+> which is stacked on this branch and **not yet integrated**. `mastery/` **landed at `f4b2fe6`**, after this pin — `mastery/estimate.py`
+> plus `tests/test_mastery.py`. Like `diagnosis/`, it is built and tested and
+> **nothing outside its own tests imports it**. The earlier note here said it
+> was not started; that was true at the pin and is no longer.
 
 ---
 
@@ -90,12 +92,21 @@ MYPYPATH=src ./.venv/bin/mypy --strict src/learning_os
 
 ### Remaining
 
-**One module: `mastery/`.** Not started — its branch is cut at the old canvas
-head and carries no `learning_os` source.
+**Every V1 module now has source.** What is left is not writing them — it is
+wiring them together.
 
-`diagnosis/` is complete at `ebc4059` on a branch stacked above the pin, not yet
-integrated. Everything else on the V1 list is done: `models domain memory
-verifiers llm policy runtime api`.
+| Module | State | Consumed by |
+|---|---|---|
+| `mastery/` | done at `f4b2fe6` | nothing but `tests/test_mastery.py` |
+| `diagnosis/` | done at `ebc4059`, on a branch stacked above the pin | nothing but `tests/test_diagnosis.py` |
+| everything else | done and integrated | `models domain memory verifiers llm policy runtime api` |
+
+Both remaining modules are in the same state, and it is a state worth naming
+rather than calling done: **built, tested, and imported by nobody.** A module
+whose only caller is its own test suite has never had its interface used in
+anger, and the seam is where the untested behaviour lives — see doc 04 §9.8,
+defect 2. Counting them as finished is how an integration bug becomes a
+surprise.
 
 `diagnosis/` and `mastery/` are being built by other sessions right now and
 their interfaces are **not settled**. Anything this document set says about them

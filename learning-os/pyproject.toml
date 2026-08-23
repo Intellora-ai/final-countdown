@@ -8,6 +8,17 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# The live provider, and the ONLY reason it is optional rather than required.
+#
+# CI installs `requirements-learning-os.lock` and nothing else, and this is not
+# in it. That is what makes the offline guarantee structural: the job cannot
+# reach a provider because the SDK is not present, rather than because every
+# test remembered to use the fake. `llm/anthropic_client.py` imports it inside
+# the method, so the module is importable without it.
+live = [
+    "anthropic>=0.40",
+]
+
 # Upper bounds on the three tools that GATE, because an unbounded floor means a
 # release breaks CI with no code change -- and a green result that depends on
 # when it last ran is not evidence, for the same reason a test that depends on
@@ -68,6 +79,19 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "ARG"]
 # Test doubles implement `LLMClient` and other protocols for one behaviour; the
 # arguments they ignore are the ones the real implementation reads.
 "tests/**" = ["ARG002"]
+
+# The live SDK is an OPTIONAL dependency and is deliberately absent from the
+# environment CI type-checks in -- that absence is what makes the offline
+# guarantee structural rather than a convention. So mypy cannot resolve it, and
+# saying so here is honest.
+#
+# Scoped to this ONE module rather than set globally: a blanket
+# `ignore_missing_imports` would also silence a genuinely missing import
+# somewhere real, which is a class of bug this project has already had to fix
+# twice by making absences loud.
+[[tool.mypy.overrides]]
+module = ["anthropic", "anthropic.*"]
+ignore_missing_imports = true
 
 [tool.mypy]
 python_version = "3.11"

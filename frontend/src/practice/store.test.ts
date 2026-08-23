@@ -4,6 +4,7 @@ import { CURRICULUM } from "./curriculum";
 import {
   MAX_QUESTIONS,
   MIN_QUESTIONS,
+  TIMER_CHOICES,
   chapterCoverageOf,
   chapterLastPracticed,
   isChapterOpen,
@@ -90,6 +91,74 @@ describe("timer", () => {
     usePracticeStore.getState().setSettings({ timerMinutes: 9999 });
     expect(usePracticeStore.getState().settings.timerMinutes).toBe(180);
   });
+});
+
+/**
+ * The timer bound is a PRODUCT RULE, and the store is the only place it holds.
+ *
+ * THE HOLE THESE TESTS OPEN ON
+ * ----------------------------
+ * A practice session is specified to run for no less than 5 minutes and no more
+ * than 30. `TIMER_CHOICES` is the list of buttons the panel draws, and it obeys
+ * that range — which is exactly why nobody noticed the store does not. Both
+ * clamps say `1, 180`, so every route that is not a button press could write a
+ * three-hour "practice session": a hand-edited `localStorage`, a restored save
+ * from an older build, any future caller passing a number.
+ *
+ * This is the SAME back door the block at the bottom of this file was written
+ * to close for `questionCount`, and its own comment states the general lesson —
+ * "a rule enforced only in a setter is a rule with a back door". The lesson was
+ * applied to the count and not to the timer beside it.
+ *
+ * The bounds are written here as the literals the product promises rather than
+ * imported from the store, deliberately. A test that imports the number it is
+ * checking cannot fail when that number is wrong; it only fails when the store
+ * disagrees with itself. These have to disagree with the STORE.
+ */
+const PROMISED_MIN_MINUTES = 5;
+const PROMISED_MAX_MINUTES = 30;
+
+describe("timer duration is bounded by the product rule, not by the UI", () => {
+  it("floors at the promised minimum however it is set", () => {
+    usePracticeStore.getState().setSettings({ timerMinutes: 1 });
+    expect(usePracticeStore.getState().settings.timerMinutes).toBe(PROMISED_MIN_MINUTES);
+  });
+
+  it("caps at the promised maximum however it is set", () => {
+    usePracticeStore.getState().setSettings({ timerMinutes: 9999 });
+    expect(usePracticeStore.getState().settings.timerMinutes).toBe(PROMISED_MAX_MINUTES);
+  });
+
+  it("offers no choice the rule would refuse", () => {
+    // If these two ever disagree, one of them is lying to the learner.
+    for (const minutes of TIMER_CHOICES) {
+      expect(minutes).toBeGreaterThanOrEqual(PROMISED_MIN_MINUTES);
+      expect(minutes).toBeLessThanOrEqual(PROMISED_MAX_MINUTES);
+    }
+  });
+
+  it("falls back to the minimum rather than storing NaN", () => {
+    usePracticeStore.getState().setSettings({ timerMinutes: Number.NaN });
+    expect(usePracticeStore.getState().settings.timerMinutes).toBe(PROMISED_MIN_MINUTES);
+  });
+
+  /*
+   * THE PERSISTED ROUTE IS COVERED AT THE BOTTOM OF THIS FILE, NOT HERE.
+   *
+   * That route is the one that made this a real bug rather than a theoretical
+   * one, so it is genuinely worth a test — but it already has one, and that
+   * test now asserts the timer bound alongside the question cap it was written
+   * for. A second copy here was measurably worse than no copy.
+   *
+   * Faking `localStorage` requires replacing the global `window` and calling
+   * `vi.resetModules()`, because the storage decision is made once at module
+   * import. Doing that TWICE in one file pushed a latent echarts/jsdom crash in
+   * `src/canvas/render/FigureView.test.tsx` — `zrender` reading `matrix[0]` off
+   * null — from never firing to firing about half the time. Measured, not
+   * guessed: 0 failures in 5 baseline runs, 2 in 3 with the duplicate present.
+   * The suite still reported "973 passed" on the failing runs; only the exit
+   * code disagreed, which is the whole reason it is worth writing down.
+   */
 });
 
 describe("chapter pinning", () => {

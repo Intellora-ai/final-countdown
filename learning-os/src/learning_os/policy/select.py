@@ -198,10 +198,56 @@ _STRATEGIES_FOR: dict[DiagnosisKind, tuple[Strategy, ...]] = {
 }
 
 
+#: Above this, a learner is treated as having the procedure roughly right.
+#:
+#: Calibrated by what each branch costs when wrong, rather than by data, and
+#: worth saying so. Handing a broken example to somebody who never had the
+#: procedure asks them to find a fault in something they cannot read -- not a
+#: harder task but an impossible one. Handing a worked example to somebody
+#: nearly right is merely slow. So the bar sits above the midpoint: under
+#: uncertainty, make the cheaper mistake.
+NEARLY_RIGHT = 0.55
+
+
+def _reorder_for_proficiency(
+    diagnosis: DiagnosisKind,
+    preferred: tuple[Strategy, ...],
+    proficiency: float | None,
+) -> tuple[Strategy, ...]:
+    """Reorder where proficiency decides which mechanism is even coherent.
+
+    THE ONE CASE THIS EXISTS FOR, AND WHY A FIXED ORDER CANNOT SERVE IT.
+
+    `BROKEN_EXAMPLE_REPAIR` presupposes the learner knows what correct looks
+    like. For a learner whose procedure is nearly right it is the sharpest
+    mechanism available. For a learner who never had the procedure it asks them
+    to find a fault in something they cannot read -- a different task, and an
+    impossible one.
+
+    Those are materially different states, and section 67 says materially
+    different states must not get the same next action. One ordering across both
+    is that requirement failing quietly: the policy looks decisive and is
+    compromising. Reported by session final-countdown-6a as "appropriate
+    divergence failing at the interface, not at the table" -- which was the
+    correct diagnosis, and is why the fix is a parameter rather than a reordering.
+
+    `None` means the caller does not know, and the ordering stays as authored.
+    Guessing would manufacture divergence out of absent information, which is the
+    failure on the other side.
+    """
+    if diagnosis is not DiagnosisKind.PROCEDURAL_FAILURE or proficiency is None:
+        return preferred
+    if proficiency >= NEARLY_RIGHT:
+        return preferred
+    return (Strategy.WORKED_EXAMPLE, *(s for s in preferred if s is not Strategy.WORKED_EXAMPLE))
+
+
 def choose_strategy(
     diagnosis: DiagnosisKind,
     memory: MemoryStore,
     skill_id: str,
+    *,
+    proficiency: float | None = None,
 ) -> tuple[Strategy, tuple[Strategy, ...], tuple[ReasonCode, ...]]:
     """The first mechanism for this diagnosis that has not already failed here.
 
@@ -236,7 +282,7 @@ def choose_strategy(
     # It also keeps memory's asymmetry -- failed AND never worked -- which
     # `is_repeat` does not, since that answers the different question of whether
     # this has been tried at all.
-    preferred = _STRATEGIES_FOR[diagnosis]
+    preferred = _reorder_for_proficiency(diagnosis, _STRATEGIES_FOR[diagnosis], proficiency)
     burned = memory.failed_mechanisms(skill_id)
     excluded = tuple(s for s in preferred if s.value in burned)
     available = tuple(s for s in preferred if s not in excluded)
@@ -284,6 +330,7 @@ def select_action(
     question: str,
     known_prerequisites: tuple[str, ...] = (),
     live_misconceptions: tuple[str, ...] = (),
+    proficiency: float | None = None,
 ) -> Decision:
     """The next instructional contract, as a pure function of state.
 
@@ -348,7 +395,9 @@ def select_action(
             diagnosis = DiagnosisKind.MISCONCEPTION
             reasons.append(ReasonCode.MISCONCEPTION_LIVE)
 
-    strategy, excluded, choice_reasons = choose_strategy(diagnosis, memory, skill_id)
+    strategy, excluded, choice_reasons = choose_strategy(
+        diagnosis, memory, skill_id, proficiency=proficiency
+    )
     reasons.extend(choice_reasons)
 
     if subskill is not None and subskill.operation is CognitiveOperation.TRANSFER:

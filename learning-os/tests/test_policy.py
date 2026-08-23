@@ -71,6 +71,7 @@ def _decide(
     diagnosis: DiagnosisKind,
     *,
     live_misconceptions: tuple[str, ...] = (),
+    proficiency: float | None = None,
 ) -> Decision:
     return select_action(
         GRAPH,
@@ -79,6 +80,7 @@ def _decide(
         diagnosis,
         question=QUESTION,
         live_misconceptions=live_misconceptions,
+        proficiency=proficiency,
     )
 
 
@@ -558,3 +560,64 @@ def test_the_strategy_vocabulary_matches_what_memory_records() -> None:
     assert {s.value for s in Strategy} == burned, (
         "the mechanism vocabulary the policy writes and the one it reads disagree"
     )
+
+
+# --------------------------------------------------------------------------
+# Proficiency: the interface finding, closed
+# --------------------------------------------------------------------------
+
+
+def test_a_procedural_failure_diverges_on_proficiency() -> None:
+    """THE FINDING SESSION 6a CALLED "DIVERGENCE FAILING AT THE INTERFACE".
+
+    `BROKEN_EXAMPLE_REPAIR` presupposes the learner knows what correct looks
+    like. For a nearly-right procedure it is the sharpest mechanism there is; for
+    somebody who never had the procedure it asks them to find a fault in
+    something they cannot read — a different task, and an impossible one.
+
+    Two materially different states. Before this, `BottleneckLike` carried no
+    estimate and both got a broken example, so the policy looked decisive while
+    compromising across states section 67 says must not converge.
+    """
+    nearly = _decide(
+        _Bottleneck(TRACE), MemoryStore(), DiagnosisKind.PROCEDURAL_FAILURE, proficiency=0.7
+    )
+    never = _decide(
+        _Bottleneck(TRACE), MemoryStore(), DiagnosisKind.PROCEDURAL_FAILURE, proficiency=0.1
+    )
+    assert nearly.contract.strategy is Strategy.BROKEN_EXAMPLE_REPAIR
+    assert never.contract.strategy is Strategy.WORKED_EXAMPLE
+    assert nearly.contract != never.contract
+
+
+def test_unknown_proficiency_leaves_the_ordering_as_authored() -> None:
+    """`None` means the caller does not know. Guessing would manufacture
+    divergence out of absent information, which is the failure on the other
+    side of the same rule."""
+    unknown = _decide(_Bottleneck(TRACE), MemoryStore(), DiagnosisKind.PROCEDURAL_FAILURE)
+    assert unknown.contract.strategy is Strategy.BROKEN_EXAMPLE_REPAIR
+
+
+def test_proficiency_does_not_reorder_diagnoses_it_has_no_bearing_on() -> None:
+    """A knob that quietly affects everything is worse than no knob. The
+    presupposition argument is specific to repairing a broken example; nothing
+    else in the table depends on knowing what correct looks like."""
+    for diagnosis in DiagnosisKind:
+        if diagnosis is DiagnosisKind.PROCEDURAL_FAILURE:
+            continue
+        low = _decide(_Bottleneck(TRACE), MemoryStore(), diagnosis, proficiency=0.1)
+        high = _decide(_Bottleneck(TRACE), MemoryStore(), diagnosis, proficiency=0.9)
+        assert low.contract.strategy is high.contract.strategy, (
+            f"{diagnosis.value} reordered on proficiency, which was not argued for"
+        )
+
+
+def test_the_protocol_stayed_narrow() -> None:
+    """Proficiency arrives as a PARAMETER, not as a widened Protocol.
+
+    `Bottleneck` carries no estimate field, so requiring one would have broken
+    the diagnosis module and coupled the policy to scoring internals it must not
+    reach into. The runtime holds the `LearnerState` and can pass what it knows.
+    """
+    assert not hasattr(_Bottleneck(TRACE), "estimate")
+    assert isinstance(_Bottleneck(TRACE), BottleneckLike)

@@ -4,8 +4,19 @@
 **Source of truth:** `learning-os/src/learning_os/models/contracts.py`.
 **Contract version:** `CONTRACT_VERSION = "1.0.0"`.
 
-This document describes the six contracts as they exist in code. Where this
-document and the code disagree, the code is right and this document is a bug.
+This document describes the six contracts as they exist at the pinned commit
+above. Where this document and that commit disagree, the commit is right and
+this document is a bug. Naming the commit is what makes that sentence
+checkable — "the code" was five different commits when this was written.
+
+> **Pinned to `71aae09`** on `learning-os/llm`, the integration branch —
+> `domain llm memory models policy verifiers`. Verified on CI's configuration
+> (Python 3.12, hash-locked install): **168 tests passing**, ruff clean,
+> `mypy --strict` clean over 24 files.
+>
+> `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
+> which is stacked on this branch and **not yet integrated**. `mastery/` is
+> **not started** — its branch is cut but carries no `learning_os` source.
 
 ---
 
@@ -503,7 +514,7 @@ session:
 
 | Check | Result |
 |---|---|
-| `pytest tests -q` | **105 tests, all passing** |
+| `pytest tests -q` | **168 tests, all passing** |
 | `ruff check src tests` | clean |
 | `mypy --strict src/learning_os` | clean on src and tests |
 

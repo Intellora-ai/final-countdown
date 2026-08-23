@@ -1,10 +1,17 @@
 # 04 — Policy and Tool Routing
 
-**Status:** `policy/` is not yet written. This document specifies it.
+**Status:** `policy/` is **implemented** — `learning_os/policy/select.py`.
+This document describes it.
 **Read with:** doc 02 §5 (`Decision`, `CandidateAction`), doc 01 §5 (`memory/`).
 
-Where this describes `diagnosis/` or `mastery/`, it is **provisional** —
-those modules are being built concurrently and their interfaces are unsettled.
+> **Pinned to `71aae09`** on `learning-os/llm`, the integration branch —
+> `domain llm memory models policy verifiers`. Verified on CI's configuration
+> (Python 3.12, hash-locked install): **168 tests passing**, ruff clean,
+> `mypy --strict` clean over 24 files.
+>
+> `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
+> which is stacked on this branch and **not yet integrated**. `mastery/` is
+> **not started** — its branch is cut but carries no `learning_os` source.
 
 ---
 
@@ -96,6 +103,20 @@ Valid justifications are narrow:
 Remember that `failed_strategies` already excludes anything that also succeeded
 (doc 01 §5), so this check does not fire on a strategy with a mixed record.
 
+### Exclusion is by MECHANISM, not by `ActionKind`
+
+This was a bug before it was a design, and the failure is worth keeping.
+
+Four `CONCEPT_GAP` strategies share the action `TEACH_BY_EXAMPLE`. Keying
+exclusion on the action therefore **burned all four on a single failure**, and
+the fallback chain declared itself exhausted after one attempt — the engine gave
+up on a skill it had barely tried.
+
+`MemoryStore.failed_mechanisms(skill_id)` is the fix. It shares its
+implementation (`_burned`) with `failed_strategies`, so the
+failed-and-never-succeeded asymmetry from doc 01 §5 is written once and applies
+to both. A mechanism that has also worked is not burned.
+
 ### Repeats hide in three places
 
 `MemoryStore.is_repeat()` checks mechanism, example signature, and text
@@ -103,6 +124,17 @@ similarity. The policy must call it against the *generated artefact*, not just
 the action kind — choosing `teach_by_example` twice with a genuinely different
 example is not a repeat, and choosing it twice with the same example is, even
 though the `ActionKind` alone cannot tell them apart.
+
+### The misconception override intersects, it does not match
+
+`misconception_live` fires on the **intersection** of the knowledge graph's
+catalogue with what the learner is actually estimated to hold.
+
+Firing on the catalogue alone was the original bug: every skill with any
+catalogued misconception became a misconception repair for every learner, so
+**all ten diagnoses collapsed to one** and the policy produced identical
+teaching for materially different learner states. A diagnosis that returns the
+same answer for everyone is not a diagnosis.
 
 ---
 
@@ -134,18 +166,26 @@ Two things the validators will not let you skip:
 means seeing what it was chosen over; a selection with no alternatives in the
 log is unfalsifiable.
 
-### `reason_codes`
+### `reason_codes` — the ten in `policy/select.py`
 
-Machine-readable, stable, and enumerated — not prose. They are what makes a
-population of decisions queryable ("how often did we pick `transfer_challenge`
-because `certainty=CONFLICTING`?"). Suggested initial set:
+Machine-readable, stable, enumerated. They make a population of decisions
+queryable rather than merely readable.
 
 ```
-bottleneck_is_prerequisite      misconception_suspected
-representation_not_yet_tried    certainty_conflicting
-mastery_needs_independent       overload_risk_high
-strategy_previously_failed      learner_progressing
+diagnostic_needed              evidence_already_sufficient
+prerequisite_first             misconception_live
+avoided_failed_strategy        representation_worked_before
+first_attempt                  ready_for_transfer
+strategies_exhausted           decomposed_for_load
 ```
+
+**Every one corresponds to a branch the selector actually takes.** They were
+derived from the code paths rather than invented as a vocabulary, which is why
+a reason code can never describe a decision the policy could not have made.
+
+An earlier draft of this document proposed eight codes of my own. They were a
+specification written before the module existed; these are the description.
+Where the two differ, these replace them — do not reconcile the lists.
 
 ---
 

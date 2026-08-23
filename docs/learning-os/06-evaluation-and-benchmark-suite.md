@@ -3,6 +3,15 @@
 **Status:** not yet built. This document specifies it.
 **Read with:** doc 02 §6 (`EvaluationStatus`), doc 05 §8 (the safety reading).
 
+> **Pinned to `71aae09`** on `learning-os/llm`, the integration branch —
+> `domain llm memory models policy verifiers`. Verified on CI's configuration
+> (Python 3.12, hash-locked install): **168 tests passing**, ruff clean,
+> `mypy --strict` clean over 24 files.
+>
+> `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
+> which is stacked on this branch and **not yet integrated**. `mastery/` is
+> **not started** — its branch is cut but carries no `learning_os` source.
+
 ---
 
 ## 1. What this is for
@@ -163,9 +172,9 @@ correct; the benchmark proves a change is an improvement.
 Current measured state:
 
 ```
-105 tests, all passing
+168 tests, all passing
 ruff check      clean
-mypy --strict   clean on src and tests (16 files)
+mypy --strict   clean on src and tests (24 files)
 ```
 
 Verified twice, on purpose: once on Python 3.14 with an editable install (the
@@ -196,10 +205,13 @@ type errors sat in the test files unnoticed.
 The same commit SHA-pins the actions and replaces the install with
 `pip install --require-hashes -r requirements-learning-os.lock`.
 
-**Still open — `mypy>=1.11` has no upper bound** in `pyproject.toml`. A mypy
-release can break the gate with no code change, which turns a green CI into a
-time bomb dependent on when it next runs. Pin an upper bound, or accept that
-"clean" means "clean against whatever version resolved today".
+**Closed in `1b3455f` — the tool versions now have upper bounds:**
+`pytest>=8,<10`, `ruff>=0.6,<1`, `mypy>=1.11,<3`. Without them a mypy release
+could break the gate with no code change, which makes a green result depend on
+when it last ran. Same shape as a test that depends on how the package was
+installed: not evidence.
+
+Both CI gaps found during this documentation pass are now closed.
 
 ### In CI, the load-bearing sandbox test is not the obvious one
 

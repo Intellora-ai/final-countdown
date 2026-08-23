@@ -3,6 +3,15 @@
 **Package:** `final-countdown/learning-os/`, a Python package.
 **Read with:** doc 02 (the contracts every boundary speaks).
 
+> **Pinned to `71aae09`** on `learning-os/llm`, the integration branch —
+> `domain llm memory models policy verifiers`. Verified on CI's configuration
+> (Python 3.12, hash-locked install): **168 tests passing**, ruff clean,
+> `mypy --strict` clean over 24 files.
+>
+> `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
+> which is stacked on this branch and **not yet integrated**. `mastery/` is
+> **not started** — its branch is cut but carries no `learning_os` source.
+
 ---
 
 ## 1. What this system is
@@ -60,16 +69,17 @@ credentials. If a test needs a key to pass, the boundary is in the wrong place.
 | `domain/` | Canonical knowledge: concepts, subskills, misconceptions, the graph | done |
 | `memory/` | What was tried, what failed, what is worth retrieving | done |
 | `verifiers/` | Whether a claim can be checked, and what a check established | done |
-| `llm/` | Generation behind a fake-able protocol | not started |
-| `diagnosis/` | Estimating skill from evidence; selecting the bottleneck | in progress, interface unsettled |
-| `mastery/` | Learner model, mastery states, retention | in progress, interface unsettled |
-| `policy/` | Candidate actions, ranking, the `Decision` | not started |
+| `llm/` | Generation behind a fake-able protocol | **done** — `contract.py`, `client.py`, `validation.py` |
+| `diagnosis/` | Estimating skill from evidence; selecting the bottleneck | **done at `ebc4059`**, not yet integrated |
+| `mastery/` | Learner model, mastery states, retention | **not started** — branch cut, no source |
+| `policy/` | Candidate actions, ranking, the `Decision` | **done** — `select.py` |
 | `runtime/` | The loop; `Judgement` → `ToolResult`; `LessonSpec` emission | not started |
 | `api/` | Transport. No decisions. | not started |
 
-`diagnosis/` and `mastery/` are being built concurrently by other sessions.
-Anything this document set says about their internals is **provisional** and
-written against the spec, not against signatures that do not yet exist.
+`diagnosis/` exists at `ebc4059` on a branch stacked above the pinned commit;
+statements about it are marked with that commit where they appear. `mastery/`
+has not been started — the branch is cut at the old canvas head and contains no
+`learning_os` source, so nothing in this set describes its internals.
 
 ---
 
@@ -260,7 +270,7 @@ Measured against the tree, not quoted:
 ```bash
 cd learning-os
 python3 -m venv .venv && ./.venv/bin/pip install -e ".[dev]"
-./.venv/bin/python -m pytest tests -q       # 105 tests, all passing
+./.venv/bin/python -m pytest tests -q       # 168 tests, all passing
 ./.venv/bin/ruff check src tests            # clean
 MYPYPATH=src ./.venv/bin/mypy --strict src/learning_os   # clean, 11 files
 ```

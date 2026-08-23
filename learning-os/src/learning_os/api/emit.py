@@ -65,6 +65,28 @@ EMPHASIS = ("primary", "supporting", "aside")
 #: Relation kinds. `supports` says B is evidence for A -- NOT that B sits below A.
 RELATION_KINDS = ("supports", "derives", "contrasts", "exemplifies")
 
+#: The kinds this emitter can actually BUILD from a `(kind, text)` pair.
+#:
+#: NOT `BLOCK_KINDS`, and conflating the two was a real bug that shipped.
+#:
+#: `BLOCK_KINDS` lists what the canvas has a RENDERER for -- eight kinds. This
+#: lists what a sentence of prose is sufficient to construct, which is two. A
+#: `table` needs `columns` and `rows`; a `chart` needs `series`; an `equation`
+#: needs its latex. The emitter built all eight the same way, as
+#: `{id, kind, emphasis, body}`, so a model returning ("table", "a sentence")
+#: produced a table-shaped hole that Zod refuses with
+#: `Unrecognized key(s) in object: 'body'`.
+#:
+#: The old check tested that the kind had a NAME the canvas knew, and inferred
+#: from that that the payload was renderable. Those are different properties,
+#: and only the first was ever verified -- the cross-language fixture happens to
+#: use WORKED_EXAMPLE, which is all prose, so the broken path had no coverage.
+#:
+#: Emitting a kind whose data was never supplied is fabricating structure on the
+#: model's behalf. Refusing is the only honest option: an empty table is not a
+#: lesser table, it is a claim about content that does not exist.
+TEXT_BLOCK_KINDS = frozenset({"prose", "callout"})
+
 
 class EmitError(ValueError):
     """The payload would have been refused by the canvas.
@@ -154,6 +176,15 @@ def emit(contract: InstructionContract, content: GeneratedContent) -> Lesson:
             raise EmitError(
                 f"block kind {kind!r} has no renderer; the schema is strict and "
                 f"would refuse the whole lesson"
+            )
+        if kind not in TEXT_BLOCK_KINDS:
+            # Known to the canvas, and still not buildable from a sentence.
+            # Naming both facts, because "has no renderer" would be wrong here
+            # and would send whoever hits this looking in the wrong language.
+            raise EmitError(
+                f"block kind {kind!r} needs structured data this emitter was not "
+                f"given; only {sorted(TEXT_BLOCK_KINDS)} can be built from text. "
+                f"The model claimed a {kind} and supplied prose."
             )
         text = body.strip()
         if not text:

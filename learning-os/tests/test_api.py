@@ -12,7 +12,7 @@ import json
 
 import pytest
 
-from learning_os.api import EmitError, Lesson, emit, slug
+from learning_os.api import TEXT_BLOCK_KINDS, EmitError, Lesson, emit, slug
 from learning_os.llm.client import GeneratedContent
 from learning_os.llm.contract import DiagnosisKind, InstructionContract, Strategy
 from learning_os.llm.validation import BLOCK_KINDS
@@ -160,7 +160,11 @@ def test_no_geometry_or_style_field_reaches_the_payload() -> None:
     clean; checking the JSON catches one added later inside a block dict, which
     is where it would actually appear.
     """
-    payload = json.dumps(emit(_contract(), _content(("prose", "a"), ("chart", "b"))).as_payload())
+    # Two prose blocks rather than prose + chart. A chart cannot be built from a
+    # sentence and is now refused outright, so passing one here would have
+    # tested the refusal path instead of Laws 2 and 3 -- and would have passed
+    # for a reason that has nothing to do with geometry. See `test_emit.py`.
+    payload = json.dumps(emit(_contract(), _content(("prose", "a"), ("prose", "b"))).as_payload())
     for banned in (
         '"x"', '"y"', '"width"', '"height"', '"top"', '"left"',
         '"color"', '"colour"', '"fontSize"', '"font_size"', '"spacing"',
@@ -209,12 +213,38 @@ def test_an_over_long_body_is_refused() -> None:
         emit(_contract(), _content(("prose", "x" * 2001)))
 
 
-def test_every_canvas_block_kind_can_be_emitted() -> None:
-    """A kind the canvas renders but this emitter refuses is a capability lost
-    silently -- nothing fails, the lesson is just never built that way."""
+def test_every_canvas_block_kind_is_built_or_refused_but_never_faked() -> None:
+    """REWRITTEN, BECAUSE THE OLD VERSION ASSERTED THE BUG.
+
+    It read: "a kind the canvas renders but this emitter refuses is a
+    capability lost silently". That is true for `callout` and false for
+    `table` -- and it made a BROKEN capability look like a working one. The
+    emitter built all eight kinds as `{id, kind, emphasis, body}`, so `table`
+    "succeeded" here and was then refused by Zod with `Unrecognized key(s) in
+    object: 'body'` the moment the canvas actually imported one.
+
+    The real property is not that every kind can be emitted. It is that every
+    kind is either built correctly or refused loudly -- never mis-built. A
+    capability genuinely missing is worth knowing about; this test now says
+    which kinds those are instead of hiding them behind a pass.
+    """
+    built: list[str] = []
+    refused: list[str] = []
+
     for kind in sorted(BLOCK_KINDS):
-        lesson = emit(_contract(), _content((kind, "body")))
+        try:
+            lesson = emit(_contract(), _content((kind, "body")))
+        except EmitError:
+            refused.append(kind)
+            continue
         assert lesson.blocks[0]["kind"] == kind
+        built.append(kind)
+
+    assert built == sorted(TEXT_BLOCK_KINDS), built
+    # Named explicitly rather than derived, so ADDING a real builder for one of
+    # these has to come here and delete it from the list -- which is the moment
+    # to notice the capability arrived.
+    assert refused == ["chart", "equation", "flow", "metric", "simulation", "table"], refused
 
 
 def test_the_lesson_is_frozen() -> None:

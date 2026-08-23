@@ -141,7 +141,10 @@ _SKELETONS: dict[Strategy, tuple[tuple[str, str], ...]] = {
     ),
     Strategy.CONTRAST: (
         ("prose", "Two cases that look alike and are not."),
-        ("table", "The difference is the single row that disagrees."),
+        # `callout`, not `table`. The fake has no columns or rows to give, and a
+        # fake that names a kind it cannot fill teaches the emitter to fabricate
+        # one -- which is exactly what it did until the canvas refused the result.
+        ("callout", "The difference is the single line that disagrees."),
     ),
     Strategy.DECOMPOSITION: (
         ("prose", "{skill} is three smaller things. Here is the first."),
@@ -162,7 +165,7 @@ _SKELETONS: dict[Strategy, tuple[tuple[str, str], ...]] = {
     ),
     Strategy.CHANGE_REPRESENTATION: (
         ("prose", "{skill}, in a different form this time."),
-        ("table", "The same thing laid out rather than described."),
+        ("callout", "The same thing laid out rather than described."),
     ),
     Strategy.NEW_CONTEXT: (
         ("prose", "{skill} again, somewhere it has not been seen."),

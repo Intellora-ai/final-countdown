@@ -30,11 +30,57 @@
 
 import { describe, expect, it } from 'vitest'
 
+import learnerA from '../lessons/generated/learner-a-first-attempt.json'
+import learnerB from '../lessons/generated/learner-b-preferred-mechanism-failed.json'
 import { deriveBeats } from '../teach/beats'
 import { checkBeats } from '../teach/contract'
 
 import engineLesson from './__fixtures__/engine-lesson.json'
 import { validateLesson } from './validate'
+
+/**
+ * EVERY committed engine lesson, not just the one fixture.
+ *
+ * The single-fixture version of this file passed while the canvas was importing
+ * a lesson it would refuse to render. `engine-lesson.json` is emitted under
+ * WORKED_EXAMPLE, whose blocks are all prose — so the only shape it ever
+ * exercised was the one that worked. The emitter built `table` the same way it
+ * built `prose`, as `{id, kind, emphasis, body}`, and Zod rejected it with
+ * `Unrecognized key(s) in object: 'body'` the moment a different strategy was
+ * selected.
+ *
+ * One fixture tests one strategy. Listing every lesson the app imports is what
+ * makes this test about the SEAM rather than about one lucky path through it.
+ */
+const EMITTED = [
+  ['engine-lesson (worked_example)', engineLesson],
+  ['learner-a (first attempt)', learnerA],
+  ['learner-b (fallback strategy)', learnerB],
+] as const
+
+describe.each(EMITTED)('%s', (_name, lesson) => {
+  it('is accepted by the canvas validator', () => {
+    const result = validateLesson(lesson)
+    if (!result.ok) console.error(JSON.stringify(result.issues, null, 2))
+    expect(result.ok).toBe(true)
+  })
+
+  it('carries a block shape the schema actually defines', () => {
+    /* The specific defect: a kind the canvas KNOWS, carrying the wrong fields.
+       `validateLesson` catches it, but a bare `ok === false` above does not say
+       which block or which key — and that message is the difference between a
+       five-minute fix and an afternoon. */
+    const result = validateLesson(lesson)
+    /* `Result` is a discriminated union — `issues` exists only on the failing
+       arm. Narrowing rather than reaching for `.issues` keeps the union doing
+       its job, which is refusing to let a caller read a field that is not
+       there on the branch they are on. */
+    const unrecognised = result.ok
+      ? []
+      : result.issues.filter((i) => i.message.includes('Unrecognized key'))
+    expect(unrecognised, JSON.stringify(unrecognised, null, 2)).toEqual([])
+  })
+})
 
 describe('a lesson emitted by the engine', () => {
   it('is accepted by the canvas validator', () => {

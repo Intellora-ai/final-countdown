@@ -7,10 +7,10 @@
       "kind": "prose"
     },
     {
-      "body": "The difference is the single row that disagrees.",
+      "body": "The difference is the single line that disagrees.",
       "emphasis": "supporting",
-      "id": "table-1",
-      "kind": "table"
+      "id": "callout-1",
+      "kind": "callout"
     },
     {
       "body": "Terms that stay: base case, recursive case, call stack, frame, stack depth",
@@ -23,7 +23,7 @@
   "question": "Why does a recursive function need a base case?",
   "relations": [
     {
-      "from": "table-1",
+      "from": "callout-1",
       "kind": "supports",
       "to": "prose-0"
     },

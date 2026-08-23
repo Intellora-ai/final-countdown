@@ -48,16 +48,39 @@ jobs:
       PYTHONHASHSEED: "0"
 
     steps:
-      - uses: actions/checkout@v4
+      # Pinned to commit SHAs, not tags. A tag is a mutable ref the upstream
+      # owner can move, so `@v4` means the same commit can run different CI on
+      # different days -- which makes a green result unrepeatable and therefore
+      # not evidence. The `# v...` comment is what keeps the pin reviewable and
+      # lets Dependabot bump it. Both are enforced by tests/test_supply_chain.py;
+      # this file failed all of it, and these are the SHAs the rest of the
+      # repository already uses.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
-      - uses: actions/setup-python@v5
+      # 3.12 to match every other Python job here. It was 3.11 for no reason
+      # beyond `requires-python = ">=3.11"`, and a lone version means this job
+      # resolves a different dependency graph than the rest of the repository.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: "3.11"
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: learning-os/requirements-learning-os.lock
 
+      # ONE HASH-LOCKED INSTALL. No `pip install -e .`, and that is deliberate.
+      #
+      # tests/test_supply_chain.py rejects any pip install that is not
+      # `--require-hashes -r <lock>`, with no exemption for the local package --
+      # correctly, because `-e` executes arbitrary build code, and an unverified
+      # toolchain inside the verification system defeats the point of the system.
+      #
+      # So the package is not installed; `src` goes on PYTHONPATH below. The
+      # consequence is recorded in the lock file's header: under PYTHONPATH the
+      # `import learning_os` sandbox test is weak, because `-I` genuinely strips
+      # PYTHONPATH. The test that carries that property here is the one using
+      # `pydantic`, which this lock puts into real site-packages -- the same
+      # situation the engine is in once deployed.
       - name: Install
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+        run: pip install --quiet --require-hashes -r requirements-learning-os.lock
 
       - name: Ruff
         run: ruff check src tests
@@ -66,10 +89,19 @@ jobs:
         # --strict, because the whole value of this engine is that its state can
         # be trusted after the fact. An untyped value crossing the policy layer
         # is what makes a wrong decision unexplainable.
-        run: mypy --strict src/learning_os
+        #
+        # `tests` as well as `src`. Checking only `src` let six type errors
+        # accumulate in the test files unseen, and the tests are where the
+        # invariants are actually asserted -- a test file that does not
+        # type-check is an unenforced enforcement.
+        run: mypy --strict src/learning_os tests
+        env:
+          PYTHONPATH: src
 
       - name: Tests
         run: pytest tests -q
+        env:
+          PYTHONPATH: src
 
       - name: No credential may be committed
         # Cheap, and it catches the one mistake that cannot be undone by a

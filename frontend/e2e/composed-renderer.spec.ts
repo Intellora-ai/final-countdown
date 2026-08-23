@@ -212,12 +212,32 @@ test.describe('the page never scrolls sideways', () => {
           if (de.scrollWidth <= de.clientWidth + 1) return null
 
           /* Name the widest offender, or the report says only "something is too
-           * wide" and the next reader starts the same hunt over again. */
+           * wide" and the next reader starts the same hunt over again.
+           *
+           * ELEMENTS INSIDE A HORIZONTAL SCROLLER ARE SKIPPED, and that is the
+           * difference between a useful name and a misleading one. A figure is
+           * SUPPOSED to be wider than its column -- that is the disclosure plan
+           * working -- and it does not add a pixel to `documentElement`, because
+           * its scroller clips it. Reporting it anyway is how this check first
+           * blamed a 908px `<svg>` sitting happily inside `.lc-figure-scroll`
+           * while the real cause was a 313px KaTeX span with no scroller at all.
+           * The widest overflowing element and the element causing the overflow
+           * are different questions; this asks the second one. */
           let worst: { sel: string; right: number } | null = null
           for (const el of Array.from(document.querySelectorAll('.lc-teach *'))) {
             const r = el.getBoundingClientRect()
             if (r.width === 0 || r.height === 0) continue
             if (r.right <= de.clientWidth + 1) continue
+
+            let node: Element | null = el.parentElement
+            let scrolled = false
+            while (node && node !== document.body) {
+              const ox = getComputedStyle(node).overflowX
+              if (ox === 'auto' || ox === 'scroll') { scrolled = true; break }
+              node = node.parentElement
+            }
+            if (scrolled) continue
+
             if (worst === null || r.right > worst.right) {
               const cls = typeof el.className === 'string' ? el.className : ''
               worst = { sel: `${el.tagName.toLowerCase()}.${cls}`.trim(), right: Math.round(r.right) }

@@ -185,8 +185,35 @@ describe('the log is append-only', () => {
         else l = beginTurn(l, `t${step}`).ledger
 
         expect(l.log.length).toBeGreaterThanOrEqual(before.length)
-        /* Every entry that existed still exists, unchanged and in place. */
-        for (let i = 0; i < before.length; i++) expect(l.log[i]).toEqual(before[i])
+        /* Every entry that existed still exists, unchanged and IN PLACE.
+         *
+         * Asserted by IDENTITY, not deep equality, which is strictly STRONGER:
+         * `===` implies `toEqual`, and it additionally rules out an entry
+         * being replaced by a different object with the same content. Since
+         * `seal()` only freezes and every append is `[...l.log, e]`, prior
+         * entries keep their references — so a divergence here means the log
+         * was REBUILT, which is exactly the O(n^2) regression that would make
+         * this module slow.
+         *
+         * That is the point: the timeout is no longer the only thing standing
+         * between us and a rebuild. This check is deterministic and has no
+         * clock in it, so it cannot flake.
+         *
+         * WHY IT CHANGED, so nobody "fixes" this test by cutting trials.
+         * 300 trials x 40 steps with a per-element `toEqual` loop is ~246,000
+         * deep-equality assertions carrying vitest's full compare-and-diff
+         * machinery. Measured on this repo at load average 11: the module
+         * operations alone cost 7ms, the old form 584ms and 591ms, this form
+         * 150ms and 452ms. 590ms looks safe against the 5s per-test timeout
+         * until the whole suite runs in parallel under load — where it reached
+         * 5000ms and failed. Three consecutive solo runs of this file measured
+         * 1556ms, 4736ms and 6611ms of wall time at that load.
+         *
+         * The trial count IS the strength of this property test and must not be
+         * reduced to buy headroom. Making each assertion cheaper and stronger
+         * buys the same headroom while proving more. */
+        const diverged = before.findIndex((e, i) => l.log[i] !== e)
+        expect(diverged, 'a prior log entry was rebuilt or altered').toBe(-1)
         prior = l.log
       }
       expect(prior.length).toBeGreaterThan(0)

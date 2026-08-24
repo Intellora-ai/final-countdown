@@ -154,33 +154,208 @@ const READABLE = ['text/html', 'text/plain', 'application/xhtml+xml'] as const
 /* -------------------------------------------------------------------------- */
 
 /**
- * Addresses that are inside the trust boundary rather than out on the web.
+ * WHY THIS PARSES THE ADDRESS INSTEAD OF MATCHING THE HOSTNAME STRING.
  *
- * `169.254.169.254` is listed first because it is the one that matters: the
- * cloud instance metadata endpoint, and the reason SSRF is a credential-theft
- * bug rather than an inconvenience.
+ * The previous version tested the hostname with patterns like `/^169\.254\./`.
+ * That reads as though it blocks the cloud metadata endpoint, and against the
+ * dotted-quad spelling it does. But a hostname is a STRING and an address is a
+ * NUMBER, and WHATWG `URL` is free to re-spell one as the other:
+ *
+ *   http://[::ffff:169.254.169.254]/  ->  hostname "[::ffff:a9fe:a9fe]"
+ *
+ * `169.254.` does not occur in that, so nothing matched and the credential
+ * endpoint was reachable. What made it invisible is that the obvious spelling
+ * WAS blocked the whole time, and that decimal notation
+ * (`http://2130706433/`) was caught too — not by the guard, but because `URL`
+ * happens to normalise that one back to `127.0.0.1`. Coverage that came from
+ * the parser was easy to mistake for coverage that came from the guard.
+ *
+ * Any list of spellings loses this race, because the attacker picks the
+ * spelling. So the hostname is decoded to the address it actually denotes and
+ * compared against ranges numerically. An IPv4 address embedded in an IPv6 one
+ * is unwrapped first, which is what makes the encodings collapse to one case
+ * rather than N cases needing N patterns.
+ *
+ * WHAT THIS STILL DOES NOT COVER: a NAME that RESOLVES to an internal address
+ * (DNS rebinding). Nothing decidable from the URL text can catch that; it needs
+ * resolution and a pinned socket, which is a different mechanism.
  */
-const INTERNAL = [
-  /^169\.254\./,
-  /^127\./,
-  /^10\./,
-  /^192\.168\./,
-  /^172\.(1[6-9]|2\d|3[01])\./,
-  /^0\.0\.0\.0$/,
-  /^localhost$/i,
-  /\.local$/i,
-  /\.internal$/i,
-  /^\[?::1\]?$/,
-  /^\[?f[cd][0-9a-f]{2}:/i,
-  /^\[?fe80:/i,
+
+/** A hostname decoded to what it denotes, or `null` when it is a NAME. */
+type Addr = { v: 4; n: number } | { v: 6; groups: readonly number[] }
+
+function parseIpv4(text: string): number | null {
+  const parts = text.split('.')
+  if (parts.length !== 4) return null
+  let n = 0
+  for (const part of parts) {
+    if (!/^\d{1,3}$/.test(part)) return null
+    const octet = Number(part)
+    if (octet > 255) return null
+    n = n * 256 + octet
+  }
+  return n >>> 0
+}
+
+/** Groups of an IPv6 literal, expanding `::` and any trailing dotted quad. */
+function parseIpv6(text: string): number[] | null {
+  if (!text.includes(':')) return null
+  /* A scope id (`fe80::1%eth0`) names an interface, not a different host. */
+  const zone = text.indexOf('%')
+  const bare = zone === -1 ? text : text.slice(0, zone)
+
+  const halves = bare.split('::')
+  if (halves.length > 2) return null
+
+  const groupsOf = (part: string): number[] | null => {
+    if (part === '') return []
+    const items = part.split(':')
+    const out: number[] = []
+    for (let i = 0; i < items.length; i += 1) {
+      const item = items[i]
+      if (item.includes('.')) {
+        /* Only ever legal as the final element, where it stands for the low
+           32 bits. Accepting it anywhere else would parse addresses that no
+           resolver would. */
+        if (i !== items.length - 1) return null
+        const v4 = parseIpv4(item)
+        if (v4 === null) return null
+        out.push(Math.floor(v4 / 65_536), v4 % 65_536)
+        continue
+      }
+      if (!/^[0-9a-f]{1,4}$/i.test(item)) return null
+      out.push(parseInt(item, 16))
+    }
+    return out
+  }
+
+  const head = groupsOf(halves[0])
+  if (head === null) return null
+  if (halves.length === 1) return head.length === 8 ? head : null
+
+  const tail = groupsOf(halves[1])
+  if (tail === null) return null
+  const gap = 8 - head.length - tail.length
+  if (gap < 0) return null
+  return [...head, ...new Array<number>(gap).fill(0), ...tail]
+}
+
+function addressOf(hostname: string): Addr | null {
+  let host = hostname.trim().toLowerCase()
+  if (host.startsWith('[') && host.endsWith(']')) host = host.slice(1, -1)
+  if (host.includes(':')) {
+    const groups = parseIpv6(host)
+    return groups === null ? null : { v: 6, groups }
+  }
+  const n = parseIpv4(host)
+  return n === null ? null : { v: 4, n }
+}
+
+/* IPv4 ranges that are not the public internet. Base address and prefix
+   length, compared numerically, so every spelling of the same address lands on
+   the same answer. 169.254.0.0/16 is the one that matters — it carries the
+   cloud instance metadata endpoint, which is what turns SSRF from an
+   inconvenience into credential theft. */
+const V4_BLOCKED: readonly (readonly [number, number])[] = [
+  [0x00000000, 8], // 0.0.0.0/8      this network
+  [0x0a000000, 8], // 10.0.0.0/8     private
+  [0x64400000, 10], // 100.64.0.0/10  carrier-grade NAT, carrier-internal
+  [0x7f000000, 8], // 127.0.0.0/8    loopback
+  [0xa9fe0000, 16], // 169.254.0.0/16 link-local AND cloud metadata
+  [0xac100000, 12], // 172.16.0.0/12  private
+  [0xc0000000, 24], // 192.0.0.0/24   IETF protocol assignments
+  [0xc0a80000, 16], // 192.168.0.0/16 private
+  [0xc6120000, 15], // 198.18.0.0/15  benchmarking
+  [0xe0000000, 4], // 224.0.0.0/4    multicast
+  [0xf0000000, 4], // 240.0.0.0/4    reserved, incl. 255.255.255.255
 ] as const
 
-const LOOPBACK = [/^127\./, /^localhost$/i, /^\[?::1\]?$/] as const
+function inV4Range(n: number, base: number, bits: number): boolean {
+  const mask = bits === 0 ? 0 : (-1 << (32 - bits)) >>> 0
+  return ((n & mask) >>> 0) === base
+}
+
+const zeros = (groups: readonly number[], upto: number): boolean =>
+  groups.slice(0, upto).every((g) => g === 0)
+
+/**
+ * An IPv4 address wearing an IPv6 costume, unwrapped to the address it reaches.
+ *
+ * Unwrapping rather than blanket-blocking the prefixes is deliberate: these
+ * forms are only dangerous when the address INSIDE them is, and refusing
+ * `[::ffff:8.8.8.8]` would trade a security hole for a functionality hole.
+ */
+function unwrapV4(groups: readonly number[]): number | null {
+  if (zeros(groups, 5) && groups[5] === 0xffff) {
+    return (groups[6] * 65_536 + groups[7]) >>> 0 // ::ffff:0:0/96  v4-mapped
+  }
+  if (groups[0] === 0x64 && groups[1] === 0xff9b && zeros(groups.slice(2), 4)) {
+    return (groups[6] * 65_536 + groups[7]) >>> 0 // 64:ff9b::/96   NAT64
+  }
+  if (groups[0] === 0x2002) {
+    return (groups[1] * 65_536 + groups[2]) >>> 0 // 2002::/16      6to4
+  }
+  if (zeros(groups, 6)) {
+    return (groups[6] * 65_536 + groups[7]) >>> 0 // ::/96          v4-compatible
+  }
+  return null
+}
+
+/**
+ * A hostname with its root label removed.
+ *
+ * `http://localhost./` is the fully-qualified form of `localhost`, and the
+ * trailing dot survives into `URL.hostname` verbatim. Anchored name patterns
+ * (`^localhost$`, `\.local$`) all miss it, so `localhost.` and `printer.local.`
+ * walked straight past a guard that stopped `localhost` and `printer.local`.
+ *
+ * Found by generating the encoding space rather than listing spellings — the
+ * same generation that had already turned five guessed bypasses into 42 real
+ * ones. It is one character, and it is the whole difference between blocked
+ * and reachable.
+ */
+const withoutRootLabel = (hostname: string): string =>
+  hostname.trim().replace(/\.+$/, '')
+
+function isLoopback(hostname: string): boolean {
+  if (/^localhost$/i.test(withoutRootLabel(hostname))) return true
+  const addr = addressOf(hostname)
+  if (addr === null) return false
+  if (addr.v === 6) {
+    if (zeros(addr.groups, 7) && addr.groups[7] === 1) return true // ::1
+    const wrapped = unwrapV4(addr.groups)
+    return wrapped !== null && inV4Range(wrapped, 0x7f000000, 8)
+  }
+  return inV4Range(addr.n, 0x7f000000, 8)
+}
+
+/** Names that are inside the trust boundary but are not addresses at all. */
+const INTERNAL_NAMES = [/^localhost$/i, /\.local$/i, /\.internal$/i] as const
 
 function isInternal(hostname: string, allowLoopback: boolean): boolean {
-  const host = hostname.toLowerCase()
-  if (allowLoopback && LOOPBACK.some((r) => r.test(host))) return false
-  return INTERNAL.some((r) => r.test(host))
+  if (allowLoopback && isLoopback(hostname)) return false
+  /* Root label stripped here, once, so every check below sees the same
+     canonical form and no anchored pattern can be slipped by a trailing dot. */
+  const host = withoutRootLabel(hostname).toLowerCase()
+  const addr = addressOf(host)
+  if (addr === null) return INTERNAL_NAMES.some((r) => r.test(host))
+
+  if (addr.v === 6) {
+    const { groups } = addr
+    /* `::` is the unspecified address, which routes to localhost on most
+       stacks — it is not merely "all zeroes and therefore harmless". */
+    if (zeros(groups, 8)) return true
+    if (zeros(groups, 7) && groups[7] === 1) return true // ::1 loopback
+
+    const wrapped = unwrapV4(groups)
+    if (wrapped !== null) return V4_BLOCKED.some(([b, n]) => inV4Range(wrapped, b, n))
+
+    if ((groups[0] & 0xfe00) === 0xfc00) return true // fc00::/7  unique local
+    if ((groups[0] & 0xffc0) === 0xfe80) return true // fe80::/10 link-local
+    return false
+  }
+
+  return V4_BLOCKED.some(([base, bits]) => inV4Range(addr.n, base, bits))
 }
 
 /**
@@ -323,17 +498,30 @@ export async function fetchPage(target: string, options: FetchOptions = {}): Pro
     attempts,
   })
 
+  /**
+   * Time left in the WHOLE call, or `Infinity` when the caller set no ceiling.
+   *
+   * Read at every point that is about to spend time, because a budget is only
+   * a budget where it is consulted. Sampling it once per hop left the retry
+   * loop inside a hop unbounded.
+   */
+  const budgetLeft = (): number =>
+    totalBudgetMs === undefined ? Infinity : totalBudgetMs - (now() - started)
+
+  const overBudget = (): FetchOutcome =>
+    fail('timeout', `exceeded total budget of ${totalBudgetMs}ms`)
+
   const first = check(target, undefined, allowLoopback)
   if (!first.ok) return fail(first.reason, `refused ${target}`)
 
   let current = first.url
 
   for (let hop = 0; ; hop += 1) {
-    if (totalBudgetMs !== undefined && now() - started > totalBudgetMs) {
+    if (budgetLeft() <= 0) {
       /* Checked per hop rather than only at the end: the point is to stop
          spending, and a budget noticed after the last request has bought
          nothing. */
-      return fail('timeout', `exceeded total budget of ${totalBudgetMs}ms`)
+      return overBudget()
     }
     if (hop > maxRedirects) {
       return fail('too-many-redirects', `stopped after ${maxRedirects} redirects`)
@@ -365,14 +553,45 @@ export async function fetchPage(target: string, options: FetchOptions = {}): Pro
       armedTimer = null
     }
 
+    /**
+     * THE BUDGET HAS TO BE READ HERE, NOT ONLY AT THE TOP OF THE HOP.
+     *
+     * Every attempt below is individually punctual — each one is stopped by
+     * `timeoutMs` exactly as designed — and the hop as a whole still ran for as
+     * long as the retry count allowed. Measured against a host that accepts the
+     * connection and then goes silent: a 500ms budget, 1,205ms actual, three
+     * attempts. At shipped defaults that is 8,000ms x 3 = 24 seconds spent
+     * inside ONE hop by a caller who asked for less.
+     *
+     * The redirect-chain budget test passed throughout, because a chain
+     * re-enters the hop loop and therefore re-reads the budget; a single
+     * non-redirecting host never does. Nothing was wrong with the check — it
+     * was in the one place the slow case does not pass through.
+     */
+    let budgetSpent = false
+
     for (let attempt = 0; attempt <= retries; attempt += 1) {
       if (attempt > 0) {
         /* Exponential, so a struggling host is not hit at a fixed rate by
-           every caller that happens to be retrying at the same moment. */
-        await sleep(100 * 2 ** (attempt - 1))
+           every caller that happens to be retrying at the same moment. The
+           backoff is itself clamped: waiting past the deadline to make a
+           request that cannot start is pure overrun. */
+        await sleep(Math.max(0, Math.min(100 * 2 ** (attempt - 1), budgetLeft())))
       }
+
+      const left = budgetLeft()
+      if (left <= 0) {
+        budgetSpent = true
+        break
+      }
+
       const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), timeoutMs)
+      /* The deadline is whichever limit expires first. Using `timeoutMs`
+         unconditionally is how an attempt outlives the budget it is spending:
+         the failure then reports the per-request timeout, and the overrun is
+         invisible to whoever reads the log. */
+      const deadline = Math.max(1, Math.min(timeoutMs, left))
+      const timer = setTimeout(() => controller.abort(), deadline)
       attempts += 1
       try {
         res = await call(current.toString(), {
@@ -406,6 +625,10 @@ export async function fetchPage(target: string, options: FetchOptions = {}): Pro
     }
 
     if (!res) {
+      /* Which limit fired is the first thing anyone reading this asks, so the
+         budget is named whenever it is the one that ran out — including when
+         it ran out by cutting an attempt short. */
+      if (budgetSpent || budgetLeft() <= 0) return overBudget()
       return timedOut
         ? fail('timeout', `no response within ${timeoutMs}ms`)
         : fail('network', describe(lastError))
@@ -453,6 +676,9 @@ export async function fetchPage(target: string, options: FetchOptions = {}): Pro
       /* A body that stops arriving is a timeout, not a network error, and the
          distinction is what tells a slow origin apart from a broken one. */
       const cutOff = aborted(err) || armedSignal?.aborted === true
+      /* The read shares the attempt's deadline, so the budget can be what cut
+         it short. Name the limit that actually fired. */
+      if (cutOff && budgetLeft() <= 0) return overBudget()
       return cutOff
         ? fail('timeout', `body did not complete within ${timeoutMs}ms`)
         : fail('network', describe(err))

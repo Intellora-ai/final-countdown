@@ -24,8 +24,21 @@ set -euo pipefail
 verifier=$1
 shift
 
-python3 scripts/spec_source.py specs/*_spec.lean > /tmp/pairs.txt
-sources=$(cut -d= -f2 /tmp/pairs.txt | sort -u)
+# `mktemp`, NOT a fixed /tmp path.
+#
+# This wrote /tmp/pairs.txt, a name every process on the machine shares. Two
+# concurrent local runs -- `make sandbox-test` in one terminal and a single gate
+# in another, which is the normal way to work here -- raced on the same file,
+# and the loser verified the winner's spec-to-source mapping while reporting on
+# its own. World-writable too: on a shared machine anything could pre-create it.
+# The gate would then verify a mapping it did not produce and still exit 0.
+#
+# The trap removes it on every exit path, including the `exit 1` below.
+pairs_file="$(mktemp)"
+trap 'rm -f "$pairs_file"' EXIT
+
+python3 scripts/spec_source.py specs/*_spec.lean > "$pairs_file"
+sources=$(cut -d= -f2 "$pairs_file" | sort -u)
 
 # A loop over nothing exits 0, so the gate would report PASS having verified
 # nothing at all. spec_source.py exits 1 on a spec it cannot resolve, which
@@ -39,12 +52,25 @@ fi
 echo "verifying $(printf '%s\n' "$sources" | wc -l | tr -d ' ') source file(s)"
 
 printf '%s\n' "$sources" | while read -r src; do
-    specs=$(grep "=${src}$" /tmp/pairs.txt | cut -d= -f1 | tr '\n' ' ')
-    echo "── $src ← $specs"
-    # $specs is deliberately unquoted: one argument per spec file, not one
-    # argument containing every spec file. Quoting it would pass a single
-    # argument holding every path, and the verifier would look for one file
-    # with a name containing spaces.
-    # shellcheck disable=SC2086
-    python3 "$verifier" $specs "$@"
+    # AN ARRAY, NOT UNQUOTED WORD SPLITTING.
+    #
+    # This was `specs=$(...)` then `python3 "$verifier" $specs "$@"` with a
+    # `shellcheck disable=SC2086`, relying on the shell to split one string into
+    # several arguments. That is correct only while every spec path is free of
+    # spaces, tabs and glob characters -- a property nothing checks and nothing
+    # states. A spec file named with a space would silently become two wrong
+    # arguments, and the verifier would report on files that do not exist.
+    #
+    # A `while read` accumulator, NOT `mapfile`. `mapfile` is the obvious
+    # choice and it is bash 4+; macOS ships bash 3.2, and `.githooks/pre-push`
+    # runs this script through `make sandbox-fast` on exactly that shell. The
+    # portable form works on both, and this repository has already been bitten
+    # once by a bash-3.2 difference -- run_gate.py's chain markers use `echo`
+    # rather than an ERR trap for the same reason, measured.
+    specs=()
+    while IFS= read -r spec; do
+        specs+=("$spec")
+    done < <(grep "=${src}$" "$pairs_file" | cut -d= -f1)
+    echo "── $src ← ${specs[*]}"
+    python3 "$verifier" "${specs[@]}" "$@"
 done

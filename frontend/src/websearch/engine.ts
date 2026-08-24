@@ -64,16 +64,75 @@ export function fixtureProvider(fixtures: Record<string, readonly SearchHit[]>):
   }
 }
 
+/**
+ * How many results the engine is asked for, and how many get fetched.
+ *
+ * ONE constant, because two of them silently disagreed. `jsonProvider`
+ * defaulted to 10 while `search` defaulted to 8, so every call to a metered
+ * API paid for two results nobody read. Invisible in review and invisible in
+ * tests, since no test read both numbers — which is why the test that now
+ * guards this asserts they are the same value rather than asserting each.
+ */
+export const DEFAULT_RESULT_LIMIT = 8
+
 export interface JsonProviderConfig {
   name: string
   /** `{query}`, `{limit}` and `{key}` are substituted, url-encoded. */
   endpoint: string
   /** Turn the engine's response body into hits. May throw; that is handled. */
   map: (body: unknown) => readonly SearchHit[]
-  /** Kept out of everything this returns. Present only in the request. */
+  /**
+   * Required when the endpoint contains `{key}`. Kept out of everything this
+   * returns; present only in the request.
+   */
   apiKey?: string
   limit?: number
+  /**
+   * Deadline for the engine call. The default transport had none, which is
+   * the whole reason this option exists.
+   */
+  timeoutMs?: number
   fetchJson?: (url: string) => Promise<unknown>
+}
+
+/**
+ * Deadline for the engine call.
+ *
+ * There was none. Every test in this module injected `fetchJson`, so the
+ * default path — the one calling the real `fetch` — was executed by nothing,
+ * and untested code cannot fail a test. A search API that accepted the
+ * connection and went quiet held `search()` open indefinitely, and every
+ * caller with it.
+ *
+ * This is the same defect fixed in `fetchPage` after a loopback stub caught
+ * it at 5011ms against a 250ms budget. Every window was locked and the front
+ * door was left open, because the tests all walked around it.
+ */
+const DEFAULT_ENGINE_TIMEOUT_MS = 8_000
+
+/**
+ * The default transport, with a deadline attached.
+ *
+ * Separated from `jsonProvider` so it can be exercised directly rather than
+ * only through a config that replaces it.
+ */
+function defaultFetchJson(timeoutMs: number): (url: string) => Promise<unknown> {
+  return async (url: string) => {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      const response = await (globalThis.fetch as typeof fetch)(url, {
+        headers: { accept: 'application/json' },
+        signal: controller.signal,
+      })
+      return (await response.json()) as unknown
+    } finally {
+      /* Cleared after the BODY is parsed, not after headers arrive. `fetch`
+         resolves on headers, so clearing earlier would leave the json() read
+         unbounded — precisely the bug this exists to prevent, one layer down. */
+      clearTimeout(timer)
+    }
+  }
 }
 
 /** Non-http(s) URLs never make it into a result list. */
@@ -93,19 +152,26 @@ function usable(hit: SearchHit): boolean {
  * every JSON search API worth using, and none of the pipeline learns the
  * vendor's name.
  */
-export function jsonProvider(
-  config: JsonProviderConfig & { key?: string },
-): SearchProvider {
-  const secret = config.apiKey ?? config.key ?? ''
-  const limit = config.limit ?? 10
-  const fetchJson =
-    config.fetchJson ??
-    (async (url: string) => {
-      const response = await (globalThis.fetch as typeof fetch)(url, {
-        headers: { accept: 'application/json' },
-      })
-      return (await response.json()) as unknown
-    })
+export function jsonProvider(config: JsonProviderConfig): SearchProvider {
+  const secret = config.apiKey ?? ''
+  const limit = config.limit ?? DEFAULT_RESULT_LIMIT
+  const timeoutMs = config.timeoutMs ?? DEFAULT_ENGINE_TIMEOUT_MS
+
+  /* Fail at CONSTRUCTION, loudly, rather than at request time, silently.
+     `{key}` used to be substituted with '' when no secret was supplied: the
+     request went out unauthenticated, the engine answered 401, the mapper
+     threw on the error body, and the catch below returned [] with
+     `engineFailed` still FALSE. A misconfigured key became "this question has
+     no answer" — destroying the exact distinction `engineFailed` exists to
+     preserve. A missing key is a config error, and config errors belong where
+     someone is looking. */
+  if (config.endpoint.includes('{key}') && !secret) {
+    throw new Error(
+      `jsonProvider("${config.name}"): endpoint contains {key} but no apiKey was given`,
+    )
+  }
+
+  const fetchJson = config.fetchJson ?? defaultFetchJson(timeoutMs)
 
   return {
     name: config.name,
@@ -155,8 +221,6 @@ export interface SearchOutcome {
   hitsReturned: number
 }
 
-const DEFAULT_MAX_RESULTS = 8
-
 /**
  * Query in, evidence out.
  *
@@ -169,7 +233,7 @@ const DEFAULT_MAX_RESULTS = 8
 export async function search(query: string, options: SearchOptions): Promise<SearchOutcome> {
   const latency = options.latency
   const now = options.now ?? Date.now
-  const maxResults = Math.max(1, options.maxResults ?? DEFAULT_MAX_RESULTS)
+  const maxResults = Math.max(1, options.maxResults ?? DEFAULT_RESULT_LIMIT)
 
   let hits: readonly SearchHit[] = []
   let engineFailed = false

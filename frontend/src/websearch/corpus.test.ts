@@ -59,6 +59,62 @@ describe('the corpus itself is checked, because a broken benchmark scores nothin
     }
   })
 
+  it('every case is SATISFIABLE — a page that answers it scores coverage 1', async () => {
+    /* BUG, and the reason this test exists at all.
+     *
+     * `runCase` matches an aspect by `text.includes(aspect.replace(/-/g,' '))`.
+     * Four cases named META-LABELS instead of page vocabulary — `entity`,
+     * `period`, `as-of-date`, `authority`, `figure`, `disagreement`. No real
+     * document contains the literal string "as of date", so those cases
+     * could not reach full coverage however good the system got. Measured
+     * against pages that genuinely answered each question:
+     *
+     *     apple-revenue        coverage = 0
+     *     population-dispute   coverage = 0
+     *     repo-rate-now        coverage = 0.5
+     *     vaccine-efficacy     coverage = 0.5
+     *
+     * A benchmark case nobody can pass is worse than a missing one: it reads
+     * as a permanent failure everyone learns to ignore, and it hides real
+     * regressions in the same column.
+     *
+     * This is the INDEPENDENT check. It does not assert what the system
+     * scores — it asserts the benchmark can be scored at all, by building
+     * the ideal page for each case from the case's own aspect list. It fails
+     * the moment someone adds an unmatchable aspect. */
+    for (const c of CORPUS) {
+      /* The page comes from `examplePage`, written independently as prose a
+         real source would publish — NOT generated from `aspectsRequired`.
+         Building it from the aspect list would make this tautological: it
+         would contain every aspect by construction and could never fail.
+         The first version of this test did exactly that and passed against
+         the broken corpus, which is how a circular test earns its keep for
+         nobody. */
+      const report = await runCorpus({
+        cases: [c],
+        provider: fixtureProvider({
+          [c.query]: c.relevantUrls.map((u) => ({ url: u, title: 't', snippet: 's' })),
+        }),
+        fetchImpl: async (url) => served(`<article><p>${c.examplePage}</p></article>`, url),
+      })
+
+      expect(report.cases[0].coverage, `case "${c.id}" cannot reach full coverage`).toBe(1)
+    }
+  })
+
+  it('names aspects a real page would contain, not meta-labels', () => {
+    /* The same defect stated as a property of the DATA rather than of a run,
+       so it fails at the point someone writes the bad aspect rather than
+       later when a score looks wrong. Meta-labels describe what an answer
+       must DO; aspects have to be words an answer would SAY. */
+    const metaLabels = ['entity', 'period', 'as-of-date', 'authority', 'figure', 'disagreement', 'source']
+    for (const c of CORPUS) {
+      for (const aspect of c.aspectsRequired) {
+        expect(metaLabels, `case "${c.id}" uses meta-label "${aspect}"`).not.toContain(aspect)
+      }
+    }
+  })
+
   it('marks exactly the questions where a cached answer would be wrong', () => {
     const timeSensitive = CORPUS.filter((c) => c.timeSensitive).map((c) => c.id)
     /* "current rbi repo rate" is the case that must bypass cache. If this
@@ -73,7 +129,8 @@ describe('running the corpus', () => {
     id: 'test-1',
     query: 'india gdp growth 2025',
     category: 'simple-factual',
-    aspectsRequired: ['growth-rate'],
+    aspectsRequired: ['growth rate'],
+    examplePage: 'The ministry reported that the growth rate was 6.1 percent.',
     relevantUrls: ['https://mospi.gov.in/gdp-2025'],
     relevantTotal: 1,
     timeSensitive: false,

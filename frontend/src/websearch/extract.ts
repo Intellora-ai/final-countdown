@@ -124,6 +124,87 @@ function removeRaw(input: string): string {
   return out
 }
 
+/**
+ * Elements that end a line of prose. Everything else is inline and must not
+ * introduce whitespace — see the note on qualifiers in the file header.
+ */
+const BLOCK_NAMES = new Set([
+  'p', 'div', 'section', 'article', 'main',
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'li', 'ul', 'ol', 'tr', 'table', 'thead', 'tbody',
+  'br', 'hr', 'blockquote', 'pre', 'dd', 'dt', 'dl',
+  'figure', 'figcaption', 'address',
+])
+
+/**
+ * Remove every tag, turning block-level ones into line breaks.
+ *
+ * Scanned rather than replaced, for the same reason as `removeRaw`: the
+ * regexes this replaces were the last two multi-character `.replace()` calls
+ * in the file, and that call is what the analyser flags.
+ *
+ * Quote-aware, which the regex was not: `<p title="a>b">` is one tag here,
+ * where `[^>]*>` ended it early at the `>` inside the attribute value and
+ * left `b">` behind as prose.
+ *
+ * A `<` with no closing `>` before the next `<` is malformed. It is emitted
+ * as a literal and the scan advances ONE character, so the tag nested inside
+ * it gets its own turn — which is what lets `<scr<x>ipt>` collapse to a real
+ * `<script>` on the following pass of the fixpoint loop.
+ */
+function removeTags(input: string): string {
+  let out = ''
+  let i = 0
+
+  while (i < input.length) {
+    const lt = input.indexOf('<', i)
+    if (lt === -1) {
+      out += input.slice(i)
+      break
+    }
+    out += input.slice(i, lt)
+
+    const end = findTagEnd(input, lt)
+    if (end === -1) {
+      /* Malformed or truncated. Emit the `<` and step over it alone. */
+      out += '<'
+      i = lt + 1
+      continue
+    }
+
+    out += BLOCK_NAMES.has(tagNameAt(input, lt)) ? '\n' : ''
+    i = end + 1
+  }
+
+  return out
+}
+
+/** Index of the `>` closing the tag at `lt`, or -1 if there isn't one. */
+function findTagEnd(input: string, lt: number): number {
+  let quote = ''
+  for (let j = lt + 1; j < input.length; j += 1) {
+    const ch = input[j]
+    if (quote) {
+      if (ch === quote) quote = ''
+      continue
+    }
+    if (ch === '"' || ch === "'") quote = ch
+    else if (ch === '>') return j
+    /* A second `<` before any `>` means the first was never a tag. */
+    else if (ch === '<') return -1
+  }
+  return -1
+}
+
+/** Lowercase element name of the tag at `lt`, without any leading slash. */
+function tagNameAt(input: string, lt: number): string {
+  let j = lt + 1
+  if (input[j] === '/') j += 1
+  const start = j
+  while (j < input.length && /[a-zA-Z0-9]/.test(input[j])) j += 1
+  return input.slice(start, j).toLowerCase()
+}
+
 /** The raw element opening at `lt`, if any. `lower` is the lowered input. */
 function rawElementAt(lower: string, lt: number): string | null {
   for (const name of RAW_ELEMENTS) {
@@ -148,26 +229,6 @@ function skipRawElement(input: string, lower: string, lt: number, name: string):
   return closeEnd === -1 ? input.length : closeEnd + 1
 }
 
-/* Elements that end a line of prose. Everything else is inline and must not
-   introduce whitespace — see the note on qualifiers above. */
-const BLOCK =
-  /<\/?(p|div|section|article|main|h[1-6]|li|ul|ol|tr|table|thead|tbody|br|hr|blockquote|pre|dd|dt|dl|figure|figcaption|address)\b[^>]*>/gi
-
-/**
- * A tag containing no `<` of its own — the INNERMOST tag at this point.
- *
- * `/<[^>]*>/` was here and it is the bug CodeQL flagged
- * (`js/incomplete-multi-character-sanitization`, three high alerts). Given
- * `<scr<x>ipt>`, that pattern matches from the first `<` to the first `>`,
- * swallowing `<scr` and `<x>` as ONE tag and leaving `ipt>` behind as text —
- * so the script body survived into the extract as prose.
- *
- * Excluding `<` from the body makes a match unable to span a nested tag, so
- * `<x>` is removed on its own and `<scr` + `ipt>` rejoin into a real
- * `<script>` — which the drop rule then catches on the next pass. That is why
- * this has to run in a loop rather than once.
- */
-const INNERMOST_TAG = /<[^<>]*>/g
 
 const NAMED: Readonly<Record<string, string>> = {
   amp: '&',
@@ -319,13 +380,7 @@ function stripConstructs(input: string, blocksBecomeNewlines: boolean): string {
   do {
     previous = result
     result = removeRaw(result)
-    if (blocksBecomeNewlines) {
-      result = result
-        .replace(BLOCK, '\n')
-        /* Every remaining tag is inline. Removed with NO substitution, so
-           `<em>up to</em> 40%` stays `up to 40%` rather than `up to  40%`. */
-        .replace(INNERMOST_TAG, '')
-    }
+    if (blocksBecomeNewlines) result = removeTags(result)
   } while (result !== previous)
   return result
 }

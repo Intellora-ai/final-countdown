@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -196,7 +197,11 @@ def test_reconcile_is_silent_on_a_healthy_failed_run() -> None:
 
 
 def test_reconcile_ignores_a_green_run() -> None:
-    green = [{"name": "frontend", "conclusion": "success", "steps": []}]
+    # Annotated because `steps: []` alone infers `list[Unknown]`, which
+    # pyright reports as a partially unknown argument at the call below.
+    green: list[dict[str, Any]] = [
+        {"name": "frontend", "conclusion": "success", "steps": []}
+    ]
     assert reconcile(green, annotations=[], path_exists=lambda p: True) == []
 
 

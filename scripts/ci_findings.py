@@ -65,7 +65,7 @@ import sys
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 # Every line of a downloaded Actions log carries this. Not stripping it is why
 # grepping a log is misery and why every ^-anchored pattern below would miss.
@@ -352,12 +352,29 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "reconcile":
-        jobs = json.loads(args.jobs.read_text(encoding="utf-8"))
-        annotations = json.loads(args.annotations.read_text(encoding="utf-8"))
+        # `json.loads` is typed `Any`, and an isinstance narrowing of `Any`
+        # produces `list[Unknown]` rather than a known element type. The casts
+        # are the claim being made about the file's shape: the jobs endpoint
+        # returns either a bare array or `{"jobs": [...]}`, and the annotations
+        # endpoint returns a bare array. Anything else is a caller error, and
+        # `reconcile` reads both with `.get`, so a wrong shape degrades to no
+        # findings rather than to a crash.
+        raw_jobs: Any = json.loads(args.jobs.read_text(encoding="utf-8"))
+        raw_annotations: Any = json.loads(args.annotations.read_text(encoding="utf-8"))
         root: Path = args.root
+        jobs: list[dict[str, Any]] = (
+            cast("list[dict[str, Any]]", raw_jobs)
+            if isinstance(raw_jobs, list)
+            else cast("list[dict[str, Any]]", raw_jobs.get("jobs", []))
+        )
+        annotations: list[dict[str, Any]] = (
+            cast("list[dict[str, Any]]", raw_annotations)
+            if isinstance(raw_annotations, list)
+            else []
+        )
         problems = reconcile(
-            jobs if isinstance(jobs, list) else jobs.get("jobs", []),
-            annotations if isinstance(annotations, list) else [],
+            jobs,
+            annotations,
             path_exists=lambda p: (root / p).exists(),
         )
         for p in problems:

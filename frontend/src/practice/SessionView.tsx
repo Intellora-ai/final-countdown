@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 
-import { CHAPTER_BY_ID, CHAPTER_OF_TOPIC, TOPIC_BY_ID, topicsOfChapter } from './curriculum'
+import {
+  CHAPTER_BY_ID,
+  CHAPTER_OF_TOPIC,
+  TOPIC_BY_ID,
+  topicsOfChapter,
+  type TopicConcept,
+} from './curriculum'
 import { modelProvider } from './engine/modelProvider'
 import { fixtureProvider } from './engine/provider'
 import type { TopicProfile } from './engine/plan'
@@ -434,16 +440,8 @@ function profileFor(selection: ReturnType<typeof usePracticeStore.getState>['lau
     return {
       topicId: topic.id,
       chapterId: CHAPTER_OF_TOPIC.get(selection.id) ?? 'unknown',
-      quantitative: 0.5,
-      concepts: [
-        {
-          id: topic.id,
-          name: topic.name,
-          numeric: true,
-          prerequisites: [],
-          commonMisconception: null,
-        },
-      ],
+      quantitative: quantitativeOf(topic),
+      concepts: conceptsOf(topic),
     }
   }
 
@@ -452,18 +450,67 @@ function profileFor(selection: ReturnType<typeof usePracticeStore.getState>['lau
   const topics = topicsOfChapter(selection.id)
   if (topics.length === 0) return null
 
+  /*
+   * A chapter draws one concept per topic rather than every topic's full
+   * breakdown. Fifteen questions spread across five topics is the point of
+   * practising a chapter; spreading them across a chapter's forty sub-concepts
+   * would touch each one at most once and teach nothing about any of them.
+   */
   return {
     topicId: chapter.id,
     chapterId: chapter.id,
-    quantitative: 0.5,
+    quantitative: average(topics.map(quantitativeOf)),
     concepts: topics.map((topic) => ({
       id: topic.id,
       name: topic.name,
-      numeric: true,
+      numeric: (topic.concepts ?? []).some((concept) => concept.numeric),
       prerequisites: [],
       commonMisconception: null,
     })),
   }
+}
+
+/**
+ * The topic's concepts, or the topic itself as its only concept.
+ *
+ * The fallback is honest rather than convenient: a topic nobody has broken
+ * down yet genuinely has one known idea in it, and pretending otherwise would
+ * mean inventing sub-concepts at render time.
+ */
+function conceptsOf(topic: { id: string; name: string; concepts?: readonly TopicConcept[] }) {
+  const declared = topic.concepts ?? []
+  if (declared.length === 0) {
+    return [
+      { id: topic.id, name: topic.name, numeric: true, prerequisites: [], commonMisconception: null },
+    ]
+  }
+
+  return declared.map((concept) => ({
+    id: concept.id,
+    name: concept.name,
+    numeric: concept.numeric,
+    prerequisites: concept.prerequisites ?? [],
+    commonMisconception: concept.misconception ?? null,
+  }))
+}
+
+/**
+ * How computational the topic is, measured rather than assumed.
+ *
+ * The old 0.5 was a placeholder standing in for every topic in the syllabus,
+ * which meant the type mix never actually varied by subject matter — the thing
+ * `typeMixFor` exists to do. Where concepts are declared, the share of numeric
+ * ones is a real signal. Where they are not, 0.5 is still the honest answer.
+ */
+function quantitativeOf(topic: { concepts?: readonly TopicConcept[] }): number {
+  const declared = topic.concepts ?? []
+  if (declared.length === 0) return 0.5
+  return declared.filter((concept) => concept.numeric).length / declared.length
+}
+
+function average(values: readonly number[]): number {
+  if (values.length === 0) return 0.5
+  return values.reduce((sum, value) => sum + value, 0) / values.length
 }
 
 function describeEnding(status: string): string {

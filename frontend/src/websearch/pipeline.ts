@@ -44,6 +44,7 @@ import type { FetchOptions, FetchOutcome } from './fetchPage'
 import { gather, type PageCache, type Retrieved } from './gather'
 import { interpret, type SearchRequirements } from './interpret'
 import { Latency } from './latency'
+import { hopsOf, reuseOf, type Hop, type HopName, type ReuseStat } from './hops'
 import { freshnessOf, type Freshness } from './provenance'
 import { planQueries, refine, type QueryPlan } from './strategy'
 import { rankHits, type RankedHit } from './select'
@@ -84,6 +85,10 @@ export interface PipelineResult {
    * has to remember to compute it is a caller that will forget.
    */
   freshness: Freshness
+  /** §30 — where the time went, all four hops including the unobservable one. */
+  hops: Record<HopName, Hop>
+  /** §31 — per-host connection reuse evidence. Empty without a latency recorder. */
+  reuse: Record<string, ReuseStat>
   /** How many refinement rounds ran. 0 means the first pass was enough. */
   rounds: number
   /** Always empty in practice. Non-empty means this file has a bug. */
@@ -122,6 +127,8 @@ export async function ask(query: string, options: AskOptions): Promise<PipelineR
        `Cannot access 'retrieved' before initialization` at runtime, because a
        closure defers execution past what the type checker can see. */
     freshness: freshnessOf([], now),
+    hops: hopsOf(options.latency ?? new Latency()),
+    reuse: reuseOf(options.latency?.requestSamples() ?? []),
     rounds: 0,
     violations: finalCheck(answer),
     ...extra,
@@ -231,6 +238,8 @@ export async function ask(query: string, options: AskOptions): Promise<PipelineR
     findings,
     answer,
     freshness: freshnessOf(retrieved, now),
+    hops: hopsOf(options.latency ?? new Latency()),
+    reuse: reuseOf(options.latency?.requestSamples() ?? []),
     rounds,
     violations: finalCheck(answer),
   }

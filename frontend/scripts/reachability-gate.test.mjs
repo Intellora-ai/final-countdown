@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import {
   analyze,
+  analyzeProductReachability,
   isTestFile,
   blankComments,
   blankStrings,
@@ -535,5 +536,205 @@ describe('a backslash line-continuation cannot mint an edge either', () => {
     const out = blankStrings(`const bad = 'unterminated\nimport { x } from './m'`)
     expect(out.length).toBeGreaterThan(0)
     expect(() => importsOf(out)).not.toThrow()
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+
+/*
+ * THE QUESTION THE ORPHAN CHECK CANNOT ASK.
+ *
+ * `analyze()` walks an area from that area's OWN declared entry, so it answers
+ * "is every file under src/agent reachable from src/agent/index.ts". It cannot
+ * answer "is src/agent/index.ts reachable from anything that ships", because
+ * nothing in MANIFEST describes the product: `src/main.tsx`, `src/App.tsx`,
+ * `src/canvas` and `src/practice` are in no area and are never walked.
+ *
+ * That gap is not hypothetical. Seventeen required checks passed on 9ec5d81 --
+ * reachability among them -- with the entire 11k-line `src/agent` imported by
+ * nothing the product loads. The gate ran, reported PASS, and the area it was
+ * built to police was an island. Declaring entries fixes vacuity at the FILE
+ * level and moves it up one level: an unimported front door is unfalsifiable,
+ * because the front door is exempt from the question by construction.
+ *
+ * The distinguishing question for any gate is "what would have to be true for
+ * this to fail, and is that the thing I am afraid of?" For the orphan check the
+ * answer is "a file inside src/agent that src/agent does not import". The thing
+ * actually worth fearing is "src/agent, entire, that the product does not
+ * import". Different sentences. This block tests the second one.
+ *
+ * Pairs, as above: every check has an input that must fail AND an input that
+ * must pass. A product-reachability check asserted only to FAIL is satisfied by
+ * `return false`, which is the same vacuity wearing the opposite sign.
+ */
+describe('area reachability from the product entry', () => {
+  function productFixture(files) {
+    rmSync(FIXTURE, { recursive: true, force: true })
+    for (const [path, source] of Object.entries(files)) {
+      const full = join(FIXTURE, path)
+      mkdirSync(resolve(full, '..'), { recursive: true })
+      writeFileSync(full, source)
+    }
+    return {
+      manifest: [
+        {
+          name: 'island',
+          root: '.reachability-fixture/area',
+          entries: ['.reachability-fixture/area/index.ts'],
+        },
+      ],
+      opts: {
+        entry: '.reachability-fixture/main.tsx',
+        root: '.reachability-fixture',
+      },
+    }
+  }
+
+  it('FAILS on the real repository, because src/agent ships to nobody', () => {
+    /* The whole reason this check exists. If this ever goes green without
+       someone deliberately wiring the agent into the product, the check has
+       stopped measuring what it claims to measure. */
+    const unreached = analyzeProductReachability()
+    expect(unreached.map((u) => u.area)).toContain('agent')
+  })
+
+  it('PASSES when the product actually imports the area entry', () => {
+    const { manifest, opts } = productFixture({
+      'main.tsx': `import { go } from './area/index'\ngo()\n`,
+      'area/index.ts': `export function go() { return 1 }\n`,
+    })
+    expect(analyzeProductReachability(manifest, opts)).toEqual([])
+  })
+
+  it('FAILS when nothing in the product imports the area entry', () => {
+    const { manifest, opts } = productFixture({
+      'main.tsx': `export const app = 1\n`,
+      'area/index.ts': `export function go() { return 1 }\n`,
+    })
+    const unreached = analyzeProductReachability(manifest, opts)
+    expect(unreached).toEqual([
+      { area: 'island', unreachable: ['.reachability-fixture/area/index.ts'] },
+    ])
+  })
+
+  it('does not let a test file launder an area into product reachability', () => {
+    /* The original bug, one level up. A test importing the area entry is
+       exactly the edge that made the orphans look connected. */
+    const { manifest, opts } = productFixture({
+      'main.tsx': `export const app = 1\n`,
+      'area/index.ts': `export function go() { return 1 }\n`,
+      'area/index.test.ts': `import { go } from './index'\ngo()\n`,
+    })
+    expect(analyzeProductReachability(manifest, opts)).toHaveLength(1)
+  })
+
+  it('does not count an `import type` edge as shipping the area', () => {
+    /* tsc erases it, so the area contributes nothing to the bundle and is
+       exactly as absent as one nobody imports at all. This is also the shape
+       of the only apparent importer of src/agent in the real tree, which
+       turned out to be a line inside a comment. */
+    const { manifest, opts } = productFixture({
+      'main.tsx': `import type { T } from './area/index'\nexport const x: T | null = null\n`,
+      'area/index.ts': `export type T = { a: number }\n`,
+    })
+    expect(analyzeProductReachability(manifest, opts)).toHaveLength(1)
+  })
+
+  it('refuses an AREA entry that does not exist rather than reporting it UNREACHED', () => {
+    /* Found by feeding this function three entries that did not exist. It
+       reported all three UNREACHED -- a confident finding, over input it had
+       never validated, that would send someone hunting an island that is not
+       there.
+
+       `analyze()` has always thrown on a missing area entry. This function
+       checked only the PRODUCT entry and took the area's on trust, so the two
+       halves of the same gate disagreed about whether a typo is a finding or
+       an error. It is an error. "Not reachable" and "not a file" must never
+       render as the same sentence. */
+    const { opts } = productFixture({
+      'main.tsx': `export const app = 1\n`,
+      'area/index.ts': `export function go() { return 1 }\n`,
+    })
+    expect(() =>
+      analyzeProductReachability(
+        [
+          {
+            name: 'typo',
+            root: '.reachability-fixture/area',
+            entries: ['.reachability-fixture/area/indexx.ts'],
+          },
+        ],
+        opts,
+      ),
+    ).toThrow(/area entry/)
+  })
+
+  it('refuses a product entry that does not exist rather than reporting PASS', () => {
+    /* Fails closed, like the rest of the gate. A missing entry means the walk
+       reached nothing, and "reached nothing" must never render as "everything
+       is fine". */
+    const { manifest } = productFixture({
+      'main.tsx': `export const app = 1\n`,
+      'area/index.ts': `export function go() { return 1 }\n`,
+    })
+    expect(() =>
+      analyzeProductReachability(manifest, {
+        entry: '.reachability-fixture/does-not-exist.tsx',
+        root: '.reachability-fixture',
+      }),
+    ).toThrow(/product entry/)
+  })
+
+  it('follows a dynamic import(), because a lazy chunk genuinely ships', () => {
+    /* ALREADY TRUE, PREVIOUSLY UNASSERTED. The product reaches its two largest
+       areas through a dynamic import, not a static one:
+
+           App.tsx:30  React.lazy(() => import('./canvas/CanvasRoute'))
+           App.tsx:36  React.lazy(() => import('./practice/PracticeView'))
+
+       Those are code-split chunks that absolutely ship -- they arrive when the
+       route opens. A walker following only `... from '...'` would stop at
+       App.tsx and call both areas orphans in the SAME words it uses for the
+       real src/agent finding, and one indistinguishable false positive beside
+       a true one is how a gate gets switched off.
+
+       `importsOf` already handles `import()` and yields a star edge for it, so
+       this passed the moment it was written. That is exactly why it is worth
+       pinning: nothing asserted it, so nothing would have caught a future
+       narrowing of the scanner that quietly reintroduced the false positive. */
+    const { manifest, opts } = productFixture({
+      'main.tsx': `const Lazy = React.lazy(() => import('./area/index'))\nexport default Lazy\n`,
+      'area/index.ts': `export function go() { return 1 }\n`,
+    })
+    expect(analyzeProductReachability(manifest, opts)).toEqual([])
+  })
+
+  it('still refuses a `import type` edge after learning about import()', () => {
+    /* The pair. Widening the walker must not widen it onto erased edges --
+       otherwise the fix for the false positive manufactures a false negative. */
+    const { manifest, opts } = productFixture({
+      'main.tsx': `import type { T } from './area/index'\nexport const x: T | null = null\n`,
+      'area/index.ts': `export type T = { a: number }\n`,
+    })
+    expect(analyzeProductReachability(manifest, opts)).toHaveLength(1)
+  })
+
+  it('leaves the default report untouched, so this lands without flipping main red', () => {
+    /* Deliberate. The finding is real and merge-blocking, and turning a
+       required check red across every open PR is the repo owner's call, not
+       this file's. The instrument is built and proven; arming it is a
+       separate decision. */
+    const { failed, text } = report(runAll())
+    expect(failed).toBe(false)
+    expect(text).not.toContain('UNREACHED')
+  })
+
+  it('reports the finding when explicitly asked for it', () => {
+    const { failed, text } = report(runAll(), {
+      productReachability: analyzeProductReachability(),
+    })
+    expect(failed).toBe(true)
+    expect(text).toContain('UNREACHED')
+    expect(text).toContain('agent')
   })
 })

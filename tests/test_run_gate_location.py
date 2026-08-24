@@ -103,7 +103,12 @@ def test_an_absolute_path_inside_the_repository_is_made_relative(
     monkeypatch.setattr(run_gate, "REPO", root)
 
     line = f"  {target}:12:5 - error: Expected str but received Unknown"
-    assert run_gate.first_location(line) == "scripts/thing.py:12"
+    # The column comes back too. blocker_report.location() has always parsed a
+    # `file:line:col` field and emitted `,col=` into the annotation; until the
+    # position pattern grew a third group nothing ever produced one, so that
+    # branch could not be reached. pyright is the tool that prints columns and
+    # this is its exact output shape.
+    assert run_gate.first_location(line) == "scripts/thing.py:12:5"
 
 
 def test_an_absolute_path_outside_the_repository_is_skipped(
@@ -134,3 +139,65 @@ def test_a_position_is_only_returned_for_a_file_that_exists(
 
     (root / "scripts" / "ghost.py").write_text("z = 3\n", encoding="utf-8")
     assert run_gate.first_location("scripts/ghost.py:3") == "scripts/ghost.py:3"
+
+
+# --- the column survives all the way into the annotation --------------------
+
+def test_a_column_reaches_the_github_annotation(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """End to end, because each half was already right on its own.
+
+    `blocker_report.annotate()` emits `,col=` whenever `location()` hands it a
+    column, and `location()` reads one from a `file:line:col` field. Both were
+    correct and neither had ever run, because `first_location` -- the only
+    producer of that field for a wrapped tool -- captured path and line only.
+    Asserting the two halves separately is what let the gap live, so this
+    joins them: pyright output in, GitHub annotation out.
+    """
+    sys.path.insert(0, str(REPO / "scripts"))
+    import blocker_report
+
+    root = tmp_path / "work" / "final-countdown"
+    (root / "scripts").mkdir(parents=True)
+    target = root / "scripts" / "thing.py"
+    target.write_text("x = 1\n" * 20, encoding="utf-8")
+    monkeypatch.setattr(run_gate, "REPO", root)
+    monkeypatch.setattr(blocker_report, "REPO", root)
+
+    where = run_gate.first_location(
+        f"  {target}:12:5 - error: Expected str but received Unknown")
+    assert where == "scripts/thing.py:12:5"
+
+    emitted = blocker_report.annotate(
+        "pyright", "abc123",
+        {"what": "pyright reported an error", "where": where,
+         "why": "scripts/thing.py:12:5 - error: Expected str"})
+    assert emitted is not None
+    assert "file=scripts/thing.py,line=12,col=5" in emitted, emitted
+
+
+def test_a_position_without_a_column_still_omits_the_column(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The control. bandit prints `file:line` with no column, and inventing
+    `col=0` for it would point every such annotation at the line's first
+    character as though the tool had said so."""
+    sys.path.insert(0, str(REPO / "scripts"))
+    import blocker_report
+
+    root = tmp_path / "repo"
+    (root / "scripts").mkdir(parents=True)
+    (root / "scripts" / "ci_metrics.py").write_text("x = 1\n" * 50,
+                                                    encoding="utf-8")
+    monkeypatch.setattr(run_gate, "REPO", root)
+    monkeypatch.setattr(blocker_report, "REPO", root)
+
+    where = run_gate.first_location(
+        "  UNRESOLVED  B603 scripts/ci_metrics.py:43  subprocess_without_shell")
+    assert where == "scripts/ci_metrics.py:43"
+
+    emitted = blocker_report.annotate(
+        "bandit", "def456",
+        {"what": "unresolved finding", "where": where, "why": "B603"})
+    assert emitted is not None
+    assert "line=43" in emitted
+    assert "col=" not in emitted, emitted

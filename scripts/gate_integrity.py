@@ -558,6 +558,80 @@ def projects_invoked(job: dict[str, Any]) -> set[str]:
     return found
 
 
+#: Where an enforced step leaves the output an annotator re-reports. Every
+#: genuine annotator in the frontend workflow reads one of these:
+#:
+#:     Annotate typecheck      < "$RUNNER_TEMP/tsc.log"
+#:     Annotate lint           < "$RUNNER_TEMP/eslint.json"
+#:     Annotate unit tests     < "$RUNNER_TEMP/vitest.json"
+#:     Annotate bundle budget    grep "$RUNNER_TEMP/budget.log"
+#:
+#: Both spellings are accepted because YAML and shell both appear in `run:`
+#: bodies and neither is more correct than the other.
+ARTIFACT_SOURCE = re.compile(r"\$\{?RUNNER_TEMP\}?")
+
+#: A `$RUNNER_TEMP` reference immediately preceded by one of these is the step
+#: PRODUCING the artifact, not consuming it.
+#:
+#: This distinction is load-bearing, and "mentions $RUNNER_TEMP" is not a
+#: sufficient rule without it:
+#:
+#:     npm run coverage > "$RUNNER_TEMP/cov.log"
+#:     set -o pipefail; npm run coverage 2>&1 | tee "$RUNNER_TEMP/cov.log"
+#:
+#: Both mention the artifact directory while consuming nothing. Both run a real
+#: check, reach their own verdict, and cannot fail the job. The second is the
+#: dangerous one: `tee` into `$RUNNER_TEMP` is exactly the shape the genuine
+#: ENFORCED steps use, so it reads as idiomatic to a reviewer.
+ARTIFACT_WRITE = re.compile(r"""(?:>>?|\btee\b|-o|--outputFile=|--output=)\s*["']?$""")
+
+
+def consumes_an_artifact(run: str) -> bool:
+    """Does this step READ output that another step produced?
+
+    This is clause (d)'s real question. An annotator re-reports a verdict some
+    enforced step already reached, so it must consume that verdict. A step that
+    consumes nothing is reaching its own conclusion, and a conclusion that
+    cannot fail the job enforces nothing.
+
+    Asking it structurally rather than by name is the point. The previous test
+    was `name.startswith("Annotate")`, so an identical command passed or failed
+    on what someone had called the step — and the gate's own remediation text
+    told people to rename it.
+
+    Reading is deliberately not narrowed to a `<` redirect: `Annotate bundle
+    budget` greps the artifact by path with no redirect at all and is a genuine
+    annotator. A rule keyed to `<` would break a working reporter to satisfy a
+    pattern.
+    """
+    for match in ARTIFACT_SOURCE.finditer(run):
+        if not ARTIFACT_WRITE.search(run[: match.start()]):
+            return True
+    return False
+
+
+def is_annotator(name: str, run: str) -> bool:
+    """Both halves, and neither alone is sufficient.
+
+    NAME alone was the original rule and it was bypassable: the identical
+    command passed or failed on what someone had called the step, and the
+    gate's own remediation text told people to rename it.
+
+    BEHAVIOUR alone is bypassable in the other direction, which is subtler.
+    Take a genuine annotator and rename it to `Check lint results`. It still
+    only reads an artifact, so a behaviour-only rule calls it legal — but the
+    name now advertises a verification step to every human who reads the
+    workflow, while it still cannot fail the job. The declared intent and the
+    enforcement have silently diverged, which is this repo's recurring defect
+    wearing one more hat.
+
+    So an annotator must BOTH say what it is and do what it says. The trailing
+    space in the prefix is deliberate: `startswith("Annotate")` also admitted
+    the unrelated word `Annotated`.
+    """
+    return name.startswith("Annotate ") and consumes_an_artifact(run)
+
+
 def check_frontend(g: Gate) -> bool:
     """The frontend workflow's structural integrity.
 
@@ -655,6 +729,37 @@ def check_frontend(g: Gate) -> bool:
 
     enforced = set(re.findall(r"steps\.([A-Za-z0-9_-]+)\.outcome", condition))
 
+    # (c-reverse) EVERY ID THE CONDITION NAMES MUST RESOLVE TO A STEP.
+    #
+    # Clause (c) below walks the STEPS and asks whether each id'd step appears
+    # in the condition. Nothing walked the CONDITION to ask the mirror question,
+    # so the gate could keep a clause pointing at a step that no longer exists.
+    #
+    # GitHub evaluates a missing step's outcome as the empty string, so
+    # `'' == 'failure'` is false for ever. The clause reads as enforcement and
+    # is inert. That is the dead-anchor shape this repository keeps finding: a
+    # check that silently stopped running, with nothing to announce it.
+    #
+    # Reached in practice by deleting or renaming a step and leaving its clause
+    # behind — a rename is the likely accident, because the person doing it is
+    # looking at the step, not at a condition thirty lines below.
+    step_ids = {str(s.get("id")) for s in steps if s.get("id")}
+    for sid in sorted(enforced - step_ids):
+        ok = False
+        g.check(f"gate clause 'steps.{sid}.outcome' resolves", False, "names no step")
+        g.fail(
+            what=f"the verification gate names step '{sid}', which does not exist",
+            where=f"{FRONTEND_WF} -> {FRONTEND_GATE_STEP}",
+            why="GitHub evaluates a missing step's outcome as empty, so "
+            f"`steps.{sid}.outcome == 'failure'` is false whatever happens. "
+            "The clause looks like enforcement and enforces nothing.",
+            requirement="Every id named in the gate condition resolves to a "
+            "step in the same job.",
+            fix=f"Restore the step with id '{sid}', or remove its clause from "
+            f"the '{FRONTEND_GATE_STEP}' condition. Do not leave the clause "
+            "pointing at nothing.",
+        )
+
     # (c) a reporting step with an id must be wired into the verdict.
     # (d) a reporting step WITHOUT an id must be an annotator. This is the half
     #     that stops a real check from hiding as a reporter: give it no id and
@@ -679,18 +784,46 @@ def check_frontend(g: Gate) -> bool:
                     fix=f"Add `steps.{sid}.outcome == 'failure'` to the "
                     f"'{FRONTEND_GATE_STEP}' condition.",
                 )
-        elif not name.startswith("Annotate"):
+        elif not is_annotator(name, str(step.get("run", ""))):
+            # WHAT THIS USED TO ASK, AND WHY IT WAS WRONG.
+            #
+            # The test was `not name.startswith("Annotate")` — the step's NAME,
+            # never what it ran. Holding the payload constant at a genuine check
+            # (`npm run coverage`, continue-on-error, no id) and varying only the
+            # name flipped the verdict:
+            #
+            #     'Coverage threshold'           -> fired
+            #     'Annotate coverage threshold'  -> SILENT
+            #     'Annotated coverage threshold' -> SILENT  (startswith, no space)
+            #     'Annotate'                     -> SILENT
+            #
+            # Worse, the remediation text below used to recommend exactly that:
+            # "rename it to 'Annotate …' if it genuinely only reports". Someone
+            # hits the failure, follows the advice, and the gate goes quiet while
+            # the check still runs and still enforces nothing. A fix instruction
+            # that is also an exploit is worse than no instruction.
+            #
+            # The replacement is structural, matching how this repo already
+            # reasons about gates: an annotator re-reports a verdict someone
+            # else already reached, so it must CONSUME that verdict. All four
+            # real annotators read an artifact an enforced step wrote. A step
+            # that reads none is producing its own unenforced verdict, whatever
+            # it is called.
             ok = False
             g.check(f"frontend step '{name}' is an annotator", False, "no id")
             g.fail(
                 what=f"step '{name}' is continue-on-error with no id",
                 where=f"{FRONTEND_WF} -> {name}",
                 why="with no id it can never appear in the gate condition, so "
-                "it can never fail the job whatever it finds",
-                requirement="Only annotators (name starts with 'Annotate') may "
-                "be continue-on-error without an id.",
-                fix=f"Give '{name}' an id and a gate clause, or rename it to "
-                "'Annotate …' if it genuinely only reports.",
+                "it can never fail the job whatever it finds, and it does not "
+                "read an artifact an enforced step produced — so it is not "
+                "reporting someone else's verdict, it is reaching its own",
+                requirement="A continue-on-error step without an id must be a "
+                "true annotator: it must consume an artifact that an enforced "
+                "step wrote. The name is not evidence.",
+                fix=f"Give '{name}' an id and a clause in the "
+                f"'{FRONTEND_GATE_STEP}' condition. Renaming it will not help — "
+                "this check reads what the step runs, not what it is called.",
             )
 
     # (e) THE PIPEFAIL CLASS. Scoped to steps whose exit status is load-bearing:

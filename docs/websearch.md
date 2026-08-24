@@ -105,9 +105,9 @@ anything judged whether it was worth reading.
 | 27 | Fallbacks preserve semantic correctness | **built** | `gather.ts` — a throwing cache degrades to a miss |
 | 28 | Caching must be semantically safe | **built** | `gather.ts` — only successes cached |
 | 29 | Cache must not cause stale answers | **built** | `maxAgeMs`, `requireFresh` |
-| 30 | Localization / edge placement | **NOT BUILT** | — |
-| 31 | Connection reuse | **NOT BUILT** | — |
-| 32 | Precomputation where valid | **NOT BUILT** | — |
+| 30 | Localization / edge placement | **built** | `hops.ts` — measured, not assumed from geography |
+| 31 | Connection reuse | **built** | `hops.ts` — `fetch` already pools; what was missing was the measurement |
+| 32 | Precomputation where valid | **built** | `provenance.ts` — origins recorded, one stale source makes the answer not-live |
 | 33 | Search result ranking | **built** | `select.ts` → `rankHits` |
 | 34 | Answer generation after evidence acquisition | **built** | `pipeline.ts` ordering; `buildAnswer` takes findings |
 | 35 | Citations must be traceable | **built** | `answer.ts` → `Citation` = url + offset + length + retrievedAt |
@@ -124,11 +124,29 @@ anything judged whether it was worth reading.
 | 46 | The fundamental search pipeline | **built** | `pipeline.ts` |
 | 47 | Definition of excellent web search | partial | fast ✓ reliable ✓ accurate — measurable now, not yet measured end to end |
 
-**42 built, 3 not built.** Counting the 45 numbered requirements (§2-§46):
-42 are implemented and §30, §31 and §32 are not. §0 and §1 are framing and §47 is
-the definition of done, so they are not counted as build items. They are
-performance and placement concerns, not correctness ones, and nothing currently
-depends on them.
+**45 built, 0 not built.** Counting the 45 numbered requirements (§2-§46), all
+45 are implemented. §0 and §1 are framing and §47 is the definition of done, so
+they are not counted as build items.
+
+§30, §31 and §32 were the last three, and they read as MEASUREMENT requirements
+rather than machinery ones. §31 is the trap: `fetch` already pools connections,
+so hand-rolling a pool underneath it would be slower and would have to
+reimplement TLS session reuse and HTTP/2 multiplexing to break even. What was
+missing was never the pooling. It was the number proving it happens.
+
+### Modules that are not one numbered section
+
+Six files carry no § of their own. They are listed because a module this
+document does not name is a module nobody is tracking.
+
+| Module | What it is |
+|---|---|
+| `index.ts` | The single doorway. The app imports this file and nothing else here, so the twelve modules underneath it can be rearranged without the app noticing |
+| `verify.ts` | Claim checking — decides whether an answer may be shown at all. Not a writer: it returns a label plus the ids of the pages that earned it |
+| `webSearchClient.ts` | The browser half. Holds no key and no vendor name; posts to a route on its own origin, because a credential in a browser is a credential you have published |
+| `wikipedia.ts` | A retrieval source that needs no key, no server and no billing decision |
+| `evalReport.ts` | The gate that turns benchmark numbers into a pass or a fail |
+| `bench.ts` | The benchmark's doorway, deliberately a command and not a bundle — wiring `corpus.ts`, `quality.ts` and `accuracy.ts` into `index.ts` would ship an evaluation harness to every student's browser |
 
 ---
 
@@ -161,16 +179,24 @@ error at zero, **a system that never answers would top the benchmark**.
 
 ## Known gaps, stated rather than hidden
 
-- **Nothing in the product calls this.** `src/websearch` has zero references
-  from anywhere outside itself. It is merged, not running. Enforced by
-  `island.test.ts` so the claim cannot go stale silently.
+- **This is reached now, and that sentence used to say the opposite.** For a
+  time `src/websearch` had zero references from outside itself. `TutorView.tsx`
+  imports `../websearch`, `island.test.ts` was rewritten to assert the module
+  IS reached, and this bullet still claimed isolation — with the same
+  `island.test.ts` cited as the thing keeping it true. The test and the
+  document disagreed, and only the document could not fail. That is what
+  `specStatus.test.ts` now closes.
 - **`npm run gate:reachability` prints PASS and does not contradict that.** It
   scans within `src/agent`'s declared area; `src/websearch` is not a declared
   area at all, so the gate never looks here. Read the PASS as "no orphans inside
   the scanned area".
-- **CI lints only `src/canvas`** (`.github/workflows/learning-canvas-frontend.yml`),
-  so `no-explicit-any: 'error'` on `src/websearch` never runs on a PR. Clean
-  today; latent.
+- **CI does lint this directory**, and this bullet said it did not. `npm run
+  lint` covers `src/canvas src/practice src/agent src/websearch`,
+  `eslint.config.js` carries the matching `files: ['src/websearch/**/*.{ts,tsx}']`
+  block, and the workflow runs the script rather than a hand-written `eslint`
+  invocation. Both halves are required: flat config lints only paths with a
+  matching `files:` entry, so adding a directory to the script alone changes
+  nothing.
 - **DNS rebinding is uncovered** and documented at `fetchPage.ts` — a NAME that
   RESOLVES to an internal address is the one address-guard fault class no
   URL-text check can catch.

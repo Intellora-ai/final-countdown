@@ -1,45 +1,55 @@
 #!/usr/bin/env python3
-"""ANNOTATION CANARY — let GitHub falsify us.
+"""ANNOTATION CANARY — the one check here whose oracle is not this repository.
 
-WHAT THIS IS FOR.
+WHAT IT WAS BUILT FOR, AND WHAT IT IMMEDIATELY DISPROVED.
 
-`ci_findings.reconcile` treats an annotation whose `path` is not in the tree as
-a message GitHub silently discarded, and `gh-annotate.mjs` was changed so it
-stops emitting `node_modules` paths for exactly that reason. Both rest on one
-claim about a system neither this repository nor its authors control:
+`ci_findings.reconcile` and the `gh-annotate.mjs` node_modules fix were both
+built on a claim about a system nobody here controls:
 
     GitHub resolves `file=` against the annotated commit and DISCARDS what it
     cannot find, without reporting the loss.
 
-That claim was inferred from a `node_modules` path not appearing on a run. It
-was never tested. Nothing in `.github/`, `scripts/` or `frontend/scripts/` reads
-GitHub's annotations API at all -- the only use of `check-runs` in the workflows
-polls job status. So the verification layer here commits the error it exists to
-catch: it checks its own decision rather than its own effect.
+That was inferred from a `node_modules` path not appearing on a run, never
+tested, and untestable by anything then in the repository -- no code in
+`.github/`, `scripts/` or `frontend/scripts/` read GitHub's annotations API.
 
-HOW THE CANARY DIFFERS FROM EVERY OTHER GATE IN THIS REPO.
+This canary made GitHub the judge, and on its first run GitHub said no:
 
-Every other gate compares this repository against assertions this repository
-wrote. This one uses an ORACLE WE DO NOT CONTROL. One job emits two annotations
--- one path that exists at this commit, one that cannot -- and a second job
-reads back what GitHub ACCEPTED. Two ways it fails, and both are findings:
+    run 32696164034, job "canary verify"
+    GitHub kept an annotation on 'scripts/__annotation_canary_no_such_file__.py'
 
-  the bad one was KEPT    -> the discard rule is FALSE. `reconcile`'s
-                             `annotation-path-not-in-tree` finding is wrong, and
-                             the gh-annotate node_modules fix addressed nothing.
-  the good one VANISHED   -> annotations are not landing at all, which is a
-                             larger outage than the bug this was built for.
+The rule is FALSE. The API retains unresolvable annotations.
 
-A canary that can only confirm is not a canary. This one can end the work that
-created it, which is the point.
+WHAT SURVIVED THE CORRECTION. The damage is real even though the discard is not,
+and that was measured rather than argued -- at the same SHA:
 
-WHY WARNING AND NOT ERROR. The level does not change how GitHub resolves
-`file=`, and `::error` would paint two red annotations on every green run.
+    contents/scripts/__annotation_canary_no_such_file__.py  -> 404 Not Found
+    contents/scripts/annotation_canary.py                   -> 200, 8097 bytes
 
-NO SUBPROCESS, for the same reason as `ci_findings.py`: `security_gate.py`
-keeps a bandit allowlist keyed by (rule, path), and a subprocess import here
-would need an entry in a file this lane does not own. The workflow runs
-`gh api` and this module reads the JSON.
+The annotation is reachable in the API and unreachable everywhere a human looks:
+its `blob_href` 404s, and GitHub renders annotations inline only on files that
+are in the diff. So `reconcile` still refuses such an annotation; it just no
+longer claims the platform ate it.
+
+HOW THIS CHECK IS ANCHORED NOW. Written against the false rule, it failed on
+every run -- permanently red, which is a check people learn to scroll past and
+the same "absence looks like health" failure this repository keeps closing,
+reached from the opposite side. The baseline is therefore what GitHub was
+OBSERVED to do, and it fires when that moves in EITHER direction:
+
+    control missing   annotations are not landing at all
+    probe missing     GitHub began discarding, the old rule became true, and
+                      `ci_findings.reconcile` must be re-derived
+
+A canary that can only confirm is not a canary. One that always screams is not
+one either.
+
+`::warning`, not `::error`: the level does not change how GitHub resolves
+`file=`, and errors would paint two red annotations on every green run.
+
+NO SUBPROCESS, for the same reason as `ci_findings.py`: `security_gate.py`'s
+bandit allowlist is keyed by (rule, path) and lives in another lane's file. The
+workflow runs `gh api`; this module reads the JSON.
 
 USAGE
 
@@ -104,45 +114,53 @@ def emit_lines() -> list[str]:
         (
             f"::warning file={GOOD_PATH},line=1,"
             "title=annotation canary (control)::"
-            "This path exists at this commit. If GitHub kept it, annotations land."
+            "This path exists at this commit. If GitHub stops keeping it, annotations are not landing at all."
         ),
         (
             f"::warning file={BAD_PATH},line=1,"
             "title=annotation canary (probe)::"
-            "This path does not exist at this commit. If GitHub kept it, the "
-            "discard rule that ci_findings.reconcile depends on is false."
+            "This path does not exist at this commit. GitHub was observed to KEEP "
+            "this on run 32696164034; if it stops, the platform changed and "
+            "ci_findings.reconcile needs re-deriving."
         ),
     ]
 
 
 def verify(annotations: list[dict[str, Any]]) -> Verdict:
-    """Judge what GitHub accepted against what was emitted.
+    """Judge what GitHub accepted against the contract it was OBSERVED to keep.
 
-    Both directions are checked and both are reported, because a run can be
-    broken in both at once and reporting one would hide the other.
+    THIS FUNCTION USED TO ENCODE A RULE THAT TURNED OUT TO BE FALSE.
+
+    It was written to fail when the probe LANDED, because `ci_findings.reconcile`
+    assumed GitHub discards annotations whose `file=` does not resolve. On the
+    canary's first run (32696164034) GitHub kept the probe, so that assertion
+    fired on correct, ordinary behaviour -- every run, forever.
+
+    A permanently-red check is not a strict check. It is one people learn to
+    scroll past, which is the same "absence looks like health" failure this
+    repository keeps closing, reached from the opposite side: a signal so
+    constant it carries no information.
+
+    So the baseline is now what GitHub actually does -- keep both -- and the
+    check fires when that MOVES, in either direction:
+
+      control missing   annotations are not landing at all. Every
+                        location-based finding on this run is suspect.
+      probe missing     GitHub began discarding unresolvable paths. That would
+                        make the original rule true and means the wording in
+                        `ci_findings.reconcile` has to change back.
+
+    The two are reported exclusively, not together. When nothing lands at all
+    the probe is absent as a CONSEQUENCE of the outage, and reporting a platform
+    change alongside it would send a reader after the wrong cause.
     """
     paths = {str(a.get("path") or "") for a in annotations}
     problems: list[Problem] = []
 
-    if BAD_PATH in paths:
-        problems.append(
-            Problem(
-                kind="unresolvable-annotation-was-kept",
-                detail=(
-                    f"GitHub kept an annotation on {BAD_PATH!r}, which does not "
-                    "exist at this commit. The discard rule is false, so "
-                    "ci_findings.reconcile reporting "
-                    "'annotation-path-not-in-tree' as a lost message is wrong, "
-                    "and the gh-annotate node_modules fix addressed a "
-                    "non-problem. Re-derive both before trusting either."
-                ),
-            )
-        )
-
     if GOOD_PATH not in paths:
-        # NOT a pass-by-default. An empty list satisfies "the bad one is absent"
-        # vacuously, and treating that as success would hide a total annotation
-        # outage behind a green check.
+        # NOT a pass-by-default. An empty list would satisfy any "the probe is
+        # absent" phrasing vacuously, and treating that as success would hide a
+        # total annotation outage behind a green check.
         problems.append(
             Problem(
                 kind="no-annotation-landed-at-all",
@@ -152,6 +170,21 @@ def verify(annotations: list[dict[str, Any]]) -> Verdict:
                     "landing on this run at all, or the check-run queried was the "
                     "wrong one. Every location-based finding on this run is "
                     "suspect until this is explained."
+                ),
+            )
+        )
+    elif BAD_PATH not in paths:
+        problems.append(
+            Problem(
+                kind="unresolvable-annotation-now-discarded",
+                detail=(
+                    f"GitHub did NOT keep the probe on {BAD_PATH!r}, but it did on "
+                    "run 32696164034. The platform's behaviour has changed: it now "
+                    "discards annotations whose path does not resolve. That makes "
+                    "the original discard rule true, so ci_findings.reconcile's "
+                    "'annotation-path-not-in-tree' finding should go back to "
+                    "describing a lost message rather than an unreachable one. "
+                    "Re-derive it before trusting either wording."
                 ),
             )
         )
@@ -183,9 +216,9 @@ def main(argv: list[str] | None = None) -> int:
     print(json.dumps(verdict.as_dict(), indent=2))
     if verdict.ok:
         print(
-            "annotation-canary: PASS — GitHub kept the resolvable annotation and "
-            "discarded the unresolvable one, so the rule ci_findings.reconcile "
-            "depends on held on this run."
+            "annotation-canary: PASS — GitHub kept both annotations, which is the "
+            "behaviour observed on run 32696164034. It does not discard "
+            "unresolvable paths; ci_findings.reconcile is worded accordingly."
         )
         return 0
     for p in verdict.problems:

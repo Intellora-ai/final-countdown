@@ -26,7 +26,7 @@ PY         := $(VENV)/bin/python3
 SYS_PY     := python3
 RUN_ID     := $(shell date -u +%Y%m%d-%H%M%S)
 
-.PHONY: help doctor bootstrap typecheck test test-axle \
+.PHONY: help doctor bootstrap typecheck test test-axle deep-verify \
         sandbox-fast sandbox-test sandbox-verify-determinism
 
 help:
@@ -39,6 +39,7 @@ help:
 	@echo "  make typecheck     pyright alone"
 	@echo "  make test          pytest, no network:  -m 'not axle'"
 	@echo "  make test-axle     AXLE opt-in; this one DOES reach the network"
+	@echo "  make deep-verify   the deep lane; DOES reach AXLE. Five categories, one verdict each"
 	@echo "  make sandbox-verify-determinism   run the contract twice and compare"
 
 # doctor deliberately uses the SYSTEM python: its job is to report that the venv is missing,
@@ -66,6 +67,16 @@ sandbox-fast:
 
 sandbox-test:
 	@$(PY) scripts/local_gates.py --tier full --run-id $(RUN_ID)
+
+# THE DEEP LANE. The one target besides test-axle that reaches the network, and the only
+# place the AXLE integration boundary is exercised. `sandbox-fast` excludes every
+# network-requiring check in local_gates.select(), so this being reachable from here does
+# not make it reachable from the pre-push loop.
+#
+# Every component runs; none is skipped because an earlier one failed. Stopping early
+# would leave four categories unmeasured while still reporting a verdict about the tree.
+deep-verify:
+	@$(PY) scripts/local_gates.py --deep --run-id $(RUN_ID)
 
 sandbox-verify-determinism:
 	@$(PY) scripts/local_gates.py --determinism --run-id $(RUN_ID)

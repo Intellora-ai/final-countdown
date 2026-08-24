@@ -56,14 +56,52 @@ def run(
     )
 
 
+#: What a sandbox has to contain for `gate_integrity.py` to be able to pass.
+#:
+#: THE FRONTEND ENTRIES ARE NOT OPTIONAL, AND LEAVING THEM OUT WAS A REAL BUG.
+#:
+#: This fixture copied `scripts`, `ci` and `.github/workflows` only. That was a
+#: complete copy of the verification system when it was written. It stopped
+#: being one when `gate_integrity.py` grew checks that reach into `frontend/`:
+#: it stats `playwright.config.ts`, it stats `e2e/util/attribution.ts`, it reads
+#: the mutation catalogue out of `scripts/mutation-gate.mjs`, and it stats every
+#: canvas source path the attribution map names.
+#:
+#: None of those existed in the sandbox, so the gate reported four missing files
+#: and exited 1 no matter what the test did. Five tests assert
+#: `integrity(sandbox).returncode == 0` — they were not testing the behaviour
+#: named in their own titles, they were failing on absent fixtures, and the
+#: failure looked like five unrelated CI-integrity bugs.
+#:
+#: The fix is the fixture, not the gate. Relaxing the gate when `frontend/` is
+#: absent would make a genuine deletion of any of these files pass silently,
+#: which is the exact thing it exists to catch.
+SANDBOX_PATHS = (
+    "scripts",
+    "ci",
+    ".github/workflows",
+    "frontend/playwright.config.ts",
+    "frontend/scripts",
+    "frontend/e2e/util",
+    # Whole directory rather than the handful of files the attribution map
+    # currently names: pinning the list here would mean this fixture had to be
+    # edited every time a renderer moved, and the day someone forgot, these
+    # tests would fail for a reason that has nothing to do with them.
+    "frontend/src/canvas",
+)
+
+
 @pytest.fixture
 def sandbox(tmp_path: Path) -> Path:
     """A copy of the verification system that tests may sabotage freely."""
-    for rel in ("scripts", "ci", ".github/workflows"):
+    for rel in SANDBOX_PATHS:
         src = REPO / rel
         dst = tmp_path / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(src, dst)
+        if src.is_dir():
+            shutil.copytree(src, dst)
+        else:
+            shutil.copy2(src, dst)
     (tmp_path / "reports").mkdir()
     return tmp_path
 
@@ -1959,3 +1997,117 @@ def test_a_chain_that_arms_errexit_is_not_flagged() -> None:
                 f"a real chain was flagged as unarmed: {run[:120]!r}"
             )
     assert chains >= 4, f"expected at least 4 bash -c chains, found {chains}"
+
+
+# ---------------------------------------------------------------------------
+# CHECK (g) — THE MUTATION RATCHET
+#
+# This check had no test, and that is how a wrong floor got into it. The
+# catalogue grew from 27 mutants over 9 files to 39 over 17, so raising both
+# floors to the measured state looked obviously right. It is not: those two
+# numbers do not behave the same way.
+#
+# The mutant count only ever falls when coverage falls. The FILE count falls
+# whenever someone moves a mutant onto a file already in the catalogue, which
+# removes no coverage at all. A floor on it fires on a no-op refactor, and a
+# gate that blocks correct work teaches people to raise floors to get their
+# work through -- which is how a ratchet becomes a formality.
+#
+# These two tests pin the asymmetry so the next person to look at 17 and think
+# "that should be the floor" gets a red test instead of a merged mistake.
+# ---------------------------------------------------------------------------
+
+CATALOGUE = Path("frontend/scripts/mutation-gate.mjs")
+
+_ID = re.compile(r"^\s*id:\s*'([^']+)',\s*$", re.M)
+_FILE = re.compile(r"^\s*file:\s*'([^']+)',\s*$", re.M)
+
+
+def test_shrinking_below_the_floor_is_caught(sandbox: Path) -> None:
+    """The count ratchets: the gate refuses a catalogue below the floor.
+
+    Deleting ONE entry is not the test, and the first version of this test made
+    that mistake. One deletion only trips the gate when the catalogue happens to
+    sit exactly ON the floor, which was true of main the day it was written and
+    false the moment a branch added mutants -- #66 took the catalogue to 50
+    against a floor of 39, so 50 -> 49 passed and this test failed on work that
+    was entirely correct. A test that depends on the catalogue not growing is a
+    test that punishes people for growing it.
+
+    So delete down to exactly one below the floor, whatever the catalogue size.
+    That is the invariant the check actually enforces.
+    """
+    import sys as _s
+
+    _s.path.insert(0, str(SCRIPTS))
+    from gate_integrity import MUTATION_COUNT_FLOOR
+
+    cat = sandbox / CATALOGUE
+    src = cat.read_text(encoding="utf-8")
+    ids = _ID.findall(src)
+    assert len(ids) >= MUTATION_COUNT_FLOOR, (
+        f"catalogue has {len(ids)} entries against a floor of "
+        f"{MUTATION_COUNT_FLOOR} — main is already failing check (g)"
+    )
+
+    # One below the floor: the smallest catalogue the gate must refuse.
+    doomed = ids[: len(ids) - MUTATION_COUNT_FLOOR + 1]
+    thinned = src
+    for mutant in doomed:
+        thinned = re.sub(
+            rf"^\s*id:\s*'{re.escape(mutant)}',\s*$\n",
+            "",
+            thinned,
+            count=1,
+            flags=re.M,
+        )
+    remaining = len(_ID.findall(thinned))
+    assert remaining == MUTATION_COUNT_FLOOR - 1, (
+        f"meant to land one below the floor, landed on {remaining}"
+    )
+    cat.write_text(thinned, encoding="utf-8")
+
+    result = integrity(sandbox)
+    assert result.returncode != 0, (
+        f"the catalogue went {len(ids)} -> {remaining}, below the floor of "
+        f"{MUTATION_COUNT_FLOOR}, and the gate allowed it. Those are defects "
+        "the suite could see and now cannot.\n" + result.stdout[-800:]
+    )
+    assert "mutation catalogue" in result.stdout, result.stdout[-800:]
+
+
+def test_consolidating_two_files_is_not_caught(sandbox: Path) -> None:
+    """The FILE count does not ratchet, because consolidation is legitimate.
+
+    Moving every mutant off one file and onto another already in the catalogue
+    leaves the mutant count untouched. Nothing is less covered afterwards. The
+    gate must not refuse it.
+    """
+    cat = sandbox / CATALOGUE
+    src = cat.read_text(encoding="utf-8")
+    before_ids, before_files = len(_ID.findall(src)), len(set(_FILE.findall(src)))
+
+    names = sorted(set(_FILE.findall(src)))
+    assert len(names) >= 2, "need two distinct files to consolidate"
+    victim, target = names[0], names[1]
+    moved = re.sub(
+        rf"^(\s*file:\s*)'{re.escape(victim)}',\s*$",
+        rf"\1'{target}',",
+        src,
+        flags=re.M,
+    )
+    assert moved != src, f"nothing moved — {victim!r} did not match"
+    cat.write_text(moved, encoding="utf-8")
+
+    after_ids = len(_ID.findall(moved))
+    after_files = len(set(_FILE.findall(moved)))
+    assert after_ids == before_ids, "the refactor must not change the mutant count"
+    assert after_files < before_files, "the refactor must reduce the file count"
+
+    result = integrity(sandbox)
+    assert result.returncode == 0, (
+        f"consolidating {victim} into {target} took the file count "
+        f"{before_files} -> {after_files} with the mutant count unchanged at "
+        f"{after_ids}, and the gate refused it. MUTATION_FILE_FLOOR is being "
+        "treated as a ratchet; it is not one.\n" + result.stdout[-800:]
+    )

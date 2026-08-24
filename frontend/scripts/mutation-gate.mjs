@@ -721,11 +721,63 @@ const MUTANTS = [
     breaks: 'the exact shape of the original defect: arithmetic passes every unit test and cannot work for a real caller, because the only registry the product builds does not contain a calculator',
   },
   {
+    /* ANCHOR RE-POINTED, NOT RETIRED. `suspend()` changed from serialising the
+     * task alone to writing the whole session, which moved this line. The
+     * mutant is the same defect at the new address; deleting it because its
+     * anchor drifted would have quietly dropped coverage of a bug that has
+     * already happened once. */
     id: 'agent-suspended-task-resumes-stuck-mid-step',
     file: 'src/agent/index.ts',
-    from: '      const stopped = pause(session.task, session.working, now())',
-    to: '      const stopped = session.task',
+    from: '        session = { ...session, task: pause(session.task, session.working, now()) }',
+    to: '        session = { ...session, task: session.task }',
     breaks: 'an `active` task is serialised, so tomorrow it restores believing a step is still running — `nextStep` skips it, nothing is pending, and the task reports itself stuck the moment someone comes back to it',
+  },
+
+  /* THE TEACHING LEDGER. Four mutants, and the bar for each was: does this
+   * reproduce a defect that ACTUALLY OCCURRED, rather than one that could?
+   * All four are measured failures from this repository, not hypotheses. */
+  {
+    /* THE ONLY ONE OF TWENTY-THREE THAT SURVIVED. Twenty-three mutants were
+     * applied to the ledger before it shipped; twenty-two died. This one
+     * lived, and the gap was real: the corrupt-blob test used `version`, which
+     * is the LEDGER's field name, so that case was being refused for having no
+     * `conversation` rather than for its version. One version gate was tested
+     * twice and the other not at all. A mutant that has caught something is
+     * evidence; the other twenty-two are hypotheses. */
+    id: 'agent-session-envelope-version-ignored',
+    file: 'src/agent/session/persist.ts',
+    from: '  if (raw.v !== SESSION_VERSION) {',
+    to: '  if (false) {',
+    breaks: 'a session written by a different build is read as if its shape had not changed, so a field added since is silently absent and the lesson resumes from a position half of which was never in the file',
+  },
+  {
+    /* OCCURRED. `established` accepted `advanced` as evidence of exposure, so
+     * opening a session on `quad` reported the student as exposed to
+     * quadratics before a single thing had been taught. */
+    id: 'agent-intent-to-teach-counts-as-having-taught',
+    file: 'src/agent/session/ledger.ts',
+    from: "  const seen = l.log.some((e) => e.conceptId === conceptId && e.kind === 'shown')",
+    to: "  const seen = l.log.some((e) => e.conceptId === conceptId && (e.kind === 'shown' || e.kind === 'advanced'))",
+    breaks: 'the teacher moving the lesson to a concept counts as the student having seen it, so a curriculum skips material that was never presented and the log agrees it was',
+  },
+  {
+    /* OCCURRED, measured: the identical `Turn` applied twice took `turnIndex`
+     * from 1 to 2 and appended the goal twice. */
+    id: 'agent-retry-counted-as-a-second-turn',
+    file: 'src/agent/session/wire.ts',
+    from: '  const claimed = beginTurn(l, id)\n  if (claimed.alreadySeen) return l',
+    to: '  const claimed = beginTurn(l, id)',
+    breaks: 'a network retry appends to the evidence log a second time, so a student who asked once is recorded as having asked twice and the learner model drifts toward over-confidence with nothing to notice',
+  },
+  {
+    /* OCCURRED, measured on a conversation already about quadratics:
+     * "continue" produced entities [quadratics, continue] and topicShift=true.
+     * The word whose entire meaning is "do not change the subject". */
+    id: 'agent-continue-reads-as-a-new-subject',
+    file: 'src/agent/understand/understand.ts',
+    from: "  'continue', 'continues', 'continuing', 'carry', 'keep', 'keeps', 'going',",
+    to: "  'continues', 'continuing', 'carry', 'keep', 'keeps', 'going',",
+    breaks: 'asking to carry on is read as changing the subject, so the lesson pushes a detour that never happened and the position the student wanted resumed is buried one frame deeper each time they say it',
   },
 ]
 

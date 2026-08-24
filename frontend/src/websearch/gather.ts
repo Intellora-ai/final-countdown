@@ -161,8 +161,23 @@ export async function gather(
       if (index >= distinct.length) return
       const url = distinct[index]
 
+      /* A CACHE THAT THROWS IS A CACHE MISS, NOT A DEAD SEARCH.
+       *
+       * `cache.get` is a call into someone else's implementation. The shipped
+       * `MemoryCache` cannot fail, which is exactly why this was missing —
+       * the promise at the top of this file ("failure is per source, never
+       * per search") held only because nothing had tested it against a
+       * dependency that fails. The comment below anticipates a cache backed
+       * by disk or by a network store; the day one arrives, a dropped
+       * connection would have taken down every search rather than degrading
+       * to no-cache. */
       const lookupStarted = now()
-      const cached = !options.requireFresh && cache ? cache.get(url) : undefined
+      let cached: CachedPage | undefined
+      try {
+        cached = !options.requireFresh && cache ? cache.get(url) : undefined
+      } catch {
+        cached = undefined
+      }
       if (cached && fresh(cached, options.maxAgeMs, now)) {
         /* Measured, not assumed zero. A hardcoded 0 would make the cached p99
            a statement about this line rather than about the cache — and the
@@ -174,8 +189,29 @@ export async function gather(
         continue
       }
 
+      /* A FETCHER THAT THROWS IS ONE DEAD SOURCE, NOT A DEAD SEARCH.
+       *
+       * `fetchPage` returns failures as values and never throws, so this was
+       * unreachable with the shipped implementation — and unreachable is not
+       * the same as impossible. `fetchImpl` is an injection seam: any caller
+       * can pass one that rejects, and one rejection here used to propagate
+       * through `Promise.all` and lose every other source in the batch.
+       * The reason is preserved rather than flattened, because upstream
+       * distinguishes a source that could not be read from a source that had
+       * nothing to say. */
       const started = now()
-      const outcome = await doFetch(url)
+      let outcome: FetchOutcome
+      try {
+        outcome = await doFetch(url)
+      } catch (err) {
+        outcome = {
+          ok: false,
+          reason: 'network',
+          detail: err instanceof Error ? err.message : String(err),
+          elapsedMs: Math.max(0, now() - started),
+          attempts: 1,
+        }
+      }
       const elapsed = Math.max(0, now() - started)
 
       if (!outcome.ok) {
@@ -196,8 +232,18 @@ export async function gather(
         truncated: outcome.page.truncated,
       }
       /* Only successes are cached. A cached failure turns a transient outage
-         into a permanent absence. */
-      cache?.set(url, stored)
+         into a permanent absence.
+         Wrapped for the same reason as `get`: a full or disconnected store
+         must cost the CACHE WRITE, never the page. The bytes are already in
+         hand at this point, and throwing them away because the cache could
+         not record them would turn a storage problem into a retrieval one. */
+      try {
+        cache?.set(url, stored)
+      } catch {
+        /* Intentionally silent. There is no caller decision to make here and
+           nothing is lost: the page is returned either way, and the next
+           request simply misses. */
+      }
       bodies.set(url, { page: stored, fromCache: false })
     }
   })

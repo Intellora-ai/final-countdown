@@ -1,0 +1,568 @@
+# LEARNING CANVAS FRONTEND — the browser-side verification contract.
+#
+# NOT A REQUIRED CONTEXT. `ci/gates.toml` keeps `required_checks` at seventeen, and this workflow
+# adds none of them. It is a second verification domain inside one repository, not a second
+# project: Python and Lean prove what they can prove, and TypeScript in a browser proves what they
+# cannot. Forcing frontend code through `axle_gate.py` would mean claiming a Lean proof for a React
+# component, and pointing `pyright` at a `.tsx` file proves nothing about either.
+#
+# WHY PATH FILTERS. The frontend lives at `frontend/`. A Python-only commit has nothing here to
+# verify, so running Node for it would burn minutes to re-prove an untouched tree. `verify.yml`
+# deliberately has NO path filter and therefore still runs for a frontend-only pull request --
+# that is the existing design, not an oversight, and it is not modified here.
+#
+# WHY EVERY ACTION IS A 40-CHARACTER SHA. A tag is a pointer somebody else can move. Every SHA
+# below is already in use elsewhere in this repository, so this workflow introduces no new
+# third-party code -- only new calls to code the repository has already accepted.
+#
+# NO `${{ }}` INSIDE `run:`. `codeql.yml` analyses `languages: actions`, and an expression
+# interpolated into a shell body is the script-injection finding it exists to catch. Nothing here
+# needs one: every value is a static path.
+
+name: Learning Canvas Frontend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - ".github/workflows/learning-canvas-frontend.yml"
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - ".github/workflows/learning-canvas-frontend.yml"
+
+# Read-only. This workflow verifies; it does not publish, sign, deploy, or comment.
+permissions:
+  contents: read
+
+concurrency:
+  group: learning-canvas-frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: frontend
+    runs-on: ubuntu-latest
+    # 15 was sized for a job that ran 1.2-2.1 min. Two checks have since been
+    # added that trade wall clock for defect-finding: the mutation gate reruns
+    # the unit suite once per mutant (115s measured on a runner) and the
+    # browser step went from one Playwright project to five. 25 leaves room for
+    # both to grow without the timeout becoming the thing that fails.
+    timeout-minutes: 25
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+
+      # node-version-file rather than a literal: the version lives in frontend/.nvmrc, so a
+      # developer's local shell and this runner read the same single declaration.
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # `npm ci`, never `npm install`: it installs the lockfile exactly and fails if
+      # package.json and package-lock.json disagree, which is the property that makes this run
+      # reproducible rather than merely repeatable.
+      - name: Install dependencies
+        run: npm ci
+
+      # EVERY VERIFICATION STEP RUNS, EVEN AFTER ONE FAILS.
+      #
+      # These steps used to stop the job at the first non-zero exit. A branch
+      # with a type error therefore never learned whether it also had a lint
+      # error, a failing test, a budget overrun or a broken render: you fixed
+      # one, pushed, waited for a full runner, and discovered the next. Serial
+      # discovery across N defects costs N round trips.
+      #
+      # `continue-on-error` lets the whole battery run and report together, and
+      # the gate at the end of the job restores the failing verdict. One push,
+      # every error.
+      #
+      # Each step also writes machine-readable output that the next step turns
+      # into `::error file=...,line=...` workflow commands. Without those, a
+      # failure is text inside a collapsed log group with no source location;
+      # with them, GitHub pins an annotation to the exact line and the raw log
+      # carries an `##[error]` entry that a census can count.
+      - name: Typecheck
+        id: typecheck
+        continue-on-error: true
+        # `set -o pipefail` is load-bearing. GitHub's default shell is
+        # `bash -e`, NOT `bash -eo pipefail`, so `npm run typecheck | tee`
+        # reports tee's exit status and the step could never fail. This clause
+        # of the verification gate was dead until this line existed. Every
+        # other workflow in this repository already sets it -- verify.yml:821,
+        # e2e.yml:108, deep-verify.yml in eight places.
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run typecheck 2>&1 | tee "$RUNNER_TEMP/tsc.log"
+
+      - name: Annotate typecheck
+        if: always()
+        continue-on-error: true
+        # STEP_OUTCOME lets the annotator detect the one state that made
+        # these logs useless: a failed step with no location anywhere on the
+        # run. Passed through env, not interpolated into the run body.
+        env:
+          STEP_OUTCOME: ${{ steps.typecheck.outcome }}
+        run: node scripts/gh-annotate.mjs tsc < "$RUNNER_TEMP/tsc.log"
+
+      # LAW 4, ENFORCED RATHER THAN REQUESTED.
+      #
+      # `design-value` is a local AST rule -- no third-party plugin -- that refuses a
+      # raw colour or an arbitrary size anywhere the canvas can paint from JavaScript:
+      # JSX style objects, SVG presentation attributes, and three.js material props.
+      # That last surface is the reason the token layer is TypeScript rather than CSS:
+      # `<meshStandardMaterial color="var(--x)" />` does not resolve, it throws.
+      #
+      # Scoped to src/canvas deliberately. src/components, src/data and src/styles are
+      # the dashboard, they are out of scope for this refactor, and pointing a canvas
+      # token rule at them would restyle a design nobody asked to change.
+      - name: Lint
+        id: lint
+        continue-on-error: true
+        run: |
+          npx eslint src/canvas --max-warnings 0 --format json -o "$RUNNER_TEMP/eslint.json" \
+            && echo "eslint: clean" \
+            || { npx eslint src/canvas --max-warnings 0 --format stylish || true; exit 1; }
+
+      - name: Annotate lint
+        if: always()
+        continue-on-error: true
+        # STEP_OUTCOME lets the annotator detect the one state that made
+        # these logs useless: a failed step with no location anywhere on the
+        # run. Passed through env, not interpolated into the run body.
+        env:
+          STEP_OUTCOME: ${{ steps.lint.outcome }}
+        run: node scripts/gh-annotate.mjs eslint < "$RUNNER_TEMP/eslint.json"
+
+      - name: Unit tests
+        id: unit
+        continue-on-error: true
+        run: npm test -- --run --reporter=default --reporter=json --outputFile="$RUNNER_TEMP/vitest.json"
+
+      - name: Annotate unit tests
+        if: always()
+        continue-on-error: true
+        # STEP_OUTCOME lets the annotator detect the one state that made
+        # these logs useless: a failed step with no location anywhere on the
+        # run. Passed through env, not interpolated into the run body.
+        env:
+          STEP_OUTCOME: ${{ steps.unit.outcome }}
+        run: node scripts/gh-annotate.mjs vitest < "$RUNNER_TEMP/vitest.json"
+
+      # The mutation gate used to sit here, between Unit tests and Build. It now
+      # runs in the `frontend-mutation` job below, four shards wide. Moving it
+      # out is why this job dropped from ~625s to ~75s; the reasoning for why
+      # the gate exists at all moved with it.
+
+      - name: Build
+        id: build
+        continue-on-error: true
+        run: npm run build
+
+      # THE BUDGET WAS UNENFORCED, WHICH IS THE SAME AS ABSENT.
+      #
+      # `scripts/canvas-bundle-budget.mjs` has measured the initial canvas payload and exited
+      # non-zero on an overrun since it was written -- and nothing ever called it. A ceiling
+      # nothing checks is a comment. It caught a real 186.55 KB regression against the 150 KB
+      # limit only because it was run by hand; the next one would have shipped.
+      #
+      # It runs AFTER build because it reads dist/, and it needs no path filter of its own: this
+      # whole workflow is already scoped to `frontend/**`.
+      - name: Bundle budget
+        id: budget
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run budget 2>&1 | tee "$RUNNER_TEMP/budget.log"
+
+      # The budget step had no annotation path, so an overrun was a number
+      # buried in a log group like every other failure before this change.
+      - name: Annotate bundle budget
+        if: always()
+        continue-on-error: true
+        run: |
+          if grep -q "canvas-bundle-budget: FAIL" "$RUNNER_TEMP/budget.log"; then
+            LINE=$(grep "canvas-bundle-budget: FAIL" "$RUNNER_TEMP/budget.log" | head -1)
+            echo "::error file=frontend/scripts/canvas-bundle-budget.mjs,title=bundle budget::$LINE"
+          else
+            grep "canvas-bundle-budget:" "$RUNNER_TEMP/budget.log" | head -1 || true
+          fi
+
+      # The browser guards used to sit here. They now run in the
+      # `frontend-scenes` job below, one runner per Playwright project. That is
+      # the single largest wall-clock change in this file: five projects ran
+      # strictly serially at ~62s each, and they now run concurrently. The
+      # reasoning for what those specs may and may not contain moved with them.
+
+      # THE VERDICT, RESTORED.
+      #
+      # `continue-on-error` above makes each step report instead of halt, which
+      # would leave the job green with failures in it. This step is the gate:
+      # it reads every outcome and fails the job if any of them failed. The
+      # annotations are already on the run by the time it executes, so the
+      # summary names what to look at rather than repeating it.
+      - name: Verification gate
+        # `mutation` and `playwright` left this condition because their steps
+        # left this job. They are not unenforced -- they are jobs now, and
+        # `frontend-verdict` reads their results exactly as this step reads
+        # these outcomes. gate_integrity check (c) requires every
+        # continue-on-error step WITH AN ID in this job to appear here; after the
+        # move there are five such steps, not seven, and naming a step that no
+        # longer exists would make this condition permanently false for it.
+        if: >-
+          steps.typecheck.outcome == 'failure' ||
+          steps.lint.outcome == 'failure' ||
+          steps.unit.outcome == 'failure' ||
+          steps.build.outcome == 'failure' ||
+          steps.budget.outcome == 'failure'
+        # THE FILELESS ::error WAS DELETED, and it is not an oversight.
+        #
+        # `::error title=...` with no `file=` does not vanish: GitHub attaches
+        # it to the workflow file at whatever line the step sits on. On run
+        # 32589708228 that produced `.github:6` and `.github:7` -- two
+        # annotations pointing at a YAML line that has nothing to do with any
+        # failure, sitting in the same list as the real ones. Three of that
+        # run's thirteen annotations were this noise.
+        #
+        # The annotation list is for LOCATIONS. A summary of which steps failed
+        # is not a location, so it belongs in the step summary, which renders
+        # as a table at the top of the run and costs the annotation list
+        # nothing.
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            echo "### Frontend verification failed"
+            echo
+            echo "Every step in THIS job ran, so this is the complete list for it,"
+            echo "not the first failure. The mutation and browser jobs report"
+            echo "separately; \`frontend-verdict\` is the run's single verdict."
+            echo
+            echo "| step | outcome |"
+            echo "| --- | --- |"
+            echo "| typecheck | ${{ steps.typecheck.outcome }} |"
+            echo "| lint | ${{ steps.lint.outcome }} |"
+            echo "| unit | ${{ steps.unit.outcome }} |"
+            echo "| build | ${{ steps.build.outcome }} |"
+            echo "| budget | ${{ steps.budget.outcome }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+
+      # THE FINDINGS UPLOAD MOVED TO `frontend-scenes`, AND IT HAD TO.
+      #
+      # `ci-findings.json` is written by canvas-reporter, which only runs under
+      # Playwright. With the browser steps gone from this job, this job produces
+      # no findings file -- and the upload carried `if-no-files-found: error`,
+      # so leaving it here would have failed every run for a file that is
+      # correctly absent. It now runs once per project shard, under a per-shard
+      # name, for the reason in that job.
+
+      # `if: always()` so a failed build still uploads whatever it produced -- the partial output
+      # is often what identifies the failure. `if-no-files-found: ignore` because a failure before
+      # the build step legitimately leaves no dist/ at all, and a missing artifact is not itself
+      # a second failure to report.
+      - name: Upload build output
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: learning-canvas-frontend-build
+          path: frontend/dist
+          if-no-files-found: ignore
+
+  # THE MUTATION GATE, FOUR SHARDS WIDE.
+  #
+  # Why the gate exists, unchanged from when it sat inside `frontend`: every
+  # other check asks "does the code work", and none asks "would these tests
+  # notice if it stopped". The six gates in ci/gates.toml that ask the second
+  # question -- mutmut, spec-strength, spec-composition, vacuity-check,
+  # counterexample-search, honest-report -- are all scoped to `src/` Python and
+  # `specs/` Lean. `pyproject.toml` pins `paths_to_mutate = ["src/"]`. Not one
+  # mutates a line of TypeScript, and the frontend has no stryker and no
+  # property-testing library at all, so this suite could rot silently. It was
+  # not hypothetical: the gate's FIRST run reported a survivor.
+  #
+  # THE PRECONDITION THIS COMMENT USED TO STATE IS NOW MET.
+  #
+  # The previous version of this block said, correctly, that `--shard=i/n` must
+  # NOT be passed: `scripts/mutation-gate.mjs` had parsed the flag since bae7377,
+  # but the guard refusing an empty shard lived in 7c0c36a, which was not on main.
+  # Wiring the matrix then would have turned on a sharding path whose safety guard
+  # was one unmerged commit away -- issue #18's shape inside the mutation gate, a
+  # required check reporting success over work it never did. It set its own exit
+  # condition: "the guard lands first, in its own change, with its own test. Then
+  # the matrix."
+  #
+  # Both landed. The guard is on main via #59 (4cf16f8) and its process-level test
+  # via #63 (99763ee). Re-verified against this branch's base rather than taken on
+  # trust, because the whole point of that condition was that nobody assume it:
+  #
+  #     npm run test:mutation -- --shard=99/100
+  #       -> FAIL, shard 99/100 selected no mutants from a catalogue of 39. exit 1
+  #     npm run test:mutation -- --shard=abc
+  #       -> bad --shard value --shard=abc. exit 1
+  #
+  # Both refusals land in under a second. #59 hoisted the argument checks above
+  # the ~950-test baseline, so a misconfigured shard costs nothing instead of a
+  # full suite per shard -- which is exactly the failure a matrix multiplies.
+  #
+  # WHY FOUR. The catalogue is 39 mutants, so 4 shards is 10/10/10/9 and no shard
+  # can be empty. The guard therefore stays dead code at this width, which is the
+  # correct state for a guard: present, tested, and not load-bearing. It becomes
+  # reachable only if someone sets n above the catalogue size, which is the
+  # misconfiguration it exists to catch. gate_integrity's MUTATION_COUNT_FLOOR of
+  # 27 is the floor that keeps 4 safe as the catalogue changes -- a catalogue that
+  # shrank below 4 would make an empty shard reachable, and that floor forbids it.
+  #
+  # `$MUTATION_SHARD` goes through `env:`, never `${{ }}` inside `run:`. codeql
+  # analyses `languages: actions` here, and an interpolated run body is precisely
+  # the script-injection finding that analysis exists to catch. `frontend-scenes`
+  # below binds its matrix the same way.
+  #
+  # `needs.frontend-mutation.result` in frontend-verdict aggregates the shards:
+  # any shard failing makes the whole job's result 'failure'. That is not an
+  # assumption about matrices -- frontend-scenes has been a matrix behind that
+  # same needs entry since #61, and run 32658532840 proved it in the red
+  # direction, one deliberately broken shard turning the verdict red.
+  frontend-mutation:
+    name: mutation ${{ matrix.shard }}/4
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    strategy:
+      # A surviving mutant in shard 2 says nothing about shard 3, and killing the
+      # siblings would hide three quarters of the answer behind the first failure.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Mutation gate
+        env:
+          MUTATION_SHARD: ${{ matrix.shard }}
+        run: npm run test:mutation -- --shard="$MUTATION_SHARD/4"
+
+  # THE BROWSER GUARDS, ONE RUNNER PER PROJECT.
+  #
+  # THIS DOES NOT CONTRADICT `workers: 1`, WHICH IS THE FIRST THING A REVIEWER
+  # WILL CHECK. playwright.config.ts:17-25 sets `workers: 1` and
+  # `fullyParallel: false` because the specs measure frame intervals and input
+  # latency, and parallel workers on one CPU fight for it and poison every p95
+  # they touch. That constraint is about parallelism INSIDE a runner. Each shard
+  # here is a separate runner still running one worker, so the measurements keep
+  # the isolation the config demands -- this buys wall clock without touching
+  # the property the config protects.
+  #
+  # Measured before the split: the five projects ran strictly serially in one
+  # step, ~62s apart end to end (13:27:04, 13:28:07, 13:29:08, 13:30:14,
+  # 13:31:14 on run 32642191714). ~310s of that was pure serialisation.
+  #
+  # What these specs may contain is unchanged and still load-bearing: no spec
+  # that makes a timing claim. `scene-regressions.spec.ts` and
+  # `composed-renderer.spec.ts` both qualify because every assertion in them is
+  # a DOM fact. The perf suite does not, because a p95 measured on a shared
+  # runner goes red on a neighbour, and a gate that fails randomly teaches
+  # people to ignore gates.
+  #
+  # No `--with-deps`: the runner image already ships Chromium's shared
+  # libraries, matching the reasoning recorded in e2e.yml.
+  #
+  # `fail-fast: false` so a failure at 375px does not cancel the keyboard run.
+  # Which viewports break is the finding; one of them is not.
+  frontend-scenes:
+    # ONE RUNNER FOR ALL FIVE PROJECTS, AND THE SPLIT WAS COSTING TIME.
+    #
+    # This was a 5-way matrix, one project per runner. `playwright.config.ts`
+    # sets `workers: 4` with `fullyParallel: false`, and its own header records
+    # what that combination means: a parallel unit is ONE FILE within ONE
+    # project, and these two specs are the only files.
+    #
+    #     all five projects, one runner   2 files x 5 projects = 10 units -> 4 workers
+    #     one project per runner (shard)  2 files x 1 project  =  2 units -> 2 workers
+    #
+    # So sharding by project starved Playwright of the parallelism it is
+    # configured for: every shard could only ever reach 2 workers. The measured
+    # numbers in that same header are workers=1 234s, workers=2 149s, workers=4
+    # 77s/87s/115s -- for ALL FIVE projects together.
+    #
+    # Measured on this repository, the 5-way split cost 5 x 92s = 460s of runner
+    # time, a third of the whole run's 1398s, and held five of the eight
+    # concurrent slots the account allows. One job is ~28s of setup plus ~95s of
+    # work. Same five projects, same two specs, same assertions -- the coverage
+    # is identical and gate_integrity check (f) still resolves all five, because
+    # it reads literal `--project=` flags as well as matrix bindings.
+    #
+    # IF THE PERF SPECS ARE EVER RECONNECTED, REVERT THIS WITH THEM.
+    # playwright.config.ts requires `workers: 1` if `./util/cdp` comes back,
+    # because parallel workers poison every p95 they touch. At workers=1 the
+    # unit-starvation argument above disappears and one-project-per-runner
+    # becomes the faster shape again.
+    name: scenes ${{ matrix.shard }}/2
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    strategy:
+      fail-fast: false
+      matrix:
+        # TWO MACHINES, NOT FIVE, AND NOT ONE. MEASURED BOTH TIMES.
+        #
+        # Five (one project per runner) starved Playwright: with
+        # `fullyParallel: false` a parallel unit is one file within one project,
+        # and two specs per project meant every shard capped at 2 of the 4
+        # workers it was configured for.
+        #
+        # One runner fixed the workers and became the critical path instead.
+        # Measured on run 32696164041: `Running 290 tests using 4 workers`,
+        # `290 passed (3.8m)` -- 230s of work in a 257s job, and the whole CI
+        # wall clock was 262s. The config's header quotes 77-115s for workers=4;
+        # that was measured before the suite reached 290 tests, and trusting it
+        # instead of the runner is what produced the five-way split.
+        #
+        # `workers: 4` caps the process and the runner has 4 vCPU, so more
+        # workers cannot help. Only more MACHINES can. `--shard` splits the
+        # tests across them while every shard still runs all five projects, so
+        # gate_integrity check (f) reads five literal `--project=` flags here
+        # exactly as before.
+        shard: [1, 2]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Was five installs of the same browser, one per shard, at ~11s each.
+      # Collapsing the matrix collapses that too, without adding a cache action
+      # this repository does not already pin.
+      - name: Install Chromium
+        run: npx playwright install chromium
+
+      # The projects are written out rather than looped: gate_integrity check
+      # (f) reads literal `--project=` flags, so this list IS the coverage
+      # claim, and a project silently dropped from it fails preflight.
+      - name: Scene regression guards
+        # SHARD THROUGH env, NOT INTERPOLATED INTO THE RUN BODY. The value is
+        # workflow-defined and harmless, but this repository's convention is
+        # that no `${{ }}` reaches a shell line, so no reviewer has to decide
+        # which interpolations are the dangerous kind.
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: >-
+          npx playwright test -c playwright.config.ts
+          e2e/scene-regressions.spec.ts e2e/composed-renderer.spec.ts
+          --project=desktop-1440
+          --project=square-900
+          --project=mobile-375
+          --project=reduced-motion
+          --project=keyboard
+          --shard="$SHARD/2"
+          --fail-on-flaky-tests
+
+      # ONE DOWNLOAD INSTEAD OF A LOG CRAWL.
+      #
+      # canvas-reporter writes ci-findings.json: every failure with its source
+      # file, spec location, attempt count and message. The per-project name
+      # suffix existed only because five concurrent shards would collide on one
+      # artifact name; with a single job the plain name is unambiguous again,
+      # and the findings still carry the project on every row.
+      #
+      # `if: always()` because a green run's findings file is the useful
+      # baseline: count 0 proves the reporter ran and found nothing, which is a
+      # different claim from the file being absent. `error`, not `warn`, for the
+      # reason ci/gates.toml requires on every gate artifact -- a missing
+      # artifact reduced to a grey annotation is the same "absence looks like
+      # health" failure the reporter exists to close.
+      - name: Upload failure findings
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: learning-canvas-frontend-findings-scenes-${{ matrix.shard }}
+          path: frontend/ci-findings.json
+          if-no-files-found: error
+
+  # THE RUN'S SINGLE VERDICT.
+  #
+  # Splitting one job into three split the verdict with it: three jobs can fail
+  # independently, and a reader scanning a checks list should not have to
+  # reconstruct the answer from them. This job is the answer.
+  #
+  # `if: always()` IS LOAD-BEARING, NOT DEFENSIVE HABIT. Without it, a failed
+  # dependency SKIPS this job, and a skipped job reports neutral rather than
+  # failing -- the exact "absence looks like health" failure this workflow keeps
+  # closing. The job must run precisely when its dependencies did badly.
+  #
+  # NOT NAMED "Verification gate", AND THAT IS DELIBERATE. gate_integrity
+  # requires exactly one step by that name and requires it to live in job
+  # `frontend`; a second one here would trip `found 2` and hard-fail preflight.
+  # `frontend`'s own gate still decides `frontend`. This decides the run.
+  frontend-verdict:
+    name: frontend-verdict
+    runs-on: ubuntu-latest
+    needs: [frontend, frontend-mutation, frontend-scenes]
+    if: always()
+    steps:
+      - name: Aggregate verdict
+        # `!= 'success'` rather than `== 'failure'`: a cancelled or skipped
+        # dependency is also not a pass, and treating either as one is how a
+        # run with no evidence behind it reports green.
+        if: >-
+          needs.frontend.result != 'success' ||
+          needs.frontend-mutation.result != 'success' ||
+          needs.frontend-scenes.result != 'success'
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            echo "### Frontend verification failed"
+            echo
+            echo "All three jobs ran, so this is the complete list, not the"
+            echo "first failure. Open the failing job for its own summary."
+            echo
+            echo "| job | result |"
+            echo "| --- | --- |"
+            echo "| frontend | ${{ needs.frontend.result }} |"
+            echo "| mutation | ${{ needs.frontend-mutation.result }} |"
+            echo "| scenes | ${{ needs.frontend-scenes.result }} |"
+            echo
+            echo "Browser failures are annotated on the panel source that drew"
+            echo "them. The \`learning-canvas-frontend-findings-<project>\`"
+            echo "artifacts carry the machine-readable set per viewport."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1

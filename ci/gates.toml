@@ -261,6 +261,23 @@ must_contain = ["github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb
 evidence = "github code scanning, category /language:actions"
 artifact = ""
 
+# TypeScript analysis. `mandatory = false` ONLY because check_ruleset.py
+# asserts this manifest's required_checks equals GitHub's live required set:
+# declaring it required before an admin adds the context would fail preflight
+# on the same push. Promote it the moment that context exists.
+#
+# Its findings are NOT advisory. The `CodeQL` results check below is required
+# with an alert threshold of `all`, so anything this job publishes blocks.
+[gates.codeql-javascript-typescript]
+workflow = "codeql.yml"
+job = "codeql-javascript-typescript"
+mandatory = false
+role = "scanner"
+must_contain = ["github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd",
+                "github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd"]
+evidence = "github code scanning, category /language:javascript-typescript"
+artifact = ""
+
 # The code-scanning RESULTS check. Not a workflow job — GitHub's
 # github-advanced-security app (57789) posts it once CodeQL results land, and
 # it is what turns a finding into a blocked merge. Required alongside the two
@@ -373,3 +390,56 @@ role = "supplementary"
 must_contain = ["scripts/merge_evidence_gate.py"]
 evidence = "reports/merge-evidence.json"
 artifact = "reports-merge-evidence"
+
+# ---------------------------------------------------------------------------
+# DEEP VERIFICATION — supplementary, label-gated, and deliberately not required.
+#
+# Milestone 5 needed remote evidence for the deep lane, so the lane has a
+# workflow. It is declared here for the same reason ai-review and merge-evidence
+# are: a job that exists in a workflow but in no manifest is a job nobody
+# decided on. Declaring it is the decision, on the record.
+#
+# `mandatory = false` is load-bearing three times over. It keeps
+# required_checks at seventeen, so scripts/check_ruleset.py keeps proving the
+# same equality against the live ruleset. It keeps gate_integrity.py's per-gate
+# structural checks off a workflow that legitimately carries a job-level `if:`.
+# And it keeps a lane that contacts a third party out of the merge decision --
+# an outage at axle.axiommath.ai must not be able to block a merge.
+#
+# NO ARTIFACT FIELD FOR THE AGGREGATE. scripts/aggregate_gates.py computes
+# `unexpected` as (found | rejected) - EXPECTED and EXPECTED filters on
+# mandatory, so a reports/*.json from this lane arriving in the finalizer's
+# evidence tree would be read as evidence for a gate nobody expects and would
+# turn the required `full` context red. This lane writes to .evidence/ and
+# uploads a GitHub Actions artifact instead; neither is in that tree.
+# ---------------------------------------------------------------------------
+
+[gates.deep-verify-gate]
+workflow = "deep-verify.yml"
+job = "gate"
+mandatory = false
+role = "supplementary"
+# The two refusals worth catching if someone deletes them: the label check that
+# keeps AXLE off every ordinary push, and the fork check that keeps signing
+# authority out of a branch this repository does not control.
+must_contain = ["deep-verify", "fork PRs are not authorized"]
+evidence = "job log"
+artifact = ""
+
+[gates.deep-verify]
+workflow = "deep-verify.yml"
+job = "deep-verify"
+mandatory = false
+role = "supplementary"
+# The four commands that make the run mean anything: the lane itself, the single
+# authoritative bundle, the blob signature over its exact bytes, and the
+# verification of that signature. Swapping any one out is the change worth
+# catching.
+must_contain = [
+  "scripts/local_gates.py --deep",
+  "scripts/build_bundle.py",
+  "cosign sign-blob",
+  "cosign verify-blob",
+]
+evidence = "GitHub Actions artifact sandbox-verification-bundle-<source-sha>"
+artifact = ""

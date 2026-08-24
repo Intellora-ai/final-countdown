@@ -22,14 +22,49 @@
 # carries an exact reason. Nothing is silently omitted, and no GitHub-only context is ever reported
 # as having passed locally. tests/test_local_execution_manifest.py enforces all of that.
 
+# RECLASSIFIED ON EVIDENCE, 2026-08-20. The previous entry said this context could not
+# run here. That was measured to be false:
+#
+#     python3 scripts/check_ruleset.py            -> exit 0, [RESULT] PASS
+#     python3 scripts/tcb_gate.py --base origin/main -> exit 0
+#
+# `gh` is on PATH, `origin/main` exists, and ruleset 20990225 is readable anonymously
+# because the repository is public. So the honest statement is not "cannot run" but
+# "runs, and needs the network to do it". Those are different claims and only one of
+# them is true.
+#
+# `requires_network = true` is ENFORCED, not annotated: local_gates.select() excludes
+# network-requiring checks from both default tiers, so `make sandbox-fast` and
+# `make sandbox-test` never make a network call by accident. Running it is an explicit
+# opt-in, printed beside the NOT_RUN_LOCALLY line.
+#
+# The argv mirrors the workflow's chain. BASE_REF is `main` here rather than
+# `${{ github.base_ref || 'main' }}`, because ci/gates.toml declares main as the base
+# this repository merges into.
 [contexts."preflight"]
 required_context = "preflight"
-locally_runnable = "no"
-reason = "Chains scripts/check_ruleset.py, which queries the live GitHub ruleset API at api.github.com, and scripts/tcb_gate.py, which needs an origin/<base> ref. Neither runs offline, so the context cannot honestly complete in the default local loop."
+locally_runnable = "yes"
+requires_network = true
+network_reason = "scripts/check_ruleset.py reads ruleset 20990225 from api.github.com. There is no offline source for the live required-check set, and a cached copy would be exactly the stale claim this gate exists to catch."
+opt_in_command = "make sandbox-network"
+command = [
+  "python3",
+  "scripts/run_gate.py",
+  "--name",
+  "preflight",
+  "--",
+  "bash",
+  "-c",
+  "set -e\necho '== preflight gate 1/4: trusted computing base' >&2\npython3 scripts/tcb_gate.py --base origin/main\necho '== preflight gate 2/4: ruleset alignment' >&2\npython3 scripts/check_ruleset.py\necho '== preflight gate 3/4: requirement and assumption registries' >&2\npython3 scripts/registry_gate.py\necho '== preflight gate 4/4: gate integrity' >&2\npython3 scripts/gate_integrity.py\n",
+]
+timeout_seconds = 300
+evidence = "preflight.json"
+in_fast = false
 
 [contexts."axle-verify"]
 required_context = "axle-verify"
 locally_runnable = "no"
+category = "EXTERNAL"
 reason = "Calls the hosted AXLE service at https://axle.axiommath.ai for kernel proof checking. There is no local Lean kernel in this repository."
 
 [contexts."spec-strength"]
@@ -193,6 +228,7 @@ in_fast = true
 [contexts."bandit"]
 required_context = "bandit"
 locally_runnable = "no"
+category = "LOCAL_PREREQUISITE_NOT_PROVISIONED"
 reason = "The gate step consumes bandit.sarif produced by a preceding workflow step, and runs shellcheck, which is not installed by requirements.lock or package-lock.json."
 
 [contexts."mutmut"]
@@ -217,29 +253,183 @@ in_fast = false
 [contexts."correspondence"]
 required_context = "correspondence"
 locally_runnable = "no"
+category = "EXTERNAL"
 reason = "Runs scripts/axle_health.py and pytest -m axle, both of which require the hosted AXLE service."
 
 [contexts."codeql-python"]
 required_context = "codeql-python"
 locally_runnable = "no"
+category = "GITHUB_ONLY"
 reason = "Produced by github/codeql-action running on GitHub-hosted infrastructure."
 
 [contexts."codeql-actions"]
 required_context = "codeql-actions"
 locally_runnable = "no"
+category = "GITHUB_ONLY"
 reason = "Produced by github/codeql-action running on GitHub-hosted infrastructure."
 
 [contexts."CodeQL"]
 required_context = "CodeQL"
 locally_runnable = "no"
+category = "GITHUB_ONLY"
 reason = "A GitHub code-scanning analysis status, not a workflow job. It has no run steps and is created by the platform on pull requests only."
 
 [contexts."e2e"]
 required_context = "e2e"
 locally_runnable = "no"
+category = "LOCAL_PREREQUISITE_NOT_PROVISIONED"
 reason = "Requires a Chromium binary fetched by `npx playwright install`, which is not pinned by any repository lockfile, plus a generated htmlcov/ fixture. Not reproducible from lockfiles alone."
 
 [contexts."full"]
 required_context = "full"
 locally_runnable = "no"
+category = "GITHUB_ONLY"
 reason = "Aggregates every other gate's evidence via actions/download-artifact from the same GitHub run. There is no local multi-job run to aggregate."
+
+# ===========================================================================
+# LOCAL CHECKS — regression and quality checks that are NOT GitHub contexts.
+#
+# WHY A SEPARATE TABLE. `[contexts.*]` is authoritative for the seventeen live
+# required GitHub contexts and nothing else;
+# tests/test_local_execution_manifest.py::test_no_context_is_invented fails on
+# any entry there that GitHub does not require. That guard is correct and is not
+# weakened. A regression fixture is not a GitHub context and must never be able
+# to look like one, so it lives here instead.
+#
+# A local check may not borrow a required context's name. If it could, a green
+# local run would print a line indistinguishable from the required check that
+# GitHub actually enforces, which is the false-reassurance this whole manifest
+# exists to remove. tests/test_regression_registry.py proves the namespaces stay
+# disjoint.
+#
+# EVERY ENTRY DECLARES: requirement (what escape or rule it proves), exact argv,
+# timeout, evidence file, tier, requires_network, and why it sits in that tier.
+# ===========================================================================
+
+[local_checks."regression-registry"]
+requirement = "R1/R6/R7 plus the registry's own integrity: every row in ci/regression-fixtures.yml resolves to a test that exists, local checks cannot borrow a required context name, and a network-requiring check is excluded from the default tiers rather than merely labelled."
+command = ["python3", "-m", "pytest", "-q", "tests/test_regression_registry.py"]
+timeout_seconds = 300
+evidence = "regression-registry.json"
+tier = "fast"
+requires_network = false
+tier_reason = "Measured at 3.2s for the comparable tests/test_local_execution_manifest.py file on the declared machine, against a 60s fast-tier budget. It reads files and calls no network and no subprocess-heavy fixture, so it is cheap enough to run before every push -- which is the only place it can catch a registry row that stopped resolving."
+
+[local_checks."regression-push-chain"]
+requirement = "G1. The production chain from a real type error to a rejected push: real type error -> real manifest parser -> the exact pyright argv the manifest selects -> real make sandbox-fast -> real copied .githooks/pre-push -> real `git push` rejected against a real bare remote. tests/test_local_execution_manifest.py:294 proves only the hook half, using a fake Makefile that returns a synthetic exit code; nothing proved that a real pyright error reaches that exit code."
+command = ["python3", "-m", "pytest", "-q", "tests/test_pre_push_chain.py"]
+timeout_seconds = 600
+evidence = "regression-push-chain.json"
+tier = "full"
+requires_network = false
+tier_reason = "It invokes `make sandbox-fast` inside a temporary repository. Placing it in the fast tier would make the fast tier invoke itself -- unbounded recursion, not a slow test. The tier assignment is a correctness constraint here, not a budget one."
+
+# ===========================================================================
+# DEEP CHECKS — the deep verification lane (Milestone 5).
+#
+# A THIRD TABLE, AND THE REASON IS THE SAME ONE THAT PUT [local_checks] IN ITS
+# OWN: `[contexts.*]` is exactly the seventeen required GitHub contexts and
+# nothing else. A deep check is not a GitHub context and must never be able to
+# look like one.
+#
+# WHAT MAKES THIS LANE DIFFERENT FROM sandbox-fast. It is the ONE place a real
+# network call is legitimate. `sandbox-fast` selects only checks with
+# requires_network = false and that exclusion is enforced in
+# local_gates.select(), not annotated -- so AXLE being reachable from here does
+# not make it reachable from the pre-push loop.
+#
+# CATEGORIES. Milestone 5 names five. Four have real commands. The fifth,
+# migration, has no command because this repository has no migration system,
+# and the honest way to record that is a set of probes that must ALL come back
+# empty -- not a hardcoded NOT_APPLICABLE that nobody re-derives. If any probe
+# finds a migration mechanism, the check FAILS rather than quietly keeps
+# claiming the category does not apply.
+# ===========================================================================
+
+[deep_checks."full-regression"]
+category = "full regression"
+requirement = "Every test in the suite that does not require the hosted AXLE service passes on this exact commit."
+command = ["python3", "-m", "pytest", "-m", "not axle", "-n", "auto", "--dist", "loadfile"]
+timeout_seconds = 1800
+evidence = "full-regression.json"
+requires_network = false
+
+[deep_checks."integration-axle"]
+category = "integration"
+requirement = "The correspondence between src/ and the Lean proofs holds against the hosted AXLE kernel-checking service -- the only external system this repository talks to. These tests are excluded from every other lane by the `axle` marker."
+command = ["python3", "-m", "pytest", "-m", "axle"]
+timeout_seconds = 1800
+evidence = "integration-axle.json"
+requires_network = true
+network_reason = "Calls the hosted AXLE service at axle.axiommath.ai. There is no local Lean kernel in this repository, so the integration boundary cannot be exercised offline."
+endpoint = "axle.axiommath.ai"
+
+[deep_checks."security-gate"]
+category = "security"
+requirement = "Bandit over src/ and scripts/, plus AST re-derivation of the subprocess safe pattern for every file granted a B404/B603 exception. No `# nosec` anywhere."
+command = ["python3", "scripts/security_gate.py"]
+timeout_seconds = 900
+evidence = "security-gate.json"
+requires_network = false
+
+[deep_checks."credential-scan"]
+category = "security"
+requirement = "No credential-shaped string is committed to the tracked tree."
+command = ["python3", "scripts/credential_scan.py"]
+timeout_seconds = 900
+evidence = "credential-scan.json"
+requires_network = false
+
+[deep_checks."determinism"]
+category = "determinism"
+requirement = "Two consecutive runs of the verification contract agree once only the allowlisted sources -- run id, timestamps, absolute paths -- are normalized."
+command = ["python3", "scripts/local_gates.py", "--determinism", "--run-id", "deep"]
+timeout_seconds = 1800
+evidence = "determinism.json"
+requires_network = false
+
+# MIGRATION — no command, because there is nothing to run.
+#
+# Five probes, each of which must return NOTHING. A single grep would not be
+# proof: a repository can lack the word "alembic" and still have a schema
+# evolution mechanism under another name, so the probes look for directories,
+# commands, dependencies, database configuration and database services
+# separately. Their raw output is recorded in the evidence, so the claim is
+# re-derived on every run rather than asserted once in a document.
+#
+# If ANY probe returns output, this check FAILS. It does not degrade to a
+# quieter NOT_APPLICABLE: a migration mechanism that appeared after this entry
+# was written is exactly the thing the probes exist to catch.
+[deep_checks."migration"]
+category = "migration"
+requirement = "This repository has no migration framework, migration directory, migration command, schema-evolution system, database service, or deployment database contract, so migration verification has nothing to verify."
+expect = "NOT_APPLICABLE"
+timeout_seconds = 300
+evidence = "migration.json"
+requires_network = false
+
+[[deep_checks."migration".probes]]
+name = "no migration directories"
+argv = ["bash", "-c", "find . -type d \\( -name migrations -o -name migrate -o -name alembic \\) -not -path './technology-universe/*' -not -path './.claude/*' -not -path './node_modules/*' -not -path './.venv/*' -print"]
+
+[[deep_checks."migration".probes]]
+name = "no migration command in Makefile, package scripts, or workflows"
+argv = ["bash", "-c", "grep -rInE '(alembic|flyway|liquibase|knex|prisma migrate|sequelize db:migrate|manage\\.py migrate|db upgrade)' Makefile package.json .github/workflows/ || true"]
+
+[[deep_checks."migration".probes]]
+name = "no migration dependency in Python or Node manifests"
+argv = ["bash", "-c", "grep -rInE '(alembic|flyway|liquibase|knex|prisma|sequelize|django|sqlalchemy-migrate|yoyo-migrations)' requirements.txt requirements.lock package.json package-lock.json || true"]
+
+[[deep_checks."migration".probes]]
+name = "no database connection config or schema-evolution artifact"
+# The two files EXCLUDED here are the two that talk ABOUT this probe: this
+# manifest, which defines the patterns, and the document that describes them.
+# Neither is evidence of a migration system, and a probe that matches its own
+# definition is measuring itself. Found on run 32414089692, where the probe
+# matched docs/engineering/deep-verification.md:70 -- the line listing
+# "`CREATE TABLE`" as one of the things it searches for.
+argv = ["bash", "-c", "git grep -InE '(postgres://|mysql://|mongodb://|sqlite:///|DATABASE_URL|CREATE TABLE|ALTER TABLE)' -- . ':!technology-universe' ':!.claude' ':!ci/local-execution.toml' ':!docs/engineering/deep-verification.md' || true"]
+
+[[deep_checks."migration".probes]]
+name = "no database service in any workflow"
+argv = ["bash", "-c", "grep -rInE '^\\s*services:|image:\\s*(postgres|mysql|mariadb|mongo|redis)' .github/workflows/ || true"]

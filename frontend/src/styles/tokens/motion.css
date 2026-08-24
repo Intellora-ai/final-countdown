@@ -1,0 +1,36 @@
+/* Agabi — Motion tokens. Everything has weight: cards gently lift, panels glide.
+   Nothing pops, nothing bounces. ease-out only; never animate color. */
+:root {
+  --duration-instant:  50ms; /* @kind other */   /* Micro feedback (tap flash) */
+  --duration-fast:     150ms; /* @kind other */  /* Button press, color-free transitions */
+  --duration-base:     200ms; /* @kind other */  /* Hover states, focus rings, dropdown expand */
+  --duration-smooth:   300ms; /* @kind other */  /* Card lift, panel slide */
+  --duration-enter:    350ms; /* @kind other */  /* Modal / panel / toast entry */
+  --duration-progress: 700ms; /* @kind other */  /* Progress fills — feels like accumulation */
+  --duration-long:     1000ms; /* @kind other */
+
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1); /* @kind other */  /* All motion — default */
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1); /* @kind other */   /* Skeleton pulse only */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* @kind other */ /* Reserved. Do not use — Agabi never bounces. */
+}
+
+/* Skeleton pulse — the only oscillating animation in the system (1500ms, opacity 0.5↔1) */
+@keyframes agabi-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Spinner rotation (Button loading, AI thinking) */
+@keyframes agabi-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Reduced motion: disable transforms, keep opacity */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

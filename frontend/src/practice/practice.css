@@ -1,0 +1,1033 @@
+/* The practice map's visual language.
+
+   SELF-CONTAINED, AND SCOPED TO `.practice-map`
+   ---------------------------------------------
+   Every custom property below is declared on `.practice-map` rather than
+   `:root`, so nothing here can reach the dashboard or the canvas. That is the
+   dashboard-protection rule honoured by construction rather than by care: a
+   variable that does not exist outside this subtree cannot leak into one.
+
+   It deliberately does not import the canvas's `tokens.ts`. Those variables are
+   applied at runtime to `.scene` and are governed by the canvas Law 4 lint;
+   borrowing them would couple this screen to a system it is not part of, and
+   any future collapse of a canvas token would silently restyle this map. The
+   VALUES are the same design language. The plumbing is separate on purpose.
+
+   No raw colour appears below the token block. */
+
+.practice-map {
+  /* -- Surfaces --------------------------------------------------------- */
+  --pm-void: #161a1d;
+  --pm-void-lift: #1d2125;
+  --pm-panel: rgb(255 255 255 / 0.038);
+  --pm-panel-hover: rgb(255 255 255 / 0.07);
+  --pm-line: rgb(255 255 255 / 0.08);
+  --pm-line-strong: rgb(255 255 255 / 0.16);
+
+  /* -- Type ------------------------------------------------------------- */
+  --pm-ink: #e8eef4;
+  --pm-ink-muted: #93a3ae;
+
+  /*
+   * CHANNELS FIRST, COLOUR DERIVED.
+   *
+   * Six rules further down needed the accent at a partial alpha and wrote
+   * `rgb(var(--pm-accent-rgb) / 0.6)` by hand — the same numbers as the token, typed
+   * again. They matched, so nothing looked wrong; change the accent and six
+   * focus rings would have silently kept the old teal, which is exactly the
+   * drift a token layer exists to prevent.
+   *
+   * Declaring the CHANNELS and deriving the solid colour from them makes the
+   * two provably one value rather than two that happen to agree.
+   */
+  --pm-ink-faint-rgb: 95 112 123;
+  --pm-ink-faint: rgb(var(--pm-ink-faint-rgb));
+
+  /* -- The accent. Teal, and only teal. --------------------------------- */
+  --pm-accent-rgb: 114 203 202;
+  --pm-accent-soft-rgb: 168 222 221;
+  --pm-accent: rgb(var(--pm-accent-rgb));
+  --pm-accent-soft: rgb(var(--pm-accent-soft-rgb));
+  --pm-accent-glow: rgb(var(--pm-accent-rgb) / 0.38);
+
+  /* -- Scale ------------------------------------------------------------ */
+  --pm-s1: 4px;
+  --pm-s2: 8px;
+  --pm-s3: 12px;
+  --pm-s4: 16px;
+  --pm-s5: 20px;
+  --pm-s6: 28px;
+  --pm-s7: 32px;
+
+  --pm-radius-sm: 5px;
+  --pm-radius-md: 8px;
+  --pm-radius-lg: 11px;
+
+  --pm-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  position: relative;
+  width: 100%;
+  /*
+   * NOT `height: 100%`.
+   *
+   * The dashboard's `main` contains the top bar and then the route, so the map
+   * begins some way down it. `100%` of that parent is the parent's FULL height
+   * including the bar the map sits below — the map then overflowed the window
+   * by exactly the bar's height and cut the panel's Start button off.
+   *
+   * `--pm-offset` is the map's own distance from the top of the window,
+   * measured by the component and re-measured on resize. Fixing this in the
+   * dashboard's layout instead would mean editing a file this feature is not
+   * allowed to touch.
+   */
+  height: calc(100dvh - var(--pm-offset, 0px));
+  overflow: hidden;
+  background: var(--pm-void);
+  color: var(--pm-ink);
+  font-family:
+    ui-sans-serif, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI',
+    system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The ambient lift behind the field, so the map does not sit on flat black. */
+.pm-ground {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(118% 74% at 50% -14%, var(--pm-void-lift) 0%, var(--pm-void) 62%);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Surface                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/*
+   `touch-action` IS DELIBERATELY NOT HERE — it is set in `PanZoom.tsx`.
+
+   It is not part of this map's visual language; it is the precondition for the
+   pointer handlers in that file, and it decides which gestures ever reach them.
+   Written here it would be one edit away from the code that depends on it, with
+   nothing to say they belong together; written there it sits on the same
+   element as the handlers whose gestures it protects. The reasoning is in full
+   at the top of `PanZoom.tsx`.
+*/
+.pm-surface {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+  outline-offset: -4px;
+}
+.pm-surface[data-panning='true'] {
+  cursor: grabbing;
+}
+
+.pm-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  transition-property: transform;
+  transition-timing-function: var(--pm-ease);
+  transition-duration: 0ms;
+  will-change: transform;
+}
+
+.pm-sky {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Labels                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.pm-subject {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 27px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--pm-ink-faint);
+  opacity: 0.55;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Nodes                                                                      */
+/* -------------------------------------------------------------------------- */
+
+.pm-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: none;
+  border: 0;
+  padding: var(--pm-s1) var(--pm-s2);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  border-radius: var(--pm-radius-md);
+}
+.pm-node:focus-visible {
+  outline: 2px solid var(--pm-accent);
+  outline-offset: 4px;
+}
+
+/* -- Chapter ------------------------------------------------------------- */
+
+.pm-chapter {
+  gap: var(--pm-s2);
+}
+
+.pm-dot-stack {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 0;
+  height: 0;
+}
+
+.pm-halo {
+  position: absolute;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  opacity: 0.6;
+  background: radial-gradient(circle, var(--pm-accent-glow) 0%, transparent 68%);
+  transition:
+    width 300ms var(--pm-ease),
+    height 300ms var(--pm-ease),
+    opacity 300ms var(--pm-ease);
+}
+.pm-chapter[aria-expanded='true'] .pm-halo {
+  width: 64px;
+  height: 64px;
+  opacity: 1;
+}
+
+.pm-core {
+  position: absolute;
+  border-radius: 50%;
+  width: 9px;
+  height: 9px;
+  background: var(--pm-ink-faint);
+  box-shadow: 0 0 0 1px rgb(var(--pm-ink-faint-rgb) / 0.4);
+  transition:
+    width 200ms var(--pm-ease),
+    height 200ms var(--pm-ease),
+    background-color 200ms var(--pm-ease);
+}
+.pm-core[data-started='true'] {
+  background: var(--pm-accent);
+  box-shadow: 0 0 0 1px rgb(var(--pm-accent-rgb) / 0.6);
+  animation: pm-breathe 7s ease-in-out infinite;
+}
+.pm-core[data-complete='true'] {
+  background: var(--pm-accent-soft);
+  box-shadow: 0 0 0 1px rgb(var(--pm-accent-soft-rgb) / 0.7);
+}
+.pm-chapter[aria-expanded='true'] .pm-core,
+.pm-chapter[data-selected='true'] .pm-core {
+  width: 13px;
+  height: 13px;
+  animation: none;
+}
+
+.pm-ring {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(var(--pm-accent-rgb) / 0.7);
+}
+
+.pm-chapter-label {
+  margin-top: var(--pm-s3);
+  max-width: 168px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.25;
+  color: var(--pm-ink-muted);
+  transition: color 200ms var(--pm-ease);
+}
+.pm-chapter[aria-expanded='true'] .pm-chapter-label,
+.pm-chapter[data-selected='true'] .pm-chapter-label {
+  color: var(--pm-ink);
+}
+
+.pm-chapter-number {
+  display: block;
+  font-size: 10.5px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--pm-ink-faint);
+}
+
+.pm-coverage {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--pm-accent);
+  opacity: 0.7;
+}
+
+.pm-pin {
+  width: var(--pm-s1);
+  height: var(--pm-s1);
+  border-radius: 50%;
+  background: var(--pm-accent);
+  opacity: 0.6;
+}
+
+/* -- Topic --------------------------------------------------------------- */
+
+/*
+   Topics paint above every chapter, and that now has to be said out loud.
+
+   It used to be free: all 120 topics rendered after all 24 chapters, and
+   equal-z positioned siblings paint in DOM order. Interleaving each chapter
+   with its own topics — which is what makes the fan reachable by Tab — put the
+   next chapter after the previous chapter's topics, so a chapter label began
+   painting over a neighbouring open fan. One line restores the old order
+   without giving back the tab order.
+*/
+.pm-topic {
+  z-index: 1;
+  gap: 6px;
+  transition:
+    opacity 300ms var(--pm-ease),
+    transform 300ms var(--pm-ease);
+}
+.pm-topic[data-open='false'] {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.75);
+  pointer-events: none;
+}
+.pm-topic[data-open='true'] {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.pm-topic-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--pm-ink-faint);
+  box-shadow: 0 0 0 1px rgb(var(--pm-ink-faint-rgb) / 0.3);
+  transition:
+    width 200ms var(--pm-ease),
+    height 200ms var(--pm-ease);
+}
+.pm-topic-dot[data-practised='true'] {
+  background: var(--pm-accent);
+  box-shadow: 0 0 0 1px rgb(var(--pm-accent-rgb) / 0.5);
+}
+.pm-topic[data-selected='true'] .pm-topic-dot {
+  width: 10px;
+  height: 10px;
+}
+
+.pm-topic-label {
+  max-width: 124px;
+  text-align: center;
+  font-size: 11.5px;
+  line-height: 1.25;
+  color: var(--pm-ink-faint);
+  transition: color 200ms var(--pm-ease);
+}
+.pm-topic-label[data-practised='true'] {
+  color: var(--pm-ink-muted);
+}
+.pm-topic[data-selected='true'] .pm-topic-label {
+  color: var(--pm-accent-soft);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Continue practising                                                        */
+/* -------------------------------------------------------------------------- */
+
+.pm-continue {
+  position: absolute;
+  top: var(--pm-s7);
+  left: var(--pm-s7);
+  z-index: 10;
+  width: 212px;
+}
+
+.pm-continue h2 {
+  margin: 0;
+  padding-bottom: var(--pm-s3);
+  border-bottom: 1px solid var(--pm-line);
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--pm-ink);
+}
+
+.pm-continue ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pm-continue-item {
+  display: block;
+  width: 100%;
+  padding: var(--pm-s3) 0;
+  border: 0;
+  border-bottom: 1px solid var(--pm-line);
+  background: none;
+  text-align: left;
+  font: inherit;
+  font-size: 14px;
+  color: var(--pm-ink-muted);
+  cursor: pointer;
+  transition:
+    color 150ms var(--pm-ease),
+    padding-left 150ms var(--pm-ease);
+}
+.pm-continue-item:hover {
+  color: var(--pm-accent);
+  padding-left: var(--pm-s1);
+}
+.pm-continue-item:focus-visible {
+  outline: 2px solid var(--pm-accent);
+  outline-offset: 2px;
+}
+
+.pm-empty {
+  padding-top: var(--pm-s3);
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--pm-ink-faint);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Panel                                                                      */
+/* -------------------------------------------------------------------------- */
+
+.pm-panel {
+  position: absolute;
+  top: var(--pm-s6);
+  right: var(--pm-s6);
+  bottom: var(--pm-s6);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  width: 312px;
+  border: 1px solid var(--pm-line);
+  border-radius: var(--pm-radius-lg);
+  background: color-mix(in srgb, var(--pm-void-lift) 95%, transparent);
+  backdrop-filter: blur(12px);
+  transition:
+    opacity 300ms var(--pm-ease),
+    transform 300ms var(--pm-ease);
+}
+.pm-panel[aria-hidden='true'] {
+  opacity: 0;
+  transform: translateX(var(--pm-s4));
+  pointer-events: none;
+}
+
+.pm-panel-head {
+  padding: var(--pm-s5) var(--pm-s5) var(--pm-s4);
+  border-bottom: 1px solid var(--pm-line);
+}
+
+.pm-breadcrumb {
+  margin: 0;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pm-ink-faint);
+}
+
+.pm-panel-title {
+  margin: 6px 0 0;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--pm-ink);
+}
+
+.pm-panel-meta {
+  margin: var(--pm-s3) 0 0;
+  font-size: 12px;
+  color: var(--pm-ink-muted);
+}
+.pm-panel-meta strong {
+  font-weight: 400;
+  color: var(--pm-ink);
+}
+
+.pm-close {
+  flex: none;
+  margin-top: -4px;
+  padding: 6px;
+  border: 0;
+  border-radius: var(--pm-radius-sm);
+  background: none;
+  color: var(--pm-ink-faint);
+  cursor: pointer;
+  transition:
+    background-color 150ms var(--pm-ease),
+    color 150ms var(--pm-ease);
+}
+.pm-close:hover {
+  background: var(--pm-panel-hover);
+  color: var(--pm-ink);
+}
+.pm-close:focus-visible {
+  outline: 2px solid var(--pm-accent);
+  outline-offset: 2px;
+}
+
+.pm-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--pm-s5);
+}
+
+.pm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pm-row-label {
+  font-size: 12px;
+  color: var(--pm-ink-muted);
+}
+.pm-row-value {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: var(--pm-ink);
+}
+
+/* -- Switch -------------------------------------------------------------- */
+
+.pm-switch {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--pm-panel-hover);
+  cursor: pointer;
+  transition: background-color 200ms var(--pm-ease);
+}
+.pm-switch[aria-checked='true'] {
+  background: color-mix(in srgb, var(--pm-accent) 80%, transparent);
+}
+.pm-switch:focus-visible {
+  outline: 2px solid var(--pm-accent);
+  outline-offset: 2px;
+}
+.pm-switch span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--pm-void);
+  transition: left 200ms var(--pm-ease);
+}
+.pm-switch[aria-checked='true'] span {
+  left: 19px;
+}
+
+/* -- Durations ----------------------------------------------------------- */
+
+/*
+   `opacity: 0` alone hides it from the eye but NOT from the pointer or a
+   screen reader: a collapsed row still hit-tests, so a click just under the
+   toggle silently set a duration on a timer that was off. `visibility` and
+   `pointer-events` are released by the same attribute, so they cannot drift
+   apart from each other or from `aria-hidden`.
+*/
+.pm-durations {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  overflow: hidden;
+  transition:
+    max-height 300ms var(--pm-ease),
+    opacity 300ms var(--pm-ease),
+    margin-top 300ms var(--pm-ease);
+}
+.pm-durations[aria-hidden='true'] {
+  max-height: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  margin-top: 0;
+}
+.pm-durations[aria-hidden='false'] {
+  max-height: 64px;
+  opacity: 1;
+  margin-top: var(--pm-s3);
+}
+
+.pm-duration {
+  padding: 6px 0;
+  border: 1px solid var(--pm-line);
+  border-radius: var(--pm-radius-sm);
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--pm-ink-muted);
+  cursor: pointer;
+  transition:
+    border-color 150ms var(--pm-ease),
+    color 150ms var(--pm-ease),
+    background-color 150ms var(--pm-ease);
+}
+.pm-duration:hover {
+  border-color: var(--pm-line-strong);
+  color: var(--pm-ink);
+}
+.pm-duration[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--pm-accent) 60%, transparent);
+  background: color-mix(in srgb, var(--pm-accent) 12%, transparent);
+  color: var(--pm-accent-soft);
+}
+.pm-duration:focus-visible {
+  outline: 2px solid var(--pm-accent);
+  outline-offset: 2px;
+}
+
+/* -- Questions ----------------------------------------------------------- */
+
+.pm-questions {
+  margin-top: var(--pm-s6);
+}
+
+.pm-range {
+  width: 100%;
+  height: var(--pm-s1);
+  margin-top: var(--pm-s3);
+  appearance: none;
+  border-radius: 999px;
+  background: var(--pm-panel-hover);
+  accent-color: var(--pm-accent);
+  cursor: pointer;
+}
+.pm-range:focus-visible {
+  outline: 2px solid var(--pm-accent);
+  outline-offset: 4px;
+}
+
+.pm-range-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--pm-s2);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--pm-ink-faint);
+}
+
+/* -- Footer -------------------------------------------------------------- */
+
+.pm-panel-foot {
+  padding: var(--pm-s5);
+  border-top: 1px solid var(--pm-line);
+}
+
+.pm-start {
+  width: 100%;
+  padding: var(--pm-s3) 0;
+  border: 0;
+  border-radius: var(--pm-radius-md);
+  background: var(--pm-accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--pm-void);
+  cursor: pointer;
+  transition:
+    background-color 150ms var(--pm-ease),
+    transform 150ms var(--pm-ease);
+}
+.pm-start:hover {
+  background: var(--pm-accent-soft);
+}
+.pm-start:active {
+  transform: scale(0.99);
+}
+.pm-start:focus-visible {
+  outline: 2px solid var(--pm-accent);
+  outline-offset: 2px;
+}
+
+.pm-summary {
+  margin: 10px 0 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--pm-ink-faint);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Hint + reset                                                               */
+/* -------------------------------------------------------------------------- */
+
+.pm-hint {
+  position: absolute;
+  right: var(--pm-s7);
+  bottom: var(--pm-s6);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--pm-s4);
+}
+
+.pm-hint p {
+  margin: 0;
+  font-size: 11px;
+  color: var(--pm-ink-faint);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.pm-reset {
+  padding: var(--pm-s1) 10px;
+  border: 1px solid var(--pm-line);
+  border-radius: var(--pm-radius-sm);
+  background: none;
+  font: inherit;
+  font-size: 11px;
+  color: var(--pm-ink-muted);
+  cursor: pointer;
+  transition:
+    opacity 200ms var(--pm-ease),
+    color 200ms var(--pm-ease),
+    border-color 200ms var(--pm-ease);
+}
+.pm-reset:hover {
+  border-color: var(--pm-line-strong);
+  color: var(--pm-ink);
+}
+.pm-reset:focus-visible {
+  outline: 2px solid var(--pm-accent);
+  outline-offset: 2px;
+}
+.pm-reset[aria-hidden='true'] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Session stub                                                               */
+/* -------------------------------------------------------------------------- */
+
+.pm-session {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--pm-void) 85%, transparent);
+  backdrop-filter: blur(4px);
+}
+
+.pm-session-card {
+  width: 420px;
+  padding: var(--pm-s6);
+  border: 1px solid var(--pm-line);
+  border-radius: var(--pm-radius-lg);
+  background: var(--pm-void-lift);
+  text-align: center;
+}
+
+.pm-session-eyebrow {
+  margin: 0;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pm-accent);
+}
+
+.pm-session-title {
+  margin: var(--pm-s3) 0 0;
+  font-size: 19px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--pm-ink);
+}
+
+.pm-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--pm-s3);
+  margin: var(--pm-s6) 0 0;
+  padding: var(--pm-s5) 0;
+  border-top: 1px solid var(--pm-line);
+  border-bottom: 1px solid var(--pm-line);
+  text-align: left;
+}
+.pm-stats dt {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pm-ink-faint);
+}
+.pm-stats dd {
+  margin: var(--pm-s1) 0 0;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--pm-ink);
+}
+
+.pm-session-note {
+  margin: var(--pm-s5) 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--pm-ink-muted);
+}
+
+.pm-session-back {
+  width: 100%;
+  margin-top: var(--pm-s6);
+  padding: 10px 0;
+  border: 1px solid var(--pm-line);
+  border-radius: var(--pm-radius-md);
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--pm-ink);
+  cursor: pointer;
+  transition:
+    border-color 150ms var(--pm-ease),
+    background-color 150ms var(--pm-ease);
+}
+.pm-session-back:hover {
+  border-color: var(--pm-line-strong);
+  background: var(--pm-panel-hover);
+}
+.pm-session-back:focus-visible {
+  outline: 2px solid var(--pm-accent);
+  outline-offset: 2px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Utilities                                                                  */
+/* -------------------------------------------------------------------------- */
+
+.pm-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The map's only ambient motion. Seven seconds a cycle, and only ever on nodes
+   already practised — so the movement means "you have been here" rather than
+   being decoration. Faster than about five seconds reads as blinking. */
+@keyframes pm-breathe {
+  0%,
+  100% {
+    opacity: 0.62;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .practice-map *,
+  .practice-map *::before,
+  .practice-map *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* -- The session screen ---------------------------------------------------
+
+   Every value below is a token declared on `.practice-map`. Nothing here
+   invents a colour, a spacing step or a radius, so a change to the scale moves
+   this screen with the rest of the map rather than leaving it behind. */
+
+.pm-q-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pm-s2);
+  margin-bottom: var(--pm-s5);
+}
+
+.pm-q-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--pm-s3);
+  color: var(--pm-ink-muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Tabular figures, so a counting-down clock does not jitter its own width. */
+.pm-q-clock {
+  font-variant-numeric: tabular-nums;
+  color: var(--pm-accent);
+}
+
+.pm-q-text {
+  margin: 0 0 var(--pm-s5);
+  color: var(--pm-ink);
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.pm-q-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pm-s2);
+  margin: 0 0 var(--pm-s5);
+  padding: 0;
+  list-style: none;
+}
+
+.pm-q-option {
+  display: flex;
+  align-items: baseline;
+  gap: var(--pm-s3);
+  width: 100%;
+  padding: var(--pm-s3) var(--pm-s4);
+  border: 1px solid var(--pm-line);
+  border-radius: var(--pm-radius-md);
+  background: var(--pm-panel);
+  color: var(--pm-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 160ms var(--pm-ease),
+    background 160ms var(--pm-ease);
+}
+
+.pm-q-option:hover:not(:disabled) {
+  background: var(--pm-panel-hover);
+  border-color: var(--pm-line-strong);
+}
+
+.pm-q-option:disabled {
+  cursor: default;
+}
+
+.pm-q-option:focus-visible {
+  outline: 2px solid var(--pm-accent);
+  outline-offset: 2px;
+}
+
+/* The verdict is carried by a data attribute AND by the text in the solution
+   below, never by colour alone. */
+.pm-q-option[data-state='correct'] {
+  border-color: var(--pm-accent);
+  background: rgb(var(--pm-accent-rgb) / 0.12);
+}
+
+.pm-q-option[data-state='wrong'] {
+  border-color: var(--pm-line-strong);
+  background: var(--pm-panel-hover);
+  text-decoration: line-through;
+}
+
+.pm-q-key {
+  flex: 0 0 auto;
+  width: var(--pm-s5);
+  color: var(--pm-ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.pm-q-option-text {
+  flex: 1 1 auto;
+}
+
+.pm-q-solution {
+  padding-top: var(--pm-s4);
+  border-top: 1px solid var(--pm-line);
+}
+
+.pm-q-verdict {
+  margin: 0 0 var(--pm-s2);
+  color: var(--pm-ink);
+  font-weight: 600;
+}
+
+.pm-q-working {
+  margin: 0 0 var(--pm-s5);
+  color: var(--pm-ink-muted);
+  line-height: 1.6;
+}
+
+.pm-q-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pm-s2);
+  margin: var(--pm-s5) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pm-q-breakdown li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--pm-s1) var(--pm-s3);
+  padding: var(--pm-s2) var(--pm-s3);
+  border-left: 2px solid var(--pm-line-strong);
+  border-radius: var(--pm-radius-sm);
+  background: var(--pm-panel);
+}
+
+.pm-q-breakdown li[data-correct='true'] {
+  border-left-color: var(--pm-accent);
+}
+
+.pm-q-concept {
+  color: var(--pm-ink);
+  text-transform: capitalize;
+}
+
+.pm-q-mark {
+  color: var(--pm-ink-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* The misconception the distractor was written to catch. This is the whole
+   reason a wrong answer is worth more than a lower score. */
+.pm-q-slip {
+  grid-column: 1 / -1;
+  color: var(--pm-ink-faint);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+/* What the per-question record earns the learner. Set apart from the plain
+   note above it, because a line naming their actual mistake is worth more than
+   the sentence saying how many they got right. */
+.pm-q-advice {
+  margin: var(--pm-s3) 0 0;
+  padding-left: var(--pm-s3);
+  border-left: 2px solid var(--pm-accent);
+  color: var(--pm-ink);
+  line-height: 1.6;
+}

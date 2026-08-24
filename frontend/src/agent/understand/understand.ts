@@ -1,5 +1,6 @@
 import type { Ambiguity, Entity, Intent, IntentKind, Turn, Understanding } from '../kernel/contracts'
 import type { RouteContext } from '../kernel/router'
+import { mergeEntities } from '../kernel/entities'
 import { STOPWORDS as SHARED } from '../kernel/text'
 
 /**
@@ -457,14 +458,9 @@ export function understand(turn: Turn, convo: Conversation = NEW_CONVERSATION): 
   }
 }
 
-function mergeEntities(prior: readonly Entity[], fresh: readonly Entity[]): Entity[] {
-  const byId = new Map(prior.map((e) => [e.id, e]))
-  for (const e of fresh) {
-    const existing = byId.get(e.id)
-    byId.set(e.id, existing ? { ...existing, mentions: [...existing.mentions, ...e.mentions] } : e)
-  }
-  return [...byId.values()]
-}
+/* `mergeEntities` lived here AND in memory.ts, identically, and both copies
+   grew mentions quadratically. It is now in kernel/entities.ts, imported by
+   both --- see that file for the measurement. */
 
 /**
  * One sentence of what they want, in their own framing.

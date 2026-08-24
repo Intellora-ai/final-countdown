@@ -1,5 +1,4 @@
 import type {
-  Entity,
   MemoryKind,
   MemoryQuery,
   MemoryRecord,
@@ -7,6 +6,7 @@ import type {
   Understanding,
   WorkingMemory,
 } from '../kernel/contracts'
+import { mergeEntities } from '../kernel/entities'
 import { overlap, tokens, without } from '../kernel/text'
 
 /**
@@ -449,11 +449,6 @@ function unique<T>(xs: readonly T[]): T[] {
   return [...new Set(xs)]
 }
 
-function mergeEntities(prior: readonly Entity[], fresh: readonly Entity[]): Entity[] {
-  const byId = new Map(prior.map((e) => [e.id, e]))
-  for (const e of fresh) {
-    const was = byId.get(e.id)
-    byId.set(e.id, was ? { ...was, mentions: [...was.mentions, ...e.mentions] } : e)
-  }
-  return [...byId.values()]
-}
+/* `mergeEntities` lived here AND in understand.ts, identically, and both copies
+   grew mentions quadratically. It is now in kernel/entities.ts, imported by
+   both — see that file for the measurement. */

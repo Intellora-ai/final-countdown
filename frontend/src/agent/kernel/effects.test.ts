@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { Capability, Turn } from './contracts'
 import { handle, NEW_SESSION, type ModelPort, type Ports, type Session } from './loop'
 import { createAgent } from '../index'
+import { MENTION_WINDOW } from './entities'
 import { createStore, inMemoryPersistence } from '../memory/memory'
 import { calculator, createRegistry, fileTools, type FileSource } from '../tools/tools'
 import { buildGraph, type Concept } from '../learn/learn'
@@ -502,5 +503,73 @@ describe('assumptions are written down, not made silently', () => {
     const first: Session = (await handle(ask('What is inflation?'), NEW_SESSION, p)).session
     const second = await handle(ask('Explain it more simply'), first, p)
     expect(second.session.conversation.turnIndex).toBe(2)
+  })
+})
+
+describe('the session does not grow without bound', () => {
+  /* MEASURED, NOT REASONED ABOUT. `mergeEntities` was written twice —
+     identically — in understand.ts and memory.ts, and both copies merged
+     mentions with `[...was.mentions, ...e.mentions]`. Both sides accumulate,
+     so every turn re-appended the whole prior history and `working.entities`
+     grew QUADRATICALLY:
+
+         turn 33   working =  7452 B   mentions 1122, 561, 561, 561
+         turn 66   working = 30552 B   mentions 4422, 2211, 2211, 2211
+         turn 99   working = 69763 B   mentions 9900, 4950, 4950, 4950
+
+     4950 is 99 x 100 / 2. Nothing caught it because the entity COUNT stayed
+     flat at four — the growth was inside the values, where a `.length`
+     assertion never looks. The session is what `createAgent()` carries between
+     turns and what `suspend()` serialises, so this was a conversation that got
+     heavier the longer it ran. */
+
+  const LONG = 60
+
+  async function runTurns(n: number) {
+    let session = NEW_SESSION
+    const p = ports()
+    for (let i = 0; i < n; i++) {
+      session = (await handle(ask('Delete my old notes and then send the summary'), session, p))
+        .session
+    }
+    return session
+  }
+
+  it('keeps every mention list bounded no matter how long the conversation runs', async () => {
+    const session = await runTurns(LONG)
+    for (const e of session.working.entities) {
+      expect(e.mentions.length).toBeLessThanOrEqual(MENTION_WINDOW)
+    }
+  })
+
+  it('records no duplicate turn index in a mention list', async () => {
+    /* A mention is a turn index and an entity cannot be mentioned twice in one
+       turn, so a duplicate is bookkeeping noise. Duplicates were the whole of
+       the quadratic growth. */
+    const session = await runTurns(LONG)
+    for (const e of session.working.entities) {
+      expect(new Set(e.mentions).size).toBe(e.mentions.length)
+    }
+  })
+
+  it('does NOT grow superlinearly — the assertion that would have caught it', async () => {
+    /* Compares growth against a straight line rather than against a fixed
+       number, because a byte threshold passes for a while and then stops. The
+       broken version tripled between these two points; a bounded one barely
+       moves. */
+    const short = JSON.stringify(await runTurns(LONG / 2)).length
+    const long = JSON.stringify(await runTurns(LONG)).length
+    expect(long).toBeLessThan(short * 2)
+  })
+
+  it('still resolves references, which is the only thing mentions are read for', async () => {
+    /* The bound is only safe because `resolveReferences` reads `last(mentions)`
+       and nothing reads the earlier entries. If that ever changes, this test is
+       where it should be noticed. */
+    const p = ports()
+    const first = await handle(ask('Tell me about inflation in India'), NEW_SESSION, p)
+    const second = await handle(ask('Explain it more simply'), first.session, p)
+    expect(second.trace.understanding.entities.length).toBeGreaterThan(0)
+    expect(second.result.answer.length).toBeGreaterThan(0)
   })
 })

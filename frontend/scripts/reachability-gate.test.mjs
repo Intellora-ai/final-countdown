@@ -640,6 +640,35 @@ describe('area reachability from the product entry', () => {
     expect(analyzeProductReachability(manifest, opts)).toHaveLength(1)
   })
 
+  it('refuses an AREA entry that does not exist rather than reporting it UNREACHED', () => {
+    /* Found by feeding this function three entries that did not exist. It
+       reported all three UNREACHED -- a confident finding, over input it had
+       never validated, that would send someone hunting an island that is not
+       there.
+
+       `analyze()` has always thrown on a missing area entry. This function
+       checked only the PRODUCT entry and took the area's on trust, so the two
+       halves of the same gate disagreed about whether a typo is a finding or
+       an error. It is an error. "Not reachable" and "not a file" must never
+       render as the same sentence. */
+    const { opts } = productFixture({
+      'main.tsx': `export const app = 1\n`,
+      'area/index.ts': `export function go() { return 1 }\n`,
+    })
+    expect(() =>
+      analyzeProductReachability(
+        [
+          {
+            name: 'typo',
+            root: '.reachability-fixture/area',
+            entries: ['.reachability-fixture/area/indexx.ts'],
+          },
+        ],
+        opts,
+      ),
+    ).toThrow(/area entry/)
+  })
+
   it('refuses a product entry that does not exist rather than reporting PASS', () => {
     /* Fails closed, like the rest of the gate. A missing entry means the walk
        reached nothing, and "reached nothing" must never render as "everything
@@ -654,6 +683,40 @@ describe('area reachability from the product entry', () => {
         root: '.reachability-fixture',
       }),
     ).toThrow(/product entry/)
+  })
+
+  it('follows a dynamic import(), because a lazy chunk genuinely ships', () => {
+    /* ALREADY TRUE, PREVIOUSLY UNASSERTED. The product reaches its two largest
+       areas through a dynamic import, not a static one:
+
+           App.tsx:30  React.lazy(() => import('./canvas/CanvasRoute'))
+           App.tsx:36  React.lazy(() => import('./practice/PracticeView'))
+
+       Those are code-split chunks that absolutely ship -- they arrive when the
+       route opens. A walker following only `... from '...'` would stop at
+       App.tsx and call both areas orphans in the SAME words it uses for the
+       real src/agent finding, and one indistinguishable false positive beside
+       a true one is how a gate gets switched off.
+
+       `importsOf` already handles `import()` and yields a star edge for it, so
+       this passed the moment it was written. That is exactly why it is worth
+       pinning: nothing asserted it, so nothing would have caught a future
+       narrowing of the scanner that quietly reintroduced the false positive. */
+    const { manifest, opts } = productFixture({
+      'main.tsx': `const Lazy = React.lazy(() => import('./area/index'))\nexport default Lazy\n`,
+      'area/index.ts': `export function go() { return 1 }\n`,
+    })
+    expect(analyzeProductReachability(manifest, opts)).toEqual([])
+  })
+
+  it('still refuses a `import type` edge after learning about import()', () => {
+    /* The pair. Widening the walker must not widen it onto erased edges --
+       otherwise the fix for the false positive manufactures a false negative. */
+    const { manifest, opts } = productFixture({
+      'main.tsx': `import type { T } from './area/index'\nexport const x: T | null = null\n`,
+      'area/index.ts': `export type T = { a: number }\n`,
+    })
+    expect(analyzeProductReachability(manifest, opts)).toHaveLength(1)
   })
 
   it('leaves the default report untouched, so this lands without flipping main red', () => {

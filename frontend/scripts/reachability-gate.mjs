@@ -617,6 +617,27 @@ export function analyzeProductReachability(
     throw new Error(`product entry does not exist or is a test file: ${entry}`)
   }
 
+  /* And every AREA entry, for the same reason and then one more.
+     `analyze()` has always thrown on a missing area entry; this function once
+     checked only the product entry and took the area's on trust. Feeding it
+     three entries that did not exist produced three confident UNREACHED
+     findings -- someone would have gone hunting an island that was not there.
+
+     "Not reachable" and "not a file" must never render as the same sentence.
+     An area whose root sits outside the walked root trips this too, which is
+     correct: the question cannot be answered for it, and refusing to answer
+     beats answering wrongly. */
+  for (const area of manifest) {
+    for (const e of area.entries) {
+      if (!sources.includes(e)) {
+        throw new Error(
+          `area entry does not exist, is a test file, or is outside ${root}: ` +
+            `${e} (area '${area.name}')`,
+        )
+      }
+    }
+  }
+
   /* Edges from NON-TEST files only. A test importing the area entry is the
      same laundering the orphan check already refuses, one level out. */
   const edges = new Map()

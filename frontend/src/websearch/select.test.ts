@@ -122,9 +122,39 @@ describe('nothing is silently dropped — filtering is visible', () => {
     for (const r of ranked) {
       expect(r.excluded === undefined).toBe(r.excludedReason === undefined)
     }
-    const bad = ranked.find((r) => r.hit.url.startsWith('javascript:'))
+  })
+
+  /* EVERY non-http(s) scheme, not just `javascript:`.
+   *
+   * The first version of this checked one scheme with `startsWith`, which is
+   * both a weaker test and the exact shape CodeQL flags as an incomplete
+   * scheme check — `data:` carries script just as well, and `file:` reads the
+   * local disk. The production guard is an allowlist and always handled these;
+   * the TEST was the thing asserting only one of them, which is how an
+   * allowlist quietly becomes a blocklist in a later refactor with nothing
+   * failing. Matching on the exact URL also means this test contains no scheme
+   * check of its own to be incomplete. */
+  it.each([
+    'javascript:alert(1)',
+    'data:text/html,<script>alert(1)</script>',
+    'vbscript:msgbox(1)',
+    'file:///etc/passwd',
+    'ftp://example.com/x',
+    'blob:https://example.com/uuid',
+  ])('%s is excluded, with a reason naming the scheme', (url) => {
+    const ranked = rankHits(
+      [hit(url), hit('https://nasa.gov/mission')],
+      interpret('what is gas pressure'),
+      now,
+    )
+    const bad = ranked.find((r) => r.hit.url === url)
+    expect(bad).toBeDefined()
     expect(bad!.excluded).toBe(true)
     expect(bad!.excludedReason).toBeTruthy()
+    /* And the good hit beside it is untouched — one bad URL must not take the
+       ranking down with it. */
+    const good = ranked.find((r) => r.hit.url === 'https://nasa.gov/mission')
+    expect(good!.excluded).toBeUndefined()
   })
 
   it('an excluded hit never outranks an included one', () => {

@@ -856,3 +856,167 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* -- The session screen ---------------------------------------------------
+
+   Every value below is a token declared on `.practice-map`. Nothing here
+   invents a colour, a spacing step or a radius, so a change to the scale moves
+   this screen with the rest of the map rather than leaving it behind. */
+
+.pm-q-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pm-s2);
+  margin-bottom: var(--pm-s5);
+}
+
+.pm-q-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--pm-s3);
+  color: var(--pm-ink-muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Tabular figures, so a counting-down clock does not jitter its own width. */
+.pm-q-clock {
+  font-variant-numeric: tabular-nums;
+  color: var(--pm-accent);
+}
+
+.pm-q-text {
+  margin: 0 0 var(--pm-s5);
+  color: var(--pm-ink);
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.pm-q-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pm-s2);
+  margin: 0 0 var(--pm-s5);
+  padding: 0;
+  list-style: none;
+}
+
+.pm-q-option {
+  display: flex;
+  align-items: baseline;
+  gap: var(--pm-s3);
+  width: 100%;
+  padding: var(--pm-s3) var(--pm-s4);
+  border: 1px solid var(--pm-line);
+  border-radius: var(--pm-radius-md);
+  background: var(--pm-panel);
+  color: var(--pm-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 160ms var(--pm-ease),
+    background 160ms var(--pm-ease);
+}
+
+.pm-q-option:hover:not(:disabled) {
+  background: var(--pm-panel-hover);
+  border-color: var(--pm-line-strong);
+}
+
+.pm-q-option:disabled {
+  cursor: default;
+}
+
+.pm-q-option:focus-visible {
+  outline: 2px solid var(--pm-accent);
+  outline-offset: 2px;
+}
+
+/* The verdict is carried by a data attribute AND by the text in the solution
+   below, never by colour alone. */
+.pm-q-option[data-state='correct'] {
+  border-color: var(--pm-accent);
+  background: rgb(var(--pm-accent-rgb) / 0.12);
+}
+
+.pm-q-option[data-state='wrong'] {
+  border-color: var(--pm-line-strong);
+  background: var(--pm-panel-hover);
+  text-decoration: line-through;
+}
+
+.pm-q-key {
+  flex: 0 0 auto;
+  width: var(--pm-s5);
+  color: var(--pm-ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.pm-q-option-text {
+  flex: 1 1 auto;
+}
+
+.pm-q-solution {
+  padding-top: var(--pm-s4);
+  border-top: 1px solid var(--pm-line);
+}
+
+.pm-q-verdict {
+  margin: 0 0 var(--pm-s2);
+  color: var(--pm-ink);
+  font-weight: 600;
+}
+
+.pm-q-working {
+  margin: 0 0 var(--pm-s5);
+  color: var(--pm-ink-muted);
+  line-height: 1.6;
+}
+
+.pm-q-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pm-s2);
+  margin: var(--pm-s5) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pm-q-breakdown li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--pm-s1) var(--pm-s3);
+  padding: var(--pm-s2) var(--pm-s3);
+  border-left: 2px solid var(--pm-line-strong);
+  border-radius: var(--pm-radius-sm);
+  background: var(--pm-panel);
+}
+
+.pm-q-breakdown li[data-correct='true'] {
+  border-left-color: var(--pm-accent);
+}
+
+.pm-q-concept {
+  color: var(--pm-ink);
+  text-transform: capitalize;
+}
+
+.pm-q-mark {
+  color: var(--pm-ink-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* The misconception the distractor was written to catch. This is the whole
+   reason a wrong answer is worth more than a lower score. */
+.pm-q-slip {
+  grid-column: 1 / -1;
+  color: var(--pm-ink-faint);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}

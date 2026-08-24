@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } 
 import { Constellation } from './Constellation'
 import { PanZoom } from './PanZoom'
 import { PracticePanel } from './PracticePanel'
-import { SessionStub } from './SessionStub'
+import { SessionView } from './SessionView'
 import { CHAPTER_BY_ID, CHAPTER_OF_TOPIC, TOPIC_BY_ID, type TopicId } from './curriculum'
 import { buildGraph } from './layout'
 import { hydratePracticeStore, recentTopicsOf, usePracticeStore } from './store'
@@ -209,7 +209,7 @@ export default function PracticeView() {
 
       <ContinuePractising />
       <PracticePanel />
-      <SessionStub />
+      <SessionView />
 
       <div className="pm-hint">
         <p>Drag to move · scroll to zoom</p>

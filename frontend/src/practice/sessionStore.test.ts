@@ -67,7 +67,7 @@ describe('starting a run', () => {
     expect(state.status).toBe('ready');
     expect(state.session?.questions).toHaveLength(5);
     expect(state.session?.status).toBe('IN_PROGRESS');
-    expect(progressOf(state)).toEqual({ current: 1, total: 5 });
+    expect(progressOf(state.session)).toEqual({ current: 1, total: 5 });
   });
 
   it('reports a refusal rather than a partial set', async () => {
@@ -105,7 +105,7 @@ describe('the answer is not available before the learner commits', () => {
   it('gives a screen a question with no answer field on it', async () => {
     await startRun();
 
-    const question = currentQuestion(useSessionStore.getState());
+    const question = currentQuestion(useSessionStore.getState().session);
     expect(question).not.toBeNull();
     expect(question).not.toHaveProperty('correctOption');
     expect(question).not.toHaveProperty('fullSolution');
@@ -120,7 +120,7 @@ describe('the answer is not available before the learner commits', () => {
     const state = useSessionStore.getState();
     const id = state.session!.questions[0]!.questionId;
 
-    expect(revealFor(state, id)).toBeNull();
+    expect(revealFor(state.session, state.revealed, id)).toBeNull();
   });
 
   it('reveals only the question just answered, not the rest of the set', async () => {
@@ -132,8 +132,8 @@ describe('the answer is not available before the learner commits', () => {
     useSessionStore.getState().answer(first, 'A', T0 + 5_000);
 
     const state = useSessionStore.getState();
-    expect(revealFor(state, first)).not.toBeNull();
-    expect(revealFor(state, second)).toBeNull();
+    expect(revealFor(state.session, state.revealed, first)).not.toBeNull();
+    expect(revealFor(state.session, state.revealed, second)).toBeNull();
   });
 
   it('reveals nothing when the answer was not recorded', async () => {
@@ -150,7 +150,7 @@ describe('the answer is not available before the learner commits', () => {
     const question = useSessionStore.getState().session!.questions[0]!;
 
     useSessionStore.getState().answer(question.questionId, 'B', T0 + 2_000);
-    const revealed = revealFor(useSessionStore.getState(), question.questionId);
+    const revealed = revealFor(useSessionStore.getState().session, useSessionStore.getState().revealed, question.questionId);
 
     expect(revealed?.correctOption).toBe(question.correctOption);
     expect(revealed?.fullSolution).toBe(question.fullSolution);
@@ -216,10 +216,10 @@ describe('the timer', () => {
 
   it('counts down and reports what is left', async () => {
     await startTimed(10);
-    expect(remainingFor(useSessionStore.getState())).toBe(10 * MINUTE);
+    expect(remainingFor(useSessionStore.getState().session)).toBe(10 * MINUTE);
 
     useSessionStore.getState().tick(T0 + 4 * MINUTE);
-    expect(remainingFor(useSessionStore.getState())).toBe(6 * MINUTE);
+    expect(remainingFor(useSessionStore.getState().session)).toBe(6 * MINUTE);
   });
 
   it('ends the session and records it when the time is spent', async () => {
@@ -236,7 +236,7 @@ describe('the timer', () => {
     await startRun();
     useSessionStore.getState().tick(T0 + 900 * MINUTE);
 
-    expect(remainingFor(useSessionStore.getState())).toBeNull();
+    expect(remainingFor(useSessionStore.getState().session)).toBeNull();
     expect(useSessionStore.getState().session?.status).toBe('IN_PROGRESS');
   });
 
@@ -245,6 +245,6 @@ describe('the timer', () => {
     useSessionStore.getState().tick(T0 + 7 * MINUTE);
     useSessionStore.getState().tick(T0 - 500 * MINUTE);
 
-    expect(remainingFor(useSessionStore.getState())).toBe(3 * MINUTE);
+    expect(remainingFor(useSessionStore.getState().session)).toBe(3 * MINUTE);
   });
 });

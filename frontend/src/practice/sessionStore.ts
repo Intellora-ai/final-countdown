@@ -84,6 +84,8 @@ export interface SessionRunState {
 
   start(input: StartInput): Promise<void>;
   answer(questionId: string, option: OptionKey, nowMs: number): void;
+  /** Move to the next question. Stops at the last one rather than running off. */
+  next(): void;
   exit(nowMs: number): void;
   submit(nowMs: number): void;
   tick(nowMs: number): void;
@@ -193,6 +195,23 @@ export const useSessionStore = create<SessionRunState>()(
         });
       },
 
+      /*
+       * Advancing is the store's job, not a component's.
+       *
+       * A screen reaching in to set `currentIndex` would be writing session
+       * state from outside the only place that understands it, and would walk
+       * past the end of the set as readily as to the next question.
+       */
+      next() {
+        const session = get().session;
+        if (!session || isTerminal(session.status)) return;
+
+        const last = session.questions.length - 1;
+        if (session.currentIndex >= last) return;
+
+        set({ session: { ...session, currentIndex: session.currentIndex + 1 } });
+      },
+
       exit(nowMs) {
         const session = get().session;
         if (!session) return;
@@ -283,8 +302,7 @@ export function hydrateSessionStore(): void {
  * Returns the DELIVERABLE shape, which has no `correctOption` and no
  * `fullSolution` field at all. A component cannot leak what it was never given.
  */
-export function currentQuestion(state: SessionRunState): DeliverableQuestion | null {
-  const session = state.session;
+export function currentQuestion(session: PracticeSession | null): DeliverableQuestion | null {
   if (!session) return null;
   const question = session.questions[session.currentIndex];
   return question ? forDelivery(question) : null;
@@ -297,10 +315,14 @@ export function currentQuestion(state: SessionRunState): DeliverableQuestion | n
  * this early" is not a mechanism. A screen that asks for an unanswered
  * question's answer gets null.
  */
-export function revealFor(state: SessionRunState, questionId: string): RevealedAnswer | null {
-  if (!state.revealed[questionId]) return null;
+export function revealFor(
+  session: PracticeSession | null,
+  revealed: Readonly<Record<string, true>>,
+  questionId: string,
+): RevealedAnswer | null {
+  if (!revealed[questionId]) return null;
 
-  const question = state.session?.questions.find((each) => each.questionId === questionId);
+  const question = session?.questions.find((each) => each.questionId === questionId);
   if (!question) return null;
 
   return {
@@ -312,17 +334,16 @@ export function revealFor(state: SessionRunState, questionId: string): RevealedA
 }
 
 /** How far through the set the learner is, one-based for display. */
-export function progressOf(state: SessionRunState): { current: number; total: number } | null {
-  if (!state.session) return null;
+export function progressOf(session: PracticeSession | null): { current: number; total: number } | null {
+  if (!session) return null;
   return {
-    current: Math.min(state.session.currentIndex + 1, state.session.questions.length),
-    total: state.session.questions.length,
+    current: Math.min(session.currentIndex + 1, session.questions.length),
+    total: session.questions.length,
   };
 }
 
 /** Milliseconds left, or null when this session has no countdown. */
-export function remainingFor(state: SessionRunState): number | null {
-  const session = state.session;
+export function remainingFor(session: PracticeSession | null): number | null {
   if (!session || !session.timerEnabled) return null;
   return Math.max(0, session.timerDurationMs - (session.highWaterMs - session.startedAtMs));
 }

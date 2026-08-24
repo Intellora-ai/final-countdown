@@ -913,12 +913,74 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
  * silently compute 17.5 * 2400 --- a wrong answer rather than a refusal, which
  * is the worse of the two failures.
  */
+/**
+ * Characters that mean a match STARTED OR ENDED INSIDE A LONGER LITERAL.
+ *
+ * `_` is here for digit separators, `.` for a leading decimal point, and the
+ * letters for scientific and hexadecimal notation.
+ */
+const LITERAL_CHAR = /[0-9A-Za-z._]/
+
+/**
+ * REFUSING IS THE FEATURE. A truncated match is a different expression.
+ *
+ * The regex anchors on the first digit it can reach, so a number written in a
+ * notation it does not model gets its prefix eaten and what remains is still
+ * syntactically valid. The verifier then faithfully checks that OTHER
+ * expression and stamps `passed: true`. Measured before the guard:
+ *
+ *     "What is 1e5*2?"       ->  "5*2"     verified 10     (200000)
+ *     "What is 3.5e2 + 1?"   ->  "2 + 1"   verified 3      (351)
+ *     "What is 0x10+1?"      ->  "10+1"    verified 11     (17)
+ *     "What is 1_000+1?"     ->  "000+1"   verified 1      (1001)
+ *     "What is .5+1?"        ->  "5+1"     verified 6      (1.5)
+ *     "What is 2+2?"         ->  "2+2"     verified 4      (4)  correct
+ *
+ * Every field of those verifications is internally consistent and five of six
+ * are wrong. Note the last row: it is right on the case anyone would write a
+ * fixture for, and silently wrong on notation nobody thought to test.
+ *
+ * A WRONG ARITHMETIC VERIFICATION IS WORSE THAN NO ARITHMETIC VERIFICATION.
+ * Absent, the number is unchecked and everyone knows it. Present-and-wrong, it
+ * launders a bad number as verified — and this is the one check a reader cannot
+ * repeat for themselves, so it is the one carrying the most trust.
+ *
+ * The principle was already written down four lines above the bug: dropping the
+ * `%` "would silently compute 17.5 * 2400 --- a wrong answer rather than a
+ * refusal, which is the worse of the two failures." Stating a rule is not
+ * enforcing it.
+ */
+function truncated(text: string, match: RegExpMatchArray): boolean {
+  const start = match.index ?? 0
+  const end = start + match[0].length
+  const before = text[start - 1]
+  const after = text[end]
+  return (
+    (before !== undefined && LITERAL_CHAR.test(before)) ||
+    (after !== undefined && LITERAL_CHAR.test(after))
+  )
+}
+
+/**
+ * Pull the arithmetic out of a sentence, or refuse.
+ *
+ * Percentages are rewritten to division BEFORE the general scan, because "17.5%
+ * of 2400" is not an expression the parser accepts and dropping the `%` would
+ * silently compute 17.5 * 2400 --- a wrong answer rather than a refusal, which
+ * is the worse of the two failures.
+ *
+ * Returning null is not a failure path. The caller records
+ * `unmet.calculate = "no arithmetic expression could be extracted"`, which is a
+ * true statement the reader can act on, and the answer proceeds unverified and
+ * honestly labelled.
+ */
 export function extractExpression(text: string): string | null {
   const percent = text.match(/(-?\d+(?:\.\d+)?)\s*%\s*of\s*(-?\d+(?:\.\d+)?)/i)
-  if (percent) return `${percent[1]} / 100 * ${percent[2]}`
+  if (percent) return truncated(text, percent) ? null : `${percent[1]} / 100 * ${percent[2]}`
 
   const bare = text.match(/(-?\d+(?:\.\d+)?(?:\s*[-+*/^]\s*\(?\s*-?\d+(?:\.\d+)?\s*\)?)+)/)
-  return bare?.[1]?.trim() ?? null
+  if (!bare) return null
+  return truncated(text, bare) ? null : (bare[1]?.trim() ?? null)
 }
 
 /** How much of a read file is carried as a claim. Enough to ground an answer. */

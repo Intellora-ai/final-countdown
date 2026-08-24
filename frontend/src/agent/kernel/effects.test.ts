@@ -647,3 +647,64 @@ describe('a repair call that dies is not indistinguishable from one that ran', (
     expect(out.trace.degraded).toMatch(/boom on call 1/)
   })
 })
+
+describe('the arithmetic verifier refuses rather than checking a different sum', () => {
+  /* THE WORST DEFECT FOUND IN THIS PR, and it was green on 32 CI checks.
+     `extractExpression` anchored on the first digit it could reach, so a number
+     written in a notation it does not model had its prefix eaten and what
+     remained was still syntactically valid. The verifier then faithfully
+     checked that OTHER expression and stamped `passed: true`:
+
+         input        extracted   verified   actual
+         1e5*2        5*2         10         200000
+         3.5e2 + 1    2 + 1       3          351
+         0x10+1       10+1        11         17
+         1_000+1      000+1       1          1001
+         .5+1         5+1         6          1.5
+         2+2          2+2         4          4        correct
+
+     Five of six wrong, every one carrying a PASSING arithmetic verification
+     whose every field was internally consistent. And it is right on `2+2`,
+     which is the case anyone writes a fixture for.
+
+     A wrong arithmetic verification is worse than none. Absent, the number is
+     unchecked and everyone knows. Present-and-wrong, it launders a bad number
+     as verified, and this is the one check a reader cannot repeat themselves. */
+
+  const MISREAD = ['1e5*2', '3.5e2 + 1', '0x10+1', '1_000+1', '.5+1', '2e3*2']
+
+  for (const expr of MISREAD) {
+    it(`refuses "${expr}" instead of verifying a truncation of it`, async () => {
+      const out = await handle(ask(`What is ${expr}?`), NEW_SESSION, ports())
+      const arithmetic = out.result.verifications.filter((v) => v.kind === 'arithmetic')
+      /* The only acceptable outcomes are "no arithmetic check ran" or "it ran
+         and failed". A PASSING check on a truncated expression is the bug. */
+      for (const v of arithmetic) {
+        expect(v.passed, `stamped a passing check on "${expr}": ${v.detail}`).toBe(false)
+      }
+    })
+  }
+
+  it('says WHY it refused, rather than going quiet', async () => {
+    const out = await handle(ask('What is 1e5*2?'), NEW_SESSION, ports())
+    if (out.result.plan.selected.includes('calculate')) {
+      expect(out.trace.unmet.calculate ?? '').toMatch(/expression/)
+    }
+  })
+
+  it('still verifies ordinary arithmetic — the half that must not regress', async () => {
+    /* A refusal that refuses everything satisfies every assertion above and
+       deletes the capability. This is the pair that keeps it honest. */
+    const out = await handle(ask('What is 2+2?'), NEW_SESSION, ports())
+    expect(out.trace.executed).toContain('calculate')
+    const arithmetic = out.result.verifications.filter((v) => v.kind === 'arithmetic')
+    expect(arithmetic.length).toBeGreaterThan(0)
+    expect(arithmetic.every((v) => v.passed)).toBe(true)
+  })
+
+  it('still handles a percentage, which has its own rewrite path', async () => {
+    const out = await handle(ask('Calculate 17.5% of 2400'), NEW_SESSION, ports())
+    expect(out.trace.executed).toContain('calculate')
+    expect(out.result.verifications.some((v) => v.kind === 'arithmetic' && v.passed)).toBe(true)
+  })
+})

@@ -1,0 +1,19 @@
+/* The tutor surface. Tokens only — no raw values beyond structural ones, per
+   the Law 4 rule that colour and spacing live in the token layer. */
+.tutor { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.tutor-head { padding: var(--space-4, 1rem); }
+.tutor-eyebrow { font-family: var(--font-mono); letter-spacing: .2em; text-transform: uppercase; color: var(--muted-foreground); }
+.tutor-warn { color: var(--muted-foreground); max-width: 60ch; }
+.tutor-warn code { font-family: var(--font-mono); }
+.tutor-thread { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--space-4, 1rem); }
+.tutor-empty { color: var(--muted-foreground); }
+.tutor-turn { max-width: 70ch; margin-bottom: var(--space-6, 1.5rem); }
+.tutor-q { font-weight: 600; }
+.tutor-a { white-space: pre-wrap; }
+.tutor-trace { display: flex; flex-wrap: wrap; gap: var(--space-3, .75rem); font-family: var(--font-mono); color: var(--muted-foreground); }
+.tutor-trace div { display: flex; gap: var(--space-1, .25rem); }
+.tutor-trace dt::after { content: ':'; }
+.tutor-trace dd { margin: 0; }
+.tutor-compose { display: flex; gap: var(--space-2, .5rem); padding: var(--space-4, 1rem); border-top: 1px solid var(--border); }
+.tutor-compose input { flex: 1 1 auto; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

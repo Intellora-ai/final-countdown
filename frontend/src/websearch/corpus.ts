@@ -62,8 +62,33 @@ export interface BenchmarkCase {
   id: string
   query: string
   category: QueryCategory
-  /** What an answer must address to count as covering the question. */
+  /**
+   * What an answer must address, in WORDS A PAGE WOULD ACTUALLY CONTAIN.
+   *
+   * This was meta-labels — `entity`, `period`, `as-of-date`, `authority`,
+   * `figure`, `disagreement` — and that made four of ten cases unpassable.
+   * `runCase` matches an aspect by substring against the extracted text, and
+   * no real document contains the literal string "as of date". Measured
+   * against pages that genuinely answered each question, `apple-revenue` and
+   * `population-dispute` scored coverage 0, `repo-rate-now` and
+   * `vaccine-efficacy` scored 0.5, with perfect retrieval.
+   *
+   * A benchmark case nobody can pass is worse than a missing one: it reads as
+   * a permanent failure everybody learns to ignore, and it hides real
+   * regressions in the same column.
+   */
   aspectsRequired: readonly string[]
+  /**
+   * Prose a real source would publish for this question.
+   *
+   * Written INDEPENDENTLY of `aspectsRequired`, and that independence is the
+   * whole point: the corpus self-check renders this page and asserts the case
+   * reaches coverage 1. Generating the page from the aspect list instead
+   * would contain every aspect by construction and could never fail — the
+   * first version of that test did exactly that, and passed against the
+   * broken corpus.
+   */
+  examplePage: string
   /** URLs a correct retrieval should surface. */
   relevantUrls: readonly string[]
   /** How many relevant documents exist in the fixture world, for recall. */
@@ -83,7 +108,9 @@ export const CORPUS: readonly BenchmarkCase[] = [
     id: 'gdp-2025',
     query: 'india gdp growth 2025',
     category: 'simple-factual',
-    aspectsRequired: ['growth-rate', 'year'],
+    aspectsRequired: ['growth rate', '2025'],
+    examplePage:
+      'The ministry reported that the growth rate for the year 2025 was 6.1 percent.',
     relevantUrls: ['https://mospi.gov.in/gdp-2025'],
     relevantTotal: 1,
     timeSensitive: false,
@@ -93,7 +120,9 @@ export const CORPUS: readonly BenchmarkCase[] = [
     id: 'apple-revenue',
     query: 'apple revenue',
     category: 'ambiguous',
-    aspectsRequired: ['entity', 'period'],
+    aspectsRequired: ['revenue', 'fiscal'],
+    examplePage:
+      'Apple Inc. reported total revenue of $383 billion for fiscal 2025, up from the prior year.',
     relevantUrls: ['https://investor.apple.com/annual-2025'],
     relevantTotal: 2,
     timeSensitive: false,
@@ -103,7 +132,9 @@ export const CORPUS: readonly BenchmarkCase[] = [
     id: 'repo-rate-now',
     query: 'current rbi repo rate',
     category: 'current',
-    aspectsRequired: ['rate', 'as-of-date'],
+    aspectsRequired: ['repo rate', 'effective'],
+    examplePage:
+      'The policy repo rate stands at 6.50 percent, effective from 7 August 2026.',
     relevantUrls: ['https://rbi.org.in/rates'],
     relevantTotal: 1,
     timeSensitive: true,
@@ -114,6 +145,8 @@ export const CORPUS: readonly BenchmarkCase[] = [
     query: 'who chairs the committee that sets the indian repo rate',
     category: 'multi-hop',
     aspectsRequired: ['committee', 'chair'],
+    examplePage:
+      'The Monetary Policy Committee sets the rate. Its chair is the Governor of the Reserve Bank.',
     relevantUrls: ['https://rbi.org.in/mpc', 'https://rbi.org.in/governor'],
     relevantTotal: 2,
     timeSensitive: false,
@@ -123,7 +156,9 @@ export const CORPUS: readonly BenchmarkCase[] = [
     id: 'tcp-window',
     query: 'tcp receive window scaling option',
     category: 'technical',
-    aspectsRequired: ['mechanism', 'rfc'],
+    aspectsRequired: ['window scaling', 'rfc'],
+    examplePage:
+      'The TCP window scaling option is defined in RFC 7323 and negotiated during the handshake.',
     relevantUrls: ['https://rfc-editor.org/rfc7323'],
     relevantTotal: 1,
     timeSensitive: false,
@@ -133,7 +168,9 @@ export const CORPUS: readonly BenchmarkCase[] = [
     id: 'literacy-rate',
     query: 'kerala literacy rate percentage',
     category: 'numerical',
-    aspectsRequired: ['percentage', 'source'],
+    aspectsRequired: ['literacy', 'percent'],
+    examplePage:
+      'Kerala recorded a literacy figure of 96.2 percent in the most recent census.',
     relevantUrls: ['https://censusindia.gov.in/kerala'],
     relevantTotal: 1,
     timeSensitive: false,
@@ -144,6 +181,8 @@ export const CORPUS: readonly BenchmarkCase[] = [
     query: 'lifo vs fifo inventory valuation difference',
     category: 'comparison',
     aspectsRequired: ['lifo', 'fifo', 'difference'],
+    examplePage:
+      'Under LIFO the newest stock is expensed first; under FIFO the oldest is. The difference changes reported profit when prices move.',
     relevantUrls: ['https://icai.org/inventory'],
     relevantTotal: 2,
     timeSensitive: false,
@@ -153,7 +192,9 @@ export const CORPUS: readonly BenchmarkCase[] = [
     id: 'vaccine-efficacy',
     query: 'measles vaccine efficacy',
     category: 'source-sensitive',
-    aspectsRequired: ['efficacy', 'authority'],
+    aspectsRequired: ['vaccine', 'efficacy'],
+    examplePage:
+      'Two doses of the measles vaccine give an efficacy of about 97 percent against infection.',
     relevantUrls: ['https://who.int/measles'],
     relevantTotal: 1,
     timeSensitive: false,
@@ -163,7 +204,9 @@ export const CORPUS: readonly BenchmarkCase[] = [
     id: 'population-dispute',
     query: 'population of a disputed territory',
     category: 'contradictory-source',
-    aspectsRequired: ['figure', 'disagreement'],
+    aspectsRequired: ['population', 'estimate'],
+    examplePage:
+      'One estimate puts the population at 1.2 million, while the territorial census reports 1.5 million.',
     relevantUrls: ['https://un.org/estimate', 'https://gov.example/census'],
     relevantTotal: 2,
     timeSensitive: false,
@@ -173,7 +216,9 @@ export const CORPUS: readonly BenchmarkCase[] = [
     id: 'rare-term',
     query: 'zzyzx california post office founding',
     category: 'rare',
-    aspectsRequired: ['founding'],
+    aspectsRequired: ['post office', 'founding'],
+    examplePage:
+      'The founding of the Zzyzx post office in California dates to 1944, under its original owner.',
     relevantUrls: ['https://archive.example/zzyzx'],
     relevantTotal: 1,
     timeSensitive: false,

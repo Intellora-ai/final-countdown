@@ -1,0 +1,17 @@
+# DEPENDENCY VULNERABILITY AUDIT — a SEPARATE lock, deliberately.
+#
+# pip-audit pulls 27 packages, 16 of them not already in requirements.lock.
+# Adding those to the main lock would expand the hash-pinned trusted computing
+# base by sixteen packages so that one job can run one check. This repository
+# removed `mutmut` on exactly that reasoning: "an unused package inside a
+# hash-pinned trusted computing base is attack surface with no function."
+#
+# requirements-preflight.lock already established the pattern -- one job, one
+# lock, installed nowhere else.
+#
+# Regenerate with Python 3.12, matching the CI runner, or the resolution can
+# differ from what CI installs:
+#
+#   pip-compile --generate-hashes --strip-extras \
+#       --output-file=requirements-audit.lock requirements-audit.txt
+pip-audit>=2.10,<3

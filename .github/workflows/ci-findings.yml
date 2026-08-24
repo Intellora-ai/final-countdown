@@ -1,0 +1,187 @@
+# CI FINDINGS — the run, as rows, after the run is over.
+#
+# `scripts/ci_findings.py` shipped to main and was called by nothing. It parsed
+# logs into records and reconciled emitted annotations against the ones GitHub
+# ACCEPTED, and a `grep -rn ci_findings .github/workflows/` returned one comment.
+# A library nobody calls is the same shape as a gate nobody runs: correct,
+# tested, and worth nothing on a red build at 2am. This is the caller.
+#
+# WHY `workflow_run` AND NOT A JOB INSIDE THE OTHER WORKFLOWS.
+#
+# Annotations do not exist until the check-run that carries them has COMPLETED.
+# A job cannot read its own annotations, and a job inside the same workflow can
+# only read a sibling that has already finished -- which is why the annotation
+# canary needs two jobs. Reconciling a WHOLE run means waiting for the whole run,
+# and `workflow_run` is the only trigger that fires there.
+#
+# It also keeps this out of the critical path. The measured wall clock is the
+# frontend workflow; adding a step to it would make every PR wait on diagnosis
+# that only matters when something already failed.
+#
+# READ-ONLY, AND DELIBERATELY NOT A REQUIRED CONTEXT. It reports where a failure
+# can be found. It must never be the reason a merge is blocked, because a
+# diagnosis tool that can fail the build gives people a reason to remove it.
+#
+# KNOWN LIMITATION, STATED RATHER THAN DISCOVERED: `workflow_run` workflows run
+# from the DEFAULT BRANCH's copy of this file. So a change here does not take
+# effect on the pull request that makes it -- only after it lands. The python it
+# calls is unit-tested and was exercised against a real completed run before
+# this file was written; the wiring itself is provable only once it is on main.
+
+name: ci-findings
+
+on:
+  workflow_run:
+    workflows: ["verify", "Learning Canvas Frontend", "e2e"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "A completed run id to reconcile"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  # Reading annotations back is the whole point. Nothing here writes: this tool
+  # reports on a verdict, it must never be able to alter one.
+  actions: read
+  checks: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.id || inputs.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    name: reconcile findings
+    runs-on: ubuntu-latest
+    # This job makes four `gh api` calls and runs one pure-Python script. It has
+    # no reason to take minutes, let alone the six HOURS GitHub allows a job
+    # that declares nothing. A diagnosis lane that hangs is worse than one that
+    # fails: it holds a runner slot the account has eight of, while the run it
+    # was meant to explain sits unexplained.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # `gh api` lives in the shell, not in the module. `security_gate.py` keeps
+      # a bandit allowlist keyed by (rule, path), so a subprocess import inside
+      # scripts/ needs an entry in a file this lane does not own --
+      # `tests/test_ci_findings.py::test_the_module_shells_out_to_nothing`
+      # is what keeps it that way.
+      - name: Collect the run's jobs and the annotations GitHub kept
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "reconciling run $RUN_ID"
+
+          # `--jq '.jobs[]'` STREAMS objects; `jq -s '.'` slurps them into ONE
+          # array. The previous form was `--paginate --jq '[.jobs[]]'`, which
+          # builds a separate array PER PAGE and concatenates them, so a run
+          # with more than 100 jobs wrote `[...][...]` -- two JSON documents in
+          # one file. `json.loads` reads the first and silently ignores the
+          # rest, so the reconciler would have measured page one and reported
+          # on the whole run. Not reachable at 14 jobs; guaranteed the day it
+          # is, and invisible when it happens.
+          gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" --paginate \
+            --jq '.jobs[]' | jq -s '.' > jobs.json
+
+          # Annotations hang off check-runs, and a job id IS its check-run id.
+          # Collected per job and concatenated, because there is no endpoint
+          # that returns a whole run's annotations in one call.
+          #
+          # AN API ERROR IS RECORDED, NOT SWALLOWED. This was:
+          #
+          #     gh api ... > one.json 2>/dev/null || echo '[]' > one.json
+          #
+          # which turned a 401, a rate limit, a timeout and a 5xx all into
+          # "this check-run had no annotations" -- and the reconciler then
+          # printed "every failure on this run has a resolvable location",
+          # a statement about data it never received. `set -euo pipefail` is
+          # active, so the `if !` is what keeps one unreadable check-run from
+          # aborting the loop; the id goes on the list instead and the
+          # reconciler refuses to certify the run.
+          echo '[]' > annotations.json
+          : > annotation-fetch-failures.txt
+          for id in $(jq -r '.[].id' jobs.json); do
+            if ! gh api "repos/$REPO/check-runs/$id/annotations" > one.json; then
+              echo "$id" >> annotation-fetch-failures.txt
+              echo "::warning title=annotation fetch failed::check-run $id could not be read; this run cannot be certified as diagnosable"
+              echo '[]' > one.json
+            fi
+            jq -s '.[0] + .[1]' annotations.json one.json > merged.json
+            mv merged.json annotations.json
+          done
+
+          echo "jobs: $(jq 'length' jobs.json)  annotations kept: $(jq 'length' annotations.json)  unreadable check-runs: $(wc -l < annotation-fetch-failures.txt | tr -d ' ')"
+
+      # Exit status is captured, never propagated. A run whose failures have no
+      # location is worth reporting loudly and is not itself a reason to fail a
+      # second time -- the run that produced it already failed.
+      - name: Reconcile
+        id: reconcile
+        continue-on-error: true
+        run: |
+          python3 scripts/ci_findings.py reconcile \
+            --jobs jobs.json \
+            --annotations annotations.json \
+            --fetch-failures annotation-fetch-failures.txt
+
+      # EVERY VALUE THROUGH env, NOTHING INTERPOLATED INTO THE SHELL BODY.
+      #
+      # `inputs.run_id` is attacker-shaped by definition: workflow_dispatch takes
+      # it from whoever triggers the run. Inlining it as `${{ inputs.run_id }}`
+      # inside a `run:` block is the script-injection pattern CodeQL's actions
+      # pack exists to catch. It is bound to env here instead, so the shell sees
+      # a variable and never a substitution.
+      - name: Summarise
+        if: always()
+        env:
+          RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
+          RECONCILE_OUTCOME: ${{ steps.reconcile.outcome }}
+        shell: bash
+        run: |
+          set -o pipefail
+          # THREE STATES, NOT TWO. "unavailable" is not a kind of "located" and
+          # it is not a kind of "unlocated" -- it is the absence of the
+          # measurement, and collapsing it into either of the other two is how
+          # this workflow came to print a clean bill of health over an API
+          # error. The file is written by the collect step above, so an absent
+          # or empty file means every fetch succeeded.
+          UNREADABLE=0
+          if [ -s annotation-fetch-failures.txt ]; then
+            UNREADABLE=$(wc -l < annotation-fetch-failures.txt | tr -d ' ')
+          fi
+          {
+            echo "### CI findings"
+            echo
+            echo "Run: \`$RUN_ID\`"
+            echo
+            if [ "$UNREADABLE" -gt 0 ]; then
+              echo "**Annotation data unavailable.** $UNREADABLE check-run(s) could not be read,"
+              echo "so this run is **not certified as diagnosable**. This is not a claim that"
+              echo "failures lack locations — it is a claim that we could not tell."
+              echo
+              echo "Unreadable check-run ids are in the \`annotation-fetch-failures.txt\`"
+              echo "entry of the uploaded artifact."
+            elif [ "$RECONCILE_OUTCOME" = "failure" ]; then
+              echo "**Some failures on that run cannot be located.** See the annotations above."
+            else
+              echo "Every failure on that run has a resolvable location."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the machine-readable set
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ci-findings-${{ github.event.workflow_run.id || inputs.run_id }}
+          path: |
+            jobs.json
+            annotations.json
+          if-no-files-found: error

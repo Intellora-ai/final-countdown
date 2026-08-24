@@ -245,7 +245,140 @@ const STOPWORDS = new Set([
   ...SHARED,
   'a', 'an', 'or', 'but', 'is', 'it', 'i', 'me', 'my', 'we', 'us', 'to', 'of',
   'in', 'on', 'do', 'tell', 'explain', 'im', "i'm", 'give', 'show', 'help',
+  /* NAVIGATION VERBS ARE NOT SUBJECTS, and admitting them broke continuation.
+     Measured, on a conversation already about quadratics:
+
+         "continue"    -> entities [quadratics, continue]  topicShift = true
+         "keep going"  -> entities [quadratics, keep, going]  topicShift = true
+         "next"        -> entities [quadratics, next]  topicShift = true
+         "go on"       -> entities [quadratics]  topicShift = false
+
+     `topicShift` was reading what it was given: a fresh entity, no overlap
+     with the carried topic, no pronoun. The defect is upstream --- the word
+     whose whole meaning is "do not change the subject" was being offered as a
+     new subject. `go on` escaped only because both its words are shorter than
+     the term pattern's four-character floor, which is luck, not a rule.
+
+     They are here rather than in `text.ts` for the reason the header already
+     gives about `explain`: these are useful content words for relevance
+     ranking and useless as entities, so they belong to the extractor and not
+     to the shared set. */
+  'continue', 'continues', 'continuing', 'carry', 'keep', 'keeps', 'going',
+  'next', 'proceed', 'onwards', 'onward', 'ahead', 'further', 'resume',
+  'along', 'finish', 'finished', 'move', 'press',
+  /* `right` and `alright` came from the GENERATOR, not from anyone's
+     imagination --- see `continuation.enumerated.test.ts`. Crossing the
+     navigation verbs with openers and closers produced 238 leaking phrasings on
+     its first run, of which these two were the whole cause. Neither would have
+     occurred to me; "alright continue" is not a phrase you sit down and think
+     of, it is a phrase people say. */
+  'right', 'alright',
+  /* INSTRUCTION VERBS, for the reason `explain` is already here and the
+     inconsistency that revealed the rest of the family:
+
+         "explain exponents"    -> [exponents]              `explain` listed
+         "define a polynomial"  -> [define, polynomial]     `define` was not
+         "describe a radical"   -> [describe, radical]       nor was `describe`
+
+     The consequence is not cosmetic. `topicShift` requires ZERO overlap with
+     the carried entities, so two consecutive "define X" turns share the entity
+     `define`, the overlap is one, and the second question does not register as
+     a change of subject at all. It was found by a nested-detour test that
+     pushed eight interruptions and got seven --- the eighth reused a word from
+     the fourth. */
+  'define', 'defines', 'describe', 'describes', 'clarify', 'elaborate',
+  'summarise', 'summarize', 'compare', 'list', 'outline', 'derive', 'prove',
 ])
+
+/*
+ * IS "WAS A SUBJECT NAMED" A PROPERTY, OR ONLY A MEMBERSHIP TEST?
+ *
+ * Short answer: not with this function's current shape, and the reason is not
+ * that the list is incomplete. It is that ONE FUNCTION IS DOING TWO JOBS AND IS
+ * WRONG IN BOTH DIRECTIONS AT ONCE.
+ *
+ * Written down because a list somebody chose deliberately is a different
+ * artifact from a list somebody accumulated, and from the outside they are
+ * indistinguishable.
+ *
+ * THE TWO FAILURE DIRECTIONS, BOTH MEASURED.
+ *
+ * ADMITS WHAT IS NOT AN ENTITY. On a conversation about quadratics, `continue`
+ * came back as a `term`, so `topicShift` fired on the word whose entire meaning
+ * is "do not change the subject". Crossing navigation verbs with openers and
+ * closers produced 238 leaking phrasings and exposed `right`, `alright`, `move`
+ * and `press`, none of which anyone had thought of.
+ *
+ * FAILS TO ADMIT WHAT IS. Compound nouns are split into their parts:
+ *
+ *     "what is a transformation graph"  ->  ["transformation", "graph"]
+ *     "explain the quadratic formula"   ->  ["quadratic", "formula"]
+ *     "what is machine learning"        ->  ["machine", "learning"]
+ *     "explain natural selection"       ->  ["natural", "selection"]
+ *
+ * Downstream, `reason` is handed two unrelated nouns, finds no relation between
+ * them, and reports itself selected-but-unmet on the most ordinary question
+ * shape there is. `reason` is not broken; its input is.
+ *
+ * AND THE TWO DIRECTIONS COLLIDE ON A SINGLE WORD, which is the thing that
+ * settles the question:
+ *
+ *     "right, continue"           ->  `right` is filler
+ *     "what is a right triangle"  ->  `right` is half the name of the subject
+ *
+ * Adding `right` to this list fixed the first and broke the second: that phrase
+ * now yields ["triangle"], and the qualifier that distinguishes a right
+ * triangle from any other is gone. NO LIST CAN FIX THAT, because the categories
+ * are not disjoint --- the same token is filler in one position and domain
+ * vocabulary in another. A better list is not a smaller version of the right
+ * answer; it is the wrong shape of answer.
+ *
+ * SO WHAT IS THE RIGHT SHAPE. Two steps, currently fused into one:
+ *
+ *   1. A TOKENISER that segments the turn into candidate spans, including
+ *      multi-word ones, using position and adjacency rather than a vocabulary.
+ *      This is the half that would keep `transformation graph` and `right
+ *      triangle` intact, and it is the half that cannot be a word list at all.
+ *
+ *   2. A DOMAIN-VOCABULARY step that decides which spans are subjects. Here a
+ *      list is legitimate --- but as one input among several, and applied to a
+ *      span in context rather than to a bare token. `right` before a noun and
+ *      `right` before a navigation verb are different spans, and step 1 is what
+ *      makes them distinguishable.
+ *
+ * The concept graph on `Ports.concepts` is the obvious source for step 2 and it
+ * is not sufficient alone. A learner names subjects the curriculum has never
+ * heard of --- "what is a tensor" during an algebra lesson is a real detour
+ * about a real subject --- and under a graph whitelist it names nothing, so no
+ * interruption is pushed and there is nothing to come back to. The lesson
+ * drifts and NOTHING NOTICES. The graph is positive evidence, never a filter.
+ *
+ * WHY THE LIST STAYS FOR NOW, AND WHICH WAY IT ERRS. A missing stopword
+ * mistakes a continuation for a new subject: a detour is pushed that did not
+ * happen, "continue" pops it, and the cost is a spurious log entry. A missing
+ * subject is not pushed at all, and the position the student needed to return
+ * to was never recorded. The first is noisy and recoverable; the second is
+ * silent and is exactly what the teaching ledger exists to prevent. Given an
+ * incomplete answer either way, take the one that errs loudly. The `right
+ * triangle` regression is the price, it is bounded --- the turn still names
+ * `triangle`, so the shift is still detected and only the precision of the
+ * entity is lost --- and it is pinned by a test rather than left to be
+ * rediscovered.
+ *
+ * WHAT WOULD EXPOSE THE NEXT FAILURE, in the order I would add the axes:
+ *
+ *   - compound nouns crossed with the navigation space, which is where the two
+ *     directions meet and where a naive fix to either one breaks the other
+ *   - contractions and elisions: "let's go on", "k continue"
+ *   - Hinglish and Hindi, which `Understanding.language` already claims to
+ *     support: "aage badho", "theek hai continue karo". This list is
+ *     English-only, so every navigation word in the other two languages this
+ *     product targets is missing right now. Largest known hole, and it is a
+ *     hole in the list rather than in the mechanism.
+ *   - multi-clause turns: "ok that makes sense, carry on"
+ *   - typos and voice-transcription artifacts, which is where a real
+ *     deployment finds them first.
+ */
 
 /**
  * Things the conversation is about.
@@ -275,11 +408,124 @@ export function extractEntities(text: string, turnIndex: number): Entity[] {
     // A sentence-initial capital is not a proper noun.
     if (label.length > 2 && !STOPWORDS.has(label.toLowerCase())) add(label, 'named')
   }
-  for (const m of text.matchAll(/\b([a-z][a-z0-9_-]{3,})\b/gi)) {
-    const w = (m[1] ?? '').toLowerCase()
-    if (!STOPWORDS.has(w)) add(w, 'term')
+  for (const span of termSpans(text)) {
+    add(span, 'term')
+    /* THE SPAN AND ITS PARTS, NOT THE SPAN INSTEAD OF THEM.
+     *
+     * The first version of this emitted only the span, and it broke the
+     * opposite way from the bug it fixed:
+     *
+     *     "And how is inflation measured?"  ->  ["inflation measured"]
+     *     "and how do quadratics factor?"   ->  ["quadratics factor"]
+     *
+     * Neither is a compound noun. Adjacency cannot tell a noun-noun compound
+     * from a noun followed by a verb without knowing parts of speech, so a
+     * tokeniser that only joins WILL over-join. Both of those turns then
+     * overlapped nothing in the conversation and read as changes of subject,
+     * which is the same defect as `continue` shifting the topic --- arrived at
+     * from the other side.
+     *
+     * So the tokeniser PROPOSES and does not decide. The span is offered first,
+     * because `wire.ts` takes the teaching concept from `entities[0]` and the
+     * most specific reading is the right default there. The constituent words
+     * follow, because `topicShift` matches ids exactly and continuity depends
+     * on `inflation` still being present as itself.
+     *
+     * Only content words are emitted as parts. That is what keeps `right` out
+     * of "right triangle" while keeping `triangle` in, and it is why adding
+     * this did not reintroduce the 238 leaking phrasings. */
+    const words = span.split(' ')
+    if (words.length > 1) {
+      for (const w of words) if (w.length >= 4 && !STOPWORDS.has(w)) add(w, 'term')
+    }
   }
   return [...found.values()]
+}
+
+/**
+ * Words that are filler standing alone and part of the name standing in front
+ * of a noun.
+ *
+ * THE SET THAT PROVES A LIST CANNOT DECIDE THIS BY ITSELF. `right` is pure
+ * discourse in "right, continue" and half the subject in "right triangle".
+ * Membership cannot separate those because it is the same token; only POSITION
+ * can. So these words are not admitted or refused, they are ATTACHED --- kept
+ * when a content word follows them immediately, dropped when nothing does.
+ *
+ * Deliberately small. Every entry is a word measured to appear in both roles,
+ * not every word that might.
+ */
+const ATTACHABLE = new Set([
+  'right', 'left', 'next', 'last', 'first', 'second', 'third', 'final',
+  'further', 'natural', 'general', 'special', 'common', 'simple',
+])
+
+/** A word and where it sat, because where it sat is half the answer. */
+interface Tok { readonly w: string; readonly at: number; readonly end: number }
+
+/**
+ * The subject spans of a turn, as spans rather than as loose words.
+ *
+ * WHY THIS IS NOT A `matchAll` OVER WORDS ANY MORE. It was, and it split every
+ * compound noun in the language:
+ *
+ *     "what is a transformation graph"  ->  ["transformation", "graph"]
+ *     "explain the quadratic formula"   ->  ["quadratic", "formula"]
+ *
+ * Downstream that is not cosmetic. `wire.ts` takes the teaching concept from
+ * `entities[0].id`, so a split compound does not blur the subject, it picks the
+ * WRONG subject and teaches against it for the rest of the session. And
+ * `reason` was handed two unrelated nouns, found no relation between them, and
+ * reported itself unmet on the most ordinary question shape there is.
+ *
+ * ADJACENCY IS THE WHOLE MECHANISM, and it is deliberately strict: two words
+ * join only when separated by exactly one space. Any comma, dash, or other
+ * punctuation ends the span, which is what makes "right, continue" and "right
+ * triangle" different inputs rather than the same tokens in the same order.
+ * That distinction is unavailable to a word list, and it is the reason this is
+ * a tokeniser and not a bigger vocabulary.
+ */
+export function termSpans(text: string): string[] {
+  const toks: Tok[] = []
+  for (const m of text.matchAll(/[a-z][a-z0-9_-]*/gi)) {
+    const at = m.index ?? 0
+    toks.push({ w: m[0].toLowerCase(), at, end: at + m[0].length })
+  }
+
+  const spans: string[] = []
+  let run: string[] = []
+  let hasContent = false
+  const flush = (): void => {
+    /* A run of attachables that never reached a content word is filler, not a
+       subject. This is what keeps "right", "next" and "first" out on their own
+       while letting "right triangle" through. */
+    if (hasContent) spans.push(run.join(' '))
+    run = []
+    hasContent = false
+  }
+
+  for (let i = 0; i < toks.length; i++) {
+    const t = toks[i] as Tok
+    const prev = toks[i - 1]
+    /* Exactly one space. `text.slice` rather than an index check so that a tab,
+       a newline or a comma all correctly break the span. */
+    const joined = prev !== undefined && text.slice(prev.end, t.at) === ' '
+    if (!joined) flush()
+
+    const content = t.w.length >= 4 && !STOPWORDS.has(t.w)
+    if (content) {
+      run.push(t.w)
+      hasContent = true
+    } else if (ATTACHABLE.has(t.w) && !hasContent) {
+      /* Leading only. A trailing attachable ends the span instead of joining
+         it, so "the triangle right" is `triangle`, not `triangle right`. */
+      run.push(t.w)
+    } else {
+      flush()
+    }
+  }
+  flush()
+  return spans
 }
 
 const PRONOUN = /\b(it|its|that|this|they|them|those|these|the (first|second|third|last|latest|newest|next|previous|other) one)\b/i

@@ -4,6 +4,7 @@ import { CURRICULUM } from "./curriculum";
 import {
   MAX_QUESTIONS,
   MIN_QUESTIONS,
+  QUESTION_CHOICES,
   TIMER_CHOICES,
   TIMER_MAX_MINUTES,
   chapterCoverageOf,
@@ -56,6 +57,38 @@ beforeEach(() => {
   });
 });
 
+/**
+ * The count is a choice of three, not a range.
+ *
+ * The panel offered a 1-to-15 slider while the product offers 5, 10 or 15. A
+ * slider is not a smaller version of three buttons: it lets a learner ask for
+ * 7, and the engine plans a set of 7, and nothing anywhere was ever designed
+ * for 7. Snapping in the store means every route in agrees — the slider, a
+ * restored `localStorage`, and any future caller.
+ */
+describe("question count is one of the three the product offers", () => {
+  it.each([
+    [1, 5],
+    [4, 5],
+    [7, 5],
+    [8, 10],
+    [12, 10],
+    [13, 15],
+    [200, 15],
+    [-5, 5],
+  ])("snaps %i to %i", (asked, expected) => {
+    usePracticeStore.getState().setSettings({ questionCount: asked });
+    expect(usePracticeStore.getState().settings.questionCount).toBe(expected);
+  });
+
+  it("offers exactly the counts the store will accept", () => {
+    for (const count of QUESTION_CHOICES) {
+      usePracticeStore.getState().setSettings({ questionCount: count });
+      expect(usePracticeStore.getState().settings.questionCount).toBe(count);
+    }
+  });
+});
+
 describe("question count", () => {
   it("caps at the promised maximum however it is set", () => {
     usePracticeStore.getState().setSettings({ questionCount: 200 });
@@ -67,9 +100,14 @@ describe("question count", () => {
     expect(usePracticeStore.getState().settings.questionCount).toBe(MIN_QUESTIONS);
   });
 
-  it("rounds fractional values", () => {
+  /*
+   * A fraction used to round to the nearest integer, which was right when any
+   * integer was legal. It now snaps to the nearest OFFERED count, because 8 is
+   * not a session this product knows how to run.
+   */
+  it("snaps a fractional value to an offered count", () => {
     usePracticeStore.getState().setSettings({ questionCount: 7.6 });
-    expect(usePracticeStore.getState().settings.questionCount).toBe(8);
+    expect(usePracticeStore.getState().settings.questionCount).toBe(10);
   });
 
   it("falls back to the minimum rather than storing NaN", () => {

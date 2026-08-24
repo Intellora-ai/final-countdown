@@ -49,6 +49,17 @@ from learning_os.llm.contract import InstructionContract, Strategy
 #: stored, defaulted, or logged.
 API_KEY_ENV = "LEARNING_OS_LLM_API_KEY"
 
+#: The same rule, for Google's provider.
+#:
+#: A SECOND VARIABLE RATHER THAN A SHARED ONE, AND THAT IS THE WHOLE POINT.
+#: One `LEARNING_OS_LLM_API_KEY` read by every adapter makes the two providers
+#: mutually exclusive on one machine, and -- worse -- means the first switch
+#: between them sends one vendor's credential to the other vendor's endpoint.
+#: A key disclosed to the wrong party is disclosed; there is no undo that does
+#: not involve rotation. Separate names make that mistake unreachable rather
+#: than unlikely.
+GEMINI_API_KEY_ENV = "LEARNING_OS_GEMINI_API_KEY"
+
 
 class LLMUnavailable(RuntimeError):
     """The model could not be reached, or refused.

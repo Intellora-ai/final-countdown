@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { CORPUS, runCorpus, type BenchmarkCase, type QueryCategory } from './corpus'
 import { fixtureProvider } from './engine'
+import { citationSupports } from './quality'
 import type { FetchOutcome } from './fetchPage'
 
 const served = (body: string, url: string): FetchOutcome => ({
@@ -134,6 +135,10 @@ describe('running the corpus', () => {
     relevantUrls: ['https://mospi.gov.in/gdp-2025'],
     relevantTotal: 1,
     timeSensitive: false,
+    /* Required since `accuracy.ts` was wired. A case with no expectation is
+       counted and never judged, so the type refuses one. Nothing asserted here
+       changed; the fixture simply now says what a correct answer looks like. */
+    expectation: { type: 'numeric', value: 6.1 },
     why: 'A single controlled case used to prove the runner scores what it claims to score.',
   }
 
@@ -269,5 +274,229 @@ describe('running the corpus', () => {
     expect(report.cases).toHaveLength(CORPUS.length)
     expect(report.cases.every((c) => c.retrievedSources === 0)).toBe(true)
     expect(report.cases.every((c) => !c.engineFailed)).toBe(true)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* The harness measures the path the product actually runs                    */
+/* -------------------------------------------------------------------------- */
+
+describe('the benchmark runs the pipeline the product runs', () => {
+  it('plans several queries for one question, which a single search cannot', async () => {
+    /*
+     * `runCase` called `search()` from `engine.ts` while the product calls
+     * `ask()` from `pipeline.ts`. So the harness measured a pipeline with no
+     * planned queries, no refinement and no freshness — a benchmark standing
+     * BESIDE the thing it claims to score.
+     *
+     * This is the same shape the reachability gate exists to catch, and it is
+     * worse here: coverage and green tests both went UP as the harness was
+     * improved, while the numbers it produced were about code nobody ran.
+     */
+    let calls = 0
+    const counting = {
+      name: 'counting',
+      search: async () => {
+        calls += 1
+        return [{ url: 'https://mospi.gov.in/gdp-2025', title: 'g', snippet: '' }]
+      },
+    }
+    const report = await runCorpus({
+      provider: counting,
+      fetchImpl: async (url: string) =>
+        served('The ministry reported the growth rate for 2025 was 6.1 percent.', url),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+
+    expect(calls).toBeGreaterThan(1)
+    expect(report.cases).toHaveLength(1)
+  })
+
+  it('records how many refinement rounds a case needed', async () => {
+    const report = await runCorpus({
+      provider: fixtureProvider({
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'g', snippet: '' }],
+      }),
+      fetchImpl: async (url: string) =>
+        served('The ministry reported the growth rate for 2025 was 6.1 percent.', url),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+    expect(typeof report.cases[0]?.rounds).toBe('number')
+  })
+
+  it('records whether the evidence was read live', async () => {
+    /* §32. A benchmark that cannot tell a live read from a cached one cannot
+       notice the day its own numbers stop describing the live path. */
+    const report = await runCorpus({
+      provider: fixtureProvider({
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'g', snippet: '' }],
+      }),
+      fetchImpl: async (url: string) =>
+        served('The ministry reported the growth rate for 2025 was 6.1 percent.', url),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+    expect(report.cases[0]?.freshLive).toBe(true)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Verdicts and citation support — the numbers the brief actually asked for    */
+/* -------------------------------------------------------------------------- */
+
+describe('the benchmark grades the verdict, not only the retrieval', () => {
+  it('two independent domains agreeing scores as supported', async () => {
+    const report = await runCorpus({
+      provider: fixtureProvider({
+        'india gdp growth 2025': [
+          { url: 'https://mospi.gov.in/gdp-2025', title: 'a', snippet: '' },
+          { url: 'https://rbi.org.in/rates', title: 'b', snippet: '' },
+        ],
+      }),
+      fetchImpl: async (url: string) =>
+        served('The ministry reported the growth rate for 2025 was 6.1 percent.', url),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+    expect(report.cases[0]?.status).toBe('supported')
+  })
+
+  it('one domain scores as single-source, never supported', async () => {
+    const report = await runCorpus({
+      provider: fixtureProvider({
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'a', snippet: '' }],
+      }),
+      fetchImpl: async (url: string) =>
+        served('The ministry reported the growth rate for 2025 was 6.1 percent.', url),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+    expect(report.cases[0]?.status).toBe('single-source')
+  })
+
+  it('nothing retrieved scores as unknown', async () => {
+    const report = await runCorpus({
+      provider: fixtureProvider({}),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+    expect(report.cases[0]?.status).toBe('unknown')
+  })
+
+  it('the quoted span is checked against the page it claims to come from', async () => {
+    /* This is the brief's "citation precision": not whether a citation EXISTS,
+       but whether the source it names actually says the thing. A citation that
+       is merely present is the easiest thing in this system to fake. */
+    const report = await runCorpus({
+      provider: fixtureProvider({
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'a', snippet: '' }],
+      }),
+      fetchImpl: async (url: string) =>
+        served('The ministry reported the growth rate for 2025 was 6.1 percent.', url),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+    expect(report.cases[0]?.citationSupported).toBe(true)
+  })
+
+  it('a case with no evidence is NOT counted as a supported citation', async () => {
+    /* The half that makes the metric mean something. A measure that only ever
+       comes out true is satisfied by `return true`. */
+    const report = await runCorpus({
+      provider: fixtureProvider({}),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+    expect(report.cases[0]?.citationSupported).toBe(false)
+  })
+})
+
+describe('citationSupports can come out FALSE, which is what makes it a measure', () => {
+  it('refuses a claim the page does not make', () => {
+    expect(citationSupports('the sky is green', 'The sky is blue and very large.')).toBe(false)
+  })
+
+  it('refuses a claim whose FIGURE was changed', () => {
+    /* Words alone would accept this. The number is the whole claim. */
+    expect(
+      citationSupports(
+        'The growth rate for 2025 was 9.9 percent.',
+        'The ministry reported the growth rate for 2025 was 6.1 percent.',
+      ),
+    ).toBe(false)
+  })
+
+  it('accepts a claim the page does make', () => {
+    expect(
+      citationSupports(
+        'The growth rate for 2025 was 6.1 percent.',
+        'The ministry reported the growth rate for 2025 was 6.1 percent.',
+      ),
+    ).toBe(true)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Grading the answer against what a correct answer would have been           */
+/* -------------------------------------------------------------------------- */
+
+describe('the benchmark grades the answer, not only the evidence behind it', () => {
+  it('records an outcome for every case', async () => {
+    /* `accuracy.ts` was written, fully tested, and reached by nothing. Precision
+       says the right pages came back; coverage says they mention the right
+       words. Neither says the ANSWER was right. */
+    const report = await runCorpus({
+      provider: fixtureProvider({
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'a', snippet: '' }],
+      }),
+      fetchImpl: async (url: string) =>
+        served('The ministry reported that the growth rate for the year 2025 was 6.1 percent.', url),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+    expect(report.cases[0]?.outcome).toBe('graded')
+  })
+
+  it('answering a question that has no answer is its own, worse outcome', async () => {
+    /* The single failure this whole feature exists to prevent. It must be
+       visible in the score as something other than "slightly wrong". */
+    const unanswerable: BenchmarkCase = {
+      ...(CORPUS[0] as BenchmarkCase),
+      id: 'invented',
+      expectation: { type: 'factual', unanswerable: true },
+    }
+    const report = await runCorpus({
+      provider: fixtureProvider({
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'a', snippet: '' }],
+      }),
+      fetchImpl: async (url: string) =>
+        served('The ministry reported that the growth rate for the year 2025 was 6.1 percent.', url),
+      cases: [unanswerable],
+    })
+    expect(report.cases[0]?.outcome).toBe('answered-unanswerable')
+  })
+
+  it('refusing a question that has no answer is CORRECT, not a miss', async () => {
+    /* The other half. A system rewarded only for answering learns to answer. */
+    const unanswerable: BenchmarkCase = {
+      ...(CORPUS[0] as BenchmarkCase),
+      id: 'nothing-there',
+      expectation: { type: 'factual', unanswerable: true },
+    }
+    const report = await runCorpus({ provider: fixtureProvider({}), cases: [unanswerable] })
+    expect(report.cases[0]?.outcome).toBe('correct-refusal')
+  })
+
+  it('every corpus case states what a correct answer would look like', async () => {
+    /* A case with no expectation cannot be graded, and an ungradeable case
+       inflates the benchmark by being counted and never judged. */
+    for (const c of CORPUS) {
+      expect(c.expectation, `${c.id} has no expectation`).toBeDefined()
+    }
+  })
+
+  it('reports citations that no claim supports', async () => {
+    const report = await runCorpus({
+      provider: fixtureProvider({
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'a', snippet: '' }],
+      }),
+      fetchImpl: async (url: string) =>
+        served('The ministry reported that the growth rate for the year 2025 was 6.1 percent.', url),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+    expect(report.cases[0]?.distortions).toEqual([])
   })
 })

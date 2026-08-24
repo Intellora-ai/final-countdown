@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import type { AnyResolver } from './teach/contract'
+import { lessonResolver } from './teach/doubt'
+import { engineResolver } from './teach/engineResolver'
+import { webResolver, type SearchResult } from './teach/webResolver'
 import { cssVariables } from './design/tokens'
 import { billBecomesLaw } from './lessons/billBecomesLaw'
 import { classifierEvaluation } from './lessons/classifierEvaluation'
@@ -58,10 +62,59 @@ const LESSONS = [
   { id: 'by-hand', label: 'Same contract, written by hand', spec: byHand },
 ] as const
 
-export default function CanvasRoute() {
+/**
+ * How the canvas reaches a source outside the lesson, if it has one.
+ *
+ * A FUNCTION PASSED IN, NOT A MODULE IMPORTED HERE. Two reasons, both real.
+ *
+ * The first is the bundle. `src/websearch` is not tiny, and a static import
+ * would land it in whichever chunk this file belongs to whether or not anyone
+ * ever asks a question. `App.tsx` hands down a loader that `import()`s it on
+ * first use, so a learner who never gets stuck never downloads it.
+ *
+ * The second is the type-checker. `tsconfig.canvas.json` checks this directory
+ * under `noUncheckedIndexedAccess`, a flag `src/websearch` was not written
+ * against; importing it from here drags the whole directory into that stricter
+ * project. Taking a function keeps the dependency one-way and erased.
+ */
+export type WebSearch = (query: string, options: Record<string, unknown>) => Promise<SearchResult>
+
+export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
   const navigate = useNavigate()
   const [mode, setMode] = useState<'2d' | '3d'>('2d')
   const [lessonId, setLessonId] = useState<string>(LESSONS[0].id)
+
+  /*
+   * The chain, in trust order: the page the learner is looking at first, then
+   * anywhere else.
+   *
+   * The lesson always answers first when it can, because a block the author
+   * wrote about the exact thing being asked beats a correct paragraph from
+   * elsewhere — the learner is looking at that page and has to be able to
+   * connect the answer to it. The web rung only exists when a search was
+   * supplied; with none, this is exactly the single-resolver behaviour that
+   * shipped before, and the refusal stays the honest one.
+   */
+  const resolvers = useMemo<readonly AnyResolver[]>(() => {
+    const chain: AnyResolver[] = [lessonResolver]
+
+    /*
+     * The engine second. It is the only rung that can WRITE a new explanation
+     * rather than find an existing one -- it knows the syllabus, this learner's
+     * history, and which mechanisms have already failed on them. That beats a
+     * correct paragraph written for nobody, so it goes ahead of the web.
+     *
+     * Included unconditionally: when the middleware is absent (a production
+     * build, where it is deliberately not mounted) the POST fails and the chain
+     * records `failed` and moves on. That costs one request and buys a learner
+     * the engine's answer everywhere it IS running, which is the whole of
+     * development.
+     */
+    chain.push(engineResolver())
+
+    if (search) chain.push(webResolver({ search }))
+    return chain
+  }, [search])
 
   const chosen = LESSONS.find((l) => l.id === lessonId) ?? LESSONS[0]
 
@@ -126,7 +179,7 @@ export default function CanvasRoute() {
            * learner lands three beats into a lesson they have not begun —
            * position is state, and state must not survive a change of subject.
            */
-          <TeachView key={chosen.id} lesson={result.lesson} mode={mode} />
+          <TeachView key={chosen.id} lesson={result.lesson} mode={mode} resolvers={resolvers} />
         ) : (
           <Refusal title="This lesson was refused" issues={result.issues} />
         )}

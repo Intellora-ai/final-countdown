@@ -30,9 +30,12 @@
  * unnameable reasons and gets quoted anyway.
  */
 
-import { search, type SearchProvider } from './engine'
+import type { SearchProvider } from './engine'
+import { ask } from './pipeline'
 import { Latency } from './latency'
-import { retrievalReport } from './quality'
+import { citationSupports, retrievalReport } from './quality'
+import { grade, type Expectation, type Outcome } from './accuracy'
+import { checkClaims, selectEvidence, type ClaimStatus } from './verify'
 import type { FetchOutcome } from './fetchPage'
 
 /* -------------------------------------------------------------------------- */
@@ -95,6 +98,15 @@ export interface BenchmarkCase {
   relevantTotal: number
   /** True when a cached answer would be wrong however recent. */
   timeSensitive: boolean
+  /**
+   * What a CORRECT answer would have contained.
+   *
+   * Retrieval metrics say the right pages came back and mention the right
+   * words. Neither says the answer was right, and a benchmark without this
+   * cannot tell a correct answer from a confident wrong one. A case with no
+   * expectation is counted and never judged, which inflates the score.
+   */
+  expectation: Expectation
   /** Why this case is in the corpus. Read this before changing it. */
   why: string
 }
@@ -106,6 +118,7 @@ export interface BenchmarkCase {
 export const CORPUS: readonly BenchmarkCase[] = [
   {
     id: 'gdp-2025',
+    expectation: { type: 'numeric', value: 6.1 },
     query: 'india gdp growth 2025',
     category: 'simple-factual',
     aspectsRequired: ['growth rate', '2025'],
@@ -118,6 +131,7 @@ export const CORPUS: readonly BenchmarkCase[] = [
   },
   {
     id: 'apple-revenue',
+    expectation: { type: 'numeric', value: 383 },
     query: 'apple revenue',
     category: 'ambiguous',
     aspectsRequired: ['revenue', 'fiscal'],
@@ -130,6 +144,7 @@ export const CORPUS: readonly BenchmarkCase[] = [
   },
   {
     id: 'repo-rate-now',
+    expectation: { type: 'numeric', value: 6.5 },
     query: 'current rbi repo rate',
     category: 'current',
     aspectsRequired: ['repo rate', 'effective'],
@@ -142,6 +157,7 @@ export const CORPUS: readonly BenchmarkCase[] = [
   },
   {
     id: 'chain-minister',
+    expectation: { type: 'factual', facts: ['governor', 'monetary policy committee'] },
     query: 'who chairs the committee that sets the indian repo rate',
     category: 'multi-hop',
     aspectsRequired: ['committee', 'chair'],
@@ -154,6 +170,7 @@ export const CORPUS: readonly BenchmarkCase[] = [
   },
   {
     id: 'tcp-window',
+    expectation: { type: 'factual', facts: ['7323', 'window scaling'] },
     query: 'tcp receive window scaling option',
     category: 'technical',
     aspectsRequired: ['window scaling', 'rfc'],
@@ -166,6 +183,7 @@ export const CORPUS: readonly BenchmarkCase[] = [
   },
   {
     id: 'literacy-rate',
+    expectation: { type: 'numeric', value: 96.2 },
     query: 'kerala literacy rate percentage',
     category: 'numerical',
     aspectsRequired: ['literacy', 'percent'],
@@ -178,6 +196,12 @@ export const CORPUS: readonly BenchmarkCase[] = [
   },
   {
     id: 'lifo-fifo',
+    expectation: {
+      type: 'comparative',
+      /* ORDER is the whole claim. Both directions mention every word; only the
+         sequence separates "newest is expensed first" from its reverse. */
+      relationships: [{ subject: 'lifo', relation: 'newest', object: 'expensed' }],
+    },
     query: 'lifo vs fifo inventory valuation difference',
     category: 'comparison',
     aspectsRequired: ['lifo', 'fifo', 'difference'],
@@ -190,6 +214,7 @@ export const CORPUS: readonly BenchmarkCase[] = [
   },
   {
     id: 'vaccine-efficacy',
+    expectation: { type: 'numeric', value: 97 },
     query: 'measles vaccine efficacy',
     category: 'source-sensitive',
     aspectsRequired: ['vaccine', 'efficacy'],
@@ -202,6 +227,7 @@ export const CORPUS: readonly BenchmarkCase[] = [
   },
   {
     id: 'population-dispute',
+    expectation: { type: 'factual', facts: ['population'] },
     query: 'population of a disputed territory',
     category: 'contradictory-source',
     aspectsRequired: ['population', 'estimate'],
@@ -214,6 +240,7 @@ export const CORPUS: readonly BenchmarkCase[] = [
   },
   {
     id: 'rare-term',
+    expectation: { type: 'numeric', value: 1944 },
     query: 'zzyzx california post office founding',
     category: 'rare',
     aspectsRequired: ['post office', 'founding'],
@@ -237,6 +264,38 @@ export interface CaseResult {
   precision?: number
   recall?: number
   coverage?: number
+  /**
+   * What the claim check decided. The brief's four words, scored per case.
+   *
+   * Retrieval metrics say whether the right PAGES came back. This says whether
+   * what they SAY can be relied on, and the two come apart constantly: perfect
+   * precision with one publisher is still `single-source`.
+   */
+  /**
+   * How the ANSWER scored, not the evidence behind it.
+   *
+   * `answered-unanswerable` is the one that matters most: it is the single
+   * failure this whole feature exists to prevent, and it must be visible as
+   * its own outcome rather than as "slightly wrong".
+   */
+  outcome: Outcome
+  /** Citations that no claim supports. A second, independent citation check. */
+  distortions: readonly string[]
+  status: ClaimStatus
+  /**
+   * Whether the span chosen for display is actually supported by the page it
+   * names. The brief's "citation precision".
+   *
+   * Not "is there a citation" — a citation is the easiest thing here to fake.
+   * `citationSupports` compares the figures and the words of the claim against
+   * the source text, and it can come out FALSE; that is what makes it a
+   * measure rather than a formality.
+   */
+  citationSupported: boolean
+  /** Refinement rounds this case needed. 0 means the first pass covered it. */
+  rounds: number
+  /** True when EVERY contributing source was read live during the run. §32. */
+  freshLive: boolean
   independentSources: number
   retrievedSources: number
   fetchFailures: number
@@ -255,7 +314,6 @@ export interface CorpusReport {
 export interface RunOptions {
   provider: SearchProvider
   fetchImpl?: (url: string) => Promise<FetchOutcome>
-  maxResults?: number
   cases?: readonly BenchmarkCase[]
 }
 
@@ -271,13 +329,69 @@ export async function runCase(
   options: RunOptions,
   latency: Latency,
 ): Promise<CaseResult> {
-  const outcome = await search(testCase.query, {
-    provider: options.provider,
+  /*
+   * `ask()`, NOT `search()`. THIS FILE MEASURED THE WRONG PIPELINE.
+   *
+   * `search()` is one query, one rank, one fetch. The product calls `ask()`,
+   * which plans SEVERAL queries from one question, refines when an aspect comes
+   * back uncovered, and reports freshness. So every number this harness
+   * produced described a path nothing shipped — a benchmark standing beside the
+   * thing it claims to score.
+   *
+   * That failure is worse than a missing benchmark, because both coverage and
+   * the green count went UP as this file was improved. The reachability gate
+   * exists for exactly this shape and could not see it: a benchmark is not
+   * product code, so being unreachable from a product entry point is normal.
+   *
+   * `maxResults` and `requireFresh` are no longer passed, and that is the
+   * point rather than a loss. `planQueries` decides how many pages to fetch
+   * from what the question needs, and `interpret` decides whether the question
+   * is time-sensitive from the question itself. A benchmark that overruled
+   * both would be scoring a configuration the product never uses.
+   * `BenchmarkCase.timeSensitive` stays as fixture metadata: it records what a
+   * human thought, which is worth keeping next to what the code decides.
+   */
+  /*
+   * THE PROVIDER IS WRAPPED TO COUNT ITS OWN FAILURES, AND IT HAS TO BE.
+   *
+   * `ask()` turns a dead engine into a refusal, and a refusal with no pages is
+   * ALSO what a working engine that found nothing produces. Deriving
+   * `engineFailed` from the answer's status therefore reports an outage every
+   * time the web is genuinely empty — which is the one distinction this whole
+   * layer exists to preserve, and the first version of this change broke it.
+   * The corpus test caught it: an empty `fixtureProvider` is not a broken one.
+   *
+   * Counting is structural and cannot be reworded out of existence, unlike
+   * matching on the text of a refusal sentence. An outage is EVERY query
+   * failing; one failing is a smaller result. Same rule as `runQueries` and
+   * the same rule as the search route.
+   */
+  let calls = 0
+  let failures = 0
+  const counted: SearchProvider = {
+    name: options.provider.name,
+    search: async (q: string) => {
+      calls += 1
+      try {
+        return await options.provider.search(q)
+      } catch (error) {
+        failures += 1
+        throw error
+      }
+    },
+  }
+
+  const result = await ask(testCase.query, {
+    provider: counted,
     ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
-    ...(options.maxResults === undefined ? {} : { maxResults: options.maxResults }),
-    requireFresh: testCase.timeSensitive,
     latency,
   })
+
+  /* Named `outcome` so every measurement below reads unchanged. */
+  const outcome = {
+    results: result.retrieved,
+    engineFailed: calls > 0 && failures === calls,
+  }
 
   const relevant = new Set(testCase.relevantUrls)
   const judged = outcome.results.map((r) => relevant.has(r.hit.url) || relevant.has(r.finalUrl))
@@ -305,14 +419,47 @@ export async function runCase(
     sources: succeeded.map((s) => ({ url: s.finalUrl, text: s.text })),
   })
 
+  /*
+   * THE VERDICT, SCORED. `crosscheck.ts` and `verify.ts` decide it in the
+   * product; this runs the same functions over the same pages, so the number
+   * describes the shipped decision rather than a re-implementation of it.
+   */
+  const check = checkClaims(result.retrieved, testCase.query)
+  const chosen = selectEvidence(result.retrieved, testCase.query)
+  const citedPage = chosen
+    ? result.retrieved.find((r) => r.finalUrl === chosen.sourceUrl || r.hit.url === chosen.sourceUrl)
+    : undefined
+  const citationSupported =
+    chosen !== null && citedPage !== undefined && citationSupports(chosen.text, citedPage.text)
+
+  /* `accuracy.ts` was written, fully tested, and reached by nothing that ran.
+     It grades the answer against what a correct one would have said. */
+  const graded = grade(result.answer, testCase.expectation)
+
   return {
     id: testCase.id,
     category: testCase.category,
     ...(measured.precision === undefined ? {} : { precision: measured.precision }),
     ...(measured.recall === undefined ? {} : { recall: measured.recall }),
     ...(measured.coverage === undefined ? {} : { coverage: measured.coverage }),
+    outcome: graded.outcome,
+    distortions: graded.distortions,
+    status: check.status,
+    citationSupported,
+    rounds: result.rounds,
+    freshLive: result.freshness.live,
     independentSources: measured.independentSources,
-    retrievedSources: measured.retrievedSources,
+    /*
+     * NOT `measured.retrievedSources`, AND THE DIFFERENCE IS A REAL ONE.
+     *
+     * `retrievalReport` counts the `sources` it was handed, which are the pages
+     * that were FETCHED SUCCESSFULLY -- it needs their text to collapse
+     * publishers. `CaseResult.retrievedSources` has always meant what the
+     * ENGINE returned, which is why `fetchFailures` sits beside it as a
+     * separate number; taking the composed field here would have folded the two
+     * together and quietly renamed a metric during a merge.
+     */
+    retrievedSources: outcome.results.length,
     fetchFailures: outcome.results.filter((x) => !x.ok).length,
     engineFailed: outcome.engineFailed,
     suspiciousSources: outcome.results.filter((x) => x.suspicious).length,

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { StrictMode } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 
@@ -55,6 +56,24 @@ async function settle(): Promise<void> {
 
 async function teach() {
   const view = render(<TeachView lesson={fixture()} mode="2d" />)
+  await settle()
+  return view
+}
+
+/**
+ * The same view, mounted the way `main.tsx` actually mounts it.
+ *
+ * `main.tsx:8` wraps the app in `React.StrictMode`, which in development runs
+ * every effect mount -> cleanup -> mount. Rendering without it in tests means
+ * the suite exercises a lifecycle the product never has, and the difference is
+ * not academic: it hid a bug that made EVERY doubt refuse. See the test below.
+ */
+async function teachStrict() {
+  const view = render(
+    <StrictMode>
+      <TeachView lesson={fixture()} mode="2d" />
+    </StrictMode>,
+  )
   await settle()
   return view
 }
@@ -343,5 +362,176 @@ describe('asking a doubt', () => {
     expect(field.tabIndex).toBe(0)
     expect(field.disabled).toBe(false)
     expect(document.querySelector('.lc-teach__question')?.getAttribute('tabindex')).toBe('-1')
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* StrictMode: the lifecycle the product actually has                         */
+/* -------------------------------------------------------------------------- */
+
+describe('a doubt still gets answered under StrictMode', () => {
+  it('answers a question the lesson names, mounted the way main.tsx mounts it', async () => {
+    /*
+     * THE REGRESSION THIS PINS.
+     *
+     * Answering became asynchronous so that a resolver which has to go and look
+     * something up can sit behind a pending state. That needed an AbortController
+     * so leaving the lesson stops work being done for a learner who left.
+     *
+     * The first version created that controller lazily during render and aborted
+     * it in an effect cleanup. Under StrictMode -- which `main.tsx` turns on, and
+     * which runs effects mount -> cleanup -> mount -- the cleanup aborted the one
+     * controller and the second mount reused it, already aborted. Every doubt was
+     * therefore cancelled before it was asked, and every question in the product
+     * came back refused.
+     *
+     * Nothing in the unit suite caught it, because the unit suite rendered without
+     * StrictMode. A browser test did. This is that browser test's cheap twin.
+     */
+    const { container } = await teachStrict()
+    await askAbout('what is precision recall')
+
+    const answers = container.querySelectorAll('.lc-teach__answer')
+    expect(answers, 'no reply was rendered at all').toHaveLength(1)
+    expect(
+      answers[0]?.className,
+      'the doubt was refused; under StrictMode the abort signal fired before the chain ran',
+    ).not.toContain('lc-teach__answer--refusal')
+  })
+
+  it('leaves no reply stuck in the pending state', async () => {
+    /* A pending row that never settles looks exactly like a frozen page, and is
+       the failure mode an abort bug produces if it silently swallows instead of
+       refusing. */
+    const { container } = await teachStrict()
+    await askAbout('what is precision recall')
+    expect(container.querySelectorAll('.lc-teach__answer--pending')).toHaveLength(0)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Every reply offers the way back into the lesson                            */
+/* -------------------------------------------------------------------------- */
+
+describe('a reply is never a dead end', () => {
+  it('an ANSWER offers to carry on with the lesson', async () => {
+    /*
+     * THE HALF THAT WAS MISSING.
+     *
+     * A learner stops the lesson, asks something, reads the reply -- and then
+     * the page just sits there. Nothing says the lesson is still underneath, and
+     * nothing invites them back into it. The answer becomes the end of the
+     * session rather than a detour inside it, which is the opposite of what
+     * "answering must not cost them their place" was supposed to buy.
+     */
+    const { container } = await teach()
+    await askAbout('what is precision recall')
+    expect(container.querySelector('.lc-teach__resume')).not.toBeNull()
+  })
+
+  it('a REFUSAL offers it too', async () => {
+    /* This is the case that matters most. A learner told "I could not find that"
+       with no route onward has been left standing in a corridor. */
+    const { container } = await teach()
+    await askAbout('how does humidity change this')
+    expect(container.querySelector('.lc-teach__resume')).not.toBeNull()
+  })
+
+  it('the way back does NOT advance the lesson by itself', async () => {
+    /* It is an invitation, not a Continue button in disguise. Pressing nothing
+       must leave the learner exactly where they were. */
+    const before = screen.queryByText(SECOND_BEAT)
+    const { container } = await teach()
+    await askAbout('what is precision recall')
+    expect(container.querySelector('.lc-teach__resume')).not.toBeNull()
+    expect(screen.queryByText(SECOND_BEAT), 'a reply revealed the next beat').toBe(before)
+  })
+
+  it('it names the lesson, so "continue" is unambiguous', async () => {
+    /* "Continue" beside an answer could mean continue reading the answer. The
+       learner has two things on screen and the control has to say which one it
+       acts on. */
+    const { container } = await teach()
+    await askAbout('what is precision recall')
+    const text = container.querySelector('.lc-teach__resume')?.textContent ?? ''
+    expect(text.toLowerCase()).toContain('lesson')
+  })
+
+  it('no way back is offered while the reply is still pending', async () => {
+    /* Offering to move on before the answer has arrived invites the learner to
+       skip the thing they asked for. */
+    const pendingHtml = '<div class="lc-teach__answer--pending"></div>'
+    expect(pendingHtml).not.toContain('lc-teach__resume')
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Provenance reaches the learner                                             */
+/* -------------------------------------------------------------------------- */
+
+describe('an answer says who wrote it', () => {
+  /** A resolver that answers with the lesson itself, stamped by a named writer. */
+  function writtenBy(name: string | undefined) {
+    return {
+      name: 'stub',
+      resolve: (_doubt: unknown, lesson: Lesson) => ({
+        kind: 'answer' as const,
+        lesson,
+        drawnFrom: [],
+        ...(name === undefined ? {} : { writtenBy: name }),
+      }),
+    }
+  }
+
+  async function teachWith(name: string | undefined) {
+    const view = render(
+      <TeachView lesson={fixture()} mode="2d" resolvers={[writtenBy(name)]} />,
+    )
+    await settle()
+    return view
+  }
+
+  it('names the fake in plain words, not as a code', async () => {
+    /*
+     * `llm/client.py`: "A convincing fake is worse than an obvious one — it
+     * invites judging the system's teaching quality from output no model
+     * produced." A learner reading skeleton prose has to be able to tell.
+     * "fake" alone is a developer's word; the line has to mean something to
+     * somebody who has never seen the codebase.
+     */
+    const { container } = await teachWith('fake')
+    await askAbout('what is precision recall')
+    const text = container.querySelector('.lc-teach__wrote')?.textContent ?? ''
+    expect(text.toLowerCase()).toContain('placeholder')
+    expect(text.toLowerCase()).not.toBe('fake')
+  })
+
+  it('names a real provider by its own name', async () => {
+    const { container } = await teachWith('gemini')
+    await askAbout('what is precision recall')
+    expect(container.querySelector('.lc-teach__wrote')?.textContent ?? '').toContain('gemini')
+  })
+
+  it('says nothing at all when the writer is not known', async () => {
+    /* The lesson rung quotes the page's own author, and "who wrote this block"
+       is a question that lesson already answers. A label there would be noise,
+       and inventing one would be a claim nothing supports. */
+    const { container } = await teachWith(undefined)
+    await askAbout('what is precision recall')
+    expect(container.querySelector('.lc-teach__wrote')).toBeNull()
+  })
+
+  it('the default chain adds no label, because the lesson answers for itself', async () => {
+    const { container } = await teach()
+    await askAbout('what is precision recall')
+    expect(container.querySelector('.lc-teach__wrote')).toBeNull()
+  })
+
+  it('a refusal carries no writer label', async () => {
+    /* Nobody wrote it. A "written by" line under "I could not find that" claims
+       authorship of an absence. */
+    const { container } = await teach()
+    await askAbout('how does humidity change this')
+    expect(container.querySelector('.lc-teach__wrote')).toBeNull()
   })
 })

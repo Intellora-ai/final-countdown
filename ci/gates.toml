@@ -95,6 +95,66 @@ required_fields = [
 run_identity = { commit = "GITHUB_SHA", run_id = "GITHUB_RUN_ID", run_attempt = "GITHUB_RUN_ATTEMPT", workflow = "GITHUB_WORKFLOW" }
 
 # ---------------------------------------------------------------------------
+# COVERAGE SCOPE — what the coverage number is a number ABOUT.
+#
+# The `coverage` gate below pins `--cov-fail-under=95` and nothing pins its
+# SCOPE. Measured 2026-08-25: `pyproject.toml` sets `source = ["src"]`, and
+# `src/` is five files totalling 38 lines, while `scripts/` holds 19,499 and
+# `learning-os/src/` holds 7,992. So a required check reporting 95% was
+# reporting it about 0.05% of the production code, and every check stayed green
+# while the repository grew.
+#
+# That is scope drift, the same shape `check_ruleset.py` catches between this
+# file and the live ruleset. `scripts/coverage_scope_gate.py` reads the three
+# lists below and refuses any directory holding Python that appears in none of
+# them, so a new package is a visible diff here or a red check.
+#
+#   measured    a coverage scope measures it            -> `scope` required
+#   unmeasured  production code with no floor YET       -> `why` required
+#   excluded    not production code at all              -> `why` required
+#
+# `unmeasured` is deliberate. `scripts/` genuinely has no floor today; calling
+# it `excluded` would be false and omitting it is the drift being fixed. A gap
+# with a written reason is one a reader can act on. The `why` is the whole
+# difference, which is why a row without one is refused.
+# ---------------------------------------------------------------------------
+[coverage]
+measured = [
+  # The four arithmetic functions carrying Lean specifications. 95% is enforced
+  # by the `coverage` gate's own `--cov-fail-under=95`; this row records WHICH
+  # directory that number is about.
+  { path = "src", scope = "src", floor = 95 },
+]
+
+unmeasured = [
+  # 19,499 lines of gate machinery. Measured by hand at 57% on 2026-08-25 with
+  # subprocess coverage armed (see tests/coverage-subprocess.cfg); before that
+  # hook existed the same command reported 45.80%, because 34 test files drive
+  # these scripts through `subprocess.run` and coverage could not see inside a
+  # child process. No floor is declared yet: a floor set before the measurement
+  # was trustworthy would have pinned an artefact.
+  { path = "scripts", why = "no floor yet; 57% measured 2026-08-25, pending a per-area floor" },
+
+  # 7,992 lines. `learning-os/pyproject.toml` has no [tool.coverage] section at
+  # all, so its 482 tests run unmeasured. Adding a floor here needs its own
+  # measurement first, for the same reason as `scripts`.
+  { path = "learning-os/src", why = "no coverage configuration exists in learning-os/pyproject.toml yet" },
+]
+
+excluded = [
+  # Test code is not production code. `tests/generated` is covered by this row
+  # through longest-prefix ownership rather than needing one of its own.
+  { path = "tests", why = "test code, not production code" },
+  { path = "learning-os/tests", why = "test code, not production code" },
+
+  # A catalogue of pinned third-party versions used to measure the ecosystem,
+  # not code this product runs. `codeql.yml:122-131` already excludes it from
+  # scanning for the same reason.
+  { path = "technology-universe/registry", why = "version-measurement catalogue, not shipped code" },
+  { path = "technology-universe/runtimes", why = "version-measurement catalogue, not shipped code" },
+]
+
+# ---------------------------------------------------------------------------
 # PREFLIGHT — the guard on the guard. Mandatory, because an integrity failure
 # that does not block a merge is a diagnostic, not a gate.
 # ---------------------------------------------------------------------------
@@ -129,10 +189,16 @@ role = "integrity"
 # stated on the workflow step: gate_integrity is what writes
 # reports/preflight.json, so anything that must be able to fail without leaving
 # a PASS report behind has to precede it.
+# `coverage_scope_gate.py` is pinned for the reason every other name here is:
+# a step nobody declares is a step that can be deleted with nothing going red.
+# It is the guard on the defect described in the [coverage] section above --
+# a required check reporting 95% of 38 lines while 70,400 lines of production
+# code sat outside its scope, green the whole time.
 must_contain = ["run_gate.py --name preflight -- bash -c",
                 "scripts/gate_integrity.py", "scripts/tcb_gate.py",
                 "scripts/check_ruleset.py", "scripts/registry_gate.py",
-                "scripts/lock_consistency.py"]
+                "scripts/lock_consistency.py",
+                "scripts/coverage_scope_gate.py"]
 evidence = "reports/preflight.json"
 artifact = "reports-preflight"
 
@@ -203,7 +269,20 @@ workflow = "verify.yml"
 job = "coverage"
 mandatory = true
 role = "gate"
-must_contain = ["--cov-fail-under=95"]
+# THE SCOPE IS PINNED HERE, NOT ONLY THE THRESHOLD, AND THAT IS THE FIX FOR
+# THE DEFECT THIS GATE ITSELF HAD.
+#
+# This line used to read `must_contain = ["--cov-fail-under=95"]`. It pinned
+# the NUMBER and said nothing about what the number was about, so
+# gate_integrity.py verified that "95" appeared in the command and never asked
+# "95% of what?". `--cov=src` is now pinned too, so silently re-pointing the
+# measurement at something else fails preflight.
+#
+# Pinning cannot catch the other half -- code growing OUTSIDE the scope while
+# the scope stays still, which is what actually happened. That is what
+# scripts/coverage_scope_gate.py and the [coverage] section exist for. Both are
+# needed: this pin stops the scope moving, the gate stops the code escaping it.
+must_contain = ["--cov=src", "--cov-fail-under=95"]
 evidence = "reports/coverage.json"
 artifact = "reports-coverage"
 

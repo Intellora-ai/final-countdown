@@ -100,6 +100,57 @@ export interface PipelineResult {
 /* -------------------------------------------------------------------------- */
 
 /**
+ * Run the planned queries and keep whatever answered.
+ *
+ * FAILURE IS ALL OF THEM FAILING, NOT ANY OF THEM.
+ *
+ * This was `Promise.all`, which rejects on the first failure — so one
+ * rate-limited query out of four discarded every page the other three had
+ * already found, and the answer became "the engine is down" with real evidence
+ * sitting in hand. The refinement loop below never made that mistake; its own
+ * comment says a failed refinement is "one lost round, never a lost answer".
+ * The first round disagreed with that rule, and nothing caught it because
+ * nothing had wired this pipeline to a provider that could fail per query.
+ *
+ * The same URL returned by two planned queries is ONE source. Independence is
+ * the entire basis on which anything downstream is called corroborated, so a
+ * page counted twice would manufacture agreement out of one publisher.
+ */
+async function runQueries(
+  provider: SearchProvider,
+  queries: readonly { readonly text: string }[],
+): Promise<{ hits: readonly SearchHit[]; allFailed: boolean; error?: string }> {
+  let firstError: string | undefined
+  let failures = 0
+  const seen = new Set<string>()
+  const hits: SearchHit[] = []
+
+  const settled = await Promise.all(
+    queries.map(async (q) => {
+      try {
+        return await provider.search(q.text)
+      } catch (err) {
+        failures += 1
+        firstError ??= err instanceof Error ? err.message : String(err)
+        return null
+      }
+    }),
+  )
+
+  for (const batch of settled) {
+    if (!batch) continue
+    for (const hit of batch) {
+      if (seen.has(hit.url)) continue
+      seen.add(hit.url)
+      hits.push(hit)
+    }
+  }
+
+  const allFailed = queries.length > 0 && failures === queries.length
+  return { hits, allFailed, ...(firstError === undefined ? {} : { error: firstError }) }
+}
+
+/**
  * Ask a question and get an answer that has been checked against §45.
  *
  * `violations` is part of the return rather than a thrown error. A pipeline
@@ -139,22 +190,14 @@ export async function ask(query: string, options: AskOptions): Promise<PipelineR
     return empty(buildAnswer(req, crossCheck([], req), { engineFailed: false }))
   }
 
-  /* Retrieval. The engine is another remote party: a throw here is an outage,
-     and it must stay distinguishable from a question with no answers. */
-  let hits: readonly SearchHit[] = []
-  let engineFailed = false
-  let engineError: string | undefined
-
+  /* Retrieval. The engine is another remote party: EVERY query failing is an
+     outage, and it must stay distinguishable from a question with no answers.
+     One query failing is a smaller result; see `runQueries`. */
   const engineStarted = now()
-  try {
-    const perQuery = await Promise.all(plan.queries.map((q) => options.provider.search(q.text)))
-    /* Same URL from two planned queries is one page, not two sources. */
-    const seen = new Set<string>()
-    hits = perQuery.flat().filter((h) => (seen.has(h.url) ? false : (seen.add(h.url), true)))
-  } catch (err) {
-    engineFailed = true
-    engineError = err instanceof Error ? err.message : String(err)
-  }
+  const first = await runQueries(options.provider, plan.queries)
+  const hits: readonly SearchHit[] = first.hits
+  const engineFailed = first.allFailed
+  const engineError = first.error
   options.latency?.stage('engine', Math.max(0, now() - engineStarted))
 
   if (engineFailed) {
@@ -205,15 +248,19 @@ export async function ask(query: string, options: AskOptions): Promise<PipelineR
     rounds += 1
     issued = next
 
-    let more: readonly SearchHit[] = []
-    try {
-      const results = await Promise.all(next.queries.map((q) => options.provider.search(q.text)))
-      more = results.flat()
-    } catch {
-      /* A refinement that fails is one lost round, never a lost answer: the
-         evidence already gathered stands and the loop stops. */
-      break
-    }
+    /*
+     * Same rule as the first round: one query failing costs that query, not the
+     * round, and the evidence already gathered always stands.
+     *
+     * NO `if (again.allFailed) break` HERE, AND ITS ABSENCE IS DELIBERATE. One
+     * was written and mutation proved it dead: every query failing means no
+     * batch contributed, so `again.hits` is empty, so `fresh.length === 0`
+     * below ends the loop one line later for the same reason. Two guards, one
+     * of which can never be the one that fires, is one guard and one thing for
+     * the next reader to puzzle over.
+     */
+    const again = await runQueries(options.provider, next.queries)
+    const more: readonly SearchHit[] = again.hits
 
     const already = new Set(retrieved.map((r) => r.hit.url))
     const fresh = rankHits(more, req, now)

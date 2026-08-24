@@ -33,6 +33,13 @@ jobs:
   learning-os:
     name: learning-os
     runs-on: ubuntu-latest
+    # Measured: this job completes in 28-58s across recent runs. 15 minutes is
+    # roughly fifteen times the observed worst case, which leaves room for a
+    # slow runner or a grown suite without the ceiling becoming the thing that
+    # fails. What it removes is GitHub's SIX HOUR default, which this job
+    # inherited by declaring nothing -- a hung pip resolve or a test that waits
+    # on a socket would have held a runner slot for an afternoon.
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: learning-os
@@ -140,6 +147,9 @@ jobs:
   deployed-layout:
     name: deployed-layout
     runs-on: ubuntu-latest
+    # Same install, then three named sandbox tests. Same reasoning as
+    # `learning-os` above; if anything this one is smaller.
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: learning-os

@@ -16,8 +16,10 @@ import { BlockView } from '../render/BlockView'
 import type { Block, Lesson } from '../spec/spec'
 import { validateLesson, type Issue } from '../spec/validate'
 import { deriveBeats } from './beats'
+import { askChain } from './chain'
 import {
   checkBeats,
+  type AnyResolver,
   type Beat,
   type Beats,
   type Doubt,
@@ -63,7 +65,30 @@ import './teach.css'
  * reason and nothing else. A half-taught lesson is indistinguishable from a
  * lesson that ended.
  */
-export function TeachView({ lesson, mode }: { lesson: Lesson; mode: '2d' | '3d' }): JSX.Element {
+/**
+ * Who gets asked, in order, when a learner has a doubt.
+ *
+ * A PROP WITH A DEFAULT, RATHER THAN AN IMPORT
+ * --------------------------------------------
+ * `lessonResolver` alone is the honest default: it needs no network, no key and
+ * no configuration, and it is the only answerer that can point at the page the
+ * learner is looking at. Anything further — the web, the engine — is a decision
+ * about deployment, and burying that decision in this file is how a component
+ * comes to require a backend nobody told you about.
+ *
+ * The order is a TRUST ranking. See `chain.ts`.
+ */
+const DEFAULT_RESOLVERS: readonly AnyResolver[] = [lessonResolver]
+
+export function TeachView({
+  lesson,
+  mode,
+  resolvers = DEFAULT_RESOLVERS,
+}: {
+  lesson: Lesson
+  mode: '2d' | '3d'
+  resolvers?: readonly AnyResolver[]
+}): JSX.Element {
   const width = useViewportWidth()
 
   /*
@@ -98,6 +123,47 @@ export function TeachView({ lesson, mode }: { lesson: Lesson; mode: '2d' | '3d' 
   const [asked, setAsked] = useState<Asked[]>([])
   const [draft, setDraft] = useState('')
   const [announcement, setAnnouncement] = useState('')
+
+  /*
+   * A counter rather than `previous.length`, because the record is now written
+   * twice — once pending, once settled — and the settle has to find the row it
+   * created. Length is not an identity once two questions can be in flight at
+   * the same time.
+   */
+  const askCounter = useRef(0)
+
+  /*
+   * Leaving the lesson stops work being done on the learner's behalf.
+   *
+   * THE CONTROLLER IS CREATED INSIDE THE EFFECT, AND THAT IS NOT A STYLE CHOICE.
+   *
+   * The first version built it lazily during render and aborted it in this
+   * cleanup. `main.tsx` wraps the app in `React.StrictMode`, which runs every
+   * effect mount -> cleanup -> mount: the cleanup aborted the single controller,
+   * the second mount found the ref already populated and reused it, and every
+   * doubt from then on was cancelled before it was asked. The whole feature came
+   * back "refused" and looked like a resolver bug.
+   *
+   * Creating it here means each mount gets a live one and each cleanup aborts
+   * only the controller that mount created. Pinned by the StrictMode tests in
+   * `TeachView.test.tsx`; the unit suite missed this because it rendered without
+   * StrictMode, so a browser run was the first thing to see it.
+   *
+   * A ref rather than state because aborting must not cause a render.
+   */
+  const doubtAbort = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    doubtAbort.current = controller
+    return () => {
+      controller.abort()
+      /* Cleared so a question asked between unmount and the next mount finds no
+         signal at all rather than a dead one — no signal means "not cancelled",
+         which is the correct reading when nothing is there to cancel it. */
+      if (doubtAbort.current === controller) doubtAbort.current = null
+    }
+  }, [])
 
   /*
    * A different lesson is a different session.
@@ -196,18 +262,50 @@ export function TeachView({ lesson, mode }: { lesson: Lesson; mode: '2d' | '3d' 
     if (trimmed.length === 0 || current === undefined) return
 
     const doubt: Doubt = { text: trimmed, atBeatId: current.id }
-    const resolution = lessonResolver.resolve(doubt, teaching)
+    const beatId = current.id
 
-    /* Appended, never replaced: a second question does not erase the answer to
-       the first. And nothing here touches `revealed` — there is no route from a
-       doubt to the next beat, which is the point of the feature. */
-    setAsked((previous) => [...previous, { at: previous.length, beatId: current.id, doubt, resolution }])
+    /*
+     * The question appears BEFORE the answer does, and that ordering is the
+     * whole reason `ask` is no longer synchronous.
+     *
+     * With one offline resolver the answer arrived in the same tick and this
+     * distinction did not exist. A chain that can reach a network has a real
+     * gap between asking and answering, and a learner staring at an unchanged
+     * page during that gap cannot tell "working" from "broken". So the record
+     * is appended immediately, in a pending state, and filled in when the chain
+     * settles.
+     */
+    const at = askCounter.current
+    askCounter.current += 1
+
+    setAsked((previous) => [
+      ...previous,
+      { at, beatId, doubt, resolution: null, asking: null, answeredBy: null },
+    ])
     setDraft('')
-    setAnnouncement(
-      resolution.kind === 'answer'
-        ? 'A reply to your question has been added above the checkpoint.'
-        : `A reply to your question has been added above the checkpoint. ${resolution.reason}`,
-    )
+    setAnnouncement('Your question was added above the checkpoint.')
+
+    const settle = (patch: Partial<Asked>): void => {
+      setAsked((previous) =>
+        previous.map((record) => (record.at === at ? { ...record, ...patch } : record)),
+      )
+    }
+
+    void askChain(doubt, teaching, resolvers, {
+      signal: doubtAbort.current?.signal,
+      onTry: (name) => settle({ asking: name }),
+    }).then((result) => {
+      settle({ resolution: result.resolution, asking: null, answeredBy: result.answeredBy })
+      setAnnouncement(
+        result.resolution.kind === 'answer'
+          ? 'A reply to your question has been added above the checkpoint.'
+          : `A reply to your question has been added above the checkpoint. ${result.resolution.reason}`,
+      )
+    })
+
+    /* Nothing above touches `revealed`. There is no route from a doubt to the
+       next beat, which is the point of the feature, and `askChain` has no beat
+       in scope so no resolver can find one however long it takes. */
   }
 
   function advance(): void {
@@ -393,7 +491,18 @@ interface Asked {
   at: number
   beatId: string
   doubt: Doubt
-  resolution: Resolution
+  /**
+   * Null while the chain is still being asked.
+   *
+   * A separate state rather than an optimistic placeholder answer: a learner
+   * must never be shown something that looks like an answer and is not one, and
+   * the type is what guarantees the renderer cannot confuse the two.
+   */
+  resolution: Resolution | null
+  /** The resolver currently being asked, so waiting can be explained. */
+  asking: string | null
+  /** Which resolver answered. Null when nothing did, or while pending. */
+  answeredBy: string | null
 }
 
 function Outcome({
@@ -407,17 +516,121 @@ function Outcome({
   width: number
   mode: '2d' | '3d'
 }) {
+  if (record.resolution === null) {
+    /* No way back while the reply is still coming. Offering to move on before
+       the answer has arrived invites the learner to skip the thing they just
+       asked for. */
+    return <Pending asked={record.doubt.text} asking={record.asking} />
+  }
   if (record.resolution.kind === 'refusal') {
-    return <Refusal asked={record.doubt.text} refusal={record.resolution} lesson={lesson} />
+    return (
+      <>
+        <Refusal asked={record.doubt.text} refusal={record.resolution} lesson={lesson} />
+        <Resume />
+      </>
+    )
   }
   return (
-    <Answer
-      asked={record.doubt.text}
-      answer={record.resolution}
-      lesson={lesson}
-      width={width}
-      mode={mode}
-    />
+    <>
+      <Answer
+        asked={record.doubt.text}
+        answer={record.resolution}
+        lesson={lesson}
+        width={width}
+        mode={mode}
+      />
+      <WrittenBy who={record.resolution.writtenBy} />
+      <Resume />
+    </>
+  )
+}
+
+/**
+ * Who wrote the sentences the learner just read.
+ *
+ * THE RULE, IN THE REPOSITORY'S OWN WORDS.
+ * `learning-os/.../llm/client.py`: "A convincing fake is worse than an obvious
+ * one -- it invites judging the system's teaching quality from output no model
+ * produced." And `CanvasRoute.tsx` labels the hand-written lesson "so nobody
+ * reads it as a model's work" -- the lesson picker already ships provenance
+ * labels. The doubt path was the one place that rule had lapsed.
+ *
+ * THE FAKE IS NAMED IN WORDS A LEARNER HAS. "fake" is a developer's term and
+ * means nothing to somebody who has never seen the codebase; what they need to
+ * know is that these sentences are a placeholder rather than teaching.
+ *
+ * NOTHING IS RENDERED WHEN THE WRITER IS UNKNOWN. The lesson rung quotes the
+ * page's own author, and "who wrote this block" is a question that lesson
+ * already answers -- a label there would be noise, and inventing one would be a
+ * claim nothing supports.
+ */
+function WrittenBy({ who }: { who?: string }) {
+  if (who === undefined) return null
+  return (
+    <p className="lc-teach__wrote" data-teach-chrome>
+      {who === 'fake'
+        ? 'Written by a placeholder, not a real model — the words are a stand-in, the shape is real.'
+        : `Written by ${who}.`}
+    </p>
+  )
+}
+
+/**
+ * The way back into the lesson, under every settled reply.
+ *
+ * THE HALF THAT WAS MISSING, AND WHY IT MATTERS MORE THAN THE ANSWER
+ * ------------------------------------------------------------------
+ * The feature's whole promise is that asking a question does not cost the
+ * learner their place. The types enforced the first half of that — a `Doubt`
+ * carries its beat, and there is no route from one to the next — but nothing
+ * enforced the second half. A learner stopped, asked, read the reply, and then
+ * the page just sat there. The lesson was still underneath and nothing said so.
+ * A detour with no marked exit is indistinguishable from an arrival.
+ *
+ * It appears under a REFUSAL as well, and that is the case that matters most.
+ * "I could not find an answer to that" with nothing after it leaves somebody who
+ * has just admitted confusion standing in a corridor.
+ *
+ * IT IS A SENTENCE, NOT A BUTTON, AND THAT IS DELIBERATE.
+ * Continue already exists, below, and it is the only control that reveals a
+ * beat. A second control here that also advanced would be two buttons doing one
+ * job, and the learner would have to guess which of the two things on screen
+ * "continue" acted on. This points at the one that already works.
+ */
+function Resume() {
+  return (
+    <p className="lc-teach__resume" data-teach-chrome>
+      That is as much as I can say about it. Shall we carry on with the lesson?
+    </p>
+  )
+}
+
+/**
+ * The question, on screen, before there is an answer to put under it.
+ *
+ * WHY THIS EXISTS AT ALL
+ * ----------------------
+ * With one offline resolver there was no gap: the answer arrived in the same
+ * tick the question was submitted, and a pending state would have been a frame
+ * nobody ever saw. A chain that can reach a network has a real gap, and during
+ * it the page is unchanged — which is indistinguishable from a page that
+ * ignored the question. A learner who has just admitted confusion and appears
+ * to be ignored does not ask again.
+ *
+ * It shows the resolver being asked rather than a bare spinner, because "asking
+ * the web" and "thinking" mean different things to somebody deciding whether to
+ * wait. `role="status"` so a screen reader announces it without stealing focus
+ * from the field the learner just typed into.
+ */
+function Pending({ asked, asking }: { asked: string; asking: string | null }) {
+  return (
+    <div className="lc-teach__answer lc-teach__answer--pending" data-teach-chrome role="status">
+      <span className="lc-teach__answer-label">About your question</span>
+      <p className="lc-teach__answer-asked">{asked}</p>
+      <p className="lc-teach__answer-body">
+        {asking === null ? 'Looking…' : `Looking in: ${asking}…`}
+      </p>
+    </div>
   )
 }
 

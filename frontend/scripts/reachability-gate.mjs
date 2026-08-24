@@ -80,6 +80,68 @@ export const MANIFEST = [
        exports are the shared vocabulary rather than callable behaviour. */
     entries: ['src/agent/index.ts', 'src/agent/kernel/contracts.ts'],
   },
+  /* -----------------------------------------------------------------------
+     `src/websearch` IS NOT DECLARED HERE YET, AND THAT IS A MEASURED RESULT
+     RATHER THAN AN OVERSIGHT. THIS BLOCK IS THE EVIDENCE, NOT A TODO.
+     -----------------------------------------------------------------------
+     This branch added the doorway --- `src/websearch/index.ts`, exporting
+     `searchPort` and `researchPort`, imported by `src/tutor/TutorView.tsx` ---
+     and declared the area with entries `index.ts`, `bench.ts` and `port.ts`.
+     On this branch alone that configuration passed. Merged with `main` it does
+     not, and the honest move is to record WHY rather than to reshape the
+     declaration until the number goes green. Measured output of
+     `npm run gate:reachability` with the entry restored:
+
+       [websearch] 21/24 source files reachable from entry points
+         ORPHAN src/websearch/evalReport.ts
+         ORPHAN src/websearch/webSearchClient.ts
+         ORPHAN src/websearch/wikipedia.ts
+         DEAD   src/websearch/provenance.ts exports MAX_ORIGINS
+
+     Those four are three different problems, and only one of them is this
+     branch's to solve:
+
+     1. `webSearchClient.ts` IS REACHED, AND THE GATE CANNOT SEE IT. `App.tsx`
+        does `import('./websearch/webSearchClient').then((m) => m.searchTheWeb(...))`.
+        That edge starts OUTSIDE `src/websearch`, and an area walk begins at the
+        area's own declared entries, so no entry list can express it.
+        `wikipedia.ts` follows it: `webSearchClient.ts` reaches it by a dynamic
+        `import('./wikipedia')`, so it is orphaned only because its parent is.
+        Declaring `webSearchClient.ts` as a third entry would clear both, and
+        would even be defensible --- something outside the area does call it,
+        which is this MANIFEST's own definition of a surface. It is left out
+        because it would clear the two failures that are NOT real while leaving
+        the two that are, which is the worst of both.
+
+     2. `evalReport.ts` IS REACHED ONLY BY TEST FILES, BY DESIGN. Its consumer
+        is `evalGate.test.ts`, whose own header argues the case: a `.mjs` script
+        cannot import TypeScript here, so the eval gate is written as a test and
+        run by `npm run gate:eval`. This gate's central rule is that TEST FILES
+        ARE NOT EDGES --- that rule is the reason it caught `execute.ts` and
+        `world.ts` at all. So `main` deliberately built a module this gate must
+        deliberately call an orphan. Both decisions are defensible and they
+        contradict, and no wording of an entry list dissolves that.
+
+     3. `provenance.ts` EXPORTS `MAX_ORIGINS`, WHICH NOTHING BUT ITS OWN TEST
+        IMPORTS. That is a genuine dead export in `main`, and exactly the
+        subtler bug §2 of this file's header describes. It is a real finding.
+
+     WHAT WAS NOT DONE, AND WHY. Adding `evalReport.ts` as an "entry" would be
+     the fudge this file's own header warns about: an entry is a PUBLIC SURFACE
+     something outside the area calls, and a test is not that. Re-exporting it
+     from `index.ts` would ship the eval harness to every learner's browser --
+     the metric improves, the product gets worse. Relaxing "test files are not
+     edges" would delete the gate's reason to exist. Deleting `MAX_ORIGINS`
+     inside a merge would be unreviewed product surgery on someone else's
+     branch. Each of those makes the red go away without changing what is
+     wrong, which is the one thing this repository forbids outright.
+
+     TO FINISH IT, two things have to be true, and neither is a gate edit:
+     `evalReport.evaluate()` needs a non-test caller (`bench.ts` is the obvious
+     one --- it already runs the corpus and has nothing that applies the
+     floors), and `MAX_ORIGINS` needs a real consumer or removal. When both
+     hold, restore the block above and delete this comment.
+     ----------------------------------------------------------------------- */
 ]
 
 /* -------------------------------------------------------------------------- */
@@ -100,6 +162,15 @@ export function walk(dir, out = []) {
     const full = join(dir, name)
     if (statSync(full).isDirectory()) {
       walk(full, out)
+    } else if (name.endsWith('.d.ts')) {
+      /* AMBIENT DECLARATIONS ARE NOT MODULES. A `.d.ts` has no runtime
+         existence at all --- `tsc` consumes it and emits nothing, so no
+         shipping file can ever "import" it in the sense this gate measures.
+         Counting one as an orphan is the gate misreading its own question, and
+         the only fix available to a developer would be a fake import. Skipped
+         for the same reason test files are not edges: it is about what the
+         PRODUCT loads. */
+      continue
     } else if (SOURCE_EXT.some((e) => name.endsWith(e))) {
       out.push(relative(ROOT, full))
     }
@@ -259,9 +330,21 @@ export function blankStrings(src) {
  * follow. Its uniqueness was accidental, which is the same defect shape as a
  * mutation anchor that happens to be unique because of its indentation.
  *
- * So the clause now refuses to swallow a newline that begins another
- * `import`/`export`, which is exactly the boundary it must not cross. */
-const FROM_RE = /(?:^|\n)[ \t]*(?:import|export)\s+((?:[^;\n]|\n(?![ \t]*(?:import|export)\b))*?)\s*from\s*['"]([^'"]+)['"]/g
+ * THE FIRST FIX FOR THIS WAS ALSO WRONG, and the gate's own self-check caught
+ * it: `rawCount !== blankComments(src)` went from 0 warnings to 3. That
+ * version let the clause cross a newline unless the next line began another
+ * `import`/`export`. Comments are blanked to SPACES before the real scan, so a
+ * comment containing the word `import` at the start of a line stopped the raw
+ * match and not the blanked one --- the two scans disagreed, which is exactly
+ * what that cross-check exists to notice.
+ *
+ * So the clause is now described POSITIVELY: an import clause contains
+ * identifiers, braces, commas, stars and whitespace, and nothing else. It
+ * cannot run into the next statement because every statement's specifier ends
+ * in a QUOTE, and a quote is not in the class. That holds whether or not
+ * anything has been blanked, which is the property the previous version
+ * lacked. */
+const FROM_RE = /(?:^|\n)[ \t]*(?:import|export)\s+([\w$,{}*\s]*?)\s*from\s*['"]([^'"]+)['"]/g
 const BARE_RE = /(?:^|\n)[ \t]*import\s*['"]([^'"]+)['"]/g
 const DYNAMIC_RE = /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g
 

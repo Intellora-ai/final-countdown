@@ -51,6 +51,20 @@ frontend/dist/
 # means reviewing a machine's build cache.
 frontend/tsconfig.tsbuildinfo
 
+# Mutation shard manifests. `npm run test:mutation` writes one per shard, and CI
+# uploads them as artifacts so `frontend-verdict` can prove every stripe of the
+# catalogue actually ran. They are per-run evidence, not source.
+#
+# Found the honest way: running the gate locally to verify a change left
+# `frontend/mutation-shard-1.json` sitting untracked, and nothing in this file
+# matched it. Its siblings were all already covered -- `frontend/dist/`,
+# `frontend/tsconfig.tsbuildinfo`, `frontend/e2e/report/`, `frontend/ci-findings.json`
+# -- so this was the one generated frontend artifact a `git add -A` could sweep
+# into history. Ignored by glob rather than by the four current shard numbers,
+# because the matrix width is a number in a workflow file and changing it must
+# not silently reopen this.
+frontend/mutation-shard-*.json
+
 # Canvas browser-harness output. Every run writes measured metrics per project
 # here; the numbers belong in the phase report, which quotes them, rather than
 # in history, where a machine's timings would be reviewed as if they were code.
@@ -74,3 +88,10 @@ screenshots/
 # one commit. Ignored by pattern rather than by path, because the same trap
 # waits in any other Next.js app added later.
 .next/
+
+# Per-gate diagnostics. `scripts/run_gate.py` writes the complete captured
+# stdout, stderr and a line-numbered combined log for every wrapped command,
+# and CI uploads the tree as a run artifact so a truncated Actions log cannot
+# destroy the evidence. Per-run output, never source. Same reasoning as
+# reports/ above.
+diagnostics/

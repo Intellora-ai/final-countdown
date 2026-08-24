@@ -64,36 +64,46 @@ from typing import Any, cast
 # what matches. Writing the prefixed form here would never match anything and
 # the gate would block forever on a skill that had in fact been invoked.
 #
-# On cost: the user was explicitly asked to accept it and did. The first
-# invocation of each per session pays its preamble; every re-invocation after
-# that returns "already loaded above; instructions unchanged" at effectively
-# zero tokens, so the recurring cost of a nine-skill gate is close to the cost
-# of a two-skill one. The one-off cost is real and is the trade being made.
+# On cost: the first invocation of each per session pays its preamble; every
+# re-invocation after that returns "already loaded above; instructions
+# unchanged" at effectively zero tokens. That argument was used to justify
+# holding ten, and it was only half right -- the RECURRING cost is near zero,
+# but the ONE-OFF cost is ~8 KB per skill and it lands on the first prompt of
+# every new session, which is exactly when context is most valuable. Three is
+# the list now; see the note on REQUIRED below for what was dropped and why.
+# CUT FROM TEN TO THREE, 2026-08-24, at the user's explicit instruction.
+#
+# Removed: mutate, test-driven-development, proptest, adversarial-reviewer,
+# chaos-engineer, chaos-engineering, systematic-debugging.
+#
+# SCOPE is "turn", so each of those was re-invoked on EVERY prompt at roughly
+# 8 KB of preamble apiece -- about 80 KB spent before any work began. Measured
+# against what they bought: `chaos-engineering` correctly reported it had no
+# target at all, because nothing in this repository is deployed, and the rest
+# restated process the surviving three already carry. The docstring above makes
+# exactly this argument about the original sixteen: a gate expensive enough to
+# resent is a gate that gets switched off, and then it enforces nothing.
+#
+# `caveman` is ONE entry, not two. Plugin skills arrive as "plugin:skill" and
+# the reader below normalises with `skill.split(":")[-1]`, so this single
+# string is satisfied by `/caveman` and by `/caveman:caveman` alike.
+#
+# THE RUNNING COPY IS ~/.claude/hooks/enforce_skills.py AND IT MATCHES THIS.
+# Both were changed together; this file is the one the tests run against and
+# the one a reviewer reads, so a drift between them is a gate nobody can audit.
 REQUIRED = (
     "rtk",
     "investigate",
-    # `caveman` also ships its own SessionStart and UserPromptSubmit hooks, so
-    # it is already active every turn and this entry is belt-and-braces rather
-    # than the thing switching it on. Kept because the user asked for it
-    # explicitly after being told that: a gate listing every skill the user
-    # wants held is easier to reason about than one with a silent exception in
-    # it, and the marginal cost of a re-invocation is near zero.
     "caveman",
-    "mutate",
-    "test-driven-development",
-    "proptest",
-    "adversarial-reviewer",
-    "chaos-engineer",
-    "chaos-engineering",
-    "systematic-debugging",
 )
 
-# "turn"    --- both skills must be re-invoked for EVERY user prompt.
+# "turn"    --- every skill in REQUIRED must be re-invoked for EVERY prompt.
 # "session" --- once per session is enough.
 #
-# `turn` is what was asked for and it is the expensive one: each skill body is
-# roughly 8 KB, so this spends ~16 KB per prompt to buy the guarantee. That is
-# the trade being made deliberately, not an oversight --- and it is one
+# `turn` is what was asked for and it is the expensive one. It said "both
+# skills" and "~16 KB per prompt" back when REQUIRED held two; the list has
+# been two, then sixteen, then ten, then three, and the sentence did not move
+# with it. Written without a count now, so it cannot go stale again -- one
 # constant to flip if the bill stops being worth it.
 SCOPE = "turn"
 

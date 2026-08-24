@@ -93,6 +93,17 @@ def steps_of(job: dict[str, Any]) -> list[dict[str, Any]]:
 # the command and runs nothing, which is the exact "containment is not
 # execution" failure this checker exists to catch. An allowlist rather than a
 # denylist of printers, because an unknown launcher must fail closed.
+# Shell keywords that may sit in front of a command without being the command.
+# Only the ones that can directly precede a simple command; `if`, `while` and
+# `case` are absent on purpose, because the word after those is a CONDITION,
+# not the command whose execution is being asserted.
+SHELL_KEYWORDS = {
+    "then",
+    "else",
+    "elif",
+    "do",
+}
+
 LAUNCHERS = {
     "python",
     "python3",
@@ -230,6 +241,20 @@ def segment_runs(segment: Segment, token_words: list[str]) -> bool:
     while (
         i < len(segment) and "=" in segment[i][0] and not segment[i][0].startswith("-")
     ):
+        i += 1
+    # `…; then exit 1; fi` — step past leading shell keywords, for the same
+    # reason and in the same way as the environment assignments above.
+    #
+    # The lexer splits on `;`, so a one-line conditional hands this function a
+    # segment whose first word is `then`, not the command. Judging that word as
+    # the command position rejects a REAL invocation: `if …; then exit 1; fi`
+    # was read as "no exit here". A false positive is not the safe direction —
+    # a gate that cries wolf gets switched off, and every other check it
+    # carries goes with it.
+    #
+    # Quoted words are never skipped. `echo "then"` keeps `echo` as its head,
+    # so a keyword inside a string cannot shift the command position.
+    while i < len(segment) and not segment[i][1] and segment[i][0] in SHELL_KEYWORDS:
         i += 1
     if i >= len(segment):
         return False
@@ -717,9 +742,23 @@ def check_frontend(g: Gate) -> bool:
             requirement="The gate step decides the job.",
             fix="Remove continue-on-error from the gate step.",
         )
-    if "exit 1" not in gate_run:
+    # `executes`, not `in`. This clause used to ask whether the step's script
+    # CONTAINED the text `exit 1`, which is the exact mistake this file's own
+    # header names at line 10 and parses YAML to avoid. All three of these
+    # contain it, none of them exits, and every one of them passed:
+    #
+    #     echo "would exit 1"
+    #     # exit 1 used to be here
+    #     echo exit 1 >> $GITHUB_STEP_SUMMARY
+    #
+    # The header was right and the code beside it was doing the forbidden
+    # thing. `tests/test_frontend_gate_enforcement.py::test_b2` plants all
+    # three and requires the catch; `test_b3` plants real exits inside
+    # conditionals and requires them to pass, so the fix cannot be a gate that
+    # simply refuses everything.
+    if not executes(gate_run, "exit 1"):
         ok = False
-        g.check("gate step exits non-zero", False, "no `exit 1`")
+        g.check("gate step exits non-zero", False, "no executed `exit 1`")
         g.fail(
             what="the verification gate does not fail",
             where=f"{FRONTEND_WF} -> {FRONTEND_GATE_STEP}",

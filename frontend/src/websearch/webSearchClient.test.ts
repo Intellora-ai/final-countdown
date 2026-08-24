@@ -126,6 +126,60 @@ describe('a broken route is never reported as an empty web', () => {
   })
 })
 
+describe('a failure reports BOTH that it broke and that nothing was checked', () => {
+  it('a provider timeout produces status unknown as well as engineFailed', async () => {
+    /* Two true statements, and sending only one leaves a fail-closed reader
+       with no verdict — which is the single thing it cannot tell apart from a
+       passing one. */
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: (async () => {
+        throw new Error('ETIMEDOUT')
+      }) as unknown as typeof fetch,
+    })
+    expect(out.engineFailed).toBe(true)
+    expect(out.check?.status).toBe('unknown')
+  })
+
+  it('an unconfigured route produces status unknown, not a false answer', async () => {
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith(
+        { pages: [], engineFailed: true, engineError: 'WEB_SEARCH_API_KEY is not set' },
+        503,
+      ),
+    })
+    expect(out.check?.status).toBe('unknown')
+    expect(out.engineError).toContain('WEB_SEARCH_API_KEY')
+  })
+
+  it('a 200 whose BODY reports a failure is still a failure with no verdict', async () => {
+    /* MUTATION-DERIVED. Deleting the verdict from the relayed-failure branch
+       survived, because every fixture that reported a failure did it with a
+       non-2xx status — so the earlier branch caught them all and this one was
+       never exercised. A route is entitled to answer 200 and say in the body
+       that the search itself failed, and a client that then reported no verdict
+       would leave a fail-closed reader unable to tell that from success. */
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith(
+        { pages: [page('https://a.test/1', HOT_A)], engineFailed: true, engineError: 'quota spent' },
+        200,
+      ),
+    })
+    expect(out.engineFailed).toBe(true)
+    expect(out.engineError).toContain('quota spent')
+    expect(out.check?.status).toBe('unknown')
+    /* The pages still come back, so the canvas can say what it saw. */
+    expect(out.results).toHaveLength(1)
+  })
+
+  it('unknown never claims the answer is false', async () => {
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith({ pages: [], engineFailed: true, engineError: 'down' }, 502),
+    })
+    expect(out.check?.supportingEvidenceIds).toEqual([])
+    expect(out.check?.conflictingEvidenceIds).toEqual([])
+  })
+})
+
 /* -------------------------------------------------------------------------- */
 /* The check                                                                  */
 /* -------------------------------------------------------------------------- */

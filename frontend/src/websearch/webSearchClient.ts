@@ -114,8 +114,25 @@ function toRetrieved(page: RoutePage, retrievedAt: string): Retrieved {
   }
 }
 
+/**
+ * A failure, carrying BOTH facts rather than making the caller choose.
+ *
+ * `engineFailed` says the search broke; `status: 'unknown'` says nothing could
+ * be checked. Those are different statements and both are true here, so both
+ * are sent. Sending only the first would leave any consumer reading `check`
+ * with no verdict at all, and a missing verdict is the one thing a
+ * fail-closed reader cannot distinguish from a passing one.
+ *
+ * `unknown` is NOT a claim that the answer is false. It says nobody looked, or
+ * looking failed.
+ */
 function failure(why: string): SearchResult {
-  return { results: [], engineFailed: true, engineError: why }
+  return {
+    results: [],
+    engineFailed: true,
+    engineError: why,
+    check: { status: 'unknown', supportingEvidenceIds: [], conflictingEvidenceIds: [] },
+  }
 }
 
 /**
@@ -155,8 +172,14 @@ export async function searchTheWeb(
 
   if (!httpOk) {
     /* The body is READ even on a failure status, because the route puts the
-       actionable sentence there — "WEB_SEARCH_API_KEY is not set" is worth far
-       more to whoever is looking than "503". */
+       actionable sentence there: naming the environment variable it is missing
+       is worth far more to whoever is looking than "503".
+
+       The variable's NAME is deliberately not written out here. It belongs to
+       the server, and `island.test.ts` refuses any occurrence of it under
+       `src/` — everything here is compiled into something a browser downloads,
+       and the credential's name has no business on that side of the wire even
+       as prose. */
     return failure(str(record?.['engineError']) || `the search route answered ${status}`)
   }
 
@@ -176,6 +199,7 @@ export async function searchTheWeb(
       results,
       engineFailed: true,
       ...(str(record['engineError']) ? { engineError: str(record['engineError']) } : {}),
+      check: { status: 'unknown', supportingEvidenceIds: [], conflictingEvidenceIds: [] },
     }
   }
 

@@ -157,3 +157,68 @@ describe('engine.ts says websearch IS reached — this is what makes that a fact
     expect(sourceFiles(SRC).some((f) => f.endsWith('websearch/verify.ts'))).toBe(true)
   })
 })
+
+/* -------------------------------------------------------------------------- */
+/* The key stays on the server, and the checkers are no longer dead            */
+/* -------------------------------------------------------------------------- */
+
+describe('nothing a browser downloads can name the search credential', () => {
+  it('no file under src/ mentions the key environment variable', () => {
+    /*
+     * SOURCE, NOT BUNDLE, AND THAT IS THE STRONGER TEST HERE.
+     *
+     * Everything under `src/` is compiled into something a browser downloads.
+     * Grepping the built bundle would catch the same leak later, more slowly,
+     * and only when a build has run; grepping the source catches it the moment
+     * somebody types it, and it cannot be defeated by minification renaming a
+     * variable.
+     *
+     * The name lives in `frontend/vite-plugin-search.ts`, which is a dev-server
+     * middleware and is never bundled. If it ever appears under `src/`,
+     * somebody has moved the credential to the wrong side of the wire.
+     */
+    const offenders = sourceFiles(SRC).filter((file) =>
+      readFileSync(file, 'utf8').includes('WEB_SEARCH_API_KEY'),
+    )
+    expect(offenders.map((f) => relative(SRC, f))).toEqual([])
+  })
+
+  it('POSITIVE CONTROL — the scan can actually see the string it looks for', () => {
+    /* A "nothing matches" assertion is satisfied by a scanner that reads
+       nothing at all. This proves the same scan finds a string that IS there,
+       so the empty result above means absence rather than blindness. */
+    const found = sourceFiles(SRC).filter((file) =>
+      readFileSync(file, 'utf8').includes('SEARCH_ROUTE'),
+    )
+    expect(found.length).toBeGreaterThan(0)
+  })
+
+  it('the browser reaches search by a relative route, never a vendor host', () => {
+    const client = readFileSync(join(SRC, 'websearch/webSearchClient.ts'), 'utf8')
+    expect(client).toContain("'/api/search'")
+    /* No vendor hostname anywhere in the file that the browser runs. */
+    expect(client).not.toMatch(/https?:\/\/[a-z0-9.-]*(brave|tavily|serper|bing|google)/i)
+  })
+})
+
+describe('select.ts and crosscheck.ts are executed by the shipped path', () => {
+  it('the live client imports both, so neither is dead code any more', () => {
+    /*
+     * Both modules were written, fully tested, and reached by nothing that
+     * ships — the exact shape `engine.ts` was in before the route landed, and
+     * the exact shape coverage argues AGAINST noticing: a module imported only
+     * by its own test reports 100% and the number rises as the orphan is tested
+     * more thoroughly.
+     *
+     * Asserted on the import, not on a call, because an import that nothing
+     * calls would still satisfy a looser check. `webSearchClient.test.ts` is
+     * what proves they RUN: a `javascript:` source excluded by `select.ts`
+     * loses its vote, and the four statuses come out of `crosscheck.ts`.
+     */
+    const client = readFileSync(join(SRC, 'websearch/webSearchClient.ts'), 'utf8')
+    expect(client).toContain("from './select'")
+    const verify = readFileSync(join(SRC, 'websearch/verify.ts'), 'utf8')
+    expect(verify).toContain("from './crosscheck'")
+    expect(verify).toContain("from './evidence'")
+  })
+})

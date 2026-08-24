@@ -76,6 +76,8 @@ import {
   type Executor,
   type StepSpec,
 } from '../execute/execute'
+import type { Ledger } from '../session/ledger'
+import { continuityOf, foldTurn, turnId, type Continuity } from '../session/wire'
 import {
   build as buildWorld,
   explain,
@@ -164,6 +166,24 @@ export interface Session {
    * that reason --- see the header of `execute.ts`.
    */
   task?: TaskState
+  /**
+   * The teaching ledger, when this session is teaching something.
+   *
+   * OPTIONAL, AND THAT IS A DESIGN DECISION RATHER THAN A CONVENIENCE. A
+   * session without one behaves exactly as it did before this field existed:
+   * no interruption bookkeeping, no position, no evidence log. That keeps the
+   * change opt-in, so every existing caller and every existing test is
+   * unaffected, and it keeps the honest reading of "we are not teaching
+   * anything" available --- an agent answering a one-off question should not
+   * be carrying a lesson position it invented.
+   *
+   * `task` answers "what work is in flight". This answers "where is the
+   * lesson". They looked like the same question until the measurement showed a
+   * teaching conversation produces no task at all: `plan` is rejected as "the
+   * work has one obvious order" for every phrasing of "teach me X", so after
+   * fourteen teaching turns `task` was still `NONE`.
+   */
+  ledger?: Ledger
 }
 
 export const NEW_SESSION: Session = {
@@ -215,6 +235,16 @@ export interface LoopResult {
     world?: World
     /** Set when the learning layer ran. */
     teaching?: Teaching
+    /**
+     * Where the lesson is, and what the record actually supports.
+     *
+     * Present only when this session is teaching --- see `Session.ledger`. It
+     * is on the trace rather than inside the answer because the caller needs to
+     * READ it: "are we mid-detour", "is this lesson finished", and "did the
+     * student just claim something the log cannot back" are decisions for
+     * whatever is driving the lesson, not sentences for the model to compose.
+     */
+    continuity?: Continuity
   }
 }
 
@@ -233,6 +263,20 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
 
   /* ---- 1 & 2. Understand, and detect intent + goal --------------------- */
   const u = understand(turn, session.conversation)
+
+  /* ---- 2a. Fold the turn into the teaching ledger, if we are teaching ----
+   *
+   * BEFORE ROUTING, because the ledger is a record of what the student did and
+   * that is true regardless of which capabilities the router goes on to pick.
+   * Putting it after would make the evidence log conditional on the routing
+   * decision, and a history that only records the turns the router found
+   * interesting is not a history.
+   *
+   * `foldTurn` is where an utterance becomes a teaching move: a change of
+   * subject pushes the current position so it can be returned to, and a request
+   * to continue pops it. Both are decided from `Understanding`, which is why
+   * this sits here and not in `wire.ts`'s caller. */
+  const ledger = session.ledger ? foldTurn(session.ledger, u, at, turnId(turn)) : undefined
 
   /* ---- 3. Load relevant context and memory ---------------------------- */
   /* Retrieved BEFORE routing, because whether anything relevant is stored is
@@ -869,6 +913,12 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
        carried: keeping it would make the next turn believe work is in flight
        and try to resume something already complete. */
     ...(task && task.status !== 'done' ? { task } : {}),
+    /* THE LEDGER SURVIVES UNCONDITIONALLY, including when the lesson is
+       complete. A task is dropped when done because a done task would be
+       resumed by mistake; a completed lesson is the opposite --- it is the
+       evidence that the student finished it, and it is exactly what a later
+       session needs in order not to teach the same thing again. */
+    ...(ledger ? { ledger } : {}),
   }
 
   return {
@@ -897,6 +947,11 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
       unmet,
       ...(world ? { world } : {}),
       ...(teaching ? { teaching } : {}),
+      /* Computed from the FOLDED ledger, so the position reported is the one
+         after this turn's detour or return --- not the one we arrived with. A
+         trace that reports the pre-turn position would tell a caller to resume
+         from the place the student just left. */
+      ...(ledger ? { continuity: continuityOf(ledger, text, u) } : {}),
     },
   }
 }

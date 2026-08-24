@@ -245,6 +245,42 @@ const STOPWORDS = new Set([
   ...SHARED,
   'a', 'an', 'or', 'but', 'is', 'it', 'i', 'me', 'my', 'we', 'us', 'to', 'of',
   'in', 'on', 'do', 'tell', 'explain', 'im', "i'm", 'give', 'show', 'help',
+  /* NAVIGATION VERBS ARE NOT SUBJECTS, and admitting them broke continuation.
+     Measured, on a conversation already about quadratics:
+
+         "continue"    -> entities [quadratics, continue]  topicShift = true
+         "keep going"  -> entities [quadratics, keep, going]  topicShift = true
+         "next"        -> entities [quadratics, next]  topicShift = true
+         "go on"       -> entities [quadratics]  topicShift = false
+
+     `topicShift` was reading what it was given: a fresh entity, no overlap
+     with the carried topic, no pronoun. The defect is upstream --- the word
+     whose whole meaning is "do not change the subject" was being offered as a
+     new subject. `go on` escaped only because both its words are shorter than
+     the term pattern's four-character floor, which is luck, not a rule.
+
+     They are here rather than in `text.ts` for the reason the header already
+     gives about `explain`: these are useful content words for relevance
+     ranking and useless as entities, so they belong to the extractor and not
+     to the shared set. */
+  'continue', 'continues', 'continuing', 'carry', 'keep', 'keeps', 'going',
+  'next', 'proceed', 'onwards', 'onward', 'ahead', 'further', 'resume',
+  'along', 'finish', 'finished',
+  /* INSTRUCTION VERBS, for the reason `explain` is already here and the
+     inconsistency that revealed the rest of the family:
+
+         "explain exponents"    -> [exponents]              `explain` listed
+         "define a polynomial"  -> [define, polynomial]     `define` was not
+         "describe a radical"   -> [describe, radical]       nor was `describe`
+
+     The consequence is not cosmetic. `topicShift` requires ZERO overlap with
+     the carried entities, so two consecutive "define X" turns share the entity
+     `define`, the overlap is one, and the second question does not register as
+     a change of subject at all. It was found by a nested-detour test that
+     pushed eight interruptions and got seven --- the eighth reused a word from
+     the fourth. */
+  'define', 'defines', 'describe', 'describes', 'clarify', 'elaborate',
+  'summarise', 'summarize', 'compare', 'list', 'outline', 'derive', 'prove',
 ])
 
 /**

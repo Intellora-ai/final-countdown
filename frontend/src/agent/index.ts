@@ -11,7 +11,10 @@ import { createStore, inMemoryPersistence, type Persistence } from './memory/mem
 import { calculator, createRegistry, fileTools, type FileSource } from './tools/tools'
 import { buildGraph, type Concept } from './learn/learn'
 import type { SearchPort } from './knowledge/knowledge'
-import { deserialize, pause, serialize } from './execute/execute'
+import { pause } from './execute/execute'
+import { openSession, type Ledger, type Position } from './session/ledger'
+import { moveTo, noteAttempt, turnId } from './session/wire'
+import { isEmpty, readSession, writeSession } from './session/persist'
 
 /**
  * THE COMPOSITION ROOT --- the one place the agent is actually assembled.
@@ -62,7 +65,7 @@ export interface AgentOptions {
 
 export interface Agent {
   /** Take one turn. The session is threaded internally. */
-  ask(turn: Turn | string): Promise<LoopResult>
+  ask(turn: Turn | string): Promise<AskResult>
   /** The conversation so far. Read-only; `ask` is the only thing that moves it. */
   session(): Session
   /** The assembled ports, exposed for inspection rather than for mutation. */
@@ -76,8 +79,57 @@ export interface Agent {
    * deploy is a task that quietly disappears.
    */
   suspend(): string | null
-  /** Put a suspended task back. The counterpart of `suspend`. */
-  restore(json: string): void
+  /**
+   * Put a suspended session back, or say why not.
+   *
+   * A RESULT, NOT A `void`. It used to return nothing, which meant a corrupt or
+   * truncated blob was indistinguishable from a successful restore: the caller
+   * carried on believing it had yesterday's lesson. A refusal the caller can
+   * see is the difference between "start again, and say so" and teaching the
+   * first concept to somebody who finished it last week.
+   */
+  restore(json: string): { ok: true } | { ok: false; why: string }
+
+  /* ---- teaching ------------------------------------------------------- */
+
+  /**
+   * Open a teaching session with an explicit objective.
+   *
+   * The objective is a PARAMETER and not something the agent infers, because
+   * every inferred version measured came from the last utterance --- after
+   * "lets pause here" the system's idea of the topic was "lets pause here".
+   * A caller that cannot say what the lesson is for should not be starting one.
+   */
+  teach(spec: { objective: string; conceptId: string; id?: string }): void
+  /** The teaching ledger, or `null` when this session is not teaching. */
+  ledger(): Ledger | null
+  /** Move the lesson. The one way the position changes other than a detour. */
+  advanceTeaching(to: Position): void
+  /**
+   * Record what the student actually did.
+   *
+   * Explicit rather than inferred from prose, and that is the point. Measured:
+   * a student stating a wrong formula produced `intent=conversation`,
+   * `executed=communicate`, and `attempts=0` --- so adaptation had no input at
+   * all. Guessing correctness from wording would fill that gap with fiction,
+   * and fabricated mastery data moves a curriculum confidently in the wrong
+   * direction. A caller that knows the answer was wrong says so.
+   */
+  recordAttempt(a: { conceptId: string; correct: boolean; difficulty: number; at?: string }): void
+}
+
+/** What `ask` returns: the loop's result, plus whether this was a replay. */
+export type AskResult = LoopResult & {
+  /**
+   * True when this exact turn had already been applied and the stored result
+   * was returned instead of running the loop again.
+   *
+   * Measured before deduplication existed: the identical `Turn` object applied
+   * twice took `turnIndex` from 1 to 2 and appended the goal twice. A timeout
+   * that actually succeeded, a double-submitted form, an at-least-once queue ---
+   * every one of them silently inflated the student's history.
+   */
+  replayed: boolean
 }
 
 export function createAgent(opts: AgentOptions): Agent {
@@ -103,28 +155,103 @@ export function createAgent(opts: AgentOptions): Agent {
 
   let session = NEW_SESSION
 
+  /* APPLIED TURNS, AND THE ANSWERS THEY PRODUCED.
+     Bounded, because this is held for the life of the agent and a conversation
+     is not a place to leak. The bound is generous relative to any retry window;
+     a duplicate arriving after this many distinct turns is not a retry. */
+  const REPLAY_MEMORY = 64
+  const applied = new Map<string, AskResult>()
+
+  const remember = (id: string, out: AskResult): AskResult => {
+    applied.set(id, out)
+    while (applied.size > REPLAY_MEMORY) {
+      const oldest = applied.keys().next().value
+      if (oldest === undefined) break
+      applied.delete(oldest)
+    }
+    return out
+  }
+
   return {
     ports,
     session: () => session,
+    ledger: () => session.ledger ?? null,
+
+    teach(spec) {
+      session = {
+        ...session,
+        ledger: openSession({
+          id: spec.id ?? `lesson-${now()}`,
+          objective: spec.objective,
+          conceptId: spec.conceptId,
+          at: now(),
+        }),
+      }
+    },
+
+    advanceTeaching(to) {
+      if (!session.ledger) return
+      session = { ...session, ledger: moveTo(session.ledger, to, now()) }
+    },
+
+    recordAttempt(a) {
+      if (!session.ledger) return
+      session = {
+        ...session,
+        ledger: noteAttempt(session.ledger, { ...a, at: a.at ?? now() }),
+      }
+    },
+
     /* PAUSED, then serialised --- in that order, and never serialised alone.
        `pause` writes the journal entry and carries the working memory across,
        which is what makes the resume cheaper than a restart. Serialising an
        `active` task instead produces a file that, when restored, believes a
-       step is still running and stalls waiting for it. */
+       step is still running and stalls waiting for it.
+
+       WHAT CHANGED: the whole session is written, not just the task. Measured
+       before: `suspend()` returned `null` whenever there was no task, and a
+       teaching conversation never produces one, so the common case was that a
+       session could not be saved at all. `null` still means "nothing to save",
+       but "nothing" now means a session indistinguishable from a new one
+       rather than a session without a task. */
     suspend() {
-      if (!session.task) return null
-      const stopped = pause(session.task, session.working, now())
-      session = { ...session, task: stopped }
-      return serialize(stopped)
+      if (isEmpty(session)) return null
+      if (session.task) {
+        session = { ...session, task: pause(session.task, session.working, now()) }
+      }
+      return writeSession(session)
     },
+
+    /* READ, VALIDATED, AND ONLY THEN ASSIGNED.
+       The live session is replaced as one atomic step after the read succeeds,
+       so a refused blob leaves the agent exactly as it was. The previous
+       version assigned `deserialize(json)` straight into the session, which
+       meant a malformed blob replaced a live lesson with whatever the parse
+       produced. */
     restore(json: string) {
-      session = { ...session, task: deserialize(json) }
+      const read = readSession(json)
+      if (!read.ok) return { ok: false, why: read.why }
+      session = read.session
+      /* A restored session is a different history. Keeping the replay cache
+         would let a turn id from the old one suppress a real turn in the new. */
+      applied.clear()
+      return { ok: true }
     },
-    async ask(input: Turn | string): Promise<LoopResult> {
+
+    async ask(input: Turn | string): Promise<AskResult> {
       const turn = typeof input === 'string' ? textTurn(input, now()) : input
+      const id = turnId(turn)
+
+      /* THE SAME TURN IS THE SAME TURN. The stored result is returned rather
+         than a fresh run, because re-running would append to the evidence log a
+         second time --- and an inflated history is exactly what makes the
+         learner model wrong in the direction of over-confidence. */
+      const already = applied.get(id)
+      if (already) return { ...already, replayed: true }
+
       const out = await handle(turn, session, ports)
       session = out.session
-      return out
+      return remember(id, { ...out, replayed: false })
     },
   }
 }

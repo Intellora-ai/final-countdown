@@ -1020,3 +1020,14 @@
   font-size: 0.85rem;
   line-height: 1.5;
 }
+
+/* What the per-question record earns the learner. Set apart from the plain
+   note above it, because a line naming their actual mistake is worth more than
+   the sentence saying how many they got right. */
+.pm-q-advice {
+  margin: var(--pm-s3) 0 0;
+  padding-left: var(--pm-s3);
+  border-left: 2px solid var(--pm-accent);
+  color: var(--pm-ink);
+  line-height: 1.6;
+}

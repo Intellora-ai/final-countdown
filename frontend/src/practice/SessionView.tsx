@@ -7,6 +7,7 @@ import {
   topicsOfChapter,
   type TopicConcept,
 } from './curriculum'
+import { adviceFrom, orderByNeed, signalFrom } from './engine/mastery'
 import { modelProvider } from './engine/modelProvider'
 import { fixtureProvider } from './engine/provider'
 import type { TopicProfile } from './engine/plan'
@@ -159,7 +160,21 @@ export function SessionView() {
 
   /* ---- Generation ------------------------------------------------------ */
 
-  const profile = useMemo(() => profileFor(launchedFrom), [launchedFrom])
+  /*
+   * The next set is shaped by the last ones.
+   *
+   * `orderByNeed` puts the concepts this learner is getting wrong at the front,
+   * and the planner already rotates through concepts in order — so reordering
+   * here is the entire mechanism, with no planner change and no special case.
+   * A topic with no history comes back untouched.
+   */
+  const profile = useMemo(() => {
+    const base = profileFor(launchedFrom)
+    if (!base) return null
+
+    const signal = signalFrom(useSessionStore.getState().history)
+    return { ...base, concepts: orderByNeed(base.concepts, signal) }
+  }, [launchedFrom])
 
   /*
    * Generation is read out of the store inside the effect rather than closed
@@ -385,7 +400,20 @@ function Question() {
 }
 
 function Result() {
-  const result = useSessionStore((state) => state.history[0])
+  const history = useSessionStore((state) => state.history)
+  const result = history[0]
+
+  /*
+   * The advice is the reason the per-question record exists.
+   *
+   * "7 of 10" tells a learner they got three wrong. This tells them the three
+   * were the same idea, or the same slip across three different ideas — which
+   * are different problems with different fixes, and only the second reading
+   * suggests one. It is empty when there is nothing worth saying, because a
+   * message every session trains people to skip the one that mattered.
+   */
+  const advice = useMemo(() => adviceFrom(signalFrom(history)), [history])
+
   if (!result) return null
 
   return (
@@ -396,6 +424,12 @@ function Result() {
       <p className="pm-session-note">
         {describeEnding(result.status)} {result.answeredCount} of {result.requested} answered.
       </p>
+
+      {advice.map((line) => (
+        <p key={line} className="pm-q-advice">
+          {line}
+        </p>
+      ))}
 
       <ul className="pm-q-breakdown">
         {result.attempts.map((attempt) => (

@@ -197,8 +197,21 @@ If you finish early, stop early.
 
 Inspect `package.json` before running anything. Use the project's real commands.
 
-Currently real: `typecheck` · `test` · `build` · `budget`.
-Currently **absent**: `lint` — it arrives in Step 1.
+Currently real: `typecheck` · `test` · `build` · `budget` · `lint` ·
+`test:mutation`.
+
+`lint` was listed here as absent long after it shipped. That is worth naming,
+because this section exists to stop a session claiming success on a command
+that does not exist — and being stale in the OTHER direction is the same
+failure wearing different clothes: a session reads "lint is absent", skips it,
+and the Law 4 design-value rule goes unenforced on the very change that needed
+it. Check `package.json` rather than this list; the list is a summary and can
+rot, the manifest cannot.
+
+Note what `lint` actually covers today: `eslint src/canvas src/practice
+src/agent`. Flat config only lints a path with a matching `files:` block, so
+adding a directory to that script alone changes nothing — `eslint.config.js`
+needs the block too, or the target is silently skipped with no error.
 
 If a command or a Playwright project does not exist, **report it and stop**.
 Never infer success from a command that did not run.

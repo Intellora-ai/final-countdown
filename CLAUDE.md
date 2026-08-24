@@ -499,7 +499,7 @@ Also true today, and not to be papered over:
 
 | Concern | Mechanism |
 |---|---|
-| Goal 1 invariance | `token-invariance.spec.ts` — render N lessons, extract computed CSS per block kind, assert every style-token property is identical. Geometry (width, height, item count) is **excluded**. |
+| Goal 1 invariance | `frontend/e2e/token-invariance.spec.ts` — renders all three lessons, reads computed CSS per **(block kind, emphasis)** and asserts every style-token property is identical across lessons. Geometry is **excluded**: width, height, margin, position, grid placement. Runs on all five viewport projects. |
 | Law 4 | `design-value` ESLint AST rule with a structural allowlist |
 | Token coverage | every computed colour / spacing / font-size in the DOM traces to `tokens.ts` |
 | Chart ticks | property test — 20 random ranges per chart type, monotonic and evenly spaced |

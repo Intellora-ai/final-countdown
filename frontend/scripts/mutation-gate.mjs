@@ -946,6 +946,39 @@ if (MINE.length === 0) {
   process.exit(1)
 }
 
+/*
+ * THE SHARD MANIFEST — written BEFORE any work, on purpose.
+ *
+ * The empty-shard guard above catches one shard that selected nothing, and
+ * `needs.frontend-mutation.result` in the workflow catches a shard that failed
+ * or was cancelled. Neither sees the matrix and the flag disagreeing:
+ *
+ *     matrix: shard: [1, 2, 3, 4]      run: --shard="$MUTATION_SHARD/6"
+ *
+ * Shards 5 and 6 then never exist, 1-4 each select a real non-empty stripe,
+ * every job is green, and a third of the catalogue never runs. Those two
+ * numbers live on separate lines of the workflow and nothing has ever tied
+ * them together.
+ *
+ * So each shard declares what it was asked to cover, and `frontend-verdict`
+ * refuses unless the union across shards IS the catalogue. See
+ * `shardsAreComplete` in ./mutation-verdict.mjs for why that is a positive
+ * proof rather than a third guard.
+ *
+ * WRITTEN FIRST, not last: a shard that dies mid-run must still say which
+ * mutants it OWNED, or a crash would look identical to a stripe that was never
+ * assigned. The upload step is `if: always()` for the same reason.
+ */
+writeFileSync(
+  `mutation-shard-${shardIndex}.json`,
+  `${JSON.stringify({
+    shard: shardIndex,
+    of: shardCount,
+    all: MUTANTS.map((m) => m.id),
+    ids: MINE.map((m) => m.id),
+  }, null, 2)}\n`,
+)
+
 const tmp = mkdtempSync(join(tmpdir(), 'canvas-mutation-'))
 const out = join(tmp, 'run.json')
 

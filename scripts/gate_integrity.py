@@ -1683,6 +1683,98 @@ def main() -> None:
                     "the ruleset.",
                 )
 
+        # 9b. THE OTHER DIRECTION: disk -> manifest.
+        #
+        # Check 9 above is titled "the manifest agrees with itself", and that
+        # is precisely its reach. Both of its sides are read from this one
+        # file, so a job that exists on disk and is named by neither side is
+        # not something it can fail on -- it is something it cannot see.
+        #
+        # Measured 2026-08-25: fourteen jobs ran, reported a verdict, and
+        # could not block a merge. The whole learning-canvas-frontend workflow
+        # was among them: the mutation gate, the reachability gate, the bundle
+        # budget, the lint over four directories, and roughly 290 browser
+        # tests. So was `verify.yml::merge-evidence`, inside the workflow that
+        # is otherwise fully required. Check 9 printed
+        # `17 required, 17 mandatory: PASS` throughout, and it was answering
+        # its own question honestly.
+        #
+        # An ALLOWLIST, deliberately. A job nobody has classified is refused
+        # rather than assumed harmless, so this cannot rot the way a denylist
+        # of known-bad names would: the next workflow anyone adds has to be
+        # either required or consciously written off.
+        #
+        # The reason string is the load-bearing half. An exemption nobody has
+        # to justify is an exemption everybody takes, and the reason is what a
+        # reader sees when they ask why a job runs if it can never fail.
+        advisory_raw = manifest.get("advisory", {})
+        # `isinstance` narrows only to `dict[Unknown, Unknown]`, so the lookup
+        # below is partially unknown under strict pyright without this cast.
+        advisory: dict[str, object] = (
+            cast("dict[str, object]", advisory_raw)
+            if isinstance(advisory_raw, dict)
+            else {}
+        )
+        unclassified: list[str] = []
+        for wf in sorted(WORKFLOWS.glob("*.yml")):
+            # Same cast idiom as the frontend workflow read further up this
+            # file: `yaml.safe_load` is `Any`, so it is narrowed once at the
+            # point of loading rather than at every read.
+            doc_yaml = cast(
+                "dict[str, Any]", yaml.safe_load(wf.read_text(encoding="utf-8")) or {}
+            )
+            raw_jobs = doc_yaml.get("jobs")
+            if not isinstance(raw_jobs, dict):
+                continue
+            # `yaml.safe_load` is `Any` and `isinstance` narrows a mapping only
+            # to unknown key and value types. Narrowing once here keeps every
+            # read in the loop typed.
+            jobs_map = cast("dict[str, object]", raw_jobs)
+            for job_id, job in jobs_map.items():
+                # The check context GitHub reports is the job's `name:` when it
+                # has one, and the job id otherwise. A matrix name expands per
+                # shard (`mutation ${{ matrix.shard }}`), so the job id is what
+                # the advisory list is keyed on -- it is the stable half.
+                declared_name = (
+                    cast("dict[str, object]", job).get("name")
+                    if isinstance(job, dict)
+                    else None
+                )
+                context = declared_name if isinstance(declared_name, str) else job_id
+                # ONE lookup, on the context GitHub actually reports. An
+                # `or job_id in required` fallback was here and a mutant
+                # exposed it: no test could kill its removal, because it can
+                # only fire when a job HAS a `name:` and the ruleset requires
+                # its ID instead -- a combination GitHub never produces, since
+                # it reports the name whenever one is set. So the fallback
+                # could not help a real repository and could silently treat a
+                # job as required that GitHub does not require, which is the
+                # dangerous direction: a gap reported as covered.
+                if context in required:
+                    continue
+                key = f"{wf.name}::{job_id}"
+                reason = advisory.get(key)
+                if isinstance(reason, str) and reason.strip():
+                    continue
+                unclassified.append(key)
+        g.check(
+            "every job is required or declared advisory",
+            not unclassified,
+            f"{len(unclassified)} unclassified",
+        )
+        for key in unclassified:
+            ok = False
+            g.fail(
+                what=f"job '{key}' runs, reports a verdict, and cannot block a merge",
+                where=key,
+                why="it is not a required check and it is not declared "
+                "advisory, so a red result there stops nothing",
+                requirement="Every job is required, or is written off on "
+                "purpose with a stated reason.",
+                fix=f"Add '{key}' to [advisory] in {MANIFEST} with a reason, "
+                "or add its check to required_checks and to the ruleset.",
+            )
+
         # 10. docs must not tell anyone to run a verifier that is gone.
         # Scoped to INVOCATIONS, not every mention: evidence.md legitimately
         # documents scripts that do NOT exist and says so, and flagging that

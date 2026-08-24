@@ -63,7 +63,7 @@ jobs:
     name: canary emit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # `::warning`, never `::error`. The level does not change how GitHub
       # resolves `file=`, and errors would paint two red annotations on every
@@ -77,7 +77,7 @@ jobs:
     needs: emit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # A job's annotations are only queryable once its check-run has completed,
       # which `needs: emit` guarantees. GitHub's job id and check-run id are the

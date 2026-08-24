@@ -889,3 +889,22 @@ describe('the learner is told how old the evidence is', () => {
     expect(JSON.stringify(r.lesson).toLowerCase()).toContain('just now')
   })
 })
+
+describe('a backup answer says it came from the backup', () => {
+  it('names wikipedia when the main search was unreachable', async () => {
+    /* An answer from a narrower source that does not say so is worse than no
+       answer, because it looks exactly like the good one. */
+    const r = await resolverFor(checked('single-source', { fallback: true })).resolve(
+      GAS_ASK,
+      LESSON,
+    )
+    if (r.kind !== 'answer') throw new Error('expected an answer')
+    expect(JSON.stringify(r.lesson).toLowerCase()).toContain('only wikipedia')
+  })
+
+  it('an ordinary answer does NOT claim to be a backup', async () => {
+    const r = await resolverFor(checked('supported')).resolve(GAS_ASK, LESSON)
+    if (r.kind !== 'answer') throw new Error('expected an answer')
+    expect(JSON.stringify(r.lesson).toLowerCase()).not.toContain('only wikipedia')
+  })
+})

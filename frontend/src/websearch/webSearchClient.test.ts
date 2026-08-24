@@ -40,6 +40,21 @@ function respondWith(body: unknown, status = 200): typeof fetch {
     }) as unknown as Response) as unknown as typeof fetch
 }
 
+
+/**
+ * The backup, switched off.
+ *
+ * Every test that drives the route into an OUTAGE must supply this. Without it
+ * the real `wikipediaSearch` is lazily imported and a unit test goes to the
+ * network — which is slow, flaky, and quietly turns "the route failed" into
+ * "the route failed and then Wikipedia answered".
+ *
+ * Injected rather than mocked globally so the wiring itself stays visible: a
+ * reader can see which tests are about the route alone and which are about the
+ * handover.
+ */
+const noBackup = async () => ({ results: [], engineFailed: true, engineError: 'backup off in tests' })
+
 const GAS = 'why does heating a gas raise its pressure'
 const HOT_A = 'Heating a gas raises its pressure because particles move faster.'
 const HOT_B = 'When a gas is heated its pressure rises at constant volume.'
@@ -86,6 +101,7 @@ describe('a broken route is never reported as an empty web', () => {
   it('a non-2xx response -> engineFailed', async () => {
     const out = await searchTheWeb(GAS, {
       fetchImpl: respondWith({ pages: [], engineFailed: true, engineError: 'not configured' }, 503),
+      wikipediaImpl: noBackup,
     })
     expect(out.engineFailed).toBe(true)
     expect(out.engineError).toContain('not configured')
@@ -96,13 +112,17 @@ describe('a broken route is never reported as an empty web', () => {
       fetchImpl: (async () => {
         throw new Error('offline')
       }) as unknown as typeof fetch,
+      wikipediaImpl: noBackup,
     })
     expect(out.engineFailed).toBe(true)
     expect(out.engineError).toContain('offline')
   })
 
   it('a body that is not the agreed shape -> engineFailed, not a silent empty', async () => {
-    const out = await searchTheWeb(GAS, { fetchImpl: respondWith({ nonsense: true }) })
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith({ nonsense: true }),
+      wikipediaImpl: noBackup,
+    })
     expect(out.engineFailed).toBe(true)
   })
 
@@ -112,7 +132,10 @@ describe('a broken route is never reported as an empty web', () => {
        the later branch caught it and the status check looked redundant. A 500
        from a proxy carries no such field, and without this the answer would be
        "the web has nothing to say about that". */
-    const out = await searchTheWeb(GAS, { fetchImpl: respondWith({ pages: [] }, 500) })
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith({ pages: [] }, 500),
+      wikipediaImpl: noBackup,
+    })
     expect(out.engineFailed).toBe(true)
     expect(out.engineError).toContain('500')
   })
@@ -135,6 +158,7 @@ describe('a failure reports BOTH that it broke and that nothing was checked', ()
       fetchImpl: (async () => {
         throw new Error('ETIMEDOUT')
       }) as unknown as typeof fetch,
+      wikipediaImpl: noBackup,
     })
     expect(out.engineFailed).toBe(true)
     expect(out.check?.status).toBe('unknown')
@@ -146,6 +170,7 @@ describe('a failure reports BOTH that it broke and that nothing was checked', ()
         { pages: [], engineFailed: true, engineError: 'WEB_SEARCH_API_KEY is not set' },
         503,
       ),
+      wikipediaImpl: noBackup,
     })
     expect(out.check?.status).toBe('unknown')
     expect(out.engineError).toContain('WEB_SEARCH_API_KEY')
@@ -163,6 +188,7 @@ describe('a failure reports BOTH that it broke and that nothing was checked', ()
         { pages: [page('https://a.test/1', HOT_A)], engineFailed: true, engineError: 'quota spent' },
         200,
       ),
+      wikipediaImpl: noBackup,
     })
     expect(out.engineFailed).toBe(true)
     expect(out.engineError).toContain('quota spent')
@@ -174,6 +200,7 @@ describe('a failure reports BOTH that it broke and that nothing was checked', ()
   it('unknown never claims the answer is false', async () => {
     const out = await searchTheWeb(GAS, {
       fetchImpl: respondWith({ pages: [], engineFailed: true, engineError: 'down' }, 502),
+      wikipediaImpl: noBackup,
     })
     expect(out.check?.supportingEvidenceIds).toEqual([])
     expect(out.check?.conflictingEvidenceIds).toEqual([])
@@ -408,5 +435,125 @@ describe('provenance labels from the route are checked, not trusted', () => {
       }),
     })
     expect(out.freshness?.origins).toEqual(['recent-cache', 'precomputed'])
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Wikipedia as a labelled backup                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * WHY A BACKUP AT ALL, AND WHY IT IS NOT SIMPLY "THE OLD BEHAVIOUR BACK"
+ * ----------------------------------------------------------------------
+ * `/api/search` is a dev-server middleware. A deployed build has no server to
+ * hold the key and no server to do the fetching a browser is not allowed to do,
+ * so without this a deployed canvas has no web rung at all.
+ *
+ * Wikipedia needs no key and sends CORS headers, which is the only reason it
+ * can run from a page. It comes back on two conditions, both of which are what
+ * make it safe rather than a quiet regression to single-source answering:
+ *
+ *   IT FIRES ONLY ON AN OUTAGE, never on an empty result. "The search is
+ *   broken" and "the web has nothing to say" are opposite facts, and a backup
+ *   that fired on both would turn every genuine no-answer into an article.
+ *
+ *   IT CAN NEVER REPORT `supported`. Two Wikipedia articles are one publisher.
+ *   `countVoices` already collapses them, and the status is ALSO forced down,
+ *   so a future change to `publisherOf` cannot silently promote one site to
+ *   "two independent sources agree".
+ */
+
+function wikiPage(url: string, text: string): {
+  ok: boolean
+  title: string
+  readerText: string
+  suspicious: boolean
+  finalUrl: string
+  hit: { url: string; title: string }
+} {
+  return {
+    ok: true,
+    title: 'Wikipedia article',
+    readerText: text,
+    suspicious: false,
+    finalUrl: url,
+    hit: { url, title: 'Wikipedia article' },
+  }
+}
+
+describe('when the route cannot be reached, wikipedia answers and says so', () => {
+  it('falls back on an outage', async () => {
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith({ pages: [], engineFailed: true, engineError: 'not configured' }, 503),
+      wikipediaImpl: async () => ({
+        results: [wikiPage('https://en.wikipedia.org/wiki/Gas_laws', HOT_A)],
+        engineFailed: false,
+      }),
+    })
+    expect(out.fallback).toBe(true)
+    expect(out.results).toHaveLength(1)
+  })
+
+  it('does NOT fall back when the route worked and simply found nothing', async () => {
+    /* The rule that keeps this from being a regression. An outage and an empty
+       web are opposite facts. */
+    const spy = vi.fn(async () => ({ results: [], engineFailed: false }))
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith({ pages: [], engineFailed: false }),
+      wikipediaImpl: spy,
+    })
+    expect(spy).not.toHaveBeenCalled()
+    expect(out.fallback).toBeUndefined()
+  })
+
+  it('two wikipedia articles that agree are still ONE source', async () => {
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith({ pages: [], engineFailed: true, engineError: 'down' }, 503),
+      wikipediaImpl: async () => ({
+        results: [
+          wikiPage('https://en.wikipedia.org/wiki/Gas_laws', HOT_A),
+          wikiPage('https://en.wikipedia.org/wiki/Pressure', HOT_B),
+        ],
+        engineFailed: false,
+      }),
+    })
+    expect(out.check?.status).not.toBe('supported')
+  })
+
+  it('the backup still refuses a page that is not about the question', async () => {
+    /* The relevance gate is not skipped just because this is the fallback. A
+       lower-quality path is not a lower-standards path. */
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith({ pages: [], engineFailed: true, engineError: 'down' }, 503),
+      wikipediaImpl: async () => ({
+        results: [wikiPage('https://en.wikipedia.org/wiki/Cricket', 'Cricket is a bat-and-ball game.')],
+        engineFailed: false,
+      }),
+    })
+    expect(out.check?.status).toBe('unknown')
+  })
+
+  it('both failing reports the ROUTE failure, because that is the actionable one', async () => {
+    /* "The key is not set" tells somebody what to do. "Wikipedia timed out"
+       does not. */
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith(
+        { pages: [], engineFailed: true, engineError: 'WEB_SEARCH_API_KEY is not set' },
+        503,
+      ),
+      wikipediaImpl: async () => ({ results: [], engineFailed: true, engineError: 'wikipedia down' }),
+    })
+    expect(out.engineFailed).toBe(true)
+    expect(out.engineError).toContain('not set')
+    expect(out.fallback).toBeUndefined()
+  })
+
+  it('wikipedia finding nothing also reports the route failure', async () => {
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith({ pages: [], engineFailed: true, engineError: 'no key' }, 503),
+      wikipediaImpl: async () => ({ results: [], engineFailed: false }),
+    })
+    expect(out.engineFailed).toBe(true)
+    expect(out.fallback).toBeUndefined()
   })
 })

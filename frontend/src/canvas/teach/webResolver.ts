@@ -143,6 +143,13 @@ export interface SearchResult {
   readonly freshness?: Freshness
   /** Refinement rounds the search ran. 0 means the first pass was enough. */
   readonly rounds?: number
+  /**
+   * True when the main search was unreachable and a keyless backup answered.
+   *
+   * The learner is told. An answer from a narrower source that does not say so
+   * is worse than no answer, because it looks exactly like the good one.
+   */
+  readonly fallback?: boolean
 }
 
 /**
@@ -430,6 +437,12 @@ function offTopicClause(n: number): string {
  * freshness gets no sentence, rather than a reassuring default. The whole
  * point is that a learner can trust the sentence when it appears.
  */
+function fallbackNote(fallback: boolean | undefined): string {
+  return fallback
+    ? ' The main search was not available, so this came from only Wikipedia.'
+    : ''
+}
+
 function freshnessNote(freshness: Freshness | undefined): string {
   if (!freshness) return ''
   /* The not-live sentence deliberately does NOT contain the words "just now".
@@ -468,6 +481,7 @@ function buildCheckedAnswer(
   check: ClaimCheck,
   evidence: SelectedEvidence,
   freshness: Freshness | undefined,
+  fallback: boolean | undefined,
 ): Lesson | null {
   const status = check.status === 'conflicting' ? 'conflicting' : check.status
   const blocks: Record<string, unknown>[] = [
@@ -476,7 +490,8 @@ function buildCheckedAnswer(
       kind: 'callout',
       body:
         `This is not from this lesson. It is quoted from a page found on the web. ` +
-        `${STATUS_NOTE[status as 'supported' | 'single-source']}${freshnessNote(freshness)}`,
+        `${STATUS_NOTE[status as 'supported' | 'single-source']}${freshnessNote(freshness)}` +
+        `${fallbackNote(fallback)}`,
       emphasis: 'aside',
       tone: check.status === 'supported' ? 'insight' : 'warning',
     },
@@ -523,6 +538,7 @@ function buildConflictAnswer(
   check: ClaimCheck,
   pages: readonly RetrievedPage[],
   freshness: Freshness | undefined,
+  fallback: boolean | undefined,
 ): Lesson | null {
   const named = new Set(check.conflictingEvidenceIds)
   const sides = pages.filter((p) => named.has(p.finalUrl) || named.has(p.hit.url))
@@ -532,7 +548,9 @@ function buildConflictAnswer(
     {
       id: 'web-note',
       kind: 'callout',
-      body: `This is not from this lesson. ${STATUS_NOTE.conflicting}${freshnessNote(freshness)}`,
+      body:
+        `This is not from this lesson. ${STATUS_NOTE.conflicting}` +
+        `${freshnessNote(freshness)}${fallbackNote(fallback)}`,
       emphasis: 'aside',
       tone: 'warning',
     },
@@ -714,7 +732,7 @@ export function webResolver(deps: WebResolverDeps): AsyncDoubtResolver {
         }
 
         if (check.status === 'conflicting') {
-          const both = buildConflictAnswer(doubt, check, usable, outcome.freshness)
+          const both = buildConflictAnswer(doubt, check, usable, outcome.freshness, outcome.fallback)
           if (!both) return refuse('I found sources that disagree but could not render them safely.')
           return { kind: 'answer', lesson: both, drawnFrom: [] }
         }
@@ -725,7 +743,13 @@ export function webResolver(deps: WebResolverDeps): AsyncDoubtResolver {
           return refuse('I checked what came back but could not find a line worth quoting.')
         }
 
-        const verified = buildCheckedAnswer(doubt, check, outcome.evidence, outcome.freshness)
+        const verified = buildCheckedAnswer(
+          doubt,
+          check,
+          outcome.evidence,
+          outcome.freshness,
+          outcome.fallback,
+        )
         if (!verified) return refuse('I found sources for that but could not render them safely.')
         return { kind: 'answer', lesson: verified, drawnFrom: [] }
       }

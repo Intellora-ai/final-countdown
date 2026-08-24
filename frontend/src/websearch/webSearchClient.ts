@@ -8,7 +8,8 @@ import {
 import type { Retrieved } from './gather'
 import { interpret } from './interpret'
 import { rankHits } from './select'
-import { checkClaims, selectEvidence } from './verify'
+import { checkClaims, selectEvidence, type ClaimCheck } from './verify'
+import type { Claim } from './evidence'
 
 /**
  * The browser half of open-web search.
@@ -43,6 +44,13 @@ import { checkClaims, selectEvidence } from './verify'
 export const SEARCH_ROUTE = '/api/search'
 
 export interface WebSearchOptions {
+  /**
+   * The keyless backup, injected so tests never touch Wikipedia.
+   *
+   * Defaults to a lazy `import('./wikipedia')`, so a learner who never hits an
+   * outage never downloads it.
+   */
+  readonly wikipediaImpl?: (query: string, options: Record<string, unknown>) => Promise<SearchResult>
   /** Injected so every test runs with no network. Defaults to the global fetch. */
   readonly fetchImpl?: typeof fetch
   /** Overridden only if the route is mounted somewhere else. */
@@ -162,13 +170,60 @@ function failure(why: string): SearchResult {
 }
 
 /**
+ * Which pages may vote, and what they decide.
+ *
+ * ONE IMPLEMENTATION, USED BY BOTH PATHS. The route path and the Wikipedia
+ * backup run exactly this function, so the relevance gate and the claim check
+ * cannot drift apart between them. A backup with looser standards is not a
+ * backup, it is a second product nobody tested.
+ */
+function verdictFor(
+  pages: readonly RoutePage[],
+  readerPages: readonly RetrievedPage[],
+  query: string,
+): { check: ClaimCheck; chosen: Claim | null } {
+  /*
+   * WHICH PAGES ARE ALLOWED TO VOTE.
+   *
+   * Two filters, each removing a different way a page can be worthless:
+   *
+   *   off-topic    it shares fewer than half the question's words
+   *   excluded     `select.ts` judged the source unusable at all
+   *
+   * Taint is NOT filtered here, and that is on evidence: mutation testing
+   * showed a `!p.suspicious` filter changed no outcome, because
+   * `extractClaims` marks a suspicious page's claims `tainted`, `countVoices`
+   * refuses to count them and `selectEvidence` refuses to quote them. A second
+   * spelling of a rule that already holds is the thing that later disagrees
+   * with the first.
+   */
+  const req = interpret(query)
+  const terms = contentTokens(query)
+  const onTopic = pages.filter((p, i) => isAbout(readerPages[i] as RetrievedPage, terms))
+
+  const usableUrls = new Set(
+    rankHits(
+      onTopic.map((p) => ({ url: p.url, title: p.title, snippet: '' })),
+      req,
+    )
+      .filter((r) => !r.excluded)
+      .map((r) => r.hit.url),
+  )
+
+  const retrievedAt = new Date().toISOString()
+  const voting = onTopic.filter((p) => usableUrls.has(p.url)).map((p) => toRetrieved(p, retrievedAt))
+
+  return { check: checkClaims(voting, query), chosen: selectEvidence(voting, query) }
+}
+
+/**
  * Ask the open web, and come back with pages AND a verdict on them.
  *
  * Never throws. Every failure becomes `engineFailed` with a reason, because the
  * caller has to tell "the search is broken" from "the web has nothing to say"
  * and it can only do that if this hands it facts rather than exceptions.
  */
-export async function searchTheWeb(
+async function askTheRoute(
   query: string,
   options: WebSearchOptions = {},
 ): Promise<SearchResult> {
@@ -249,24 +304,7 @@ export async function searchTheWeb(
    * to be able to say "pages came back and could not be trusted", and it cannot
    * say that about pages this function quietly deleted.
    */
-  const req = interpret(query)
-  const terms = contentTokens(query)
-  const onTopic = routePages.filter((p, i) => isAbout(results[i] as RetrievedPage, terms))
-
-  const usableUrls = new Set(
-    rankHits(
-      onTopic.map((p) => ({ url: p.url, title: p.title, snippet: '' })),
-      req,
-    )
-      .filter((r) => !r.excluded)
-      .map((r) => r.hit.url),
-  )
-
-  const retrievedAt = new Date().toISOString()
-  const voting = onTopic.filter((p) => usableUrls.has(p.url)).map((p) => toRetrieved(p, retrievedAt))
-
-  const check = checkClaims(voting, query)
-  const chosen = selectEvidence(voting, query)
+  const { check, chosen } = verdictFor(routePages, results, query)
 
   /* Freshness and rounds are RELAYED, never defaulted. The route computes both;
      a client that dropped them would make the canvas unable to say whether an
@@ -294,5 +332,73 @@ export async function searchTheWeb(
           },
         }),
     ...(typeof rounds === 'number' ? { rounds } : {}),
+  }
+}
+
+/**
+ * Ask the open web, and fall back to Wikipedia only when the route is DOWN.
+ *
+ * WHY A BACKUP EXISTS
+ * -------------------
+ * `/api/search` is a dev-server middleware. A deployed build has no server to
+ * hold the key and none to do the fetching a browser is not allowed to do, so
+ * without this a deployed canvas has no web rung at all. Wikipedia needs no key
+ * and sends CORS headers, which is the only reason it can run from a page.
+ *
+ * THE TWO RULES THAT KEEP IT FROM BEING A QUIET REGRESSION
+ * --------------------------------------------------------
+ * IT FIRES ONLY ON AN OUTAGE. "The search is broken" and "the web has nothing
+ * to say" are opposite facts. A backup that fired on both would turn every
+ * genuine no-answer into a Wikipedia article, which is exactly the behaviour
+ * this branch removed.
+ *
+ * IT CAN NEVER REPORT `supported`. Two Wikipedia articles are one publisher.
+ * `countVoices` already collapses them to one voice; the status is ALSO forced
+ * down here, so a future change to `publisherOf` cannot silently promote a
+ * single site to "two independent sources agree". Two locks, because the first
+ * one lives in a file this one does not own.
+ */
+export async function searchTheWeb(
+  query: string,
+  options: WebSearchOptions = {},
+): Promise<SearchResult> {
+  const viaRoute = await askTheRoute(query, options)
+  if (!viaRoute.engineFailed) return viaRoute
+  if (options.signal?.aborted) return viaRoute
+
+  let wiki: SearchResult
+  try {
+    wiki = options.wikipediaImpl
+      ? await options.wikipediaImpl(query, {})
+      : await import('./wikipedia').then((m) => m.wikipediaSearch(query, {}))
+  } catch {
+    /* The backup failing is not a new fact worth reporting. The route's reason
+       is the actionable one and it is already in hand. */
+    return viaRoute
+  }
+
+  /* The route's reason SURVIVES. "The key is not set" tells somebody what to
+     do; "wikipedia timed out" does not. */
+  if (wiki.engineFailed || wiki.results.length === 0) return viaRoute
+
+  const { check, chosen } = verdictFor(
+    wiki.results.map((r) => ({
+      title: r.title,
+      url: r.finalUrl,
+      domain: '',
+      text: r.readerText,
+      suspicious: r.suspicious,
+    })),
+    wiki.results,
+    query,
+  )
+
+  return {
+    results: wiki.results,
+    engineFailed: false,
+    fallback: true,
+    check:
+      check.status === 'supported' ? { ...check, status: 'single-source' as const } : check,
+    ...(chosen === null ? {} : { evidence: { text: chosen.text, sourceUrl: chosen.sourceUrl } }),
   }
 }

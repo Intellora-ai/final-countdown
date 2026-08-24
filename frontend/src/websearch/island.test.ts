@@ -146,15 +146,20 @@ describe('engine.ts says websearch IS reached — this is what makes that a fact
      * is now a GENERAL provider, and Wikipedia is one result among many with no
      * privileged position.
      *
-     * `wikipedia.ts` is deliberately still here and deliberately NOT wired. It
-     * is the only source that works without a server, and the route is dev-only
-     * -- so a production build has no web rung at all until that is hosted.
-     * Wiring it back as a silent fallback would quietly restore single-source
-     * answering, which is the thing this whole change removed, so that is a
-     * decision for a person rather than a default.
+     * `wikipedia.ts` IS WIRED AGAIN, as a labelled BACKUP, and the note that
+     * said otherwise is corrected here rather than left to rot. That decision
+     * was taken by a person, which is what the previous version of this comment
+     * asked for.
+     *
+     * Two rules keep it from being a quiet return to single-source answering,
+     * and both are pinned in `webSearchClient.test.ts`: it fires only when the
+     * route is DOWN, never when the route worked and found nothing; and it can
+     * never report `supported`, because two Wikipedia articles are one
+     * publisher.
      */
     expect(sourceFiles(SRC).some((f) => f.endsWith('websearch/webSearchClient.ts'))).toBe(true)
     expect(sourceFiles(SRC).some((f) => f.endsWith('websearch/verify.ts'))).toBe(true)
+    expect(sourceFiles(SRC).some((f) => f.endsWith('websearch/wikipedia.ts'))).toBe(true)
   })
 })
 

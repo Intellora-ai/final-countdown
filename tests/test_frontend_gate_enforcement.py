@@ -244,40 +244,45 @@ def test_e_piping_without_pipefail_is_caught(sandbox: Path) -> None:
     assert "pipes without pipefail" in result.stdout
 
 
-# --- the residual bypass, documented rather than closed ----------------------
+# --- the residual bypass, now closed -----------------------------------------
 
 
-def test_a_dangling_gate_clause_is_not_detected_by_anything(sandbox: Path) -> None:
-    """A KNOWN HOLE, LARGER THAN THE ONE IT WAS WRITTEN FOR. Pinned, not blessed.
+def test_a_real_check_renamed_to_Annotate_with_its_id_dropped_is_caught(
+    sandbox: Path,
+) -> None:
+    """THE HOLE THIS TEST ONCE PINNED IS CLOSED. Rewritten on that instruction.
 
-    Clause (d) permits an id-less `continue-on-error` step whose name starts
-    with `Annotate`, on the reasoning that annotators only report. The control
-    is a STRING, not a semantic property, and that is documented intent at
-    `scripts/gate_integrity.py:677`.
+    It used to assert `returncode == 0` — that nothing detected a real check
+    renamed to `Annotate ...` with its id dropped — and it ended: "IF THIS TEST
+    FAILS, THAT IS GOOD NEWS -- someone added that check. Update this test to
+    describe the new rule rather than restoring the hole." This is that update.
+    The sabotage is unchanged; only the expected verdict moved, from silence to
+    a finding.
 
-    Following that thread turned up a second gap that is worse. Rename a real
-    check to `Annotate ...` and drop its id, and the result is:
+    WHAT THE HOLE WAS. Two clauses were blind at once:
 
-        gate_integrity -> exit 0, passed=92, failed=0, PASS
-        gate condition -> still names steps.lint.outcome, 3 occurrences
+      * (d) permitted any id-less `continue-on-error` step whose NAME began
+        `Annotate`. The control was a string, so the identical command passed
+        or failed on what someone had called the step — and the gate's own
+        remediation text recommended the rename.
+      * (c) walked the STEPS asking whether each id'd step appeared in the
+        condition, and never walked the CONDITION asking whether each id it
+        names still resolves. So a clause could point at a step that was gone.
 
-    Clause (d) is silent because of the name. Clause (c) is silent for a
-    different reason: it walks STEPS and asks whether each id'd step appears in
-    the condition. It never walks the CONDITION and asks whether each id it
-    names still exists. So the gate keeps a clause pointing at a step that is
-    gone, GitHub evaluates the missing outcome as empty, `'' == 'failure'` is
-    false forever, and Lint can fail with the job green.
+    Together: `gate_integrity -> PASS` while `steps.lint.outcome` still appeared
+    three times in a condition naming a step that no longer existed, and Lint
+    could fail with the job green.
 
-    That is precisely the failure `check_frontend` exists to prevent, reached
-    through a rename, and the whole verification system reports PASS.
+    WHAT CLOSES IT NOW. Clause (d) asks two things instead of one — an annotator
+    must be NAMED `Annotate ` (with the separator, so `Annotated` no longer
+    slips through) AND must CONSUME an artifact an enforced step wrote. The
+    renamed Lint step writes `-o "$RUNNER_TEMP/eslint.json"` and reads nothing,
+    so it is not an annotator whatever it is called. Clause (c) gained its
+    mirror: every id the condition names must resolve to a real step.
 
-    NOT FIXED HERE ON PURPOSE. The instruction covering this work was to
-    document the residual bypass, not to redesign it. The missing check is the
-    reverse direction of clause (c): every id named in the gate condition must
-    resolve to a step that exists.
-
-    IF THIS TEST FAILS, THAT IS GOOD NEWS -- someone added that check. Update
-    this test to describe the new rule rather than restoring the hole.
+    Either half alone would catch this sabotage. Both are asserted, because a
+    single-cause test goes quiet the moment one cause is refactored away — and
+    the point of this test is the OUTCOME, not the route to it.
     """
     edit_workflow(
         sandbox,
@@ -292,15 +297,15 @@ def test_a_dangling_gate_clause_is_not_detected_by_anything(sandbox: Path) -> No
     )
     assert still_referenced > 0, "the saboteur removed the clause too; it should not"
 
-    assert result.returncode == 0, (
-        "something now rejects a real check renamed to 'Annotate ...' with its "
-        "id dropped. The hole this test documents has been closed — update the "
-        f"test to describe the new rule.\n{result.stdout[-1500:]}"
+    assert result.returncode != 0, (
+        "a real check renamed to 'Annotate ...' with its id dropped was "
+        "accepted. It can never fail the job, and the gate condition still "
+        f"names a step that no longer exists.\n{result.stdout[-2000:]}"
     )
-    assert "failed=0" in result.stdout, (
-        "the gate reported findings on this sabotage; the hole is narrower than "
-        f"documented.\n{result.stdout[-1500:]}"
+    assert "failed=0" not in result.stdout, (
+        f"the gate exited non-zero but reported no findings.\n{result.stdout[-2000:]}"
     )
+    assert "lint" in result.stdout
 
 
 def test_the_name_prefix_is_the_load_bearing_part_of_that_bypass(

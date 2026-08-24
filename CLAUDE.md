@@ -197,8 +197,21 @@ If you finish early, stop early.
 
 Inspect `package.json` before running anything. Use the project's real commands.
 
-Currently real: `typecheck` · `test` · `build` · `budget`.
-Currently **absent**: `lint` — it arrives in Step 1.
+Currently real: `typecheck` · `test` · `build` · `budget` · `lint` ·
+`test:mutation`.
+
+`lint` was listed here as absent long after it shipped. That is worth naming,
+because this section exists to stop a session claiming success on a command
+that does not exist — and being stale in the OTHER direction is the same
+failure wearing different clothes: a session reads "lint is absent", skips it,
+and the Law 4 design-value rule goes unenforced on the very change that needed
+it. Check `package.json` rather than this list; the list is a summary and can
+rot, the manifest cannot.
+
+Note what `lint` actually covers today: `eslint src/canvas src/practice
+src/agent`. Flat config only lints a path with a matching `files:` block, so
+adding a directory to that script alone changes nothing — `eslint.config.js`
+needs the block too, or the target is silently skipped with no error.
 
 If a command or a Playwright project does not exist, **report it and stop**.
 Never infer success from a command that did not run.
@@ -223,6 +236,81 @@ Also true today, and not to be papered over:
 | Chart ticks | property test — 20 random ranges per chart type, monotonic and evenly spaced |
 | Goal 2 coverage | adversarial fixtures + screenshot regression (built at Step 10) |
 | No regression | the 7 acceptance lessons after every step |
+| `/rtk` + `/investigate` every session | `scripts/enforce_skills.py` — a **Stop** hook, tested by `tests/test_enforce_skills.py` |
+| Code that never runs | `frontend/scripts/reachability-gate.mjs` — see below |
+
+### The reachability gate — why coverage could not catch this
+
+`src/agent` shipped two modules, `execute/execute.ts` and `world/world.ts`,
+that were fully written, fully unit-tested, and imported by **nothing that
+ships**. Fifty-nine tests were green on code the product could never reach.
+Alongside them the router selected `files`, `plan`, `act`, `code` and `tools`
+and the loop had no branch for any of them, so the trace reported capabilities
+as used that had done nothing at all.
+
+Coverage does not merely miss this — it **argues against noticing it**. A
+module imported only by its own test reports 100% coverage, and the number goes
+UP as the orphan is tested more thoroughly. Coverage measures test reach; this
+measures product reach; they diverge exactly when it matters.
+
+The gate walks static imports from **declared** entry points and fails on any
+non-test file that is unreachable, plus any export no reachable code can arrive
+at. Two design points are load-bearing:
+
+- **Entries are declared, never inferred.** "A file nobody imports is an entry
+  point" makes the gate vacuous — every orphan is by definition a file nobody
+  imports, so every orphan would be reclassified as an entry.
+- **Test files are not edges.** `x.test.ts` importing `x.ts` does not make
+  `x.ts` reachable. That edge is the whole reason the orphans looked connected.
+- **Dead exports are a call graph, not an import count.** A function exported
+  for direct testing and called by its neighbour is LIVE; a helper called only
+  by an unreachable function is DEAD. The naive rule is wrong in both
+  directions, and a gate that cries wolf gets switched off.
+
+It runs under `npm test` (vitest sweeps `scripts/**/*.test.mjs`), so it is
+enforced by the frontend job without touching a workflow file. `npm run
+gate:reachability` runs it alone. Its own tests plant an orphan and require the
+gate to fail — a gate only asserted to PASS is satisfied by `return true`.
+
+**The companion rule, enforced in `loop.ts` and asserted over 14 turn shapes:**
+every selected capability appears in `trace.executed` or in `trace.unmet`,
+never neither, and nothing appears in `executed` that was not selected. A trace
+that reports a decision without reporting the effect is an audit trail that
+lies.
+
+Tests must assert **effects**, not routing decisions. `plan.selected` contains
+`files` is a fact about the router and is satisfied completely by a loop that
+does nothing. See `src/agent/kernel/effects.test.ts`.
+
+### Why the skill rule is a Stop hook and not a prompt
+
+Three `UserPromptSubmit` hooks already told every session to invoke sixteen
+skills. Measured across the eight most recent transcripts in this repo, `/rtk`
+was invoked **0 times** — including in a 34 MB session — and `/investigate` in
+four of eight, once each. A 0% enforcement rate is not a tuning problem. It is
+what "add text to the prompt" buys, because text is a request and a model that
+decides `/rtk` is "for PRs, and this isn't a PR" has not disobeyed anything.
+
+`Stop` is the only hook event that can refuse. It fires when the turn tries to
+END, and `{"decision": "block"}` sends the model back to work. The check reads
+the transcript's `Skill` `tool_use` records, so a model's belief that it already
+complied is not evidence and cannot satisfy the gate.
+
+Two things follow, and both are deliberate:
+
+- **The list is two skills, not sixteen.** Forcing sixteen does not save
+  context, it spends it — `/investigate` alone injects ~8 KB of preamble per
+  session. A gate expensive enough to resent is a gate that gets switched off.
+- **It fails OPEN, never closed.** An unreadable transcript, a malformed
+  payload, or an unexpected exception all exit 0 and let the turn end. A Stop
+  hook that blocks by mistake cannot be recovered from inside the tool — you
+  would edit `settings.json` from another editor to escape it. `stop_hook_active`
+  and a per-session block ledger are two independent brakes on that loop, and
+  either alone is sufficient.
+
+Registered in `~/.claude/settings.json` under `hooks.Stop`; the copy that runs
+lives at `~/.claude/hooks/enforce_skills.py`. `scripts/enforce_skills.py` is the
+source of truth and the one the tests run against — if you change one, copy it.
 
 ---
 

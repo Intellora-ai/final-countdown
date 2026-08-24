@@ -482,6 +482,175 @@ const MUTANTS = [
     to: '        milestone: false,',
     breaks: '"royal assent" — a dated event with no duration — is drawn as a rectangle of no width, which paints nothing, so the milestone is simply absent from the schedule',
   },
+
+  /* ================================================================== */
+  /* THE AI CAPABILITY LAYER                                            */
+  /* ================================================================== */
+  /* `src/agent/**` arrived with 433 tests and, until these, nothing
+   * checking that any of them could fail — the exact condition the header
+   * of this file describes the canvas having been in. Test COUNT is not
+   * evidence: a suite can be broad in kind (unit, integration, end-to-end,
+   * regression) and still assert only that dispatch happened.
+   *
+   * Every mutant below inverts a promise the layer states in writing, and
+   * each one is aimed at a decision that FAILS SILENTLY when broken. That
+   * is the selection rule: a mutant whose damage would be obvious in the
+   * output teaches nothing, because a human would catch it. These all
+   * produce a confident, well-formed, wrong result. */
+
+  {
+    id: 'agent-arithmetic-verification-always-passes',
+    file: 'src/agent/verify/verify.ts',
+    from: '  const ok = Math.abs(actual - stated) <= Math.max(tolerance, Math.abs(actual) * 1e-9)',
+    to: '  const ok = true',
+    breaks: 'the one check a user cannot perform themselves stops performing it: "17.5% of 2400 = 380" ships carrying a passing arithmetic verification, which is worse than shipping unverified because the verification is what earns the trust',
+  },
+  {
+    id: 'agent-explicit-deletion-is-only-a-hide',
+    file: 'src/agent/memory/memory.ts',
+    from: '      p.write(p.read().filter((r) => r.id !== id))',
+    to: '      p.write(p.read())',
+    breaks: 'a user asks for something to be forgotten, is told it was, and the record stays on disk — a lie told with their own data, and the kind that only surfaces when someone reads the store directly',
+  },
+  {
+    id: 'agent-every-tool-failure-is-retried',
+    file: 'src/agent/tools/tools.ts',
+    from: '    if (last.failure !== \'transient\') return last',
+    to: '    if (false) return last',
+    breaks: 'malformed arguments are re-sent unchanged and a DENIED action is attempted a second time — the recovery layer stops distinguishing weather from a decision somebody made',
+  },
+  {
+    id: 'agent-effectful-tools-run-ungated',
+    file: 'src/agent/tools/tools.ts',
+    from: '  if (tool.effectful && !opts.allowEffects) {',
+    to: '  if (false) {',
+    breaks: 'anything that changes the world runs without permission, and it cannot be un-run; the gate exists precisely because a malformed delete is still a delete attempt',
+  },
+  {
+    id: 'agent-partial-work-reported-as-finished',
+    file: 'src/agent/execute/execute.ts',
+    from: '    complete: done === steps.length && steps.length > 0,',
+    to: '    complete: steps.length > 0,',
+    breaks: 'a task whose remaining steps are all BLOCKED has also run out of things to do, so it reports itself complete — half-done work delivered as done, with a journal that says so',
+  },
+  {
+    id: 'agent-disagreement-presented-at-full-confidence',
+    file: 'src/agent/knowledge/knowledge.ts',
+    from: '      confidence: conflict ? Math.min(base, 0.4) : base,',
+    to: '      confidence: base,',
+    breaks: 'two sources saying 6.2% and 4.9% produce one confidently-stated number; the split is laundered into certainty, which is the single failure the whole research path was shaped to prevent',
+  },
+  {
+    id: 'agent-negation-stops-being-read',
+    file: 'src/agent/understand/understand.ts',
+    from: '    if (cur) scores.delete(n.kind)',
+    to: '    if (false) scores.delete(n.kind)',
+    breaks: '"explain closures, but do not search for this" searches anyway — the request is read as a bag of keywords, and the word the user used to REFUSE something becomes evidence for it',
+  },
+  {
+    id: 'agent-unanswerable-requests-answered-anyway',
+    file: 'src/agent/kernel/loop.ts',
+    from: "  if (action.action === 'ask') {",
+    to: '  if (false) {',
+    breaks: '"fix it" with nothing yet named is handed to the model, which answers about whatever it guesses — a fluent, well-sourced answer to a question nobody asked, and harder to catch than no answer',
+  },
+  {
+    id: 'agent-referent-ambiguity-no-longer-blocks',
+    file: 'src/agent/kernel/router.ts',
+    from: '  if (blocking) {',
+    to: '  if (false) {',
+    breaks: 'certainty about the verb is treated as certainty about the noun, so the agent acts confidently on a referent that does not exist',
+  },
+  {
+    id: 'agent-single-fact-forced-into-a-table',
+    file: 'src/agent/communicate/communicate.ts',
+    from: '  const plural = s.cardinality >= 2',
+    to: '  const plural = true',
+    breaks: 'one number is rendered as a one-row comparison table — scaffolding built around nothing, which is how a system that "chooses representations" quietly becomes one that decorates',
+  },
+  {
+    id: 'agent-a-stated-struggle-resets-the-learner',
+    file: 'src/agent/learn/learn.ts',
+    from: "      mastery.set(concept.id, 'partial')",
+    to: "      mastery.set(concept.id, 'unknown')",
+    breaks: 'someone who says "I struggle with integration" is treated as never having met integration, so the curriculum restarts them on material they have already sat through — the fastest way to lose a learner',
+  },
+
+  /* ---- The wiring, and the bug that made it necessary -------------------
+   *
+   * Everything above mutates a DECISION. The nine below mutate the WIRING,
+   * because the wiring is where this layer actually failed: two modules and
+   * five capabilities were selected, reported as used, and never executed,
+   * and every unit test stayed green throughout.
+   *
+   * The selection rule is unchanged and matters more here than anywhere
+   * else. A broken decision produces a wrong answer, which somebody
+   * eventually notices. Broken wiring produces a CONFIDENT answer plus an
+   * audit trail claiming the work was done, and nobody notices at all. */
+
+  {
+    id: 'agent-attached-file-is-never-actually-read',
+    file: 'src/agent/kernel/loop.ts',
+    from: "  if (selected.has('files')) {",
+    to: '  if (false) {',
+    breaks: 'the original bug, exactly: "summarise this PDF" answers from the model\'s own knowledge while the trace reports `files` among the capabilities used — an audit trail that lies in the one direction nobody checks, because everything looks wired',
+  },
+  {
+    id: 'agent-trace-claims-capabilities-that-were-never-selected',
+    file: 'src/agent/kernel/loop.ts',
+    from: '  const didRun = (c: Capability) => void (selected.has(c) && executed.add(c))',
+    to: '  const didRun = (c: Capability) => void executed.add(c)',
+    breaks: 'the execution record over-claims, which is exactly as misleading as under-reporting: "communicate always runs" quietly puts an unselected capability into the trace, and the one guard that makes the record trustworthy is gone',
+  },
+  {
+    id: 'agent-unmet-capability-loses-its-reason',
+    file: 'src/agent/kernel/loop.ts',
+    from: '  const couldNot = (c: Capability, why: string) => void (selected.has(c) && (unmet[c] = why))',
+    to: "  const couldNot = (c: Capability) => void (selected.has(c) && (unmet[c] = ''))",
+    breaks: '"I could not read your file" degrades to a bare flag, so the one thing that makes an absence debuggable — WHY it was absent — is dropped, and the capability is indistinguishable from one that silently did nothing',
+  },
+  {
+    id: 'agent-failed-verification-is-reported-but-never-fixed',
+    file: 'src/agent/kernel/loop.ts',
+    from: '  const repairable = action.action !== \'ask\' && degraded === undefined',
+    to: '  const repairable = false',
+    breaks: 'the system knows the answer misses a stated constraint and ships it unchanged, with the evidence attached where nobody reads it — verification becomes a report rather than a correction',
+  },
+  {
+    id: 'agent-repair-loop-becomes-unbounded',
+    file: 'src/agent/kernel/loop.ts',
+    from: '      await verifyAndRepair({ answer, claims }, checks, repair, 1)',
+    to: '      await verifyAndRepair({ answer, claims }, checks, repair, 12)',
+    breaks: 'a check the repairer cannot satisfy burns twelve model calls per turn instead of one; latency and cost scale with failure, and the round count that would signal "the approach is wrong, not the output" is buried',
+  },
+  {
+    id: 'agent-task-is-dropped-between-turns',
+    file: 'src/agent/kernel/loop.ts',
+    from: "    ...(task && task.status !== 'done' ? { task } : {}),",
+    to: '    ...({}),',
+    breaks: 'cross-session continuity dies silently: "carry on with what we started" starts a second task with a new id, abandoning the first plan and its journal, and every turn looks individually correct',
+  },
+  {
+    id: 'agent-the-answer-step-runs-before-the-work',
+    file: 'src/agent/kernel/loop.ts',
+    from: '    after: specs.map((s) => s.goal),',
+    to: '    after: [],',
+    breaks: 'the synthesis step loses its dependencies, so `nextStep` can hand back "answer the goal" before any of the work it is meant to summarise has run — a confident summary of nothing',
+  },
+  {
+    id: 'agent-production-agent-has-no-calculator',
+    file: 'src/agent/index.ts',
+    from: '  const tools = createRegistry([calculator, ...(opts.files ? fileTools(opts.files) : [])])',
+    to: '  const tools = createRegistry([...(opts.files ? fileTools(opts.files) : [])])',
+    breaks: 'the exact shape of the original defect: arithmetic passes every unit test and cannot work for a real caller, because the only registry the product builds does not contain a calculator',
+  },
+  {
+    id: 'agent-suspended-task-resumes-stuck-mid-step',
+    file: 'src/agent/index.ts',
+    from: '      const stopped = pause(session.task, session.working, now())',
+    to: '      const stopped = session.task',
+    breaks: 'an `active` task is serialised, so tomorrow it restores believing a step is still running — `nextStep` skips it, nothing is pending, and the task reports itself stuck the moment someone comes back to it',
+  },
 ]
 
 /*

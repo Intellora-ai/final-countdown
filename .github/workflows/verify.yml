@@ -115,13 +115,15 @@ jobs:
         run: |
           python3 scripts/run_gate.py --name preflight -- bash -c '
             set -e
-            echo "== preflight gate 1/4: trusted computing base" >&2
+            echo "== preflight gate 1/5: trusted computing base" >&2
             python3 scripts/tcb_gate.py --base "origin/$BASE_REF"
-            echo "== preflight gate 2/4: ruleset alignment" >&2
+            echo "== preflight gate 2/5: ruleset alignment" >&2
             python3 scripts/check_ruleset.py
-            echo "== preflight gate 3/4: requirement and assumption registries" >&2
+            echo "== preflight gate 3/5: requirement and assumption registries" >&2
             python3 scripts/registry_gate.py
-            echo "== preflight gate 4/4: gate integrity" >&2
+            echo "== preflight gate 4/5: dependency lock consistency" >&2
+            python3 scripts/lock_consistency.py
+            echo "== preflight gate 5/5: gate integrity" >&2
             python3 scripts/gate_integrity.py
           '
       # The per-verification reasoning below is unchanged. Each of these ran as

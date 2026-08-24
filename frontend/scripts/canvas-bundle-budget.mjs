@@ -19,7 +19,14 @@ import { fileURLToPath } from 'node:url'
 const BUDGET_BYTES = 150 * 1024
 
 const here = dirname(fileURLToPath(import.meta.url))
-const distDir = resolve(here, '..', 'dist')
+/* `CANVAS_BUDGET_DIST` exists so this gate can be pointed at a fixture. It had
+ * no test for one reason: a hardcoded dist path and a top-level `process.exit`
+ * left nowhere to stand. Untestable by construction is how a gate stays
+ * untested while its four siblings are covered thoroughly. Unset in CI and in
+ * every real run, where the default below applies unchanged. */
+const distDir = process.env.CANVAS_BUDGET_DIST
+  ? resolve(process.env.CANVAS_BUDGET_DIST)
+  : resolve(here, '..', 'dist')
 const assetsDir = join(distDir, 'assets')
 
 function fail(message) {
@@ -34,10 +41,36 @@ try {
   fail('dist/index.html not found — run `npm run build` first.')
 }
 
-/* The entry is whatever index.html loads as a module: the only JavaScript the
- * browser is told to fetch before anything runs. Everything else in assets/ is
- * reached through a dynamic import, by definition. */
-const entryMatches = [...indexHtml.matchAll(/<script[^>]+src="([^"]+\.js)"/g)].map((m) => m[1])
+/* The entry is everything index.html tells the browser to fetch BEFORE anything
+ * runs. That is two tags, not one:
+ *
+ *   <script type="module" src>          the entry chunk
+ *   <link rel="modulepreload" href>     chunks Vite hoists out of it
+ *
+ * This scan used to match `<script src>` alone, under a comment asserting that
+ * everything else in assets/ "is reached through a dynamic import, by
+ * definition." That phrase was the defect. It is an assumption about how Vite
+ * emits HTML, written as though it were a fact about browsers -- and a
+ * modulepreload is fetched up front and is not a dynamic import. A preloaded
+ * chunk was therefore reported as "deferred, not counted" and the gate returned
+ * PASS on a page whose real pre-paint JavaScript was more than twice the budget.
+ *
+ * It sat one build-config change away from firing: Vite's own output recommends
+ * `build.rollupOptions.output.manualChunks` as chunks grow, so following the
+ * build tool's advice would have blinded the budget silently.
+ *
+ * Attribute order is not fixed, so the link tags are matched whole and filtered,
+ * rather than assuming rel comes before href. */
+const scriptSrcs = [...indexHtml.matchAll(/<script[^>]+src="([^"]+\.js)"/g)].map((m) => m[1])
+
+const preloadSrcs = [...indexHtml.matchAll(/<link[^>]*>/g)]
+  .map((m) => m[0])
+  .filter((tag) => /rel="modulepreload"/.test(tag))
+  .map((tag) => /href="([^"]+\.js)"/.exec(tag)?.[1])
+  .filter((href) => href !== undefined)
+
+/* A chunk named by both tags is one download, so it is counted once. */
+const entryMatches = [...new Set([...scriptSrcs, ...preloadSrcs])]
 if (entryMatches.length === 0) fail('no module script found in dist/index.html')
 
 const rows = []

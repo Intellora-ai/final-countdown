@@ -1997,3 +1997,92 @@ def test_a_chain_that_arms_errexit_is_not_flagged() -> None:
                 f"a real chain was flagged as unarmed: {run[:120]!r}"
             )
     assert chains >= 4, f"expected at least 4 bash -c chains, found {chains}"
+
+
+# ---------------------------------------------------------------------------
+# CHECK (g) — THE MUTATION RATCHET
+#
+# This check had no test, and that is how a wrong floor got into it. The
+# catalogue grew from 27 mutants over 9 files to 39 over 17, so raising both
+# floors to the measured state looked obviously right. It is not: those two
+# numbers do not behave the same way.
+#
+# The mutant count only ever falls when coverage falls. The FILE count falls
+# whenever someone moves a mutant onto a file already in the catalogue, which
+# removes no coverage at all. A floor on it fires on a no-op refactor, and a
+# gate that blocks correct work teaches people to raise floors to get their
+# work through -- which is how a ratchet becomes a formality.
+#
+# These two tests pin the asymmetry so the next person to look at 17 and think
+# "that should be the floor" gets a red test instead of a merged mistake.
+# ---------------------------------------------------------------------------
+
+CATALOGUE = Path("frontend/scripts/mutation-gate.mjs")
+
+_ID = re.compile(r"^\s*id:\s*'([^']+)',\s*$", re.M)
+_FILE = re.compile(r"^\s*file:\s*'([^']+)',\s*$", re.M)
+
+
+def test_deleting_one_mutant_is_caught(sandbox: Path) -> None:
+    """The count DOES ratchet. One entry fewer is one defect the suite lost.
+
+    One, not several: a floor only earns the name if it fires on the smallest
+    possible shrink. The old floor of 27 against a catalogue of 39 would have
+    let twelve entries go before it said anything.
+    """
+    cat = sandbox / CATALOGUE
+    src = cat.read_text(encoding="utf-8")
+    ids = _ID.findall(src)
+    assert ids, "no catalogue entries found — the regex drifted from the file"
+
+    thinned = re.sub(
+        rf"^\s*id:\s*'{re.escape(ids[-1])}',\s*$\n", "", src, count=1, flags=re.M
+    )
+    assert thinned != src, f"nothing removed — {ids[-1]!r} did not match"
+    cat.write_text(thinned, encoding="utf-8")
+    assert len(_ID.findall(thinned)) == len(ids) - 1
+
+    result = integrity(sandbox)
+    assert result.returncode != 0, (
+        f"removing mutant {ids[-1]!r} took the catalogue {len(ids)} -> "
+        f"{len(ids) - 1} and the gate allowed it. That is one defect the suite "
+        "could see and now cannot, deleted silently.\n" + result.stdout[-800:]
+    )
+    assert "mutation catalogue" in result.stdout, result.stdout[-800:]
+
+
+def test_consolidating_two_files_is_not_caught(sandbox: Path) -> None:
+    """The FILE count does not ratchet, because consolidation is legitimate.
+
+    Moving every mutant off one file and onto another already in the catalogue
+    leaves the mutant count untouched. Nothing is less covered afterwards. The
+    gate must not refuse it.
+    """
+    cat = sandbox / CATALOGUE
+    src = cat.read_text(encoding="utf-8")
+    before_ids, before_files = len(_ID.findall(src)), len(set(_FILE.findall(src)))
+
+    names = sorted(set(_FILE.findall(src)))
+    assert len(names) >= 2, "need two distinct files to consolidate"
+    victim, target = names[0], names[1]
+    moved = re.sub(
+        rf"^(\s*file:\s*)'{re.escape(victim)}',\s*$",
+        rf"\1'{target}',",
+        src,
+        flags=re.M,
+    )
+    assert moved != src, f"nothing moved — {victim!r} did not match"
+    cat.write_text(moved, encoding="utf-8")
+
+    after_ids = len(_ID.findall(moved))
+    after_files = len(set(_FILE.findall(moved)))
+    assert after_ids == before_ids, "the refactor must not change the mutant count"
+    assert after_files < before_files, "the refactor must reduce the file count"
+
+    result = integrity(sandbox)
+    assert result.returncode == 0, (
+        f"consolidating {victim} into {target} took the file count "
+        f"{before_files} -> {after_files} with the mutant count unchanged at "
+        f"{after_ids}, and the gate refused it. MUTATION_FILE_FLOOR is being "
+        "treated as a ratchet; it is not one.\n" + result.stdout[-800:]
+    )

@@ -45,17 +45,108 @@ export interface Extracted {
   tables: string[][][]
 }
 
-/* Elements whose CONTENT is not page content at any level. */
-const DROP_WHOLE = /<(script|style|noscript|template|svg|canvas|iframe|object|embed)\b[^>]*>[\s\S]*?<\/\1\s*>/gi
-
-/* The same elements when the document never closes them: everything from the
-   opening tag to the end is dropped, because an unterminated <script> means
-   the rest of the file is script as far as any browser is concerned. */
-const DROP_UNCLOSED = /<(script|style|noscript|template|svg|canvas|iframe)\b[^>]*>[\s\S]*$/i
+/**
+ * Elements whose CONTENT is not page content at any level.
+ *
+ * Scanned for by hand rather than matched with a regex — see `removeRaw`.
+ */
+const RAW_ELEMENTS = [
+  'script',
+  'style',
+  'noscript',
+  'template',
+  'svg',
+  'canvas',
+  'iframe',
+  'object',
+  'embed',
+] as const
 
 const CHROME = /<(nav|footer|aside|header)\b[^>]*>[\s\S]*?<\/\1\s*>/gi
 
-const COMMENT = /<!--[\s\S]*?(?:-->|$)/g
+/**
+ * Delete comments and raw-text elements by SCANNING, not by replacing.
+ *
+ * This was four regexes and four failed attempts at
+ * `js/incomplete-multi-character-sanitization`. The rule flags the
+ * multi-character `.replace()` CALLS, not the string they produce, so no
+ * amount of looping or post-processing clears it — the sink is the call.
+ * The analysed merge that still reported two results contained every one of
+ * those attempts, which is what finally made the point.
+ *
+ * A scanner has no such call. It also happens to be more correct than the
+ * regexes were: `>` inside a quoted attribute no longer ends a tag, and an
+ * unterminated comment or `<script>` consumes to end-of-input the way a
+ * browser treats it, without a separate rule for the unclosed case.
+ *
+ * Returns the input with every comment and every raw element — content
+ * included, closed or not — removed. Everything else, including all ordinary
+ * tags, is left exactly as it was for the caller to deal with.
+ */
+function removeRaw(input: string): string {
+  /* Lowered ONCE per call and threaded through, not recomputed per element.
+     Doing it inside the per-element helper made this O(n) per raw tag, and
+     inside the fixpoint loop that became O(n^2) — the 2000-level nesting test
+     went from passing to 5138ms against a 5000ms bound, which is exactly the
+     kind of quadratic that only shows up on adversarial input. */
+  const lower = input.toLowerCase()
+  let out = ''
+  let i = 0
+
+  while (i < input.length) {
+    const lt = input.indexOf('<', i)
+    if (lt === -1) {
+      out += input.slice(i)
+      break
+    }
+    out += input.slice(i, lt)
+
+    if (lower.startsWith('<!--', lt)) {
+      const end = input.indexOf('-->', lt + 4)
+      /* Unterminated: a browser swallows the rest of the document, and so do
+         we. Stopping early would surface comment text as prose. */
+      i = end === -1 ? input.length : end + 3
+      continue
+    }
+
+    const raw = rawElementAt(lower, lt)
+    if (raw) {
+      i = skipRawElement(input, lower, lt, raw)
+      continue
+    }
+
+    /* An ordinary `<`. Emit it and move on by ONE character, so a `<` nested
+       inside what looked like a tag gets its own turn on the next iteration. */
+    out += '<'
+    i = lt + 1
+  }
+
+  return out
+}
+
+/** The raw element opening at `lt`, if any. `lower` is the lowered input. */
+function rawElementAt(lower: string, lt: number): string | null {
+  for (const name of RAW_ELEMENTS) {
+    const after = lt + 1 + name.length
+    if (lower.startsWith(name, lt + 1) && /[\s/>]/.test(lower[after] ?? '>')) {
+      return name
+    }
+  }
+  return null
+}
+
+/** Index just past the end of the raw element opening at `lt`. */
+function skipRawElement(input: string, lower: string, lt: number, name: string): number {
+  const openEnd = input.indexOf('>', lt)
+  if (openEnd === -1) return input.length
+  /* A self-closing form has no content to skip. */
+  if (input[openEnd - 1] === '/') return openEnd + 1
+
+  const close = lower.indexOf(`</${name}`, openEnd)
+  if (close === -1) return input.length
+  const closeEnd = input.indexOf('>', close)
+  return closeEnd === -1 ? input.length : closeEnd + 1
+}
 
 /* Elements that end a line of prose. Everything else is inline and must not
    introduce whitespace — see the note on qualifiers above. */
@@ -227,10 +318,7 @@ function stripConstructs(input: string, blocksBecomeNewlines: boolean): string {
   let previous: string
   do {
     previous = result
-    result = result
-      .replace(COMMENT, '')
-      .replace(DROP_WHOLE, '')
-      .replace(DROP_UNCLOSED, '')
+    result = removeRaw(result)
     if (blocksBecomeNewlines) {
       result = result
         .replace(BLOCK, '\n')

@@ -17,6 +17,18 @@ dependencies = [
 # the method, so the module is importable without it.
 live = [
     "anthropic>=0.40",
+    # Google's provider. Here for the same reason as the one above and for one
+    # more: it is the adapter a person can actually run. Gemini issues a free
+    # key against a Google account with no card, so "check this engine against a
+    # real model" stops being a billing decision -- and a property nobody can
+    # cheaply check against a real model is a property that drifts.
+    #
+    # A floor and no ceiling, matching `anthropic` above: neither is installed by
+    # CI, so neither can break a build by releasing. The request shape was
+    # verified against 2.19.0 by constructing a real `GenerateContentConfig`;
+    # 1.0 is the floor at which `response_json_schema` exists, and is intent
+    # rather than a version anything here was run against.
+    "google-genai>=1.0",
 ]
 
 # Upper bounds on the three tools that GATE, because an unbounded floor means a

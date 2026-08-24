@@ -29,6 +29,29 @@ import { Placeholder } from './components/Placeholder'
  * nobody notices. */
 const CanvasRoute = React.lazy(() => import('./canvas/CanvasRoute'))
 
+/* WHERE A DOUBT GOES WHEN THE LESSON CANNOT ANSWER IT.
+ *
+ * The canvas answers first from the page the learner is looking at, and that
+ * refusal used to be the end of the road: the learner admitted confusion, was
+ * told this page does not cover it, and nothing caught them. This is the catch.
+ *
+ * WIKIPEDIA, AND WHY IT IS THIS RATHER THAN A REAL SEARCH ENGINE.
+ * `src/websearch/engine.ts` has the general seam and it is the right one, but
+ * every general engine needs an account and a key. A key cannot ship to a
+ * browser — devtools and the network tab both hand it over — and holding one
+ * server-side needs a server this repository does not have. So the general path
+ * was correct and unreachable. Wikipedia's REST API needs no key and sends CORS
+ * headers, so it works today, from here, with nothing to deploy and nothing to
+ * pay for. Narrower corpus, and for "what does this word mean" that is the
+ * right trade.
+ *
+ * IMPORTED LAZILY, INSIDE THE CALL. A static import would put the retrieval
+ * layer in the entry chunk for every learner including the ones who never get
+ * stuck. This way it arrives on the first question the lesson cannot answer,
+ * and never otherwise. */
+const searchTheWeb = (query: string, options: Record<string, unknown>) =>
+  import('./websearch/wikipedia').then((m) => m.wikipediaSearch(query, options))
+
 /* The practice map. Lazy for the same reason the canvas is: it carries the
  * whole curriculum and its own stylesheet, and a learner on /today should not
  * pay for either. Nothing outside `src/practice/` imports it, and it imports
@@ -93,7 +116,7 @@ export default function App() {
   if (loc.pathname === '/canvas') {
     return (
       <React.Suspense fallback={<SceneFallback />}>
-        <CanvasRoute />
+        <CanvasRoute search={searchTheWeb} />
       </React.Suspense>
     )
   }

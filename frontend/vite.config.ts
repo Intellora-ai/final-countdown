@@ -2,8 +2,21 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+import { enginePlugin } from './vite-plugin-engine'
+
 export default defineConfig({
-  plugins: [react()],
+  /* THE ENGINE ROUTE, IN DEV ONLY.
+   *
+   * `POST /api/doubt` spawns the Python engine and returns its answer. It is a
+   * middleware on a server that is already running rather than a server of its
+   * own, because this repository has no HTTP server anywhere and adding one to
+   * move a single JSON document between two languages on the same machine would
+   * be a framework, a port and a deployment story for nothing.
+   *
+   * It is absent from `vite build` on purpose, and `vite-plugin-engine.ts` says
+   * why: making the engine reachable in production is a hosting decision, not
+   * one a build plugin should make quietly. */
+  plugins: [react(), enginePlugin()],
 
   /* ONE REACT, ONE THREE — enforced, not assumed.
    *
@@ -75,6 +88,15 @@ export default defineConfig({
       'src/**/*.{test,spec}.{ts,tsx}',
       'eslint-rules/**/*.test.ts',
       'scripts/**/*.test.mjs',
+      /* A FOURTH AREA: the dev-server plugins beside this file.
+       *
+       * `vite-plugin-engine.ts` spawns a Python subprocess and turns its output
+       * into an HTTP response. It has real failure modes -- a missing
+       * interpreter, a missing package, a non-zero exit, a timeout -- and it
+       * shipped with the wrong venv in its discovery order, which made every
+       * request a traceback. Infrastructure that can fail and has no test is
+       * infrastructure nobody finds out about until a learner does. */
+      '*.test.ts',
     ],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
 

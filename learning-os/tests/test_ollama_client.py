@@ -81,7 +81,7 @@ def test_it_satisfies_the_same_protocol_as_the_fake() -> None:
 def test_it_needs_no_credential_at_all() -> None:
     """The whole point of the local provider. Constructing and calling it must
     not consult any key variable."""
-    got = OllamaClient(post=lambda url, payload: _ok()).generate(_contract())
+    got = OllamaClient(post=lambda _url, _payload: _ok()).generate(_contract())
     assert got.blocks == (("prose", "A base case stops it."),)
 
 
@@ -121,12 +121,12 @@ def test_a_truncated_reply_is_reported_as_truncated_not_as_bad_json() -> None:
     """
     body = _ok('{"blocks":[{"kind":"prose","text":"half a sen')
     body["done_reason"] = "length"
-    with pytest.raises(LLMUnavailable, match="truncated|length"):
-        OllamaClient(post=lambda url, payload: body).generate(_contract())
+    with pytest.raises(LLMUnavailable, match=r"truncated|length"):
+        OllamaClient(post=lambda _url, _payload: body).generate(_contract())
 
 
 def test_a_server_that_is_not_running_says_so_and_says_how_to_start_it() -> None:
-    def refused(url: str, payload: dict) -> dict:
+    def refused(_url: str, _payload: dict) -> dict:
         raise ConnectionRefusedError("Connection refused")
 
     with pytest.raises(LLMUnavailable) as caught:
@@ -134,10 +134,10 @@ def test_a_server_that_is_not_running_says_so_and_says_how_to_start_it() -> None
     assert "ollama serve" in str(caught.value)
 
 
-def test_a_missing_model_names_the_pull_command(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_missing_model_names_the_pull_command() -> None:
     """Ollama answers 404 for a model that was never pulled. 'not found' alone
     sends the reader to the wrong place; the fix is one command."""
-    def missing(url: str, payload: dict) -> dict:
+    def missing(_url: str, _payload: dict) -> dict:
         raise LLMUnavailable('model "qwen3:8b" not found, try pulling it first')
 
     with pytest.raises(LLMUnavailable, match="ollama pull"):
@@ -146,7 +146,7 @@ def test_a_missing_model_names_the_pull_command(monkeypatch: pytest.MonkeyPatch)
 
 def test_empty_content_is_reported_as_no_text() -> None:
     with pytest.raises(LLMUnavailable, match="no text"):
-        OllamaClient(post=lambda url, payload: _ok("   ")).generate(_contract())
+        OllamaClient(post=lambda _url, _payload: _ok("   ")).generate(_contract())
 
 
 # --- BOUNDARY --------------------------------------------------------------
@@ -165,7 +165,7 @@ def test_empty_content_is_reported_as_no_text() -> None:
 )
 def test_a_malformed_response_never_escapes_as_a_raw_exception(body: dict) -> None:
     with pytest.raises(LLMUnavailable):
-        OllamaClient(post=lambda url, payload: body).generate(_contract())
+        OllamaClient(post=lambda _url, _payload: body).generate(_contract())
 
 
 # --- PROPERTY: one failure vocabulary, whatever went wrong ------------------
@@ -181,7 +181,7 @@ def test_a_malformed_response_never_escapes_as_a_raw_exception(body: dict) -> No
 def test_every_transport_exception_becomes_llm_unavailable(error: Exception) -> None:
     """THE INVARIANT. `runtime/loop.py` routes 'unreachable' differently from
     'unusable', and a third exception type removes that choice from the caller."""
-    def boom(url: str, payload: dict) -> dict:
+    def boom(_url: str, _payload: dict) -> dict:
         raise error
 
     with pytest.raises(LLMUnavailable):
@@ -195,7 +195,7 @@ def test_the_host_defaults_to_localhost_and_is_overridable(
 ) -> None:
     seen: list[str] = []
 
-    def spy(url: str, payload: dict) -> dict:
+    def spy(url: str, _payload: dict) -> dict:
         seen.append(url)
         return _ok()
 
@@ -212,6 +212,6 @@ def test_the_host_defaults_to_localhost_and_is_overridable(
 
 def test_a_well_formed_response_parses_via_the_shared_parser() -> None:
     """The oracle is `parse_blocks`, shared with both other providers."""
-    got = OllamaClient(post=lambda url, payload: _ok()).generate(_contract())
+    got = OllamaClient(post=lambda _url, _payload: _ok()).generate(_contract())
     assert isinstance(got, GeneratedContent)
     assert got.blocks == (("prose", "A base case stops it."),)

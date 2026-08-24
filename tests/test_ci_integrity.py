@@ -2023,30 +2023,55 @@ _ID = re.compile(r"^\s*id:\s*'([^']+)',\s*$", re.M)
 _FILE = re.compile(r"^\s*file:\s*'([^']+)',\s*$", re.M)
 
 
-def test_deleting_one_mutant_is_caught(sandbox: Path) -> None:
-    """The count DOES ratchet. One entry fewer is one defect the suite lost.
+def test_shrinking_below_the_floor_is_caught(sandbox: Path) -> None:
+    """The count ratchets: the gate refuses a catalogue below the floor.
 
-    One, not several: a floor only earns the name if it fires on the smallest
-    possible shrink. The old floor of 27 against a catalogue of 39 would have
-    let twelve entries go before it said anything.
+    Deleting ONE entry is not the test, and the first version of this test made
+    that mistake. One deletion only trips the gate when the catalogue happens to
+    sit exactly ON the floor, which was true of main the day it was written and
+    false the moment a branch added mutants -- #66 took the catalogue to 50
+    against a floor of 39, so 50 -> 49 passed and this test failed on work that
+    was entirely correct. A test that depends on the catalogue not growing is a
+    test that punishes people for growing it.
+
+    So delete down to exactly one below the floor, whatever the catalogue size.
+    That is the invariant the check actually enforces.
     """
+    import sys as _s
+
+    _s.path.insert(0, str(SCRIPTS))
+    from gate_integrity import MUTATION_COUNT_FLOOR
+
     cat = sandbox / CATALOGUE
     src = cat.read_text(encoding="utf-8")
     ids = _ID.findall(src)
-    assert ids, "no catalogue entries found — the regex drifted from the file"
-
-    thinned = re.sub(
-        rf"^\s*id:\s*'{re.escape(ids[-1])}',\s*$\n", "", src, count=1, flags=re.M
+    assert len(ids) >= MUTATION_COUNT_FLOOR, (
+        f"catalogue has {len(ids)} entries against a floor of "
+        f"{MUTATION_COUNT_FLOOR} — main is already failing check (g)"
     )
-    assert thinned != src, f"nothing removed — {ids[-1]!r} did not match"
+
+    # One below the floor: the smallest catalogue the gate must refuse.
+    doomed = ids[: len(ids) - MUTATION_COUNT_FLOOR + 1]
+    thinned = src
+    for mutant in doomed:
+        thinned = re.sub(
+            rf"^\s*id:\s*'{re.escape(mutant)}',\s*$\n",
+            "",
+            thinned,
+            count=1,
+            flags=re.M,
+        )
+    remaining = len(_ID.findall(thinned))
+    assert remaining == MUTATION_COUNT_FLOOR - 1, (
+        f"meant to land one below the floor, landed on {remaining}"
+    )
     cat.write_text(thinned, encoding="utf-8")
-    assert len(_ID.findall(thinned)) == len(ids) - 1
 
     result = integrity(sandbox)
     assert result.returncode != 0, (
-        f"removing mutant {ids[-1]!r} took the catalogue {len(ids)} -> "
-        f"{len(ids) - 1} and the gate allowed it. That is one defect the suite "
-        "could see and now cannot, deleted silently.\n" + result.stdout[-800:]
+        f"the catalogue went {len(ids)} -> {remaining}, below the floor of "
+        f"{MUTATION_COUNT_FLOOR}, and the gate allowed it. Those are defects "
+        "the suite could see and now cannot.\n" + result.stdout[-800:]
     )
     assert "mutation catalogue" in result.stdout, result.stdout[-800:]
 

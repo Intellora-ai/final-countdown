@@ -178,14 +178,22 @@ function tidy(raw: string): string {
     .trim()
 }
 
-/**
- * Passes allowed before giving up on reaching a stable string.
+/* The pass cap that used to live here is gone, and its absence is the fix.
  *
- * Each pass strictly shortens the input — every rule only ever deletes — so
- * this terminates long before the bound on any real document. The bound exists
- * so a pathological input cannot spin, not because eight is meaningful.
- */
-const MAX_STRIP_PASSES = 8
+ * CodeQL kept flagging the loop as single-pass sanitization even after it was
+ * rewritten as `do/while` — the analysis ran on this exact HEAD and pointed at
+ * the two `result = result` chains. The rule accepts "apply repeatedly until
+ * no more replacements can be performed", and the compound condition
+ * `result !== previous && passes < MAX_STRIP_PASSES` is not that: it can stop
+ * with replacements still available, which is precisely the unsafe case the
+ * rule exists to catch. The cap did not merely obscure the fixpoint, it broke
+ * it.
+ *
+ * Dropping it is safe because termination never depended on it. Every rule
+ * only ever deletes, and the one substitution that is not a deletion replaces
+ * a tag of at least three characters with a single newline, so any pass that
+ * changes the string strictly shortens it. The loop therefore runs at most
+ * once per character and stops on the first pass that changes nothing. */
 
 /**
  * Strip markup from a fragment, honouring the inline/block distinction.
@@ -217,7 +225,6 @@ const MAX_STRIP_PASSES = 8
 function stripConstructs(input: string, blocksBecomeNewlines: boolean): string {
   let result = input
   let previous: string
-  let passes = 0
   do {
     previous = result
     result = result
@@ -231,8 +238,7 @@ function stripConstructs(input: string, blocksBecomeNewlines: boolean): string {
            `<em>up to</em> 40%` stays `up to 40%` rather than `up to  40%`. */
         .replace(INNERMOST_TAG, '')
     }
-    passes += 1
-  } while (result !== previous && passes < MAX_STRIP_PASSES)
+  } while (result !== previous)
   return result
 }
 

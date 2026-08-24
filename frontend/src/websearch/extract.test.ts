@@ -276,6 +276,22 @@ describe('malformed input is data, not a crash', () => {
     expect(out.text).toContain('bottom')
     expect(Date.now() - started).toBeLessThan(2000)
   })
+
+  it('terminates on nesting designed to force one pass per level', () => {
+    /* The strip loop now runs to a true fixpoint with no pass cap — the cap
+       was what CodeQL correctly objected to, since a loop that can stop with
+       replacements still available is the unsafe case the rule names.
+       Termination is by construction: every pass that changes anything
+       strictly shortens the string. This is the input that tests that claim,
+       because each level can only be removed after the level inside it. */
+    const levels = 2000
+    const nested = '<a'.repeat(levels) + '>'.repeat(levels)
+    const started = Date.now()
+    const out = extract(page(`${nested}<p>survived</p>`))
+
+    expect(out.text).toContain('survived')
+    expect(Date.now() - started).toBeLessThan(5000)
+  })
 })
 
 describe('whitespace', () => {

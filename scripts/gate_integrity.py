@@ -419,7 +419,35 @@ PLAYWRIGHT_EXEMPT: dict[str, str] = {}
 # the commit that introduced this check; a change that lowers either one is
 # removing a defect the suite can currently see, which needs to be a deliberate
 # and visible act rather than a deletion nobody reviewed.
-MUTATION_COUNT_FLOOR = 27
+#
+# THE MUTANT COUNT RATCHETS. THE FILE COUNT DOES NOT, AND THAT IS DELIBERATE.
+#
+# 27 over 9 was true when this check was written; the catalogue has since grown
+# to 39 over 17. Twelve mutants could have been deleted with the gate still
+# green -- the exact silent shrink it exists to refuse, happening underneath its
+# own threshold. So MUTATION_COUNT_FLOOR moves to the measured 39, from check
+# (g)'s own regexes against the catalogue at 3b0a154, not counted by eye. Raise
+# it again whenever the catalogue grows.
+#
+# MUTATION_FILE_FLOOR STAYS AT 9. Raising it to the measured 17 was the obvious
+# move and it is wrong: the file count is not monotonic. Moving a mutant onto a
+# file already in the catalogue is a legitimate refactor that removes no
+# coverage whatsoever, and it drops the file count. Measured on this catalogue:
+#
+#     move every mutant from src/canvas/layout/layout.ts onto
+#     src/canvas/render/FigureView.tsx
+#       mutants 39 -> 39     coverage identical
+#       files   17 -> 16
+#       COUNT_FLOOR=39  PASS
+#       FILE_FLOOR=17   FAIL   <- blocks a refactor that deleted nothing
+#       FILE_FLOOR=9    PASS
+#
+# The count is the invariant; the file spread is a proxy for it, and the proxy
+# moves in both directions. A floor that fires on a no-op refactor teaches
+# people to raise floors to get their work through, which is how a ratchet
+# becomes a formality. 9 stays as a floor of last resort against wholesale
+# deletion, where the count floor would already have fired first anyway.
+MUTATION_COUNT_FLOOR = 39
 MUTATION_FILE_FLOOR = 9
 
 QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")

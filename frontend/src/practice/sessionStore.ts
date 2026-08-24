@@ -86,6 +86,8 @@ export interface SessionRunState {
   answer(questionId: string, option: OptionKey, nowMs: number): void;
   /** Move to the next question. Stops at the last one rather than running off. */
   next(): void;
+  /** Restore a persisted session, applying the time that really passed. */
+  recover(session: PracticeSession, nowMs: number): void;
   exit(nowMs: number): void;
   submit(nowMs: number): void;
   tick(nowMs: number): void;
@@ -212,6 +214,28 @@ export const useSessionStore = create<SessionRunState>()(
         set({ session: { ...session, currentIndex: session.currentIndex + 1 } });
       },
 
+      /*
+       * Bring a persisted session back, with the clock it actually lived
+       * through.
+       *
+       * The comfortable resume is the wrong one: pick the countdown up where it
+       * stopped, as though closing the tab bought free time. That is precisely
+       * the move a student would make on a timed test, and it would work. So
+       * recovery syncs to the real `now` — an untimed session is unchanged, a
+       * timed one comes back with what is genuinely left, and one whose budget
+       * was spent while the tab was closed comes back already ended with every
+       * answer intact.
+       */
+      recover(session, nowMs) {
+        if (isTerminal(session.status)) return;
+
+        const synced = syncClock(session, nowMs);
+        set({ status: 'ready', session: synced, error: null, revealed: {} });
+
+        /* A session that timed out while away is recorded like any other end. */
+        if (isTerminal(synced.status)) finish(set, get, synced);
+      },
+
       exit(nowMs) {
         const session = get().session;
         if (!session) return;
@@ -251,17 +275,43 @@ export const useSessionStore = create<SessionRunState>()(
       version: 1,
       skipHydration: true,
       /*
-       * The session is absent from this list on purpose. Restoring one would
-       * resume a countdown that has "run" for however long the tab was closed,
-       * and the honest end for an abandoned session is to have ended.
+       * The live session IS persisted, and the clock is what makes that safe.
+       *
+       * It was left out at first on the grounds that restoring one resumes a
+       * countdown that "ran" while the tab was closed. That was the right
+       * worry and the wrong fix — dropping the session punishes a learner for
+       * an accidental refresh, which the product explicitly says it should
+       * survive. `recover()` applies the elapsed wall-clock instead, so a
+       * refresh costs nothing and closing the tab for an hour ends a
+       * thirty-minute session, which is what "timed" means.
+       *
+       * Only sessions still in progress are worth keeping; a finished one is
+       * already in `history`.
        */
       partialize: (state) => ({
         seenFingerprints: state.seenFingerprints,
         history: state.history,
+        session: state.session && !isTerminal(state.session.status) ? state.session : null,
       }),
     },
   ),
 );
+
+/**
+ * Pull saved state in, and reconcile any session that came back with it.
+ *
+ * Called from an effect after the first client render, so the restored session
+ * is reconciled against the real clock exactly once, at the moment the app is
+ * ready to show it.
+ */
+export function hydrateAndRecover(nowMs: number = Date.now()): void {
+  void useSessionStore.persist?.rehydrate();
+
+  const restored = useSessionStore.getState().session;
+  if (restored && !isTerminal(restored.status)) {
+    useSessionStore.getState().recover(restored, nowMs);
+  }
+}
 
 /** Record the ending once, and only once. */
 function finish(

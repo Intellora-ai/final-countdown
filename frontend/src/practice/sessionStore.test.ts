@@ -200,6 +200,91 @@ describe('ending a session', () => {
   });
 });
 
+describe('surviving a refresh', () => {
+  /*
+   * A CLOSED TAB DOES NOT PAUSE A TIMED SESSION.
+   *
+   * Restoring a session is only honest if the clock comes back with it. The
+   * wrong resume is the comfortable one: pick up where the countdown stopped,
+   * as though closing the tab bought free time. That is exactly the trick a
+   * student would use on a timed test, and it would work.
+   *
+   * So recovery applies the wall-clock time that actually passed. An untimed
+   * session resumes untouched; a timed one resumes with the time it has left,
+   * and a timed one whose budget was spent while the tab was closed comes back
+   * already ended, with every answer intact.
+   */
+  it('resumes an untimed session exactly where it was', async () => {
+    await startRun();
+    const id = useSessionStore.getState().session!.questions[0]!.questionId;
+    useSessionStore.getState().answer(id, 'A', T0 + 1_000);
+
+    const saved = useSessionStore.getState().session!;
+    useSessionStore.getState().recover(saved, T0 + 900 * MINUTE);
+
+    const state = useSessionStore.getState();
+    expect(state.status).toBe('ready');
+    expect(state.session?.status).toBe('IN_PROGRESS');
+    expect(state.session?.attempts).toHaveLength(1);
+  });
+
+  it('gives back a timed session with the time that is actually left', async () => {
+    await useSessionStore.getState().start({
+      sessionId: 's-timed',
+      userId: 'u1',
+      profile: PROFILE,
+      count: 5,
+      provider: fixtureProvider(),
+      timerEnabled: true,
+      timerMinutes: 30,
+      now: () => T0,
+    });
+
+    const saved = useSessionStore.getState().session!;
+    useSessionStore.getState().recover(saved, T0 + 10 * MINUTE);
+
+    expect(remainingFor(useSessionStore.getState().session)).toBe(20 * MINUTE);
+    expect(useSessionStore.getState().session?.status).toBe('IN_PROGRESS');
+  });
+
+  it('ends a timed session whose budget was spent while the tab was closed', async () => {
+    await useSessionStore.getState().start({
+      sessionId: 's-timed-2',
+      userId: 'u1',
+      profile: PROFILE,
+      count: 5,
+      provider: fixtureProvider(),
+      timerEnabled: true,
+      timerMinutes: 10,
+      now: () => T0,
+    });
+    const id = useSessionStore.getState().session!.questions[0]!.questionId;
+    useSessionStore.getState().answer(id, 'A', T0 + 60_000);
+
+    const saved = useSessionStore.getState().session!;
+    useSessionStore.getState().recover(saved, T0 + 4 * 60 * MINUTE);
+
+    const state = useSessionStore.getState();
+    expect(state.session?.status).toBe('TIMED_OUT');
+    /* The answer given before the tab closed still counts. */
+    expect(state.history[0]?.answeredCount).toBe(1);
+    expect(state.history[0]?.status).toBe('TIMED_OUT');
+  });
+
+  it('refuses to recover a session that had already ended', async () => {
+    await startRun();
+    useSessionStore.getState().exit(T0 + 1_000);
+    const ended = useSessionStore.getState().session!;
+
+    useSessionStore.setState({ status: 'idle', session: null });
+    useSessionStore.getState().recover(ended, T0 + 2_000);
+
+    /* Nothing to resume: an ended session is not a session in progress. */
+    expect(useSessionStore.getState().status).toBe('idle');
+    expect(useSessionStore.getState().session).toBeNull();
+  });
+});
+
 describe('the timer', () => {
   async function startTimed(minutes: number) {
     await useSessionStore.getState().start({

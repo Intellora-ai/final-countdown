@@ -6,6 +6,7 @@ import { PracticePanel } from './PracticePanel'
 import { SessionView } from './SessionView'
 import { CHAPTER_BY_ID, CHAPTER_OF_TOPIC, TOPIC_BY_ID, type TopicId } from './curriculum'
 import { buildGraph } from './layout'
+import { hydrateAndRecover } from './sessionStore'
 import { hydratePracticeStore, recentTopicsOf, usePracticeStore } from './store'
 import { fitToRect, useViewportStore, type Viewport } from './viewport'
 
@@ -40,6 +41,12 @@ export default function PracticeView() {
 
   // Saved chapters and progress arrive one frame after first paint.
   useEffect(hydratePracticeStore, [])
+
+  /* A session interrupted by a refresh comes back with it, reconciled against
+     the real clock rather than resuming a countdown that stood still. */
+  useEffect(() => {
+    hydrateAndRecover()
+  }, [])
 
   /*
    * Publish how far down the window this map starts, so its height can be the

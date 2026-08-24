@@ -11,7 +11,10 @@ import { createStore, inMemoryPersistence, type Persistence } from './memory/mem
 import { calculator, createRegistry, fileTools, type FileSource } from './tools/tools'
 import { buildGraph, type Attempt, type Concept } from './learn/learn'
 import type { SearchPort } from './knowledge/knowledge'
-import { deserialize, pause, serialize } from './execute/execute'
+import { pause } from './execute/execute'
+import { openSession, type Ledger, type Position } from './session/ledger'
+import { moveTo, noteAttempt, turnId } from './session/wire'
+import { isEmpty, readSession, writeSession } from './session/persist'
 
 /**
  * THE COMPOSITION ROOT --- the one place the agent is actually assembled.
@@ -62,7 +65,7 @@ export interface AgentOptions {
 
 export interface Agent {
   /** Take one turn. The session is threaded internally. */
-  ask(turn: Turn | string): Promise<LoopResult>
+  ask(turn: Turn | string): Promise<AskResult>
   /** The conversation so far. Read-only; `ask` is the only thing that moves it. */
   session(): Session
   /** The assembled ports, exposed for inspection rather than for mutation. */
@@ -76,32 +79,57 @@ export interface Agent {
    * deploy is a task that quietly disappears.
    */
   suspend(): string | null
-  /** Put a suspended task back. The counterpart of `suspend`. */
-  restore(json: string): void
   /**
-   * Record that the learner attempted a concept, and whether they got it right.
+   * Put a suspended session back, or say why not.
    *
-   * THIS EXISTED NOWHERE, AND ITS ABSENCE MADE A CAPABILITY UNREACHABLE.
-   * `session.attempts` is the only source of `learner.attempts`, nothing in
-   * `handle()` ever appended to it, and so it was permanently empty. Measured:
-   * five turns through `ask()`, `session.attempts.length === 0`. Everything
-   * downstream that reads attempt history was therefore dead through the loop
-   * --- `feedbackFor` (what did they get wrong and how much to give away),
-   * `nextDifficulty` (harder or easier next), `nextReview` (spacing), and
-   * `dueForReview`.
-   *
-   * NOT INFERRED FROM THE CONVERSATION, deliberately. A turn is not an attempt.
-   * Guessing "they probably got that right" from prose would write fabricated
-   * mastery data into the thing that decides what to teach next, and wrong
-   * mastery data is worse than none --- it moves the curriculum confidently in
-   * the wrong direction. An attempt is something a practice surface KNOWS
-   * happened, so it is something the caller states rather than something the
-   * loop divines.
-   *
-   * Same root cause as the missing composition root: the logic was written and
-   * tested, and nothing could reach it because no entry point existed.
+   * A RESULT, NOT A `void`. It used to return nothing, which meant a corrupt or
+   * truncated blob was indistinguishable from a successful restore: the caller
+   * carried on believing it had yesterday's lesson. A refusal the caller can
+   * see is the difference between "start again, and say so" and teaching the
+   * first concept to somebody who finished it last week.
    */
-  recordAttempt(attempt: Attempt): void
+  restore(json: string): { ok: true } | { ok: false; why: string }
+
+  /* ---- teaching ------------------------------------------------------- */
+
+  /**
+   * Open a teaching session with an explicit objective.
+   *
+   * The objective is a PARAMETER and not something the agent infers, because
+   * every inferred version measured came from the last utterance --- after
+   * "lets pause here" the system's idea of the topic was "lets pause here".
+   * A caller that cannot say what the lesson is for should not be starting one.
+   */
+  teach(spec: { objective: string; conceptId: string; id?: string }): void
+  /** The teaching ledger, or `null` when this session is not teaching. */
+  ledger(): Ledger | null
+  /** Move the lesson. The one way the position changes other than a detour. */
+  advanceTeaching(to: Position): void
+  /**
+   * Record what the student actually did.
+   *
+   * Explicit rather than inferred from prose, and that is the point. Measured:
+   * a student stating a wrong formula produced `intent=conversation`,
+   * `executed=communicate`, and `attempts=0` --- so adaptation had no input at
+   * all. Guessing correctness from wording would fill that gap with fiction,
+   * and fabricated mastery data moves a curriculum confidently in the wrong
+   * direction. A caller that knows the answer was wrong says so.
+   */
+  recordAttempt(a: Omit<Attempt, 'at'> & { at?: string }): void
+}
+
+/** What `ask` returns: the loop's result, plus whether this was a replay. */
+export type AskResult = LoopResult & {
+  /**
+   * True when this exact turn had already been applied and the stored result
+   * was returned instead of running the loop again.
+   *
+   * Measured before deduplication existed: the identical `Turn` object applied
+   * twice took `turnIndex` from 1 to 2 and appended the goal twice. A timeout
+   * that actually succeeded, a double-submitted form, an at-least-once queue ---
+   * every one of them silently inflated the student's history.
+   */
+  replayed: boolean
 }
 
 export function createAgent(opts: AgentOptions): Agent {
@@ -127,54 +155,141 @@ export function createAgent(opts: AgentOptions): Agent {
 
   let session = NEW_SESSION
 
+  /* APPLIED TURNS, AND THE ANSWERS THEY PRODUCED.
+     Bounded, because this is held for the life of the agent and a conversation
+     is not a place to leak. The bound is generous relative to any retry window;
+     a duplicate arriving after this many distinct turns is not a retry.
+
+     KNOWN LIMIT --- THIS CACHE IS NOT PERSISTED, SO A RETRY THAT STRADDLES A
+     RELOAD ADVANCES `turnIndex` BY ONE.
+
+     Two mechanisms sit behind deduplication and only one of them survives a
+     restore. This map holds the ANSWER, so an in-session retry returns the
+     identical string without re-running the loop. The ledger's `turns` list
+     holds the DECISION, is written down with everything else, and is what stops
+     the evidence log being appended to twice --- see `foldTurn`.
+
+     So after a restore, a retry of a pre-restore turn regenerates an answer and
+     moves `turnIndex`. What it cannot do is corrupt the record: the log, the
+     attempts and therefore every claim about what the student knows are all
+     protected by the durable half. Left alone deliberately. Persisting the
+     answer cache means writing every generated response into the session blob
+     to defend against a retry arriving after a page reload, and the machinery
+     costs more than the defect --- a turn counter off by one changes no
+     teaching decision. Asserted rather than assumed: see the test named "the
+     evidence log is never double-appended, even across a restore". */
+  const REPLAY_MEMORY = 64
+  const applied = new Map<string, AskResult>()
+
+  const remember = (id: string, out: AskResult): AskResult => {
+    applied.set(id, out)
+    while (applied.size > REPLAY_MEMORY) {
+      const oldest = applied.keys().next().value
+      if (oldest === undefined) break
+      applied.delete(oldest)
+    }
+    return out
+  }
+
   return {
     ports,
     session: () => session,
+    ledger: () => session.ledger ?? null,
+
+    teach(spec) {
+      session = {
+        ...session,
+        ledger: openSession({
+          id: spec.id ?? `lesson-${now()}`,
+          objective: spec.objective,
+          conceptId: spec.conceptId,
+          at: now(),
+        }),
+      }
+    },
+
+    advanceTeaching(to) {
+      if (!session.ledger) return
+      session = { ...session, ledger: moveTo(session.ledger, to, now()) }
+    },
+
+    /*
+     * TWO CONSUMERS, AND THE MERGE THAT NEARLY DROPPED ONE.
+     *
+     * `main` and this branch each added `recordAttempt` independently, to feed
+     * DIFFERENT things, and taking either side whole would have silently
+     * removed a capability:
+     *
+     *   session.attempts  ->  learn.ts: `feedbackFor`, `nextDifficulty`,
+     *                         `nextReview`, `dueForReview`. Permanently empty
+     *                         before main's fix, so all four were unreachable
+     *                         through the loop.
+     *   ledger            ->  `established()`, which is what decides whether
+     *                         the teacher may say the student knows something.
+     *
+     * So it writes to both. The ledger write is conditional because a session
+     * that is not teaching has no ledger; the attempts write is not, because
+     * the learner model is not a teaching-only concern.
+     */
+    recordAttempt(a) {
+      const attempt = { ...a, at: a.at ?? now() }
+      session = {
+        ...session,
+        attempts: [...session.attempts, attempt],
+        ...(session.ledger ? { ledger: noteAttempt(session.ledger, attempt) } : {}),
+      }
+    },
+
     /* PAUSED, then serialised --- in that order, and never serialised alone.
        `pause` writes the journal entry and carries the working memory across,
        which is what makes the resume cheaper than a restart. Serialising an
        `active` task instead produces a file that, when restored, believes a
-       step is still running and stalls waiting for it. */
+       step is still running and stalls waiting for it.
+
+       WHAT CHANGED: the whole session is written, not just the task. Measured
+       before: `suspend()` returned `null` whenever there was no task, and a
+       teaching conversation never produces one, so the common case was that a
+       session could not be saved at all. `null` still means "nothing to save",
+       but "nothing" now means a session indistinguishable from a new one
+       rather than a session without a task. */
     suspend() {
-      if (!session.task) return null
-      const stopped = pause(session.task, session.working, now())
-      session = { ...session, task: stopped }
-      return serialize(stopped)
+      if (isEmpty(session)) return null
+      if (session.task) {
+        session = { ...session, task: pause(session.task, session.working, now()) }
+      }
+      return writeSession(session)
     },
-    /* THE WORKING MEMORY COMES BACK TOO, and it did not.
-       This was `{ ...session, task: deserialize(json) }` --- task in, working
-       untouched --- so the intermediate results `suspend()` had carefully saved
-       were unreachable after a restore. Measured:
 
-           suspend() returned    1449 chars
-           BEFORE  working       7 entities
-           AFTER   working       0 entities
-           re-suspend            1005 chars
-
-       The second half is the damaging one and it is DATA LOSS, not
-       degradation: the next `suspend()` writes the fresh agent's EMPTY working
-       memory over the saved one, so 444 characters of recovery state are
-       destroyed BY A SAVE OPERATION, and the shorter file looks exactly as
-       valid as the original. A periodic-checkpoint caller silently shortens its
-       own recovery state every cycle.
-
-       `pause()` already stores the working memory INSIDE the task, precisely so
-       this is possible --- execute.ts says it carries `working` whole because
-       "the intermediate results are the reason resuming is cheaper than
-       restarting". The save side held up its end; the restore side did not. No
-       format change is needed, only reading back what was already written. */
+    /* READ, VALIDATED, AND ONLY THEN ASSIGNED.
+       The live session is replaced as one atomic step after the read succeeds,
+       so a refused blob leaves the agent exactly as it was. The previous
+       version assigned `deserialize(json)` straight into the session, which
+       meant a malformed blob replaced a live lesson with whatever the parse
+       produced. */
     restore(json: string) {
-      const task = deserialize(json)
-      session = { ...session, task, working: task.working ?? session.working }
+      const read = readSession(json)
+      if (!read.ok) return { ok: false, why: read.why }
+      session = read.session
+      /* A restored session is a different history. Keeping the replay cache
+         would let a turn id from the old one suppress a real turn in the new. */
+      applied.clear()
+      return { ok: true }
     },
-    recordAttempt(attempt: Attempt) {
-      session = { ...session, attempts: [...session.attempts, attempt] }
-    },
-    async ask(input: Turn | string): Promise<LoopResult> {
+
+    async ask(input: Turn | string): Promise<AskResult> {
       const turn = typeof input === 'string' ? textTurn(input, now()) : input
+      const id = turnId(turn)
+
+      /* THE SAME TURN IS THE SAME TURN. The stored result is returned rather
+         than a fresh run, because re-running would append to the evidence log a
+         second time --- and an inflated history is exactly what makes the
+         learner model wrong in the direction of over-confidence. */
+      const already = applied.get(id)
+      if (already) return { ...already, replayed: true }
+
       const out = await handle(turn, session, ports)
       session = out.session
-      return out
+      return remember(id, { ...out, replayed: false })
     },
   }
 }
@@ -183,5 +298,14 @@ export function createAgent(opts: AgentOptions): Agent {
 export function textTurn(text: string, at: string): Turn {
   return { parts: [{ modality: 'text', content: text }], at }
 }
+
+/* THE PORT IS PART OF THE PUBLIC SURFACE, and re-exporting it here is not
+   tidiness. `index.ts` is the agent area's only declared entry point, so a
+   product file importing `ports/httpModel` directly leaves that module
+   unreachable from any entry and the reachability gate calls it an orphan ---
+   correctly, because the gate cannot see outside the area. Routing it through
+   the one surface keeps `createAgent()` the single way in and keeps the gate
+   measuring something true. */
+export { httpModel, buildPrompt, type HttpModelOptions } from './ports/httpModel'
 
 export type { LoopResult, ModelPort, Ports, Session, TaskState }

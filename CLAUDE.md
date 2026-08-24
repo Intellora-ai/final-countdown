@@ -237,6 +237,50 @@ Also true today, and not to be papered over:
 | Goal 2 coverage | adversarial fixtures + screenshot regression (built at Step 10) |
 | No regression | the 7 acceptance lessons after every step |
 | `/rtk` + `/investigate` every session | `scripts/enforce_skills.py` — a **Stop** hook, tested by `tests/test_enforce_skills.py` |
+| Code that never runs | `frontend/scripts/reachability-gate.mjs` — see below |
+
+### The reachability gate — why coverage could not catch this
+
+`src/agent` shipped two modules, `execute/execute.ts` and `world/world.ts`,
+that were fully written, fully unit-tested, and imported by **nothing that
+ships**. Fifty-nine tests were green on code the product could never reach.
+Alongside them the router selected `files`, `plan`, `act`, `code` and `tools`
+and the loop had no branch for any of them, so the trace reported capabilities
+as used that had done nothing at all.
+
+Coverage does not merely miss this — it **argues against noticing it**. A
+module imported only by its own test reports 100% coverage, and the number goes
+UP as the orphan is tested more thoroughly. Coverage measures test reach; this
+measures product reach; they diverge exactly when it matters.
+
+The gate walks static imports from **declared** entry points and fails on any
+non-test file that is unreachable, plus any export no reachable code can arrive
+at. Two design points are load-bearing:
+
+- **Entries are declared, never inferred.** "A file nobody imports is an entry
+  point" makes the gate vacuous — every orphan is by definition a file nobody
+  imports, so every orphan would be reclassified as an entry.
+- **Test files are not edges.** `x.test.ts` importing `x.ts` does not make
+  `x.ts` reachable. That edge is the whole reason the orphans looked connected.
+- **Dead exports are a call graph, not an import count.** A function exported
+  for direct testing and called by its neighbour is LIVE; a helper called only
+  by an unreachable function is DEAD. The naive rule is wrong in both
+  directions, and a gate that cries wolf gets switched off.
+
+It runs under `npm test` (vitest sweeps `scripts/**/*.test.mjs`), so it is
+enforced by the frontend job without touching a workflow file. `npm run
+gate:reachability` runs it alone. Its own tests plant an orphan and require the
+gate to fail — a gate only asserted to PASS is satisfied by `return true`.
+
+**The companion rule, enforced in `loop.ts` and asserted over 14 turn shapes:**
+every selected capability appears in `trace.executed` or in `trace.unmet`,
+never neither, and nothing appears in `executed` that was not selected. A trace
+that reports a decision without reporting the effect is an audit trail that
+lies.
+
+Tests must assert **effects**, not routing decisions. `plan.selected` contains
+`files` is a fact about the router and is satisfied completely by a loop that
+does nothing. See `src/agent/kernel/effects.test.ts`.
 
 ### Why the skill rule is a Stop hook and not a prompt
 

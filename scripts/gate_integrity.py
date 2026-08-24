@@ -447,7 +447,32 @@ PLAYWRIGHT_EXEMPT: dict[str, str] = {}
 # people to raise floors to get their work through, which is how a ratchet
 # becomes a formality. 9 stays as a floor of last resort against wholesale
 # deletion, where the count floor would already have fired first anyway.
-MUTATION_COUNT_FLOOR = 39
+#
+# 39 -> 59: the agent capability layer added nine mutants covering the WIRING
+# rather than the decisions -- the branch that reads an attached file, the
+# guard that keeps the execution record from over-claiming, the composition
+# root's registry, the dependency edge that stops a synthesis step running
+# before the work it summarises. Measured with check (g)'s own regexes against
+# the catalogue, not counted by eye:
+#
+#     mutants: 59
+#     files:   28
+#
+# THE FLOOR MOVES IN THE SAME COMMIT AS THE CATALOGUE, and that is the whole
+# point. "Raise it later" is precisely what produced a floor of 27 against a
+# catalogue of 39 -- twelve mutants of slack that check (g) could not see. A
+# floor raised in a separate commit is a floor that drifts, because the commit
+# that grows the catalogue is the only one that knows the new number.
+#
+# NOT AN EQUALITY CLAUSE. Requiring floor == catalogue would make slack
+# impossible, and it would also fail preflight on every PR that adds a mutant
+# until someone bumps this constant -- which is the literal subject of #69,
+# "the ratchet test punished anyone who added a mutant". That punishment was
+# removed deliberately and is not reinstated here by the back door. If the
+# residual slack needs closing, the move is a preflight step that PRINTS the
+# number to write without failing, so forgetting is cheap to fix rather than
+# expensive to commit.
+MUTATION_COUNT_FLOOR = 59
 MUTATION_FILE_FLOOR = 9
 
 QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")

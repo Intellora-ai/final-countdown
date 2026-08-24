@@ -575,6 +575,82 @@ const MUTANTS = [
     to: "      mastery.set(concept.id, 'unknown')",
     breaks: 'someone who says "I struggle with integration" is treated as never having met integration, so the curriculum restarts them on material they have already sat through — the fastest way to lose a learner',
   },
+
+  /* ---- The wiring, and the bug that made it necessary -------------------
+   *
+   * Everything above mutates a DECISION. The nine below mutate the WIRING,
+   * because the wiring is where this layer actually failed: two modules and
+   * five capabilities were selected, reported as used, and never executed,
+   * and every unit test stayed green throughout.
+   *
+   * The selection rule is unchanged and matters more here than anywhere
+   * else. A broken decision produces a wrong answer, which somebody
+   * eventually notices. Broken wiring produces a CONFIDENT answer plus an
+   * audit trail claiming the work was done, and nobody notices at all. */
+
+  {
+    id: 'agent-attached-file-is-never-actually-read',
+    file: 'src/agent/kernel/loop.ts',
+    from: "  if (selected.has('files')) {",
+    to: '  if (false) {',
+    breaks: 'the original bug, exactly: "summarise this PDF" answers from the model\'s own knowledge while the trace reports `files` among the capabilities used — an audit trail that lies in the one direction nobody checks, because everything looks wired',
+  },
+  {
+    id: 'agent-trace-claims-capabilities-that-were-never-selected',
+    file: 'src/agent/kernel/loop.ts',
+    from: '  const didRun = (c: Capability) => void (selected.has(c) && executed.add(c))',
+    to: '  const didRun = (c: Capability) => void executed.add(c)',
+    breaks: 'the execution record over-claims, which is exactly as misleading as under-reporting: "communicate always runs" quietly puts an unselected capability into the trace, and the one guard that makes the record trustworthy is gone',
+  },
+  {
+    id: 'agent-unmet-capability-loses-its-reason',
+    file: 'src/agent/kernel/loop.ts',
+    from: '  const couldNot = (c: Capability, why: string) => void (selected.has(c) && (unmet[c] = why))',
+    to: "  const couldNot = (c: Capability) => void (selected.has(c) && (unmet[c] = ''))",
+    breaks: '"I could not read your file" degrades to a bare flag, so the one thing that makes an absence debuggable — WHY it was absent — is dropped, and the capability is indistinguishable from one that silently did nothing',
+  },
+  {
+    id: 'agent-failed-verification-is-reported-but-never-fixed',
+    file: 'src/agent/kernel/loop.ts',
+    from: '  const repairable = action.action !== \'ask\' && degraded === undefined',
+    to: '  const repairable = false',
+    breaks: 'the system knows the answer misses a stated constraint and ships it unchanged, with the evidence attached where nobody reads it — verification becomes a report rather than a correction',
+  },
+  {
+    id: 'agent-repair-loop-becomes-unbounded',
+    file: 'src/agent/kernel/loop.ts',
+    from: '      await verifyAndRepair({ answer, claims }, checks, repair, 1)',
+    to: '      await verifyAndRepair({ answer, claims }, checks, repair, 12)',
+    breaks: 'a check the repairer cannot satisfy burns twelve model calls per turn instead of one; latency and cost scale with failure, and the round count that would signal "the approach is wrong, not the output" is buried',
+  },
+  {
+    id: 'agent-task-is-dropped-between-turns',
+    file: 'src/agent/kernel/loop.ts',
+    from: "    ...(task && task.status !== 'done' ? { task } : {}),",
+    to: '    ...({}),',
+    breaks: 'cross-session continuity dies silently: "carry on with what we started" starts a second task with a new id, abandoning the first plan and its journal, and every turn looks individually correct',
+  },
+  {
+    id: 'agent-the-answer-step-runs-before-the-work',
+    file: 'src/agent/kernel/loop.ts',
+    from: '    after: specs.map((s) => s.goal),',
+    to: '    after: [],',
+    breaks: 'the synthesis step loses its dependencies, so `nextStep` can hand back "answer the goal" before any of the work it is meant to summarise has run — a confident summary of nothing',
+  },
+  {
+    id: 'agent-production-agent-has-no-calculator',
+    file: 'src/agent/index.ts',
+    from: '  const tools = createRegistry([calculator, ...(opts.files ? fileTools(opts.files) : [])])',
+    to: '  const tools = createRegistry([...(opts.files ? fileTools(opts.files) : [])])',
+    breaks: 'the exact shape of the original defect: arithmetic passes every unit test and cannot work for a real caller, because the only registry the product builds does not contain a calculator',
+  },
+  {
+    id: 'agent-suspended-task-resumes-stuck-mid-step',
+    file: 'src/agent/index.ts',
+    from: '      const stopped = pause(session.task, session.working, now())',
+    to: '      const stopped = session.task',
+    breaks: 'an `active` task is serialised, so tomorrow it restores believing a step is still running — `nextStep` skips it, nothing is pending, and the task reports itself stuck the moment someone comes back to it',
+  },
 ]
 
 /*

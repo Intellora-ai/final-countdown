@@ -106,6 +106,22 @@ export const MANIFEST = [
       'src/websearch/node-http.d.ts',
     ],
   },
+  {
+    name: 'server',
+    root: 'server',
+    /* `index.ts` is the process. Everything else in here has to be reachable
+       from the thing that actually boots.
+
+       This area was added because the gate could not see it: `handler.ts`
+       imports `citationSupports` from `src/websearch`, and the gate went on
+       reporting that export DEAD because `server/` was not a scanned area and
+       so was not a "shipping file" to it. An importer the gate cannot see is
+       indistinguishable from no importer at all.
+
+       `node.d.ts` is an ambient declaration file with no runtime existence,
+       listed for the same reason `websearch` lists its own. */
+    entries: ['server/index.ts', 'server/node.d.ts'],
+  },
 ]
 
 /* -------------------------------------------------------------------------- */
@@ -615,8 +631,60 @@ export function analyze(area) {
   return { area: area.name, files, reached: [...reached].sort(), orphans, deadExports, warnings }
 }
 
+/**
+ * Every named import taken from any file, by any non-test file in ANY area.
+ *
+ * `analyze` looks at one area at a time, so an importer in a different area is
+ * invisible to it. `server/handler.ts` imports `citationSupports` from
+ * `src/websearch`, and the gate went on calling that export DEAD while a
+ * shipping file used it on every request. An importer the gate cannot see is
+ * indistinguishable from no importer at all, which is the single distinction
+ * this gate exists to make.
+ */
+function takenAcrossAreas(manifest) {
+  const taken = new Map()
+  const starred = new Set()
+
+  for (const area of manifest) {
+    let files
+    try {
+      files = walk(resolve(ROOT, area.root)).map((f) => relative(ROOT, f))
+    } catch {
+      /* An area whose directory is absent contributes no importers. Reported
+       * by `analyze` as an area with no files, not silently swallowed here. */
+      continue
+    }
+    for (const file of files) {
+      if (isTestFile(file)) continue
+      let source
+      try {
+        source = readFileSync(resolve(ROOT, file), 'utf8')
+      } catch {
+        continue
+      }
+      for (const imp of importsOf(source)) {
+        const target = resolveSpec(file, imp.spec)
+        if (target === null || target === undefined) continue
+        if (imp.star) starred.add(target)
+        const set = taken.get(target) ?? new Set()
+        for (const name of imp.names) set.add(name)
+        taken.set(target, set)
+      }
+    }
+  }
+  return { taken, starred }
+}
+
 export function runAll(manifest = MANIFEST) {
-  return manifest.map(analyze)
+  const results = manifest.map(analyze)
+  const { taken, starred } = takenAcrossAreas(manifest)
+
+  return results.map((result) => ({
+    ...result,
+    deadExports: result.deadExports.filter(
+      (d) => !starred.has(d.file) && !(taken.get(d.file)?.has(d.name) ?? false),
+    ),
+  }))
 }
 
 /* -------------------------------------------------------------------------- */

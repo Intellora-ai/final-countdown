@@ -75,6 +75,11 @@ export default defineConfig({
       'src/**/*.{test,spec}.{ts,tsx}',
       'eslint-rules/**/*.test.ts',
       'scripts/**/*.test.mjs',
+      /* server/ is a FOURTH area, and deliberately separate from src/. It never
+       * ships to the browser: it holds the API key. Its tests run here so the
+       * one command that proves the frontend also proves the thing standing
+       * between the browser and the model. */
+      'server/**/*.test.ts',
     ],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
 

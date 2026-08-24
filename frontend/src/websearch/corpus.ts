@@ -32,7 +32,7 @@
 
 import { search, type SearchProvider } from './engine'
 import { Latency } from './latency'
-import { independentSources, precision, recall, coverage } from './quality'
+import { retrievalReport } from './quality'
 import type { FetchOutcome } from './fetchPage'
 
 /* -------------------------------------------------------------------------- */
@@ -288,20 +288,23 @@ export async function runCase(
     succeeded.some((r) => r.text.toLowerCase().includes(aspect.replace(/-/g, ' '))),
   )
 
-  const p = precision(judged)
-  const r = recall(found, testCase.relevantTotal)
-  const c = coverage(aspectsCovered, testCase.aspectsRequired)
+  /* This block used to rebuild, by hand, exactly what `retrievalReport`
+   * returns: precision, recall, coverage, independent sources and the raw
+   * count. Two copies of one calculation is how they drift, and the second copy
+   * was the only thing keeping the real one unreachable. */
+  const report = retrievalReport({
+    judged,
+    relevantFound: found,
+    relevantTotal: testCase.relevantTotal,
+    aspectsCovered,
+    aspectsRequired: testCase.aspectsRequired,
+    sources: succeeded.map((s) => ({ url: s.finalUrl, text: s.text })),
+  })
 
   return {
     id: testCase.id,
     category: testCase.category,
-    ...(p === undefined ? {} : { precision: p }),
-    ...(r === undefined ? {} : { recall: r }),
-    ...(c === undefined ? {} : { coverage: c }),
-    independentSources: independentSources(
-      succeeded.map((s) => ({ url: s.finalUrl, text: s.text })),
-    ).length,
-    retrievedSources: outcome.results.length,
+    ...report,
     fetchFailures: outcome.results.filter((x) => !x.ok).length,
     engineFailed: outcome.engineFailed,
     suspiciousSources: outcome.results.filter((x) => x.suspicious).length,

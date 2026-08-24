@@ -597,3 +597,43 @@ describe('importsOf: clause bounding without semicolons', () => {
     }
   })
 })
+
+
+describe('an importer in another area is still an importer', () => {
+  /* `server/handler.ts` imports `citationSupports` from `src/websearch`. The
+   * gate analysed each area on its own, so that import was invisible and the
+   * export went on being reported DEAD while a shipping file used it on every
+   * request. An importer the gate cannot see is indistinguishable from no
+   * importer at all — which is the one thing this gate exists to tell apart. */
+
+  const AREAS = [
+    { name: 'lib', root: '.reachability-fixture/lib', entries: ['.reachability-fixture/lib/index.ts'] },
+    { name: 'app', root: '.reachability-fixture/app', entries: ['.reachability-fixture/app/index.ts'] },
+  ]
+
+  /* `used` is deliberately NOT re-exported by lib/index.ts. Its ONLY importer
+   * is in the other area, which is the whole point — an earlier version of this
+   * test re-exported it and passed without ever exercising the cross-area path. */
+  const FILES = {
+    'lib/index.ts': "export { surface } from './util.ts'\n",
+    'lib/util.ts': [
+      'export function surface() { return 0 }',
+      'export function used() { return 1 }',
+      'export function unused() { return 2 }',
+      '',
+    ].join('\n'),
+    'app/index.ts': "import { used } from '../lib/util.ts'\nconsole.log(used())\n",
+  }
+
+  it('does not report an export dead when another area imports it', () => {
+    fixture(FILES)
+    const dead = runAll(AREAS).flatMap((r) => r.deadExports.map((d) => d.name))
+    expect(dead).not.toContain('used')
+  })
+
+  it('still reports an export nothing anywhere imports', () => {
+    fixture(FILES)
+    const dead = runAll(AREAS).flatMap((r) => r.deadExports.map((d) => d.name))
+    expect(dead).toContain('unused')
+  })
+})

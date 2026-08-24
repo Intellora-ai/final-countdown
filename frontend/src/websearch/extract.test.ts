@@ -54,6 +54,40 @@ describe('what is thrown away', () => {
     expect(out.text).not.toContain('evil')
   })
 
+  it('does not let a tag rebuild itself out of the stripping', () => {
+    /* CodeQL `js/incomplete-multi-character-sanitization`, three high alerts,
+       and it was right. Removing tags in ONE pass is defeatable by nesting a
+       tag inside the name of another:
+
+         '<scr<x>ipt>EVIL</scr<x>ipt>'  ->  'ipt>EVILipt>'
+
+       `<x>` is not a script tag, so the drop rule never fires; the generic
+       stripper then eats `<scr<x>` as a single tag and the script BODY
+       survives into the extract as prose. That is precisely the half-strip
+       this file's header warns about, arriving through the back door. */
+    const out = extract(page('<p>ok</p><scr<x>ipt>EVIL()</scr<x>ipt><p>after</p>'))
+    expect(out.text).toContain('ok')
+    expect(out.text).not.toContain('EVIL')
+    expect(out.text).not.toContain('ipt>')
+  })
+
+  it.each([
+    ['nested style', '<sty<x>le>EVIL</sty<x>le>'],
+    ['nested iframe', '<ifra<x>me>EVIL</ifra<x>me>'],
+    ['double nesting', '<scr<a<b>>ipt>EVIL</scr<a<b>>ipt>'],
+    ['nested comment open', '<!-<x>- EVIL -->'],
+  ])('resists %s', (_name, hostile) => {
+    const out = extract(page(`<p>ok</p>${hostile}`))
+    expect(out.text).toContain('ok')
+    expect(out.text).not.toContain('EVIL')
+  })
+
+  it('still leaves ordinary angle brackets in prose alone', () => {
+    /* The fix must not start eating maths. `a < b` is not a tag. */
+    const out = extract(page('<p>2 &lt; 3 and 5 &gt; 4</p>'))
+    expect(out.text).toBe('2 < 3 and 5 > 4')
+  })
+
   it('drops site chrome in favour of the article', () => {
     const out = extract(
       page(

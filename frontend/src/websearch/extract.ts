@@ -60,7 +60,21 @@ const COMMENT = /<!--[\s\S]*?(?:-->|$)/g
 const BLOCK =
   /<\/?(p|div|section|article|main|h[1-6]|li|ul|ol|tr|table|thead|tbody|br|hr|blockquote|pre|dd|dt|dl|figure|figcaption|address)\b[^>]*>/gi
 
-const ANY_TAG = /<[^>]*>/g
+/**
+ * A tag containing no `<` of its own — the INNERMOST tag at this point.
+ *
+ * `/<[^>]*>/` was here and it is the bug CodeQL flagged
+ * (`js/incomplete-multi-character-sanitization`, three high alerts). Given
+ * `<scr<x>ipt>`, that pattern matches from the first `<` to the first `>`,
+ * swallowing `<scr` and `<x>` as ONE tag and leaving `ipt>` behind as text —
+ * so the script body survived into the extract as prose.
+ *
+ * Excluding `<` from the body makes a match unable to span a nested tag, so
+ * `<x>` is removed on its own and `<scr` + `ipt>` rejoin into a real
+ * `<script>` — which the drop rule then catches on the next pass. That is why
+ * this has to run in a loop rather than once.
+ */
+const INNERMOST_TAG = /<[^<>]*>/g
 
 const NAMED: Readonly<Record<string, string>> = {
   amp: '&',
@@ -155,18 +169,39 @@ function tidy(raw: string): string {
     .trim()
 }
 
-/** Strip markup from a fragment, honouring the inline/block distinction. */
+/**
+ * Passes allowed before giving up on reaching a stable string.
+ *
+ * Each pass strictly shortens the input — every rule only ever deletes — so
+ * this terminates long before the bound on any real document. The bound exists
+ * so a pathological input cannot spin, not because eight is meaningful.
+ */
+const MAX_STRIP_PASSES = 8
+
+/**
+ * Strip markup from a fragment, honouring the inline/block distinction.
+ *
+ * Runs to a FIXPOINT rather than once. One pass is defeatable by nesting a tag
+ * inside another tag's name: the removal of the inner tag is what rejoins the
+ * outer one into something the drop rules recognise, and a single pass has
+ * already moved on by then. Looping until the string stops changing closes
+ * that, and costs one extra no-op pass on ordinary documents.
+ */
 function toText(fragment: string): string {
-  return tidy(
-    fragment
+  let s = fragment
+  for (let pass = 0; pass < MAX_STRIP_PASSES; pass += 1) {
+    const before = s
+    s = s
       .replace(COMMENT, '')
       .replace(DROP_WHOLE, '')
       .replace(DROP_UNCLOSED, '')
       .replace(BLOCK, '\n')
       /* Every remaining tag is inline. Removed with NO substitution, so
          `<em>up to</em> 40%` stays `up to 40%` rather than `up to  40%`. */
-      .replace(ANY_TAG, ''),
-  )
+      .replace(INNERMOST_TAG, '')
+    if (s === before) break
+  }
+  return tidy(s)
 }
 
 function readTables(html: string): string[][][] {

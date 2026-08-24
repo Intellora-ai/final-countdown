@@ -265,7 +265,14 @@ const STOPWORDS = new Set([
      to the shared set. */
   'continue', 'continues', 'continuing', 'carry', 'keep', 'keeps', 'going',
   'next', 'proceed', 'onwards', 'onward', 'ahead', 'further', 'resume',
-  'along', 'finish', 'finished',
+  'along', 'finish', 'finished', 'move', 'press',
+  /* `right` and `alright` came from the GENERATOR, not from anyone's
+     imagination --- see `continuation.enumerated.test.ts`. Crossing the
+     navigation verbs with openers and closers produced 238 leaking phrasings on
+     its first run, of which these two were the whole cause. Neither would have
+     occurred to me; "alright continue" is not a phrase you sit down and think
+     of, it is a phrase people say. */
+  'right', 'alright',
   /* INSTRUCTION VERBS, for the reason `explain` is already here and the
      inconsistency that revealed the rest of the family:
 
@@ -282,6 +289,96 @@ const STOPWORDS = new Set([
   'define', 'defines', 'describe', 'describes', 'clarify', 'elaborate',
   'summarise', 'summarize', 'compare', 'list', 'outline', 'derive', 'prove',
 ])
+
+/*
+ * IS "WAS A SUBJECT NAMED" A PROPERTY, OR ONLY A MEMBERSHIP TEST?
+ *
+ * Short answer: not with this function's current shape, and the reason is not
+ * that the list is incomplete. It is that ONE FUNCTION IS DOING TWO JOBS AND IS
+ * WRONG IN BOTH DIRECTIONS AT ONCE.
+ *
+ * Written down because a list somebody chose deliberately is a different
+ * artifact from a list somebody accumulated, and from the outside they are
+ * indistinguishable.
+ *
+ * THE TWO FAILURE DIRECTIONS, BOTH MEASURED.
+ *
+ * ADMITS WHAT IS NOT AN ENTITY. On a conversation about quadratics, `continue`
+ * came back as a `term`, so `topicShift` fired on the word whose entire meaning
+ * is "do not change the subject". Crossing navigation verbs with openers and
+ * closers produced 238 leaking phrasings and exposed `right`, `alright`, `move`
+ * and `press`, none of which anyone had thought of.
+ *
+ * FAILS TO ADMIT WHAT IS. Compound nouns are split into their parts:
+ *
+ *     "what is a transformation graph"  ->  ["transformation", "graph"]
+ *     "explain the quadratic formula"   ->  ["quadratic", "formula"]
+ *     "what is machine learning"        ->  ["machine", "learning"]
+ *     "explain natural selection"       ->  ["natural", "selection"]
+ *
+ * Downstream, `reason` is handed two unrelated nouns, finds no relation between
+ * them, and reports itself selected-but-unmet on the most ordinary question
+ * shape there is. `reason` is not broken; its input is.
+ *
+ * AND THE TWO DIRECTIONS COLLIDE ON A SINGLE WORD, which is the thing that
+ * settles the question:
+ *
+ *     "right, continue"           ->  `right` is filler
+ *     "what is a right triangle"  ->  `right` is half the name of the subject
+ *
+ * Adding `right` to this list fixed the first and broke the second: that phrase
+ * now yields ["triangle"], and the qualifier that distinguishes a right
+ * triangle from any other is gone. NO LIST CAN FIX THAT, because the categories
+ * are not disjoint --- the same token is filler in one position and domain
+ * vocabulary in another. A better list is not a smaller version of the right
+ * answer; it is the wrong shape of answer.
+ *
+ * SO WHAT IS THE RIGHT SHAPE. Two steps, currently fused into one:
+ *
+ *   1. A TOKENISER that segments the turn into candidate spans, including
+ *      multi-word ones, using position and adjacency rather than a vocabulary.
+ *      This is the half that would keep `transformation graph` and `right
+ *      triangle` intact, and it is the half that cannot be a word list at all.
+ *
+ *   2. A DOMAIN-VOCABULARY step that decides which spans are subjects. Here a
+ *      list is legitimate --- but as one input among several, and applied to a
+ *      span in context rather than to a bare token. `right` before a noun and
+ *      `right` before a navigation verb are different spans, and step 1 is what
+ *      makes them distinguishable.
+ *
+ * The concept graph on `Ports.concepts` is the obvious source for step 2 and it
+ * is not sufficient alone. A learner names subjects the curriculum has never
+ * heard of --- "what is a tensor" during an algebra lesson is a real detour
+ * about a real subject --- and under a graph whitelist it names nothing, so no
+ * interruption is pushed and there is nothing to come back to. The lesson
+ * drifts and NOTHING NOTICES. The graph is positive evidence, never a filter.
+ *
+ * WHY THE LIST STAYS FOR NOW, AND WHICH WAY IT ERRS. A missing stopword
+ * mistakes a continuation for a new subject: a detour is pushed that did not
+ * happen, "continue" pops it, and the cost is a spurious log entry. A missing
+ * subject is not pushed at all, and the position the student needed to return
+ * to was never recorded. The first is noisy and recoverable; the second is
+ * silent and is exactly what the teaching ledger exists to prevent. Given an
+ * incomplete answer either way, take the one that errs loudly. The `right
+ * triangle` regression is the price, it is bounded --- the turn still names
+ * `triangle`, so the shift is still detected and only the precision of the
+ * entity is lost --- and it is pinned by a test rather than left to be
+ * rediscovered.
+ *
+ * WHAT WOULD EXPOSE THE NEXT FAILURE, in the order I would add the axes:
+ *
+ *   - compound nouns crossed with the navigation space, which is where the two
+ *     directions meet and where a naive fix to either one breaks the other
+ *   - contractions and elisions: "let's go on", "k continue"
+ *   - Hinglish and Hindi, which `Understanding.language` already claims to
+ *     support: "aage badho", "theek hai continue karo". This list is
+ *     English-only, so every navigation word in the other two languages this
+ *     product targets is missing right now. Largest known hole, and it is a
+ *     hole in the list rather than in the mechanism.
+ *   - multi-clause turns: "ok that makes sense, carry on"
+ *   - typos and voice-transcription artifacts, which is where a real
+ *     deployment finds them first.
+ */
 
 /**
  * Things the conversation is about.

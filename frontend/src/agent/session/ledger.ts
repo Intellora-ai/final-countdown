@@ -28,6 +28,26 @@ import { masteryFromAttempts, masteryRank, type Attempt, type Mastery } from '..
  * --- two definitions of "understood" that drift apart is precisely the silent
  * contradiction the brief forbids, and a second copy is how you get one.
  *
+ * WHY THIS IS NOT `TaskState`, AND THE GAP THAT MADE IT NECESSARY
+ * ---------------------------------------------------------------
+ * `execute.ts` already models work in flight, with a plan, steps, a journal and
+ * pause/resume. The obvious question is why teaching does not simply use it.
+ * The answer is measured rather than argued: A TEACHING REQUEST NEVER PRODUCES
+ * A TASK. The router rejects `plan` with "the work has one obvious order" for
+ * every phrasing tried, including "teach me quadratics", "first explain
+ * fractions then algebra then quadratics and then test me", and "plan how to
+ * learn quadratics step by step" --- only the last selects `plan` at all. After
+ * fourteen teaching turns `session.task` was still `NONE`, so there was nothing
+ * to pause, nothing to resume, and `suspend()` returned `null`.
+ *
+ * This module ROUTES AROUND that rather than fixing it, and that is a choice
+ * worth being explicit about. Fixing it properly means either lowering
+ * `PLAN_THRESHOLD` (which makes the agent stall on requests with one obvious
+ * order, the exact thing the threshold exists to prevent) or teaching
+ * `stepsFor` to decompose pedagogical goals (a real piece of work, in the
+ * router, with its own blast radius). Until one of those happens, a teaching
+ * position is a different thing from a task and lives here.
+ *
  * WHY IT IS PLAIN DATA
  * --------------------
  * Every field is JSON. The stack of interruptions is an array, not a closure or
@@ -126,6 +146,29 @@ export interface Ledger {
   readonly position: Position
   /** Innermost last. A stack, so nesting is free. */
   readonly interrupted: readonly Suspended[]
+  /**
+   * Everything that happened, oldest first.
+   *
+   * KNOWN LIMIT --- THIS GROWS WITHOUT BOUND, AND IT IS NOT AN OVERSIGHT.
+   * Measured through the real agent: one entry per turn, ~139 bytes each,
+   * 139,597 bytes at a thousand turns. At ten thousand turns it is around
+   * 1.4 MB, which is a real problem for any browser store with a 5 MB budget
+   * shared with everything else.
+   *
+   * It is not bounded here because bounding it is a DELIBERATE EXCEPTION to the
+   * append-only invariant this module asserts and tests, and an exception needs
+   * its own design rather than a slice at the end of somebody else's change.
+   * The shape that design should take, so the next person does not start from
+   * nothing: `attempted` entries are irreplaceable evidence and must never be
+   * dropped --- they are the entire basis for `established` and therefore for
+   * every claim about what the student knows. `asked`, `advanced`, `shown`,
+   * `interrupted` and `returned` are narrative, and a compaction that keeps all
+   * attempts plus the most recent N of everything else loses nothing that any
+   * decision reads. Whoever writes it must also decide what a compacted log
+   * does to the append-only tests, which currently assert the log NEVER
+   * shortens; the honest answer is probably a separate `compact()` that is the
+   * only function permitted to, with its own tests.
+   */
   readonly log: readonly LedgerEvent[]
   /** Turn ids already applied. See `beginTurn`. */
   readonly turns: readonly string[]

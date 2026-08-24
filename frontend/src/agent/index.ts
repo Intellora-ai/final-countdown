@@ -158,7 +158,26 @@ export function createAgent(opts: AgentOptions): Agent {
   /* APPLIED TURNS, AND THE ANSWERS THEY PRODUCED.
      Bounded, because this is held for the life of the agent and a conversation
      is not a place to leak. The bound is generous relative to any retry window;
-     a duplicate arriving after this many distinct turns is not a retry. */
+     a duplicate arriving after this many distinct turns is not a retry.
+
+     KNOWN LIMIT --- THIS CACHE IS NOT PERSISTED, SO A RETRY THAT STRADDLES A
+     RELOAD ADVANCES `turnIndex` BY ONE.
+
+     Two mechanisms sit behind deduplication and only one of them survives a
+     restore. This map holds the ANSWER, so an in-session retry returns the
+     identical string without re-running the loop. The ledger's `turns` list
+     holds the DECISION, is written down with everything else, and is what stops
+     the evidence log being appended to twice --- see `foldTurn`.
+
+     So after a restore, a retry of a pre-restore turn regenerates an answer and
+     moves `turnIndex`. What it cannot do is corrupt the record: the log, the
+     attempts and therefore every claim about what the student knows are all
+     protected by the durable half. Left alone deliberately. Persisting the
+     answer cache means writing every generated response into the session blob
+     to defend against a retry arriving after a page reload, and the machinery
+     costs more than the defect --- a turn counter off by one changes no
+     teaching decision. Asserted rather than assumed: see the test named "the
+     evidence log is never double-appended, even across a restore". */
   const REPLAY_MEMORY = 64
   const applied = new Map<string, AskResult>()
 

@@ -472,7 +472,12 @@ PLAYWRIGHT_EXEMPT: dict[str, str] = {}
 # residual slack needs closing, the move is a preflight step that PRINTS the
 # number to write without failing, so forgetting is cheap to fix rather than
 # expensive to commit.
-MUTATION_COUNT_FLOOR = 59
+# 59 -> 63 in the commit that grew the catalogue, which is the only commit
+# that knows the new number. Raising it later is what left this floor at 27
+# against a catalogue of 39 --- twelve mutants deletable with the gate still
+# green. The four added are the teaching ledger's, and every one reproduces a
+# defect that actually occurred rather than one that could.
+MUTATION_COUNT_FLOOR = 63
 MUTATION_FILE_FLOOR = 9
 
 QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")

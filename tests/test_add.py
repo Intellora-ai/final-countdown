@@ -1,10 +1,11 @@
 """Tests for src.add — mirrors specs/add_spec.lean."""
 
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from src.add import add
 
-ints = st.integers(min_value=-10**9, max_value=10**9)
+ints = st.integers(min_value=-(10**9), max_value=10**9)
 
 
 def test_add_basic() -> None:

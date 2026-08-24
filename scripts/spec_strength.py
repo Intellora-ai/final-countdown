@@ -57,21 +57,24 @@ import os
 import sys
 import tempfile
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, NamedTuple, cast
-from collections.abc import Callable
 from types import ModuleType
+from typing import Any, NamedTuple, cast
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from hypothesis import HealthCheck, given, settings  # noqa: E402
+from hypothesis import errors as hyp_errors  # noqa: E402
+from hypothesis import strategies as st
 from mutate import Mutant, generate_mutants  # noqa: E402
 from safe_eval import compile_claim  # noqa: E402
 from spec_to_test import (  # noqa: E402
-    Expr, SpecParseError, expr_to_python, parse_lean_spec,
+    Expr,
+    SpecParseError,
+    expr_to_python,
+    parse_lean_spec,
 )
-
-from hypothesis import HealthCheck, given, settings, strategies as st  # noqa: E402
-from hypothesis import errors as hyp_errors  # noqa: E402
 
 INTS = st.integers(min_value=-1000, max_value=1000)
 RUN = settings(
@@ -108,8 +111,9 @@ def load_module(source: str, name: str | None = None) -> ModuleType:
         tmp.unlink(missing_ok=True)
 
 
-def build_property(info: dict[str, Any], module: ModuleType
-                   ) -> tuple[Callable[..., None], dict[str, int]]:
+def build_property(
+    info: dict[str, Any], module: ModuleType
+) -> tuple[Callable[..., None], dict[str, int]]:
     """Return (check, reached) — check raises on violation, reached counts hits."""
     func = getattr(module, info["function_name"])
     # Rendered from the parsed tree, not re-derived from text. The Lean strings
@@ -210,7 +214,8 @@ def holds(info: dict[str, Any], module: ModuleType) -> tuple[bool, dict[str, int
 # ══════════════════════════════════════════════════════════════════════════════
 
 OBSERVATIONALLY_EQUIVALENT_UNDER_WITNESS_SET = (
-    "OBSERVATIONALLY_EQUIVALENT_UNDER_WITNESS_SET")
+    "OBSERVATIONALLY_EQUIVALENT_UNDER_WITNESS_SET"
+)
 
 # Fixed so a run is reproducible: same seed -> same witness set -> same verdicts.
 SAMPLE_SEED = 20260819
@@ -233,9 +238,17 @@ PROV_RANDOM = "random"
 PROV_HYPOTHESIS = "hypothesis"
 
 PROVENANCE_ORDER: tuple[str, ...] = (
-    PROV_ISQRT, PROV_DIVISOR, PROV_MODULUS, PROV_OFFSET, PROV_FACTOR,
-    PROV_COMPARE, PROV_BRANCH, PROV_LITERAL, PROV_ADVERSARIAL,
-    PROV_RANDOM, PROV_HYPOTHESIS,
+    PROV_ISQRT,
+    PROV_DIVISOR,
+    PROV_MODULUS,
+    PROV_OFFSET,
+    PROV_FACTOR,
+    PROV_COMPARE,
+    PROV_BRANCH,
+    PROV_LITERAL,
+    PROV_ADVERSARIAL,
+    PROV_RANDOM,
+    PROV_HYPOTHESIS,
 )
 _PROVENANCE_RANK: dict[str, int] = {p: i for i, p in enumerate(PROVENANCE_ORDER)}
 
@@ -257,8 +270,21 @@ class Witness(NamedTuple):
 # values in one point (`if a > 500 and b > 500`). Kept small on purpose: the
 # grid is |values|**arity, so everything else rides the axis sweep instead.
 BOUNDARY_VALUES: tuple[int, ...] = (
-    0, 1, -1, 2, -2, 3, -3, 10, -10, 1000, -1000,
-    10**6, -10**6, 10**12, -10**12,
+    0,
+    1,
+    -1,
+    2,
+    -2,
+    3,
+    -3,
+    10,
+    -10,
+    1000,
+    -1000,
+    10**6,
+    -(10**6),
+    10**12,
+    -(10**12),
 )
 # Companions for the axis sweep: one derived witness is pinned into one
 # argument position while the others take these. Deliberately tiny — the sweep
@@ -345,8 +371,9 @@ def _const_int(node: ast.expr) -> int | None:
 
 
 # ── STRATEGY 2: predicate solving ─────────────────────────────────────────────
-def solve_for_variable(expr: ast.expr, k: int, label: str,
-                       depth: int = 0) -> list[Witness]:
+def solve_for_variable(
+    expr: ast.expr, k: int, label: str, depth: int = 0
+) -> list[Witness]:
     """Values of the variable in `expr` that make `expr` land on `k`.
 
     Each rule is an arithmetic inverse, so the witness is DERIVED rather than
@@ -387,49 +414,58 @@ def solve_for_variable(expr: ast.expr, k: int, label: str,
     # x*x == k / x**2 == k. The guard is the whole point: without
     # `isqrt(k)**2 == k` this rule invents a witness for `a*a == 99980002`,
     # which no integer satisfies, and a bogus witness is a false distinction.
-    is_square = (isinstance(op, ast.Mult) and left_k is None and right_k is None
-                 and ast.dump(left) == ast.dump(right))
+    is_square = (
+        isinstance(op, ast.Mult)
+        and left_k is None
+        and right_k is None
+        and ast.dump(left) == ast.dump(right)
+    )
     is_power_two = isinstance(op, ast.Pow) and right_k == 2
     if (is_square or is_power_two) and k >= 0:
         root = math.isqrt(k)
         if root * root == k:
             for r in (root, -root):
-                out.extend(solve_for_variable(left, r, credit(PROV_ISQRT),
-                                              depth + 1))
+                out.extend(solve_for_variable(left, r, credit(PROV_ISQRT), depth + 1))
 
     if isinstance(op, ast.Mult):
         # `k % c == 0` is the whole guard: without it `a * 3 == 30001` would
         # emit 10000, which does not satisfy the predicate — a witness that
         # cannot fire is a lie in the provenance report.
         if right_k not in (None, 0) and k % right_k == 0:
-            out.extend(solve_for_variable(left, k // right_k,
-                                          credit(PROV_DIVISOR), depth + 1))
+            out.extend(
+                solve_for_variable(left, k // right_k, credit(PROV_DIVISOR), depth + 1)
+            )
         if left_k not in (None, 0) and k % left_k == 0:
-            out.extend(solve_for_variable(right, k // left_k,
-                                          credit(PROV_DIVISOR), depth + 1))
+            out.extend(
+                solve_for_variable(right, k // left_k, credit(PROV_DIVISOR), depth + 1)
+            )
         if left_k is None and right_k is None and not is_square:
             # x*y == k: nothing pins one variable, but every factor of k divides
             # it, and the axis sweep pairs these with a companion 1 / -1.
-            out.extend(Witness(v, credit(PROV_FACTOR))
-                       for v in (1, -1, k, -k))
+            out.extend(Witness(v, credit(PROV_FACTOR)) for v in (1, -1, k, -k))
     elif isinstance(op, ast.Add):
         if right_k is not None:
-            out.extend(solve_for_variable(left, k - right_k,
-                                          credit(PROV_OFFSET), depth + 1))
+            out.extend(
+                solve_for_variable(left, k - right_k, credit(PROV_OFFSET), depth + 1)
+            )
         if left_k is not None:
-            out.extend(solve_for_variable(right, k - left_k,
-                                          credit(PROV_OFFSET), depth + 1))
+            out.extend(
+                solve_for_variable(right, k - left_k, credit(PROV_OFFSET), depth + 1)
+            )
     elif isinstance(op, ast.Sub):
         if right_k is not None:
-            out.extend(solve_for_variable(left, k + right_k,
-                                          credit(PROV_OFFSET), depth + 1))
+            out.extend(
+                solve_for_variable(left, k + right_k, credit(PROV_OFFSET), depth + 1)
+            )
         if left_k is not None:
-            out.extend(solve_for_variable(right, left_k - k,
-                                          credit(PROV_OFFSET), depth + 1))
+            out.extend(
+                solve_for_variable(right, left_k - k, credit(PROV_OFFSET), depth + 1)
+            )
     elif isinstance(op, ast.Mod) and right_k not in (None, 0):
         for residue in (k, k + right_k, k + 2 * right_k):
-            out.extend(solve_for_variable(left, residue,
-                                          credit(PROV_MODULUS), depth + 1))
+            out.extend(
+                solve_for_variable(left, residue, credit(PROV_MODULUS), depth + 1)
+            )
     return out
 
 
@@ -537,13 +573,17 @@ def seeded_stream(seed: int, count: int) -> list[int]:
     adjudication for; that gate fails on any finding it cannot verify, and a
     sampling helper is not the place to spend an exception.
     """
-    return [int.from_bytes(
-        hashlib.blake2b(f"{seed}:{i}".encode("utf-8"), digest_size=8).digest(),
-        "big") for i in range(count)]
+    return [
+        int.from_bytes(
+            hashlib.blake2b(f"{seed}:{i}".encode(), digest_size=8).digest(),
+            "big",
+        )
+        for i in range(count)
+    ]
 
 
 # ── the union ─────────────────────────────────────────────────────────────────
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def witness_set(original_source: str, mutant_source: str) -> tuple[Witness, ...]:
     """Every strategy's witnesses, unioned, deduplicated, most-specific label wins.
 
@@ -577,8 +617,7 @@ def strategy_counts(witnesses: tuple[Witness, ...]) -> tuple[tuple[str, int], ..
     tally: dict[str, int] = {}
     for w in witnesses:
         tally[w.provenance] = tally.get(w.provenance, 0) + 1
-    return tuple((label, tally[label]) for label in PROVENANCE_ORDER
-                 if label in tally)
+    return tuple((label, tally[label]) for label in PROVENANCE_ORDER if label in tally)
 
 
 def grid_values(original_source: str, mutant_source: str) -> tuple[int, ...]:
@@ -596,8 +635,9 @@ def grid_values(original_source: str, mutant_source: str) -> tuple[int, ...]:
     return tuple(sorted(pool))
 
 
-def witness_points(witnesses: tuple[Witness, ...], grid: tuple[int, ...],
-                   arity: int) -> list[tuple[tuple[int, ...], str]]:
+def witness_points(
+    witnesses: tuple[Witness, ...], grid: tuple[int, ...], arity: int
+) -> list[tuple[tuple[int, ...], str]]:
     """(point, provenance) in the order they are tried.
 
     Three legs:
@@ -614,11 +654,11 @@ def witness_points(witnesses: tuple[Witness, ...], grid: tuple[int, ...],
     provenance: dict[int, str] = {w.value: w.provenance for w in witnesses}
 
     def label(point: tuple[int, ...]) -> str:
-        return min((provenance.get(v, PROV_RANDOM) for v in point),
-                   key=provenance_rank)
+        return min((provenance.get(v, PROV_RANDOM) for v in point), key=provenance_rank)
 
     points: list[tuple[tuple[int, ...], str]] = [
-        (p, label(p)) for p in itertools.product(grid, repeat=arity)]
+        (p, label(p)) for p in itertools.product(grid, repeat=arity)
+    ]
 
     in_grid = set(grid)
     for w in witnesses:
@@ -646,8 +686,9 @@ def witness_points(witnesses: tuple[Witness, ...], grid: tuple[int, ...],
     return points
 
 
-def observe(fn: Callable[..., object], point: tuple[int, ...]
-            ) -> tuple[str, str, object]:
+def observe(
+    fn: Callable[..., object], point: tuple[int, ...]
+) -> tuple[str, str, object]:
     """Everything observable at one point: kind, type name, value-or-message.
 
     A raise is an observation, not a failure to observe — the pre-change check
@@ -681,8 +722,10 @@ SEARCH = settings(
 
 
 def search_for_distinguishing_input(
-    f: Callable[..., object], g: Callable[..., object],
-    values: tuple[int, ...], arity: int,
+    f: Callable[..., object],
+    g: Callable[..., object],
+    values: tuple[int, ...],
+    arity: int,
 ) -> tuple[bool, tuple[int, ...] | None]:
     """Ask Hypothesis to break the equivalence claim before it is made.
 
@@ -710,10 +753,10 @@ def search_for_distinguishing_input(
     return (True, found[-1] if found else None)
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def observationally_equivalent_under_witness_set(
-        original_source: str, mutant_source: str,
-        func_name: str, arity: int) -> SampleVerdict:
+    original_source: str, mutant_source: str, func_name: str, arity: int
+) -> SampleVerdict:
     """Did any derived witness tell the mutant apart from the original?
 
     `a + b` mutated to `b + a` is not a bug, and no spec can kill it; counting it
@@ -725,11 +768,13 @@ def observationally_equivalent_under_witness_set(
         original = load_module(original_source)
         mutant = load_module(mutant_source)
     except Exception:
-        return SampleVerdict(False, 0, SAMPLE_SEED, 0, None,
-                             "mutant or original failed to load")
+        return SampleVerdict(
+            False, 0, SAMPLE_SEED, 0, None, "mutant or original failed to load"
+        )
     if not hasattr(original, func_name) or not hasattr(mutant, func_name):
-        return SampleVerdict(False, 0, SAMPLE_SEED, 0, None,
-                             f"{func_name} missing from the mutant")
+        return SampleVerdict(
+            False, 0, SAMPLE_SEED, 0, None, f"{func_name} missing from the mutant"
+        )
     f = cast("Callable[..., object]", getattr(original, func_name))
     g = cast("Callable[..., object]", getattr(mutant, func_name))
 
@@ -742,36 +787,70 @@ def observationally_equivalent_under_witness_set(
     for point, provenance in witness_points(witnesses, grid, arity):
         tested += 1
         if observe(f, point) != observe(g, point):
-            return SampleVerdict(False, tested, SAMPLE_SEED, 0, point,
-                                 f"distinguished by a {provenance} witness",
-                                 size, provenance, counts)
+            return SampleVerdict(
+                False,
+                tested,
+                SAMPLE_SEED,
+                0,
+                point,
+                f"distinguished by a {provenance} witness",
+                size,
+                provenance,
+                counts,
+            )
 
     searched_ok, witness = search_for_distinguishing_input(
-        f, g, tuple(w.value for w in witnesses), arity)
+        f, g, tuple(w.value for w in witnesses), arity
+    )
     if witness is not None:
-        return SampleVerdict(False, tested, SAMPLE_SEED, DISTINGUISHER_EXAMPLES,
-                             witness, "distinguished by hypothesis",
-                             size, PROV_HYPOTHESIS, counts)
+        return SampleVerdict(
+            False,
+            tested,
+            SAMPLE_SEED,
+            DISTINGUISHER_EXAMPLES,
+            witness,
+            "distinguished by hypothesis",
+            size,
+            PROV_HYPOTHESIS,
+            counts,
+        )
     if not searched_ok:
-        return SampleVerdict(False, tested, SAMPLE_SEED, 0, None,
-                             "hypothesis search failed; not excluded",
-                             size, None, counts)
-    return SampleVerdict(True, tested, SAMPLE_SEED, DISTINGUISHER_EXAMPLES, None,
-                         OBSERVATIONALLY_EQUIVALENT_UNDER_WITNESS_SET,
-                         size, None, counts)
+        return SampleVerdict(
+            False,
+            tested,
+            SAMPLE_SEED,
+            0,
+            None,
+            "hypothesis search failed; not excluded",
+            size,
+            None,
+            counts,
+        )
+    return SampleVerdict(
+        True,
+        tested,
+        SAMPLE_SEED,
+        DISTINGUISHER_EXAMPLES,
+        None,
+        OBSERVATIONALLY_EQUIVALENT_UNDER_WITNESS_SET,
+        size,
+        None,
+        counts,
+    )
 
 
 def describe_witness_set(verdict: SampleVerdict) -> str:
     """One line naming the size of the search and what it did NOT establish."""
     breakdown = ", ".join(f"{label} {n}" for label, n in verdict.strategy_counts)
-    return (f"witness set {verdict.witness_set_size} values "
-            f"[{breakdown or 'none'}] -> {verdict.points_tested} points each "
-            f"+ {verdict.hypothesis_examples} hypothesis examples, "
-            f"seed {verdict.seed}")
+    return (
+        f"witness set {verdict.witness_set_size} values "
+        f"[{breakdown or 'none'}] -> {verdict.points_tested} points each "
+        f"+ {verdict.hypothesis_examples} hypothesis examples, "
+        f"seed {verdict.seed}"
+    )
 
 
-def evaluate(spec_file: str, source_file: str, threshold: float
-             ) -> dict[str, Any]:
+def evaluate(spec_file: str, source_file: str, threshold: float) -> dict[str, Any]:
     """Score one spec. Raises SpecParseError if the spec cannot be parsed —
     an unparsed spec has been verified by nothing and must never be skipped."""
     info = parse_lean_spec(spec_file)
@@ -783,16 +862,20 @@ def evaluate(spec_file: str, source_file: str, threshold: float
     # 1. counterexample first
     ok, stats = holds(info, original)
     if not ok:
-        print(f"❌ {spec_file}: counterexample found — the spec is FALSE of {source_file}")
+        print(
+            f"❌ {spec_file}: counterexample found — the spec is FALSE of {source_file}"
+        )
         report["verdict"] = "false"
         return report
-    print(f"  ✓ no counterexample against the real function")
+    print("  ✓ no counterexample against the real function")
 
     # 2. vacuity
     rate = stats["reached"] / stats["total"] if stats["total"] else 0.0
     report["precondition_reach"] = round(rate, 3)
     if info["hypothesis"] and rate < 0.01:
-        print(f"❌ {spec_file}: vacuous — precondition satisfied by {rate:.1%} of inputs")
+        print(
+            f"❌ {spec_file}: vacuous — precondition satisfied by {rate:.1%} of inputs"
+        )
         report["verdict"] = "vacuous"
         return report
     print(f"  ✓ precondition reachable ({rate:.0%} of inputs)")
@@ -803,43 +886,51 @@ def evaluate(spec_file: str, source_file: str, threshold: float
     excluded: list[tuple[str, SampleVerdict]] = []
     for mut in mutants:
         verdict = observationally_equivalent_under_witness_set(
-            source, mut.source, info["function_name"], len(info["args"]))
+            source, mut.source, info["function_name"], len(info["args"])
+        )
         if verdict.indistinguishable:
             excluded.append((mut.name, verdict))
-            print(f"  – excluded: {mut.name} "
-                  f"({OBSERVATIONALLY_EQUIVALENT_UNDER_WITNESS_SET}: no "
-                  f"difference on {describe_witness_set(verdict)}) — "
-                  f"NOT proven semantically equivalent")
+            print(
+                f"  – excluded: {mut.name} "
+                f"({OBSERVATIONALLY_EQUIVALENT_UNDER_WITNESS_SET}: no "
+                f"difference on {describe_witness_set(verdict)}) — "
+                f"NOT proven semantically equivalent"
+            )
         else:
             live.append(mut)
             # Which strategy earned the exclusion's absence. Printed because a
             # derivation nobody can see is indistinguishable from a guess.
-            print(f"  · distinguished: {mut.name} at "
-                  f"{verdict.distinguishing_input} by strategy "
-                  f"{verdict.witness_provenance}")
+            print(
+                f"  · distinguished: {mut.name} at "
+                f"{verdict.distinguishing_input} by strategy "
+                f"{verdict.witness_provenance}"
+            )
     mutants = live
-    report.update(observationally_equivalent=len(excluded),
-                  indistinguishable_on_sample=len(excluded),
-                  witness_set_size=min((v.witness_set_size for _, v in excluded),
-                                       default=0),
-                  sample_points=min((v.points_tested for _, v in excluded),
-                                    default=0),
-                  sample_seed=SAMPLE_SEED,
-                  hypothesis_examples=DISTINGUISHER_EXAMPLES,
-                  excluded_names=[n for n, _ in excluded])
+    report.update(
+        observationally_equivalent=len(excluded),
+        indistinguishable_on_sample=len(excluded),
+        witness_set_size=min((v.witness_set_size for _, v in excluded), default=0),
+        sample_points=min((v.points_tested for _, v in excluded), default=0),
+        sample_seed=SAMPLE_SEED,
+        hypothesis_examples=DISTINGUISHER_EXAMPLES,
+        excluded_names=[n for n, _ in excluded],
+    )
 
     # A denominator of zero is not a perfect score, it is a measurement that did
     # not happen. Left as killed/total it would be 0/0; left to the threshold it
     # would pass at --min-strength 0. Named and failed here instead.
     if not mutants:
-        report.update(mutants=0, killed=0, strength=0.0, survivors=[],
-                      verdict="zero-denominator")
-        print(f"\n  spec strength: 0.00  (0/0 — nothing left to kill)")
-        print(f"❌ {spec_file}: ZERO DENOMINATOR — {len(generate_mutants(source))} "
-              f"mutants generated, {len(excluded)} excluded as "
-              f"{OBSERVATIONALLY_EQUIVALENT_UNDER_WITNESS_SET}, 0 scored. A spec "
-              f"that killed "
-              f"nothing scored nothing: hard FAIL, not a vacuous 100%.")
+        report.update(
+            mutants=0, killed=0, strength=0.0, survivors=[], verdict="zero-denominator"
+        )
+        print("\n  spec strength: 0.00  (0/0 — nothing left to kill)")
+        print(
+            f"❌ {spec_file}: ZERO DENOMINATOR — {len(generate_mutants(source))} "
+            f"mutants generated, {len(excluded)} excluded as "
+            f"{OBSERVATIONALLY_EQUIVALENT_UNDER_WITNESS_SET}, 0 scored. A spec "
+            f"that killed "
+            f"nothing scored nothing: hard FAIL, not a vacuous 100%."
+        )
         return report
 
     killed = 0
@@ -858,13 +949,19 @@ def evaluate(spec_file: str, source_file: str, threshold: float
             print(f"  ✓ killed:   {mut.name}")
 
     strength = killed / len(mutants)
-    report.update(mutants=len(mutants), killed=killed,
-                  strength=round(strength, 3), survivors=survivors)
+    report.update(
+        mutants=len(mutants),
+        killed=killed,
+        strength=round(strength, 3),
+        survivors=survivors,
+    )
 
-    print(f"\n  spec strength: {strength:.2f}  ({killed}/{len(mutants)} mutants "
-          f"killed, {len(excluded)} excluded as "
-          f"{OBSERVATIONALLY_EQUIVALENT_UNDER_WITNESS_SET} at seed {SAMPLE_SEED} "
-          f"— NOT proven semantically equivalent)")
+    print(
+        f"\n  spec strength: {strength:.2f}  ({killed}/{len(mutants)} mutants "
+        f"killed, {len(excluded)} excluded as "
+        f"{OBSERVATIONALLY_EQUIVALENT_UNDER_WITNESS_SET} at seed {SAMPLE_SEED} "
+        f"— NOT proven semantically equivalent)"
+    )
     if strength < threshold:
         print(f"❌ {spec_file} is too weak ({strength:.2f} < {threshold:.2f})")
         report["verdict"] = "weak"
@@ -888,7 +985,7 @@ def compose(reports: list[dict[str, Any]]) -> list[str]:
     # A spec "covers" the mutants it kills = universe - its survivors.
     remaining: set[str] = set()
     for spec in by_spec:
-        remaining |= (universe - by_spec[spec])
+        remaining |= universe - by_spec[spec]
     chosen: list[str] = []
     while remaining:
         best = max(by_spec, key=lambda s: len((universe - by_spec[s]) & remaining))
@@ -939,8 +1036,10 @@ if __name__ == "__main__":
             all_survivors &= extra
         total = max(r["mutants"] for r in scored)
         joint = (total - len(all_survivors)) / total if total else 0.0
-        print(f"\n  JOINT strength over {len(scored)} specs: {joint:.2f} "
-              f"({total - len(all_survivors)}/{total} mutants killed by the set)")
+        print(
+            f"\n  JOINT strength over {len(scored)} specs: {joint:.2f} "
+            f"({total - len(all_survivors)}/{total} mutants killed by the set)"
+        )
         if all_survivors:
             print(f"  survives the whole set: {', '.join(sorted(all_survivors))}")
         print(f"  minimal covering set: {', '.join(compose(reports))}")
@@ -951,6 +1050,8 @@ if __name__ == "__main__":
     print("\nSPEC STRENGTH\n──────────────")
     for r in reports:
         if "strength" in r:
-            print(f"{r['spec']}: {r['strength']:.0%} mutants killed "
-                  f"({r['killed']}/{r['mutants']}), verdict {r['verdict']}")
+            print(
+                f"{r['spec']}: {r['strength']:.0%} mutants killed "
+                f"({r['killed']}/{r['mutants']}), verdict {r['verdict']}"
+            )
     sys.exit(1 if failed else 0)

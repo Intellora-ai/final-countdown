@@ -83,6 +83,7 @@ here, so neither file changed format to suit the other.
 from __future__ import annotations
 
 import argparse
+import ast
 import re
 import sys
 import tomllib
@@ -94,6 +95,7 @@ import yaml
 MANIFEST = Path("ci/gates.toml")
 REQUIREMENTS = Path("ci/requirements.yml")
 ASSUMPTIONS = Path("ci/assumptions.yml")
+FIXTURES = Path("ci/regression-fixtures.yml")
 
 SCHEMA_VERSION = 1
 
@@ -106,10 +108,22 @@ STATUSES = ("verified", "falsified", "unverified", "not-applicable")
 # left empty so an omission and a decision look different in a diff.
 NOTHING = "none"
 
-REQUIRED_REQ_FIELDS = ("id", "statement", "verification", "severity",
-                       "evidence", "source")
-REQUIRED_ASM_FIELDS = ("id", "statement", "impact", "how_to_test", "status",
-                       "documented_in")
+REQUIRED_REQ_FIELDS = (
+    "id",
+    "statement",
+    "verification",
+    "severity",
+    "evidence",
+    "source",
+)
+REQUIRED_ASM_FIELDS = (
+    "id",
+    "statement",
+    "impact",
+    "how_to_test",
+    "status",
+    "documented_in",
+)
 OPTIONAL_REQ_FIELDS = ("note",)
 OPTIONAL_ASM_FIELDS = ("accepted", "note")
 
@@ -117,18 +131,28 @@ REQ_ID = re.compile(r"^REQ-\d{3}$")
 ASM_ID = re.compile(r"^ASM-\d{3}$")
 
 # Lengths, not adjectives. Each one names the thing it is there to reject.
-MIN_STATEMENT = 20      # rejects "it works"
-MIN_HOW_TO_TEST = 20    # rejects "run the tests"
-MIN_ACCEPTED = 40       # rejects "known", "wontfix", "by design"
+MIN_STATEMENT = 20  # rejects "it works"
+MIN_HOW_TO_TEST = 20  # rejects "run the tests"
+MIN_ACCEPTED = 40  # rejects "known", "wontfix", "by design"
 
 # Openers that describe an intention to think rather than an action to take.
 # `how_to_test` has to be something a person could do tomorrow, so a plan to
 # form a plan is rejected. Deliberately short: "review" and "read" are real
 # actions here and are NOT on this list.
-VAGUE_OPENERS = frozenset({
-    "investigate", "tbd", "todo", "unknown", "n/a", "consider", "explore",
-    "research", "somehow", "maybe",
-})
+VAGUE_OPENERS = frozenset(
+    {
+        "investigate",
+        "tbd",
+        "todo",
+        "unknown",
+        "n/a",
+        "consider",
+        "explore",
+        "research",
+        "somehow",
+        "maybe",
+    }
+)
 
 
 class CannotRun(Exception):
@@ -154,8 +178,9 @@ def load_manifest(path: Path) -> dict[str, dict[str, Any]]:
     return out
 
 
-def load_rows(path: Path, collection: str, required: tuple[str, ...],
-              optional: tuple[str, ...]) -> list[dict[str, str]]:
+def load_rows(
+    path: Path, collection: str, required: tuple[str, ...], optional: tuple[str, ...]
+) -> list[dict[str, str]]:
     """Read one registry, or raise CannotRun.
 
     Shape defects raise (exit 2). Value defects do not — they are findings, and
@@ -186,7 +211,8 @@ def load_rows(path: Path, collection: str, required: tuple[str, ...],
     if not rows:
         raise CannotRun(
             f"{path}: `{collection}:` is empty. An empty registry would let "
-            f"this gate report success having checked nothing.")
+            f"this gate report success having checked nothing."
+        )
 
     allowed = set(required) | set(optional)
     out: list[dict[str, str]] = []
@@ -204,7 +230,8 @@ def load_rows(path: Path, collection: str, required: tuple[str, ...],
                 raise CannotRun(f"{where}: field `{name}` is reserved")
             if not isinstance(value, str):
                 raise CannotRun(
-                    f"{where}: `{name}` is {type(value).__name__}, not text")
+                    f"{where}: `{name}` is {type(value).__name__}, not text"
+                )
             entry[name] = value.strip()
         for field in required:
             if not entry.get(field):
@@ -226,14 +253,16 @@ def duplicates(rows: list[dict[str, str]]) -> list[str]:
     return repeated
 
 
-def check_requirements(rows: list[dict[str, str]],
-                       gates: dict[str, dict[str, Any]]) -> list[str]:
+def check_requirements(
+    rows: list[dict[str, str]], gates: dict[str, dict[str, Any]]
+) -> list[str]:
     findings: list[str] = []
 
     for ident in duplicates(rows):
         findings.append(
             f"duplicate id {ident} in the requirement registry — two rows "
-            f"claiming one id is an ambiguity, not redundancy")
+            f"claiming one id is an ambiguity, not redundancy"
+        )
 
     for row in rows:
         ident = row["id"]
@@ -242,17 +271,19 @@ def check_requirements(rows: list[dict[str, str]],
         if row["_unknown"]:
             findings.append(
                 f"{ident}: unknown field(s) {row['_unknown']} — a mistyped "
-                f"field is silently ignored, which is how a registry rots")
+                f"field is silently ignored, which is how a registry rots"
+            )
         if len(row["statement"]) < MIN_STATEMENT:
             findings.append(
                 f"{ident}: statement is {len(row['statement'])} characters; a "
-                f"falsifiable sentence needs at least {MIN_STATEMENT}")
+                f"falsifiable sentence needs at least {MIN_STATEMENT}"
+            )
 
         severity = row["severity"]
         if severity not in SEVERITIES:
             findings.append(
-                f"{ident}: severity {severity!r} is outside "
-                f"{{{', '.join(SEVERITIES)}}}")
+                f"{ident}: severity {severity!r} is outside {{{', '.join(SEVERITIES)}}}"
+            )
 
         named = row["verification"]
         evidence = row["evidence"]
@@ -262,7 +293,8 @@ def check_requirements(rows: list[dict[str, str]],
                 findings.append(
                     f"{ident}: verification is `none` but evidence is "
                     f"{evidence!r} — nothing produces evidence for a "
-                    f"requirement nothing verifies")
+                    f"requirement nothing verifies"
+                )
             continue
 
         gate = gates.get(named)
@@ -270,14 +302,16 @@ def check_requirements(rows: list[dict[str, str]],
             findings.append(
                 f"{ident}: verification names gate {named!r}, which is not in "
                 f"{MANIFEST}. Declared gates are: "
-                f"{', '.join(sorted(gates))}")
+                f"{', '.join(sorted(gates))}"
+            )
             continue
 
         declared = gate.get("evidence")
         if not isinstance(declared, str) or evidence != declared:
             findings.append(
                 f"{ident}: evidence {evidence!r} does not match the evidence "
-                f"gate {named!r} actually declares ({declared!r})")
+                f"gate {named!r} actually declares ({declared!r})"
+            )
 
         mandatory = bool(gate.get("mandatory"))
         expected = "blocking" if mandatory else "advisory"
@@ -287,12 +321,14 @@ def check_requirements(rows: list[dict[str, str]],
                 f"mandatory = {str(mandatory).lower()}, so it must be "
                 f"{expected!r}. A requirement cannot block on a gate that "
                 f"blocks nothing, and a gate that blocks must not be called "
-                f"advisory")
+                f"advisory"
+            )
         if not mandatory:
             findings.append(
                 f"{ident}: cites gate {named!r}, which is not mandatory. A "
                 f"gate GitHub does not require runs, goes red, and the pull "
-                f"request merges anyway — it cannot establish a requirement")
+                f"request merges anyway — it cannot establish a requirement"
+            )
 
     return findings
 
@@ -303,7 +339,8 @@ def check_assumptions(rows: list[dict[str, str]]) -> list[str]:
     for ident in duplicates(rows):
         findings.append(
             f"duplicate id {ident} in the assumption registry — two rows "
-            f"claiming one id is an ambiguity, not redundancy")
+            f"claiming one id is an ambiguity, not redundancy"
+        )
 
     for row in rows:
         ident = row["id"]
@@ -312,43 +349,49 @@ def check_assumptions(rows: list[dict[str, str]]) -> list[str]:
         if row["_unknown"]:
             findings.append(
                 f"{ident}: unknown field(s) {row['_unknown']} — a mistyped "
-                f"field is silently ignored, which is how a registry rots")
+                f"field is silently ignored, which is how a registry rots"
+            )
         if len(row["statement"]) < MIN_STATEMENT:
             findings.append(
                 f"{ident}: statement is {len(row['statement'])} characters; "
-                f"at least {MIN_STATEMENT} are needed to say anything")
+                f"at least {MIN_STATEMENT} are needed to say anything"
+            )
 
         impact = row["impact"]
         status = row["status"]
         if impact not in IMPACTS:
             findings.append(
-                f"{ident}: impact {impact!r} is outside "
-                f"{{{', '.join(IMPACTS)}}}")
+                f"{ident}: impact {impact!r} is outside {{{', '.join(IMPACTS)}}}"
+            )
         if status not in STATUSES:
             findings.append(
-                f"{ident}: status {status!r} is outside "
-                f"{{{', '.join(STATUSES)}}}")
+                f"{ident}: status {status!r} is outside {{{', '.join(STATUSES)}}}"
+            )
 
         plan = row["how_to_test"]
         opener = plan.split()[0].strip(",.:;").lower() if plan.split() else ""
         if len(plan) < MIN_HOW_TO_TEST:
             findings.append(
                 f"{ident}: how_to_test is {len(plan)} characters; a concrete "
-                f"action needs at least {MIN_HOW_TO_TEST}")
+                f"action needs at least {MIN_HOW_TO_TEST}"
+            )
         elif opener in VAGUE_OPENERS:
             findings.append(
                 f"{ident}: how_to_test opens with {opener!r}, which is an "
                 f"intention to think rather than an action to take. Name what "
-                f"someone would run or read, and what result would settle it")
+                f"someone would run or read, and what result would settle it"
+            )
 
-        findings.extend(acceptance_findings(ident, impact, status,
-                                            row.get("accepted", "")))
+        findings.extend(
+            acceptance_findings(ident, impact, status, row.get("accepted", ""))
+        )
 
     return findings
 
 
-def acceptance_findings(ident: str, impact: str, status: str,
-                        accepted: str) -> list[str]:
+def acceptance_findings(
+    ident: str, impact: str, status: str, accepted: str
+) -> list[str]:
     """The policy. See the module docstring for why it is shaped this way."""
     if impact == "high" and status == "falsified":
         return [
@@ -361,8 +404,11 @@ def acceptance_findings(ident: str, impact: str, status: str,
     needs = (impact == "high" and status == "unverified") or status == "falsified"
 
     if needs and len(accepted) < MIN_ACCEPTED:
-        why = ("impact high and never tested" if status == "unverified"
-               else "measured and found false")
+        why = (
+            "impact high and never tested"
+            if status == "unverified"
+            else "measured and found false"
+        )
         return [
             f"{ident}: {why}, and `accepted:` is "
             f"{len(accepted)} characters. Policy needs at least "
@@ -380,8 +426,9 @@ def acceptance_findings(ident: str, impact: str, status: str,
     return []
 
 
-def tally(rows: list[dict[str, str]], field: str,
-          values: tuple[str, ...]) -> dict[str, int]:
+def tally(
+    rows: list[dict[str, str]], field: str, values: tuple[str, ...]
+) -> dict[str, int]:
     counts = {v: 0 for v in values}
     for row in rows:
         if row[field] in counts:
@@ -389,8 +436,11 @@ def tally(rows: list[dict[str, str]], field: str,
     return counts
 
 
-def inventory(reqs: list[dict[str, str]], asms: list[dict[str, str]],
-              gates: dict[str, dict[str, Any]]) -> None:
+def inventory(
+    reqs: list[dict[str, str]],
+    asms: list[dict[str, str]],
+    gates: dict[str, dict[str, Any]],
+) -> None:
     """The output a human reads. Counts, then the rows those counts came from."""
     unverified_reqs = [r for r in reqs if r["verification"] == NOTHING]
     covered = {r["verification"] for r in reqs} - {NOTHING}
@@ -398,8 +448,10 @@ def inventory(reqs: list[dict[str, str]], asms: list[dict[str, str]],
     sev = tally(reqs, "severity", SEVERITIES)
 
     print("[REGISTRY GATE]")
-    print(f"manifest: {MANIFEST}   gates declared: {len(gates)}   "
-          f"mandatory: {sum(1 for g in gates.values() if g.get('mandatory'))}")
+    print(
+        f"manifest: {MANIFEST}   gates declared: {len(gates)}   "
+        f"mandatory: {sum(1 for g in gates.values() if g.get('mandatory'))}"
+    )
 
     print(f"\nrequirements: {len(reqs)}")
     print(f"  verified by a gate      {len(reqs) - len(unverified_reqs)}")
@@ -410,11 +462,11 @@ def inventory(reqs: list[dict[str, str]], asms: list[dict[str, str]],
     if unverified_reqs:
         print("\n  NOTHING VERIFIES THESE:")
         for row in unverified_reqs:
-            print(f"    {row['id']}  [{row['severity']}]  "
-                  f"{row['statement'][:88]}")
+            print(f"    {row['id']}  [{row['severity']}]  {row['statement'][:88]}")
 
-    print(f"\n  gates cited by at least one requirement: "
-          f"{len(covered)} of {len(gates)}")
+    print(
+        f"\n  gates cited by at least one requirement: {len(covered)} of {len(gates)}"
+    )
     if uncited:
         print(f"  cited by no requirement: {', '.join(uncited)}")
 
@@ -427,14 +479,137 @@ def inventory(reqs: list[dict[str, str]], asms: list[dict[str, str]],
         print(f"  status {name:<16} {status_counts[name]}")
     for name in IMPACTS:
         print(f"  impact {name:<16} {impact_counts[name]}")
-    print(f"  high impact, not verified: "
-          f"{sum(1 for a in asms if a['impact'] == 'high' and a['status'] != 'verified')}")
+    print(
+        f"  high impact, not verified: "
+        f"{sum(1 for a in asms if a['impact'] == 'high' and a['status'] != 'verified')}"
+    )
     print(f"  carrying an accepted-risk statement: {len(carried)}")
     if carried:
         print("\n  ACCEPTED RISKS:")
         for row in carried:
-            print(f"    {row['id']}  [{row['impact']}/{row['status']}]  "
-                  f"{row['statement'][:88]}")
+            print(
+                f"    {row['id']}  [{row['impact']}/{row['status']}]  "
+                f"{row['statement'][:88]}"
+            )
+
+
+
+# ---------------------------------------------------------------------------
+# REGRESSION FIXTURES — a registry that names a deleted test proves nothing.
+#
+# ci/regression-fixtures.yml claims that twelve specific failures cannot come
+# back without a test going red. A row whose test was renamed six commits ago
+# documents a proof nobody runs, and it reads exactly like one that works. The
+# rows are therefore RESOLVED, not read: the file must exist and the function
+# must be defined in it.
+#
+# Parsed rather than grepped. A grep for the test name matches it inside a
+# docstring or a comment, which is precisely how a row keeps "resolving" to a
+# test that was deleted and only mentioned in prose afterwards.
+# ---------------------------------------------------------------------------
+REQUIRED_FIXTURE_FIELDS = (
+    "id",
+    "requirement",
+    "test_file",
+    "test_name",
+    "command",
+    "expected_broken",
+    "expected_fixed",
+    "tier",
+    "deterministic",
+    "network_required",
+    "source_evidence",
+)
+FIXTURE_TIERS = ("sandbox-fast", "sandbox-test", "github-only", "external")
+SOURCE_TYPES = ("ESCAPE", "REQUIREMENT")
+MIN_REFERENCE = 30
+
+
+def _defined_functions(path: Path) -> set[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    return {
+        node.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+    }
+
+
+def load_fixtures(path: Path) -> list[dict[str, Any]]:
+    if not path.is_file():
+        raise CannotRun(f"{path} is missing; the regression registry cannot be checked")
+    try:
+        doc = cast("dict[str, Any]", yaml.safe_load(path.read_text(encoding="utf-8")))
+    except yaml.YAMLError as exc:
+        raise CannotRun(f"{path} is not readable YAML: {exc}") from exc
+    rows = cast("list[dict[str, Any]]", doc.get("fixtures") or [])
+    if not rows:
+        raise CannotRun(
+            f"{path} declares no fixtures. A guard over an empty registry passes "
+            "vacuously and proves nothing."
+        )
+    return rows
+
+
+def check_fixtures(rows: list[dict[str, Any]]) -> list[str]:
+    findings: list[str] = []
+    seen: set[str] = set()
+
+    for row in rows:
+        ident = str(row.get("id", "<no id>"))
+        if ident in seen:
+            findings.append(f"{ident}: duplicate fixture id")
+        seen.add(ident)
+
+        for field in REQUIRED_FIXTURE_FIELDS:
+            if field not in row or row[field] in (None, "", []):
+                findings.append(f"{ident}: missing {field}")
+
+        tier = str(row.get("tier", ""))
+        if tier and tier not in FIXTURE_TIERS:
+            findings.append(
+                f"{ident}: tier {tier!r} is not one of {', '.join(FIXTURE_TIERS)}"
+            )
+
+        source = row.get("source_evidence")
+        if isinstance(source, dict):
+            typed = cast("dict[str, Any]", source)
+            kind = str(typed.get("type", ""))
+            if kind not in SOURCE_TYPES:
+                findings.append(
+                    f"{ident}: source_evidence.type is {kind!r}; only "
+                    f"{' or '.join(SOURCE_TYPES)}"
+                )
+            reference = str(typed.get("reference", "")).strip()
+            if len(reference) < MIN_REFERENCE:
+                findings.append(
+                    f"{ident}: source_evidence.reference is {len(reference)} "
+                    f"characters. An ESCAPE needs a linkable commit, pull request, "
+                    f"CI run or incident record; a REQUIREMENT needs the document "
+                    f"the rule comes from. Neither fits in {MIN_REFERENCE}."
+                )
+        elif "source_evidence" in row:
+            findings.append(f"{ident}: source_evidence is not a table")
+
+        test_file = str(row.get("test_file", ""))
+        test_name = str(row.get("test_name", ""))
+        if not test_file or not test_name:
+            continue
+        path = Path(test_file)
+        if not path.is_file():
+            findings.append(f"{ident}: test_file {test_file} does not exist")
+            continue
+        try:
+            defined = _defined_functions(path)
+        except (OSError, SyntaxError) as exc:
+            findings.append(f"{ident}: {test_file} could not be parsed: {exc}")
+            continue
+        if test_name not in defined:
+            findings.append(
+                f"{ident}: {test_file} defines no {test_name}. The row documents a "
+                "regression proof that does not run."
+            )
+
+    return findings
 
 
 def main() -> int:
@@ -442,23 +617,50 @@ def main() -> int:
     ap.add_argument("--gates", type=Path, default=MANIFEST)
     ap.add_argument("--requirements", type=Path, default=REQUIREMENTS)
     ap.add_argument("--assumptions", type=Path, default=ASSUMPTIONS)
+    ap.add_argument("--fixtures", type=Path, default=FIXTURES)
     ns = ap.parse_args()
 
     try:
         gates = load_manifest(cast("Path", ns.gates))
-        reqs = load_rows(cast("Path", ns.requirements), "requirements",
-                         REQUIRED_REQ_FIELDS, OPTIONAL_REQ_FIELDS)
-        asms = load_rows(cast("Path", ns.assumptions), "assumptions",
-                         REQUIRED_ASM_FIELDS, OPTIONAL_ASM_FIELDS)
+        reqs = load_rows(
+            cast("Path", ns.requirements),
+            "requirements",
+            REQUIRED_REQ_FIELDS,
+            OPTIONAL_REQ_FIELDS,
+        )
+        asms = load_rows(
+            cast("Path", ns.assumptions),
+            "assumptions",
+            REQUIRED_ASM_FIELDS,
+            OPTIONAL_ASM_FIELDS,
+        )
+        fixtures = load_fixtures(cast("Path", ns.fixtures))
     except CannotRun as exc:
         print(f"CANNOT RUN: {exc}", file=sys.stderr)
-        print("A registry this gate cannot read has not been checked, and "
-              "'could not check' is not 'checked and fine'.", file=sys.stderr)
+        print(
+            "A registry this gate cannot read has not been checked, and "
+            "'could not check' is not 'checked and fine'.",
+            file=sys.stderr,
+        )
         return 2
 
     inventory(reqs, asms, gates)
 
-    findings = check_requirements(reqs, gates) + check_assumptions(asms)
+    print(f"\nregression fixtures: {len(fixtures)}")
+    escapes = [
+        r
+        for r in fixtures
+        if str(cast("dict[str, Any]", r.get("source_evidence", {})).get("type"))
+        == "ESCAPE"
+    ]
+    print(f"  from a recorded escape  {len(escapes)}")
+    print(f"  requirement-derived     {len(fixtures) - len(escapes)}")
+
+    findings = (
+        check_requirements(reqs, gates)
+        + check_assumptions(asms)
+        + check_fixtures(fixtures)
+    )
     if findings:
         print(f"\nFAIL — {len(findings)} finding(s):", file=sys.stderr)
         for finding in findings:

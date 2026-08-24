@@ -39,8 +39,7 @@ ACTIONS_APP = 15368
 # Fields the PUT accepts. Anything the GET returns that is not here is
 # read-only metadata (id, node_id, timestamps, _links, source*) and must not
 # be sent back.
-WRITABLE = ("name", "target", "enforcement", "conditions", "rules",
-            "bypass_actors")
+WRITABLE = ("name", "target", "enforcement", "conditions", "rules", "bypass_actors")
 
 
 def gh(args: list[str], body: str | None = None) -> str:
@@ -51,17 +50,21 @@ def gh(args: list[str], body: str | None = None) -> str:
     exe = shutil.which("gh")
     if exe is None:
         raise SystemExit("gh is not on PATH; cannot reach the GitHub API")
-    out = subprocess.run([exe, *args], input=body, capture_output=True,
-                         text=True, timeout=120)
+    out = subprocess.run(
+        [exe, *args], input=body, capture_output=True, text=True, timeout=120
+    )
     if out.returncode != 0:
-        raise SystemExit(f"gh {' '.join(args)} failed ({out.returncode}):\n"
-                         f"{(out.stderr or out.stdout).strip()[:800]}")
+        raise SystemExit(
+            f"gh {' '.join(args)} failed ({out.returncode}):\n"
+            f"{(out.stderr or out.stdout).strip()[:800]}"
+        )
     return out.stdout
 
 
 def fetch() -> dict[str, Any]:
-    return cast("dict[str, Any]",
-                json.loads(gh(["api", f"repos/{REPO}/rulesets/{RULESET_ID}"])))
+    return cast(
+        "dict[str, Any]", json.loads(gh(["api", f"repos/{REPO}/rulesets/{RULESET_ID}"]))
+    )
 
 
 def strip_nulls(rule: Any) -> dict[str, Any]:
@@ -79,8 +82,7 @@ def strip_nulls(rule: Any) -> dict[str, Any]:
     params = typed.get("parameters")
     if not isinstance(params, dict):
         return typed
-    kept = {k: v for k, v in cast("dict[str, Any]", params).items()
-            if v is not None}
+    kept = {k: v for k, v in cast("dict[str, Any]", params).items() if v is not None}
     return dict(typed, parameters=kept)
 
 
@@ -94,8 +96,10 @@ def body_from(live: dict[str, Any]) -> dict[str, Any]:
 
 def checks_rule(rules: list[Any]) -> dict[str, Any] | None:
     for r in rules:
-        if isinstance(r, dict) and \
-                cast("dict[str, Any]", r).get("type") == "required_status_checks":
+        if (
+            isinstance(r, dict)
+            and cast("dict[str, Any]", r).get("type") == "required_status_checks"
+        ):
             return cast("dict[str, Any]", r)
     return None
 
@@ -110,21 +114,38 @@ def contexts(live: dict[str, Any]) -> list[str]:
 
 
 def put(body: dict[str, Any]) -> dict[str, Any]:
-    return cast("dict[str, Any]", json.loads(gh(
-        ["api", "--method", "PUT", f"repos/{REPO}/rulesets/{RULESET_ID}",
-         "--input", "-"], json.dumps(body))))
+    return cast(
+        "dict[str, Any]",
+        json.loads(
+            gh(
+                [
+                    "api",
+                    "--method",
+                    "PUT",
+                    f"repos/{REPO}/rulesets/{RULESET_ID}",
+                    "--input",
+                    "-",
+                ],
+                json.dumps(body),
+            )
+        ),
+    )
 
 
 def summarise(live: dict[str, Any]) -> str:
     rules = cast("list[Any]", live.get("rules", []))
     kinds = sorted(str(cast("dict[str, Any]", r).get("type")) for r in rules)
-    return json.dumps({
-        "enforcement": live.get("enforcement"),
-        "conditions": live.get("conditions"),
-        "bypass_actors": live.get("bypass_actors"),
-        "rule_types": kinds,
-        "required_status_checks": sorted(contexts(live)),
-    }, indent=2, sort_keys=True)
+    return json.dumps(
+        {
+            "enforcement": live.get("enforcement"),
+            "conditions": live.get("conditions"),
+            "bypass_actors": live.get("bypass_actors"),
+            "rule_types": kinds,
+            "required_status_checks": sorted(contexts(live)),
+        },
+        indent=2,
+        sort_keys=True,
+    )
 
 
 def main() -> int:
@@ -145,8 +166,11 @@ def main() -> int:
         put(body_from(before))
         after = fetch()
         same = summarise(before) == summarise(after)
-        print("WRITE PERMITTED — no-op PUT accepted, ruleset unchanged"
-              if same else "WROTE, BUT STATE CHANGED — inspect immediately")
+        print(
+            "WRITE PERMITTED — no-op PUT accepted, ruleset unchanged"
+            if same
+            else "WROTE, BUT STATE CHANGED — inspect immediately"
+        )
         return 0 if same else 1
 
     if action == "add":
@@ -190,10 +214,15 @@ def main() -> int:
             before.get("enforcement") == after.get("enforcement")
             and before.get("conditions") == after.get("conditions")
             and before.get("bypass_actors") == after.get("bypass_actors")
-            and sorted(str(cast("dict[str, Any]", r).get("type"))
-                       for r in cast("list[Any]", before["rules"]))
-            == sorted(str(cast("dict[str, Any]", r).get("type"))
-                      for r in cast("list[Any]", after["rules"])))
+            and sorted(
+                str(cast("dict[str, Any]", r).get("type"))
+                for r in cast("list[Any]", before["rules"])
+            )
+            == sorted(
+                str(cast("dict[str, Any]", r).get("type"))
+                for r in cast("list[Any]", after["rules"])
+            )
+        )
         print(f"added: {added or '(already present)'}")
         print(f"required checks now ({len(got)}): {sorted(got)}")
         print(f"context set as intended: {ok}")
@@ -209,10 +238,15 @@ def main() -> int:
             print("add-tool needs a tool name", file=sys.stderr)
             return 2
         rules = cast("list[Any]", before["rules"])
-        scanning = next((cast("dict[str, Any]", r) for r in rules
-                         if isinstance(r, dict)
-                         and cast("dict[str, Any]", r).get("type") == "code_scanning"),
-                        None)
+        scanning = next(
+            (
+                cast("dict[str, Any]", r)
+                for r in rules
+                if isinstance(r, dict)
+                and cast("dict[str, Any]", r).get("type") == "code_scanning"
+            ),
+            None,
+        )
         if scanning is None:
             print("no code_scanning rule to amend", file=sys.stderr)
             return 1
@@ -223,28 +257,48 @@ def main() -> int:
             print(f"{tool} is already a code-scanning tool: {sorted(names)}")
             return 0
         template = cast("dict[str, Any]", tools[0])
-        tools.append({
-            "tool": tool,
-            "security_alerts_threshold": template["security_alerts_threshold"],
-            "alerts_threshold": template["alerts_threshold"],
-        })
+        tools.append(
+            {
+                "tool": tool,
+                "security_alerts_threshold": template["security_alerts_threshold"],
+                "alerts_threshold": template["alerts_threshold"],
+            }
+        )
         put(body_from(before))
         after = fetch()
-        got = next((cast("dict[str, Any]", r) for r in cast("list[Any]", after["rules"])
-                    if isinstance(r, dict)
-                    and cast("dict[str, Any]", r).get("type") == "code_scanning"), None)
-        live_tools = sorted(
-            str(cast("dict[str, Any]", t).get("tool"))
-            for t in cast("list[Any]", (got or {})
-                          .get("parameters", {}).get("code_scanning_tools", []))) if got else []
+        got = next(
+            (
+                cast("dict[str, Any]", r)
+                for r in cast("list[Any]", after["rules"])
+                if isinstance(r, dict)
+                and cast("dict[str, Any]", r).get("type") == "code_scanning"
+            ),
+            None,
+        )
+        live_tools = (
+            sorted(
+                str(cast("dict[str, Any]", t).get("tool"))
+                for t in cast(
+                    "list[Any]",
+                    (got or {}).get("parameters", {}).get("code_scanning_tools", []),
+                )
+            )
+            if got
+            else []
+        )
         preserved = (
             before.get("enforcement") == after.get("enforcement")
             and before.get("bypass_actors") == after.get("bypass_actors")
             and sorted(contexts(before)) == sorted(contexts(after))
-            and sorted(str(cast("dict[str, Any]", r).get("type"))
-                       for r in cast("list[Any]", before["rules"]))
-            == sorted(str(cast("dict[str, Any]", r).get("type"))
-                      for r in cast("list[Any]", after["rules"])))
+            and sorted(
+                str(cast("dict[str, Any]", r).get("type"))
+                for r in cast("list[Any]", before["rules"])
+            )
+            == sorted(
+                str(cast("dict[str, Any]", r).get("type"))
+                for r in cast("list[Any]", after["rules"])
+            )
+        )
         print(f"code-scanning tools now: {live_tools}")
         print(f"required checks unchanged, other rules preserved: {preserved}")
         return 0 if (tool in live_tools and preserved) else 1

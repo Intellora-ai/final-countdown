@@ -44,3 +44,30 @@ tests_dir = "tests/"
 
 [tool.bandit]
 exclude_dirs = ["tests"]
+
+[tool.ruff.lint]
+# UP040/UP047 rewrite type aliases and generic functions into PEP 695 syntax.
+# Semantically equivalent, structurally not -- `X: TypeAlias = Y` parses as an
+# AnnAssign, `type X = Y` parses as a TypeAlias node that did not exist before
+# 3.12. The files those rules touched include scripts/security_gate.py, which
+# inspects ASTs for a living. A matcher that stops matching does not fail; it
+# passes everything.
+#
+# `unfixable`, deliberately NOT `ignore`: the finding stays visible, ruff simply
+# will not perform the rewrite unasked. Declining an automatic rewrite is an
+# engineering choice; silencing a diagnostic is not. If PEP 695 is ever wanted
+# here it gets done by hand, in its own commit, with the gate re-verified.
+# SIM114 merges `elif A: X` / `elif B: X` into `elif A or B: X`. When the two
+# guards NARROW differently -- `isinstance(n, AnnAssign) and n.value is not None`
+# beside `isinstance(n, AugAssign)` -- the merged form is still correct at runtime
+# (`(A and B) or C` short-circuits) but the type checker can no longer prove the
+# narrowing, and pyright fails. Caught in tests/test_codeql_naming.py:276.
+# Identical bodies do not imply identical context.
+# RUF100 deletes `# noqa` comments it judges unused. It judges that against ITS
+# OWN selected rules -- so every `# noqa: S603 - argv only, no shell` in this
+# repository looks unused to ruff while bandit is still running B603 in CI and
+# scripts/security_gate.py is still re-deriving the safe pattern from the AST.
+# Those comments are the human-readable reason each call is safe, sitting on the
+# call. A tool deleting a justification it does not understand is not a cleanup.
+# 48 of them were removed on the first pass.
+unfixable = ["UP040", "UP047", "SIM114", "RUF100"]

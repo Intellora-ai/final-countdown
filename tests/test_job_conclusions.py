@@ -244,8 +244,15 @@ def test_the_workflow_grants_actions_read_only_to_the_finalizer() -> None:
     Twelve gate jobs have no business reading the Actions API. A permission is
     easiest to reason about where it is smallest, and this asserts the scope
     rather than trusting the diff that introduced it.
+
+    The allowlist is named rather than open-ended, and that is the point: a job
+    that needs the Actions API has to be added HERE, in a test, by someone who
+    can say which API call needs it. `merge-evidence` reads the check runs on
+    the pull request, which is the same API surface. Any job not on this list
+    that acquires `actions` still fails, which is the whole enforcement value.
     """
     import yaml
+    may_read_actions = {"full", "merge-evidence"}
     spec = yaml.safe_load(
         (REPO / ".github" / "workflows" / "verify.yml").read_text(
             encoding="utf-8"))
@@ -254,7 +261,7 @@ def test_the_workflow_grants_actions_read_only_to_the_finalizer() -> None:
     assert spec["jobs"]["full"]["permissions"] == {
         "contents": "read", "actions": "read"}
     for name, job in spec["jobs"].items():
-        if name == "full":
+        if name in may_read_actions:
             continue
         assert "actions" not in (job.get("permissions") or {}), (
             f"job {name} was granted actions access it does not need")

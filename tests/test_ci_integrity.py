@@ -20,9 +20,9 @@ import subprocess
 import sys
 import tomllib
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
-from typing import Any, cast
 
 REPO = Path(__file__).resolve().parent.parent
 SCRIPTS = REPO / "scripts"
@@ -34,30 +34,74 @@ PY = sys.executable
 # so a test writing "local" reports would fail there while passing on a laptop.
 # Stripping them makes every sandbox identity "local" on both, and the tests
 # that need a mismatch set them explicitly.
-RUN_IDENTITY_ENV = ("GITHUB_SHA", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT",
-                    "GITHUB_WORKFLOW")
+RUN_IDENTITY_ENV = (
+    "GITHUB_SHA",
+    "GITHUB_RUN_ID",
+    "GITHUB_RUN_ATTEMPT",
+    "GITHUB_WORKFLOW",
+)
 
 
-def run(args: list[str], cwd: Path,
-        env_extra: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+def run(
+    args: list[str], cwd: Path, env_extra: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     """Run a checker in an isolated working directory."""
     env = dict(os.environ)
     env.pop("GITHUB_STEP_SUMMARY", None)  # never write to the real summary
     for var in RUN_IDENTITY_ENV:
         env.pop(var, None)
     env.update(env_extra or {})
-    return subprocess.run([PY, *args], cwd=cwd, capture_output=True,
-                          text=True, timeout=300, env=env)
+    return subprocess.run(
+        [PY, *args], cwd=cwd, capture_output=True, text=True, timeout=300, env=env
+    )
+
+
+#: What a sandbox has to contain for `gate_integrity.py` to be able to pass.
+#:
+#: THE FRONTEND ENTRIES ARE NOT OPTIONAL, AND LEAVING THEM OUT WAS A REAL BUG.
+#:
+#: This fixture copied `scripts`, `ci` and `.github/workflows` only. That was a
+#: complete copy of the verification system when it was written. It stopped
+#: being one when `gate_integrity.py` grew checks that reach into `frontend/`:
+#: it stats `playwright.config.ts`, it stats `e2e/util/attribution.ts`, it reads
+#: the mutation catalogue out of `scripts/mutation-gate.mjs`, and it stats every
+#: canvas source path the attribution map names.
+#:
+#: None of those existed in the sandbox, so the gate reported four missing files
+#: and exited 1 no matter what the test did. Five tests assert
+#: `integrity(sandbox).returncode == 0` — they were not testing the behaviour
+#: named in their own titles, they were failing on absent fixtures, and the
+#: failure looked like five unrelated CI-integrity bugs.
+#:
+#: The fix is the fixture, not the gate. Relaxing the gate when `frontend/` is
+#: absent would make a genuine deletion of any of these files pass silently,
+#: which is the exact thing it exists to catch.
+SANDBOX_PATHS = (
+    "scripts",
+    "ci",
+    ".github/workflows",
+    "frontend/playwright.config.ts",
+    "frontend/scripts",
+    "frontend/e2e/util",
+    # Whole directory rather than the handful of files the attribution map
+    # currently names: pinning the list here would mean this fixture had to be
+    # edited every time a renderer moved, and the day someone forgot, these
+    # tests would fail for a reason that has nothing to do with them.
+    "frontend/src/canvas",
+)
 
 
 @pytest.fixture
 def sandbox(tmp_path: Path) -> Path:
     """A copy of the verification system that tests may sabotage freely."""
-    for rel in ("scripts", "ci", ".github/workflows"):
+    for rel in SANDBOX_PATHS:
         src = REPO / rel
         dst = tmp_path / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(src, dst)
+        if src.is_dir():
+            shutil.copytree(src, dst)
+        else:
+            shutil.copy2(src, dst)
     (tmp_path / "reports").mkdir()
     return tmp_path
 
@@ -66,33 +110,45 @@ def integrity(cwd: Path) -> subprocess.CompletedProcess[str]:
     return run([str(cwd / "scripts" / "gate_integrity.py")], cwd)
 
 
-def aggregate(cwd: Path,
-              env_extra: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+def aggregate(
+    cwd: Path, env_extra: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     return run([str(cwd / "scripts" / "aggregate_gates.py")], cwd, env_extra)
 
 
-def write_report(cwd: Path, gate: str, status: str = "PASS",
-                 *, filename: str | None = None,
-                 omit: tuple[str, ...] = (),
-                 **overrides: object) -> None:
+def write_report(
+    cwd: Path,
+    gate: str,
+    status: str = "PASS",
+    *,
+    filename: str | None = None,
+    omit: tuple[str, ...] = (),
+    **overrides: object,
+) -> None:
     """Write one report. Defaults describe THIS run; overrides forge another.
 
     `omit` drops fields entirely, which is the distinct attack of leaving the
     identity out rather than getting it wrong.
     """
     report: dict[str, object] = {
-        "schema_version": "1.1", "gate": gate, "status": status,
-        "commit": "local", "run_id": "local", "run_attempt": "local",
+        "schema_version": "1.1",
+        "gate": gate,
+        "status": status,
+        "commit": "local",
+        "run_id": "local",
+        "run_attempt": "local",
         "workflow": "local",
-        "duration_ms": 1, "checks_passed": 1, "checks_failed": 0,
-        "scope": {}, "failures": [],
+        "duration_ms": 1,
+        "checks_passed": 1,
+        "checks_failed": 0,
+        "scope": {},
+        "failures": [],
     }
     report.update(overrides)
     for field in omit:
         report.pop(field, None)
     name = filename or gate
-    (cwd / "reports" / f"{name}.json").write_text(json.dumps(report),
-                                                  encoding="utf-8")
+    (cwd / "reports" / f"{name}.json").write_text(json.dumps(report), encoding="utf-8")
 
 
 VERIFY = ".github/workflows/verify.yml"
@@ -106,14 +162,17 @@ def all_gates(cwd: Path) -> list[str]:
     it would land in the `unexpected` bucket, which is correct behaviour.
     """
     import tomllib
+
     data = tomllib.loads((cwd / "ci" / "gates.toml").read_text(encoding="utf-8"))
     # `finalizer` has not reported when it runs; `scanner` (CodeQL) runs in
     # another workflow and publishes to code scanning, so neither contributes a
     # reports/*.json to this run's evidence tree.
-    return [n for n, spec in data["gates"].items()
-            if spec.get("mandatory")
-            and spec.get("role") not in {"finalizer", "scanner",
-                                          "code-scanning"}]
+    return [
+        n
+        for n, spec in data["gates"].items()
+        if spec.get("mandatory")
+        and spec.get("role") not in {"finalizer", "scanner", "code-scanning"}
+    ]
 
 
 # --------------------------------------------------------------------------
@@ -136,8 +195,9 @@ def test_attack_deleted_gate_invocation_is_caught(sandbox: Path) -> None:
     """The headline scenario: remove the AXLE proof step, job still exits 0."""
     wf = sandbox / VERIFY
     text = wf.read_text()
-    sabotaged = "\n".join(l for l in text.splitlines()
-                          if "scripts/axle_gate.py" not in l)
+    sabotaged = "\n".join(
+        l for l in text.splitlines() if "scripts/axle_gate.py" not in l
+    )
     assert sabotaged != text, "sabotage did not modify the workflow"
     wf.write_text(sabotaged)
 
@@ -161,8 +221,11 @@ def test_attack_deleted_workflow_is_caught(sandbox: Path) -> None:
 # --------------------------------------------------------------------------
 def test_attack_continue_on_error_is_caught(sandbox: Path) -> None:
     wf = sandbox / VERIFY
-    wf.write_text(wf.read_text().replace(
-        "  pyright:\n", "  pyright:\n    continue-on-error: true\n", 1))
+    wf.write_text(
+        wf.read_text().replace(
+            "  pyright:\n", "  pyright:\n    continue-on-error: true\n", 1
+        )
+    )
     result = integrity(sandbox)
     assert result.returncode != 0, "continue-on-error was NOT detected"
     assert "continue-on-error" in result.stdout
@@ -234,7 +297,9 @@ def test_attack_malformed_report_fails_aggregation(sandbox: Path) -> None:
 # --------------------------------------------------------------------------
 # Attack 9 — a gate reports a non-PASS status
 # --------------------------------------------------------------------------
-@pytest.mark.parametrize("status", ["FAIL", "INFRASTRUCTURE_FAILURE", "UNKNOWN", "SKIPPED"])
+@pytest.mark.parametrize(
+    "status", ["FAIL", "INFRASTRUCTURE_FAILURE", "UNKNOWN", "SKIPPED"]
+)
 def test_non_pass_status_never_becomes_mergeable(sandbox: Path, status: str) -> None:
     """Only PASS and NOT_APPLICABLE may contribute to a mergeable run."""
     gates = all_gates(sandbox)
@@ -268,7 +333,8 @@ def test_crashing_gate_is_infrastructure_failure_not_pass(sandbox: Path) -> None
         "from gate import Gate\n"
         "with Gate('crashy') as g:\n"
         "    raise RuntimeError('verifier exploded')\n",
-        encoding="utf-8")
+        encoding="utf-8",
+    )
     result = run([str(probe)], sandbox)
     assert result.returncode != 0, "a crashing gate exited zero"
     report = json.loads((sandbox / "reports/crashy.json").read_text())
@@ -289,7 +355,8 @@ def test_gate_that_declares_nothing_is_not_pass(sandbox: Path) -> None:
         "from gate import Gate\n"
         "with Gate('silent') as g:\n"
         "    pass\n",
-        encoding="utf-8")
+        encoding="utf-8",
+    )
     result = run([str(probe)], sandbox)
     assert result.returncode != 0, "a gate that declared nothing exited zero"
     report = json.loads((sandbox / "reports/silent.json").read_text())
@@ -300,8 +367,18 @@ def test_gate_that_declares_nothing_is_not_pass(sandbox: Path) -> None:
 # Attack 12 — wrapped command exits non-zero
 # --------------------------------------------------------------------------
 def test_wrapped_failing_command_produces_fail(sandbox: Path) -> None:
-    result = run([str(sandbox / "scripts" / "run_gate.py"), "--name", "failing",
-                  "--", PY, "-c", "import sys; sys.exit(3)"], sandbox)
+    result = run(
+        [
+            str(sandbox / "scripts" / "run_gate.py"),
+            "--name",
+            "failing",
+            "--",
+            PY,
+            "-c",
+            "import sys; sys.exit(3)",
+        ],
+        sandbox,
+    )
     assert result.returncode != 0, "a failing wrapped command exited zero"
     report = json.loads((sandbox / "reports/failing.json").read_text())
     assert report["status"] == "FAIL"
@@ -310,8 +387,16 @@ def test_wrapped_failing_command_produces_fail(sandbox: Path) -> None:
 
 def test_wrapped_missing_binary_is_infrastructure_failure(sandbox: Path) -> None:
     """A tool that is not installed is not a test failure."""
-    result = run([str(sandbox / "scripts" / "run_gate.py"), "--name", "notool",
-                  "--", "definitely-not-a-real-binary-xyz"], sandbox)
+    result = run(
+        [
+            str(sandbox / "scripts" / "run_gate.py"),
+            "--name",
+            "notool",
+            "--",
+            "definitely-not-a-real-binary-xyz",
+        ],
+        sandbox,
+    )
     assert result.returncode != 0
     report = json.loads((sandbox / "reports/notool.json").read_text())
     assert report["status"] == "INFRASTRUCTURE_FAILURE"
@@ -321,16 +406,43 @@ def test_wrapped_missing_binary_is_infrastructure_failure(sandbox: Path) -> None
 # Schema — consumers must be able to trust the shape
 # --------------------------------------------------------------------------
 REQUIRED_FIELDS = [
-    "schema_version", "gate", "gate_version", "status", "commit", "workflow",
-    "job", "run_id", "run_attempt", "ref", "started_at", "ended_at", "duration_ms",
-    "tool_versions", "scope", "checks_executed", "checks_passed",
-    "checks_failed", "failures", "warnings", "artifacts",
+    "schema_version",
+    "gate",
+    "gate_version",
+    "status",
+    "commit",
+    "workflow",
+    "job",
+    "run_id",
+    "run_attempt",
+    "ref",
+    "started_at",
+    "ended_at",
+    "duration_ms",
+    "tool_versions",
+    "scope",
+    "checks_executed",
+    "checks_passed",
+    "checks_failed",
+    "failures",
+    "warnings",
+    "artifacts",
 ]
 
 
 def test_report_carries_every_required_field(sandbox: Path) -> None:
-    run([str(sandbox / "scripts" / "run_gate.py"), "--name", "shape",
-         "--", PY, "-c", "print('ok')"], sandbox)
+    run(
+        [
+            str(sandbox / "scripts" / "run_gate.py"),
+            "--name",
+            "shape",
+            "--",
+            PY,
+            "-c",
+            "print('ok')",
+        ],
+        sandbox,
+    )
     report = json.loads((sandbox / "reports/shape.json").read_text())
     missing = [f for f in REQUIRED_FIELDS if f not in report]
     assert not missing, f"report is missing required fields: {missing}"
@@ -341,18 +453,21 @@ def test_report_carries_every_required_field(sandbox: Path) -> None:
     # and a test people edit to make green stops being a check. Both directions
     # are caught: gate.py bumping without the manifest, and the reverse.
     declared = tomllib.loads(
-        (sandbox / "ci" / "gates.toml").read_text(encoding="utf-8"))
+        (sandbox / "ci" / "gates.toml").read_text(encoding="utf-8")
+    )
     assert report["schema_version"] == declared["schema"]["version"], (
         f"gate.py writes {report['schema_version']}, ci/gates.toml declares "
-        f"{declared['schema']['version']}")
+        f"{declared['schema']['version']}"
+    )
 
     # And the manifest's own field list must be satisfied, which is the part
     # that was declared and never read: `required_fields` had zero consumers.
-    manifest_missing = [f for f in declared["schema"]["required_fields"]
-                        if f not in report]
+    manifest_missing = [
+        f for f in declared["schema"]["required_fields"] if f not in report
+    ]
     assert not manifest_missing, (
-        f"ci/gates.toml declares fields the report does not carry: "
-        f"{manifest_missing}")
+        f"ci/gates.toml declares fields the report does not carry: {manifest_missing}"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -365,10 +480,20 @@ def test_unwritable_reports_dir_is_infrastructure_failure(sandbox: Path) -> None
     reports = sandbox / "reports"
     reports.chmod(0o500)
     try:
-        result = run([str(sandbox / "scripts" / "run_gate.py"), "--name", "noevidence",
-                      "--", "/bin/echo", "hi"], sandbox)
+        result = run(
+            [
+                str(sandbox / "scripts" / "run_gate.py"),
+                "--name",
+                "noevidence",
+                "--",
+                "/bin/echo",
+                "hi",
+            ],
+            sandbox,
+        )
         assert result.returncode != 0, (
-            "a gate that could not write evidence exited zero — false green")
+            "a gate that could not write evidence exited zero — false green"
+        )
         assert "EVIDENCE GENERATION FAILED" in result.stdout
     finally:
         reports.chmod(0o700)
@@ -376,8 +501,18 @@ def test_unwritable_reports_dir_is_infrastructure_failure(sandbox: Path) -> None
 
 def test_report_is_written_atomically(sandbox: Path) -> None:
     """Write-then-rename: a crash mid-write must not leave a parseable stub."""
-    run([str(sandbox / "scripts" / "run_gate.py"), "--name", "atomic",
-         "--", PY, "-c", "print('ok')"], sandbox)
+    run(
+        [
+            str(sandbox / "scripts" / "run_gate.py"),
+            "--name",
+            "atomic",
+            "--",
+            PY,
+            "-c",
+            "print('ok')",
+        ],
+        sandbox,
+    )
     assert (sandbox / "reports/atomic.json").is_file()
     assert not list((sandbox / "reports").glob("*.tmp")), "temp file left behind"
 
@@ -387,9 +522,18 @@ def test_report_is_written_atomically(sandbox: Path) -> None:
 # --------------------------------------------------------------------------
 def test_stdout_saying_pass_cannot_override_exit_code(sandbox: Path) -> None:
     """Log text is not evidence. The exit code is."""
-    result = run([str(sandbox / "scripts" / "run_gate.py"), "--name", "liar", "--",
-                  PY, "-c", "print('PASS'); print('all gates green'); import sys; sys.exit(7)"],
-                 sandbox)
+    result = run(
+        [
+            str(sandbox / "scripts" / "run_gate.py"),
+            "--name",
+            "liar",
+            "--",
+            PY,
+            "-c",
+            "print('PASS'); print('all gates green'); import sys; sys.exit(7)",
+        ],
+        sandbox,
+    )
     assert result.returncode != 0
     report = json.loads((sandbox / "reports/liar.json").read_text())
     assert report["status"] == "FAIL"
@@ -397,8 +541,18 @@ def test_stdout_saying_pass_cannot_override_exit_code(sandbox: Path) -> None:
 
 
 def test_killed_process_is_not_pass(sandbox: Path) -> None:
-    result = run([str(sandbox / "scripts" / "run_gate.py"), "--name", "killed",
-                  "--", "bash", "-c", "kill -9 $$"], sandbox)
+    result = run(
+        [
+            str(sandbox / "scripts" / "run_gate.py"),
+            "--name",
+            "killed",
+            "--",
+            "bash",
+            "-c",
+            "kill -9 $$",
+        ],
+        sandbox,
+    )
     assert result.returncode != 0
     report = json.loads((sandbox / "reports/killed.json").read_text())
     assert report["status"] != "PASS"
@@ -415,13 +569,24 @@ def test_killed_process_is_not_pass(sandbox: Path) -> None:
 def test_attack_full_set_of_reports_from_another_run_is_rejected(sandbox: Path) -> None:
     """Yesterday's green must not satisfy today's merge."""
     for gate in all_gates(sandbox):
-        write_report(sandbox, gate, commit="deadbeef" * 5, run_id="111111111",
-                     workflow="full-verify")
-    result = aggregate(sandbox, {"GITHUB_SHA": "a" * 40,
-                                 "GITHUB_RUN_ID": "999999999",
-                                 "GITHUB_WORKFLOW": "full-verify"})
+        write_report(
+            sandbox,
+            gate,
+            commit="deadbeef" * 5,
+            run_id="111111111",
+            workflow="full-verify",
+        )
+    result = aggregate(
+        sandbox,
+        {
+            "GITHUB_SHA": "a" * 40,
+            "GITHUB_RUN_ID": "999999999",
+            "GITHUB_WORKFLOW": "full-verify",
+        },
+    )
     assert result.returncode != 0, (
-        "ten PASS reports from a different run satisfied verification — false green")
+        "ten PASS reports from a different run satisfied verification — false green"
+    )
     assert "belongs to another run" in result.stdout
     manifest = json.loads((sandbox / "reports/gate-manifest.json").read_text())
     assert manifest["mergeable"] is False
@@ -431,30 +596,54 @@ def test_attack_full_set_of_reports_from_another_run_is_rejected(sandbox: Path) 
 # run_attempt is the one that fires without anyone forging anything: hit
 # "Re-run failed jobs" and GITHUB_RUN_ID is unchanged while the attempt moves.
 @pytest.mark.parametrize("field", ["commit", "run_id", "run_attempt", "workflow"])
-def test_attack_single_mismatched_identity_field_blocks(sandbox: Path,
-                                                        field: str) -> None:
+def test_attack_single_mismatched_identity_field_blocks(
+    sandbox: Path, field: str
+) -> None:
     """Each identity field is load-bearing on its own, not only in combination."""
     gates = all_gates(sandbox)
-    env = {"GITHUB_SHA": "a" * 40, "GITHUB_RUN_ID": "42",
-           "GITHUB_RUN_ATTEMPT": "2", "GITHUB_WORKFLOW": "full-verify"}
-    truth: dict[str, str] = {"commit": "a" * 40, "run_id": "42",
-                             "run_attempt": "2", "workflow": "full-verify"}
+    env = {
+        "GITHUB_SHA": "a" * 40,
+        "GITHUB_RUN_ID": "42",
+        "GITHUB_RUN_ATTEMPT": "2",
+        "GITHUB_WORKFLOW": "full-verify",
+    }
+    truth: dict[str, str] = {
+        "commit": "a" * 40,
+        "run_id": "42",
+        "run_attempt": "2",
+        "workflow": "full-verify",
+    }
     for gate in gates:
-        write_report(sandbox, gate, commit=truth["commit"], run_id=truth["run_id"],
-                     run_attempt=truth["run_attempt"], workflow=truth["workflow"])
+        write_report(
+            sandbox,
+            gate,
+            commit=truth["commit"],
+            run_id=truth["run_id"],
+            run_attempt=truth["run_attempt"],
+            workflow=truth["workflow"],
+        )
     assert aggregate(sandbox, env).returncode == 0, "baseline identity should match"
 
     forged = dict(truth, **{field: "wrong-value"})
-    write_report(sandbox, gates[0], commit=forged["commit"], run_id=forged["run_id"],
-                 run_attempt=forged["run_attempt"], workflow=forged["workflow"])
+    write_report(
+        sandbox,
+        gates[0],
+        commit=forged["commit"],
+        run_id=forged["run_id"],
+        run_attempt=forged["run_attempt"],
+        workflow=forged["workflow"],
+    )
     result = aggregate(sandbox, env)
     assert result.returncode != 0, f"a mismatched {field} did not block the merge"
     assert gates[0] in result.stdout
 
 
-@pytest.mark.parametrize("omitted", ["commit", "run_id", "run_attempt",
-                                     "workflow", "schema_version"])
-def test_attack_report_omitting_identity_is_rejected(sandbox: Path, omitted: str) -> None:
+@pytest.mark.parametrize(
+    "omitted", ["commit", "run_id", "run_attempt", "workflow", "schema_version"]
+)
+def test_attack_report_omitting_identity_is_rejected(
+    sandbox: Path, omitted: str
+) -> None:
     """Absence must fail closed, or forging evidence is just leaving fields out."""
     gates = all_gates(sandbox)
     for gate in gates:
@@ -462,19 +651,22 @@ def test_attack_report_omitting_identity_is_rejected(sandbox: Path, omitted: str
     write_report(sandbox, gates[0], omit=(omitted,))
     result = aggregate(sandbox)
     assert result.returncode != 0, (
-        f"a report with no {omitted} counted as evidence — unverifiable is not verified")
+        f"a report with no {omitted} counted as evidence — unverifiable is not verified"
+    )
     manifest = json.loads((sandbox / "reports/gate-manifest.json").read_text())
     assert gates[0] in manifest["gates_rejected"]
 
 
 def test_attack_report_claiming_a_real_commit_during_a_local_run_is_rejected(
-        sandbox: Path) -> None:
+    sandbox: Path,
+) -> None:
     """The 'local' default must not become a hole that skips validation."""
     for gate in all_gates(sandbox):
         write_report(sandbox, gate, commit="c" * 40, run_id="7", workflow="full-verify")
     result = aggregate(sandbox)  # no GITHUB_* set -> identity is "local"
     assert result.returncode != 0, (
-        "reports claiming a real run were admitted by a local run")
+        "reports claiming a real run were admitted by a local run"
+    )
 
 
 def test_attack_report_cannot_stand_in_for_another_gate(sandbox: Path) -> None:
@@ -487,7 +679,8 @@ def test_attack_report_cannot_stand_in_for_another_gate(sandbox: Path) -> None:
     write_report(sandbox, donor, filename=victim)
     result = aggregate(sandbox)
     assert result.returncode != 0, (
-        f"{donor}'s report stood in for {victim} — one gate covered two")
+        f"{donor}'s report stood in for {victim} — one gate covered two"
+    )
     assert "different gate than its filename" in result.stdout
 
 
@@ -521,9 +714,14 @@ def test_attack_per_function_loop_over_nothing_is_not_pass(tmp_path: Path) -> No
     (work / "scripts" / "noop_verifier.py").write_text("", encoding="utf-8")
     result = subprocess.run(
         ["bash", "scripts/verify_per_function.sh", "scripts/noop_verifier.py"],
-        cwd=work, capture_output=True, text=True, timeout=60)
+        cwd=work,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
     assert result.returncode != 0, (
-        "a per-function gate with zero functions to verify exited 0 — false green")
+        "a per-function gate with zero functions to verify exited 0 — false green"
+    )
     assert "zero functions" in result.stdout + result.stderr
 
 
@@ -533,7 +731,11 @@ def test_per_function_loop_still_reports_what_it_covered(tmp_path: Path) -> None
     stub.write_text("", encoding="utf-8")
     result = subprocess.run(
         ["bash", "scripts/verify_per_function.sh", str(stub)],
-        cwd=REPO, capture_output=True, text=True, timeout=120)
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "verifying" in result.stdout and "source file(s)" in result.stdout
 
@@ -570,7 +772,8 @@ def test_attack_axle_with_zero_specs_is_not_pass(tmp_path: Path) -> None:
     """Measured on the old gate: empty specs/ printed 'All proofs verified'."""
     result = axle_gate(axle_sandbox(tmp_path, [], []))
     assert result.returncode != 0, (
-        "an empty spec set reported success — the gate verified nothing")
+        "an empty spec set reported success — the gate verified nothing"
+    )
     assert "no specs to verify" in result.stdout
 
 
@@ -587,8 +790,7 @@ def test_attack_axle_missing_proof_is_not_pass(tmp_path: Path) -> None:
     assert "spec but no proof" in result.stdout
 
 
-def test_axle_reports_incompleteness_as_fail_not_infrastructure(
-        tmp_path: Path) -> None:
+def test_axle_reports_incompleteness_as_fail_not_infrastructure(tmp_path: Path) -> None:
     """An incomplete set is the repository's fault, not the service's."""
     axle_gate(work := axle_sandbox(tmp_path, [], ["add"]))
     report = json.loads((work / "reports/axle-verify.json").read_text())
@@ -604,13 +806,19 @@ def test_axle_missing_binary_is_infrastructure_failure(tmp_path: Path) -> None:
     env = dict(os.environ)
     env["PATH"] = "/nonexistent"
     env.pop("GITHUB_STEP_SUMMARY", None)
-    result = subprocess.run([PY, str(work / "scripts" / "axle_gate.py")],
-                            cwd=work, capture_output=True, text=True,
-                            timeout=120, env=env)
+    result = subprocess.run(
+        [PY, str(work / "scripts" / "axle_gate.py")],
+        cwd=work,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=env,
+    )
     assert result.returncode != 0
     report = json.loads((work / "reports/axle-verify.json").read_text())
     assert report["status"] == "INFRASTRUCTURE_FAILURE", (
-        "an absent AXLE was reported as a failed proof")
+        "an absent AXLE was reported as a failed proof"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -621,20 +829,23 @@ def test_axle_missing_binary_is_infrastructure_failure(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------
 def test_attack_doc_invoking_a_deleted_script_is_caught(sandbox: Path) -> None:
     (sandbox / "README.md").write_text(
-        "## Use\n\n```bash\npython3 scripts/ghost_gate.py\n```\n", encoding="utf-8")
+        "## Use\n\n```bash\npython3 scripts/ghost_gate.py\n```\n", encoding="utf-8"
+    )
     result = integrity(sandbox)
     assert result.returncode != 0, (
-        "a doc telling people to run a nonexistent verifier was not caught")
+        "a doc telling people to run a nonexistent verifier was not caught"
+    )
     assert "documentation names a script that does not exist" in result.stdout
 
 
 def test_doc_documenting_an_absent_script_is_allowed(sandbox: Path) -> None:
     """Honesty about what does not exist must not be punished."""
     (sandbox / "evidence.md").write_text(
-        "| `scripts/translate_to_lean.py` | **NO** — not built |\n",
-        encoding="utf-8")
+        "| `scripts/translate_to_lean.py` | **NO** — not built |\n", encoding="utf-8"
+    )
     assert integrity(sandbox).returncode == 0, (
-        "documenting an absent script as absent was treated as drift")
+        "documenting an absent script as absent was treated as drift"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -654,8 +865,7 @@ def ruleset_sandbox(tmp_path: Path, gates_toml: str) -> Path:
     return work
 
 
-def test_attack_required_check_with_no_mandatory_gate_is_caught(
-        tmp_path: Path) -> None:
+def test_attack_required_check_with_no_mandatory_gate_is_caught(tmp_path: Path) -> None:
     toml = (REPO / "ci" / "gates.toml").read_text(encoding="utf-8")
     toml = toml.replace('"bandit", "mutmut",', '"bandit", "mutmut", "ghost-gate",')
     work = ruleset_sandbox(tmp_path, toml)
@@ -664,17 +874,22 @@ def test_attack_required_check_with_no_mandatory_gate_is_caught(
     assert "ghost-gate" in result.stdout
 
 
-def test_ruleset_check_treats_unreachable_github_as_unknown(
-        tmp_path: Path) -> None:
+def test_ruleset_check_treats_unreachable_github_as_unknown(tmp_path: Path) -> None:
     """'Could not compare' must not read as 'aligned'."""
     work = ruleset_sandbox(
-        tmp_path, (REPO / "ci" / "gates.toml").read_text(encoding="utf-8"))
+        tmp_path, (REPO / "ci" / "gates.toml").read_text(encoding="utf-8")
+    )
     env = dict(os.environ)
-    env["PATH"] = "/nonexistent"      # no gh
+    env["PATH"] = "/nonexistent"  # no gh
     env.pop("GITHUB_STEP_SUMMARY", None)
-    result = subprocess.run([PY, str(work / "scripts" / "check_ruleset.py")],
-                            cwd=work, capture_output=True, text=True,
-                            timeout=120, env=env)
+    result = subprocess.run(
+        [PY, str(work / "scripts" / "check_ruleset.py")],
+        cwd=work,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=env,
+    )
     assert result.returncode != 0, "an unverifiable ruleset reported success"
     assert "CANNOT COMPARE" in result.stdout
 
@@ -687,34 +902,52 @@ def test_ruleset_check_treats_unreachable_github_as_unknown(
 # check_vacuity.py and find_counterexample.py both did. Parametrised so a
 # verifier added later is covered without anyone remembering to add a test.
 # --------------------------------------------------------------------------
-SPEC_VERIFIERS = ["enforce_spec.py", "check_vacuity.py",
-                  "find_counterexample.py", "check_composition.py"]
+SPEC_VERIFIERS = [
+    "enforce_spec.py",
+    "check_vacuity.py",
+    "find_counterexample.py",
+    "check_composition.py",
+]
 
 
 @pytest.mark.parametrize("verifier", SPEC_VERIFIERS)
-def test_spec_verifier_with_no_specs_is_not_success(verifier: str,
-                                                    tmp_path: Path) -> None:
-    result = subprocess.run([PY, str(SCRIPTS / verifier)], cwd=REPO,
-                            capture_output=True, text=True, timeout=120)
+def test_spec_verifier_with_no_specs_is_not_success(
+    verifier: str, tmp_path: Path
+) -> None:
+    result = subprocess.run(
+        [PY, str(SCRIPTS / verifier)],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
     assert result.returncode != 0, (
         f"{verifier} exited 0 with no specs — it verified nothing and said so "
-        "in the affirmative")
+        "in the affirmative"
+    )
 
 
 @pytest.mark.parametrize("verifier", SPEC_VERIFIERS)
 def test_spec_verifier_with_a_nonexistent_path_is_not_success(
-        verifier: str, tmp_path: Path) -> None:
+    verifier: str, tmp_path: Path
+) -> None:
     """bash leaves an unmatched glob as a literal, so this is the live path."""
     result = subprocess.run(
         [PY, str(SCRIPTS / verifier), str(tmp_path / "*_spec.lean")],
-        cwd=REPO, capture_output=True, text=True, timeout=120)
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
     assert result.returncode != 0, (
-        f"{verifier} exited 0 on a spec path that does not exist")
+        f"{verifier} exited 0 on a spec path that does not exist"
+    )
 
 
 # ==========================================================================
 # The consolidated topology: verify.yml, artifact-based aggregation.
 # ==========================================================================
+
 
 def evidence_tree(cwd: Path, gates: list[str], **kw: object) -> Path:
     """Reproduce what download-artifact leaves behind: one dir per artifact."""
@@ -722,19 +955,27 @@ def evidence_tree(cwd: Path, gates: list[str], **kw: object) -> Path:
     for gate in gates:
         (root / f"reports-{gate}").mkdir(parents=True, exist_ok=True)
         report: dict[str, object] = {
-            "schema_version": "1.1", "gate": gate, "status": "PASS",
-            "commit": "local", "run_id": "local", "run_attempt": "local",
-            "workflow": "local", "duration_ms": 1, "failures": [],
+            "schema_version": "1.1",
+            "gate": gate,
+            "status": "PASS",
+            "commit": "local",
+            "run_id": "local",
+            "run_attempt": "local",
+            "workflow": "local",
+            "duration_ms": 1,
+            "failures": [],
         }
         report.update(kw)
         (root / f"reports-{gate}" / f"{gate}.json").write_text(
-            json.dumps(report), encoding="utf-8")
+            json.dumps(report), encoding="utf-8"
+        )
     return root
 
 
 def aggregate_root(cwd: Path, root: Path) -> subprocess.CompletedProcess[str]:
-    return run([str(cwd / "scripts" / "aggregate_gates.py"),
-                "--evidence-root", str(root)], cwd)
+    return run(
+        [str(cwd / "scripts" / "aggregate_gates.py"), "--evidence-root", str(root)], cwd
+    )
 
 
 # --------------------------------------------------------------------------
@@ -747,8 +988,22 @@ def aggregate_root(cwd: Path, root: Path) -> subprocess.CompletedProcess[str]:
 def test_attack_gate_step_conditioned_away_is_caught(sandbox: Path) -> None:
     wf = sandbox / VERIFY
     text = wf.read_text()
-    line = next(l for l in text.splitlines() if "scripts/axle_gate.py" in l)
-    indent = " " * (len(line) - len(line.lstrip()))
+    # The STEP that runs axle_gate.py, not the first line that mentions it.
+    # Since the gate moved inside a `bash -c` chain, the workflow also carries
+    # COMMENT lines naming the script -- and `if:` after a comment is inert, so
+    # anchoring on a mention would sabotage nothing and the attack would look
+    # defeated when it had never been mounted.
+    line = next(
+        l
+        for l in text.splitlines()
+        if l.lstrip().startswith("- name:") and "verify all proofs with AXLE" in l
+    )
+    # `+ 2` because the `- ` of the list item occupies two columns: a sibling
+    # key of `name:` sits two further in. At the dash's own indent the file
+    # stops being valid YAML, and gate_integrity then rejects it for parsing
+    # rather than for the conditional -- which is a different check passing,
+    # not this attack being caught.
+    indent = " " * (len(line) - len(line.lstrip()) + 2)
     wf.write_text(text.replace(line, f"{line}\n{indent}if: false", 1))
     result = integrity(sandbox)
     assert result.returncode != 0, "a conditioned-away gate step was NOT detected"
@@ -758,8 +1013,11 @@ def test_attack_gate_step_conditioned_away_is_caught(sandbox: Path) -> None:
 def test_attack_undeclared_job_condition_is_caught(sandbox: Path) -> None:
     """Only the finalizer may carry a job-level `if:`, and only as declared."""
     wf = sandbox / VERIFY
-    wf.write_text(wf.read_text().replace(
-        "  mutmut:\n", "  mutmut:\n    if: github.actor != 'nobody'\n", 1))
+    wf.write_text(
+        wf.read_text().replace(
+            "  mutmut:\n", "  mutmut:\n    if: github.actor != 'nobody'\n", 1
+        )
+    )
     result = integrity(sandbox)
     assert result.returncode != 0, "an undeclared job condition was NOT detected"
     assert "runs conditionally" in result.stdout
@@ -774,8 +1032,11 @@ def test_attack_undeclared_job_condition_is_caught(sandbox: Path) -> None:
 # --------------------------------------------------------------------------
 def test_attack_ignoring_a_missing_artifact_is_caught(sandbox: Path) -> None:
     wf = sandbox / VERIFY
-    wf.write_text(wf.read_text().replace(
-        "if-no-files-found: error", "if-no-files-found: ignore", 1))
+    wf.write_text(
+        wf.read_text().replace(
+            "if-no-files-found: error", "if-no-files-found: ignore", 1
+        )
+    )
     result = integrity(sandbox)
     assert result.returncode != 0, "a silently-ignored missing artifact was allowed"
     assert "ignores a missing artifact" in result.stdout
@@ -787,7 +1048,7 @@ def test_attack_evidence_only_uploaded_on_success_is_caught(sandbox: Path) -> No
     text = wf.read_text()
     i = text.index("name: reports-coverage")
     j = text.rindex("if: always()", 0, i)
-    wf.write_text(text[:j] + "if: success()" + text[j + len("if: always()"):])
+    wf.write_text(text[:j] + "if: success()" + text[j + len("if: always()") :])
     result = integrity(sandbox)
     assert result.returncode != 0, "upload-only-on-success was NOT detected"
     assert "only uploads evidence when it passes" in result.stdout
@@ -804,7 +1065,7 @@ def test_aggregate_reads_downloaded_artifact_tree(sandbox: Path) -> None:
 
 def test_attack_one_artifact_missing_from_the_tree(sandbox: Path) -> None:
     gates = all_gates(sandbox)
-    root = evidence_tree(sandbox, gates[1:])          # first gate's upload failed
+    root = evidence_tree(sandbox, gates[1:])  # first gate's upload failed
     result = aggregate_root(sandbox, root)
     assert result.returncode != 0, "a gate with no artifact was counted as verified"
     manifest = json.loads((sandbox / "reports/gate-manifest.json").read_text())
@@ -819,8 +1080,9 @@ def test_attack_duplicate_reports_for_one_gate_block(sandbox: Path) -> None:
     # A re-run leaving a second artifact behind that also claims this gate.
     stray = root / "reports-rerun"
     stray.mkdir(parents=True)
-    shutil.copy(root / f"reports-{gates[0]}" / f"{gates[0]}.json",
-                stray / f"{gates[0]}.json")
+    shutil.copy(
+        root / f"reports-{gates[0]}" / f"{gates[0]}.json", stray / f"{gates[0]}.json"
+    )
     result = aggregate_root(sandbox, root)
     assert result.returncode != 0, "two reports for one gate were merged silently"
     manifest = json.loads((sandbox / "reports/gate-manifest.json").read_text())
@@ -850,7 +1112,8 @@ def test_finalizer_is_not_expected_to_report_on_itself(sandbox: Path) -> None:
 # Attack 24 — a mandatory gate that GitHub does not require blocks nothing
 # --------------------------------------------------------------------------
 def test_attack_mandatory_gate_absent_from_required_checks_is_caught(
-        sandbox: Path) -> None:
+    sandbox: Path,
+) -> None:
     toml = sandbox / "ci" / "gates.toml"
     text = toml.read_text()
     line = next(l for l in text.splitlines() if '"mutmut"' in l and "required" not in l)
@@ -863,6 +1126,7 @@ def test_attack_mandatory_gate_absent_from_required_checks_is_caught(
 def test_preflight_is_itself_mandatory(sandbox: Path) -> None:
     """An integrity failure that does not block a merge is a diagnostic."""
     import tomllib
+
     data = tomllib.loads((sandbox / "ci" / "gates.toml").read_text(encoding="utf-8"))
     assert data["gates"]["preflight"]["mandatory"] is True
     assert "preflight" in data["ruleset"]["required_checks"]
@@ -881,6 +1145,7 @@ CODEQL = ".github/workflows/codeql.yml"
 
 def manifest_of(sandbox: Path) -> dict[str, Any]:
     import tomllib
+
     return tomllib.loads((sandbox / "ci" / "gates.toml").read_text(encoding="utf-8"))
 
 
@@ -922,8 +1187,9 @@ def test_attack_codeql_analyze_step_removed_is_caught(sandbox: Path) -> None:
     """Init without analyze produces no results, and no results is not clean."""
     wf = sandbox / CODEQL
     text = wf.read_text()
-    wf.write_text("\n".join(l for l in text.splitlines()
-                            if "codeql-action/analyze@" not in l))
+    wf.write_text(
+        "\n".join(l for l in text.splitlines() if "codeql-action/analyze@" not in l)
+    )
     result = integrity(sandbox)
     assert result.returncode != 0, "removing the analyze step was not caught"
     assert "no longer invokes its command" in result.stdout
@@ -942,8 +1208,11 @@ def test_attack_codeql_step_conditioned_away_is_caught(sandbox: Path) -> None:
 
 def test_attack_continue_on_error_on_codeql_is_caught(sandbox: Path) -> None:
     wf = sandbox / CODEQL
-    wf.write_text(wf.read_text().replace(
-        "  codeql-python:\n", "  codeql-python:\n    continue-on-error: true\n", 1))
+    wf.write_text(
+        wf.read_text().replace(
+            "  codeql-python:\n", "  codeql-python:\n    continue-on-error: true\n", 1
+        )
+    )
     result = integrity(sandbox)
     assert result.returncode != 0, "continue-on-error on CodeQL was not caught"
     assert "continue-on-error" in result.stdout
@@ -971,14 +1240,17 @@ def test_codeql_workflow_has_no_untrusted_interpolation(sandbox: Path) -> None:
     assert not _UNTRUSTED_INTERPOLATION.search(text)
 
 
-@pytest.mark.parametrize("dangerous", [
-    "run: echo ${{ github.event.issue.title }}",
-    "run: echo ${{ github.event.pull_request.body }}",
-    "run: echo ${{ github.event.comment.body }}",
-    "run: echo ${{ github.event.head_commit.message }}",
-    "ref: refs/heads/${{ github.head_ref }}",
-    "run: echo ${{  github.event.issue.title  }}",          # extra whitespace
-])
+@pytest.mark.parametrize(
+    "dangerous",
+    [
+        "run: echo ${{ github.event.issue.title }}",
+        "run: echo ${{ github.event.pull_request.body }}",
+        "run: echo ${{ github.event.comment.body }}",
+        "run: echo ${{ github.event.head_commit.message }}",
+        "ref: refs/heads/${{ github.head_ref }}",
+        "run: echo ${{  github.event.issue.title  }}",  # extra whitespace
+    ],
+)
 def test_the_injection_shapes_still_fire(dangerous: str) -> None:
     """The narrowing above must not have bought quiet by going blind.
 
@@ -987,18 +1259,23 @@ def test_the_injection_shapes_still_fire(dangerous: str) -> None:
     weakened a security check rather than corrected it, and this goes red.
     """
     assert _UNTRUSTED_INTERPOLATION.search(dangerous), (
-        f"injection shape no longer detected: {dangerous}")
+        f"injection shape no longer detected: {dangerous}"
+    )
 
 
-@pytest.mark.parametrize("safe", [
-    "cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
-    "group: ${{ github.workflow }}-${{ github.ref }}",
-    "if: ${{ github.repository == 'Intellora-ai/final-countdown' }}",
-])
+@pytest.mark.parametrize(
+    "safe",
+    [
+        "cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
+        "group: ${{ github.workflow }}-${{ github.ref }}",
+        "if: ${{ github.repository == 'Intellora-ai/final-countdown' }}",
+    ],
+)
 def test_github_set_values_are_not_flagged(safe: str) -> None:
     """The values GitHub sets itself carry no attacker input and must pass."""
     assert not _UNTRUSTED_INTERPOLATION.search(safe), (
-        f"false positive on a GitHub-set value: {safe}")
+        f"false positive on a GitHub-set value: {safe}"
+    )
 
 
 def test_scanner_role_is_exempt_only_from_the_artifact_check(sandbox: Path) -> None:
@@ -1021,27 +1298,42 @@ def test_scanner_role_is_exempt_only_from_the_artifact_check(sandbox: Path) -> N
 # Containment is not execution, and neither is a comment.
 # --------------------------------------------------------------------------
 @pytest.mark.parametrize("prefix", ["echo", "printf", "cat", "true", ":"])
-def test_attack_gate_command_is_only_printed_not_run(sandbox: Path,
-                                                     prefix: str) -> None:
-    wf = sandbox / VERIFY
-    wf.write_text(wf.read_text().replace(
-        "        run: python3 scripts/axle_gate.py",
-        f"        run: {prefix} python3 scripts/axle_gate.py", 1))
+def test_attack_gate_command_is_only_printed_not_run(
+    sandbox: Path, prefix: str
+) -> None:
+    # In-chain form: axle_gate.py moved inside the
+    # `run_gate.py --name axle-verify -- bash -c` wrapper, so the old bare
+    # `run:` line no longer exists. The attack is unchanged -- a launcher that
+    # only prints the command still runs no verification -- and `sabotage`
+    # asserts the target is present, so this cannot silently swap nothing.
+    sabotage(
+        sandbox,
+        VERIFY,
+        AXLE_GATE_STEP,
+        AXLE_GATE_STEP.replace(
+            "python3 scripts/axle_gate.py", f"{prefix} python3 scripts/axle_gate.py"
+        ),
+    )
     result = integrity(sandbox)
     assert result.returncode != 0, (
-        f"`{prefix} <gate command>` satisfied the gate — it runs nothing")
+        f"`{prefix} <gate command>` satisfied the gate — it runs nothing"
+    )
     # `:` makes `run: : cmd` invalid YAML, so it is caught one step earlier.
     # Either detection is correct; silently passing is the only failure.
-    assert ("no longer invokes its command" in result.stdout
-            or "not valid YAML" in result.stdout), result.stdout[-600:]
+    assert (
+        "no longer invokes its command" in result.stdout
+        or "not valid YAML" in result.stdout
+    ), result.stdout[-600:]
 
 
 def test_attack_gate_command_only_in_a_comment(sandbox: Path) -> None:
     """A comment naming a verifier is documentation, not an invocation."""
-    wf = sandbox / VERIFY
-    wf.write_text(wf.read_text().replace(
-        "        run: python3 scripts/axle_gate.py",
-        "        run: |\n          # python3 scripts/axle_gate.py\n          true", 1))
+    sabotage(
+        sandbox,
+        VERIFY,
+        AXLE_GATE_STEP,
+        "            # python3 scripts/axle_gate.py\n            true",
+    )
     result = integrity(sandbox)
     assert result.returncode != 0, "a commented-out gate satisfied the gate"
 
@@ -1049,15 +1341,21 @@ def test_attack_gate_command_only_in_a_comment(sandbox: Path) -> None:
 def test_real_launchers_still_count_as_execution(sandbox: Path) -> None:
     """The fix must not reject the ways gates are actually launched here."""
     import sys as _s
+
     _s.path.insert(0, str(SCRIPTS))
     from gate_integrity import executes
+
     assert executes("python3 scripts/axle_gate.py", "scripts/axle_gate.py")
-    assert executes("bash scripts/verify_per_function.sh scripts/x.py --min 0.9",
-                    "scripts/x.py")
-    assert executes("python3 scripts/run_gate.py --name c -- pytest --cov-fail-under=95",
-                    "--cov-fail-under=95")
-    assert executes("AXLE_ENV=lean-4.33.0 python3 scripts/axle_gate.py",
-                    "scripts/axle_gate.py")
+    assert executes(
+        "bash scripts/verify_per_function.sh scripts/x.py --min 0.9", "scripts/x.py"
+    )
+    assert executes(
+        "python3 scripts/run_gate.py --name c -- pytest --cov-fail-under=95",
+        "--cov-fail-under=95",
+    )
+    assert executes(
+        "AXLE_ENV=lean-4.33.0 python3 scripts/axle_gate.py", "scripts/axle_gate.py"
+    )
     assert not executes("echo python3 scripts/axle_gate.py", "scripts/axle_gate.py")
     assert not executes("# python3 scripts/axle_gate.py", "scripts/axle_gate.py")
 
@@ -1070,6 +1368,7 @@ def test_only_app_posted_roles_are_exempt_from_reporting(sandbox: Path) -> None:
     a job, that gate could go missing and the finalizer would not notice.
     """
     import tomllib
+
     data = tomllib.loads((sandbox / "ci" / "gates.toml").read_text(encoding="utf-8"))
     exempt = {"finalizer", "scanner", "code-scanning"}
     for name, spec in cast_dict(data["gates"]).items():
@@ -1099,19 +1398,47 @@ def test_only_app_posted_roles_are_exempt_from_reporting(sandbox: Path) -> None:
 # --------------------------------------------------------------------------
 E2E = ".github/workflows/e2e.yml"
 
-COVERAGE_STEP = ('run: python3 scripts/run_gate.py --name coverage -- pytest '
-                 '--cov=src --cov-branch --cov-fail-under=95 -m "not axle"')
-MUTMUT_STEP = ('run: python3 scripts/run_gate.py --name mutmut -- bash '
-               'scripts/verify_per_function.sh scripts/mutation_gate.py '
-               '--min-score 0.95')
-ENFORCE_STEP = "run: python3 scripts/enforce_spec.py specs/*_spec.lean"
+COVERAGE_STEP = (
+    "run: python3 scripts/run_gate.py --name coverage -- pytest "
+    "-n auto --dist loadfile --cov=src --cov-branch "
+    "--cov-fail-under=95 "
+    '-m "not axle"'
+)
+MUTMUT_STEP = (
+    "run: python3 scripts/run_gate.py --name mutmut -- bash "
+    "scripts/verify_per_function.sh scripts/mutation_gate.py "
+    "--min-score 0.95"
+)
+# ANCHORED ON THE IN-CHAIN FORM, for the same reason SHELLCHECK_STEP below is.
+# enforce_spec.py used to be a bare `run:` step that owned no report: a spec
+# breaking a syntactic rule turned axle-verify red with every detail of WHICH
+# spec and WHICH rule living only in the job log, because axle_gate.py -- what
+# writes reports/axle-verify.json -- never ran. It now runs inside the
+# `run_gate.py --name axle-verify -- bash -c` chain.
+#
+# The attack these tests model still lands on the in-chain form: `set -e` stops
+# at the first non-zero exit, so a suppressor on this line discards it and the
+# chain runs on to record a PASS over a failed check. Re-anchored, not deleted.
+ENFORCE_STEP = "            python3 scripts/enforce_spec.py specs/*_spec.lean"
 # shellcheck is no longer a standalone step. It runs inside the bandit gate's
 # single `run_gate.py --name bandit -- bash -c` chain, so it now DOES own a
 # report -- that was the point of wrapping it. The attack still matters: `set -e`
 # stops the chain at the first non-zero exit, and a suppressor on this line
 # discards that exit, so the chain continues and the gate records a PASS over a
 # check that failed. Anchored on the indented in-chain form.
-SHELLCHECK_STEP = "            shellcheck scripts/*.sh"
+# `-f gcc` is part of the pinned string, not incidental: run_gate.py's
+# shellcheck extractor parses that format, and shellcheck's default rendering
+# is three lines per finding with a caret ruler that carries no parseable
+# position. Dropping the flag would silently collapse every shell finding back
+# into one record, so the sabotage target names the whole invocation.
+SHELLCHECK_STEP = "            shellcheck -f gcc scripts/*.sh"
+
+# axle_gate.py runs inside the `run_gate.py --name axle-verify -- bash -c`
+# chain, not as a bare `run:` step. Same re-anchoring as ENFORCE_STEP above and
+# SHELLCHECK_STEP here: the attacks these tests model all still land on the
+# in-chain form, because `set -e` stops at the first non-zero exit and a
+# suppressor on this line discards it.
+AXLE_GATE_STEP = "            python3 scripts/axle_gate.py"
 
 
 def sabotage(sandbox: Path, workflow: str, old: str, new: str) -> None:
@@ -1122,38 +1449,56 @@ def sabotage(sandbox: Path, workflow: str, old: str, new: str) -> None:
     p.write_text(text.replace(old, new, 1), encoding="utf-8")
 
 
-@pytest.mark.parametrize(("workflow", "old", "new"), [
-    # coverage floor dropped to 0; the real threshold demoted to a comment
-    (VERIFY, COVERAGE_STEP,
-     'run: |\n          python3 scripts/run_gate.py --name coverage -- pytest '
-     '--cov=src --cov-branch --cov-fail-under=0 -m "not axle"   '
-     '# was --cov-fail-under=95'),
-    # mutation score floor dropped from 0.95 to 0.10 the same way
-    (VERIFY, MUTMUT_STEP,
-     'run: |\n          python3 scripts/run_gate.py --name mutmut -- bash '
-     'scripts/verify_per_function.sh scripts/mutation_gate.py --min-score 0.10'
-     '   # was --min-score 0.95'),
-    # the e2e suite replaced by a no-op that merely names it
-    (E2E, "run: npm run test:e2e",
-     "run: |\n          npm --version   # npm run test:e2e"),
-], ids=["coverage-threshold", "mutation-threshold", "e2e-noop"])
-def test_attack_token_demoted_to_a_trailing_comment(sandbox: Path,
-                                                    workflow: str,
-                                                    old: str, new: str) -> None:
+@pytest.mark.parametrize(
+    ("workflow", "old", "new"),
+    [
+        # coverage floor dropped to 0; the real threshold demoted to a comment
+        (
+            VERIFY,
+            COVERAGE_STEP,
+            "run: |\n          python3 scripts/run_gate.py --name coverage -- pytest "
+            '--cov=src --cov-branch --cov-fail-under=0 -m "not axle"   '
+            "# was --cov-fail-under=95",
+        ),
+        # mutation score floor dropped from 0.95 to 0.10 the same way
+        (
+            VERIFY,
+            MUTMUT_STEP,
+            "run: |\n          python3 scripts/run_gate.py --name mutmut -- bash "
+            "scripts/verify_per_function.sh scripts/mutation_gate.py --min-score 0.10"
+            "   # was --min-score 0.95",
+        ),
+        # the e2e suite replaced by a no-op that merely names it
+        (
+            E2E,
+            "run: npm run test:e2e",
+            "run: |\n          npm --version   # npm run test:e2e",
+        ),
+    ],
+    ids=["coverage-threshold", "mutation-threshold", "e2e-noop"],
+)
+def test_attack_token_demoted_to_a_trailing_comment(
+    sandbox: Path, workflow: str, old: str, new: str
+) -> None:
     """A `#` comment naming the gate is documentation, not an invocation —
     wherever on the line it sits."""
     sabotage(sandbox, workflow, old, new)
     result = integrity(sandbox)
     assert result.returncode != 0, (
         "the threshold was lowered and the old value parked in a comment; "
-        "gate_integrity passed")
+        "gate_integrity passed"
+    )
     assert "no longer invokes its command" in result.stdout, result.stdout[-800:]
 
 
 def test_attack_token_only_inside_a_quoted_string(sandbox: Path) -> None:
     """`python3 -c "print('...')"` starts with a launcher and runs nothing."""
-    sabotage(sandbox, VERIFY, "run: python3 scripts/axle_gate.py",
-             "run: |\n          python3 -c \"print('scripts/axle_gate.py')\"")
+    sabotage(
+        sandbox,
+        VERIFY,
+        AXLE_GATE_STEP,
+        "            python3 -c \"print('scripts/axle_gate.py')\"",
+    )
     result = integrity(sandbox)
     assert result.returncode != 0, "a quoted mention satisfied the gate"
     assert "no longer invokes its command" in result.stdout, result.stdout[-800:]
@@ -1163,20 +1508,25 @@ def test_executes_rejects_mentions_that_run_nothing() -> None:
     """Unit level, against the live function. Every one of these returned
     True before the fix."""
     import sys as _s
+
     _s.path.insert(0, str(SCRIPTS))
     from gate_integrity import executes
-    assert not executes('python3 -c "print(\'scripts/axle_gate.py\')"',
-                        "scripts/axle_gate.py")
+
+    assert not executes(
+        "python3 -c \"print('scripts/axle_gate.py')\"", "scripts/axle_gate.py"
+    )
     assert not executes("pytest -q  # shellcheck scripts/*.sh", "shellcheck")
-    assert not executes("npm run something-else  # npm run test:e2e",
-                        "npm run test:e2e")
-    assert not executes("pytest --cov-fail-under=0  # was --cov-fail-under=95",
-                        "--cov-fail-under=95")
-    assert not executes("bash x.sh --min-score 0.10  # was --min-score 0.95",
-                        "--min-score 0.95")
+    assert not executes(
+        "npm run something-else  # npm run test:e2e", "npm run test:e2e"
+    )
+    assert not executes(
+        "pytest --cov-fail-under=0  # was --cov-fail-under=95", "--cov-fail-under=95"
+    )
+    assert not executes(
+        "bash x.sh --min-score 0.10  # was --min-score 0.95", "--min-score 0.95"
+    )
     # a token buried inside a quoted argument is data, not a command
-    assert not executes('pytest -m "not --cov-fail-under=95 x"',
-                        "--cov-fail-under=95")
+    assert not executes('pytest -m "not --cov-fail-under=95 x"', "--cov-fail-under=95")
 
 
 def test_every_mandatory_token_is_still_found_in_the_real_workflows() -> None:
@@ -1189,8 +1539,10 @@ def test_every_mandatory_token_is_still_found_in_the_real_workflows() -> None:
     import tomllib
 
     import yaml
+
     _s.path.insert(0, str(SCRIPTS))
     from gate_integrity import executes, steps_of
+
     data = tomllib.loads((REPO / "ci" / "gates.toml").read_text(encoding="utf-8"))
     checked = 0
     for name, spec in cast_dict(data["gates"]).items():
@@ -1203,9 +1555,11 @@ def test_every_mandatory_token_is_still_found_in_the_real_workflows() -> None:
         assert job is not None, f"{name}: job {s['job']} missing"
         steps = steps_of(cast_dict(job))
         for token in [str(t) for t in cast_list(s.get("must_contain", []))]:
-            found = any(token in str(st.get("uses", ""))
-                        or executes(str(st.get("run", "")), token)
-                        for st in steps)
+            found = any(
+                token in str(st.get("uses", ""))
+                or executes(str(st.get("run", "")), token)
+                for st in steps
+            )
             assert found, f"{name}: token {token!r} no longer resolves in {wf.name}"
             checked += 1
     assert checked >= 25, f"only {checked} tokens checked — the walk found nothing"
@@ -1224,31 +1578,38 @@ def test_every_mandatory_token_is_still_found_in_the_real_workflows() -> None:
 # The rule is now positional, not lexical: the gate command must be the last
 # thing on its line that can decide the step's exit status.
 # --------------------------------------------------------------------------
-@pytest.mark.parametrize("tail", [
-    " || true",          # the one spelling the old regex caught
-    " || exit 0",
-    " || /bin/true",
-    " || :",
-    "; true",
-    "; exit 0",
-    " | cat",
-    " &",
-])
-def test_attack_any_exit_status_discarding_operator_is_caught(sandbox: Path,
-                                                              tail: str) -> None:
+@pytest.mark.parametrize(
+    "tail",
+    [
+        " || true",  # the one spelling the old regex caught
+        " || exit 0",
+        " || /bin/true",
+        " || :",
+        "; true",
+        "; exit 0",
+        " | cat",
+        " &",
+    ],
+)
+def test_attack_any_exit_status_discarding_operator_is_caught(
+    sandbox: Path, tail: str
+) -> None:
     sabotage(sandbox, VERIFY, ENFORCE_STEP, ENFORCE_STEP + tail)
     result = integrity(sandbox)
     assert result.returncode != 0, (
-        f"`{tail.strip()}` after a gate command was not detected")
+        f"`{tail.strip()}` after a gate command was not detected"
+    )
     # A trailing `|| :` makes `run:` invalid YAML, so it is caught one step
     # earlier. Either detection is correct; going green is the only failure.
-    assert ("suppress" in result.stdout
-            or "not valid YAML" in result.stdout), result.stdout[-800:]
+    assert "suppress" in result.stdout or "not valid YAML" in result.stdout, (
+        result.stdout[-800:]
+    )
 
 
 @pytest.mark.parametrize("tail", [" || exit 0", "; true", " | cat"])
-def test_attack_suppression_on_a_step_that_owns_no_report(sandbox: Path,
-                                                          tail: str) -> None:
+def test_attack_suppression_on_a_step_that_owns_no_report(
+    sandbox: Path, tail: str
+) -> None:
     """A suppressor inside the gate's own chain still hides a failed check.
 
     shellcheck used to be a standalone step that wrote no reports/*.json, so
@@ -1287,8 +1648,9 @@ def test_an_and_chain_is_not_suppression(sandbox: Path) -> None:
 
 
 @pytest.mark.parametrize("disable", ["set +e", "set +o errexit", "set +ex"])
-def test_attack_errexit_disabled_around_the_gate_is_caught(sandbox: Path,
-                                                           disable: str) -> None:
+def test_attack_errexit_disabled_around_the_gate_is_caught(
+    sandbox: Path, disable: str
+) -> None:
     """The operators on the gate's OWN line are not the whole story.
 
     Measured under `bash -e` against a command that exits 1:
@@ -1296,9 +1658,17 @@ def test_attack_errexit_disabled_around_the_gate_is_caught(sandbox: Path,
         set +e / gate / exit 0  -> step exits 0   SUPPRESSED
         set +e / gate / set -e  -> step exits 0   SUPPRESSED
     """
-    sabotage(sandbox, VERIFY, ENFORCE_STEP,
-             f"run: |\n          {disable}\n          python3 "
-             "scripts/enforce_spec.py specs/*_spec.lean\n          exit 0")
+    # Injected INSIDE the `bash -c` chain, which is where errexit now lives:
+    # the wrapper runs `set -e` as the chain's first line, so disabling it
+    # mid-chain is the same attack against the same mechanism.
+    sabotage(
+        sandbox,
+        VERIFY,
+        ENFORCE_STEP,
+        f"            {disable}\n"
+        "            python3 scripts/enforce_spec.py specs/*_spec.lean\n"
+        "            exit 0",
+    )
     result = integrity(sandbox)
     assert result.returncode != 0, f"`{disable}` around a gate went green"
     assert "errexit disabled" in result.stdout, result.stdout[-800:]
@@ -1307,9 +1677,13 @@ def test_attack_errexit_disabled_around_the_gate_is_caught(sandbox: Path,
 def test_errexit_restored_before_the_gate_is_not_flagged(sandbox: Path) -> None:
     """`set +e` that is turned back off again before the gate runs leaves the
     gate's failure deciding the step, so it must not be reported."""
-    sabotage(sandbox, VERIFY, ENFORCE_STEP,
-             "run: |\n          set +e\n          true\n          set -e\n"
-             "          python3 scripts/enforce_spec.py specs/*_spec.lean")
+    sabotage(
+        sandbox,
+        VERIFY,
+        ENFORCE_STEP,
+        "            set +e\n            true\n            set -e\n"
+        "            python3 scripts/enforce_spec.py specs/*_spec.lean",
+    )
     assert integrity(sandbox).returncode == 0
 
 
@@ -1319,16 +1693,19 @@ def test_a_token_word_naming_a_path_must_match_exactly() -> None:
     same tail satisfy a token that already names a path: check 8 asserts only
     that `scripts/axle_gate.py` exists, which it still would."""
     import sys as _s
+
     _s.path.insert(0, str(SCRIPTS))
     from gate_integrity import executes
-    assert not executes("python3 evil/scripts/axle_gate.py",
-                        "scripts/axle_gate.py")
+
+    assert not executes("python3 evil/scripts/axle_gate.py", "scripts/axle_gate.py")
     assert executes("python3 scripts/axle_gate.py", "scripts/axle_gate.py")
     # slash-free token words keep the relaxation: an absolute path to the tool
     # and the repo's own `scripts/run_gate.py` spelling both still count
     assert executes("/usr/bin/shellcheck scripts/*.sh", "shellcheck")
-    assert executes("python3 scripts/run_gate.py --name pyright -- pyright",
-                    "run_gate.py --name pyright -- pyright")
+    assert executes(
+        "python3 scripts/run_gate.py --name pyright -- pyright",
+        "run_gate.py --name pyright -- pyright",
+    )
 
 
 def test_a_backslash_continuation_does_not_open_a_command_position() -> None:
@@ -1337,23 +1714,30 @@ def test_a_backslash_continuation_does_not_open_a_command_position() -> None:
     line its own command position, and `echo \\` / `--cov-fail-under=95`
     satisfied the coverage gate while running `echo`."""
     import sys as _s
+
     _s.path.insert(0, str(SCRIPTS))
     from gate_integrity import executes
+
     assert not executes("echo \\\n  --cov-fail-under=95", "--cov-fail-under=95")
-    assert not executes("echo \\\n  python3 scripts/axle_gate.py",
-                        "scripts/axle_gate.py")
+    assert not executes(
+        "echo \\\n  python3 scripts/axle_gate.py", "scripts/axle_gate.py"
+    )
     # the legitimate wrap keeps its real head and must still count
     assert executes(
         "python3 scripts/run_gate.py --name coverage -- pytest \\\n"
-        "  --cov-fail-under=95", "--cov-fail-under=95")
+        "  --cov-fail-under=95",
+        "--cov-fail-under=95",
+    )
 
 
 def test_a_token_must_match_whole_words_not_prefixes() -> None:
     """`--cov-fail-under=950` is not `--cov-fail-under=95`, and
     `npm run test:e2e-disabled` is not `npm run test:e2e`."""
     import sys as _s
+
     _s.path.insert(0, str(SCRIPTS))
     from gate_integrity import executes
+
     assert not executes("pytest --cov-fail-under=950", "--cov-fail-under=95")
     assert executes("pytest --cov-fail-under=95", "--cov-fail-under=95")
     assert not executes("npm run test:e2e-disabled", "npm run test:e2e")
@@ -1369,7 +1753,7 @@ def test_a_token_must_match_whole_words_not_prefixes() -> None:
 # the fix, all four files below returned
 #   (True, 'shell=False, argv list literal, argv[0]=exe from shutil.which, ...')
 # --------------------------------------------------------------------------
-REASSIGNED = '''
+REASSIGNED = """
 import shutil
 import subprocess
 
@@ -1378,9 +1762,9 @@ def go(user_supplied: str) -> None:
     exe = shutil.which("git")
     exe = user_supplied
     subprocess.run([exe, "status"], capture_output=True, timeout=30)
-'''
+"""
 
-DEAD_BRANCH = '''
+DEAD_BRANCH = """
 import shutil
 import subprocess
 
@@ -1390,9 +1774,9 @@ def go(user_supplied: str) -> None:
         exe = shutil.which("git")
     exe = user_supplied
     subprocess.run([exe, "status"], capture_output=True, timeout=30)
-'''
+"""
 
-PARAMETER = '''
+PARAMETER = """
 import shutil
 import subprocess
 
@@ -1404,9 +1788,9 @@ def seed() -> None:
 
 def go(exe: str) -> None:
     subprocess.run([exe, "status"], capture_output=True, timeout=30)
-'''
+"""
 
-LOOP_TARGET = '''
+LOOP_TARGET = """
 import shutil
 import subprocess
 
@@ -1415,11 +1799,11 @@ def go(candidates: list[str]) -> None:
     exe = shutil.which("git")
     for exe in candidates:
         subprocess.run([exe, "status"], capture_output=True, timeout=30)
-'''
+"""
 
 # Legitimate and must keep passing: scripts/generate_evidence.py binds `exe`
 # from shutil.which twice, once with an explicit search path and once without.
-REBOUND_FROM_WHICH = '''
+REBOUND_FROM_WHICH = """
 import shutil
 import subprocess
 import sys
@@ -1433,33 +1817,38 @@ def go(name: str, flag: str) -> None:
     if exe is None:
         return
     subprocess.run([exe, flag], capture_output=True, timeout=30)
-'''
+"""
 
 
 def _safety(tmp_path: Path, source: str) -> tuple[bool, str]:
     import sys as _s
+
     _s.path.insert(0, str(SCRIPTS))
     from security_gate import check_subprocess_safety
+
     f = tmp_path / "subject.py"
     f.write_text(source, encoding="utf-8")
     return check_subprocess_safety(str(f))
 
 
-@pytest.mark.parametrize(("source", "why"), [
-    (REASSIGNED, "plainly reassigned from a parameter"),
-    (DEAD_BRANCH, "bound from shutil.which only on a branch never taken"),
-    (PARAMETER, "the name is a function parameter elsewhere in the file"),
-    (LOOP_TARGET, "the name is rebound by a for-loop target"),
-], ids=["reassigned", "dead-branch", "parameter", "loop-target"])
-def test_attack_argv0_name_no_longer_holds_a_resolved_path(tmp_path: Path,
-                                                           source: str,
-                                                           why: str) -> None:
+@pytest.mark.parametrize(
+    ("source", "why"),
+    [
+        (REASSIGNED, "plainly reassigned from a parameter"),
+        (DEAD_BRANCH, "bound from shutil.which only on a branch never taken"),
+        (PARAMETER, "the name is a function parameter elsewhere in the file"),
+        (LOOP_TARGET, "the name is rebound by a for-loop target"),
+    ],
+    ids=["reassigned", "dead-branch", "parameter", "loop-target"],
+)
+def test_attack_argv0_name_no_longer_holds_a_resolved_path(
+    tmp_path: Path, source: str, why: str
+) -> None:
     ok, evidence = _safety(tmp_path, source)
-    assert not ok, (
-        f"exception granted to an argv[0] that is {why}: {evidence}")
+    assert not ok, f"exception granted to an argv[0] that is {why}: {evidence}"
 
 
-GLOBAL_REBIND = '''
+GLOBAL_REBIND = """
 import shutil
 import subprocess
 
@@ -1473,7 +1862,7 @@ def poison(user_supplied: str) -> None:
 
 def go() -> None:
     subprocess.run([exe, "status"], capture_output=True, timeout=30)
-'''
+"""
 
 
 def test_attack_a_global_rebinds_the_name_in_an_outer_scope(tmp_path: Path) -> None:
@@ -1485,22 +1874,27 @@ def test_attack_a_global_rebinds_the_name_in_an_outer_scope(tmp_path: Path) -> N
     assert not ok, f"a global rebinding kept the exception: {evidence}"
 
 
-@pytest.mark.parametrize("source", [
-    # a ternary is not a shutil.which call
-    'import shutil\nimport subprocess\n\n\ndef f(u: str) -> None:\n'
-    '    exe = shutil.which("g") if u else u\n'
-    '    subprocess.run([exe, "s"], timeout=1)\n',
-    # the environment is not a resolver
-    'import os\nimport subprocess\n\n\ndef f() -> None:\n'
-    '    exe = os.environ["X"]\n'
-    '    subprocess.run([exe, "s"], timeout=1)\n',
-    # a walrus in argv[0] is not a Name bound anywhere checkable
-    'import shutil\nimport subprocess\n\n\ndef f(u: str) -> None:\n'
-    '    exe = shutil.which("g")\n'
-    '    subprocess.run([(exe := u), "s"], timeout=1)\n',
-], ids=["ternary", "environ", "walrus"])
-def test_argv0_from_an_unresolvable_expression_is_rejected(tmp_path: Path,
-                                                           source: str) -> None:
+@pytest.mark.parametrize(
+    "source",
+    [
+        # a ternary is not a shutil.which call
+        "import shutil\nimport subprocess\n\n\ndef f(u: str) -> None:\n"
+        '    exe = shutil.which("g") if u else u\n'
+        '    subprocess.run([exe, "s"], timeout=1)\n',
+        # the environment is not a resolver
+        "import os\nimport subprocess\n\n\ndef f() -> None:\n"
+        '    exe = os.environ["X"]\n'
+        '    subprocess.run([exe, "s"], timeout=1)\n',
+        # a walrus in argv[0] is not a Name bound anywhere checkable
+        "import shutil\nimport subprocess\n\n\ndef f(u: str) -> None:\n"
+        '    exe = shutil.which("g")\n'
+        '    subprocess.run([(exe := u), "s"], timeout=1)\n',
+    ],
+    ids=["ternary", "environ", "walrus"],
+)
+def test_argv0_from_an_unresolvable_expression_is_rejected(
+    tmp_path: Path, source: str
+) -> None:
     ok, evidence = _safety(tmp_path, source)
     assert not ok, f"exception granted to an unresolved argv[0]: {evidence}"
 
@@ -1519,11 +1913,201 @@ def test_every_eligible_file_still_verifies() -> None:
     one stops, the gate goes red on the repository's own source.
     """
     import sys as _s
+
     _s.path.insert(0, str(SCRIPTS))
     from security_gate import ELIGIBLE, check_subprocess_safety
+
     for _test_id, rel in sorted(ELIGIBLE):
         path = REPO / rel
         if not path.is_file():
             continue
         ok, evidence = check_subprocess_safety(str(path))
         assert ok, f"{rel} lost its verified exception: {evidence}"
+
+
+# --------------------------------------------------------------------------
+# Attack 26 — a `bash -c` chain that never arms errexit
+#
+# The asymmetry that made this reachable: `errexit_off_at` can only report a
+# `set +e` that is PRESENT. In a `run:` block errexit is never absent, because
+# GitHub starts one as `bash -e {0}`. `bash -c` starts with errexit OFF, so the
+# compensating `set -e` is one line inside a string literal — and ci/gates.toml
+# pins the wrapper, not the guard inside it.
+#
+# Measured before the check existed: deleting that single line left
+# gate_integrity exiting 0, and a chain whose first three verifications exit 1
+# and whose fourth exits 0 produced a wrapper exit of 0 with status PASS and
+# mergeable_contribution true. For preflight that is the TCB check and the
+# live-ruleset drift check both failing while `full` certifies an all-green run.
+# --------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "gate", ["preflight", "axle-verify", "bandit", "correspondence"]
+)
+def test_attack_chain_without_errexit_is_caught(sandbox: Path, gate: str) -> None:
+    wf = sandbox / VERIFY
+    text = wf.read_text()
+    marker = f"--name {gate} -- bash -c"
+    assert marker in text, f"{gate} is no longer a bash -c chain"
+    head, tail = text[: text.index(marker)], text[text.index(marker) :]
+    armed = tail.replace("            set -e\n", "", 1)
+    assert armed != tail, f"the {gate} chain has no `set -e` to delete"
+    wf.write_text(head + armed)
+
+    result = integrity(sandbox)
+    assert result.returncode != 0, (
+        f"a `{gate}` chain with errexit never enabled satisfied the gate — "
+        "every command after a failing one still runs and the chain's exit "
+        "code is the last command's, which is the report writer's"
+    )
+    assert "chain arms errexit" in result.stdout, result.stdout[-800:]
+
+
+def test_a_chain_that_arms_errexit_is_not_flagged() -> None:
+    """The control. Every chain in the real workflow must already pass."""
+    import sys as _s
+
+    _s.path.insert(0, str(SCRIPTS))
+    from gate_integrity import chain_without_errexit
+
+    # A `run:` block that is not a chain has nothing to arm -- GitHub's own
+    # `bash -e {0}` already applies, and demanding `set -e` there would be a
+    # false positive, which is how a check gets switched off.
+    assert not chain_without_errexit(
+        "python3 scripts/axle_gate.py", ["scripts/axle_gate.py"]
+    )
+
+    # Against the REAL workflow rather than a synthetic string, because the
+    # shape that matters is the one on disk: a hand-written approximation of a
+    # multi-line `bash -c` inside YAML is exactly the kind of input that can
+    # pass while the real thing fails, or the reverse.
+    import yaml as _yaml
+
+    doc = _yaml.safe_load((REPO / VERIFY).read_text(encoding="utf-8"))
+    chains = 0
+    for job in doc["jobs"].values():
+        for step in job.get("steps", []):
+            run = str(step.get("run", ""))
+            if "-- bash -c" not in run:
+                continue
+            chains += 1
+            token = next(
+                w for w in run.split() if w.endswith(".py") and "run_gate" not in w
+            )
+            assert not chain_without_errexit(run, [token]), (
+                f"a real chain was flagged as unarmed: {run[:120]!r}"
+            )
+    assert chains >= 4, f"expected at least 4 bash -c chains, found {chains}"
+
+
+# ---------------------------------------------------------------------------
+# CHECK (g) — THE MUTATION RATCHET
+#
+# This check had no test, and that is how a wrong floor got into it. The
+# catalogue grew from 27 mutants over 9 files to 39 over 17, so raising both
+# floors to the measured state looked obviously right. It is not: those two
+# numbers do not behave the same way.
+#
+# The mutant count only ever falls when coverage falls. The FILE count falls
+# whenever someone moves a mutant onto a file already in the catalogue, which
+# removes no coverage at all. A floor on it fires on a no-op refactor, and a
+# gate that blocks correct work teaches people to raise floors to get their
+# work through -- which is how a ratchet becomes a formality.
+#
+# These two tests pin the asymmetry so the next person to look at 17 and think
+# "that should be the floor" gets a red test instead of a merged mistake.
+# ---------------------------------------------------------------------------
+
+CATALOGUE = Path("frontend/scripts/mutation-gate.mjs")
+
+_ID = re.compile(r"^\s*id:\s*'([^']+)',\s*$", re.M)
+_FILE = re.compile(r"^\s*file:\s*'([^']+)',\s*$", re.M)
+
+
+def test_shrinking_below_the_floor_is_caught(sandbox: Path) -> None:
+    """The count ratchets: the gate refuses a catalogue below the floor.
+
+    Deleting ONE entry is not the test, and the first version of this test made
+    that mistake. One deletion only trips the gate when the catalogue happens to
+    sit exactly ON the floor, which was true of main the day it was written and
+    false the moment a branch added mutants -- #66 took the catalogue to 50
+    against a floor of 39, so 50 -> 49 passed and this test failed on work that
+    was entirely correct. A test that depends on the catalogue not growing is a
+    test that punishes people for growing it.
+
+    So delete down to exactly one below the floor, whatever the catalogue size.
+    That is the invariant the check actually enforces.
+    """
+    import sys as _s
+
+    _s.path.insert(0, str(SCRIPTS))
+    from gate_integrity import MUTATION_COUNT_FLOOR
+
+    cat = sandbox / CATALOGUE
+    src = cat.read_text(encoding="utf-8")
+    ids = _ID.findall(src)
+    assert len(ids) >= MUTATION_COUNT_FLOOR, (
+        f"catalogue has {len(ids)} entries against a floor of "
+        f"{MUTATION_COUNT_FLOOR} — main is already failing check (g)"
+    )
+
+    # One below the floor: the smallest catalogue the gate must refuse.
+    doomed = ids[: len(ids) - MUTATION_COUNT_FLOOR + 1]
+    thinned = src
+    for mutant in doomed:
+        thinned = re.sub(
+            rf"^\s*id:\s*'{re.escape(mutant)}',\s*$\n",
+            "",
+            thinned,
+            count=1,
+            flags=re.M,
+        )
+    remaining = len(_ID.findall(thinned))
+    assert remaining == MUTATION_COUNT_FLOOR - 1, (
+        f"meant to land one below the floor, landed on {remaining}"
+    )
+    cat.write_text(thinned, encoding="utf-8")
+
+    result = integrity(sandbox)
+    assert result.returncode != 0, (
+        f"the catalogue went {len(ids)} -> {remaining}, below the floor of "
+        f"{MUTATION_COUNT_FLOOR}, and the gate allowed it. Those are defects "
+        "the suite could see and now cannot.\n" + result.stdout[-800:]
+    )
+    assert "mutation catalogue" in result.stdout, result.stdout[-800:]
+
+
+def test_consolidating_two_files_is_not_caught(sandbox: Path) -> None:
+    """The FILE count does not ratchet, because consolidation is legitimate.
+
+    Moving every mutant off one file and onto another already in the catalogue
+    leaves the mutant count untouched. Nothing is less covered afterwards. The
+    gate must not refuse it.
+    """
+    cat = sandbox / CATALOGUE
+    src = cat.read_text(encoding="utf-8")
+    before_ids, before_files = len(_ID.findall(src)), len(set(_FILE.findall(src)))
+
+    names = sorted(set(_FILE.findall(src)))
+    assert len(names) >= 2, "need two distinct files to consolidate"
+    victim, target = names[0], names[1]
+    moved = re.sub(
+        rf"^(\s*file:\s*)'{re.escape(victim)}',\s*$",
+        rf"\1'{target}',",
+        src,
+        flags=re.M,
+    )
+    assert moved != src, f"nothing moved — {victim!r} did not match"
+    cat.write_text(moved, encoding="utf-8")
+
+    after_ids = len(_ID.findall(moved))
+    after_files = len(set(_FILE.findall(moved)))
+    assert after_ids == before_ids, "the refactor must not change the mutant count"
+    assert after_files < before_files, "the refactor must reduce the file count"
+
+    result = integrity(sandbox)
+    assert result.returncode == 0, (
+        f"consolidating {victim} into {target} took the file count "
+        f"{before_files} -> {after_files} with the mutant count unchanged at "
+        f"{after_ids}, and the gate refused it. MUTATION_FILE_FLOOR is being "
+        "treated as a ratchet; it is not one.\n" + result.stdout[-800:]
+    )

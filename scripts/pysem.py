@@ -130,13 +130,19 @@ class Guard:
 
 # Python binary operators with a defined meaning in the Lean semantics.
 BINOPS: dict[type[ast.operator], str] = {
-    ast.Add: "add", ast.Sub: "sub", ast.Mult: "mul",
+    ast.Add: "add",
+    ast.Sub: "sub",
+    ast.Mult: "mul",
 }
 # Comparisons. Python's `<` yields a bool; the semantics maps that to 1/0 and
 # treats non-zero as true, which is Python's own truthiness for ints.
 CMPOPS: dict[type[ast.cmpop], str] = {
-    ast.Lt: "lt", ast.LtE: "le", ast.Gt: "gt", ast.GtE: "ge",
-    ast.Eq: "eq", ast.NotEq: "ne",
+    ast.Lt: "lt",
+    ast.LtE: "le",
+    ast.Gt: "gt",
+    ast.GtE: "ge",
+    ast.Eq: "eq",
+    ast.NotEq: "ne",
 }
 BUILTINS = {"max": "pmax", "min": "pmin"}
 
@@ -153,7 +159,12 @@ BUILTINS = {"max": "pmax", "min": "pmin"}
 VALUE_INFIX: dict[str, str] = {"add": "+", "sub": "-", "mul": "*"}
 VALUE_PREFIX: dict[str, str] = {"pmax": "max", "pmin": "min"}
 COMPARISONS: dict[str, str] = {
-    "lt": "<", "le": "≤", "gt": ">", "ge": "≥", "eq": "=", "ne": "≠",
+    "lt": "<",
+    "le": "≤",
+    "gt": ">",
+    "ge": "≥",
+    "eq": "=",
+    "ne": "≠",
 }
 
 
@@ -217,8 +228,10 @@ def render_value(node: Node) -> str:
 def render_prop(node: Node) -> str:
     """The Lean PROP a node means in CONDITION position — Python truthiness."""
     if isinstance(node, Op) and node.op in COMPARISONS:
-        return (f"{render_value(node.left)} {COMPARISONS[node.op]} "
-                f"{render_value(node.right)}")
+        return (
+            f"{render_value(node.left)} {COMPARISONS[node.op]} "
+            f"{render_value(node.right)}"
+        )
     return f"{render_value(node)} ≠ (0 : Int)"
 
 
@@ -239,10 +252,10 @@ def denotation(guards: list[Guard], ret: Node) -> str:
     if not guards:
         return f"some {render_value(ret)}"
     head = guards[0]
-    taken = ("none" if head.action is None
-             else f"some {render_value(head.action)}")
-    return (f"(if {render_prop(head.cond)} then {taken} "
-            f"else {denotation(guards[1:], ret)})")
+    taken = "none" if head.action is None else f"some {render_value(head.action)}"
+    return (
+        f"(if {render_prop(head.cond)} then {taken} else {denotation(guards[1:], ret)})"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -258,42 +271,134 @@ def denotation(guards: list[Guard], ret: Node) -> str:
 # --------------------------------------------------------------------------
 LEAN_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 GENERATED_HYPOTHESIS = re.compile(r"^hguard[0-9]+$")
-LEAN_RESERVED = frozenset({
-    # Lean 4 keywords and command heads.
-    "abbrev", "at", "attribute", "axiom", "by", "calc", "catch", "class",
-    "def", "deriving", "do", "else", "end", "example", "exists", "extends",
-    "finally", "for", "forall", "from", "fun", "have", "if", "import", "in",
-    "inductive", "instance", "let", "macro", "match", "mutual", "namespace",
-    "noncomputable", "notation", "open", "partial", "private", "protected",
-    "rec", "return", "section", "set_option", "show", "sorry", "structure",
-    "syntax", "then", "theorem", "this", "try", "universe", "unless", "unsafe",
-    "variable", "where", "while", "with",
-    # Everything the fixed semantics defines, plus what the generated
-    # statements and proofs name. Shadowing any of these changes what the
-    # theorem says without changing how it reads.
-    "PyExpr", "PyEnv", "PyFunc", "lookupVar", "eval", "evalFunc", "runGuards",
-    "lit", "var", "add", "sub", "mul", "pmax", "pmin", "lt", "le", "gt", "ge",
-    "eq", "ne", "params", "guards", "ret", "env", "fallback", "args",
-    "max", "min", "some", "none", "Option", "Int", "List", "String", "Prop",
-    "Type", "Nat", "Bool", "Decidable",
-})
+LEAN_RESERVED = frozenset(
+    {
+        # Lean 4 keywords and command heads.
+        "abbrev",
+        "at",
+        "attribute",
+        "axiom",
+        "by",
+        "calc",
+        "catch",
+        "class",
+        "def",
+        "deriving",
+        "do",
+        "else",
+        "end",
+        "example",
+        "exists",
+        "extends",
+        "finally",
+        "for",
+        "forall",
+        "from",
+        "fun",
+        "have",
+        "if",
+        "import",
+        "in",
+        "inductive",
+        "instance",
+        "let",
+        "macro",
+        "match",
+        "mutual",
+        "namespace",
+        "noncomputable",
+        "notation",
+        "open",
+        "partial",
+        "private",
+        "protected",
+        "rec",
+        "return",
+        "section",
+        "set_option",
+        "show",
+        "sorry",
+        "structure",
+        "syntax",
+        "then",
+        "theorem",
+        "this",
+        "try",
+        "universe",
+        "unless",
+        "unsafe",
+        "variable",
+        "where",
+        "while",
+        "with",
+        # Everything the fixed semantics defines, plus what the generated
+        # statements and proofs name. Shadowing any of these changes what the
+        # theorem says without changing how it reads.
+        "PyExpr",
+        "PyEnv",
+        "PyFunc",
+        "lookupVar",
+        "eval",
+        "evalFunc",
+        "runGuards",
+        "lit",
+        "var",
+        "add",
+        "sub",
+        "mul",
+        "pmax",
+        "pmin",
+        "lt",
+        "le",
+        "gt",
+        "ge",
+        "eq",
+        "ne",
+        "params",
+        "guards",
+        "ret",
+        "env",
+        "fallback",
+        "args",
+        "max",
+        "min",
+        "some",
+        "none",
+        "Option",
+        "Int",
+        "List",
+        "String",
+        "Prop",
+        "Type",
+        "Nat",
+        "Bool",
+        "Decidable",
+    }
+)
 
 
 def check_param_name(name: str, func_name: str) -> None:
     """Reject a parameter that cannot be a binder in the denotation theorem."""
     if name == "_" or not LEAN_IDENTIFIER.match(name):
-        raise Unsupported(f"parameter {name!r} is not a Lean identifier, so it "
-                          "cannot be bound in the denotation theorem")
+        raise Unsupported(
+            f"parameter {name!r} is not a Lean identifier, so it "
+            "cannot be bound in the denotation theorem"
+        )
     if name in LEAN_RESERVED:
-        raise Unsupported(f"parameter {name!r} is a Lean keyword or an "
-                          "identifier the semantics defines; binding it would "
-                          "change what the theorem means")
+        raise Unsupported(
+            f"parameter {name!r} is a Lean keyword or an "
+            "identifier the semantics defines; binding it would "
+            "change what the theorem means"
+        )
     if GENERATED_HYPOTHESIS.match(name):
-        raise Unsupported(f"parameter {name!r} collides with the hypothesis "
-                          "names the generated guard split introduces")
+        raise Unsupported(
+            f"parameter {name!r} collides with the hypothesis "
+            "names the generated guard split introduces"
+        )
     if name == f"{func_name}_ast":
-        raise Unsupported(f"parameter {name!r} shadows the syntax tree the "
-                          "theorem is about")
+        raise Unsupported(
+            f"parameter {name!r} shadows the syntax tree the theorem is about"
+        )
 
 
 # --------------------------------------------------------------------------
@@ -303,16 +408,19 @@ def expr(node: ast.expr, params: set[str]) -> Node:
     """One Python expression, lowered. Total or raises."""
     if isinstance(node, ast.Constant):
         if isinstance(node.value, bool) or not isinstance(node.value, int):
-            raise Unsupported(f"only int literals are supported, got "
-                              f"{type(node.value).__name__}")
+            raise Unsupported(
+                f"only int literals are supported, got {type(node.value).__name__}"
+            )
         return Lit(node.value)
 
     if isinstance(node, ast.Name):
         if node.id not in params:
             # A free name could be a global, a builtin, or a closure cell. None
             # of those have semantics here, so none of them may enter a proof.
-            raise Unsupported(f"name {node.id!r} is not a parameter; globals, "
-                              "closures and builtins are outside the subset")
+            raise Unsupported(
+                f"name {node.id!r} is not a parameter; globals, "
+                "closures and builtins are outside the subset"
+            )
         return Var(node.id)
 
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
@@ -324,8 +432,10 @@ def expr(node: ast.expr, params: set[str]) -> Node:
         if op is None:
             # Division especially: Python's // floors toward -infinity and / is
             # float. Neither is modelled, so neither is admitted.
-            raise Unsupported(f"operator {type(node.op).__name__} has no "
-                              "defined semantics in this subset")
+            raise Unsupported(
+                f"operator {type(node.op).__name__} has no "
+                "defined semantics in this subset"
+            )
         return Op(op, expr(node.left, params), expr(node.right, params))
 
     if isinstance(node, ast.Compare):
@@ -333,22 +443,27 @@ def expr(node: ast.expr, params: set[str]) -> Node:
             raise Unsupported("chained comparison (a < b < c) is not modelled")
         cmp = CMPOPS.get(type(node.ops[0]))
         if cmp is None:
-            raise Unsupported(f"comparison {type(node.ops[0]).__name__} is "
-                              "outside the subset")
-        return Op(cmp, expr(node.left, params),
-                  expr(node.comparators[0], params))
+            raise Unsupported(
+                f"comparison {type(node.ops[0]).__name__} is outside the subset"
+            )
+        return Op(cmp, expr(node.left, params), expr(node.comparators[0], params))
 
     if isinstance(node, ast.Call):
         if not isinstance(node.func, ast.Name) or node.func.id not in BUILTINS:
             raise Unsupported("only the builtins max/min are callable here")
         if node.keywords or len(node.args) != 2:
-            raise Unsupported(f"{node.func.id} is modelled only with exactly "
-                              "two positional arguments")
-        return Op(BUILTINS[node.func.id], expr(node.args[0], params),
-                  expr(node.args[1], params))
+            raise Unsupported(
+                f"{node.func.id} is modelled only with exactly two positional arguments"
+            )
+        return Op(
+            BUILTINS[node.func.id],
+            expr(node.args[0], params),
+            expr(node.args[1], params),
+        )
 
-    raise Unsupported(f"expression {type(node).__name__} is outside the "
-                      "formally supported subset")
+    raise Unsupported(
+        f"expression {type(node).__name__} is outside the formally supported subset"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -367,8 +482,10 @@ def expr(node: ast.expr, params: set[str]) -> Node:
 # --------------------------------------------------------------------------
 def guard(stmt: ast.stmt, params: set[str]) -> Guard:
     if not isinstance(stmt, ast.If):
-        raise Unsupported(f"statement {type(stmt).__name__} is outside the "
-                          "subset; only `if` guards and a final `return`")
+        raise Unsupported(
+            f"statement {type(stmt).__name__} is outside the "
+            "subset; only `if` guards and a final `return`"
+        )
     if stmt.orelse:
         raise Unsupported("`else` is not modelled; use a following guard")
     if len(stmt.body) != 1:
@@ -387,11 +504,14 @@ def emit(path: Path, func_name: str) -> Emitted:
     source = path.read_text(encoding="utf-8")
     tree = ast.parse(source, filename=str(path))
 
-    funcs = [n for n in tree.body
-             if isinstance(n, ast.FunctionDef) and n.name == func_name]
+    funcs = [
+        n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == func_name
+    ]
     if len(funcs) != 1:
-        raise Unsupported(f"expected exactly one `def {func_name}` at module "
-                          f"level, found {len(funcs)}")
+        raise Unsupported(
+            f"expected exactly one `def {func_name}` at module "
+            f"level, found {len(funcs)}"
+        )
     fn = funcs[0]
 
     if fn.decorator_list:
@@ -407,31 +527,42 @@ def emit(path: Path, func_name: str) -> Emitted:
     pset = set(params)
 
     body = list(fn.body)
-    if body and isinstance(body[0], ast.Expr) and \
-            isinstance(body[0].value, ast.Constant) and \
-            isinstance(body[0].value.value, str):
-        body = body[1:]                      # docstring: no runtime meaning
+    if (
+        body
+        and isinstance(body[0], ast.Expr)
+        and isinstance(body[0].value, ast.Constant)
+        and isinstance(body[0].value.value, str)
+    ):
+        body = body[1:]  # docstring: no runtime meaning
     if not body:
         raise Unsupported("function body is empty after the docstring")
 
     final = body[-1]
     if not isinstance(final, ast.Return) or final.value is None:
-        raise Unsupported("the last statement must be `return <expr>`; a "
-                          "function that can fall off the end returns None, "
-                          "which is not an Int")
+        raise Unsupported(
+            "the last statement must be `return <expr>`; a "
+            "function that can fall off the end returns None, "
+            "which is not an Int"
+        )
     guard_list = [guard(s, pset) for s in body[:-1]]
     ret = expr(final.value, pset)
 
-    lean = ("{ params := [" + ", ".join(f'"{p}"' for p in params) + "]\n"
-            "  , guards := [" + ", ".join(render_guard(g) for g in guard_list)
-            + "]\n"
-            "  , ret := " + render_ast(ret) + " }")
+    lean = (
+        "{ params := [" + ", ".join(f'"{p}"' for p in params) + "]\n"
+        "  , guards := [" + ", ".join(render_guard(g) for g in guard_list) + "]\n"
+        "  , ret := " + render_ast(ret) + " }"
+    )
 
-    return Emitted(name=func_name, source_path=str(path),
-                   source_sha256=hashlib.sha256(source.encode()).hexdigest(),
-                   params=params, lean_ast=lean, guards=len(guard_list),
-                   denotation=denotation(guard_list, ret),
-                   guard_props=[render_prop(g.cond) for g in guard_list])
+    return Emitted(
+        name=func_name,
+        source_path=str(path),
+        source_sha256=hashlib.sha256(source.encode()).hexdigest(),
+        params=params,
+        lean_ast=lean,
+        guards=len(guard_list),
+        denotation=denotation(guard_list, ret),
+        guard_props=[render_prop(g.cond) for g in guard_list],
+    )
 
 
 # --------------------------------------------------------------------------
@@ -452,8 +583,9 @@ def emit(path: Path, func_name: str) -> Emitted:
 SAMPLES = [-7, -3, -1, 0, 1, 2, 3, 5, 8, 17]
 
 
-def observe(path: Path, func_name: str, params: list[str]
-            ) -> list[tuple[list[int], int | None]]:
+def observe(
+    path: Path, func_name: str, params: list[str]
+) -> list[tuple[list[int], int | None]]:
     """Run the real function. `None` records that it raised."""
     spec = importlib.util.spec_from_file_location(f"_pysem_{func_name}", path)
     if spec is None or spec.loader is None:
@@ -473,12 +605,13 @@ def observe(path: Path, func_name: str, params: list[str]
     for args in points:
         try:
             result = fn(*args)
-        except Exception:                    # noqa: BLE001 - any raise is `none`
+        except Exception:  # noqa: BLE001 - any raise is `none`
             out.append((args, None))
             continue
         if not isinstance(result, int) or isinstance(result, bool):
-            raise Unsupported(f"{func_name}{tuple(args)} returned "
-                              f"{type(result).__name__}, not int")
+            raise Unsupported(
+                f"{func_name}{tuple(args)} returned {type(result).__name__}, not int"
+            )
         out.append((args, result))
     return out
 
@@ -500,10 +633,14 @@ def main() -> int:
 
     if ns.json:
         payload: dict[str, Any] = {
-            "name": e.name, "source_path": e.source_path,
-            "source_sha256": e.source_sha256, "params": e.params,
-            "guards": e.guards, "lean_ast": e.lean_ast,
-            "denotation": e.denotation, "guard_props": e.guard_props,
+            "name": e.name,
+            "source_path": e.source_path,
+            "source_sha256": e.source_sha256,
+            "params": e.params,
+            "guards": e.guards,
+            "lean_ast": e.lean_ast,
+            "denotation": e.denotation,
+            "guard_props": e.guard_props,
             "ground_truth": [{"args": a, "result": r} for a, r in e.ground_truth],
         }
         print(json.dumps(payload, indent=2))

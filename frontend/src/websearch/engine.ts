@@ -181,15 +181,21 @@ export function jsonProvider(config: JsonProviderConfig): SearchProvider {
         .replace('{limit}', encodeURIComponent(String(limit)))
         .replace('{key}', encodeURIComponent(secret))
 
-      try {
-        const body = await fetchJson(url)
-        /* The mapper runs against a remote party's JSON. A changed response
-           shape is an outage to report as "no results", never a thrown error
-           that takes the caller down. */
-        return config.map(body).filter(usable)
-      } catch {
-        return []
-      }
+      /* FAILURES PROPAGATE. They used to be swallowed here.
+       *
+       * This returned [] on any error, so `search()`'s own catch never fired
+       * and a dead engine produced `{ results: [], engineFailed: false }` —
+       * byte-identical to a question that genuinely has no answers. Those two
+       * mean opposite things: one is an answer about the world, the other is
+       * an outage, and `engineFailed` exists only to tell them apart.
+       *
+       * The old comment argued a thrown error "takes the caller down". It
+       * does not: `search()` catches it and converts it to `engineFailed`
+       * with the reason attached. Swallowing did not protect the caller, it
+       * lied to them — and a status field that reports success for every real
+       * failure mode is worse than no status field, because it is trusted. */
+      const body = await fetchJson(url)
+      return config.map(body).filter(usable)
     },
   }
 }

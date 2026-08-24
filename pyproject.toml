@@ -18,6 +18,18 @@ markers = [
 [tool.coverage.run]
 source = ["src"]
 branch = true
+# NOTHING IS ADDED HERE FOR SUBPROCESS COVERAGE, AND THAT IS DELIBERATE.
+#
+# 34 test files run the code under test with `subprocess.run`, and coverage
+# measures only the process it started in, so all of that work was reported as
+# zero --- `scripts/registry_gate.py` showed 294 statements at 0% while
+# `tests/test_registries.py` ran the file and asserted on its output.
+#
+# The fix is `tests/coverage-subprocess.cfg`, armed by `tests/conftest.py`.
+# `parallel = true` was tried HERE first and measured as making no difference:
+# 270 lines of `registry_gate.py` were counted with it and 270 without. It is
+# therefore absent, because an inert setting on a required gate is one more
+# thing every future reader has to rule out.
 
 [tool.coverage.report]
 fail_under = 95

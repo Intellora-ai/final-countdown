@@ -196,21 +196,48 @@ const MAX_STRIP_PASSES = 8
  * already moved on by then. Looping until the string stops changing closes
  * that, and costs one extra no-op pass on ordinary documents.
  */
-function toText(fragment: string): string {
-  let s = fragment
-  for (let pass = 0; pass < MAX_STRIP_PASSES; pass += 1) {
-    const before = s
-    s = s
+/**
+ * Delete every non-content construct, repeatedly, until the string stops
+ * changing.
+ *
+ * The `do/while (result !== previous)` shape is deliberate and is the whole
+ * point of this helper. An earlier version ran the same rules in a `for` loop
+ * with a `break`, which behaves identically but is not recognisable as a
+ * fixpoint — CodeQL flagged it as single-pass sanitization
+ * (`js/incomplete-multi-character-sanitization`, "this string may still
+ * contain <script"). A reader has the same problem the analyser does: with a
+ * `break` in the middle you have to simulate the loop to see that it converges.
+ * Stated as "repeat until nothing changes", both can see it at a glance.
+ *
+ * Termination is not a matter of trust: every rule only ever deletes, so each
+ * pass strictly shortens the string unless it changes nothing, in which case
+ * the loop exits. The pass cap is a backstop against a pathological input, not
+ * the mechanism.
+ */
+function stripConstructs(input: string, blocksBecomeNewlines: boolean): string {
+  let result = input
+  let previous: string
+  let passes = 0
+  do {
+    previous = result
+    result = result
       .replace(COMMENT, '')
       .replace(DROP_WHOLE, '')
       .replace(DROP_UNCLOSED, '')
-      .replace(BLOCK, '\n')
-      /* Every remaining tag is inline. Removed with NO substitution, so
-         `<em>up to</em> 40%` stays `up to 40%` rather than `up to  40%`. */
-      .replace(INNERMOST_TAG, '')
-    if (s === before) break
-  }
-  return tidy(s)
+    if (blocksBecomeNewlines) {
+      result = result
+        .replace(BLOCK, '\n')
+        /* Every remaining tag is inline. Removed with NO substitution, so
+           `<em>up to</em> 40%` stays `up to 40%` rather than `up to  40%`. */
+        .replace(INNERMOST_TAG, '')
+    }
+    passes += 1
+  } while (result !== previous && passes < MAX_STRIP_PASSES)
+  return result
+}
+
+function toText(fragment: string): string {
+  return tidy(stripConstructs(fragment, true))
 }
 
 function readTables(html: string): string[][][] {
@@ -283,8 +310,15 @@ export function extract(html: string): Extracted {
 
   /* Comments and script bodies go first, before anything reads structure:
      a comment can otherwise contain something that looks like a closing tag
-     and reshape every region found afterwards. */
-  const clean = html.replace(COMMENT, '').replace(DROP_WHOLE, '')
+     and reshape every region found afterwards.
+
+     Through the same fixpoint helper as `toText`, not a single pass. This ran
+     as one `.replace()` chain and CodeQL was right about it: region detection
+     reads this string, so a `<script>` surviving here can carry a fake
+     `</article>` and move the boundary of what counts as the article. Tags
+     are left alone at this stage — only whole non-content constructs go —
+     because the structure is still needed to find the region. */
+  const clean = stripConstructs(html, false)
 
   const region = mainRegion(clean)
   const withoutChrome = region.replace(CHROME, '')

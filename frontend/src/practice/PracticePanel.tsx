@@ -8,8 +8,7 @@ import {
   TOPIC_BY_ID,
 } from './curriculum'
 import {
-  MAX_QUESTIONS,
-  MIN_QUESTIONS,
+  QUESTION_CHOICES,
   TIMER_CHOICES,
   chapterCoverageOf,
   chapterLastPracticed,
@@ -149,20 +148,23 @@ export function PracticePanel() {
                 <span className="pm-row-value">{settings.questionCount}</span>
               </div>
 
-              <input
-                type="range"
-                className="pm-range"
-                min={MIN_QUESTIONS}
-                max={MAX_QUESTIONS}
-                step={1}
-                value={settings.questionCount}
-                aria-label={`Number of questions, ${settings.questionCount} of a maximum ${MAX_QUESTIONS}`}
-                onChange={(event) => setSettings({ questionCount: Number(event.target.value) })}
-              />
-
-              <div className="pm-range-scale">
-                <span>{MIN_QUESTIONS}</span>
-                <span>{MAX_QUESTIONS} max</span>
+              {/* Three buttons, not a slider.
+                  The slider let a learner ask for 7 questions, which the store
+                  now snaps away anyway - so the control was offering a choice
+                  the product does not have. It reads the same as the timer
+                  durations above it, which were always a choice of five. */}
+              <div className="pm-durations" role="group" aria-label="Number of questions">
+                {QUESTION_CHOICES.map((count) => (
+                  <button
+                    key={count}
+                    type="button"
+                    className="pm-duration"
+                    aria-pressed={settings.questionCount === count}
+                    onClick={() => setSettings({ questionCount: count })}
+                  >
+                    {count}
+                  </button>
+                ))}
               </div>
             </div>
           </div>

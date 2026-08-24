@@ -4,6 +4,9 @@ import { CURRICULUM } from "./curriculum";
 import {
   MAX_QUESTIONS,
   MIN_QUESTIONS,
+  QUESTION_CHOICES,
+  TIMER_CHOICES,
+  TIMER_MAX_MINUTES,
   chapterCoverageOf,
   chapterLastPracticed,
   isChapterOpen,
@@ -54,6 +57,38 @@ beforeEach(() => {
   });
 });
 
+/**
+ * The count is a choice of three, not a range.
+ *
+ * The panel offered a 1-to-15 slider while the product offers 5, 10 or 15. A
+ * slider is not a smaller version of three buttons: it lets a learner ask for
+ * 7, and the engine plans a set of 7, and nothing anywhere was ever designed
+ * for 7. Snapping in the store means every route in agrees — the slider, a
+ * restored `localStorage`, and any future caller.
+ */
+describe("question count is one of the three the product offers", () => {
+  it.each([
+    [1, 5],
+    [4, 5],
+    [7, 5],
+    [8, 10],
+    [12, 10],
+    [13, 15],
+    [200, 15],
+    [-5, 5],
+  ])("snaps %i to %i", (asked, expected) => {
+    usePracticeStore.getState().setSettings({ questionCount: asked });
+    expect(usePracticeStore.getState().settings.questionCount).toBe(expected);
+  });
+
+  it("offers exactly the counts the store will accept", () => {
+    for (const count of QUESTION_CHOICES) {
+      usePracticeStore.getState().setSettings({ questionCount: count });
+      expect(usePracticeStore.getState().settings.questionCount).toBe(count);
+    }
+  });
+});
+
 describe("question count", () => {
   it("caps at the promised maximum however it is set", () => {
     usePracticeStore.getState().setSettings({ questionCount: 200 });
@@ -65,9 +100,14 @@ describe("question count", () => {
     expect(usePracticeStore.getState().settings.questionCount).toBe(MIN_QUESTIONS);
   });
 
-  it("rounds fractional values", () => {
+  /*
+   * A fraction used to round to the nearest integer, which was right when any
+   * integer was legal. It now snaps to the nearest OFFERED count, because 8 is
+   * not a session this product knows how to run.
+   */
+  it("snaps a fractional value to an offered count", () => {
     usePracticeStore.getState().setSettings({ questionCount: 7.6 });
-    expect(usePracticeStore.getState().settings.questionCount).toBe(8);
+    expect(usePracticeStore.getState().settings.questionCount).toBe(10);
   });
 
   it("falls back to the minimum rather than storing NaN", () => {
@@ -86,10 +126,85 @@ describe("timer", () => {
     expect(settings.timerMinutes).toBe(30);
   });
 
+  /*
+   * This asserted `180` until the block below was written, and it PASSED — it
+   * was pinning the bug in place rather than catching it. A test can only
+   * check that the code does what it does; whether that is what was promised
+   * is a separate question, and this one never asked it. Corrected to the
+   * promised bound, not relaxed to fit the code.
+   */
   it("clamps absurd durations", () => {
     usePracticeStore.getState().setSettings({ timerMinutes: 9999 });
-    expect(usePracticeStore.getState().settings.timerMinutes).toBe(180);
+    expect(usePracticeStore.getState().settings.timerMinutes).toBe(TIMER_MAX_MINUTES);
   });
+});
+
+/**
+ * The timer bound is a PRODUCT RULE, and the store is the only place it holds.
+ *
+ * THE HOLE THESE TESTS OPEN ON
+ * ----------------------------
+ * A practice session is specified to run for no less than 5 minutes and no more
+ * than 30. `TIMER_CHOICES` is the list of buttons the panel draws, and it obeys
+ * that range — which is exactly why nobody noticed the store does not. Both
+ * clamps say `1, 180`, so every route that is not a button press could write a
+ * three-hour "practice session": a hand-edited `localStorage`, a restored save
+ * from an older build, any future caller passing a number.
+ *
+ * This is the SAME back door the block at the bottom of this file was written
+ * to close for `questionCount`, and its own comment states the general lesson —
+ * "a rule enforced only in a setter is a rule with a back door". The lesson was
+ * applied to the count and not to the timer beside it.
+ *
+ * The bounds are written here as the literals the product promises rather than
+ * imported from the store, deliberately. A test that imports the number it is
+ * checking cannot fail when that number is wrong; it only fails when the store
+ * disagrees with itself. These have to disagree with the STORE.
+ */
+const PROMISED_MIN_MINUTES = 5;
+const PROMISED_MAX_MINUTES = 30;
+
+describe("timer duration is bounded by the product rule, not by the UI", () => {
+  it("floors at the promised minimum however it is set", () => {
+    usePracticeStore.getState().setSettings({ timerMinutes: 1 });
+    expect(usePracticeStore.getState().settings.timerMinutes).toBe(PROMISED_MIN_MINUTES);
+  });
+
+  it("caps at the promised maximum however it is set", () => {
+    usePracticeStore.getState().setSettings({ timerMinutes: 9999 });
+    expect(usePracticeStore.getState().settings.timerMinutes).toBe(PROMISED_MAX_MINUTES);
+  });
+
+  it("offers no choice the rule would refuse", () => {
+    // If these two ever disagree, one of them is lying to the learner.
+    for (const minutes of TIMER_CHOICES) {
+      expect(minutes).toBeGreaterThanOrEqual(PROMISED_MIN_MINUTES);
+      expect(minutes).toBeLessThanOrEqual(PROMISED_MAX_MINUTES);
+    }
+  });
+
+  it("falls back to the minimum rather than storing NaN", () => {
+    usePracticeStore.getState().setSettings({ timerMinutes: Number.NaN });
+    expect(usePracticeStore.getState().settings.timerMinutes).toBe(PROMISED_MIN_MINUTES);
+  });
+
+  /*
+   * THE PERSISTED ROUTE IS COVERED AT THE BOTTOM OF THIS FILE, NOT HERE.
+   *
+   * That route is the one that made this a real bug rather than a theoretical
+   * one, so it is genuinely worth a test — but it already has one, and that
+   * test now asserts the timer bound alongside the question cap it was written
+   * for. A second copy here was measurably worse than no copy.
+   *
+   * Faking `localStorage` requires replacing the global `window` and calling
+   * `vi.resetModules()`, because the storage decision is made once at module
+   * import. Doing that TWICE in one file pushed a latent echarts/jsdom crash in
+   * `src/canvas/render/FigureView.test.tsx` — `zrender` reading `matrix[0]` off
+   * null — from never firing to firing about half the time. Measured, not
+   * guessed: 0 failures in 5 baseline runs, 2 in 3 with the duplicate present.
+   * The suite still reported "973 passed" on the failing runs; only the exit
+   * code disagreed, which is the whole reason it is worth writing down.
+   */
 });
 
 describe("chapter pinning", () => {
@@ -338,7 +453,9 @@ describe("the cap survives the route the setter cannot see", () => {
 
     const settings = fresh.usePracticeStore.getState().settings;
     expect(settings.questionCount).toBe(fresh.MAX_QUESTIONS);
-    expect(settings.timerMinutes).toBe(180);
+    // Was `180`. This test closed the back door for the count and walked past
+    // the timer standing open right beside it — see the timer block above.
+    expect(settings.timerMinutes).toBe(fresh.TIMER_MAX_MINUTES);
 
     vi.unstubAllGlobals();
   });

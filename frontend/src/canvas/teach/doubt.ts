@@ -173,6 +173,19 @@ function tokenVariants(text: string): string[][] {
  * they get, and there is no second word to require.
  *
  * Returns how many of the name's words were typed; 0 means no match.
+ *
+ * THERE IS NO `if (matched === 0) return 0` GUARD, AND THAT IS DELIBERATE.
+ * It used to sit above the one-word case and it was dead code: every path
+ * below already returns 0 when nothing matched. A one-word name returns
+ * `matched`, which IS 0; a longer name fails `matched >= 2` and falls through
+ * to `return 0`. Checked exhaustively over every reachable
+ * (nameTokens.length, matched) pair for lengths 0..40 — 861 pairs, zero
+ * differences with the guard and without it.
+ *
+ * That made it an EQUIVALENT MUTANT: deleting it could never turn a test red,
+ * so it depressed the mutation score while protecting nothing. The honest fix
+ * for an equivalent mutant is to remove the branch, not to invent a test that
+ * cannot fail. Do not add it back.
  */
 /**
  * Exported because the web rung shares this threshold, and only this threshold.
@@ -188,7 +201,6 @@ export const HALF = 0.5
 function accepts(nameTokens: readonly string[], typed: ReadonlySet<string>): number {
   let matched = 0
   for (const token of nameTokens) if (typed.has(token)) matched += 1
-  if (matched === 0) return 0
   if (nameTokens.length === 1) return matched
   if (matched >= 2 && matched / nameTokens.length >= HALF) return matched
   return 0

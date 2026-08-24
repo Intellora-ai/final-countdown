@@ -207,6 +207,52 @@ const MUTANTS = [
     to: '    if (false) {',
     breaks: 'the size cap stops bounding anything: an adversarial host streams until memory gives out, because the limit is only consulted after the bytes have arrived',
   },
+  /* §24 ACCURACY. This module grades the answer, so a weakness here is
+     invisible by construction: a broken grader reports good numbers, and good
+     numbers are what everyone reads. Every mutant below is a way the grader
+     could keep producing plausible output while measuring nothing. */
+  {
+    id: 'silence-grades-as-a-perfect-answer',
+    file: 'src/websearch/accuracy.ts',
+    from: '      const absoluteError = closest === undefined ? Number.POSITIVE_INFINITY : Math.abs(closest - truth)',
+    to: '      const absoluteError = closest === undefined ? 0 : Math.abs(closest - truth)',
+    breaks: 'an answer that states no figure at all scores zero error, so saying nothing beats saying something wrong and the benchmark is topped by a system that never answers',
+  },
+  {
+    id: 'relative-error-divides-by-a-zero-truth',
+    file: 'src/websearch/accuracy.ts',
+    from: '        truth === 0 || closest === undefined ? undefined : Math.abs(closest - truth) / Math.abs(truth)',
+    to: '        closest === undefined ? undefined : Math.abs(closest - truth) / Math.abs(truth)',
+    breaks: 'a true value of zero yields Infinity or NaN, and that number then poisons every average computed downstream from it',
+  },
+  {
+    id: 'comparative-grading-ignores-direction',
+    file: 'src/websearch/accuracy.ts',
+    from: '          return s >= 0 && rel > s && o > rel',
+    to: '          return s >= 0 && rel >= 0 && o >= 0',
+    breaks: 'a backwards comparison scores as correct, because both directions mention every word and only the ORDER tells "LIFO is higher than FIFO" from its reverse',
+  },
+  {
+    id: 'a-citation-no-claim-supports-is-not-reported',
+    file: 'src/websearch/accuracy.ts',
+    from: '    .filter((c) => !claimKeys.has(`${c.sourceUrl}|${c.offset}|${c.text}`))',
+    to: '    .filter(() => false)',
+    breaks: 'invariant 3 stops being checked: an answer reporting one figure while citing a span that states another grades clean, which is a wrong answer wearing a real source',
+  },
+  {
+    id: 'refusing-everything-scores-as-correct',
+    file: 'src/websearch/accuracy.ts',
+    from: "      outcome: expectation.unanswerable ? 'correct-refusal' : 'missed-answerable',",
+    to: "      outcome: 'correct-refusal',",
+    breaks: 'a refusal is always correct, so a system that answers nothing scores perfectly and the benchmark rewards silence',
+  },
+  {
+    id: 'a-flagged-source-counts-as-support',
+    file: 'src/websearch/accuracy.ts',
+    from: '  if (allClaims.length > 0 && untainted.length === 0) {',
+    to: '  if (false) {',
+    breaks: 'invariant 5 stops being graded: a fact carried only by a page that tried to instruct us is scored as supported evidence',
+  },
   /* THE HONESTY LAYER. `shapeInvariants.ts` is the only thing standing between
    * a dishonest dataset and a picture that looks fine. Every mutant here is a
    * way for a representation to stop being able to refuse. */

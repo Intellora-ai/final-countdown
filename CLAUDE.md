@@ -5,6 +5,65 @@ gets compacted; these files do not.
 
 ---
 
+## RULE ZERO — requirements first, then hard tests, then code
+
+This outranks everything below it, including any instruction to go faster.
+
+> **DEFINE REQUIREMENTS + WHAT MUST BE TRUE TO GET DESIRED OUTCOME THEN BUILD
+> AROUND THAT. DO NOT MAKE TESTS WEAK, EASY. BUILD TESTS THAT FULFILL DESIRED
+> OUTCOME, ONLY THEN WRITE CODE. CODE WRITTEN SHOULD BE CHANGED AND BETTER BUT
+> TESTS ONLY CHANGE IF MUTANTS SHOW A REAL EVIDENCE ERROR.**
+
+**The order, every time:**
+
+1. **Write down the requirement, and what must be TRUE for the desired outcome.**
+   Not what the code does — what it must do. Skipping this produces a test that
+   describes the implementation instead of the requirement, which is the exact
+   failure this rule exists to prevent.
+2. **Write the test against that, as hard as it can be made.** Ugliest realistic
+   input, not the happy path. Assume whoever writes the code is trying to sneak
+   past it.
+3. **Run it and WATCH IT FAIL.** A real per-assertion failure. A
+   `ModuleNotFoundError` or a collection error is a weak red and does not count
+   as having watched the test fail.
+4. **Then write the code.** Change it until the test passes for the right reason.
+
+**The code is the variable. The test is not.** Code should keep being rewritten
+and improved. A test changes for exactly ONE reason: **mutation testing produced
+real evidence that the test cannot fail.** Not "the assertion looks too strict",
+not "the test is old", not "it is blocking the merge".
+
+**A suite that passes on the first implementation is a smell**, not a success —
+it means the tests were calibrated to what was about to be built. Say so.
+
+**Test in pairs.** Every check needs an input that must FAIL and one that must
+PASS. A check asserted only to fail is satisfied by `return false`, exactly as
+one asserted only to pass is satisfied by `return true`.
+
+## RULE ZERO-B — every fix is permanent, never surface-level
+
+> **EVERY BUG, ERROR, MUST BECOME A PERMANENT FIX AND NOT JUST SURFACE LEVEL FIX.**
+
+1. **Root cause first**, proved by a command that was actually run. No cause
+   found means BLOCKED, not "patch the symptom and move on".
+2. **Fix the cause, not where it surfaced.**
+3. **Add a test that fails without the fix**, in the same change.
+4. **Fix every copy.** Grep the pattern — a defect written twice was
+   copy-paste, and fixing one leaves a live bug.
+5. **If a check let it through, fix the check too.** A bug CI passed is two
+   bugs.
+
+**The test for "is this permanent yet": what would have to be true for this bug
+to come back?** If the answer is "someone forgets", it is not permanent. Memory
+is not a mechanism.
+
+**Banned as fixes:** `continue-on-error`, `|| true`, `|| echo`, an `if:` added
+to stop a step failing, widening a threshold, relaxing a comparison, deleting an
+assertion, swallowing an exception, re-running until green and calling it flaky
+without proving it, and "quick fix for now".
+
+---
+
 ## The central principle
 
 > The design system is constant.

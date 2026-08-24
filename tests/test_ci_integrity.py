@@ -196,7 +196,7 @@ def test_attack_deleted_gate_invocation_is_caught(sandbox: Path) -> None:
     wf = sandbox / VERIFY
     text = wf.read_text()
     sabotaged = "\n".join(
-        l for l in text.splitlines() if "scripts/axle_gate.py" not in l
+        ln for ln in text.splitlines() if "scripts/axle_gate.py" not in ln
     )
     assert sabotaged != text, "sabotage did not modify the workflow"
     wf.write_text(sabotaged)
@@ -237,7 +237,7 @@ def test_attack_continue_on_error_is_caught(sandbox: Path) -> None:
 def test_attack_failure_suppression_is_caught(sandbox: Path) -> None:
     wf = sandbox / VERIFY
     text = wf.read_text()
-    line = next(l for l in text.splitlines() if "check_vacuity.py" in l)
+    line = next(ln for ln in text.splitlines() if "check_vacuity.py" in ln)
     wf.write_text(text.replace(line, line + " || true"))
     result = integrity(sandbox)
     assert result.returncode != 0, "`|| true` on a gate command was NOT detected"
@@ -994,9 +994,9 @@ def test_attack_gate_step_conditioned_away_is_caught(sandbox: Path) -> None:
     # anchoring on a mention would sabotage nothing and the attack would look
     # defeated when it had never been mounted.
     line = next(
-        l
-        for l in text.splitlines()
-        if l.lstrip().startswith("- name:") and "verify all proofs with AXLE" in l
+        ln
+        for ln in text.splitlines()
+        if ln.lstrip().startswith("- name:") and "verify all proofs with AXLE" in ln
     )
     # `+ 2` because the `- ` of the list item occupies two columns: a sibling
     # key of `name:` sits two further in. At the dash's own indent the file
@@ -1165,7 +1165,7 @@ def test_attack_mandatory_gate_absent_from_required_checks_is_caught(
 ) -> None:
     toml = sandbox / "ci" / "gates.toml"
     text = toml.read_text()
-    line = next(l for l in text.splitlines() if '"mutmut"' in l and "required" not in l)
+    line = next(ln for ln in text.splitlines() if '"mutmut"' in ln and "required" not in ln)
     toml.write_text(text.replace(line, '  "bandit",'))
     result = integrity(sandbox)
     assert result.returncode != 0, "a gate that blocks nothing was not detected"
@@ -1237,7 +1237,7 @@ def test_attack_codeql_analyze_step_removed_is_caught(sandbox: Path) -> None:
     wf = sandbox / CODEQL
     text = wf.read_text()
     wf.write_text(
-        "\n".join(l for l in text.splitlines() if "codeql-action/analyze@" not in l)
+        "\n".join(ln for ln in text.splitlines() if "codeql-action/analyze@" not in ln)
     )
     result = integrity(sandbox)
     assert result.returncode != 0, "removing the analyze step was not caught"
@@ -1247,7 +1247,7 @@ def test_attack_codeql_analyze_step_removed_is_caught(sandbox: Path) -> None:
 def test_attack_codeql_step_conditioned_away_is_caught(sandbox: Path) -> None:
     wf = sandbox / CODEQL
     text = wf.read_text()
-    line = next(l for l in text.splitlines() if "codeql-action/analyze@" in l)
+    line = next(ln for ln in text.splitlines() if "codeql-action/analyze@" in ln)
     indent = " " * (len(line) - len(line.lstrip()))
     wf.write_text(text.replace(line, f"{line}\n{indent}if: false", 1))
     result = integrity(sandbox)

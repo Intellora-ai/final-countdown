@@ -293,7 +293,23 @@ mandatory = true
 role = "gate"
 # The full command, not the bare word: "pyright" alone also matches an
 # artifact name and any comment that mentions the tool.
-must_contain = ["run_gate.py --name pyright -- pyright"]
+# TWO TOOLS, PINNED SEPARATELY. The context name stays `pyright` because it is
+# a required status check in live ruleset 20990225 and renaming one makes it
+# permanently pending -- the same reason the `mutmut` gate keeps its name while
+# running scripts/mutation_gate.py.
+#
+# ruff joined this gate rather than getting its own job because `full` must wait
+# for every job in verify.yml while aggregate_gates.py expects reports only from
+# MANDATORY gates, so a non-mandatory job's evidence is `unexpected` and blocks
+# the finalizer. Here it blocks on its own merits from the first run.
+#
+# The scope is pinned, not just the tool: `ruff check` alone would still pass
+# while measuring one directory, which is precisely the defect the coverage gate
+# carried for its whole existence.
+must_contain = ["run_gate.py --name pyright -- bash -c",
+                "pyright",
+                "scripts/ruff_gate.py src scripts tests",
+                "ruff check src scripts tests"]
 evidence = "reports/pyright.json"
 artifact = "reports-pyright"
 

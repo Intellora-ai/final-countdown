@@ -30,7 +30,8 @@
  * unnameable reasons and gets quoted anyway.
  */
 
-import { search, type SearchProvider } from './engine'
+import type { SearchProvider } from './engine'
+import { ask } from './pipeline'
 import { Latency } from './latency'
 import { independentSources, precision, recall, coverage } from './quality'
 import type { FetchOutcome } from './fetchPage'
@@ -237,6 +238,10 @@ export interface CaseResult {
   precision?: number
   recall?: number
   coverage?: number
+  /** Refinement rounds this case needed. 0 means the first pass covered it. */
+  rounds: number
+  /** True when EVERY contributing source was read live during the run. §32. */
+  freshLive: boolean
   independentSources: number
   retrievedSources: number
   fetchFailures: number
@@ -255,7 +260,6 @@ export interface CorpusReport {
 export interface RunOptions {
   provider: SearchProvider
   fetchImpl?: (url: string) => Promise<FetchOutcome>
-  maxResults?: number
   cases?: readonly BenchmarkCase[]
 }
 
@@ -271,13 +275,69 @@ export async function runCase(
   options: RunOptions,
   latency: Latency,
 ): Promise<CaseResult> {
-  const outcome = await search(testCase.query, {
-    provider: options.provider,
+  /*
+   * `ask()`, NOT `search()`. THIS FILE MEASURED THE WRONG PIPELINE.
+   *
+   * `search()` is one query, one rank, one fetch. The product calls `ask()`,
+   * which plans SEVERAL queries from one question, refines when an aspect comes
+   * back uncovered, and reports freshness. So every number this harness
+   * produced described a path nothing shipped — a benchmark standing beside the
+   * thing it claims to score.
+   *
+   * That failure is worse than a missing benchmark, because both coverage and
+   * the green count went UP as this file was improved. The reachability gate
+   * exists for exactly this shape and could not see it: a benchmark is not
+   * product code, so being unreachable from a product entry point is normal.
+   *
+   * `maxResults` and `requireFresh` are no longer passed, and that is the
+   * point rather than a loss. `planQueries` decides how many pages to fetch
+   * from what the question needs, and `interpret` decides whether the question
+   * is time-sensitive from the question itself. A benchmark that overruled
+   * both would be scoring a configuration the product never uses.
+   * `BenchmarkCase.timeSensitive` stays as fixture metadata: it records what a
+   * human thought, which is worth keeping next to what the code decides.
+   */
+  /*
+   * THE PROVIDER IS WRAPPED TO COUNT ITS OWN FAILURES, AND IT HAS TO BE.
+   *
+   * `ask()` turns a dead engine into a refusal, and a refusal with no pages is
+   * ALSO what a working engine that found nothing produces. Deriving
+   * `engineFailed` from the answer's status therefore reports an outage every
+   * time the web is genuinely empty — which is the one distinction this whole
+   * layer exists to preserve, and the first version of this change broke it.
+   * The corpus test caught it: an empty `fixtureProvider` is not a broken one.
+   *
+   * Counting is structural and cannot be reworded out of existence, unlike
+   * matching on the text of a refusal sentence. An outage is EVERY query
+   * failing; one failing is a smaller result. Same rule as `runQueries` and
+   * the same rule as the search route.
+   */
+  let calls = 0
+  let failures = 0
+  const counted: SearchProvider = {
+    name: options.provider.name,
+    search: async (q: string) => {
+      calls += 1
+      try {
+        return await options.provider.search(q)
+      } catch (error) {
+        failures += 1
+        throw error
+      }
+    },
+  }
+
+  const result = await ask(testCase.query, {
+    provider: counted,
     ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
-    ...(options.maxResults === undefined ? {} : { maxResults: options.maxResults }),
-    requireFresh: testCase.timeSensitive,
     latency,
   })
+
+  /* Named `outcome` so every measurement below reads unchanged. */
+  const outcome = {
+    results: result.retrieved,
+    engineFailed: calls > 0 && failures === calls,
+  }
 
   const relevant = new Set(testCase.relevantUrls)
   const judged = outcome.results.map((r) => relevant.has(r.hit.url) || relevant.has(r.finalUrl))
@@ -298,6 +358,8 @@ export async function runCase(
     ...(p === undefined ? {} : { precision: p }),
     ...(r === undefined ? {} : { recall: r }),
     ...(c === undefined ? {} : { coverage: c }),
+    rounds: result.rounds,
+    freshLive: result.freshness.live,
     independentSources: independentSources(
       succeeded.map((s) => ({ url: s.finalUrl, text: s.text })),
     ).length,

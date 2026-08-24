@@ -271,3 +271,65 @@ describe('running the corpus', () => {
     expect(report.cases.every((c) => !c.engineFailed)).toBe(true)
   })
 })
+
+/* -------------------------------------------------------------------------- */
+/* The harness measures the path the product actually runs                    */
+/* -------------------------------------------------------------------------- */
+
+describe('the benchmark runs the pipeline the product runs', () => {
+  it('plans several queries for one question, which a single search cannot', async () => {
+    /*
+     * `runCase` called `search()` from `engine.ts` while the product calls
+     * `ask()` from `pipeline.ts`. So the harness measured a pipeline with no
+     * planned queries, no refinement and no freshness — a benchmark standing
+     * BESIDE the thing it claims to score.
+     *
+     * This is the same shape the reachability gate exists to catch, and it is
+     * worse here: coverage and green tests both went UP as the harness was
+     * improved, while the numbers it produced were about code nobody ran.
+     */
+    let calls = 0
+    const counting = {
+      name: 'counting',
+      search: async () => {
+        calls += 1
+        return [{ url: 'https://mospi.gov.in/gdp-2025', title: 'g', snippet: '' }]
+      },
+    }
+    const report = await runCorpus({
+      provider: counting,
+      fetchImpl: async (url: string) =>
+        served('The ministry reported the growth rate for 2025 was 6.1 percent.', url),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+
+    expect(calls).toBeGreaterThan(1)
+    expect(report.cases).toHaveLength(1)
+  })
+
+  it('records how many refinement rounds a case needed', async () => {
+    const report = await runCorpus({
+      provider: fixtureProvider({
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'g', snippet: '' }],
+      }),
+      fetchImpl: async (url: string) =>
+        served('The ministry reported the growth rate for 2025 was 6.1 percent.', url),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+    expect(typeof report.cases[0]?.rounds).toBe('number')
+  })
+
+  it('records whether the evidence was read live', async () => {
+    /* §32. A benchmark that cannot tell a live read from a cached one cannot
+       notice the day its own numbers stop describing the live path. */
+    const report = await runCorpus({
+      provider: fixtureProvider({
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'g', snippet: '' }],
+      }),
+      fetchImpl: async (url: string) =>
+        served('The ministry reported the growth rate for 2025 was 6.1 percent.', url),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+    expect(report.cases[0]?.freshLive).toBe(true)
+  })
+})

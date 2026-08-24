@@ -244,9 +244,16 @@
 /* -- Equation ----------------------------------------------------------- */
 /* Serif italic, large, and CENTRED in its block — the reference treats an
    equation as a statement, not as a line of body text. */
+/* `safe center`, not `center`, because this now sits inside a scroller.
+   A centred flex item that is WIDER than its box overflows equally on both
+   sides, and the left half lands before the scroll origin where no scrollbar
+   reaches it — the content is centred and half of it is unreachable. `safe`
+   keeps the centring while it fits and falls back to start alignment once it
+   does not, which is the same rule `.lc-figure-scroll > .lc-flow` states for
+   figures. */
 .lc-equation {
   display: flex;
-  justify-content: center;
+  justify-content: safe center;
   padding: var(--s-md) 0;
   color: var(--c-ink);
 }
@@ -290,15 +297,34 @@
 .lc-table__empty { color: var(--c-ink-faint); }
 
 /* -- Chart -------------------------------------------------------------- */
-.lc-chart { width: 100%; aspect-ratio: 16 / 10; min-height: 0; }
-
-/* A chart whose labels sit OUTSIDE the plotted marks needs a floor on its
-   width, or the library lays out into a box too narrow to place them and
-   paints them past its own edge. See the note in FlowWeightedShape for why the
-   figure scroller cannot rescue that on its own. 480px is the measured point at
-   which the civics sankey's longest stage label ("Lapsed or withdrawn") lands
-   inside the plot at every viewport this product supports. */
-.lc-chart--wide { min-width: 480px; }
+/*
+ * EVERY CHART HAS A FLOOR ON ITS WIDTH, NOT JUST THE WIDE ONES.
+ *
+ * ECharts lays out into whatever width the host gives it and paints axis
+ * labels, legends and series labels wherever they land — including outside its
+ * own `<svg>` when the box is too narrow to place them. And content that
+ * overflows an `<svg>` does not contribute to an ancestor's `scrollWidth`, so
+ * the figure's scroll container gains nothing to scroll and the text is
+ * genuinely unreachable rather than merely off-screen.
+ *
+ * This started as a modifier on the one chart known to overflow — the civics
+ * sankey, 78px out at 320px. That was the wrong shape of fix. With the sankey
+ * handled, CI immediately found the machine-learning feature-importance legend
+ * 2px out at the same width. Two pixels, on Linux CI, where the same page
+ * measured clean on macOS: the defect was never "the sankey is wide", it was
+ * "no chart is guaranteed room for its labels", and a per-chart allowlist would
+ * have gone on discovering members of itself one CI run at a time.
+ *
+ * 480px is a floor, not a target: a chart wider than that keeps its own width.
+ * Below it the figure scrolls, which is the standing rule — disclose, don't
+ * shrink.
+ */
+.lc-chart {
+  width: 100%;
+  min-width: 480px;
+  aspect-ratio: 16 / 10;
+  min-height: 0;
+}
 
 /* -- Flow --------------------------------------------------------------- */
 /*
@@ -356,8 +382,33 @@
 /* Controls                                                                   */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * IT WRAPS, BECAUSE THE LABELS ARE THE POINT.
+ *
+ * `inline-flex` with no wrap makes this pill ATOMIC: three lesson names come to
+ * about 398px, so at any viewport narrower than that the toggle is wider than
+ * the screen and pushes the whole DOCUMENT sideways. Measured: 78px of page
+ * overflow at 320, 23px at 375, 8px at 390 — exactly 398 minus the viewport
+ * each time, which is what identified this rather than the charts.
+ *
+ * `flex-wrap` on the toolbar around it cannot fix that. A flex container only
+ * breaks BETWEEN its children, and this pill is one child; the toolbar moves it
+ * to its own line and it is still too wide for the line.
+ *
+ * A page that scrolls sideways is worse than it sounds: the text column drifts
+ * under the reader's thumb on every vertical scroll, on the phone widths this
+ * product is most used at. Shrinking the labels to fit is the other option and
+ * it is the one this project forbids — disclose, don't shrink. So the pill
+ * wraps to a second row and every lesson name stays readable.
+ */
 .lc-toggle {
   display: inline-flex;
+  flex-wrap: wrap;
+  /* `min-width: 0` is what actually lets the wrap happen. A flex child defaults
+     to `min-width: auto`, which refuses to shrink below its own content — so
+     the pill stayed at its full width and `flex-wrap` never got a line short
+     enough to break. Adding the wrap alone changed nothing; measured. */
+  min-width: 0;
   padding: 2px;
   border: var(--stroke-hair) solid var(--c-line);
   border-radius: var(--r-pill);

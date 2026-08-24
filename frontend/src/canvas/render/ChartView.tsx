@@ -512,24 +512,61 @@ export function ChartView({ block }: { block: ChartBlock }) {
   }, [])
 
   return (
-    <div className="lc-chart" ref={plotRef}>
-      <ReactECharts
-        echarts={echarts}
-        ref={chartRef}
-        option={buildChartOption(block)}
-        style={{ width: '100%', height: '100%' }}
-        opts={{ renderer: 'svg' }}
-        /* The option's SHAPE changes with `chartType`; merging would leave a
-           pie's slices behind when a line replaced it. */
-        notMerge
-        /* `lazyUpdate` is deliberately OFF. It defers the first draw to a
-           `requestAnimationFrame`, and a chart whose container is hidden — a
-           background tab, a collapsed panel, a `display: none` ancestor — then
-           holds an empty SVG until frames resume. Verified here: with it on, the
-           SVG was the right size and completely empty. Batching buys nothing
-           when the option only changes as often as the block does. */
-        autoResize
-      />
+    /*
+      THE SCROLLER IS PART OF THE WIDTH FLOOR, NOT DECORATION.
+
+      `.lc-chart` carries a minimum width so echarts always has room to place
+      its axis labels, legends and series labels inside its own `<svg>` instead
+      of painting them past its edge. That floor is only half a fix. Below the
+      floor the chart is wider than its column, and a chart wider than its
+      column with nothing to scroll is content a reader cannot reach — the same
+      defect in a new place, not a smaller one.
+
+      A figure-hosted chart already got this from `FigureView`. A `chart` BLOCK
+      did not, because `BlockView` renders this component bare. Measured at
+      320px before this wrapper existed: the physics lesson's two charts sat at
+      480px inside a 320px column and took the whole document to
+      `scrollWidth: 544` against `clientWidth: 320` — a page-wide sideways
+      scroll, on every lesson containing a chart block.
+
+      Nothing caught it. The clipping guard only counts elements inside an
+      ancestor that CLIPS, and the keyboard guard only inspects elements that
+      already scroll; an element that simply pushes the document wider is
+      invisible to both. So this is the same treatment `FigureView` applies,
+      applied at the other site that needed it.
+    */
+    <div
+      className="lc-figure-scroll"
+      /* The attribute the measurement layer reads to tell a deliberate scroll
+         region from a layout fault. */
+      data-overflow="scroll"
+      /* `role` + `tabIndex` because a region only a mouse can move hides half
+         the chart from anyone using a keyboard (WCAG 2.1.1). Named from the
+         block's own title so a screen-reader region list does not read as
+         several identical "scrollable" entries. */
+      role="region"
+      tabIndex={0}
+      aria-label={`${block.title ?? block.chartType}, scrollable chart`}
+    >
+      <div className="lc-chart" ref={plotRef}>
+        <ReactECharts
+          echarts={echarts}
+          ref={chartRef}
+          option={buildChartOption(block)}
+          style={{ width: '100%', height: '100%' }}
+          opts={{ renderer: 'svg' }}
+          /* The option's SHAPE changes with `chartType`; merging would leave a
+             pie's slices behind when a line replaced it. */
+          notMerge
+          /* `lazyUpdate` is deliberately OFF. It defers the first draw to a
+             `requestAnimationFrame`, and a chart whose container is hidden — a
+             background tab, a collapsed panel, a `display: none` ancestor —
+             then holds an empty SVG until frames resume. Verified here: with it
+             on, the SVG was the right size and completely empty. Batching buys
+             nothing when the option only changes as often as the block does. */
+          autoResize
+        />
+      </div>
     </div>
   )
 }

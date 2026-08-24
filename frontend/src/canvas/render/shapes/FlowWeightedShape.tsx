@@ -557,11 +557,11 @@ export function FlowWeightedShape({ data, at }: { data: FlowWeightedData; at?: s
         genuinely unreachable, not merely off-screen. A check that only asks
         "is there a scrollable ancestor?" reports this as fine. It is not.
 
-        `--wide` gives the host a real minimum width, so echarts lays out where
-        the labels fit, the wrapper gains real overflow, and the scroll becomes
-        something a reader can actually perform.
+        `.lc-chart` carries a minimum width for exactly this reason, so echarts
+        lays out where the labels fit, the wrapper gains real overflow, and the
+        scroll becomes something a reader can actually perform.
       */}
-      <div className="lc-chart lc-chart--wide" ref={plotRef}>
+      <div className="lc-chart" ref={plotRef}>
         {built.option !== null && (
           <ReactECharts
             echarts={echarts}

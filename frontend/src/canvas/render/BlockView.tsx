@@ -203,7 +203,30 @@ function EquationView({ block }: { block: Extract<Block, { kind: 'equation' }> }
 
   return (
     <>
-      <div className="lc-equation" ref={hostRef} role="math" aria-label={block.latex} />
+      {/*
+        AN EQUATION IS AS WIDE AS ITS LONGEST LINE, AND NOTHING CAN REFLOW IT.
+
+        KaTeX lays out to an intrinsic width and there is no wrap point inside a
+        formula: `PV = nRT` at the display size measures 313px, which fits a
+        320px column with 7px to spare on macOS and does not fit the same column
+        on Linux CI, where the fallback metrics differ. That 7px is the whole
+        margin, so the same commit passes locally and fails in CI — which is
+        exactly what it did.
+
+        Rendered bare, that overflow had nowhere to go: it pushed the document
+        to `scrollWidth` 334 against `clientWidth` 320 and could not be scrolled
+        to. Same defect as the chart blocks one component over, and the same
+        fix — the scroller `FigureView` already gives its figures.
+      */}
+      <div
+        className="lc-figure-scroll"
+        data-overflow="scroll"
+        role="region"
+        tabIndex={0}
+        aria-label={`${block.title ?? 'equation'}, scrollable equation`}
+      >
+        <div className="lc-equation" ref={hostRef} role="math" aria-label={block.latex} />
+      </div>
       {block.caption && <Caption>{block.caption}</Caption>}
     </>
   )

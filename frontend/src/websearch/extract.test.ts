@@ -82,6 +82,23 @@ describe('what is thrown away', () => {
     expect(out.text).not.toContain('EVIL')
   })
 
+  it.each([
+    '<p>ok</p><scr<x>ipt>EVIL</scr<x>ipt>',
+    '<scr<a<b>>ipt>EVIL</scr<a<b>>ipt>',
+    '<<<script>>>EVIL<<</script>>>',
+    '<p>a</p><<<<<<<<<<script>EVIL</script>',
+    '<sCrIpT >EVIL</sCrIpT >',
+    '<p>unclosed <scr<x>ipt>EVIL',
+  ])('output never contains a "<" at all, given %j', (hostile) => {
+    /* The invariant the single-character final pass buys, stated as a property
+       rather than as a list of shapes someone thought of. No `<` means no tag,
+       for nesting nobody has imagined yet — which is the thing a phrase-shaped
+       defence can never promise. */
+    const out = extract(page(hostile))
+    expect(out.text).not.toContain('<')
+    expect(out.text).not.toContain('script')
+  })
+
   it('still leaves ordinary angle brackets in prose alone', () => {
     /* The fix must not start eating maths. `a < b` is not a tag. */
     const out = extract(page('<p>2 &lt; 3 and 5 &gt; 4</p>'))

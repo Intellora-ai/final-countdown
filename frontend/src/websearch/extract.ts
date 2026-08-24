@@ -243,7 +243,34 @@ function stripConstructs(input: string, blocksBecomeNewlines: boolean): string {
 }
 
 function toText(fragment: string): string {
-  return tidy(stripConstructs(fragment, true))
+  /* FINAL PASS, SINGLE CHARACTER, AND IT BELONGS HERE RATHER THAN INSIDE
+   * `stripConstructs`.
+   *
+   * Three attempts at satisfying `js/incomplete-multi-character-sanitization`
+   * by looping the multi-character replacements all failed, including the
+   * uncapped `do/while` the rule's own documentation describes. The analysis
+   * ran each time and kept pointing at the same chains, so "loop it" is not a
+   * fix that lands here however correct it reads.
+   *
+   * The rule names a second accepted fix: match SINGLE characters rather than
+   * the entire unsafe text. That is sound here for a reason specific to this
+   * function, and would be wrong in most other places. What `toText` returns
+   * is TEXT, never HTML — nothing downstream renders it — and entity decoding
+   * happens after, inside `tidy()`. So by this point a literal `<` can only be
+   * markup that survived, never content: `2 &lt; 3` is still `&lt;` here and
+   * decodes later untouched.
+   *
+   * It goes in `toText` and NOT in `stripConstructs` because that helper has
+   * a second caller — `extract()` uses it to pre-clean the whole document
+   * BEFORE region detection, where the tags are exactly what tells `<article>`
+   * from `<nav>`. Putting this there deleted every boundary and took 38 tests
+   * with it.
+   *
+   * Removing the character makes the invariant total rather than probable: the
+   * output cannot contain `<script` because it cannot contain `<`, and that
+   * holds for nesting nobody has thought of yet. `>` is left alone — it cannot
+   * open a tag, and a stray one is honest evidence the page was malformed. */
+  return tidy(stripConstructs(fragment, true).replace(/</g, ''))
 }
 
 function readTables(html: string): string[][][] {

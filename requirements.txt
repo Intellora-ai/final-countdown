@@ -32,4 +32,4 @@ bandit[sarif]>=1.8
 # computing base is attack surface with no function. The GATE NAME stays:
 # it is a required status-check context in the live ruleset, and renaming
 # it would make that context permanently pending.
-PyYAML>=6.0
+PyYAML>=6.0.3

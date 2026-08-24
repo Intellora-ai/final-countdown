@@ -57,6 +57,11 @@ PAIRS: tuple[tuple[str, str], ...] = (
     ("requirements.txt", "requirements.lock"),
     ("learning-os/requirements-learning-os.txt",
      "learning-os/requirements-learning-os.lock"),
+    # The dependency-audit toolchain, kept out of the main lock on purpose: it
+    # pulls 27 packages, 16 of them new, and expanding the hash-pinned trusted
+    # computing base by sixteen so one job can run one check is the trade this
+    # repository already refused when it removed `mutmut`.
+    ("requirements-audit.txt", "requirements-audit.lock"),
 )
 
 # Locks with no manifest of their own. Only rule (2) applies to these.

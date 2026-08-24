@@ -328,7 +328,20 @@ role = "gate"
 # the finalizer would notice, one job too late.
 must_contain = ["run_gate.py --name bandit -- bash -c",
                 "scripts/security_gate.py", "scripts/sarif_suppress.py",
-                "shellcheck", "scripts/credential_scan.py"]
+                "shellcheck", "scripts/credential_scan.py",
+                # ONE TOKEN CARRYING THE WHOLE COMMAND, not the tool name and
+                # its flags separately. gate_integrity's `executes()` asks
+                # whether a token is RUN, not whether it appears -- so a bare
+                # `-r requirements.lock` can never match, because a flag
+                # fragment is not a command. Measured: three separate tokens
+                # produced "invokes -r requirements.lock: FAIL 0 step(s)" while
+                # the workflow plainly contained the text.
+                #
+                # Pinning the whole line also pins the SCOPE. `pip-audit` alone
+                # would still pass while auditing one lock and ignoring three,
+                # and this repository has already had one gate whose threshold
+                # was pinned and whose scope was not.
+                "pip-audit --no-deps -r requirements.lock -r requirements-preflight.lock -r requirements-audit.lock -r learning-os/requirements-learning-os.lock"]
 evidence = "reports/bandit.json"
 artifact = "reports-bandit"
 

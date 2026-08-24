@@ -504,6 +504,19 @@ jobs:
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
+      # THE AUDIT TOOLCHAIN LIVES IN ITS OWN LOCK, INSTALLED ONLY HERE.
+      #
+      # pip-audit pulls 27 packages, 16 of them not already in
+      # requirements.lock. Putting them in the main lock would grow the
+      # hash-pinned trusted computing base by sixteen so that one job can run
+      # one check -- the trade this repository refused when it removed
+      # `mutmut`. requirements-preflight.lock set the precedent.
+      #
+      # Installing both into one environment is safe here and that was measured
+      # rather than hoped: the two locks share twelve packages and pin the same
+      # version for every one of them, and a clean 3.12 environment takes both
+      # with --require-hashes and still runs pyright afterwards.
+      - run: pip install --quiet --require-hashes -r requirements-audit.lock
       # ONE GATE STEP, BECAUSE ONE GATE OWNS ONE REPORT.
       #
       # This job used to run four verification commands and wrap only the
@@ -643,14 +656,16 @@ jobs:
         run: |
           python3 scripts/run_gate.py --name bandit -- bash -c '
             set -e
-            echo "== bandit gate 1/4: security gate" >&2
+            echo "== bandit gate 1/5: security gate" >&2
             python3 scripts/security_gate.py src scripts
-            echo "== bandit gate 2/4: SARIF suppression" >&2
+            echo "== bandit gate 2/5: SARIF suppression" >&2
             python3 scripts/sarif_suppress.py --sarif bandit.sarif src scripts
-            echo "== bandit gate 3/4: shell analysis" >&2
+            echo "== bandit gate 3/5: shell analysis" >&2
             shellcheck -f gcc scripts/*.sh
-            echo "== bandit gate 4/4: credential scan" >&2
+            echo "== bandit gate 4/5: credential scan" >&2
             python3 scripts/credential_scan.py
+            echo "== bandit gate 5/5: dependency vulnerabilities" >&2
+            pip-audit --no-deps -r requirements.lock -r requirements-preflight.lock -r requirements-audit.lock -r learning-os/requirements-learning-os.lock
           '
       - name: Upload to code scanning
         if: always()

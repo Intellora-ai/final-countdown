@@ -54,6 +54,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import tempfile
 from typing import Any, cast
 
 # The skills the user named, as BARE names.
@@ -272,8 +273,21 @@ def _content_blocks(rec: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _ledger_path(transcript_path: str, session_id: str) -> str:
-    """Block-count file, kept beside the transcript so it dies with it."""
-    directory = os.path.dirname(transcript_path) or "/tmp"
+    """
+    Block-count file, kept beside the transcript so it dies with it.
+
+    The fallback is `tempfile.gettempdir()` and NOT a literal "/tmp". Bandit
+    flags the literal as B108 (hardcoded_tmp_directory), and it is right to:
+    "/tmp" ignores TMPDIR, does not exist on Windows, and on a shared host is a
+    world-writable path another user can pre-create. `gettempdir()` honours the
+    environment and is the same one line.
+
+    This is not a cosmetic lint fix. The literal added a new medium-severity
+    bandit finding, which failed the security gate inside the SARIF-suppression
+    harness, which failed the `coverage` job and cascaded into `bandit` --- two
+    red required checks from one hardcoded string.
+    """
+    directory = os.path.dirname(transcript_path) or tempfile.gettempdir()
     safe = "".join(c for c in session_id if c.isalnum() or c in "-_") or "unknown"
     return os.path.join(directory, f".skill-enforce-{safe}")
 

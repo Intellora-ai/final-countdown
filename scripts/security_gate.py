@@ -442,6 +442,24 @@ def run_bandit(targets: Sequence[str]) -> list[dict[str, Any]]:
             "bandit",
             "-r",
             *targets,
+            # `-q` IS LOad-BEARING, NOT TIDINESS.
+            #
+            # bandit renders a rich progress bar ("Working... ---- 100%") onto
+            # the SAME stream this function parses as JSON, but only once the
+            # scan runs long enough for rich to draw it. Below that threshold
+            # stdout is clean JSON and everything works; above it, json.loads
+            # dies at "line 1 column 1 (char 0)" and the gate exits 2.
+            #
+            # That made the gate a tripwire on FILE COUNT rather than on
+            # security: adding one ~330-line file to scripts/ pushed the scan
+            # past ~2s and turned `coverage` and `bandit` red, with a root cause
+            # that reads like a JSON error and has nothing to do with the code
+            # being scanned. Reproduced by isolation --- main passed, main plus
+            # that one file failed.
+            #
+            # `-q` suppresses the progress bar and leaves the report untouched:
+            # verified 44 results and 0 errors either way, first byte "{".
+            "-q",
             "-f",
             "json",
             "--severity-level",

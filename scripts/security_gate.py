@@ -440,6 +440,23 @@ def run_bandit(targets: Sequence[str]) -> list[dict[str, Any]]:
             sys.executable,
             "-m",
             "bandit",
+            # QUIET, BECAUSE THIS PARSES STDOUT AS JSON.
+            #
+            # bandit prints `Working... <bar> 100% 0:00:12` to STDOUT ahead of
+            # the report, so `json.loads(out.stdout)` below dies on the first
+            # character and the gate reports "bandit emitted no usable JSON
+            # report", exit 2, over code it did scan correctly.
+            #
+            # It is NOT a duration threshold, which is the obvious theory and
+            # the wrong one. Measured over src+scripts: a 16.9s run emitted the
+            # bar and a SLOWER 19.1s run did not. Adding one file to scripts/
+            # flipped it deterministically, 3 runs out of 3.
+            #
+            # The real defect is assuming stdout is pure JSON when bandit never
+            # promised that. `bandit_sarif()` in tests/test_sarif_suppress.py
+            # already avoids this by writing to `-o <file>`; that is the
+            # stronger fix here too, and this is the one-word version of it.
+            "-q",
             "-r",
             *targets,
             "-f",

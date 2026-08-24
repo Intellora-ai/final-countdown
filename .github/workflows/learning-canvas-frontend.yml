@@ -40,9 +40,22 @@ on:
 permissions:
   contents: read
 
+# CANCELLATION IS CONDITIONAL, AND THE CONDITION IS LOAD-BEARING.
+#
+# This was an unconditional `cancel-in-progress: true`, which every other
+# workflow in this repository deliberately does not do. On a pull request that
+# is correct: a newer commit genuinely obsoletes the older result. On a push to
+# `main` it is not, because that run IS the authoritative verification of a
+# commit that has ALREADY MERGED. Cancelling it leaves a merged commit with no
+# completed verification -- the one outcome this repository exists to prevent --
+# and two merges landing close together was all it took.
+#
+# `verify.yml`, `codeql.yml`, `e2e.yml` and `learning-os.yml` all carry exactly
+# this expression, with the reasoning written out in verify.yml. This file was
+# the odd one out, and being the odd one out was not a decision anybody recorded.
 concurrency:
   group: learning-canvas-frontend-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   frontend:
@@ -537,6 +550,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [frontend, frontend-mutation, frontend-scenes]
     if: always()
+    # A checkout, one artifact download and one Node script. Measured at 2-3s.
+    # Ten minutes is generous; GitHub's undeclared default is six hours, and
+    # this is the job that carries the run's single verdict -- the worst one to
+    # leave able to hang, because everything else has already finished and is
+    # waiting on it.
+    timeout-minutes: 10
     steps:
       - name: Aggregate verdict
         # `!= 'success'` rather than `== 'failure'`: a cancelled or skipped

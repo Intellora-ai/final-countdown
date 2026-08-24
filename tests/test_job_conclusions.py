@@ -238,6 +238,77 @@ def test_the_counters_are_reported_even_on_a_green_run(
     assert "checks_missing_evidence=0" in result.stdout
 
 
+def _job_conclusions_step() -> dict[str, Any]:
+    """The step in `full` that fetches this run's job conclusions."""
+    import yaml
+    spec: Any = yaml.safe_load(
+        (REPO / ".github" / "workflows" / "verify.yml").read_text(encoding="utf-8"))
+    steps: list[dict[str, Any]] = spec["jobs"]["full"]["steps"]
+    # The step that WRITES the file, not the one that reads it back:
+    # `aggregate_gates.py --job-conclusions job-conclusions.json` names the
+    # same path and is a different step with a different contract.
+    matches = [
+        s for s in steps
+        if "job-conclusions.json" in str(s.get("run", ""))
+        and "gh api" in str(s.get("run", ""))
+    ]
+    assert len(matches) == 1, (
+        f"expected exactly one step fetching job-conclusions.json, found {len(matches)}")
+    return matches[0]
+
+
+def test_the_job_conclusions_fetch_is_fail_closed() -> None:
+    """COULD NOT VERIFY IS NOT VERIFIED, AND IT MUST NOT BE SURVIVABLE.
+
+    `job_conclusions()` treats an unusable file as "no opinion" and lets the
+    reports decide. That is correct AT THAT LAYER and the tests above pin it:
+    a parser must not be able to fail a build by choking on input.
+
+    But it leaves one state uncovered, and the docstring of `job_conclusions`
+    names it: a gate writes a PASS report, uploads it under `if: always()`, is
+    then CANCELLED, and the jobs API is unreachable when the finalizer looks.
+    The report says PASS, no conclusion contradicts it, and `full` certifies a
+    run in which a required gate was cut short.
+
+    The fix belongs HERE, not in the parser. If the fetch itself fails, the
+    step fails, the `full` job fails, and the required `full` context goes red.
+    That is blocking UNKNOWN reached by the only mechanism that cannot be
+    talked out of it, and it leaves every assertion above untouched.
+
+    THE COST IS REAL AND IS THE POINT. A GitHub Actions API outage will now
+    turn `full` red instead of quietly falling back. That is the fail-closed
+    direction: this repository's whole claim is that a green tick means the
+    verification ran, and "the API was down so we used the reports" is a
+    different, weaker claim wearing the same tick.
+    """
+    step = _job_conclusions_step()
+    assert step.get("continue-on-error") is not True, (
+        "the job-conclusions fetch is marked continue-on-error, so an API "
+        "failure leaves `full` free to certify the run from reports alone")
+    run = str(step.get("run", ""))
+    assert "set -euo pipefail" in run, (
+        "without `set -euo pipefail` a failing `gh api` in a multi-line run "
+        "block does not necessarily fail the step")
+
+
+def test_the_job_conclusions_fetch_reads_every_page() -> None:
+    """A finalizer that sees page one is a finalizer that checked some jobs.
+
+    `?per_page=100` bounds the RESPONSE, not the run. This workflow has 14
+    jobs today so one page covers it, and the number of jobs is a thing this
+    repository changes deliberately and often. The day it passes 100, an
+    unpaginated fetch would silently return the first hundred and the
+    finalizer would report on a subset while looking exactly as green.
+
+    Asserted rather than commented, because the failure is invisible: nothing
+    goes red, the manifest simply describes fewer jobs than ran.
+    """
+    run = str(_job_conclusions_step().get("run", ""))
+    assert "--paginate" in run, (
+        "the job-conclusions fetch is not paginated; it will silently truncate "
+        "once this workflow exceeds one page of jobs")
+
+
 def test_the_workflow_grants_actions_read_only_to_the_finalizer() -> None:
     """The permission is real, and it is not workflow-wide.
 

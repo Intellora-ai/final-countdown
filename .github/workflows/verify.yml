@@ -755,20 +755,47 @@ jobs:
       # SATISFYING its required status check, so a gate conditioned into
       # skipping is green in the ruleset and visible only here.
       #
-      # `continue-on-error` is correct on THIS step and only this one. The file
-      # can only ever turn a pass into a block: aggregate_gates.py treats an
-      # absent, empty or malformed file as "no opinion" and falls back to
-      # deciding on reports alone, where missing evidence still blocks. A
-      # transient API failure must not be able to fail the finalizer, and it
-      # equally must not be able to pass it.
+      # FAIL-CLOSED. This step used to carry `continue-on-error: true`, argued
+      # for on the grounds that `aggregate_gates.py` treats an unusable file as
+      # "no opinion" and falls back to the reports, so a transient API failure
+      # could not fail the finalizer.
+      #
+      # That argument is correct about the PARSER and incomplete about the
+      # SYSTEM, and `job_conclusions()`'s own docstring names the gap: a gate
+      # writes a PASS report, uploads it under `if: always()`, is then
+      # CANCELLED, and the jobs API is unreachable when the finalizer looks.
+      # The report says PASS, nothing contradicts it, and `full` certifies a run
+      # in which a required gate was cut short. Reports alone cannot see that,
+      # because the evidence they are reading is exactly the evidence that lies.
+      #
+      # So the refusal moves to the only place that cannot be talked out of it:
+      # if the fetch fails, the step fails, the job fails, and the required
+      # `full` context goes red. "Could not verify" is not "verified".
+      #
+      # THE COST IS REAL AND IS ACCEPTED. An Actions API outage now turns `full`
+      # red rather than quietly degrading. That is the direction this repository
+      # chooses everywhere else — preflight already treats an unreadable live
+      # ruleset as blocking rather than as agreement.
+      #
+      # `aggregate_gates.py` IS NOT CHANGED, and neither are the tests pinning
+      # its fallback. That contract is right at its layer: a parser must not be
+      # able to fail a build by choking on input. This is a different layer.
+      #
+      # `--paginate` with `--jq '.jobs[]'` STREAMS objects and `jq -s` slurps
+      # them into one array. Writing `--paginate > file` directly would
+      # concatenate one JSON object per page — `{...}{...}` — and `json.load`
+      # reads the first and silently ignores the rest, so the finalizer would
+      # report on page one while looking exactly as green. Not reachable at 14
+      # jobs; guaranteed the day it is not.
       - name: Record this run's job conclusions
         if: always()
-        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/jobs?per_page=100" \
-            > job-conclusions.json
+          set -euo pipefail
+          gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/jobs?per_page=100" \
+            --paginate --jq '.jobs[]' | jq -s '{jobs: .}' > job-conclusions.json
           python3 -c "import json;d=json.load(open('job-conclusions.json'));print('jobs read:', len(d.get('jobs', [])))"
 
       - name: Gate manifest
@@ -868,4 +895,17 @@ jobs:
           name: reports-merge-evidence
           path: reports/
           retention-days: 14
-          if-no-files-found: warn
+          # `error`, not `warn`. Every other evidence upload in this workflow
+          # already uses `error`, and the reasoning is the same one ci/gates.toml
+          # gives for all of them: an absent artifact reduced to a grey
+          # annotation is the "absence looks like health" failure the evidence
+          # model exists to close. Under `warn` this job could go green having
+          # produced no dossier at all, which is indistinguishable from a
+          # dossier that found nothing wrong.
+          #
+          # Changed BEFORE the job is promoted rather than as part of promoting
+          # it. While `merge-evidence` is advisory this is not a merge
+          # vulnerability, which is exactly why it is the right moment: the
+          # blast radius of getting it wrong is a red advisory check, not a
+          # blocked repository.
+          if-no-files-found: error

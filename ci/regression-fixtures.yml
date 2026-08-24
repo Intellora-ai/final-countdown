@@ -1,0 +1,331 @@
+# REGRESSION FIXTURE REGISTRY — one row per retained regression proof.
+#
+# ci/gates.toml answers "what runs in CI". ci/requirements.yml answers "what is
+# thereby established". This answers a third question neither of them can:
+# WHICH SPECIFIC FAILURE would come back if a given test were deleted.
+#
+# WHY IT IS A SEPARATE FILE. A regression fixture has a lifecycle a requirement
+# does not: it is born from a specific escape or rule, it must fail under a
+# deliberately reintroduced broken condition, it must pass under the corrected
+# one, and it is retained forever afterwards. Folding these rows into
+# ci/requirements.yml would put two different lifecycles under one schema.
+#
+# NOTHING HERE IS LABELLED "ESCAPED" WITHOUT EVIDENCE IT ESCAPED.
+# `source_evidence.type` is one of:
+#
+#   ESCAPE       the defect actually reached main or a green CI run before being
+#                caught. `reference` MUST be a linkable commit SHA, pull request,
+#                CI run id, or in-repository incident record.
+#   REQUIREMENT  no known escape. The fixture proves a rule this repository chose
+#                to hold. `reference` names the rule's source document.
+#
+# The distinction is not decoration. A registry that calls every rule an "escape"
+# tells a reader that this repository has failed seven times in ways it has not,
+# and the rows that describe real failures stop standing out.
+#
+# FIELDS
+#   id                  RF-nnn, unique, never reused after deletion.
+#   requirement         What behaviour or risk this proves. One falsifiable sentence.
+#   test_file           Path, relative to the repository root.
+#   test_name           The exact test function. Both must exist.
+#   command             Exact argv to run this fixture alone.
+#   expected_broken     What happens under the deliberately broken condition.
+#   expected_fixed      What happens under the corrected condition.
+#   tier                sandbox-fast | sandbox-test | github-only | external
+#   deterministic       true only if three consecutive runs agree.
+#   network_required    true if it reaches the network. All current rows: false.
+#   source_evidence     type + reference, per the rule above.
+#
+# scripts/registry_gate.py proves every test_file exists and every test_name is
+# defined in it. A row naming a deleted test fails preflight.
+
+fixtures:
+
+  # -------------------------------------------------------------------------
+  # R1 — the escape this whole local-gate system was built for
+  # -------------------------------------------------------------------------
+  - id: RF-001
+    requirement: >-
+      pyright is locally runnable and in the fast tier. The manifest loader must
+      refuse a manifest that demotes it, so the check cannot be dropped from the
+      pre-push set by editing a file.
+    test_file: tests/test_local_execution_manifest.py
+    test_name: test_pyright_is_locally_runnable_and_in_the_fast_tier
+    command: python3 -m pytest -q tests/test_local_execution_manifest.py -k pyright
+    expected_broken: >-
+      With pyright marked locally_runnable="no", or removed from in_fast, the
+      loader raises ManifestError and the test fails.
+    expected_fixed: passes
+    tier: sandbox-test
+    deterministic: true
+    network_required: false
+    source_evidence:
+      type: ESCAPE
+      reference: >-
+        Commit 27429ae, "nothing in this repository answered 'run what CI runs'".
+        On 2026-08-20 four consecutive CI runs went red; the first was pyright,
+        one of the seventeen required contexts, simply absent from the set run
+        before pushing. Incident recorded in .githooks/pre-push:4 and
+        ci/local-execution.toml:8.
+
+  - id: RF-002
+    requirement: >-
+      A failing local gate blocks a normal `git push`, and the commit does not
+      reach the remote.
+    test_file: tests/test_local_execution_manifest.py
+    test_name: test_a_failing_local_gate_blocks_a_normal_push
+    command: python3 -m pytest -q tests/test_local_execution_manifest.py -k blocks_a_normal_push
+    expected_broken: >-
+      With the pre-push hook absent or non-blocking, the push succeeds and the
+      remote receives the commit; the test fails on the remote-log assertion.
+    expected_fixed: passes
+    tier: sandbox-test
+    deterministic: true
+    network_required: false
+    source_evidence:
+      type: ESCAPE
+      reference: >-
+        Same incident as RF-001. Commit 27429ae. The hook exists because
+        documenting `make sandbox-fast` as mandatory is what had already failed.
+
+  # -------------------------------------------------------------------------
+  # G1 — the link RF-001 and RF-002 leave unproven between them
+  # -------------------------------------------------------------------------
+  - id: RF-003
+    requirement: >-
+      The production chain end to end: a real pyright type error, through the
+      real manifest parser, through the exact pyright argv the manifest selects,
+      through real `make sandbox-fast`, through the real copied pre-push hook,
+      rejects a real `git push`. RF-001 proves selection and RF-002 proves the
+      hook, but RF-002 uses a synthetic Makefile exit code, so nothing proved a
+      real type error reaches that exit code.
+    test_file: tests/test_pre_push_chain.py
+    test_name: test_a_real_type_error_rejects_a_real_push
+    command: python3 -m pytest -q tests/test_pre_push_chain.py
+    expected_broken: >-
+      If pyright leaves the fast tier, or sandbox-fast stops propagating a gate's
+      exit code, the push is accepted with the type error present and the test
+      fails.
+    expected_fixed: push rejected with the error present, accepted once removed
+    tier: sandbox-test
+    deterministic: true
+    network_required: false
+    source_evidence:
+      type: REQUIREMENT
+      reference: >-
+        Milestone 4 acceptance, "a deliberate local pyright failure blocks a
+        normal local push". Descends from the RF-001 escape but is not itself a
+        recorded escape.
+
+  # -------------------------------------------------------------------------
+  # R2 — absence is never success
+  # -------------------------------------------------------------------------
+  - id: RF-004
+    requirement: >-
+      A gate that ends without a verdict is never PASS. A missing report fails
+      aggregation, and no non-PASS status becomes mergeable.
+    test_file: tests/test_ci_integrity.py
+    test_name: test_attack_missing_report_fails_aggregation
+    command: python3 -m pytest -q tests/test_ci_integrity.py -k missing_report
+    expected_broken: >-
+      With aggregate_gates.py treating an absent report as satisfied, the attack
+      returns zero and the test fails.
+    expected_fixed: passes
+    tier: sandbox-test
+    deterministic: true
+    network_required: false
+    source_evidence:
+      type: REQUIREMENT
+      reference: >-
+        docs/engineering/baseline-and-safety.md section 1 — "UNKNOWN is never
+        PASS. Absent evidence is not zero and is not success." No linkable escape
+        of this exact failure is recorded.
+
+  - id: RF-005
+    requirement: >-
+      A local gate whose tool is absent reports BLOCK, never PASS, and a failing
+      gate writes evidence carrying argv, exit code and duration.
+    test_file: tests/test_local_execution_manifest.py
+    test_name: test_a_missing_binary_blocks_rather_than_passes
+    command: python3 -m pytest -q tests/test_local_execution_manifest.py -k missing_binary
+    expected_broken: >-
+      If run_one treated an unresolvable argv[0] as a skip, the record reads PASS
+      and the test fails.
+    expected_fixed: passes
+    tier: sandbox-test
+    deterministic: true
+    network_required: false
+    source_evidence:
+      type: REQUIREMENT
+      reference: docs/engineering/baseline-and-safety.md, BLOCK status definition.
+
+  # -------------------------------------------------------------------------
+  # R3 — non-terminal is not success
+  # -------------------------------------------------------------------------
+  - id: RF-006
+    requirement: >-
+      A required context that is missing, non-terminal or measured against a
+      stale SHA is blocked, never accepted as terminal success.
+    test_file: tests/test_merge_evidence_gate.py
+    test_name: test_a_missing_required_context_blocks_as_not_fetched
+    command: python3 -m pytest -q tests/test_merge_evidence_gate.py -k not_fetched
+    expected_broken: >-
+      With a missing context treated as satisfied, the gate returns a mergeable
+      verdict and the test fails.
+    expected_fixed: passes
+    tier: sandbox-test
+    deterministic: true
+    network_required: false
+    source_evidence:
+      type: REQUIREMENT
+      reference: >-
+        docs/merge-evidence.md — the fail-closed rule. The stale-SHA and
+        non-terminal cases are design requirements, not recorded escapes.
+
+  # -------------------------------------------------------------------------
+  # R4 — a check that cannot exist for this event must not be waited on
+  # -------------------------------------------------------------------------
+  - id: RF-007
+    requirement: >-
+      Logic must not require a check that is absent for the applicable GitHub
+      event type. A push-shaped event records no pull request.
+    test_file: tests/test_evidence.py
+    test_name: test_push_shaped_event_records_no_pull_request
+    command: python3 -m pytest -q tests/test_evidence.py -k push_shaped_event
+    expected_broken: >-
+      If the report invented a pull_request field on a push event, the test
+      fails on the recorded payload.
+    expected_fixed: passes
+    tier: sandbox-test
+    deterministic: true
+    network_required: false
+    source_evidence:
+      type: ESCAPE
+      reference: >-
+        Commit 7cc6b0b (merge of PR #30). Measured on that merged main commit,
+        sixteen of the seventeen required contexts appear as check-runs and
+        CodeQL is absent entirely, because it is a code-scanning status GitHub
+        raises for pull requests. merge-evidence waited its full 420-second
+        budget for a check that could never arrive. Recorded at
+        tests/test_merge_evidence_gate.py:722 and .github/workflows/verify.yml:777.
+
+  # -------------------------------------------------------------------------
+  # R5 — a measured claim that contradicts the evidence is rejected
+  # -------------------------------------------------------------------------
+  - id: RF-008
+    requirement: >-
+      A claimed measurement contradicting the run's own logs is blocked, and a
+      derived row that does not recompute from its declared source values is
+      blocked.
+    test_file: tests/test_merge_evidence_gate.py
+    test_name: test_claimed_value_contradicting_the_log_is_blocked
+    command: python3 -m pytest -q tests/test_merge_evidence_gate.py -k contradicting_the_log
+    expected_broken: >-
+      With claim checking removed, a body asserting 13 calls against a log
+      showing 42 passes and the test fails.
+    expected_fixed: passes
+    tier: sandbox-test
+    deterministic: true
+    network_required: false
+    source_evidence:
+      type: ESCAPE
+      reference: >-
+        Pull request #28, merged claiming "42 AXLE calls before, 13 after" when
+        the real figures were 9 and 3. The refuting measurement was already in a
+        correspondence log of the same run. Recorded in docs/merge-evidence.md:9
+        and ci/gates.toml:352.
+
+  # -------------------------------------------------------------------------
+  # R6 — the manifest may not silently drop a required context
+  # -------------------------------------------------------------------------
+  - id: RF-009
+    requirement: >-
+      Every required GitHub context appears in the local-execution manifest
+      exactly once, and the manifest may not declare a context GitHub does not
+      require.
+    test_file: tests/test_local_execution_manifest.py
+    test_name: test_every_required_context_appears
+    command: python3 -m pytest -q tests/test_local_execution_manifest.py -k required_context_appears
+    expected_broken: >-
+      Deleting any [contexts."<name>"] table makes the required set exceed the
+      manifest set and the test fails naming the missing context.
+    expected_fixed: passes
+    tier: sandbox-fast
+    deterministic: true
+    network_required: false
+    source_evidence:
+      type: REQUIREMENT
+      reference: >-
+        ci/local-execution.toml:21 — "EVERY required context appears here exactly
+        once". The guard generalises the RF-001 escape; the rule itself is not a
+        separate recorded escape.
+
+  # -------------------------------------------------------------------------
+  # R7 — a check that did not run here is never reported as passed here
+  # -------------------------------------------------------------------------
+  - id: RF-010
+    requirement: >-
+      A context the manifest declares non-local is reported with a reason and is
+      never selected for execution, so it can never be reported as locally
+      passed.
+    test_file: tests/test_local_execution_manifest.py
+    test_name: test_github_only_contexts_are_reported_and_never_selected
+    command: python3 -m pytest -q tests/test_local_execution_manifest.py -k github_only
+    expected_broken: >-
+      If a non-local context were also selected, the intersection is non-empty
+      and the test fails.
+    expected_fixed: passes
+    tier: sandbox-fast
+    deterministic: true
+    network_required: false
+    source_evidence:
+      type: REQUIREMENT
+      reference: >-
+        scripts/local_gates.py module docstring — "It will not claim a
+        GitHub-only context passed."
+
+  # -------------------------------------------------------------------------
+  # The registry's own integrity, and the network exclusion it depends on
+  # -------------------------------------------------------------------------
+  - id: RF-011
+    requirement: >-
+      Every row in this registry names a test file that exists and a test
+      function defined in it, and no local check borrows the name of a required
+      GitHub context.
+    test_file: tests/test_regression_registry.py
+    test_name: test_every_registry_row_resolves_to_a_real_test
+    command: python3 -m pytest -q tests/test_regression_registry.py -k row_resolves
+    expected_broken: >-
+      Renaming or deleting a referenced test leaves a row pointing at nothing and
+      the test fails naming the row.
+    expected_fixed: passes
+    tier: sandbox-fast
+    deterministic: true
+    network_required: false
+    source_evidence:
+      type: REQUIREMENT
+      reference: >-
+        Milestone 3 — "Create one clear registry of regression fixtures." A
+        registry nothing validates rots into fiction.
+
+  - id: RF-012
+    requirement: >-
+      requires_network is enforced by the selector, not merely annotated: a
+      network-requiring check is excluded from both default tiers, is reported as
+      NOT_RUN_LOCALLY with its reason and opt-in command, and no subprocess is
+      spawned for it.
+    test_file: tests/test_regression_registry.py
+    test_name: test_a_network_requiring_check_is_excluded_from_every_default_tier
+    command: python3 -m pytest -q tests/test_regression_registry.py -k network_requiring
+    expected_broken: >-
+      If select() ignored requires_network, the check appears in the fast tier
+      and the default local loop makes a network call; the test fails.
+    expected_fixed: passes
+    tier: sandbox-fast
+    deterministic: true
+    network_required: false
+    source_evidence:
+      type: REQUIREMENT
+      reference: >-
+        Milestone 4 — "no network/AXLE calls occur in default sandbox-fast", and
+        the Milestone 3 test-data rule "no external network by default".

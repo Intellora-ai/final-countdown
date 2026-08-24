@@ -83,6 +83,7 @@ here, so neither file changed format to suit the other.
 from __future__ import annotations
 
 import argparse
+import ast
 import re
 import sys
 import tomllib
@@ -94,6 +95,7 @@ import yaml
 MANIFEST = Path("ci/gates.toml")
 REQUIREMENTS = Path("ci/requirements.yml")
 ASSUMPTIONS = Path("ci/assumptions.yml")
+FIXTURES = Path("ci/regression-fixtures.yml")
 
 SCHEMA_VERSION = 1
 
@@ -491,11 +493,131 @@ def inventory(
             )
 
 
+
+# ---------------------------------------------------------------------------
+# REGRESSION FIXTURES — a registry that names a deleted test proves nothing.
+#
+# ci/regression-fixtures.yml claims that twelve specific failures cannot come
+# back without a test going red. A row whose test was renamed six commits ago
+# documents a proof nobody runs, and it reads exactly like one that works. The
+# rows are therefore RESOLVED, not read: the file must exist and the function
+# must be defined in it.
+#
+# Parsed rather than grepped. A grep for the test name matches it inside a
+# docstring or a comment, which is precisely how a row keeps "resolving" to a
+# test that was deleted and only mentioned in prose afterwards.
+# ---------------------------------------------------------------------------
+REQUIRED_FIXTURE_FIELDS = (
+    "id",
+    "requirement",
+    "test_file",
+    "test_name",
+    "command",
+    "expected_broken",
+    "expected_fixed",
+    "tier",
+    "deterministic",
+    "network_required",
+    "source_evidence",
+)
+FIXTURE_TIERS = ("sandbox-fast", "sandbox-test", "github-only", "external")
+SOURCE_TYPES = ("ESCAPE", "REQUIREMENT")
+MIN_REFERENCE = 30
+
+
+def _defined_functions(path: Path) -> set[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    return {
+        node.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+    }
+
+
+def load_fixtures(path: Path) -> list[dict[str, Any]]:
+    if not path.is_file():
+        raise CannotRun(f"{path} is missing; the regression registry cannot be checked")
+    try:
+        doc = cast("dict[str, Any]", yaml.safe_load(path.read_text(encoding="utf-8")))
+    except yaml.YAMLError as exc:
+        raise CannotRun(f"{path} is not readable YAML: {exc}") from exc
+    rows = cast("list[dict[str, Any]]", doc.get("fixtures") or [])
+    if not rows:
+        raise CannotRun(
+            f"{path} declares no fixtures. A guard over an empty registry passes "
+            "vacuously and proves nothing."
+        )
+    return rows
+
+
+def check_fixtures(rows: list[dict[str, Any]]) -> list[str]:
+    findings: list[str] = []
+    seen: set[str] = set()
+
+    for row in rows:
+        ident = str(row.get("id", "<no id>"))
+        if ident in seen:
+            findings.append(f"{ident}: duplicate fixture id")
+        seen.add(ident)
+
+        for field in REQUIRED_FIXTURE_FIELDS:
+            if field not in row or row[field] in (None, "", []):
+                findings.append(f"{ident}: missing {field}")
+
+        tier = str(row.get("tier", ""))
+        if tier and tier not in FIXTURE_TIERS:
+            findings.append(
+                f"{ident}: tier {tier!r} is not one of {', '.join(FIXTURE_TIERS)}"
+            )
+
+        source = row.get("source_evidence")
+        if isinstance(source, dict):
+            typed = cast("dict[str, Any]", source)
+            kind = str(typed.get("type", ""))
+            if kind not in SOURCE_TYPES:
+                findings.append(
+                    f"{ident}: source_evidence.type is {kind!r}; only "
+                    f"{' or '.join(SOURCE_TYPES)}"
+                )
+            reference = str(typed.get("reference", "")).strip()
+            if len(reference) < MIN_REFERENCE:
+                findings.append(
+                    f"{ident}: source_evidence.reference is {len(reference)} "
+                    f"characters. An ESCAPE needs a linkable commit, pull request, "
+                    f"CI run or incident record; a REQUIREMENT needs the document "
+                    f"the rule comes from. Neither fits in {MIN_REFERENCE}."
+                )
+        elif "source_evidence" in row:
+            findings.append(f"{ident}: source_evidence is not a table")
+
+        test_file = str(row.get("test_file", ""))
+        test_name = str(row.get("test_name", ""))
+        if not test_file or not test_name:
+            continue
+        path = Path(test_file)
+        if not path.is_file():
+            findings.append(f"{ident}: test_file {test_file} does not exist")
+            continue
+        try:
+            defined = _defined_functions(path)
+        except (OSError, SyntaxError) as exc:
+            findings.append(f"{ident}: {test_file} could not be parsed: {exc}")
+            continue
+        if test_name not in defined:
+            findings.append(
+                f"{ident}: {test_file} defines no {test_name}. The row documents a "
+                "regression proof that does not run."
+            )
+
+    return findings
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--gates", type=Path, default=MANIFEST)
     ap.add_argument("--requirements", type=Path, default=REQUIREMENTS)
     ap.add_argument("--assumptions", type=Path, default=ASSUMPTIONS)
+    ap.add_argument("--fixtures", type=Path, default=FIXTURES)
     ns = ap.parse_args()
 
     try:
@@ -512,6 +634,7 @@ def main() -> int:
             REQUIRED_ASM_FIELDS,
             OPTIONAL_ASM_FIELDS,
         )
+        fixtures = load_fixtures(cast("Path", ns.fixtures))
     except CannotRun as exc:
         print(f"CANNOT RUN: {exc}", file=sys.stderr)
         print(
@@ -523,7 +646,21 @@ def main() -> int:
 
     inventory(reqs, asms, gates)
 
-    findings = check_requirements(reqs, gates) + check_assumptions(asms)
+    print(f"\nregression fixtures: {len(fixtures)}")
+    escapes = [
+        r
+        for r in fixtures
+        if str(cast("dict[str, Any]", r.get("source_evidence", {})).get("type"))
+        == "ESCAPE"
+    ]
+    print(f"  from a recorded escape  {len(escapes)}")
+    print(f"  requirement-derived     {len(fixtures) - len(escapes)}")
+
+    findings = (
+        check_requirements(reqs, gates)
+        + check_assumptions(asms)
+        + check_fixtures(fixtures)
+    )
     if findings:
         print(f"\nFAIL — {len(findings)} finding(s):", file=sys.stderr)
         for finding in findings:

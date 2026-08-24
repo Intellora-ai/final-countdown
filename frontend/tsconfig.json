@@ -1,0 +1,54 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    /*
+     * STRICT IS ON BECAUSE ZOD NEEDS strictNullChecks, NOT AS A TIDY-UP.
+     *
+     * The canvas describes lessons with zod, and zod's inference is built on
+     * strictNullChecks. With strict off, `undefined` is assignable to
+     * everything, `.optional()` and `.default()` become indistinguishable, and
+     * every field of a validated lesson infers as optional. The nine-arm
+     * discriminated union of block kinds then has no discriminant it can trust
+     * and narrows to `never` — at which point a perfectly valid metric block is
+     * reported as not assignable to `never`, and the `ok: false` arm of the
+     * validator's result vanishes from the type. Hundreds of errors, not one of
+     * them a real defect, all from a single flag.
+     *
+     * Scoping strict to `src/canvas` in a second config does NOT work, and it
+     * is worth writing down why so nobody retries it: `exclude` only filters
+     * the ROOT file list. `App.tsx` imports the canvas, so the compiler follows
+     * it into the excluded directory anyway and checks it under whichever
+     * settings the entry project has. A file graph that spans two projects is
+     * checked by both.
+     *
+     * noImplicitAny stays OFF, and that is the surgical part. Turning full
+     * strict on lights up 35 errors, every one of them noImplicitAny and every
+     * one of them in `src/data/curriculum.ts` — the original dashboard, which
+     * is out of scope here. NONE of them are null-safety. So the canvas gets
+     * the flag it actually needs and the dashboard is not touched to pay for
+     * it. Turning this on later is a real improvement, and a separate job.
+     */
+    "strict": true,
+    "noImplicitAny": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": [
+    "src"
+  ]
+}

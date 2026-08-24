@@ -337,3 +337,76 @@ describe('pages arrive in the shape the canvas already renders', () => {
     expect(out.results).toEqual([])
   })
 })
+
+/* -------------------------------------------------------------------------- */
+/* Freshness and rounds reach the canvas                                      */
+/* -------------------------------------------------------------------------- */
+
+describe('what the route knows about the age of its evidence is passed on', () => {
+  it('relays freshness rather than dropping it at the boundary', async () => {
+    /* The route has computed this since `pipeline.ts` was wired and nothing
+       read it. A value computed and discarded is worse than one never
+       computed: it looks, in the code, like the property is handled. */
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith({
+        pages: [page('https://a.test/1', HOT_A)],
+        engineFailed: false,
+        freshness: { live: true, origins: ['live'], usableSources: 1 },
+        rounds: 2,
+      }),
+    })
+    expect(out.freshness?.live).toBe(true)
+    expect(out.freshness?.usableSources).toBe(1)
+    expect(out.rounds).toBe(2)
+  })
+
+  it('a route that reports no freshness leaves it undefined rather than inventing it', async () => {
+    /* Absent and "live" are different claims. Defaulting a missing value to
+       live is how a cached answer starts calling itself current. */
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith({ pages: [page('https://a.test/1', HOT_A)], engineFailed: false }),
+    })
+    expect(out.freshness).toBeUndefined()
+  })
+
+  it('a saved answer is relayed as saved, not upgraded to live', async () => {
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith({
+        pages: [page('https://a.test/1', HOT_A)],
+        engineFailed: false,
+        freshness: { live: false, origins: ['recent-cache'], usableSources: 1 },
+        rounds: 0,
+      }),
+    })
+    expect(out.freshness?.live).toBe(false)
+  })
+})
+
+describe('provenance labels from the route are checked, not trusted', () => {
+  it('drops an origin nobody defined rather than relaying it', async () => {
+    /* Found by tightening the canvas type, not by review. The client relayed
+       `origins` as raw strings, so a route sending "totally-fresh" would have
+       arrived and rendered as a meaningful provenance label. */
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith({
+        pages: [page('https://a.test/1', HOT_A)],
+        engineFailed: false,
+        freshness: { live: true, origins: ['live', 'totally-fresh'], usableSources: 1 },
+      }),
+    })
+    expect(out.freshness?.origins).toEqual(['live'])
+  })
+
+  it('keeps every origin that IS defined', async () => {
+    /* The pair. A filter asserted only to drop is satisfied by dropping
+       everything. */
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith({
+        pages: [page('https://a.test/1', HOT_A)],
+        engineFailed: false,
+        freshness: { live: false, origins: ['recent-cache', 'precomputed'], usableSources: 1 },
+      }),
+    })
+    expect(out.freshness?.origins).toEqual(['recent-cache', 'precomputed'])
+  })
+})

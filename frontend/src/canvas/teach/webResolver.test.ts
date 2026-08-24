@@ -844,3 +844,48 @@ describe('a search with no verdict still behaves exactly as it did', () => {
     expect(rendered).not.toContain('only one')
   })
 })
+
+/* -------------------------------------------------------------------------- */
+/* A saved answer may not call itself current                                 */
+/* -------------------------------------------------------------------------- */
+
+describe('the learner is told how old the evidence is', () => {
+  it('an answer read live during this search says so', async () => {
+    const r = await resolverFor(
+      checked('supported', { freshness: { live: true, origins: ['live'], usableSources: 2 } }),
+    ).resolve(GAS_ASK, LESSON)
+    if (r.kind !== 'answer') throw new Error('expected an answer')
+    expect(JSON.stringify(r.lesson).toLowerCase()).toContain('just now')
+  })
+
+  it('an answer served from a saved copy is NEVER described as live', async () => {
+    /* The most expensive kind of wrong is the kind that was right once. A
+       learner reading a price, a rate or a date has no way to tell a live read
+       from a saved one unless the answer says which it was. */
+    const r = await resolverFor(
+      checked('supported', { freshness: { live: false, origins: ['recent-cache'], usableSources: 2 } }),
+    ).resolve(GAS_ASK, LESSON)
+    if (r.kind !== 'answer') throw new Error('expected an answer')
+    const rendered = JSON.stringify(r.lesson).toLowerCase()
+    expect(rendered).toContain('saved earlier')
+    expect(rendered).not.toContain('just now')
+  })
+
+  it('an answer with no freshness claims neither', async () => {
+    /* Absent is not "live". A search layer that reported nothing about age must
+       not have an age invented for it downstream. */
+    const r = await resolverFor(checked('supported')).resolve(GAS_ASK, LESSON)
+    if (r.kind !== 'answer') throw new Error('expected an answer')
+    const rendered = JSON.stringify(r.lesson).toLowerCase()
+    expect(rendered).not.toContain('just now')
+    expect(rendered).not.toContain('saved earlier')
+  })
+
+  it('freshness is stated on a single-source answer too, not only a supported one', async () => {
+    const r = await resolverFor(
+      checked('single-source', { freshness: { live: true, origins: ['live'], usableSources: 1 } }),
+    ).resolve(GAS_ASK, LESSON)
+    if (r.kind !== 'answer') throw new Error('expected an answer')
+    expect(JSON.stringify(r.lesson).toLowerCase()).toContain('just now')
+  })
+})

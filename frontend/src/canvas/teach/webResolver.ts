@@ -83,6 +83,34 @@ export interface SelectedEvidence {
   readonly sourceUrl: string
 }
 
+/**
+ * Where the evidence came from, and whether it may be called current. §32.
+ *
+ * Declared here rather than imported, like every other shape in this file;
+ * `src/websearch/provenance.ts` owns the real one and
+ * `src/websearch/canvasContract.test.ts` asserts the two agree.
+ *
+ * `live` is true only when EVERY contributing source was read during this
+ * search. Never a majority, never a ratio — one saved page is enough to make
+ * the whole answer not-live, because a learner cannot tell which sentence came
+ * from which page.
+ */
+export type Origin = 'live' | 'recent-cache' | 'precomputed'
+
+export interface Freshness {
+  readonly live: boolean
+  /**
+   * Declared as the same union the real type uses, not as `string[]`.
+   *
+   * A looser copy would absorb a rename silently — `recent-cache` becoming
+   * `cached` upstream would still typecheck here and simply stop matching.
+   * The contract test can only pin what this side is strict enough to refuse.
+   */
+  readonly origins: readonly Origin[]
+  readonly usableSources: number
+  readonly oldestAgeMs?: number
+}
+
 /** The result of one search. Mirrors `SearchOutcome`. */
 export interface SearchResult {
   readonly results: readonly RetrievedPage[]
@@ -104,6 +132,17 @@ export interface SearchResult {
   readonly check?: ClaimCheck
   /** The span to display, when the search layer chose one. */
   readonly evidence?: SelectedEvidence
+  /**
+   * How old the evidence is, when the search layer said.
+   *
+   * OPTIONAL, AND ABSENT MEANS ABSENT. A missing value is never defaulted to
+   * `live` downstream: "we did not measure" and "we read it just now" are
+   * different claims, and quietly promoting the first to the second is exactly
+   * how a saved answer starts calling itself current.
+   */
+  readonly freshness?: Freshness
+  /** Refinement rounds the search ran. 0 means the first pass was enough. */
+  readonly rounds?: number
 }
 
 /**
@@ -384,6 +423,22 @@ function offTopicClause(n: number): string {
  * it up is how one website's mistake becomes a fact a learner repeats. The
  * sentence says the number out loud instead.
  */
+/**
+ * One sentence about the age of the evidence, or nothing at all.
+ *
+ * NOTHING AT ALL IS A REAL OPTION HERE. A search layer that reported no
+ * freshness gets no sentence, rather than a reassuring default. The whole
+ * point is that a learner can trust the sentence when it appears.
+ */
+function freshnessNote(freshness: Freshness | undefined): string {
+  if (!freshness) return ''
+  /* The not-live sentence deliberately does NOT contain the words "just now".
+     Its first draft read "saved earlier, not just now", and a test caught it:
+     a learner skimming sees the phrase and takes the opposite meaning. A
+     negation is the weakest way to say something a reader might skim. */
+  return freshness.live ? ' Read just now.' : ' Read earlier and saved earlier.'
+}
+
 const STATUS_NOTE: Record<'supported' | 'single-source' | 'conflicting', string> = {
   supported:
     'Two different websites say this, so it has been checked against more than one source.',
@@ -412,15 +467,16 @@ function buildCheckedAnswer(
   doubt: Doubt,
   check: ClaimCheck,
   evidence: SelectedEvidence,
+  freshness: Freshness | undefined,
 ): Lesson | null {
   const status = check.status === 'conflicting' ? 'conflicting' : check.status
   const blocks: Record<string, unknown>[] = [
     {
       id: 'web-note',
       kind: 'callout',
-      body: `This is not from this lesson. It is quoted from a page found on the web. ${
-        STATUS_NOTE[status as 'supported' | 'single-source']
-      }`,
+      body:
+        `This is not from this lesson. It is quoted from a page found on the web. ` +
+        `${STATUS_NOTE[status as 'supported' | 'single-source']}${freshnessNote(freshness)}`,
       emphasis: 'aside',
       tone: check.status === 'supported' ? 'insight' : 'warning',
     },
@@ -466,6 +522,7 @@ function buildConflictAnswer(
   doubt: Doubt,
   check: ClaimCheck,
   pages: readonly RetrievedPage[],
+  freshness: Freshness | undefined,
 ): Lesson | null {
   const named = new Set(check.conflictingEvidenceIds)
   const sides = pages.filter((p) => named.has(p.finalUrl) || named.has(p.hit.url))
@@ -475,7 +532,7 @@ function buildConflictAnswer(
     {
       id: 'web-note',
       kind: 'callout',
-      body: `This is not from this lesson. ${STATUS_NOTE.conflicting}`,
+      body: `This is not from this lesson. ${STATUS_NOTE.conflicting}${freshnessNote(freshness)}`,
       emphasis: 'aside',
       tone: 'warning',
     },
@@ -657,7 +714,7 @@ export function webResolver(deps: WebResolverDeps): AsyncDoubtResolver {
         }
 
         if (check.status === 'conflicting') {
-          const both = buildConflictAnswer(doubt, check, usable)
+          const both = buildConflictAnswer(doubt, check, usable, outcome.freshness)
           if (!both) return refuse('I found sources that disagree but could not render them safely.')
           return { kind: 'answer', lesson: both, drawnFrom: [] }
         }
@@ -668,7 +725,7 @@ export function webResolver(deps: WebResolverDeps): AsyncDoubtResolver {
           return refuse('I checked what came back but could not find a line worth quoting.')
         }
 
-        const verified = buildCheckedAnswer(doubt, check, outcome.evidence)
+        const verified = buildCheckedAnswer(doubt, check, outcome.evidence, outcome.freshness)
         if (!verified) return refuse('I found sources for that but could not render them safely.')
         return { kind: 'answer', lesson: verified, drawnFrom: [] }
       }

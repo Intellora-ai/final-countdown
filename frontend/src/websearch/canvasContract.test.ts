@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import type { SearchOutcome } from './engine'
 import type { Retrieved } from './gather'
-import type { ClaimCheck as CanvasClaimCheck, ClaimStatus as CanvasClaimStatus, RetrievedPage, SearchResult, SelectedEvidence } from '../canvas/teach/webResolver'
+import type { ClaimCheck as CanvasClaimCheck, Freshness as CanvasFreshness, ClaimStatus as CanvasClaimStatus, RetrievedPage, SearchResult, SelectedEvidence } from '../canvas/teach/webResolver'
 import type { Claim } from './evidence'
+import type { Freshness } from './provenance'
 import type { ClaimCheck, ClaimStatus } from './verify'
 
 /**
@@ -150,6 +151,22 @@ describe('the retrieval layer still satisfies what the canvas declared', () => {
     const asCanvasSeesIt: SearchResult = { results: [], engineFailed: real.engineFailed }
     expect(asCanvasSeesIt.engineFailed).toBe(false)
     expect(asCanvasSeesIt.results).toEqual([])
+  })
+
+  it('a real Freshness is usable everywhere the canvas expects one', () => {
+    /* §32 across the tsconfig boundary. `provenance.ts` owns this; the canvas
+       declares its own copy. If `live` ever became optional, or `origins`
+       changed shape, a saved answer could start rendering as a live one and
+       nothing would have failed on the way there. */
+    const real: Freshness = {
+      live: false,
+      origins: ['recent-cache'],
+      usableSources: 2,
+      oldestAgeMs: 60_000,
+    }
+    const asCanvasSeesIt: CanvasFreshness = real
+    expect(asCanvasSeesIt.live).toBe(false)
+    expect(asCanvasSeesIt.usableSources).toBe(2)
   })
 
   it('the canvas reads the four fields its safety rules depend on', () => {

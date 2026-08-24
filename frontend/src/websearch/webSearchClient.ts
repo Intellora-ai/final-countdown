@@ -1,5 +1,10 @@
 import { contentTokens } from '../canvas/teach/doubt'
-import { isAbout, type RetrievedPage, type SearchResult } from '../canvas/teach/webResolver'
+import {
+  isAbout,
+  type Origin,
+  type RetrievedPage,
+  type SearchResult,
+} from '../canvas/teach/webResolver'
 import type { Retrieved } from './gather'
 import { interpret } from './interpret'
 import { rankHits } from './select'
@@ -126,6 +131,27 @@ function toRetrieved(page: RoutePage, retrievedAt: string): Retrieved {
  * `unknown` is NOT a claim that the answer is false. It says nobody looked, or
  * looking failed.
  */
+/**
+ * The origins the route reported, keeping only the ones that mean something.
+ *
+ * NOT A CAST. The first version relayed `origins` as `string[]` and the
+ * canvas's own type was loose enough to accept it — so a route sending
+ * `["totally-fresh"]` would have arrived, typechecked, and rendered as a
+ * meaningful provenance label. Tightening the canvas declaration to the real
+ * union is what surfaced it, which is the argument for declaring shapes as
+ * strictly as the source rather than as loosely as the parser.
+ *
+ * Unknown values are DROPPED, not mapped to a default. An unrecognised origin
+ * is not evidence of freshness in either direction, and `live` is carried
+ * separately anyway.
+ */
+const ORIGINS: readonly Origin[] = ['live', 'recent-cache', 'precomputed']
+
+function originsFrom(value: unknown): readonly Origin[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((v): v is Origin => ORIGINS.includes(v as Origin))
+}
+
 function failure(why: string): SearchResult {
   return {
     results: [],
@@ -242,10 +268,31 @@ export async function searchTheWeb(
   const check = checkClaims(voting, query)
   const chosen = selectEvidence(voting, query)
 
+  /* Freshness and rounds are RELAYED, never defaulted. The route computes both;
+     a client that dropped them would make the canvas unable to say whether an
+     answer was read live, and one that invented them would let a saved answer
+     claim it was. Absent stays absent. */
+  const freshness = asRecord(record?.['freshness'])
+  const rounds = record?.['rounds']
+
   return {
     results,
     engineFailed: false,
     check,
     ...(chosen === null ? {} : { evidence: { text: chosen.text, sourceUrl: chosen.sourceUrl } }),
+    ...(freshness === null
+      ? {}
+      : {
+          freshness: {
+            live: freshness['live'] === true,
+            origins: originsFrom(freshness['origins']),
+            usableSources:
+              typeof freshness['usableSources'] === 'number' ? freshness['usableSources'] : 0,
+            ...(typeof freshness['oldestAgeMs'] === 'number'
+              ? { oldestAgeMs: freshness['oldestAgeMs'] }
+              : {}),
+          },
+        }),
+    ...(typeof rounds === 'number' ? { rounds } : {}),
   }
 }

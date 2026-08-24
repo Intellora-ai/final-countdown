@@ -34,6 +34,8 @@
  * being current.
  */
 
+import { stripInvisible } from './guard'
+
 export interface Extracted {
   title: string
   text: string
@@ -161,7 +163,14 @@ function mainRegion(html: string): string {
 }
 
 function tidy(raw: string): string {
-  return decodeEntities(raw)
+  /* Invisible characters are removed HERE, at the single entry point every
+     consumer goes through, rather than only in `guard`.
+     Found by the adversarial suite: `asEvidence()` stripped them, so the
+     quarantined block was clean while `Extracted.text` still carried them —
+     and `text` is what ranking, snippets and any future claim extraction
+     read. A defence that only covers one of two outputs covers neither, since
+     an attacker picks the output. */
+  return stripInvisible(decodeEntities(raw))
     /* Tabs and newlines inside a block are layout, not content. */
     .replace(/[ \t\r\f\v]+/g, ' ')
     .replace(/ *\n */g, '\n')

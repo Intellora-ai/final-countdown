@@ -89,8 +89,59 @@ function practiceStorage() {
   return raw ? createJSONStorage(() => raw) : undefined;
 }
 
+/**
+ * The three session sizes the product offers.
+ *
+ * A RANGE IS NOT A SMALLER VERSION OF A CHOICE
+ * --------------------------------------------
+ * The panel used to be a 1-to-15 slider while the product has always offered
+ * 5, 10 or 15. That is not a looser version of the same rule: it lets a learner
+ * ask for 7, the engine plans a set of 7, and nothing downstream was ever
+ * designed for 7 — the type mix reserves one question per type and the
+ * difficulty ladder is proportioned against the offered sizes.
+ *
+ * Snapping here rather than in the control means every route agrees: the
+ * buttons, a restored `localStorage` written by an older build, and any caller
+ * that has not been written yet.
+ */
+export const QUESTION_CHOICES = [5, 10, 15] as const;
+
 export const MAX_QUESTIONS = 15;
-export const MIN_QUESTIONS = 1;
+export const MIN_QUESTIONS = 5;
+
+/** The offered count nearest to what was asked for. Ties go to the smaller. */
+function snapQuestionCount(value: number): number {
+  if (!Number.isFinite(value)) return MIN_QUESTIONS;
+
+  let best: number = MIN_QUESTIONS;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const choice of QUESTION_CHOICES) {
+    const distance = Math.abs(choice - value);
+    if (distance < bestDistance) {
+      best = choice;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+/**
+ * The timer bound the product promises: no shorter than 5 minutes, no longer
+ * than 30.
+ *
+ * THESE ARE THE RULE. `TIMER_CHOICES` IS ONLY A MENU.
+ * --------------------------------------------------
+ * The clamps below used to read `1, 180` while the menu offered 5 through 30,
+ * and because every button press lands on a menu value, nothing ever exercised
+ * the gap. Restored `localStorage` does not press buttons: a saved
+ * `{"timerMinutes":9999}` came back as a 166-hour "practice session" with the
+ * bound never consulted. The rule now lives in one place and both clamps read
+ * it, so the menu cannot drift away from the rule without the test below
+ * noticing.
+ */
+export const TIMER_MIN_MINUTES = 5;
+export const TIMER_MAX_MINUTES = 30;
+
 export const TIMER_CHOICES = [5, 10, 15, 20, 30] as const;
 
 const DEFAULT_SETTINGS: SessionSettings = {
@@ -199,10 +250,10 @@ export const usePracticeStore = create<PracticeState>()(
         set({
           settings: {
             timerEnabled: next.timerEnabled,
-            timerMinutes: clamp(next.timerMinutes, 1, 180),
-            // The cap lives here rather than in the input, so a session cannot
-            // be launched with 200 questions by any route into the store.
-            questionCount: clamp(Math.round(next.questionCount), MIN_QUESTIONS, MAX_QUESTIONS),
+            timerMinutes: clamp(next.timerMinutes, TIMER_MIN_MINUTES, TIMER_MAX_MINUTES),
+            // The rule lives here rather than in the input, so a session cannot
+            // be launched with 200 questions - or 7 - by any route into the store.
+            questionCount: snapQuestionCount(next.questionCount),
           },
         });
       },
@@ -286,8 +337,8 @@ export const usePracticeStore = create<PracticeState>()(
           ...saved,
           settings: {
             timerEnabled: Boolean(settings.timerEnabled),
-            timerMinutes: clamp(settings.timerMinutes, 1, 180),
-            questionCount: clamp(Math.round(settings.questionCount), MIN_QUESTIONS, MAX_QUESTIONS),
+            timerMinutes: clamp(settings.timerMinutes, TIMER_MIN_MINUTES, TIMER_MAX_MINUTES),
+            questionCount: snapQuestionCount(settings.questionCount),
           },
         }
       },

@@ -17,9 +17,43 @@ export type SubjectId = string;
 export type ChapterId = string;
 export type TopicId = string;
 
+/**
+ * A sub-idea inside a topic, and what a student usually gets wrong about it.
+ *
+ * WHY THIS IS OPTIONAL, AND WHY IT IS NOT FILLED IN EVERYWHERE
+ * -----------------------------------------------------------
+ * The practice engine spreads a set across concepts: ten questions on a topic
+ * with five concepts ask about five different ideas rather than one idea ten
+ * times. Without this the topic itself is the only concept, and the set can
+ * still vary its reasoning route and difficulty but cannot vary what it is
+ * ABOUT.
+ *
+ * So it matters, and it is deliberately absent on most topics. Writing concept
+ * breakdowns, prerequisites and misconceptions for a hundred-plus topics
+ * without subject-matter review would be inventing curriculum and filing it
+ * where real curriculum goes — and a fabricated misconception is worse than a
+ * missing one, because the engine will faithfully build distractors around it
+ * and teach a student something false about their own error.
+ *
+ * The topics below that DO carry concepts are worked examples. The rest fall
+ * back to one concept and are marked by their own absence.
+ */
+export interface TopicConcept {
+  id: string;
+  name: string;
+  /** Whether this idea supports questions with arithmetic in them. */
+  numeric: boolean;
+  /** Ideas a question may assume. Recorded so a dependency is never silent. */
+  prerequisites?: readonly string[];
+  /** The mistake this idea is most often got wrong by. */
+  misconception?: string;
+}
+
 export interface Topic {
   id: TopicId;
   name: string;
+  /** Absent means "not broken down yet" — see `TopicConcept`. */
+  concepts?: readonly TopicConcept[];
 }
 
 export interface Chapter {
@@ -55,10 +89,112 @@ export const CURRICULUM: readonly Subject[] = [
         number: 1,
         name: "Introduction to Microeconomics",
         topics: [
-          { id: "eco-1-central-problems", name: "Central problems" },
-          { id: "eco-1-ppc", name: "Production possibility curve" },
-          { id: "eco-1-opportunity-cost", name: "Opportunity cost" },
-          { id: "eco-1-scarcity", name: "Scarcity and choice" },
+          {
+            id: "eco-1-central-problems",
+            name: "Central problems",
+            concepts: [
+              {
+                id: "what-to-produce",
+                name: "what to produce",
+                numeric: false,
+                misconception: "treats the choice as a shortage of money rather than of resources",
+              },
+              {
+                id: "how-to-produce",
+                name: "how to produce",
+                numeric: false,
+                misconception: "assumes the cheapest technique is always the labour-intensive one",
+              },
+              {
+                id: "for-whom-to-produce",
+                name: "for whom to produce",
+                numeric: false,
+                misconception: "confuses distribution with production",
+              },
+            ],
+          },
+          {
+            id: "eco-1-ppc",
+            name: "Production possibility curve",
+            concepts: [
+              {
+                id: "ppc-shape",
+                name: "the shape of the curve",
+                numeric: false,
+                misconception: "reads the concavity as a fall in total resources",
+              },
+              {
+                id: "ppc-points",
+                name: "points on, inside and outside the curve",
+                numeric: false,
+                misconception: "reads a point inside the curve as impossible rather than inefficient",
+              },
+              {
+                id: "ppc-shift",
+                name: "shifts of the curve",
+                numeric: false,
+                prerequisites: ["ppc-shape"],
+                misconception: "confuses a shift of the curve with a movement along it",
+              },
+              {
+                id: "ppc-marginal-cost",
+                name: "marginal opportunity cost along the curve",
+                numeric: true,
+                prerequisites: ["ppc-shape"],
+                misconception: "takes the average sacrifice for the marginal one",
+              },
+            ],
+          },
+          {
+            id: "eco-1-opportunity-cost",
+            name: "Opportunity cost",
+            concepts: [
+              {
+                id: "next-best-alternative",
+                name: "the next best alternative forgone",
+                numeric: false,
+                misconception: "sums every alternative instead of taking only the next best",
+              },
+              {
+                id: "explicit-vs-implicit-cost",
+                name: "explicit and implicit cost",
+                numeric: true,
+                misconception: "counts only money actually paid out",
+              },
+              {
+                id: "sunk-cost",
+                name: "why a sunk cost is not an opportunity cost",
+                numeric: true,
+                prerequisites: ["next-best-alternative"],
+                misconception: "carries an unrecoverable past spend into the current decision",
+              },
+            ],
+          },
+          {
+            id: "eco-1-scarcity",
+            name: "Scarcity and choice",
+            concepts: [
+              {
+                id: "scarcity-vs-shortage",
+                name: "scarcity against shortage",
+                numeric: false,
+                misconception: "treats scarcity as a temporary shortage that a price rise fixes",
+              },
+              {
+                id: "unlimited-wants",
+                name: "unlimited wants against limited means",
+                numeric: false,
+                misconception: "reads scarcity as poverty rather than as a universal constraint",
+              },
+              {
+                id: "choice-forces-cost",
+                name: "why choosing always costs something",
+                numeric: false,
+                prerequisites: ["scarcity-vs-shortage"],
+                misconception: "believes a free good has no opportunity cost in every context",
+              },
+            ],
+          },
         ],
       },
       {

@@ -3,6 +3,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 import { enginePlugin } from './vite-plugin-engine'
+import { searchPlugin } from './vite-plugin-search'
 
 export default defineConfig({
   /* THE ENGINE ROUTE, IN DEV ONLY.
@@ -16,7 +17,14 @@ export default defineConfig({
    * It is absent from `vite build` on purpose, and `vite-plugin-engine.ts` says
    * why: making the engine reachable in production is a hosting decision, not
    * one a build plugin should make quietly. */
-  plugins: [react(), enginePlugin()],
+  /* THE OPEN-WEB SEARCH ROUTE, IN DEV ONLY, FOR THE SAME REASONS.
+   *
+   * `POST /api/search` searches a general provider and reads the pages it
+   * returns. It needs a server for two independent reasons — a key cannot ship
+   * to a browser, and a browser may not read a page that did not opt into CORS
+   * — and it is absent from `vite build` on purpose. See
+   * `vite-plugin-search.ts`. */
+  plugins: [react(), enginePlugin(), searchPlugin()],
 
   /* ONE REACT, ONE THREE — enforced, not assumed.
    *

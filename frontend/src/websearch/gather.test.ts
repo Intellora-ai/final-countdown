@@ -60,6 +60,133 @@ function fetcher(map: Record<string, FetchOutcome>, delayOrder?: string[]) {
   return { impl, asked, peak: () => peak }
 }
 
+describe('a THROWING dependency is still one bad source, not a dead search', () => {
+  /* The file header promises "FAILURE IS PER SOURCE, NEVER PER SEARCH".
+   * Nothing enforced it: the worker loop had no try/catch, so any rejection
+   * propagated through `Promise.all` and took the whole batch down.
+   *
+   * Latent only because the shipped `fetchPage` and `MemoryCache` never
+   * throw — a dependency on a fact nobody promised. This file's own comments
+   * anticipate a cache "backed by disk or by a network store", and the day
+   * someone swaps one in, a per-source degradation becomes a total outage.
+   *
+   * Generated over the two axes that actually vary: WHICH seam throws, and
+   * WHERE in the batch the throwing source sits. Position matters because a
+   * failure in the first source and a failure in the last exercise different
+   * points of the worker loop. */
+
+  const POSITIONS = [0, 1, 2] as const
+
+  const throwingCache = (seam: 'cache.get' | 'cache.set', badUrl: string): PageCache => ({
+    get: (url) => {
+      if (seam === 'cache.get' && url === badUrl) throw new Error('redis down')
+      return undefined
+    },
+    set: (url) => {
+      if (seam === 'cache.set' && url === badUrl) throw new Error('redis full')
+    },
+  })
+
+  /* The three seams do NOT deserve the same outcome, and writing them as one
+     case hid that. A throwing FETCHER genuinely loses the page — there is
+     nothing else to try. A throwing CACHE loses nothing: the bytes are still
+     reachable, so the correct degradation is "no cache", not "no source".
+     My first version asserted one failed source for all three seams, and the
+     six cache cases failed. The code was right and the test was wrong. */
+
+  it.each(POSITIONS)(
+    'a throwing fetchImpl at position %i loses that source and keeps the rest',
+    async (position) => {
+      const urls = ['https://a.gov.in/1', 'https://b.gov.in/2', 'https://c.gov.in/3']
+      const badUrl = urls[position]
+
+      const results = await gather(urls.map((u) => hit(u)), {
+        fetchImpl: async (url) => {
+          if (url === badUrl) throw new Error('socket exploded')
+          return page('<p>survived</p>', url)
+        },
+      })
+
+      expect(results).toHaveLength(3)
+      expect(results.map((r) => r.hit.url)).toEqual(urls)
+
+      const failed = results.filter((r) => !r.ok)
+      expect(failed).toHaveLength(1)
+      expect(failed[0].hit.url).toBe(badUrl)
+      /* Named, not blank — upstream distinguishes "no evidence" from "this
+         source could not be read", and can only do that if the failure says
+         which it was. */
+      expect(failed[0].failure).toBe('network')
+      expect(failed[0].detail).toContain('socket exploded')
+
+      for (const good of results.filter((r) => r.hit.url !== badUrl)) {
+        expect(good.ok).toBe(true)
+        expect(good.text).toBe('survived')
+      }
+    },
+  )
+
+  it.each(
+    (['cache.get', 'cache.set'] as const).flatMap((seam) =>
+      POSITIONS.map((pos) => [seam, pos] as const),
+    ),
+  )('a throwing %s at position %i costs the cache, not the source', async (seam, position) => {
+    const urls = ['https://a.gov.in/1', 'https://b.gov.in/2', 'https://c.gov.in/3']
+    const badUrl = urls[position]
+
+    const results = await gather(urls.map((u) => hit(u)), {
+      cache: throwingCache(seam, badUrl),
+      fetchImpl: async (url) => page('<p>survived</p>', url),
+    })
+
+    expect(results).toHaveLength(3)
+    /* Nothing failed. The page was always reachable; only the bookkeeping
+       around it broke, and bookkeeping is not evidence. */
+    expect(results.every((r) => r.ok)).toBe(true)
+    expect(results.every((r) => r.text === 'survived')).toBe(true)
+  })
+
+  it('a cache that throws on EVERY call still yields every source', async () => {
+    /* The total-outage case, not just the single-key one. A cache whose
+       connection has dropped fails for all keys at once, and that must
+       degrade to "no cache" rather than to "no search". */
+    const dead: PageCache = {
+      get: () => {
+        throw new Error('connection lost')
+      },
+      set: () => {
+        throw new Error('connection lost')
+      },
+    }
+    const urls = ['https://a.gov.in/1', 'https://b.gov.in/2']
+
+    const results = await gather(urls.map((u) => hit(u)), {
+      cache: dead,
+      fetchImpl: async (url) => page('<p>fetched anyway</p>', url),
+    })
+
+    expect(results).toHaveLength(2)
+    expect(results.every((r) => r.ok)).toBe(true)
+    expect(results.every((r) => r.text === 'fetched anyway')).toBe(true)
+  })
+
+  it('a fetcher that throws for every source reports every source failed', async () => {
+    const results = await gather(
+      ['https://a.gov.in/1', 'https://b.gov.in/2'].map((u) => hit(u)),
+      {
+        fetchImpl: async () => {
+          throw new Error('network down')
+        },
+      },
+    )
+
+    expect(results).toHaveLength(2)
+    expect(results.every((r) => !r.ok)).toBe(true)
+    /* "Everything failed" must stay distinguishable from "nothing asked". */
+    expect(results.every((r) => r.detail?.includes('network down'))).toBe(true)
+  })
+})
+
 describe('one bad source does not sink the answer', () => {
   it('keeps every good result when one fetch fails', async () => {
     const { impl } = fetcher({

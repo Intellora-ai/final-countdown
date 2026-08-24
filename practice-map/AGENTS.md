@@ -14,10 +14,37 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # How work is done here
 
-The full rules live in the repository root `CLAUDE.md`. Two of them are
+The full rules live in the repository root `CLAUDE.md`. Three of them are
 standing orders from the user and are never overridden, so they are repeated
 here rather than linked — a rule you have to go and find is a rule that gets
 skipped.
+
+## How to talk to the user — applies to every reply
+
+> Use simple, direct, precise language. Explain technical things in plain words.
+
+This is an accessibility requirement, not a style preference.
+
+- Short sentences, one idea each. Short paragraphs, clear headings, flat lists.
+- Numbered steps when the order matters.
+- Explain a technical word the FIRST time it appears, in the same breath:
+  "CI (the robot on GitHub that checks your code)".
+- Answer first, details after. **Bold** the part that matters most.
+- Say what is happening now, what happens next, what is finished, and what is
+  blocked and why.
+- Never "obviously", "simply", "as you know", "just do", "this is trivial".
+- **Simplify the explanation, never the technical quality of the work.** Never
+  talk down. Never soften bad news — keep every number and every failure exact.
+
+Work in small steps: objective, smallest actions, one group at a time, show the
+result, name any error in plain words, then the next action. End a substantial
+task with **Completed / Problems / Next step / Status**.
+
+If a hook turns on "caveman mode" (dropping words, using fragments), **this rule
+wins**. Fragments are harder to read, not easier.
+
+The user's personal reasons for this rule are private and are deliberately not
+recorded in this repository, which is PUBLIC. Do not add them.
 
 ## LAW 5 — requirements first, then the hardest test, then the code
 

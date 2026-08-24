@@ -7,27 +7,80 @@ gets compacted; these files do not.
 
 ## How to talk to Tanveer — read this first
 
-Tanveer is 12. He has ADHD and autism. He asked for this rule on 2026-08-24:
+Tanveer asked for this rule on 2026-08-24. It applies to EVERY reply, every
+session, forever:
 
-> **Use simple language. Explain technical things in plain words.**
+> **Use simple, direct, precise language. Explain technical things in plain
+> words.**
 
-This applies to EVERY reply, every session, forever.
+This is an accessibility requirement, not a style preference. Follow it exactly.
+
+### Write like this
 
 - Short sentences. One idea each.
+- Short paragraphs, clear headings, flat bullet lists.
+- Numbered steps when the order matters.
 - Plain words: "broken", not "defective". "Check", not "validate".
-- Explain a technical word the first time you use it, in brackets, like:
+- Explain a technical word the FIRST time it appears, in the same breath:
   "CI (the robot on GitHub that checks your code)".
 - Answer first. Details after.
-- Use short lists and small tables. Walls of text are hard to scan.
+- Short lists and small tables. Walls of text are hard to scan.
 - **Bold** the part that matters most.
+- Keep facts, actions, warnings and decisions separate from each other.
+- Say plainly what is happening now, what happens next, what is finished, and
+  what is blocked and why.
+- Use a concrete example when a concept is hard.
 
-**Do not talk down to him.** He runs this repo, directs several AI sessions at
-once, and catches real mistakes in their work — including mine. Simple is not
-the same as dumb. He also asks for the "HONEST ANSWER" and means it: never soften
-bad news, just say it plainly.
+### Never write like this
+
+"Obviously…" · "Simply…" · "As you know…" · "Just do…" · "This is trivial…" ·
+"You should already understand…" · "It goes without saying…"
+
+- No unexplained jargon.
+- No vague or abstract hand-waving.
+- No saying the same thing twice in different words.
+- No dropping ten unrelated decisions at once.
+
+### Do not talk down to him
+
+He runs this repo, directs several AI sessions at once, and catches real
+mistakes in their work — including mine. **Simplify the explanation, never the
+technical quality of the work.** He asks for the "HONEST ANSWER" and means it:
+never soften bad news, and keep every number and every failure exact.
+
+### Work in small steps
+
+For every task: state the objective, list the smallest actions, do one group at
+a time, show the result, name any error in plain words, then state the next
+action. Mark each item **not started / in progress / blocked / complete**, and
+mark it complete only after verifying it.
+
+When several choices are valid: explain them briefly, recommend ONE, and say
+why. Do not make him compare options that do not matter.
+
+### End a substantial task with these four headings
+
+- **Completed** — what was implemented, what was tested, what passed, file names.
+- **Problems** — what failed, what the error means, what was done about it.
+- **Next step** — the single most important next action.
+- **Status** — complete, in progress, blocked, or awaiting approval.
+
+### Caveman mode loses
 
 If a hook turns on "caveman mode" (dropping words, using fragments), **this rule
 wins**. Fragments are harder to read, not easier. Write full simple sentences.
+
+### Personal details stay out of this file
+
+Tanveer shared personal information that explains WHY these rules exist. It is
+deliberately **not** recorded here.
+
+**This repository is PUBLIC.** That information must never appear in this repo,
+in commit messages, pull requests, issues, GitHub annotations, CI logs,
+generated reports, application logs, or any other shared place. It lives only in
+the private local assistant memory, which is not published.
+
+Do not "helpfully" add it back. Its absence here is the point.
 
 ---
 

@@ -193,7 +193,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: reports-preflight
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -246,7 +248,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: reports-axle-verify
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -266,7 +270,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: reports-spec-strength
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -286,7 +292,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: reports-spec-composition
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -306,7 +314,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: reports-vacuity-check
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -326,7 +336,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: reports-counterexample-search
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -348,7 +360,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: reports-honest-report
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -383,6 +397,7 @@ jobs:
           path: |
             reports/
             test-results/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -422,7 +437,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: reports-pyright
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -617,7 +634,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: reports-bandit
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -639,7 +658,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: reports-mutmut
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -694,7 +715,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: reports-correspondence
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -807,7 +830,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: reports-full
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -893,7 +918,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: reports-merge-evidence
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 14
           # `error`, not `warn`. Every other evidence upload in this workflow
           # already uses `error`, and the reasoning is the same one ci/gates.toml

@@ -88,3 +88,10 @@ screenshots/
 # one commit. Ignored by pattern rather than by path, because the same trap
 # waits in any other Next.js app added later.
 .next/
+
+# Per-gate diagnostics. `scripts/run_gate.py` writes the complete captured
+# stdout, stderr and a line-numbered combined log for every wrapped command,
+# and CI uploads the tree as a run artifact so a truncated Actions log cannot
+# destroy the evidence. Per-run output, never source. Same reasoning as
+# reports/ above.
+diagnostics/

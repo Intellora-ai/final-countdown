@@ -9,7 +9,7 @@ import {
 } from './kernel/loop'
 import { createStore, inMemoryPersistence, type Persistence } from './memory/memory'
 import { calculator, createRegistry, fileTools, type FileSource } from './tools/tools'
-import { buildGraph, type Concept } from './learn/learn'
+import { buildGraph, type Attempt, type Concept } from './learn/learn'
 import type { SearchPort } from './knowledge/knowledge'
 import { deserialize, pause, serialize } from './execute/execute'
 
@@ -78,6 +78,30 @@ export interface Agent {
   suspend(): string | null
   /** Put a suspended task back. The counterpart of `suspend`. */
   restore(json: string): void
+  /**
+   * Record that the learner attempted a concept, and whether they got it right.
+   *
+   * THIS EXISTED NOWHERE, AND ITS ABSENCE MADE A CAPABILITY UNREACHABLE.
+   * `session.attempts` is the only source of `learner.attempts`, nothing in
+   * `handle()` ever appended to it, and so it was permanently empty. Measured:
+   * five turns through `ask()`, `session.attempts.length === 0`. Everything
+   * downstream that reads attempt history was therefore dead through the loop
+   * --- `feedbackFor` (what did they get wrong and how much to give away),
+   * `nextDifficulty` (harder or easier next), `nextReview` (spacing), and
+   * `dueForReview`.
+   *
+   * NOT INFERRED FROM THE CONVERSATION, deliberately. A turn is not an attempt.
+   * Guessing "they probably got that right" from prose would write fabricated
+   * mastery data into the thing that decides what to teach next, and wrong
+   * mastery data is worse than none --- it moves the curriculum confidently in
+   * the wrong direction. An attempt is something a practice surface KNOWS
+   * happened, so it is something the caller states rather than something the
+   * loop divines.
+   *
+   * Same root cause as the missing composition root: the logic was written and
+   * tested, and nothing could reach it because no entry point existed.
+   */
+  recordAttempt(attempt: Attempt): void
 }
 
 export function createAgent(opts: AgentOptions): Agent {
@@ -117,8 +141,34 @@ export function createAgent(opts: AgentOptions): Agent {
       session = { ...session, task: stopped }
       return serialize(stopped)
     },
+    /* THE WORKING MEMORY COMES BACK TOO, and it did not.
+       This was `{ ...session, task: deserialize(json) }` --- task in, working
+       untouched --- so the intermediate results `suspend()` had carefully saved
+       were unreachable after a restore. Measured:
+
+           suspend() returned    1449 chars
+           BEFORE  working       7 entities
+           AFTER   working       0 entities
+           re-suspend            1005 chars
+
+       The second half is the damaging one and it is DATA LOSS, not
+       degradation: the next `suspend()` writes the fresh agent's EMPTY working
+       memory over the saved one, so 444 characters of recovery state are
+       destroyed BY A SAVE OPERATION, and the shorter file looks exactly as
+       valid as the original. A periodic-checkpoint caller silently shortens its
+       own recovery state every cycle.
+
+       `pause()` already stores the working memory INSIDE the task, precisely so
+       this is possible --- execute.ts says it carries `working` whole because
+       "the intermediate results are the reason resuming is cheaper than
+       restarting". The save side held up its end; the restore side did not. No
+       format change is needed, only reading back what was already written. */
     restore(json: string) {
-      session = { ...session, task: deserialize(json) }
+      const task = deserialize(json)
+      session = { ...session, task, working: task.working ?? session.working }
+    },
+    recordAttempt(attempt: Attempt) {
+      session = { ...session, attempts: [...session.attempts, attempt] }
     },
     async ask(input: Turn | string): Promise<LoopResult> {
       const turn = typeof input === 'string' ? textTurn(input, now()) : input

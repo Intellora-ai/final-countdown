@@ -520,6 +520,34 @@ describe('when the route cannot be reached, wikipedia answers and says so', () =
     expect(out.check?.status).not.toBe('supported')
   })
 
+  it('the backup can never report supported, even from two DIFFERENT hosts', async () => {
+    /*
+     * MUTATION-DERIVED. Deleting the forced downgrade survived every test,
+     * because every fixture used two `en.wikipedia.org` urls and `countVoices`
+     * collapses those to one voice on its own — so the second lock was never
+     * exercised.
+     *
+     * It is NOT redundant, and this is the case that shows why. The backup is
+     * injectable and keyless sources are not guaranteed to be one host: a
+     * mirror, a second free source, or a change to `publisherOf` would each
+     * produce two "independent" voices from a path that has no business
+     * claiming corroboration. The rule is about the PATH, not about the
+     * hostnames that happen to be in it today.
+     */
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith({ pages: [], engineFailed: true, engineError: 'down' }, 503),
+      wikipediaImpl: async () => ({
+        results: [
+          wikiPage('https://en.wikipedia.org/wiki/Gas_laws', HOT_A),
+          wikiPage('https://simple.wikipedia.example/Pressure', HOT_B),
+        ],
+        engineFailed: false,
+      }),
+    })
+    expect(out.fallback).toBe(true)
+    expect(out.check?.status).toBe('single-source')
+  })
+
   it('the backup still refuses a page that is not about the question', async () => {
     /* The relevance gate is not skipped just because this is the fallback. A
        lower-quality path is not a lower-standards path. */

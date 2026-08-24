@@ -342,29 +342,48 @@ jobs:
       # a wrong number, a missing scope, a schema change -- and that is a red
       # job rather than a green one reporting zero comments.
       - name: Extract the open comments
+        id: extract
         shell: bash
         run: |
           set -euo pipefail
           python3 scripts/review_comments.py open --threads threads.json | tee rows.jsonl
 
+      # THE SUMMARY BRANCHES ON THE STEP'S OUTCOME, NOT ON THE FILE EXISTING.
+      #
+      # `tee` truncates `rows.jsonl` the moment the pipeline starts, before the
+      # command feeding it has produced anything. So an extractor that exits
+      # non-zero having printed nothing leaves the file THERE and EMPTY -- and a
+      # check of the form "the file exists, so the run was fine" reports a failed
+      # fetch as a review with nothing in it.
+      #
+      # The job goes red either way; that is not the point. The summary is what a
+      # person reads, and it would have told them every thread was resolved at
+      # the exact moment nobody knew whether any thread had been read. That is
+      # the lie `envelope()` exists to prevent, one layer up and aimed at a human.
+      #
+      # File existence is not evidence the producer succeeded. The outcome is.
+      # The value arrives through `env:` so the body stays plain shell that
+      # tests/test_review_rows_wiring.py can execute directly.
       - name: Report the open comments
         if: always()
         shell: bash
+        env:
+          EXTRACT_OUTCOME: ${{ steps.extract.outcome }}
         run: |
           set -uo pipefail
           {
             echo '### open review comments'
             echo
-            if [ -s rows.jsonl ]; then
+            if [ "${EXTRACT_OUTCOME:-failure}" != "success" ]; then
+              echo 'The review could not be read. See the job log — this is a'
+              echo 'failed fetch, **not** a pull request with no comments on it.'
+            elif [ -s rows.jsonl ]; then
               echo 'One JSON object per line — path, line, body, author, thread id.'
               echo
               echo '```json'
               cat rows.jsonl
               echo '```'
-            elif [ -f rows.jsonl ]; then
-              echo 'None. Every review thread on this pull request is resolved.'
             else
-              echo 'The review could not be read. See the job log — this is a'
-              echo 'failed fetch, **not** a pull request with no comments on it.'
+              echo 'None. Every review thread on this pull request is resolved.'
             fi
           } >> "$GITHUB_STEP_SUMMARY"

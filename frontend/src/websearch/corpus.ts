@@ -33,7 +33,7 @@
 import type { SearchProvider } from './engine'
 import { ask } from './pipeline'
 import { Latency } from './latency'
-import { citationSupports, independentSources, precision, recall, coverage } from './quality'
+import { citationSupports, retrievalReport } from './quality'
 import { grade, type Expectation, type Outcome } from './accuracy'
 import { checkClaims, selectEvidence, type ClaimStatus } from './verify'
 import type { FetchOutcome } from './fetchPage'
@@ -402,6 +402,23 @@ export async function runCase(
     succeeded.some((r) => r.text.toLowerCase().includes(aspect.replace(/-/g, ' '))),
   )
 
+  /* THE COMPOSED MEASURE, NOT FOUR CALLS REASSEMBLED HERE.
+     `quality.ts` exports `retrievalReport`, which is exactly this assembly ---
+     the same three measures, the same `undefined`-not-zero discipline, and the
+     independent-source collapse beside the raw count so the gap stays visible.
+     This file imported the four parts and rebuilt it by hand, so the composed
+     function read as dead code while its logic ran anyway in a second copy.
+     Two copies of a measurement definition is how a dashboard and a report
+     start disagreeing about what precision means. */
+  const measured = retrievalReport({
+    judged,
+    relevantFound: found,
+    relevantTotal: testCase.relevantTotal,
+    aspectsCovered,
+    aspectsRequired: testCase.aspectsRequired,
+    sources: succeeded.map((s) => ({ url: s.finalUrl, text: s.text })),
+  })
+
   /*
    * THE VERDICT, SCORED. `crosscheck.ts` and `verify.ts` decide it in the
    * product; this runs the same functions over the same pages, so the number
@@ -419,25 +436,29 @@ export async function runCase(
      It grades the answer against what a correct one would have said. */
   const graded = grade(result.answer, testCase.expectation)
 
-  const p = precision(judged)
-  const r = recall(found, testCase.relevantTotal)
-  const c = coverage(aspectsCovered, testCase.aspectsRequired)
-
   return {
     id: testCase.id,
     category: testCase.category,
-    ...(p === undefined ? {} : { precision: p }),
-    ...(r === undefined ? {} : { recall: r }),
-    ...(c === undefined ? {} : { coverage: c }),
+    ...(measured.precision === undefined ? {} : { precision: measured.precision }),
+    ...(measured.recall === undefined ? {} : { recall: measured.recall }),
+    ...(measured.coverage === undefined ? {} : { coverage: measured.coverage }),
     outcome: graded.outcome,
     distortions: graded.distortions,
     status: check.status,
     citationSupported,
     rounds: result.rounds,
     freshLive: result.freshness.live,
-    independentSources: independentSources(
-      succeeded.map((s) => ({ url: s.finalUrl, text: s.text })),
-    ).length,
+    independentSources: measured.independentSources,
+    /*
+     * NOT `measured.retrievedSources`, AND THE DIFFERENCE IS A REAL ONE.
+     *
+     * `retrievalReport` counts the `sources` it was handed, which are the pages
+     * that were FETCHED SUCCESSFULLY -- it needs their text to collapse
+     * publishers. `CaseResult.retrievedSources` has always meant what the
+     * ENGINE returned, which is why `fetchFailures` sits beside it as a
+     * separate number; taking the composed field here would have folded the two
+     * together and quietly renamed a metric during a merge.
+     */
     retrievedSources: outcome.results.length,
     fetchFailures: outcome.results.filter((x) => !x.ok).length,
     engineFailed: outcome.engineFailed,

@@ -19,12 +19,24 @@ import { describe, expect, it } from 'vitest'
  * touches. The fix is not a better comment. It is a test that breaks when the
  * world moves, so the comment has to be updated to stay green.
  *
- * ASSERTED IN PAIRS, deliberately. `websearch` must be unreferenced and `agent`
- * must be referenced, through the SAME scan. A check that only ever asserts
- * "nothing references X" is satisfied by a scanner that finds nothing at all —
- * a broken glob, a wrong root, a silent exception — and would report a
- * comfortable PASS for the rest of the repository's life. The positive case is
- * what proves the scanner can see.
+ * ASSERTED IN PAIRS, deliberately. A check that only ever asserts "nothing
+ * references X" is satisfied by a scanner that finds nothing at all — a broken
+ * glob, a wrong root, a silent exception — and would report a comfortable PASS
+ * for the rest of the repository's life. Every empty-set assertion here is
+ * therefore accompanied by one that must NOT be empty, run through the SAME
+ * scan, so an empty result means absence rather than blindness.
+ *
+ * WHICH ASSERTION IS THE NEGATIVE ONE HAS CHANGED, AND THIS SENTENCE IS THE
+ * PART THAT WENT STALE. It used to read "`websearch` must be unreferenced and
+ * `agent` must be referenced". `websearch` is wired now — six files, pinned
+ * below — so that pairing no longer exists, and a paragraph describing it would
+ * have been this file's own failure mode reproduced in this file. The pairing
+ * that carries the weight today is the credential scan further down: no file
+ * under `src/` may name `WEB_SEARCH_API_KEY` (empty), while the same scan must
+ * find `SEARCH_ROUTE` (non-empty). `agent`, `canvas` and `websearch` are all
+ * positive controls now, and the vacuity guard below — a file count and a named
+ * file that must be present — is what stops the whole suite passing on a
+ * scanner that walked nothing.
  */
 
 /**
@@ -99,23 +111,43 @@ describe('the scanner can see — negative and positive through the same code pa
 })
 
 describe('engine.ts says websearch IS reached — this is what makes that a fact', () => {
-  it('POSITIVE CONTROL — the five files that wire it are exactly these', () => {
+  it('POSITIVE CONTROL — the six files that wire it are exactly these', () => {
     /*
-     * THIS ASSERTION WAS `toEqual([])` AND IT FIRED, WHICH IS THE TEST WORKING.
+     * THE SIXTH FILE ARRIVED, AND THIS TEST IS WHY ANYONE FOUND OUT.
      *
-     * Its own note said so: "If this fails, that is GOOD NEWS and not a broken
-     * test: someone wired this module into the product. Update the comment at
-     * the top of `engine.ts`, which currently tells the reader the opposite."
-     * That is what happened, and that comment has been rewritten to name these
-     * five files.
+     * The list below said five. `src/tutor/TutorView.tsx` now imports
+     * `searchPort` and `researchPort` from `../websearch`, and this assertion
+     * went red on the merge that brought the two branches together -- before CI
+     * ran, before review, before anybody had to remember to look.
+     *
+     * That is the SECOND time this file has done its job, and the mechanism was
+     * the same both times. It first read `toEqual([])`, with a note promising
+     * "if this fails, that is GOOD NEWS and not a broken test: someone wired
+     * this module into the product. Update the comment at the top of
+     * `engine.ts`, which currently tells the reader the opposite." It fired, the
+     * list became five, and the note became the paragraph directly below --
+     * "wire a sixth file and this breaks ... somebody has to come back and say
+     * in `engine.ts` what the new truth is." Somebody wired a sixth file. The
+     * comment in `engine.ts` has been updated to name it. The instruction is
+     * left standing, unchanged in force, for the seventh.
+     *
+     * THIS IS THE ONE EDIT THE PROJECT'S RULES ALLOW TO A PASSING-BY-DESIGN
+     * ASSERTION, and it is worth being precise about why, because "the test
+     * disagreed with my code so I changed the test" looks identical from
+     * outside. A pinned inventory is not a claim that six is the right number.
+     * It is a tripwire whose whole purpose is to fire when the inventory moves,
+     * and whose own docstring instructs the person who trips it to update it and
+     * say what changed. Updating it is obeying the test, not overruling it. Any
+     * OTHER failure here -- a name that should not be in the list, a file that
+     * vanished -- is the code being wrong, and the code is what moves.
      *
      * Pinned as an exact SET rather than `length > 0`, and that is the whole
-     * value of the change. A `> 0` check would go green the moment one file
-     * referenced it and then never speak again -- it could not tell "the chain
-     * is wired" from "one stray import survived a deletion". An exact list
-     * fails in BOTH directions: wire a sixth file and this breaks, unwire the
-     * chain and it breaks, and either way somebody has to come back and say in
-     * `engine.ts` what the new truth is.
+     * value of it. A `> 0` check would go green the moment one file referenced
+     * it and then never speak again -- it could not tell "the chain is wired"
+     * from "one stray import survived a deletion", and it would have said
+     * nothing at all about the change that added `TutorView`. An exact list
+     * fails in BOTH directions: wire a seventh file and this breaks, unwire any
+     * of these six and it breaks.
      *
      * Sorted, because `sourceFiles` walks the directory in whatever order the
      * filesystem hands back and a set assertion must not depend on that.
@@ -127,6 +159,7 @@ describe('engine.ts says websearch IS reached — this is what makes that a fact
       'canvas/teach/chain.ts',
       'canvas/teach/contract.ts',
       'canvas/teach/webResolver.ts',
+      'tutor/TutorView.tsx',
     ])
   })
 

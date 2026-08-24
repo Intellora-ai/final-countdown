@@ -248,6 +248,77 @@ validator        WHETHER IT SHIPS
 
 ---
 
+## LAW 5 — requirements first, then the hardest test, then the code
+
+> **DEFINE REQUIREMENTS + WHAT MUST BE TRUE TO GET THE DESIRED OUTCOME, THEN
+> BUILD AROUND THAT. DO NOT MAKE TESTS WEAK, EASY. BUILD TESTS THAT FULFILL THE
+> DESIRED OUTCOME, ONLY THEN WRITE CODE. CODE SHOULD BE CHANGED AND MADE BETTER,
+> BUT TESTS ONLY CHANGE IF MUTANTS SHOW A REAL EVIDENCE ERROR.**
+
+Stated by the user, four times, escalating. It is not advice.
+
+**The loop, in order, every time:**
+
+1. Write down the requirement and **what must be true** for the outcome. Aim the
+   test at *that*, never at the implementation.
+2. Write the test **as hard as the outcome demands** — ugliest realistic input,
+   generated over a space rather than a hand-picked list. Assume whoever wrote
+   the code is trying to sneak past.
+3. Run it. **Watch the CODE fail.** A `Cannot find module` or a collection error
+   is a weak red and does **not** count as having watched a test fail.
+4. Fix the **CODE**.
+5. Re-run. It must pass for the right reason.
+
+**NEVER edit a test to make it pass.** If a test fails, the code is wrong until
+proven otherwise. The ONLY licence to change an existing test is a **surviving
+mutant** — mutation testing producing real evidence that the test cannot fail.
+
+| Not a reason to touch a test | The only reason |
+|---|---|
+| "the assertion is too strict" | a mutant survived |
+| "the code is fine, the test is wrong" | a mutant survived |
+| "it's flaky" (unproven) | a mutant survived |
+| "just to get CI green" | a mutant survived |
+
+**A suite that passes on the first implementation is a smell.** Say so plainly
+rather than reporting it as success, then attack it with mutants — that is the
+only way to learn whether the tests were hard or merely lucky.
+
+**Strengthening a test after the fact is NOT this loop.** Widening a test once
+the code already passes proves nothing new, however much harder the test got.
+Name it honestly instead of presenting it as a fix.
+
+**Test in PAIRS.** Every check needs an input that must FAIL and one that must
+PASS. A check asserted only to pass is satisfied by `return true`; one asserted
+only to fail is satisfied by `return false`. Both are vacuous.
+
+**Local green is a hint, not proof.** The user's words: *"I DON'T CONSIDER LOCAL
+TESTS A TEST."* The required contexts on GitHub are the evidence.
+
+---
+
+## Every bug becomes a permanent fix
+
+> **EVERY BUG, ERROR, MUST BECOME A PERMANENT FIX AND NOT JUST A SURFACE LEVEL
+> FIX. ENFORCED — NEVER OVERRIDDEN.**
+
+A fix is finished only when all four hold:
+
+1. **Root cause named** — not the symptom, not the file where it surfaced.
+2. **Fixed at the source** — not at the call site, not by catching it further
+   out. If the same defect could reach a second caller, the fix is in the wrong
+   place. Fix every copy of the shape; a defect written twice was a copy-paste.
+3. **A guard that fails if it returns** — a test, a lint rule, a gate, a mutant,
+   verified by running it against the broken code.
+4. **If a check let it through, fix the check too.** A bug CI passed is two
+   bugs: the code, and the gate that said PASS.
+
+Banned as "fixes": `continue-on-error`, `|| true`, swallowing an exception,
+widening a threshold, deleting an assertion, `eslint-disable`, "quick fix for
+now". Anything that makes the RED go away without changing what was WRONG.
+
+---
+
 ## Destructive-migration warning — Step 0 only
 
 **This project contains exactly one approved destructive migration: the Step 0

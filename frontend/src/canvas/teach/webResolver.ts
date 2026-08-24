@@ -55,12 +55,55 @@ export interface RetrievedPage {
   readonly hit: { readonly url: string; readonly title: string }
 }
 
+/**
+ * What claim checking decided, as four words a learner can act on.
+ *
+ * DECLARED HERE, NOT IMPORTED, for the same layering reason as the shapes
+ * above: `src/websearch/verify.ts` owns the real type and
+ * `src/websearch/canvasContract.test.ts` asserts the two agree, so a change
+ * there fails a test rather than a browser.
+ */
+export type ClaimStatus = 'supported' | 'conflicting' | 'single-source' | 'unknown'
+
+export interface ClaimCheck {
+  readonly status: ClaimStatus
+  readonly supportingEvidenceIds: readonly string[]
+  readonly conflictingEvidenceIds: readonly string[]
+}
+
+/**
+ * The one span that will be shown, and where it came from.
+ *
+ * `text` is copied out of a page byte for byte. Nothing in this file or the one
+ * that produced it may rewrite, trim or summarise it, and
+ * `displayedAnswer === selectedEvidence.text` is asserted rather than intended.
+ */
+export interface SelectedEvidence {
+  readonly text: string
+  readonly sourceUrl: string
+}
+
 /** The result of one search. Mirrors `SearchOutcome`. */
 export interface SearchResult {
   readonly results: readonly RetrievedPage[]
   /** True only when the provider itself failed, never when it found nothing. */
   readonly engineFailed: boolean
   readonly engineError?: string
+  /**
+   * Present when the search layer verified its own results.
+   *
+   * OPTIONAL, AND THAT IS A DELIBERATE CHOICE WITH A STATED COST. A search
+   * that supplies no check still answers, quoting relevant pages exactly as
+   * before — it simply shows no status. It cannot claim `supported` without a
+   * check, because the label comes FROM the check; the failure mode of a
+   * missing one is a weaker answer, never a false one. Making it required
+   * instead would fail closed harder and would also mean rewriting every test
+   * that predates verification, which buys a stricter type at the cost of the
+   * evidence those tests carry.
+   */
+  readonly check?: ClaimCheck
+  /** The span to display, when the search layer chose one. */
+  readonly evidence?: SelectedEvidence
 }
 
 /**
@@ -227,7 +270,7 @@ function readableSource(page: RetrievedPage): string {
  * pages needs a stronger test than word presence, and this paragraph is where
  * whoever adds one should start.
  */
-function isAbout(page: RetrievedPage, asked: readonly string[]): boolean {
+export function isAbout(page: RetrievedPage, asked: readonly string[]): boolean {
   /* `hit.title` as well as `title` because `buildAnswer` already falls back to
      it — a page whose title arrives empty is a real case, and the name a page
      is going to be DISPLAYED under is the name it should be judged by. */
@@ -256,6 +299,16 @@ function isAbout(page: RetrievedPage, asked: readonly string[]): boolean {
    * refused without searching".
    */
   return matched / asked.length >= HALF
+}
+
+/** The same treatment as `readableSource`, for a bare url string. */
+function readableAddress(raw: string): string {
+  try {
+    const url = new URL(raw)
+    return `${url.hostname}${url.pathname === '/' ? '' : url.pathname}`
+  } catch {
+    return raw
+  }
 }
 
 /**
@@ -321,6 +374,131 @@ function unsafeClause(n: number): string {
 
 function offTopicClause(n: number): string {
   return `${n} page${n === 1 ? '' : 's'} that ${n === 1 ? 'was' : 'were'} not about what you asked`
+}
+
+/**
+ * How well checked this is, in words a learner can act on.
+ *
+ * PLAIN, AND NEVER FLATTERING. `single-source` is the one that matters: it is
+ * the status a system is most tempted to round up to "verified", and rounding
+ * it up is how one website's mistake becomes a fact a learner repeats. The
+ * sentence says the number out loud instead.
+ */
+const STATUS_NOTE: Record<'supported' | 'single-source' | 'conflicting', string> = {
+  supported:
+    'Two different websites say this, so it has been checked against more than one source.',
+  'single-source':
+    'Only one website said this. Nothing else was found to check it against, so treat it carefully.',
+  conflicting:
+    'Websites disagree about this. Both answers are shown, because picking one for you would hide that.',
+}
+
+/** The addresses that earned the verdict, listed so a learner can go and look. */
+function sourceList(ids: readonly string[]): string {
+  return ids.join('\n')
+}
+
+/**
+ * The checked answer: one span, copied, with the verdict beside it.
+ *
+ * THE BODY OF `web-answer` IS `evidence.text` AND NOTHING ELSE. Not trimmed,
+ * not suffixed with an address, not joined to a second sentence. The address
+ * goes in the TITLE, where it cannot corrupt the quotation, and
+ * `displayedAnswer === selectedEvidence.text` is asserted in the tests rather
+ * than intended here. The moment that has to be loosened, something in this
+ * path has started writing.
+ */
+function buildCheckedAnswer(
+  doubt: Doubt,
+  check: ClaimCheck,
+  evidence: SelectedEvidence,
+): Lesson | null {
+  const status = check.status === 'conflicting' ? 'conflicting' : check.status
+  const blocks: Record<string, unknown>[] = [
+    {
+      id: 'web-note',
+      kind: 'callout',
+      body: `This is not from this lesson. It is quoted from a page found on the web. ${
+        STATUS_NOTE[status as 'supported' | 'single-source']
+      }`,
+      emphasis: 'aside',
+      tone: check.status === 'supported' ? 'insight' : 'warning',
+    },
+    {
+      id: 'web-answer',
+      kind: 'prose',
+      title: clamp(readableAddress(evidence.sourceUrl), MAX_TITLE),
+      body: evidence.text,
+      emphasis: 'primary',
+      tone: 'neutral',
+    },
+  ]
+
+  const ids = [...check.supportingEvidenceIds]
+  if (ids.length > 0) {
+    blocks.push({
+      id: 'web-sources',
+      kind: 'prose',
+      title: 'Where this came from',
+      body: sourceList(ids.map(readableAddress)),
+      emphasis: 'supporting',
+      tone: 'neutral',
+    })
+  }
+
+  const result = validateLesson({
+    id: clamp('doubt-web', MAX_ID),
+    question: clamp(doubt.text.trim(), 200),
+    blocks,
+    relations: [],
+  })
+  return result.ok ? result.lesson : null
+}
+
+/**
+ * Both sides of a disagreement, quoted, with neither called the answer.
+ *
+ * NO `web-answer` BLOCK EXISTS ON THIS PATH, and that absence is the point. A
+ * contested figure has no single answer to display, and rendering one anyway
+ * would be choosing for the learner while looking like a fact.
+ */
+function buildConflictAnswer(
+  doubt: Doubt,
+  check: ClaimCheck,
+  pages: readonly RetrievedPage[],
+): Lesson | null {
+  const named = new Set(check.conflictingEvidenceIds)
+  const sides = pages.filter((p) => named.has(p.finalUrl) || named.has(p.hit.url))
+  const shown = sides.length > 0 ? sides : pages
+
+  const blocks: Record<string, unknown>[] = [
+    {
+      id: 'web-note',
+      kind: 'callout',
+      body: `This is not from this lesson. ${STATUS_NOTE.conflicting}`,
+      emphasis: 'aside',
+      tone: 'warning',
+    },
+  ]
+
+  shown.slice(0, MAX_SOURCES).forEach((page, index) => {
+    blocks.push({
+      id: `web-conflict-${index}`,
+      kind: 'prose',
+      title: clamp(readableSource(page), MAX_TITLE),
+      body: clamp(page.readerText.trim(), MAX_EVIDENCE_CHARS),
+      emphasis: index === 0 ? 'primary' : 'supporting',
+      tone: 'neutral',
+    })
+  })
+
+  const result = validateLesson({
+    id: clamp('doubt-web', MAX_ID),
+    question: clamp(doubt.text.trim(), 200),
+    blocks,
+    relations: [],
+  })
+  return result.ok ? result.lesson : null
 }
 
 /**
@@ -454,6 +632,45 @@ export function webResolver(deps: WebResolverDeps): AsyncDoubtResolver {
           )
         }
         return refuse('I searched the web for that and found nothing usable.')
+      }
+
+      /*
+       * THE VERDICT, WHEN THE SEARCH LAYER SUPPLIED ONE.
+       *
+       * Relevance asked whether a page was ABOUT the question. It could not ask
+       * whether the page was RIGHT, and a search engine returns its best guess
+       * first whether or not it has one — so position is not proof either. This
+       * is where "several pages agree" is separated from "one page said so",
+       * and where neither is separated from "nothing could be compared".
+       *
+       * `unknown` REFUSES. Insufficient evidence fails closed: the honest
+       * output is that nothing could be checked, not a page shown as though it
+       * had been.
+       */
+      const check = outcome.check
+      if (check) {
+        if (check.status === 'unknown') {
+          return refuse(
+            'I found pages about that, but I could not check them against each other, ' +
+              'so I am not going to show you something I cannot stand behind.',
+          )
+        }
+
+        if (check.status === 'conflicting') {
+          const both = buildConflictAnswer(doubt, check, usable)
+          if (!both) return refuse('I found sources that disagree but could not render them safely.')
+          return { kind: 'answer', lesson: both, drawnFrom: [] }
+        }
+
+        if (!outcome.evidence) {
+          /* A verdict with nothing selected to quote. Inventing a sentence here
+             is exactly what this whole path exists to prevent, so it refuses. */
+          return refuse('I checked what came back but could not find a line worth quoting.')
+        }
+
+        const verified = buildCheckedAnswer(doubt, check, outcome.evidence)
+        if (!verified) return refuse('I found sources for that but could not render them safely.')
+        return { kind: 'answer', lesson: verified, drawnFrom: [] }
       }
 
       const lesson = buildAnswer(doubt, usable.slice(0, MAX_SOURCES))

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import type { SearchOutcome } from './engine'
 import type { Retrieved } from './gather'
-import type { RetrievedPage, SearchResult } from '../canvas/teach/webResolver'
+import type { ClaimCheck as CanvasClaimCheck, ClaimStatus as CanvasClaimStatus, RetrievedPage, SearchResult, SelectedEvidence } from '../canvas/teach/webResolver'
+import type { Claim } from './evidence'
+import type { ClaimCheck, ClaimStatus } from './verify'
 
 /**
  * The canvas declares the retrieval shape it needs. This is what keeps that
@@ -79,6 +81,61 @@ describe('the retrieval layer still satisfies what the canvas declared', () => {
     expect(asCanvasSeesIt.finalUrl).toBe(real.finalUrl)
     expect(asCanvasSeesIt.suspicious).toBe(false)
     expect(asCanvasSeesIt.readerText).not.toContain('UNTRUSTED')
+  })
+
+
+  it('a real ClaimCheck is usable everywhere the canvas expects one', () => {
+    /*
+     * The same drift guard as above, for the verdict rather than the pages.
+     * `verify.ts` owns `ClaimCheck`; `webResolver.ts` declares its own copy so
+     * the canvas does not import across the tsconfig boundary. A status renamed
+     * on one side and not the other would compile on both and disagree at
+     * runtime — as an answer rendered with no label, or a refusal with no
+     * reason, in front of a learner.
+     */
+    const real: ClaimCheck = {
+      status: 'supported',
+      supportingEvidenceIds: ['https://a.test/1', 'https://b.test/2'],
+      conflictingEvidenceIds: [],
+    }
+    const asCanvasSeesIt: CanvasClaimCheck = real
+    expect(asCanvasSeesIt.status).toBe('supported')
+    expect(asCanvasSeesIt.supportingEvidenceIds).toHaveLength(2)
+  })
+
+  it('every status the checker can produce is one the canvas can render', () => {
+    /*
+     * Listed exhaustively rather than sampled. The annotation is the assertion:
+     * add a fifth status to `verify.ts` without teaching the canvas about it and
+     * this stops compiling, which is the only moment anybody would notice
+     * before a learner saw an unlabelled answer.
+     */
+    const every: readonly ClaimStatus[] = ['supported', 'conflicting', 'single-source', 'unknown']
+    const asCanvasSeesThem: readonly CanvasClaimStatus[] = every
+    expect(asCanvasSeesThem).toHaveLength(4)
+  })
+
+  it('a real Claim can supply the evidence the canvas displays', () => {
+    /* `selectEvidence` returns a `Claim`; the canvas is handed `text` and
+       `sourceUrl` off it. Mapped rather than assigned, because a Claim carries
+       far more than a reader should see and a straight assignment would invite
+       shipping the rest. */
+    const claim: Claim = {
+      text: 'Heating a gas raises its pressure.',
+      sourceUrl: 'https://a.test/1',
+      sourceKind: 'reference',
+      offset: 0,
+      length: 33,
+      kind: 'statement',
+      aspects: ['gas', 'pressure'],
+      retrievedAt: '2026-01-01T00:00:00.000Z',
+      tainted: false,
+    }
+    const asCanvasSeesIt: SelectedEvidence = { text: claim.text, sourceUrl: claim.sourceUrl }
+    /* Byte-identity at the boundary. Every later assertion about
+       `displayedAnswer === selectedEvidence.text` is worthless if the text is
+       already altered on its way across. */
+    expect(asCanvasSeesIt.text).toBe(claim.text)
   })
 
   it('a SearchOutcome is usable everywhere the canvas expects a SearchResult', () => {

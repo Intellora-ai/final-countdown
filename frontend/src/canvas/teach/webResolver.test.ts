@@ -645,3 +645,202 @@ describe('a page that is not about the question is refused, never presented', ()
     expect(r.lesson.blocks.length).toBe(2)
   })
 })
+
+/* -------------------------------------------------------------------------- */
+/* The verdict decides whether an answer may be shown at all                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Claim checking, as the learner meets it.
+ *
+ * WHY A SECOND GATE AFTER RELEVANCE
+ * ---------------------------------
+ * Relevance asks "is this page about the question". It cannot ask "is this
+ * page RIGHT", and one page being about something is not evidence that what it
+ * says is true. A search engine returns its best guess first whether or not it
+ * has one, so position is not proof either. Two independent publishers
+ * agreeing is the weakest thing that counts as evidence, and anything less is
+ * labelled rather than promoted.
+ *
+ * THE INVARIANT PINNED HERE IS THE WHOLE SAFETY ARGUMENT
+ * ------------------------------------------------------
+ * `displayedAnswer === selectedEvidence.text`, byte for byte. Nothing composes
+ * the sentence a learner reads. If that assertion ever has to be loosened, a
+ * writer has appeared somewhere in this path and the property everything else
+ * rests on is gone.
+ */
+
+const EVIDENCE = 'Heating a gas raises its pressure because particles move faster.'
+
+function checked(
+  status: 'supported' | 'conflicting' | 'single-source' | 'unknown',
+  over: Partial<SearchResult> = {},
+): SearchResult {
+  return {
+    results: [
+      retrieved({
+        title: 'Gas laws',
+        readerText: EVIDENCE,
+        hit: hit('https://a.test/1', 'Gas laws'),
+        finalUrl: 'https://a.test/1',
+      }),
+    ],
+    engineFailed: false,
+    check: { status, supportingEvidenceIds: ['https://a.test/1'], conflictingEvidenceIds: [] },
+    evidence: { text: EVIDENCE, sourceUrl: 'https://a.test/1' },
+    ...over,
+  }
+}
+
+const GAS_ASK: Doubt = { text: 'why does heating a gas raise its pressure', atBeatId: 'b' }
+
+describe('an unverifiable answer is not shown', () => {
+  it('unknown -> refusal, never an answer', async () => {
+    const r = await resolverFor(checked('unknown')).resolve(GAS_ASK, LESSON)
+    expect(r.kind).toBe('refusal')
+  })
+
+  it('the unknown refusal does not claim the answer is false', async () => {
+    /* "I could not check this" and "this is wrong" are different sentences and
+       only one of them is true. A learner told the second one stops looking. */
+    const r = await resolverFor(checked('unknown')).resolve(GAS_ASK, LESSON)
+    if (r.kind !== 'refusal') throw new Error('expected a refusal')
+    expect(r.reason.toLowerCase()).not.toContain('wrong')
+    expect(r.reason.toLowerCase()).not.toContain('false')
+    expect(r.reason.toLowerCase()).toContain('check')
+  })
+
+  it('unknown refuses even when relevant pages came back', async () => {
+    /* Relevance is not verification. A page about the right subject that no
+       second publisher confirms is still unchecked. */
+    const r = await resolverFor(checked('unknown')).resolve(GAS_ASK, LESSON)
+    expect(r.kind).toBe('refusal')
+  })
+})
+
+describe('the displayed answer is the selected evidence, byte for byte', () => {
+  it('supported -> the answer block body EQUALS the evidence text', async () => {
+    const r = await resolverFor(checked('supported')).resolve(GAS_ASK, LESSON)
+    if (r.kind !== 'answer') throw new Error('expected an answer')
+    const answer = r.lesson.blocks.find((b) => b.id === 'web-answer')
+    expect((answer as { body?: string } | undefined)?.body).toBe(EVIDENCE)
+  })
+
+  it('single-source -> the same invariant holds', async () => {
+    const r = await resolverFor(checked('single-source')).resolve(GAS_ASK, LESSON)
+    if (r.kind !== 'answer') throw new Error('expected an answer')
+    const answer = r.lesson.blocks.find((b) => b.id === 'web-answer')
+    expect((answer as { body?: string } | undefined)?.body).toBe(EVIDENCE)
+  })
+
+  it('no source address is glued onto the answer text', async () => {
+    /* Appending "Source: a.test" would be a rewrite. The address goes in the
+       block title, where it cannot corrupt the quotation. */
+    const r = await resolverFor(checked('supported')).resolve(GAS_ASK, LESSON)
+    if (r.kind !== 'answer') throw new Error('expected an answer')
+    const answer = r.lesson.blocks.find((b) => b.id === 'web-answer')
+    expect((answer as { body?: string } | undefined)?.body).not.toContain('Source:')
+  })
+
+  it('the address is still shown, in the title', async () => {
+    const r = await resolverFor(checked('supported')).resolve(GAS_ASK, LESSON)
+    if (r.kind !== 'answer') throw new Error('expected an answer')
+    expect(JSON.stringify(r.lesson)).toContain('a.test')
+  })
+
+  it('a verdict with no chosen evidence cannot answer', async () => {
+    /* Belt and braces on the invariant: if the check says supported but no span
+       was selected, there is nothing to copy, and inventing one is the exact
+       thing this path forbids. */
+    const out = checked('supported')
+    const r = await resolverFor({ ...out, evidence: undefined }).resolve(GAS_ASK, LESSON)
+    expect(r.kind).toBe('refusal')
+  })
+})
+
+describe('the learner is told how well checked the answer is', () => {
+  it('supported says two independent sources agreed', async () => {
+    const r = await resolverFor(checked('supported')).resolve(GAS_ASK, LESSON)
+    if (r.kind !== 'answer') throw new Error('expected an answer')
+    expect(JSON.stringify(r.lesson).toLowerCase()).toContain('two')
+  })
+
+  it('single-source says plainly that only one source said it', async () => {
+    const r = await resolverFor(checked('single-source')).resolve(GAS_ASK, LESSON)
+    if (r.kind !== 'answer') throw new Error('expected an answer')
+    expect(JSON.stringify(r.lesson).toLowerCase()).toContain('only one')
+  })
+
+  it('single-source is never described as checked or verified', async () => {
+    const r = await resolverFor(checked('single-source')).resolve(GAS_ASK, LESSON)
+    if (r.kind !== 'answer') throw new Error('expected an answer')
+    const rendered = JSON.stringify(r.lesson).toLowerCase()
+    expect(rendered).not.toContain('verified')
+    expect(rendered).not.toContain('confirmed')
+  })
+})
+
+describe('disagreement is shown, never resolved silently', () => {
+  it('conflicting shows both sides rather than picking one', async () => {
+    const out = checked('conflicting', {
+      results: [
+        retrieved({
+          title: 'A',
+          readerText: 'India recorded GDP growth of 7.8 percent in 2025.',
+          hit: hit('https://a.test/1', 'A'),
+          finalUrl: 'https://a.test/1',
+        }),
+        retrieved({
+          title: 'B',
+          readerText: 'India recorded GDP growth of 2.1 percent in 2025.',
+          hit: hit('https://b.test/2', 'B'),
+          finalUrl: 'https://b.test/2',
+        }),
+      ],
+      check: {
+        status: 'conflicting',
+        supportingEvidenceIds: [],
+        conflictingEvidenceIds: ['https://a.test/1', 'https://b.test/2'],
+      },
+      evidence: { text: 'India recorded GDP growth of 7.8 percent in 2025.', sourceUrl: 'https://a.test/1' },
+    })
+    const r = await resolverFor(out).resolve(
+      { text: 'what was india gdp growth in 2025', atBeatId: 'b' },
+      LESSON,
+    )
+    if (r.kind !== 'answer') throw new Error('expected an answer')
+    const rendered = JSON.stringify(r.lesson)
+    expect(rendered).toContain('7.8 percent')
+    expect(rendered).toContain('2.1 percent')
+    expect(rendered.toLowerCase()).toContain('disagree')
+  })
+
+  it('a conflict never renders a single answer block', async () => {
+    const out = checked('conflicting', {
+      check: {
+        status: 'conflicting',
+        supportingEvidenceIds: [],
+        conflictingEvidenceIds: ['https://a.test/1'],
+      },
+    })
+    const r = await resolverFor(out).resolve(GAS_ASK, LESSON)
+    if (r.kind !== 'answer') throw new Error('expected an answer')
+    expect(r.lesson.blocks.some((b) => b.id === 'web-answer')).toBe(false)
+  })
+})
+
+describe('a search with no verdict still behaves exactly as it did', () => {
+  it('answers by quoting relevant pages, as before', async () => {
+    const r = await resolverFor(outcome()).resolve(DOUBT, LESSON)
+    if (r.kind !== 'answer') throw new Error('expected an answer')
+    expect(JSON.stringify(r.lesson)).toContain('transformation graph shows')
+  })
+
+  it('and shows no status it did not earn', async () => {
+    const r = await resolverFor(outcome()).resolve(DOUBT, LESSON)
+    if (r.kind !== 'answer') throw new Error('expected an answer')
+    const rendered = JSON.stringify(r.lesson).toLowerCase()
+    expect(rendered).not.toContain('two different websites')
+    expect(rendered).not.toContain('only one')
+  })
+})

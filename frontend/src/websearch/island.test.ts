@@ -130,11 +130,30 @@ describe('engine.ts says websearch IS reached — this is what makes that a fact
     ])
   })
 
-  it('the reachable path needs no key, which is why it is reachable at all', () => {
-    /* The general seam (`jsonProvider`) still wants an endpoint and a
-       credential, and a key cannot ship to a browser. Wikipedia needs neither,
-       and that -- not the wiring -- is what made this runnable. If this file
-       ever disappears, the chain is back to having no live source. */
-    expect(sourceFiles(SRC).some((f) => f.endsWith('websearch/wikipedia.ts'))).toBe(true)
+  it('the live path is now the general one, and it needs a server', () => {
+    /*
+     * THIS TEST'S REASON CHANGED, AND THE ASSERTION MOVED WITH IT.
+     *
+     * It used to pin `wikipedia.ts` and said: "if this file ever disappears,
+     * the chain is back to having no live source." That was true while a key
+     * could not ship to a browser and no server existed to hold one, which made
+     * Wikipedia -- keyless and CORS-enabled -- the only source a page could
+     * reach.
+     *
+     * `frontend/vite-plugin-search.ts` is that server. The key lives in its
+     * environment, it does the fetching a browser is not allowed to do, and
+     * `webSearchClient.ts` reaches it over a relative route. So the live source
+     * is now a GENERAL provider, and Wikipedia is one result among many with no
+     * privileged position.
+     *
+     * `wikipedia.ts` is deliberately still here and deliberately NOT wired. It
+     * is the only source that works without a server, and the route is dev-only
+     * -- so a production build has no web rung at all until that is hosted.
+     * Wiring it back as a silent fallback would quietly restore single-source
+     * answering, which is the thing this whole change removed, so that is a
+     * decision for a person rather than a default.
+     */
+    expect(sourceFiles(SRC).some((f) => f.endsWith('websearch/webSearchClient.ts'))).toBe(true)
+    expect(sourceFiles(SRC).some((f) => f.endsWith('websearch/verify.ts'))).toBe(true)
   })
 })

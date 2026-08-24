@@ -190,6 +190,52 @@ describe('decay', () => {
     expect(await s.retrieve({ goal: 'percentages', entities: [], limit: 5 })).toEqual([])
   })
 
+  it('a memory with an unreadable timestamp is NOT silently destroyed', async () => {
+    /* RED-TEAM FINDING, CONFIRMED BY MEASUREMENT.
+     *
+     * `decayed` computes `Date.parse(updatedAt)`, which returns NaN for any
+     * string it cannot read. NaN propagates through `Math.pow` to the score,
+     * and `NaN > 0.05` is FALSE --- so `retrieve`'s relevance floor drops the
+     * record. Not an error, not a warning: the memory simply stops existing,
+     * for every query, forever.
+     *
+     * A corrupt timestamp is a corrupt TIMESTAMP. The content is still the
+     * thing the user asked to be remembered, and destroying it because a
+     * clock field got mangled is the worst available response --- the failure
+     * is invisible from outside and unrecoverable from inside.
+     *
+     * Unparseable is therefore treated as age zero: no decay applied, the
+     * record survives at its stated strength, and the fact that we could not
+     * date it is the only thing lost.
+     */
+    const persistence = inMemoryPersistence([
+      {
+        id: 'corrupt',
+        kind: 'preference',
+        content: 'I prefer short answers about percentages',
+        createdAt: T0,
+        updatedAt: 'not-a-date',
+        strength: 0.9,
+        supersedes: [],
+        source: 'user-stated',
+      },
+    ])
+    const s = createStore(persistence, () => T0)
+    const hits = await s.retrieve({ goal: 'short answers about percentages', entities: [], limit: 5 })
+    expect(hits.map((r) => r.id)).toContain('corrupt')
+  })
+
+  it('never returns NaN from decayed, whatever the timestamps say', () => {
+    for (const updatedAt of ['not-a-date', '', 'null', '2026-13-45T99:99:99Z']) {
+      const r: MemoryRecord = {
+        id: 'x', kind: 'fact', content: 'c', createdAt: T0, updatedAt,
+        strength: 0.8, supersedes: [], source: 'observed',
+      }
+      const v = decayed(r, T0)
+      expect(Number.isNaN(v), `decayed() returned NaN for updatedAt=${updatedAt}`).toBe(false)
+    }
+  })
+
   it('does not mutate the record it decays', () => {
     /* Decay is a function of WHEN YOU ASK. Baking it in would make the same
        memory read differently depending on how often it was retrieved. */

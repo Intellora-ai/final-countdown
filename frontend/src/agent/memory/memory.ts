@@ -198,7 +198,27 @@ const DAY = 86_400_000
  * depending on how often it happened to be retrieved.
  */
 export function decayed(r: MemoryRecord, now: string): number {
-  const age = Math.max(0, Date.parse(now) - Date.parse(r.updatedAt)) / DAY
+  const then = Date.parse(r.updatedAt)
+  const at = Date.parse(now)
+
+  /* AN UNREADABLE TIMESTAMP MUST NOT DESTROY THE MEMORY.
+   *
+   * `Date.parse` returns NaN for anything it cannot read, NaN propagates
+   * through `Math.pow` to the score, and `NaN > 0.05` is FALSE --- so
+   * `retrieve`'s relevance floor drops the record. Not an error, not a
+   * warning: the memory stops existing, for every query, forever. A red-team
+   * pass found this by feeding a corrupt `updatedAt` straight into the store.
+   *
+   * A corrupt timestamp is a corrupt TIMESTAMP. The content is still the
+   * thing the user asked to be remembered. Losing their data because a clock
+   * field got mangled is the worst available response, and it is invisible
+   * from outside and unrecoverable from inside.
+   *
+   * So unparseable means age zero: no decay applied, the record survives at
+   * its stated strength, and the only thing lost is our ability to date it.
+   * That errs toward keeping user data, which is the correct direction to err
+   * when the alternative is silent deletion. */
+  const age = Number.isNaN(then) || Number.isNaN(at) ? 0 : Math.max(0, at - then) / DAY
   const half = HALF_LIFE_DAYS[r.kind]
   return r.strength * Math.pow(0.5, age / half)
 }

@@ -5,6 +5,7 @@ import CURRICULUM from './data/curriculum'
 import { Sidebar } from './components/Sidebar'
 import { SetupFlow } from './components/SetupFlow'
 import { TodayView } from './components/TodayView'
+import { LearnView } from './canvas/learn/LearnView'
 import { ChapterView } from './components/ChapterView'
 import { Placeholder } from './components/Placeholder'
 
@@ -113,6 +114,8 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Navigate to="/today" replace />} />
               <Route path="/today" element={<TodayView />} />
+
+              <Route path="/learn/:conceptId" element={<LearnView cls={st?.cls ?? null} />} />
               <Route path="/chapter/:subjectId/:chapterId" element={<ChapterView />} />
               <Route
                 path="/practice"

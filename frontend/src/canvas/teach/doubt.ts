@@ -73,6 +73,11 @@ const STOPWORDS = new Set([
   'help', 'here', 'just', 'know', 'like', 'more', 'much', 'need', 'no', 'okay',
   'one', 'please', 'really', 'see', 'show', 'sorry', 'still', 'sure', 'tell',
   'thanks', 'think', 'understand', 'want', 'well', 'yes',
+  // Chat shorthand. A learner types the way they text, and these carry no
+  // subject at all. "wdym" reaching a search engine is the difference between
+  // three real articles and none -- measured; see `webResolver.test.ts`.
+  'wdym', 'idk', 'pls', 'plz', 'thx', 'ur', 'u', 'im', 'ive', 'dont', 'cant',
+  'whats', 'hows', 'whys', 'lol', 'ok', 'oh', 'hmm', 'wait',
   // Light verbs and particles: they carry the sentence, never the subject.
   // "go up", "make", "take", "the way it works" — a lesson labelled "Change"
   // must not be pulled up by the "go" in "why does the pressure go up".
@@ -101,8 +106,18 @@ function words(text: string): string[] {
     .filter((word) => word.length > 0)
 }
 
-/** Words worth matching on, deduplicated, in the order they were written. */
-function contentTokens(text: string): string[] {
+/**
+ * Words worth matching on, deduplicated, in the order they were written.
+ *
+ * Exported because the web rung needs exactly this list. A learner's question
+ * carries filler that a search engine does not merely ignore -- it matches on
+ * it. Measured against the live API: "can you explain photosynthesis to me
+ * please" returns an article about a skateboarder, while "photosynthesis"
+ * returns the right one. A second, private copy of this vocabulary in
+ * `webResolver.ts` would drift, and the drift would show up as wrong answers
+ * carrying citations.
+ */
+export function contentTokens(text: string): string[] {
   const seen = new Set<string>()
   const out: string[] = []
   for (const word of words(text)) {
@@ -172,7 +187,16 @@ function tokenVariants(text: string): string[][] {
  * for an equivalent mutant is to remove the branch, not to invent a test that
  * cannot fail. Do not add it back.
  */
-const HALF = 0.5
+/**
+ * Exported because the web rung shares this threshold, and only this threshold.
+ *
+ * `webResolver` asks the mirrored question — does this fetched PAGE cover the
+ * words the learner typed — and a second `0.5` written down over there would be
+ * two numbers meaning one decision, free to stop agreeing. What it does NOT
+ * share is the `matched >= 2` clause below, and the reason it does not is
+ * written where it is not shared: see `isAbout` in `webResolver.ts`.
+ */
+export const HALF = 0.5
 
 function accepts(nameTokens: readonly string[], typed: ReadonlySet<string>): number {
   let matched = 0

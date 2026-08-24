@@ -51,4 +51,29 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     },
   },
+  /* src/websearch was unlinted for the same reason src/practice was: flat
+   * config lints only paths with a MATCHING `files:` entry, so a new directory
+   * is silently exempt rather than loudly missing. `npm run lint` returned 0
+   * over that tree without reading one of its files, which is worse than no
+   * lint at all — a green gate that checked nothing.
+   *
+   * No `canvas/design-value` here, and that is deliberate rather than an
+   * oversight. Nothing under src/websearch renders: it fetches bytes, turns
+   * them into text, and measures how long that took. A design-token rule would
+   * have no true positives to find, and a rule that can only produce noise is
+   * one people learn to switch off.
+   *
+   * `no-explicit-any` is an ERROR here, matching src/practice rather than the
+   * canvas exemption. This directory has no legacy to grandfather, and its
+   * whole job is parsing untrusted input — where `any` is precisely how a
+   * malformed response becomes a runtime surprise instead of a compile error.
+   */
+  {
+    files: ['src/websearch/**/*.{ts,tsx}'],
+    extends: [...tseslint.configs.recommended],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
 )

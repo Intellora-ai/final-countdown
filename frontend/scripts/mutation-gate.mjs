@@ -81,6 +81,8 @@ import { readFileSync, writeFileSync, mkdtempSync, existsSync, rmSync } from 'no
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import { isScopedKill } from './mutation-verdict.mjs'
+
 /* CRASH SAFETY, because this tool edits real source files in the working tree.
  *
  * The first version had no try/finally and no signal handlers. Between
@@ -649,19 +651,10 @@ for (const m of MINE) {
     writeFileSync(m.file, original.replace(m.from, m.to))
     /* Scoped first. A kill here is final — see the note on `vitest()`. */
     r = vitest(out, { scoped: true })
-    /*
-     * `numTotalTests > 0` is load-bearing and not defensive noise.
-     *
-     * A scoped KILL skips the count check below, because a subset legitimately
-     * runs fewer tests than the baseline. That skip is safe only while a kill
-     * means "a real test failed". If vitest ever counts a suite that failed to
-     * LOAD as a failed test — a syntax break from a bad mutation — then a
-     * broken file would record as a kill in a weak-test detector, which is the
-     * one direction this gate must never be wrong in. Requiring that some test
-     * actually ran costs nothing and closes it without depending on which way
-     * vitest counts.
-     */
-    scopedOnly = r !== null && r.numFailedTests > 0 && r.numTotalTests > 0
+    /* The rule, and the reason for it, live in mutation-verdict.mjs. It is a
+     * separate module because this file runs on import and runs vitest, so the
+     * predicate was unreachable from any test until it moved. */
+    scopedOnly = isScopedKill(r)
     if (!scopedOnly) {
       /* Survived the subset, or the subset could not be scored. Either way the
          answer is not trustworthy yet, so pay for the full suite. */

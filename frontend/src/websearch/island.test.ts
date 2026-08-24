@@ -98,12 +98,43 @@ describe('the scanner can see — negative and positive through the same code pa
   })
 })
 
-describe('engine.ts says websearch is unreached — this is what makes that a fact', () => {
-  it('NEGATIVE CONTROL — nothing outside `src/websearch` references it', () => {
-    const refs = referencesFrom('websearch')
-    /* If this fails, that is GOOD NEWS and not a broken test: someone wired
-       this module into the product. Update the comment at the top of
-       `engine.ts`, which currently tells the reader the opposite. */
-    expect(refs).toEqual([])
+describe('engine.ts says websearch IS reached — this is what makes that a fact', () => {
+  it('POSITIVE CONTROL — the five files that wire it are exactly these', () => {
+    /*
+     * THIS ASSERTION WAS `toEqual([])` AND IT FIRED, WHICH IS THE TEST WORKING.
+     *
+     * Its own note said so: "If this fails, that is GOOD NEWS and not a broken
+     * test: someone wired this module into the product. Update the comment at
+     * the top of `engine.ts`, which currently tells the reader the opposite."
+     * That is what happened, and that comment has been rewritten to name these
+     * five files.
+     *
+     * Pinned as an exact SET rather than `length > 0`, and that is the whole
+     * value of the change. A `> 0` check would go green the moment one file
+     * referenced it and then never speak again -- it could not tell "the chain
+     * is wired" from "one stray import survived a deletion". An exact list
+     * fails in BOTH directions: wire a sixth file and this breaks, unwire the
+     * chain and it breaks, and either way somebody has to come back and say in
+     * `engine.ts` what the new truth is.
+     *
+     * Sorted, because `sourceFiles` walks the directory in whatever order the
+     * filesystem hands back and a set assertion must not depend on that.
+     */
+    const refs = [...referencesFrom('websearch')].sort()
+    expect(refs).toEqual([
+      'App.tsx',
+      'canvas/CanvasRoute.tsx',
+      'canvas/teach/chain.ts',
+      'canvas/teach/contract.ts',
+      'canvas/teach/webResolver.ts',
+    ])
+  })
+
+  it('the reachable path needs no key, which is why it is reachable at all', () => {
+    /* The general seam (`jsonProvider`) still wants an endpoint and a
+       credential, and a key cannot ship to a browser. Wikipedia needs neither,
+       and that -- not the wiring -- is what made this runnable. If this file
+       ever disappears, the chain is back to having no live source. */
+    expect(sourceFiles(SRC).some((f) => f.endsWith('websearch/wikipedia.ts'))).toBe(true)
   })
 })

@@ -1,23 +1,30 @@
 /**
  * THE MISSING HALF: a query goes in, fetched evidence comes out.
  *
- * NOTHING IN THE PRODUCT CALLS THIS YET. READ THIS BEFORE THE REST.
- * ----------------------------------------------------------------
- * `src/websearch` has zero references from anywhere outside itself — no
- * static import, no dynamic `import()`, not even a string mention:
+ * THIS IS NOW REACHED. THE ISLAND ENDED.
+ * ---------------------------------------
+ * This comment used to open "NOTHING IN THE PRODUCT CALLS THIS YET", and that
+ * was true and load-bearing: `src/websearch` had zero references from anywhere
+ * outside itself, so the module was complete, tested, and dead.
  *
- *   grep -rn "websearch" src | grep -v "^src/websearch/"   ->  0 results
+ * It is wired now. Five files outside this directory reference it:
  *
- * That is not a lazy-loading artefact. `canvas` and `practice` ARE reachable,
- * through `React.lazy(() => import(...))` at `App.tsx:30` and `:36`, so the
- * difference between a deferred chunk and an unreferenced one is visible in
- * the same search. This directory is the second kind.
+ *   App.tsx                       lazy `import()` of the Wikipedia provider
+ *   canvas/CanvasRoute.tsx        assembles the resolver chain
+ *   canvas/teach/webResolver.ts   adapts a search into a doubt answer
+ *   canvas/teach/chain.ts         runs it after the lesson and the engine
+ *   canvas/teach/contract.ts      the async doorway that made it possible
  *
- * WHAT THIS IS NOT, ANY MORE. An earlier version of this comment called it
- * "an island pointing at an island", because `src/agent` was unreachable too.
- * That half has since become FALSE and the sentence sat here saying it anyway:
- * `src/tutor/TutorView.tsx:22` imports `createAgent` from `../agent`, and
- * `App.tsx:37` lazy-imports `TutorView`. `src/agent` ships.
+ * WHAT MADE IT UNREACHABLE WAS A TYPE, NOT AN OVERSIGHT. `search()` returns a
+ * promise and `DoubtResolver.resolve` was synchronous, so no amount of wiring
+ * could have connected them; `contract.ts` now carries an async variant behind
+ * an explicit pending state, which is what the old comment there asked for.
+ *
+ * `island.test.ts` is what keeps this paragraph honest. It asserted the empty
+ * set and failed the moment this changed, which is exactly what its own
+ * comment promised would happen -- "that is GOOD NEWS and not a broken test".
+ * The expectation there now names the five files above, so the next person to
+ * wire or unwire something has to come back and edit this sentence too.
  *
  * The consequence is the opposite of what the old comment implied, so it is
  * worth stating rather than quietly deleting. Wiring this module in used to be

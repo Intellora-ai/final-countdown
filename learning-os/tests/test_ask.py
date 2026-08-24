@@ -313,7 +313,13 @@ def test_the_refusal_never_contains_the_credential_value(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """`select.py` returns NAMES and never values, and this must not undo that."""
-    secret = "sk-this-must-never-be-echoed"
+    # NOT key-shaped, deliberately. `sk-…` plus 25 characters matches the
+    # `api-key-sk` pattern in `scripts/credential_scan.py`, and that gate fails
+    # the build on SHAPE rather than on whether a human thinks the value is
+    # real -- correctly, because a scanner that can be argued with is a scanner
+    # with a hole. The assertion here is that the VALUE is never echoed, and a
+    # sentinel that looks nothing like a key tests that just as well.
+    secret = "SENTINEL-must-never-be-echoed"
     monkeypatch.setenv("LEARNING_OS_LLM_PROVIDER", "gemini")
     monkeypatch.setenv("LEARNING_OS_GEMINI_API_KEY", secret)
     monkeypatch.setattr(ask, "installed_modules", lambda: frozenset())
@@ -364,7 +370,13 @@ def test_doctor_exits_non_zero_when_the_live_path_is_not_ready(
 def test_doctor_reports_the_credential_as_a_BOOLEAN_never_the_value(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    secret = "sk-this-must-never-be-echoed"
+    # NOT key-shaped, deliberately. `sk-…` plus 25 characters matches the
+    # `api-key-sk` pattern in `scripts/credential_scan.py`, and that gate fails
+    # the build on SHAPE rather than on whether a human thinks the value is
+    # real -- correctly, because a scanner that can be argued with is a scanner
+    # with a hole. The assertion here is that the VALUE is never echoed, and a
+    # sentinel that looks nothing like a key tests that just as well.
+    secret = "SENTINEL-must-never-be-echoed"
     monkeypatch.setenv("LEARNING_OS_LLM_PROVIDER", "gemini")
     monkeypatch.setenv("LEARNING_OS_GEMINI_API_KEY", secret)
     _, report = doctor(monkeypatch)

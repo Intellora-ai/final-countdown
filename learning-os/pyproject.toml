@@ -105,6 +105,33 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "ARG"]
 module = ["anthropic", "anthropic.*"]
 ignore_missing_imports = true
 
+# Same reason as the block above, for the other optional provider.
+#
+# `google-genai` is NOT in requirements-learning-os.lock -- it lives in
+# requirements-live.lock, which CI never installs. That absence is the offline
+# guarantee: with the SDK missing from the job, a test that tried to reach a
+# provider cannot succeed. So `mypy --strict` cannot resolve `google.genai`
+# there and fails with import-not-found, while passing on a developer machine
+# that has installed the live extra.
+#
+# `google` AND `google.*`, not `google.genai` alone. Measured, not guessed: with
+# only the base lock installed, mypy reports
+#
+#     Cannot find implementation or library stub for module named "google"
+#
+# It names the PARENT namespace package, because that is the first segment it
+# cannot resolve -- so an override scoped to `google.genai` never matches and
+# the error survives. Verified against a venv built from
+# requirements-learning-os.lock alone, which is exactly what the CI job installs.
+#
+# Still narrow: `google.*` admits Google SDKs only. A blanket
+# `ignore_missing_imports` would hide a genuinely missing dependency anywhere in
+# the package, which is a class of bug this project has already had to make loud
+# twice.
+[[tool.mypy.overrides]]
+module = ["google", "google.*"]
+ignore_missing_imports = true
+
 [tool.mypy]
 python_version = "3.11"
 strict = true

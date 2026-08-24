@@ -78,8 +78,11 @@ jobs:
       # the same commit, so the suite executed twice per pull request and this
       # execution established no additional full-suite coverage property.
       #
-      # `--cov=src` measures four files totalling 1.1 KB. Running only the four
-      # tests that cover them produces the same five rows at the same values:
+      # `--cov=src` measures FIVE files -- four modules plus an empty
+      # `src/__init__.py` -- totalling 1.1 KB. This said "four files" while the
+      # table two lines below it listed five rows, so the sentence disagreed
+      # with its own evidence. Running only the four TEST files that cover them
+      # produces the same five rows at the same values:
       #
       #   src/__init__.py 100%   src/add.py 100%   src/clamp.py 100%
       #   src/multiply.py 100%   src/subtract.py 100%   TOTAL 100%
@@ -110,10 +113,37 @@ jobs:
           # command relies on unquoted word-splitting: bash splits it, zsh does
           # not, and shellcheck flags it either way. The literal form runs the
           # same everywhere and is what the scope file records.
+          # `-m "not axle"` IS EXPLICIT, not inferred from the file list.
+          #
+          # None of these four files carries the `axle` marker today, so the
+          # selection is unchanged -- this is not a fix, it is a statement of
+          # the invariant that made the file list safe to write down. The
+          # header above says this workflow must never contact the hosted AXLE
+          # service, and that promise currently rests on nobody adding a marked
+          # test to one of these four files. Now it rests on the selector.
           pytest tests/test_add.py tests/test_clamp.py \
                  tests/test_multiply.py tests/test_subtract.py \
-                 --cov=src --cov-branch --cov-report=html -q
+                 --cov=src --cov-branch --cov-report=html -m "not axle" -q
           test -f htmlcov/index.html
+
+          # THE SHA THE FIXTURE RECORDS IS THE ONE THAT WAS CHECKED OUT.
+          #
+          # `commit_sha` came from `github.sha`, which is what the EVENT claims.
+          # For a provenance record that is the wrong source: it describes the
+          # payload, not the tree the artifact was built from. `deep-verify.yml`
+          # already makes exactly this distinction and refuses when they differ.
+          # They agree here because this workflow sets no `ref:` on checkout --
+          # asserted, not assumed, so the day someone adds one this fails loudly
+          # instead of recording a commit the fixture did not come from.
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          echo "EVENT_SHA       $E2E_SHA"
+          echo "CHECKED_OUT_SHA $ACTUAL_SHA"
+          if [ "$ACTUAL_SHA" != "$E2E_SHA" ]; then
+            echo "::error title=e2e provenance::checked-out $ACTUAL_SHA is not the event SHA $E2E_SHA; the fixture would record a commit it was not built from"
+            exit 1
+          fi
+          export E2E_ACTUAL_SHA="$ACTUAL_SHA"
+
           mkdir -p reports
           python3 - <<'PY'
           import json, os, pathlib
@@ -121,13 +151,19 @@ jobs:
           pathlib.Path("reports/e2e-scope.json").write_text(json.dumps({
               "schema_version": "1.0",
               "scope": "e2e-rendering-fixture",
-              "commit_sha": os.environ["E2E_SHA"],
+              # Read back from git, then proven equal to the event SHA above.
+              "commit_sha": os.environ["E2E_ACTUAL_SHA"],
               "run_id": os.environ["E2E_RUN_ID"],
               "run_attempt": os.environ["E2E_RUN_ATTEMPT"],
               "workflow": os.environ["E2E_WORKFLOW"],
               "job": os.environ["E2E_JOB"],
+              # Must stay byte-equal to the command actually run above. The
+              # scope file's whole job is to say what produced this artifact,
+              # and a producer_command that omits a selector the run used is a
+              # provenance record describing a different run.
               "producer_command":
-                  f"pytest {tests} --cov=src --cov-branch --cov-report=html -q",
+                  f"pytest {tests} --cov=src --cov-branch --cov-report=html "
+                  "-m \"not axle\" -q",
               "coverage_target": "src",
               "is_full_suite_coverage": False,
               "purpose": "Playwright rendering and navigation verification only",
@@ -164,12 +200,35 @@ jobs:
       # so downloading the browser is all that is actually required. If a
       # library is ever genuinely missing, Playwright says which one, and the
       # answer is to install that one rather than to re-run a package index.
+      # `--no-install`, so this can only ever run the Playwright that
+      # package-lock.json pinned and `npm ci` installed. Bare `npx` falls back
+      # to FETCHING a package when the local one is missing, which would
+      # silently download an unpinned CLI and use it to install a browser --
+      # the exact reproducibility hole `npm ci` was chosen to close two steps
+      # above. If the local package is absent this now fails loudly.
       - name: Install Chromium
-        run: npx playwright install chromium
+        run: npx --no-install playwright install chromium
 
       # No `continue-on-error`: Playwright's exit code is the verdict.
+      #
+      # `--fail-on-flaky-tests` IS THE POINT OF THIS STEP, NOT A TIGHTENING.
+      #
+      # playwright.config.ts sets `retries: 1` in CI, and its comment says a
+      # retry should be "visible as a retry rather than hidden by a rerun".
+      # Nothing made it visible: a test that failed once and passed on the
+      # retry produced a green job and a green required check, and the flake
+      # was recorded only inside an HTML report that is uploaded ONLY on
+      # failure -- so on exactly the runs where a flake happened and was
+      # rescued, the evidence was discarded.
+      #
+      # The retry stays: one retry still distinguishes a flake from a hard
+      # failure, and that information is worth having. What changes is that a
+      # rescued test now fails the run instead of passing silently, so "flaky"
+      # becomes a verdict somebody has to act on rather than a fact nobody
+      # sees. `frontend-scenes` in learning-canvas-frontend.yml already runs
+      # with this flag; this workflow was the one without it.
       - name: Run Playwright
-        run: npm run test:e2e
+        run: npm run test:e2e -- --fail-on-flaky-tests
 
       # THE SCOPE DECLARATION, ALWAYS. Uploaded on green as well as red,
       # because its job is to say what this run's HTML report IS -- and a

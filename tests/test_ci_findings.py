@@ -386,3 +386,231 @@ def test_the_path_finding_does_not_claim_github_discarded_it() -> None:
     assert "404" in hit.detail, (
         f"the finding should name the observable damage — the link 404s: {hit.detail!r}"
     )
+
+
+# --- severity: what may block, and what may only inform ----------------------
+#
+# MEASURED BEFORE THIS SPLIT EXISTED, across 10 real red runs:
+#
+#     annotation-without-a-line     18 instances
+#     annotation-path-not-in-tree    2 instances
+#     red runs with zero annotations 0
+#
+# Treating all 20 as blocking put the enforced pass rate at 60%. The 18 are not
+# defects. `scripts/blocker_report.py` states the reasoning in its own docstring:
+# most gates here record a bare path, "requiring a line meant every one of those
+# produced no annotation at all", and GitHub attaching a line-less annotation to
+# the file "is a true and useful claim; refusing to make it bought nothing."
+#
+# So a line-less annotation is a DELIBERATE, reasoned choice. Blocking on it
+# would fail 40% of red runs for doing the right thing -- the same shape as #69,
+# whose title is "the ratchet test punished anyone who added a mutant".
+#
+# The split is therefore: an annotation nobody can OPEN blocks; one that opens
+# at the wrong line informs.
+
+
+def test_a_line_less_annotation_informs_and_does_not_block() -> None:
+    """It opens at line 1 rather than the failing line. Imprecise, not lost."""
+    annotations = [
+        {
+            "path": "scripts/ci_findings.py",
+            "start_line": None,
+            "annotation_level": "failure",
+            "message": "m",
+        }
+    ]
+    problems = reconcile(
+        FAILED_JOB, annotations=annotations, path_exists=lambda p: True
+    )
+    hit = next(p for p in problems if p.kind == "annotation-without-a-line")
+    assert hit.blocking is False, (
+        "a line-less annotation blocks the build, which punishes every gate that "
+        "records a bare path on purpose"
+    )
+    assert problems, "it must still be REPORTED — advisory is not silent"
+
+
+def test_an_unopenable_annotation_blocks() -> None:
+    """A 404 link is a lost message. That is the thing worth stopping for."""
+    annotations = [
+        {
+            "path": "frontend/node_modules/chai/chai.js",
+            "start_line": 9203,
+            "annotation_level": "failure",
+            "message": "m",
+        }
+    ]
+    problems = reconcile(
+        FAILED_JOB,
+        annotations=annotations,
+        path_exists=lambda p: not p.startswith("frontend/node_modules"),
+    )
+    hit = next(p for p in problems if p.kind == "annotation-path-not-in-tree")
+    assert hit.blocking is True
+
+
+def test_a_failed_job_with_no_annotations_at_all_blocks() -> None:
+    """Red with nothing to click is the worst case and must never be advisory."""
+    problems = reconcile(FAILED_JOB, annotations=[], path_exists=lambda p: True)
+    hit = next(p for p in problems if p.kind == "job-failed-with-no-annotations")
+    assert hit.blocking is True
+
+
+def test_advisory_findings_alone_do_not_fail_the_run() -> None:
+    """THE WHOLE POINT OF THE SPLIT, stated as the case that decides it.
+
+    A run whose only complaint is imprecision must be reportable without being
+    blockable, or this check can never become a required context without
+    failing correct work.
+    """
+    annotations = [
+        {
+            "path": "scripts/ci_findings.py",
+            "start_line": None,
+            "annotation_level": "failure",
+            "message": "m",
+        }
+    ]
+    problems = reconcile(
+        FAILED_JOB, annotations=annotations, path_exists=lambda p: True
+    )
+    assert problems, "still reported"
+    assert not any(p.blocking for p in problems), "nothing here should block"
+
+
+def test_problem_severity_survives_json() -> None:
+    import json
+
+    p = Problem(kind="k", detail="d", where="w", blocking=True)
+    assert json.loads(json.dumps(p.as_dict()))["blocking"] is True
+
+
+# --- B: the enforcement surface ----------------------------------------------
+#
+# The severity split is only worth anything if the EXIT CODE honours it. A
+# reconciler that reports advisories and still exits 1 cannot be made a required
+# context without failing correct work, which is the whole reason the split
+# exists.
+
+
+def _run_cli(tmp_path: Path, jobs: list[Any], annotations: list[Any]) -> int:
+    import json as _json
+    import subprocess as _sp
+    import sys as _sys
+
+    (tmp_path / "jobs.json").write_text(_json.dumps(jobs), encoding="utf-8")
+    (tmp_path / "ann.json").write_text(_json.dumps(annotations), encoding="utf-8")
+    return _sp.run(
+        [
+            _sys.executable,
+            str(REPO / "scripts" / "ci_findings.py"),
+            "reconcile",
+            "--jobs",
+            str(tmp_path / "jobs.json"),
+            "--annotations",
+            str(tmp_path / "ann.json"),
+            "--root",
+            str(REPO),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    ).returncode
+
+
+def test_cli_exits_zero_when_only_advisories(tmp_path: Path) -> None:
+    """A run whose only complaint is imprecision must not fail.
+
+    This is the case that decides whether this check can ever be required.
+    Measured: 18 of 20 findings across 10 red runs were this kind.
+    """
+    code = _run_cli(
+        tmp_path,
+        FAILED_JOB,
+        [
+            {
+                "path": "scripts/ci_findings.py",
+                "start_line": None,
+                "annotation_level": "failure",
+                "message": "m",
+            }
+        ],
+    )
+    assert code == 0, "advisories alone failed the run; enforcement is unsafe"
+
+
+def test_cli_exits_non_zero_on_an_unopenable_annotation(tmp_path: Path) -> None:
+    """A 404 link is a lost message and is exactly what enforcement is for."""
+    code = _run_cli(
+        tmp_path,
+        FAILED_JOB,
+        [
+            {
+                "path": "does/not/exist/anywhere.ts",
+                "start_line": 3,
+                "annotation_level": "failure",
+                "message": "m",
+            }
+        ],
+    )
+    assert code != 0
+
+
+def test_cli_exits_non_zero_when_a_failed_job_has_no_annotations(
+    tmp_path: Path,
+) -> None:
+    """Red with nothing to click. The worst case, and never advisory."""
+    assert _run_cli(tmp_path, FAILED_JOB, []) != 0
+
+
+def test_cli_exits_zero_on_a_healthy_failed_run(tmp_path: Path) -> None:
+    """A failure WITH a resolvable file and line is the good case."""
+    code = _run_cli(
+        tmp_path,
+        FAILED_JOB,
+        [
+            {
+                "path": "scripts/ci_findings.py",
+                "start_line": 1,
+                "annotation_level": "failure",
+                "message": "m",
+            }
+        ],
+    )
+    assert code == 0
+
+
+def test_an_advisory_is_annotated_as_notice_not_error(
+    tmp_path: Path, capsys: Any
+) -> None:
+    """LEVEL TRACKS SEVERITY, and mutation testing is why this test exists.
+
+    Disabling the level choice -- printing every finding as `::error` -- left
+    every other test in this file green. An advisory painted red is a red
+    annotation for a deliberate choice, and a reader who sees those learns to
+    ignore the real ones too. That is the same "signal so constant it carries no
+    information" failure the annotation canary was re-anchored to avoid.
+    """
+    import contextlib
+    import io
+    import sys as _sys
+
+    _sys.path.insert(0, str(REPO / "scripts"))
+    from ci_findings import Problem, emit_problem
+
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        emit_problem(Problem(kind="k", detail="d", where="a/b.py", blocking=False))
+    advisory = buf.getvalue()
+
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        emit_problem(Problem(kind="k", detail="d", where="a/b.py", blocking=True))
+    blocking = buf.getvalue()
+
+    assert advisory.startswith("::notice "), advisory
+    assert blocking.startswith("::error "), blocking
+    assert "imprecise location" in advisory
+    assert "unlocatable failure" in blocking

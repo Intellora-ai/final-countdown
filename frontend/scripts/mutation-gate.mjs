@@ -131,6 +131,49 @@ process.on('uncaughtException', (e) => {
 
 /** Each mutant re-creates a defect that could ship, or inverts a stated rule. */
 const MUTANTS = [
+  /* SEARCH RETRIEVAL. `src/websearch` had ZERO mutants while carrying the SSRF
+   * guard, the injection quarantine and the size cap — and the gate reported
+   * PASS on every PR that shipped it, because it was mutating a different
+   * directory. Every real defect in that module was found by something its
+   * author did not write: CodeQL caught a sanitiser bypass, a loopback stub
+   * caught an unbounded body read at 5011ms against a 250ms budget, and
+   * generated encodings caught 42 SSRF bypasses where five had been guessed.
+   * These entries convert that observation into enforcement. */
+  {
+    id: 'ssrf-guard-string-matching',
+    file: 'src/websearch/fetchPage.ts',
+    from: '  const host = withoutRootLabel(hostname).toLowerCase()',
+    to: '  const host = hostname.trim().toLowerCase()',
+    breaks: 'http://localhost./ and http://printer.local./ reach the fetcher, because every internal-name pattern is anchored and the trailing root label survives into URL.hostname',
+  },
+  {
+    id: 'ssrf-mapped-ipv6-unwrap-removed',
+    file: 'src/websearch/fetchPage.ts',
+    from: '    const wrapped = unwrapV4(groups)',
+    to: '    const wrapped = null as number | null',
+    breaks: 'http://[::ffff:169.254.169.254]/ reaches cloud instance metadata: URL serialises it to [::ffff:a9fe:a9fe], so no dotted-quad pattern matches and credentials are one redirect away',
+  },
+  {
+    id: 'ssrf-cgnat-range-dropped',
+    file: 'src/websearch/fetchPage.ts',
+    from: '  [0x64400000, 10],',
+    to: '  [0x64400001, 32],',
+    breaks: '100.64.0.0/10 becomes reachable, so a fetched page can pivot into carrier-internal address space that is not the public internet',
+  },
+  {
+    id: 'injection-fence-fixed-not-chosen',
+    file: 'src/websearch/guard.ts',
+    from: '    if (!content.includes(candidate)) return candidate',
+    to: '    if (true) return candidate',
+    breaks: 'a page that ships the fence delimiter closes its own quarantine block early and the rest of its text is read as though the system said it',
+  },
+  {
+    id: 'size-cap-after-the-fact',
+    file: 'src/websearch/fetchPage.ts',
+    from: '    if (total + value.length > maxBytes) {',
+    to: '    if (false) {',
+    breaks: 'the size cap stops bounding anything: an adversarial host streams until memory gives out, because the limit is only consulted after the bytes have arrived',
+  },
   /* THE HONESTY LAYER. `shapeInvariants.ts` is the only thing standing between
    * a dishonest dataset and a picture that looks fine. Every mutant here is a
    * way for a representation to stop being able to refuse. */
@@ -612,7 +655,7 @@ const MUTANTS = [
   {
     id: 'agent-failed-verification-is-reported-but-never-fixed',
     file: 'src/agent/kernel/loop.ts',
-    from: '  const repairable = action.action !== \'ask\' && degraded === undefined',
+    from: '  const repairable = answering && degraded === undefined',
     to: '  const repairable = false',
     breaks: 'the system knows the answer misses a stated constraint and ships it unchanged, with the evidence attached where nobody reads it — verification becomes a report rather than a correction',
   },

@@ -342,3 +342,47 @@ def test_the_module_shells_out_to_nothing() -> None:
     src = (REPO / "scripts" / "ci_findings.py").read_text(encoding="utf-8")
     assert "import subprocess" not in src
     assert "subprocess.run" not in src
+
+
+def test_the_path_finding_does_not_claim_github_discarded_it() -> None:
+    """THE FINDING SURVIVED THE TRUTH, ITS EXPLANATION DID NOT.
+
+    This finding was written on the rule that GitHub discards an annotation
+    whose `file=` does not resolve. `scripts/annotation_canary.py` tested that
+    against GitHub on run 32696164034 and it is FALSE -- the API returned the
+    unresolvable probe.
+
+    The finding still earns its place, and that was checked rather than assumed.
+    From the same payload, at the same SHA:
+
+        contents/scripts/__annotation_canary_no_such_file__.py  -> 404 Not Found
+        contents/scripts/annotation_canary.py                   -> 8097 bytes
+
+    So the annotation is RETAINED but its `blob_href` genuinely 404s, and GitHub
+    only renders annotations inline on files that are part of the diff. It is
+    reachable in the API and unreachable everywhere a human looks. That is a
+    real defect, not a non-event -- which is why the check stays and only the
+    explanation changes.
+
+    A reworded finding that fired on nothing would be worse than the wrong one
+    it replaced, because it would also look reviewed.
+    """
+    annotations = [
+        {
+            "path": "frontend/node_modules/chai/chai.js",
+            "start_line": 9203,
+            "annotation_level": "failure",
+            "message": "AssertionError",
+        }
+    ]
+    problems = reconcile(
+        FAILED_JOB, annotations=annotations, path_exists=lambda p: False
+    )
+    hit = next(p for p in problems if p.kind == "annotation-path-not-in-tree")
+    assert "discard" not in hit.detail.lower(), (
+        f"the finding still claims a discard, which GitHub was observed not to "
+        f"do: {hit.detail!r}"
+    )
+    assert "404" in hit.detail, (
+        f"the finding should name the observable damage — the link 404s: {hit.detail!r}"
+    )

@@ -5,6 +5,89 @@ gets compacted; these files do not.
 
 ---
 
+## How to talk to Tanveer — read this first
+
+Tanveer is 12. He has ADHD and autism. He asked for this rule on 2026-08-24:
+
+> **Use simple language. Explain technical things in plain words.**
+
+This applies to EVERY reply, every session, forever.
+
+- Short sentences. One idea each.
+- Plain words: "broken", not "defective". "Check", not "validate".
+- Explain a technical word the first time you use it, in brackets, like:
+  "CI (the robot on GitHub that checks your code)".
+- Answer first. Details after.
+- Use short lists and small tables. Walls of text are hard to scan.
+- **Bold** the part that matters most.
+
+**Do not talk down to him.** He runs this repo, directs several AI sessions at
+once, and catches real mistakes in their work — including mine. Simple is not
+the same as dumb. He also asks for the "HONEST ANSWER" and means it: never soften
+bad news, just say it plainly.
+
+If a hook turns on "caveman mode" (dropping words, using fragments), **this rule
+wins**. Fragments are harder to read, not easier. Write full simple sentences.
+
+---
+
+## How work gets built — read before writing a single line
+
+Tanveer's rule, 2026-08-24, verbatim:
+
+> **"DEFINE REQUIREMENTS + WHAT MUST BE TRUE TO GET DESIRED OUTCOME THEN BUILD
+> AROUND THAT, DO NOT MAKE TESTS WEAK, EASY. BUILD TESTS THAT FULFILL DESIRED
+> OUTCOME, ONLY THEN WRITE CODE. CODE WRITTEN SHOULD BE CHANGED AND BETTER BUT
+> TESTS ONLY CHANGE IF MUTANTS SHOW A REAL EVIDENCE ERROR"**
+
+And, from the same day:
+
+> **"EVERY BUG, ERROR, MUST BECOME A PERMANENT FIX AND NOT JUST SURFACE LEVEL FIX"**
+
+> **"ALL BUGS MUST BE FOUND VIA GITHUB, I DON'T CONSIDER LOCAL TESTS A TEST"**
+
+**The order. Never skipped, never reordered:**
+
+1. **Write down the requirement** and what must be TRUE for the desired outcome.
+   Aim at the requirement, never at what the code currently happens to do.
+2. **Write the hardest test you can** against that outcome. Ugliest realistic
+   input, not the happy path. Assume the code is trying to sneak past you.
+3. **Run it and WATCH IT FAIL.** A real assertion failure. An import error or a
+   collection error is a weak red and does not count as having seen it fail.
+4. **Now write or fix the CODE.**
+5. Re-run. It must pass for the right reason.
+
+**The code is what changes. The test is not.** If a test fails, the code is
+wrong until proven otherwise. The ONLY licence to change an existing test is a
+**surviving mutant** — mutation testing producing real evidence that the test
+itself cannot fail. Not "the test looks too strict". Not "the test is old".
+
+One narrow exception, and it must be stated out loud when used: a test that
+deliberately PINNED a known hole, and whose own docstring instructs the next
+person to update it once the hole is closed. Closing the hole and rewriting
+that test is finishing the job. Weakening any other test to go green is not.
+
+**Test in PAIRS.** Every check needs an input that must FAIL and one that must
+PASS. A check asserted only to fail is satisfied by `return false`, exactly as
+one asserted only to pass is satisfied by `return true`. Both are vacuous.
+
+**Assert the harness is not vacuous.** The clean baseline must exit 0 AND report
+a non-zero passed count. A suite that collected nothing looks identical to a
+suite that looked hard and found nothing.
+
+**A suite that passes on the first implementation is a smell.** Say so plainly
+rather than reporting it as success.
+
+**Permanent, not surface.** Every fix ships with the thing that stops the class
+recurring: the root cause, a test that fails without the fix, every other copy
+of the same bug, and — where one exists — the gate that let it through. A
+comment or a promise is not a fix.
+
+**GitHub is the only real test.** Local green is a hint. The required contexts
+on GitHub are the proof. Never report work as done on local results alone.
+
+---
+
 ## The central principle
 
 > The design system is constant.
@@ -87,6 +170,48 @@ never start a later step because it looks related. Going slow is the point.
 
 ---
 
+## LAW 0 — requirements first, then hard tests, then code
+
+> DEFINE REQUIREMENTS + WHAT MUST BE TRUE TO GET DESIRED OUTCOME THEN BUILD
+> AROUND THAT, DO NOT MAKE TESTS WEAK, EASY. BUILD TESTS THAT FULLFILL DESIRED
+> OUTCOME, ONLY THEN WRITE CODE. CODE WRITTEN SHOULD BE CHANGED AND BETTER BUT
+> TESTS ONLY CHANGE IS MUTANTS SHOW AN REAL EVIDENCE ERROR
+
+It is LAW 0 because the other four describe what may be built; this one decides
+whether anything built can be trusted.
+
+The order is fixed and none of it is optional:
+
+```
+requirements  ->  what must be true  ->  hard tests  ->  code  ->  WATCH IT FAIL  ->  fix the code
+```
+
+**A test encodes the desired outcome. The code is the thing that moves.** When a
+test goes red, the first hypothesis is always that the CODE broke. That
+hypothesis may only be overturned by MUTATION EVIDENCE: a surviving mutant, or a
+measured behaviour proving the assertion contradicts the outcome that was
+specified. Anything less and the code changes, not the test.
+
+**Never weaken a test to reach green.** Not by loosening an assertion, not by
+narrowing a range, not by deleting the case that failed, not by adding a
+carve-out for the input that broke. A test edited to pass destroys the only
+evidence that behaviour changed, and from the outside a justified edit and a
+softened one look identical.
+
+**Tests written after the code are biased by it.** They verify what was built
+rather than what should have been, and they pass on the first run, which proves
+nothing. If you did not watch it fail, you do not know it can fail.
+
+*Measured, in this repository, in a single session:* three tests were edited to
+go green — a pinned catalogue size, a `right triangle` extraction pin, and an
+API-key guard case. Two of those edits were defensible and one was not, and at
+the moment of editing each felt like the defensible kind. That is the whole
+argument for making this absolute rather than a judgement call.
+
+Related, and not a substitute: the reachability gate proves code is REACHED, the
+mutation catalogue proves tests can SEE a defect. Neither proves a test was
+written before the code it checks. Only the red run does, so show it.
+
 ## Four laws
 
 Violating any of these is a bug, not a judgment call.
@@ -167,7 +292,13 @@ If you finish early, stop early.
 - changing the **normal** output of an existing renderer for existing content
 - adding a schema field carrying colour / size / spacing / position
 - `eslint-disable` on the design-value rule
-- weakening a test to make it pass
+- weakening a test to make it pass, in ANY form — loosening an assertion,
+  narrowing a range, deleting the failing case, or carving out the input that
+  broke it. See LAW 0: only mutation evidence may change a test
+- writing the code before the test, or writing a test that passes on its first
+  run. If you did not watch it fail, you have not tested it
+- editing a test because the code disagreed with it, without a surviving mutant
+  or a measured behaviour to prove the test was the wrong one
 - adding a dependency not named in the brief
 - rebuilding something that works instead of layering
 - hardcoding a value "just for now"
@@ -209,7 +340,11 @@ it. Check `package.json` rather than this list; the list is a summary and can
 rot, the manifest cannot.
 
 Note what `lint` actually covers today: `eslint src/canvas src/practice
-src/agent`. Flat config only lints a path with a matching `files:` block, so
+src/agent src/websearch`. That fourth path was missing from this line for as
+long as `src/websearch` has existed, which is this section's own warning
+arriving on schedule: the list said less than the manifest, a session read it,
+and the gap sat there. Flat config only lints a path with a matching `files:`
+block, so
 adding a directory to that script alone changes nothing — `eslint.config.js`
 needs the block too, or the target is silently skipped with no error.
 

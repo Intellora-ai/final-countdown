@@ -329,8 +329,14 @@ export interface Tool {
  * type to hang the citation on becomes "mention sources sometimes".
  */
 export interface Source {
-  kind: 'model' | 'user' | 'file' | 'web' | 'tool' | 'memory'
-  /** URL, filename, tool name, or memory id. */
+  /* `reasoning` is the substrate's OWN derivation --- a causal chain the world
+     model assembled from relations it extracted. It is deliberately not
+     `model`: nothing was generated, and labelling it `model` would make a
+     deterministic derivation indistinguishable from something a language model
+     asserted, which is exactly the distinction a reader needs when deciding
+     how much to trust it. */
+  kind: 'model' | 'user' | 'file' | 'web' | 'tool' | 'memory' | 'reasoning'
+  /** URL, filename, tool name, memory id, or the derivation that produced it. */
   ref: string
   /** ISO date the source itself was published or written, when known. This is
    *  the field freshness reasoning runs on, and it is deliberately separate
@@ -416,6 +422,13 @@ export type VerificationKind =
   | 'constraint'
   | 'cross-check'
   | 'schema'
+  /* Did the multi-step task actually finish, or did it stop?
+     Distinct from `constraint`: a constraint check asks whether the ANSWER is
+     acceptable, and this asks whether the WORK was done. A task that stopped
+     three steps in can produce an answer that satisfies every stated
+     constraint, and reporting only the constraint check would call that a
+     success. */
+  | 'completeness'
 
 export interface Verification {
   kind: VerificationKind

@@ -494,14 +494,22 @@ describe('the ten steps happen in order', () => {
     const p = ports()
     const out = await handle(ask('Calculate 17.5% of 2400'), NEW_SESSION, p)
 
-    /* Everything below was decided BEFORE the single model call --- which is
-       what makes all of it assertable about every run. */
-    expect(p.model.calls).toHaveLength(1)
+    /* Everything below was decided BEFORE the FIRST model call --- which is
+       what makes all of it assertable about every run.
+
+       It used to say `toHaveLength(1)`, as a proxy for "the model is called
+       once, at the end". That proxy stopped being true when repair was wired
+       in, and the distinction matters: the ordering guarantee is about the
+       first call, not the count. A repair call is a SECOND call that happens
+       strictly after verification, which is the same guarantee, not a
+       violation of it. The repair path has its own tests below. */
+    expect(p.model.calls.length).toBeGreaterThanOrEqual(1)
     const req = p.model.calls[0]
     expect(req?.understanding.goal.length).toBeGreaterThan(0)   // 1,2
     expect(req?.capabilities.length).toBeGreaterThan(0)          // 4
     expect(req?.computed).toBeTruthy()                           // 6
     expect(req?.communication.depth).toBeTruthy()                // 8
+    expect(req?.mustFix).toBeUndefined()                         // first call is not a repair
     expect(out.trace.sources.length).toBeGreaterThan(0)          // 5
     expect(out.result.verifications.length).toBeGreaterThan(0)   // 7
     expect(out.session.conversation.turnIndex).toBe(1)           // 10

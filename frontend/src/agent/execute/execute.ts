@@ -35,12 +35,29 @@ import { EMPTY_WORKING } from '../memory/memory'
 /* Planning --- Capability 12                                                 */
 /* -------------------------------------------------------------------------- */
 
-let seq = 0
-const nextId = (prefix: string) => `${prefix}${++seq}`
+/**
+ * Ids are DERIVED, never counted.
+ *
+ * This used to be a module-level `let seq = 0`, which had two costs. The
+ * visible one was a `resetIds()` export that existed only so tests could get
+ * stable ids --- test-only production code, and the exact shape of thing that
+ * rots. The invisible one was worse: two agents in one process shared the
+ * counter, so a task's step ids depended on what some unrelated task had done
+ * first, and a serialised task could not be compared to a replay of itself.
+ *
+ * Deriving the id from position within its own plan makes it a function of the
+ * plan alone, which is what "resumable" quietly requires.
+ */
+const stepId = (index: number) => `s${index + 1}`
 
-/** Reset between tests so ids are stable. Never called in production. */
-export function resetIds(): void {
-  seq = 0
+/** Stable, short, and dependent only on the goal. Not a security hash. */
+function digest(text: string): string {
+  let h = 2166136261
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return (h >>> 0).toString(36)
 }
 
 export interface StepSpec {
@@ -61,8 +78,8 @@ export interface StepSpec {
  */
 export function planFrom(goal: string, specs: readonly StepSpec[]): Plan {
   const byGoal = new Map<string, string>()
-  const steps: Step[] = specs.map((s) => {
-    const id = nextId('s')
+  const steps: Step[] = specs.map((s, i) => {
+    const id = stepId(i)
     byGoal.set(s.goal, id)
     return {
       id,
@@ -124,7 +141,7 @@ function findCycle(steps: readonly Step[]): string[] | null {
 
 export function startTask(u: Understanding, plan: Plan, at: string): TaskState {
   return {
-    id: nextId('t'),
+    id: `t${digest(`${plan.goal}@${at}`)}`,
     plan,
     working: { ...EMPTY_WORKING, objective: u.goal, constraints: u.constraints, entities: u.entities },
     journal: [{ at, event: 'started', detail: plan.goal }],
@@ -328,8 +345,10 @@ export async function runTask(
  * ask "why did it do that?" after the fact.
  */
 export function replan(task: TaskState, why: string, extra: readonly StepSpec[], at: string): TaskState {
-  const added: Step[] = extra.map((s) => ({
-    id: nextId('s'),
+  /* Numbered on from the existing steps, so a replanned task still has ids
+     that are a function of the plan and nothing else. */
+  const added: Step[] = extra.map((s, i) => ({
+    id: stepId(task.plan.steps.length + i),
     goal: s.goal,
     capability: s.capability,
     state: 'pending',

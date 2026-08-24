@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import type { Step, TaskState, Understanding } from '../kernel/contracts'
 import { understand } from '../understand/understand'
@@ -11,7 +11,6 @@ import {
   planFrom,
   progress,
   replan,
-  resetIds,
   resume,
   runTask,
   serialize,
@@ -23,8 +22,6 @@ import {
 
 const AT = '2026-08-24T00:00:00.000Z'
 const now = () => AT
-
-beforeEach(resetIds)
 
 function goal(text = 'Plan my JEE revision'): Understanding {
   return understand({ parts: [{ modality: 'text', content: text }], at: AT })

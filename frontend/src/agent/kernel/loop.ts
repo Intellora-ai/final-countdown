@@ -3,6 +3,8 @@ import type {
   Claim,
   CommunicationPlan,
   MemoryRecord,
+  Step,
+  TaskState,
   Turn,
   TurnResult,
   Understanding,
@@ -10,10 +12,25 @@ import type {
   WorkingMemory,
 } from './contracts'
 import { NO_CONTEXT, route, type RouteContext } from './router'
-import { plainText, signals, understand, type Conversation } from '../understand/understand'
-import { absorb, EMPTY_WORKING, note, worthRemembering, type Store } from '../memory/memory'
+import {
+  attachments,
+  plainText,
+  signals,
+  understand,
+  type Conversation,
+} from '../understand/understand'
+import {
+  absorb,
+  assume,
+  closeStep,
+  EMPTY_WORKING,
+  note,
+  openStep,
+  worthRemembering,
+  type Store,
+} from '../memory/memory'
 import { decideSource, research, type Research, type SearchPort } from '../knowledge/knowledge'
-import { run, type Registry } from '../tools/tools'
+import { chain, recover, run, type Registry } from '../tools/tools'
 import {
   decide,
   selfCheck,
@@ -21,8 +38,12 @@ import {
   verifyArithmetic,
   verifyConstraints,
   verifyNoContradiction,
+  verifyAndRepair,
   verifySources,
+  type Repair,
+  type Repairable,
   type SelfCheck,
+  type VerifyResult,
 } from '../verify/verify'
 import {
   DEFAULT_PERSONALIZATION,
@@ -30,7 +51,39 @@ import {
   planCommunication,
   readUserState,
 } from '../communicate/communicate'
-import { learnerFrom, teachingAdjustments, type Attempt, type ConceptGraph } from '../learn/learn'
+import {
+  dueForReview,
+  feedbackFor,
+  learnerFrom,
+  NEW_LEARNER,
+  nextDifficulty,
+  nextReview,
+  teachingAdjustments,
+  whatNext,
+  type Attempt,
+  type ConceptGraph,
+  type Feedback,
+  type Recommendation,
+} from '../learn/learn'
+import {
+  planFrom,
+  progress,
+  replan,
+  resume,
+  runTask,
+  startTask,
+  summary,
+  type Executor,
+  type StepSpec,
+} from '../execute/execute'
+import {
+  build as buildWorld,
+  explain,
+  impactOf,
+  inconsistencies,
+  prerequisitesOf,
+  type World,
+} from '../world/world'
 
 /**
  * THE DECISION LOOP --- section 36 of the brief, in order.
@@ -72,6 +125,15 @@ export interface GenerateRequest {
   capabilities: readonly Capability[]
   /** Present when a tool computed something the answer must use verbatim. */
   computed: Readonly<Record<string, unknown>>
+  /**
+   * Set only on a repair pass: the checks the previous answer failed.
+   *
+   * Its presence is the difference between "answer this" and "your last answer
+   * missed the word limit and cited nothing --- fix those two things". A
+   * repair prompt without the failure list is a re-roll, and a re-roll fails
+   * the same check about as often as it passes it.
+   */
+  mustFix?: readonly string[]
 }
 
 export interface ModelPort {
@@ -94,6 +156,14 @@ export interface Session {
   /** Goals from recent turns, for repeat detection. */
   recentGoals: readonly string[]
   attempts: readonly Attempt[]
+  /**
+   * The task in flight, carried between turns.
+   *
+   * This is what makes "continue what we started yesterday" a property of the
+   * system rather than a promise. It is plain serialisable data for exactly
+   * that reason --- see the header of `execute.ts`.
+   */
+  task?: TaskState
 }
 
 export const NEW_SESSION: Session = {
@@ -119,7 +189,42 @@ export interface LoopResult {
     degraded?: string
     /** True when memory was unavailable, so personalisation was skipped. */
     memoryUnavailable: boolean
+    /**
+     * Capabilities that actually DID something this turn.
+     *
+     * THIS FIELD EXISTS BECAUSE ITS ABSENCE HID A REAL BUG. The router
+     * selected `files`, `plan`, `act`, `code` and `tools`; the loop had no
+     * branch for any of them; the end-to-end tests asserted on
+     * `plan.selected` and passed. A trace that reports a decision without
+     * reporting the effect is an audit trail that lies, and it lies in the
+     * most expensive direction --- everything looks wired.
+     *
+     * The invariant, asserted by test: every selected capability appears in
+     * `executed` or in `unmet`. Never neither.
+     */
+    executed: readonly Capability[]
+    /**
+     * Capabilities selected but not carried out, and precisely why.
+     *
+     * Not a failure list. "You asked me to read your file and no file tool is
+     * registered" is a correct, useful outcome; silently answering anyway is
+     * not.
+     */
+    unmet: Readonly<Record<string, string>>
+    /** Set when the turn reasoned over a causal model. */
+    world?: World
+    /** Set when the learning layer ran. */
+    teaching?: Teaching
   }
+}
+
+/** What the learning layer worked out this turn, surfaced rather than buried. */
+export interface Teaching {
+  next: readonly Recommendation[]
+  due: readonly string[]
+  difficulty: number
+  reviewAt: string
+  feedback?: Feedback
 }
 
 export async function handle(turn: Turn, session: Session, ports: Ports): Promise<LoopResult> {
@@ -181,9 +286,95 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
 
   /* ---- 6. Execute --- ONLY what was selected -------------------------- */
 
+  /* EVERY SELECTED CAPABILITY ENDS UP IN ONE OF THESE TWO SETS.
+     See `trace.executed` for what went wrong when it did not. `couldNot` is
+     not an error channel: "you asked me to read a file and no file tool is
+     registered" is a correct outcome, and the only wrong move is to say
+     nothing and answer anyway. */
+  const executed = new Set<Capability>()
+  const unmet: Record<string, string> = {}
+
+  /* THE SELECTION GUARD LIVES HERE, NOT AT EACH CALL SITE.
+     `executed` must be a subset of `selected` --- a trace that over-claims is
+     exactly as misleading as one that under-reports, and "communicate always
+     runs" is the kind of reasonable-sounding exception that puts an unselected
+     capability into the record. Enforcing it in one place means no future
+     branch can get it wrong. */
+  const didRun = (c: Capability) => void (selected.has(c) && executed.add(c))
+  const couldNot = (c: Capability, why: string) => void (selected.has(c) && (unmet[c] = why))
+
+  let world: World | undefined
+  let task: TaskState | undefined = session.task
+
+  /* --- memory-read ------------------------------------------------------ */
+  if (selected.has('memory-read')) {
+    if (memoryFailed) {
+      couldNot('memory-read', 'the memory store was unavailable')
+    } else {
+      for (const m of memories) {
+        claims.push({
+          statement: m.content,
+          sources: [{ kind: 'memory', ref: m.id }],
+          confidence: m.strength,
+        })
+      }
+      didRun('memory-read')
+    }
+  }
+
+  /* --- files ------------------------------------------------------------ */
+  /* THE CAPABILITY THAT WAS SELECTED AND NEVER EXECUTED. The router turned
+     `files` on whenever something was attached, the loop had no branch, and
+     the trace still reported `files` among the capabilities used --- so
+     "summarise the PDF I sent" produced an answer from the model's own
+     knowledge with an audit trail claiming the file had been read. */
+  if (selected.has('files')) {
+    const attached = attachments(turn)
+    if (!ports.tools.get('read_file') || !ports.tools.get('search_files')) {
+      couldNot('files', 'no file tools are registered, so nothing could be read')
+    } else if (attached.length === 0) {
+      couldNot('files', 'the turn was routed to files but carried no attachment')
+    } else {
+      /* FIND, THEN READ --- a real two-step chain rather than two calls with a
+         hopeful path in between. `chain` stops at the first failure and hands
+         back the partial trace, which is what makes the failure reportable
+         instead of merely absent. */
+      const found = await chain(ports.tools, [
+        { tool: 'search_files', args: () => ({ query: firstKeyword(u.goal) }) },
+        { tool: 'read_file', args: (hits) => ({ path: firstPath(hits, attached) }) },
+      ])
+      if (found.ok) {
+        claims.push({
+          statement: String(found.value).slice(0, FILE_CLAIM_CHARS),
+          sources: [{ kind: 'file', ref: firstPath(found.attempts[0]?.result.value, attached) }],
+          confidence: 0.9,
+        })
+        didRun('files')
+      } else {
+        const failure = found.attempts[found.attempts.length - 1]?.result
+        const next = failure ? recover(failure) : { action: 'give-up', why: 'no attempt was made' }
+        couldNot('files', `${failure?.error ?? 'unknown'} --- ${next.action}: ${next.why}`)
+      }
+    }
+  }
+
+  /* --- search ----------------------------------------------------------- */
+  if (selected.has('search')) {
+    if (!ports.search) {
+      couldNot('search', 'no search port is configured')
+    } else {
+      researchResult = await research(ports.search, u, at, ctx.freshnessSensitive)
+      claims.push(...researchResult.claims)
+      didRun('search')
+    }
+  }
+
+  /* --- calculate -------------------------------------------------------- */
   if (selected.has('calculate')) {
     const expression = extractExpression(text)
-    if (expression) {
+    if (!expression) {
+      couldNot('calculate', 'no arithmetic expression could be extracted from the text')
+    } else {
       const out = await run(ports.tools, 'calculator', { expression })
       if (out.ok) {
         computed[expression] = out.value
@@ -191,29 +382,180 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
         /* Verified immediately, at the point the number exists. Deferring it
            to a later pass means the number can reach the prompt unchecked. */
         verifications.push(verifyArithmetic(expression, out.value as number))
+        didRun('calculate')
       } else {
         verifications.push({
           kind: 'arithmetic',
           passed: false,
           detail: `could not compute "${expression}": ${out.error}`,
         })
+        couldNot('calculate', `${out.error} --- ${recover(out).action}`)
       }
     }
   }
 
-  if (selected.has('search') && ports.search) {
-    researchResult = await research(ports.search, u, at, ctx.freshnessSensitive)
-    claims.push(...researchResult.claims)
+  /* --- code ------------------------------------------------------------- */
+  /* There is no code-execution tool in this substrate, and inventing one here
+     would be the wrong place for it. What matters is that the absence is
+     STATED: a `code` capability that is selected and silently skipped is
+     indistinguishable, from the outside, from one that ran. */
+  if (selected.has('code')) {
+    const runner = ports.tools.select('run execute code', 1)[0]
+    if (!runner) {
+      couldNot('code', 'no code-execution tool is registered; the answer is reasoning, not a run')
+    } else {
+      const out = await run(ports.tools, runner.name, { source: text }, { allowEffects: false })
+      if (out.ok) {
+        computed[runner.name] = out.value
+        didRun('code')
+      } else {
+        couldNot('code', `${out.error} --- ${recover(out).action}`)
+      }
+    }
   }
 
-  if (selected.has('memory-read')) {
-    for (const m of memories) {
-      claims.push({
-        statement: m.content,
-        sources: [{ kind: 'memory', ref: m.id }],
-        confidence: m.strength,
-      })
+  /* --- reason ----------------------------------------------------------- */
+  /* THE CAUSAL MODEL, BUILT FROM WHAT THIS TURN ACTUALLY HAS. Everything the
+     agent has been told this turn --- the user's own words plus every claim
+     retrieved --- is one body of text, and relations extracted across that
+     whole body can contradict each other in ways no single sentence does.
+     That is the point: `inconsistencies` finds "X prevents Y" sitting next to
+     "X enables Y" when the two arrived from different sources. */
+  if (selected.has('reason')) {
+    world = buildWorld([text, ...claims.map((c) => c.statement)].join('. '))
+    if (world.relations.length === 0) {
+      couldNot('reason', 'no causal or structural relations could be extracted from the material')
+    } else {
+      for (const bad of inconsistencies(world)) {
+        verifications.push({
+          kind: 'logical',
+          passed: false,
+          detail: bad.message,
+        })
+      }
+      /* A CAUSAL CHAIN IS EVIDENCE, and it is the kind a language model is
+         worst at holding on its own: it will happily assert A causes C without
+         ever having represented B. Handing the path over as a claim means the
+         explanation is grounded in an extracted structure rather than in the
+         model's willingness to sound confident. */
+      const subjects = u.entities.map((e) => e.label.toLowerCase())
+      const from = subjects[0]
+      const to = subjects[subjects.length - 1]
+      const path = from && to && from !== to ? explain(world, from, to) : null
+      if (path && path.length > 2) {
+        claims.push({
+          statement: `${path.join(' -> ')}`,
+          sources: [{ kind: 'reasoning', ref: 'causal-chain' }],
+          confidence: 0.6,
+        })
+      }
+      for (const need of from ? prerequisitesOf(world, from) : []) {
+        working = openStep(working, `establish: ${need}`)
+      }
+
+      /* WHAT ELSE MOVES IF THIS DOES. `impactOf` walks ACROSS relation kinds
+         rather than along one, which is the difference between "heating causes
+         expansion" and the full set of things a change to the subject reaches.
+         It is the question a causal model is for and the one a language model
+         answers worst, because answering it well requires having represented
+         the intermediate steps rather than recalling a plausible-sounding
+         consequence. */
+      const downstream = from ? impactOf(world, from) : []
+      if (downstream.length > 0) {
+        claims.push({
+          statement: `changing ${from} reaches: ${downstream.join(', ')}`,
+          sources: [{ kind: 'reasoning', ref: 'impact-analysis' }],
+          confidence: 0.55,
+        })
+      }
+      didRun('reason')
     }
+  }
+
+  /* --- plan ------------------------------------------------------------- */
+  /* Resumed BEFORE a new plan is considered, because "carry on with what we
+     started" and "start something" are different turns and the wrong order
+     silently discards yesterday's work. */
+  if (task && task.status === 'paused') {
+    task = resume(task, at)
+  }
+
+  if (selected.has('plan')) {
+    if (task && task.status === 'active' && !u.topicShift) {
+      /* An existing task plus new requirements is a REVISION, recorded as one.
+         Building a second plan would leave two tasks both claiming the goal. */
+      const extra = stepsFor(u, text).filter(
+        (s) => !task?.plan.steps.some((existing) => existing.goal === s.goal),
+      )
+      task =
+        extra.length > 0
+          ? replan(task, `new requirements arrived: ${extra.map((s) => s.goal).join(', ')}`, extra, at)
+          : task
+      didRun('plan')
+    } else {
+      const specs = stepsFor(u, text)
+      if (specs.length === 0) {
+        couldNot('plan', 'the goal did not decompose into more than one step')
+      } else {
+        try {
+          task = startTask(u, planFrom(u.goal, specs), at)
+          didRun('plan')
+        } catch (e) {
+          /* `planFrom` refuses impossible plans at construction. A refusal is
+             information, not an outage. */
+          couldNot('plan', e instanceof Error ? e.message : String(e))
+        }
+      }
+    }
+  }
+
+  /* --- act -------------------------------------------------------------- */
+  if (selected.has('act')) {
+    if (!task) {
+      couldNot('act', 'there is no task to act on; nothing was planned')
+    } else {
+      const executor = stepExecutor(ports, text)
+      task = await runTask(task, executor, { now: ports.now, budget: STEP_BUDGET })
+      for (const step of task.plan.steps) {
+        working =
+          step.state === 'done'
+            ? closeStep(working, step.goal)
+            : step.state === 'pending'
+              ? openStep(working, step.goal)
+              : working
+      }
+      const p = progress(task)
+      working = note(working, 'task', summary(task))
+      verifications.push({
+        kind: 'completeness',
+        passed: p.failed === 0 && p.blocked === 0,
+        detail: summary(task),
+      })
+      didRun('act')
+    }
+  }
+
+  /* --- tools ------------------------------------------------------------ */
+  /* `tools` is not a capability of its own so much as the statement that the
+     selected work executes through the registry. It is met when anything
+     actually went through it this turn. */
+  if (selected.has('tools')) {
+    const throughRegistry = (['calculate', 'files', 'code', 'act'] as const).some((c) =>
+      executed.has(c),
+    )
+    if (throughRegistry) didRun('tools')
+    else couldNot('tools', 'no selected capability ended up invoking a tool')
+  }
+
+  /* --- knowledge -------------------------------------------------------- */
+  /* Met by generation, below. Recorded here so the ordering of this block
+     matches the router's ORDER and nothing is left implicit. */
+
+  /* A NON-BLOCKING AMBIGUITY IS AN ASSUMPTION, AND IT GETS WRITTEN DOWN.
+     The loop already decided not to stop for these. Proceeding silently is
+     what makes an answer feel authoritative when it rested on a guess. */
+  for (const a of u.ambiguities) {
+    if (!a.blocking) working = assume(working, a.what)
   }
 
   /* ---- 7. Decide whether an answer is even the right move ------------- */
@@ -241,11 +583,57 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
 
   /* THE LEARNING LAYER, LAST AND AS AN ADJUSTMENT.
      It runs only when the router selected it, it takes the plan communication
-     already produced, and it returns a modified plan. It never builds one. */
-  if (selected.has('learning') && ports.concepts) {
-    const learner = learnerFrom(memories, ports.concepts, session.attempts)
-    const concept = firstConcept(u, ports.concepts)
-    if (concept) communication = teachingAdjustments(communication, learner, concept)
+     already produced, and it returns a modified plan. It never builds one.
+
+     THIS IS ALSO WHERE THE LAYER BOUNDARY IS ENFORCED IN PRACTICE. Everything
+     above ran identically whether or not this turn is a lesson --- the general
+     layer was never told it was teaching. If any decision above started
+     branching on `selected.has('learning')`, the learning layer would have
+     stopped being a layer and become a mode, which is the specific failure the
+     brief names. */
+  let teaching: Teaching | undefined
+  if (selected.has('learning')) {
+    if (!ports.concepts) {
+      couldNot('learning', 'no concept graph is configured, so teaching cannot adapt to the learner')
+    } else {
+      /* A LEARNER BUILT FROM AN UNAVAILABLE STORE IS NOT A BEGINNER.
+         `learnerFrom([])` and "we could not read what they know" produce the
+         same empty mastery map, and treating them the same means a memory
+         outage silently restarts someone at lesson one. `NEW_LEARNER` is used
+         explicitly here so the two cases are at least written down as
+         different, and so `teaching.next` is understood as a default rather
+         than as a finding about this person. */
+      const learner = memoryFailed
+        ? NEW_LEARNER
+        : learnerFrom(memories, ports.concepts, session.attempts)
+      const concept = firstConcept(u, ports.concepts)
+
+      /* WHAT TO TEACH, HOW HARD, AND WHEN TO COME BACK --- computed, not
+         improvised inside a prompt. A model asked to "pick an appropriate
+         difficulty" has no access to the attempt history that makes the answer
+         determinate, and will pick something plausible instead. */
+      /* FEEDBACK IS OWED ONLY WHEN SOMETHING WAS ACTUALLY GOT WRONG. Attaching
+         it to every teaching turn produces corrective language aimed at a
+         mistake the learner did not make, which reads as condescension and is
+         the fastest way to lose someone. */
+      const lastOnConcept = [...learner.attempts]
+        .filter((a) => a.conceptId === concept)
+        .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+        .pop()
+
+      teaching = {
+        next: whatNext(learner, ports.concepts),
+        due: dueForReview(learner, at),
+        difficulty: nextDifficulty(learner.attempts),
+        reviewAt: concept ? nextReview(learner.attempts, concept, at) : at,
+        ...(concept && lastOnConcept && !lastOnConcept.correct
+          ? { feedback: feedbackFor(concept, learner, text, u.goal) }
+          : {}),
+      }
+
+      if (concept) communication = teachingAdjustments(communication, learner, concept)
+      didRun('learning')
+    }
   }
 
   /* ---- 9. Generate ---------------------------------------------------- */
@@ -258,7 +646,14 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
        precisely the behaviour Capability 23 exists to prevent. */
     question = u.ambiguities.find((a) => a.blocking)?.what ?? action.because
     answer = `Before I answer: ${question}`
+    didRun('ask')
+    if (selected.has('knowledge')) {
+      couldNot('knowledge', 'the turn stopped to ask rather than answering')
+    }
   } else {
+    if (selected.has('ask')) {
+      couldNot('ask', 'the ambiguity did not block, so the turn proceeded on a stated assumption')
+    }
     try {
       answer = await ports.model.generate({
         understanding: u,
@@ -286,17 +681,68 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
         `Nothing above this point failed, so retrying is likely to work.`
       degraded = why
     }
+    if (selected.has('knowledge')) {
+      if (degraded) couldNot('knowledge', `the model port failed: ${degraded}`)
+      else didRun('knowledge')
+    }
   }
 
-  /* ---- 7 again. Verify what was produced ------------------------------ */
-  if (selected.has('verify') || claims.length > 0) {
-    verifications.push(verifySources(claims))
-  }
-  verifications.push(verifyAddressesGoal(answer, u.goal))
-  verifications.push(...verifyConstraints(answer, u.constraints))
-  if (working.corrections.length > 0) {
-    verifications.push(verifyNoContradiction(answer, working.corrections))
-  }
+  /* ---- 7 again. Verify what was produced, and FIX IT ------------------ */
+  /* This block used to check the answer and then do nothing about a failure.
+     Reporting `passed: false` and shipping the answer unchanged is a strange
+     halfway house: the system knows the answer misses a stated constraint and
+     hands it over anyway, with the evidence attached where nobody reads it.
+     GENERATE -> CHECK -> DETECT -> REPAIR -> CHECK AGAIN, bounded. */
+  const checks = (s: Repairable): readonly Verification[] => [
+    ...(selected.has('verify') || s.claims.length > 0 ? [verifySources(s.claims)] : []),
+    verifyAddressesGoal(s.answer, u.goal),
+    ...verifyConstraints(s.answer, u.constraints),
+    ...(working.corrections.length > 0
+      ? [verifyNoContradiction(s.answer, working.corrections)]
+      : []),
+  ]
+
+  const repair: Repair = async (subject, failures) => ({
+    ...subject,
+    answer: await ports.model.generate({
+      understanding: u,
+      communication,
+      claims: subject.claims,
+      working,
+      capabilities: plan.selected,
+      computed,
+      /* The model is told WHAT failed. Asking it to "try again" without that
+         is asking it to guess which of its sentences was the problem. */
+      mustFix: failures.map((f) => `${f.kind}: ${f.detail}`),
+    }),
+  })
+
+  /* NOT REPAIRED WHEN THERE IS NOTHING TO REPAIR WITH. If the turn stopped to
+     ask, or the model port already failed, calling it again to fix its own
+     absent output would turn one failure into two. */
+  const repairable = action.action !== 'ask' && degraded === undefined
+  const checked: VerifyResult = repairable
+    ? /* ONE repair round, not two. A check the repairer cannot satisfy is not
+         satisfied any better on the third try, and each round is a full model
+         call --- so the second round mostly buys latency and cost on turns
+         that were going to be reported as failing anyway. An answer that
+         passes needs zero rounds, which is the common case and the reason
+         this is affordable at all. */
+      await verifyAndRepair({ answer, claims }, checks, repair, 1)
+    : {
+        subject: { answer, claims },
+        verifications: checks({ answer, claims }),
+        passed: false,
+        rounds: 0,
+      }
+
+  answer = checked.subject.answer
+  verifications.push(...checked.verifications)
+  if (selected.has('verify')) didRun('verify')
+
+  /* Communication is unconditional --- there is no turn that produces no
+     output --- so it is met by having got this far. */
+  didRun('communicate')
 
   const selfChecks = selfCheck({
     understanding: u,
@@ -311,7 +757,9 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
   const remembered: MemoryRecord[] = []
   if (selected.has('memory-write')) {
     const decision = worthRemembering(text, u)
-    if (decision) {
+    if (!decision) {
+      couldNot('memory-write', 'nothing in the turn was durable enough to be worth keeping')
+    } else {
       try {
         remembered.push(
           await ports.memory.capture({
@@ -322,13 +770,16 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
             source: decision.source,
           }),
         )
+        didRun('memory-write')
       } catch (e) {
         /* Failing to WRITE must not lose the turn that produced it. Note that
            `remembered` stays empty --- the result reports what was actually
            stored, so nothing downstream can tell the user their fact was kept
            when it was not. */
         memoryFailed = true
-        degraded = degraded ?? (e instanceof Error ? e.message : String(e))
+        const why = e instanceof Error ? e.message : String(e)
+        degraded = degraded ?? why
+        couldNot('memory-write', `the memory store rejected the write: ${why}`)
       }
     }
   }
@@ -344,6 +795,10 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
        turn and eventually matches something from an hour ago. */
     recentGoals: [...session.recentGoals, u.goal].slice(-5),
     attempts: session.attempts,
+    /* THE TASK SURVIVES THE TURN. A finished task is dropped rather than
+       carried: keeping it would make the next turn believe work is in flight
+       and try to resume something already complete. */
+    ...(task && task.status !== 'done' ? { task } : {}),
   }
 
   return {
@@ -355,6 +810,7 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
       communication,
       remembered,
       ...(question ? { question } : {}),
+      ...(task ? { task } : {}),
     },
     session: nextSession,
     trace: {
@@ -367,6 +823,10 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
       selfChecks,
       ...(degraded ? { degraded } : {}),
       memoryUnavailable: memoryFailed,
+      executed: [...executed],
+      unmet,
+      ...(world ? { world } : {}),
+      ...(teaching ? { teaching } : {}),
     },
   }
 }
@@ -389,6 +849,135 @@ export function extractExpression(text: string): string | null {
 
   const bare = text.match(/(-?\d+(?:\.\d+)?(?:\s*[-+*/^]\s*\(?\s*-?\d+(?:\.\d+)?\s*\)?)+)/)
   return bare?.[1]?.trim() ?? null
+}
+
+/** How much of a read file is carried as a claim. Enough to ground an answer. */
+const FILE_CLAIM_CHARS = 4000
+
+/**
+ * Steps executed per turn.
+ *
+ * A TURN IS NOT A TASK. Running a fifteen-step plan to completion inside one
+ * turn means the user waits for all of it with no way to redirect, and a
+ * mistake at step two is discovered at step fifteen. Three steps then report
+ * back keeps the human in the loop, which is the whole reason `pause`/`resume`
+ * exist rather than a single blocking call.
+ */
+const STEP_BUDGET = 3
+
+/** The most specific word in the goal, for searching what the user attached. */
+function firstKeyword(goal: string): string {
+  const words = goal.toLowerCase().match(/[a-z]{4,}/g) ?? []
+  return words.sort((a, b) => b.length - a.length)[0] ?? goal.slice(0, 20)
+}
+
+/**
+ * Which file to read: one the search actually matched, else one that was
+ * attached.
+ *
+ * NEVER A PATH THE MODEL SUGGESTED. The only paths that reach `read_file` here
+ * come from a search result or from the turn's own attachments, so a request
+ * to read something the user never provided cannot be constructed.
+ */
+function firstPath(hits: unknown, attached: readonly { name?: string }[]): string {
+  if (Array.isArray(hits)) {
+    const first = hits[0] as { path?: string } | undefined
+    if (first?.path) return first.path
+  }
+  return attached.find((a) => a.name)?.name ?? ''
+}
+
+/** Beyond this, a "plan" is a wall of steps nobody reads. */
+const MAX_STEPS = 8
+
+/* Coordinators people actually use to enumerate work. Ordered longest-first so
+   "and then" is consumed before the bare "and" inside it. */
+const CLAUSE_SPLIT = /\s*(?:[,;]|\.\s|\band then\b|\bthen\b|\band\b|\balso\b)\s*/i
+
+/**
+ * Turn a request into steps.
+ *
+ * DELIBERATELY MECHANICAL. The alternative is asking a model to decompose the
+ * task, and a decomposition that varies run to run makes a resumable task
+ * meaningless: yesterday's plan and today's would not be the same plan, so
+ * "carry on where we left off" would have nothing stable to carry on with.
+ *
+ * The first version of this read only `u.constraints`, which was wrong in the
+ * most ordinary case there is. "Plan my revision: cover mechanics, optics and
+ * thermodynamics" states no constraints at all --- it states a LIST. The
+ * router selected `plan`, this returned nothing, and the capability reported
+ * itself unmet on precisely the input it exists for.
+ *
+ * Enumerated clauses first, then constraints, then nothing. Returning an empty
+ * list is a legitimate answer: a request with one obvious order is not a plan,
+ * and wrapping it in a one-step task adds ceremony and no information.
+ */
+function stepsFor(u: Understanding, text: string): StepSpec[] {
+  const clauses = text
+    .split(CLAUSE_SPLIT)
+    .map((c) => c.trim().replace(/^(?:please|now|first|next|finally)\s+/i, ''))
+    /* Two words minimum: a fragment like "optics" is a topic, not a step, and
+       a one-word step goal produces a journal nobody can read afterwards. */
+    .filter((c) => /[a-z]/i.test(c) && c.split(/\s+/).length >= 2)
+
+  /* Deduped because `planFrom` resolves dependencies by goal text, so two
+     identical goals would collide and the second would silently inherit the
+     first one's id. */
+  const unique = [...new Set(clauses)].slice(0, MAX_STEPS - 1)
+
+  const specs: StepSpec[] =
+    unique.length >= 2
+      ? unique.map((c) => ({ goal: c, capability: 'reason' as Capability }))
+      : u.constraints
+          .slice(0, MAX_STEPS - 1)
+          .map((c) => ({ goal: `satisfy: ${c}`, capability: 'reason' as Capability }))
+
+  if (specs.length < 2) return []
+
+  /* The synthesis step, which is the one that produces the answer. It depends
+     on every other step, so `nextStep` cannot hand it back before the work it
+     is meant to summarise has actually happened. */
+  specs.push({
+    goal: `answer: ${u.goal}`,
+    capability: 'knowledge' as Capability,
+    after: specs.map((s) => s.goal),
+  })
+  return specs
+}
+
+/**
+ * How one planned step is carried out.
+ *
+ * Steps run through the SAME registry as everything else. A step that reached
+ * for its own private path to the world would be a second, untested way of
+ * doing what tools already do --- and the permission gate in `run()` would not
+ * be on it.
+ */
+function stepExecutor(ports: Ports, text: string): Executor {
+  return async (step: Step) => {
+    const tool = ports.tools.select(step.goal, 1)[0]
+    if (!tool) {
+      /* NOT A FAILURE. A step with no tool is a step the model answers, and
+         reporting it as failed would block everything downstream of it. */
+      return { ok: true, value: `no tool for "${step.goal}"; answered from knowledge` }
+    }
+    const out = await run(ports.tools, tool.name, argsFor(tool.name, step, text))
+    if (out.ok) return { ok: true, value: out.value }
+    const next = recover(out)
+    return {
+      ok: false,
+      error: `${out.error} --- ${next.action}: ${next.why}`,
+      /* Only the class `recover` says is worth repeating unchanged. */
+      retryable: next.action === 'retry',
+    }
+  }
+}
+
+function argsFor(tool: string, step: Step, text: string): unknown {
+  if (tool === 'calculator') return { expression: extractExpression(text) ?? step.goal }
+  if (tool === 'search_files') return { query: firstKeyword(step.goal) }
+  if (tool === 'read_file') return { path: step.goal }
+  return { query: step.goal }
 }
 
 function firstConcept(u: Understanding, graph: ConceptGraph): string | null {

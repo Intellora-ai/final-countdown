@@ -265,3 +265,104 @@ def test_the_renderer_does_not_crash_on_a_missing_identity_key() -> None:
     """A run whose gates all passed must not die rendering its own summary."""
     rendered = lg.render_markdown({"STATUS": "PASS"})
     assert "UNKNOWN" in rendered
+
+
+# --------------------------------------------------------------------------
+# The signing lane's authorization and certificate checks
+#
+# `deep-verify.yml` holds `id-token: write`. That is signing authority: this
+# repository's identity vouching for bytes. Everything below asserts the two
+# refusals that keep it from vouching for the wrong thing, and both are
+# asserted on the EXECUTABLE shell rather than on the comments describing it.
+# --------------------------------------------------------------------------
+def _deep_verify_spec() -> dict[str, Any]:
+    import yaml
+    spec: Any = yaml.safe_load(
+        (REPO / ".github" / "workflows" / "deep-verify.yml").read_text(encoding="utf-8"))
+    return spec
+
+
+def _run_bodies(job: str) -> str:
+    """Every `run:` line in a job, WITH SHELL COMMENTS STRIPPED.
+
+    A `#` line inside a `run:` block is part of the string but not part of the
+    program, and conflating the two is wrong in both directions. It lets a
+    comment satisfy an execution requirement -- the failure mode this
+    repository already guards against in `gate_integrity.py` -- and, found the
+    hard way here, it lets a comment EXPLAINING a removed pattern trip an
+    assertion that the pattern is gone. These tests are about what the shell
+    runs, so the comments come out first.
+    """
+    steps: list[dict[str, Any]] = _deep_verify_spec()["jobs"][job]["steps"]
+    lines: list[str] = []
+    for step in steps:
+        for line in str(step.get("run", "")).splitlines():
+            if line.lstrip().startswith("#"):
+                continue
+            lines.append(line)
+    return "\n".join(lines)
+
+
+def test_the_certificate_issuer_is_compared_exactly_not_by_substring() -> None:
+    """A SUBSTRING MATCH ACCEPTS AN ISSUER IT WAS NEVER MEANT TO.
+
+    The check was:
+
+        case "$ACTUAL_ISSUER" in *token.actions.githubusercontent.com*) : ;;
+
+    which passes for ANY string containing that text -- including one that
+    merely ends with it, or contains it as a prefix of a longer host. The whole
+    purpose of reading the issuer back out of the certificate is to refuse a
+    signature whose provenance is not the one expected, and a wildcard match
+    is a weaker question than the one being asked.
+
+    `EXPECTED_ISSUER` is already computed two lines above. Comparing against it
+    exactly costs nothing and is the check the surrounding comment claims.
+    """
+    body = _run_bodies("deep-verify")
+    assert "*token.actions.githubusercontent.com*" not in body, (
+        "the issuer is still matched by wildcard; an exact comparison against "
+        "EXPECTED_ISSUER is what the surrounding reasoning claims")
+    assert '[ "$ACTUAL_ISSUER" = "$EXPECTED_ISSUER" ]' in body, (
+        "no exact issuer comparison found in the deep-verify job")
+
+
+def test_the_certificate_is_parsed_deterministically_not_by_line_window() -> None:
+    """`grep -A1 | tail -1` ALREADY MISREAD THIS CERTIFICATE ONCE.
+
+    The workflow's own comment records it: on run 32418822707 an `-A2` window
+    read past the value and returned the literal string
+    "1.3.6.1.4.1.57264.1.9:" as the issuer, while every other check in that run
+    passed. The window was narrowed to `-A1` and the bug went away, which is a
+    fix to one symptom of a technique that is wrong in general -- certificate
+    text formatting is not a stable interface, and the next openssl release is
+    free to move the value again.
+
+    Parse the extension, do not scrape a line offset near it.
+    """
+    body = _run_bodies("deep-verify")
+    assert "grep -A1" not in body and "grep -A2" not in body, (
+        "the certificate is still parsed by grepping a line window near the "
+        "OID; a formatting change silently returns the wrong value")
+
+
+def test_manual_dispatch_cannot_sign_an_arbitrary_commit() -> None:
+    """FORTY HEX CHARACTERS IS A SHAPE, NOT AN AUTHORIZATION.
+
+    The gate validates that `source_sha` is a bare 40-character hex string and
+    then hands it to `checkout` and, downstream, to `cosign sign-blob`. Shape
+    is all it checks. Any commit that has ever existed in this repository --
+    an abandoned branch, a reverted change, a commit from a closed pull
+    request -- is a valid 40-hex SHA, and the lane would sign it under this
+    repository's identity.
+
+    The fork refusal protects the label path. Nothing protected the dispatch
+    path, and dispatch is the one a human triggers by hand.
+
+    Asserted on the shell, because a comment saying "only approved refs" is
+    not a refusal.
+    """
+    body = _run_bodies("gate")
+    assert "merge-base" in body or "branch --contains" in body, (
+        "manual dispatch does not verify the requested SHA belongs to an "
+        "approved ref; a bare 40-hex string is still sufficient to be signed")

@@ -1,6 +1,8 @@
 import type { Plugin } from 'vite'
 
-import { search, type SearchProvider } from './src/websearch/engine'
+import type { SearchProvider } from './src/websearch/engine'
+import { ask } from './src/websearch/pipeline'
+import type { Freshness } from './src/websearch/provenance'
 import type { FetchOutcome } from './src/websearch/fetchPage'
 import type { SearchHit } from './src/websearch/port'
 
@@ -63,13 +65,18 @@ export const ENDPOINT_ENV = 'WEB_SEARCH_ENDPOINT'
 /**
  * How many candidates to ask for, and how many to actually read.
  *
- * ASK is larger than READ on purpose. Ranking is candidate ORDER, never
- * verification, and several of the top hits will be unfetchable, paywalled or
- * off-topic. Asking for more than will be read is what makes "at least five
- * pages, from more than one domain" reachable rather than aspirational.
+ * ASK is larger than the pipeline will READ on purpose. Ranking is candidate
+ * ORDER, never verification, and several of the top hits will be unfetchable,
+ * paywalled or off-topic. Asking for more than will be read is what makes "at
+ * least five pages, from more than one domain" reachable rather than
+ * aspirational.
+ *
+ * HOW MANY ARE ACTUALLY READ IS NOT DECIDED HERE ANY MORE. `planQueries` sets
+ * `fetchCount` from what the question needs, and a fixed cap in this file would
+ * silently overrule it — which is the shape of bug where a module is wired in
+ * and then quietly prevented from doing its job.
  */
 const ASK_FOR = 10
-const READ_AT_MOST = 5
 
 /** A question is a sentence. Anything larger is not a question. */
 const MAX_BODY_BYTES = 8_000
@@ -90,9 +97,19 @@ export interface SearchedPage {
 
 export interface SearchReplyBody {
   readonly pages: readonly SearchedPage[]
-  /** True only when the PROVIDER failed. Never true for a web with no answer. */
+  /** True only when EVERY planned query failed. Never true for an empty web. */
   readonly engineFailed: boolean
   readonly engineError?: string
+  /**
+   * Where the evidence came from, and whether it may be called current.
+   *
+   * `live` is true only when EVERY contributing source was fetched during this
+   * search — never a majority, never a ratio. A cached answer that called
+   * itself live would be the most expensive kind of wrong: correct once.
+   */
+  readonly freshness?: Freshness
+  /** Refinement rounds run. 0 means the first pass covered the question. */
+  readonly rounds?: number
 }
 
 export interface SearchReply {
@@ -239,7 +256,30 @@ function defaultFetchJson(): FetchJson {
   }
 }
 
-function providerFor(endpoint: string, secret: string, fetchJson: FetchJson): SearchProvider {
+/**
+ * Counts of what the provider actually did, kept because `ask()` cannot say.
+ *
+ * `ask()` turns a dead provider into a REFUSAL with a sentence about it, which
+ * is right for its own caller and useless here: this route has to tell "the
+ * search is broken" apart from "the web has nothing", and matching on the text
+ * of a refusal would break the first time somebody rewords it.
+ *
+ * So the provider counts its own calls and its own failures, and the rule is
+ * the pipeline's own: an outage is EVERY query failing. One failing is a
+ * smaller result, not a dead engine.
+ */
+interface ProviderTally {
+  calls: number
+  failures: number
+  firstError?: string
+}
+
+function providerFor(
+  endpoint: string,
+  secret: string,
+  fetchJson: FetchJson,
+  tally: ProviderTally,
+): SearchProvider {
   const carriesKey = endpoint.includes('{key}')
 
   return {
@@ -252,7 +292,17 @@ function providerFor(endpoint: string, secret: string, fetchJson: FetchJson): Se
         .replace('{key}', encodeURIComponent(secret))
 
       const headers = carriesKey ? { accept: 'application/json' } : authHeaders(secret)
-      return findHits(await fetchJson(url, { headers }))
+      tally.calls += 1
+      try {
+        return findHits(await fetchJson(url, { headers }))
+      } catch (error) {
+        tally.failures += 1
+        tally.firstError ??= error instanceof Error ? error.message : String(error)
+        /* Rethrown, not swallowed. `runQueries` inside the pipeline needs the
+           rejection to know this query produced nothing; the tally is only how
+           THIS file recovers a fact the pipeline does not return. */
+        throw error
+      }
     },
   }
 }
@@ -330,15 +380,28 @@ export async function searchTheOpenWeb(
     )
   }
 
-  const outcome = await search(query, {
-    provider: providerFor(endpoint, secret, deps.fetchJson ?? defaultFetchJson()),
-    maxResults: READ_AT_MOST,
+  /*
+   * THE WHOLE PIPELINE, NOT ONE SEARCH.
+   *
+   * `ask()` plans several queries from one question, ranks the hits, fetches
+   * what survived, mines claims, cross-checks them, and searches AGAIN for any
+   * aspect that came back uncovered. Every one of those steps costs a provider
+   * call or a page fetch, so every one of them needs the key and needs to
+   * bypass CORS — which is why this runs here and could never have run in the
+   * page.
+   *
+   * The cost is real and is not hidden: a four-aspect question plans four
+   * queries before any refinement.
+   */
+  const tally: ProviderTally = { calls: 0, failures: 0 }
+  const result = await ask(query, {
+    provider: providerFor(endpoint, secret, deps.fetchJson ?? defaultFetchJson(), tally),
     ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
     ...(deps.now ? { now: deps.now } : {}),
   })
 
-  if (outcome.engineFailed) {
-    return failed(502, outcome.engineError ?? 'the search provider could not be reached', secret)
+  if (tally.calls > 0 && tally.failures === tally.calls) {
+    return failed(502, tally.firstError ?? 'the search provider could not be reached', secret)
   }
 
   /*
@@ -350,7 +413,7 @@ export async function searchTheOpenWeb(
    * which of these is true happens downstream, against the question, using more
    * than one of them.
    */
-  const pages: SearchedPage[] = outcome.results
+  const pages: SearchedPage[] = result.retrieved
     .filter((r) => r.ok && r.text.trim().length > 0)
     .map((r) => ({
       title: r.title || r.hit.title,
@@ -364,7 +427,11 @@ export async function searchTheOpenWeb(
       suspicious: r.suspicious,
     }))
 
-  return reply(200, { pages, engineFailed: false }, secret)
+  return reply(
+    200,
+    { pages, engineFailed: false, freshness: result.freshness, rounds: result.rounds },
+    secret,
+  )
 }
 
 /**

@@ -80,6 +80,36 @@ export const MANIFEST = [
        exports are the shared vocabulary rather than callable behaviour. */
     entries: ['src/agent/index.ts', 'src/agent/kernel/contracts.ts'],
   },
+  {
+    name: 'websearch',
+    root: 'src/websearch',
+    /* TWO SURFACES, BOTH REAL, AND THE SECOND IS THE INTERESTING ONE.
+
+       `index.ts` is what the product imports: `searchPort` and `researchPort`,
+       both shaped as the `SearchPort` the agent already declares, so the app
+       knows nothing about the engine, the fetcher or the extractor.
+
+       `bench.ts` is what a DEVELOPER runs. `corpus.ts`, `quality.ts` and
+       `accuracy.ts` are an evaluation harness, not product code, and the
+       tempting fix was to re-export them from `index.ts` so the orphan count
+       went to zero. That would have improved the metric by shipping a
+       benchmark to every student's browser --- the number gets better and the
+       product gets worse, which is the failure this gate exists to prevent
+       rather than to cause. A separate declared entry says what is true: they
+       are reachable, from a command, and not from the bundle. */
+    entries: [
+      'src/websearch/index.ts',
+      'src/websearch/bench.ts',
+      /* A TYPE-ONLY MODULE IS ITS OWN SURFACE, for the reason the `agent` area
+         already gives about `contracts.ts`: types vanish at runtime, so a
+         module imported only with `import type` has no runtime edge and reads
+         as an orphan however many files depend on it. `port.ts` declares
+         `SearchHit` and `SearchPort` and is the shared vocabulary this module
+         speaks; it is reachable by every consumer and by none of them at
+         runtime. */
+      'src/websearch/port.ts',
+    ],
+  },
 ]
 
 /* -------------------------------------------------------------------------- */
@@ -100,6 +130,15 @@ export function walk(dir, out = []) {
     const full = join(dir, name)
     if (statSync(full).isDirectory()) {
       walk(full, out)
+    } else if (name.endsWith('.d.ts')) {
+      /* AMBIENT DECLARATIONS ARE NOT MODULES. A `.d.ts` has no runtime
+         existence at all --- `tsc` consumes it and emits nothing, so no
+         shipping file can ever "import" it in the sense this gate measures.
+         Counting one as an orphan is the gate misreading its own question, and
+         the only fix available to a developer would be a fake import. Skipped
+         for the same reason test files are not edges: it is about what the
+         PRODUCT loads. */
+      continue
     } else if (SOURCE_EXT.some((e) => name.endsWith(e))) {
       out.push(relative(ROOT, full))
     }
@@ -259,9 +298,21 @@ export function blankStrings(src) {
  * follow. Its uniqueness was accidental, which is the same defect shape as a
  * mutation anchor that happens to be unique because of its indentation.
  *
- * So the clause now refuses to swallow a newline that begins another
- * `import`/`export`, which is exactly the boundary it must not cross. */
-const FROM_RE = /(?:^|\n)[ \t]*(?:import|export)\s+((?:[^;\n]|\n(?![ \t]*(?:import|export)\b))*?)\s*from\s*['"]([^'"]+)['"]/g
+ * THE FIRST FIX FOR THIS WAS ALSO WRONG, and the gate's own self-check caught
+ * it: `rawCount !== blankComments(src)` went from 0 warnings to 3. That
+ * version let the clause cross a newline unless the next line began another
+ * `import`/`export`. Comments are blanked to SPACES before the real scan, so a
+ * comment containing the word `import` at the start of a line stopped the raw
+ * match and not the blanked one --- the two scans disagreed, which is exactly
+ * what that cross-check exists to notice.
+ *
+ * So the clause is now described POSITIVELY: an import clause contains
+ * identifiers, braces, commas, stars and whitespace, and nothing else. It
+ * cannot run into the next statement because every statement's specifier ends
+ * in a QUOTE, and a quote is not in the class. That holds whether or not
+ * anything has been blanked, which is the property the previous version
+ * lacked. */
+const FROM_RE = /(?:^|\n)[ \t]*(?:import|export)\s+([\w$,{}*\s]*?)\s*from\s*['"]([^'"]+)['"]/g
 const BARE_RE = /(?:^|\n)[ \t]*import\s*['"]([^'"]+)['"]/g
 const DYNAMIC_RE = /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g
 

@@ -76,8 +76,6 @@ const EMPTY_PLAN: QueryPlan = {
   requireFresh: false,
 }
 
-const tokensOf = (s: string): string[] => s.split(/[^\p{L}\p{N}]+/u).filter(Boolean)
-
 /** Collapse identical texts. Two identical queries cost twice and learn once. */
 function dedupeQueries(queries: readonly PlannedQuery[]): PlannedQuery[] {
   const seen = new Set<string>()

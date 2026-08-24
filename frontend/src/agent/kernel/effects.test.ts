@@ -230,31 +230,58 @@ describe('plan and act — a task exists and moves', () => {
     expect(second.session.task?.id).toBe(first.session.task?.id)
   })
 
+  /* THESE THREE USED TO BE WRITTEN `if (executed.includes('act')) {...} else
+     {...}`, which passes whichever way the router goes and therefore proves
+     nothing about acting. That is the same defect this whole file exists to
+     catch, committed inside the file that catches it. They now assert
+     unconditionally, and finding a request that genuinely reaches `act` was
+     what exposed the bug below. */
+  const ACT = 'Delete my old notes and then calculate 2 + 2 and send the summary'
+
+  it('ACTS on a request that changes things, even when no plan was asked for', async () => {
+    /* The bug: the router selects `act` on an intent to change the world and
+       `plan` on an intent to sequence work. Those are different questions, and
+       the loop required a task, so `act` reported "nothing was planned" on
+       exactly the requests it exists for. */
+    const out = await handle(ask(ACT), NEW_SESSION, ports())
+    expect(out.trace.unmet.act).toBeUndefined()
+    expect(out.trace.executed).toContain('act')
+  })
+
   it('MOVES steps when acting, rather than reporting a plan that never ran', async () => {
-    const p = ports()
-    const out = await handle(
-      ask('Delete my old notes and then calculate 2 + 2 and send the summary'),
-      NEW_SESSION,
-      p,
-    )
-    if (out.trace.executed.includes('act')) {
-      const moved = out.result.task?.plan.steps.filter((s) => s.state !== 'pending') ?? []
-      expect(moved.length).toBeGreaterThan(0)
-      expect(out.result.task?.journal.some((j) => j.event === 'running')).toBe(true)
-    } else {
-      expect(out.trace.unmet.act).toBeTruthy()
-    }
+    const out = await handle(ask(ACT), NEW_SESSION, ports())
+    const moved = out.result.task?.plan.steps.filter((s) => s.state !== 'pending') ?? []
+    expect(moved.length).toBeGreaterThan(0)
+    expect(out.result.task?.journal.some((j) => j.event === 'running')).toBe(true)
   })
 
   it('records a completeness verification, distinct from the constraint checks', async () => {
-    const out = await handle(
-      ask('Delete my old notes and then calculate 2 + 2 and send the summary'),
-      NEW_SESSION,
-      ports(),
-    )
-    if (out.trace.executed.includes('act')) {
-      expect(out.result.verifications.some((v) => v.kind === 'completeness')).toBe(true)
+    const out = await handle(ask(ACT), NEW_SESSION, ports())
+    expect(out.result.verifications.some((v) => v.kind === 'completeness')).toBe(true)
+  })
+})
+
+describe('asking is not a failed answer', () => {
+  it('does NOT report a goal-addressing failure when it correctly asked', async () => {
+    /* `Before I answer: "it" refers to something not yet named` does not
+       address the goal, by design. Checking it as though it were an answer
+       produced a failing verification on a turn that did the right thing, and
+       a record where correct behaviour looks like a defect is a record people
+       stop reading. */
+    const out = await handle(ask('fix it'), NEW_SESSION, ports())
+    if (out.trace.action === 'ask') {
+      const wrong = out.result.verifications.filter(
+        (v) => !v.passed && v.detail.includes('does not appear to be about the request'),
+      )
+      expect(wrong).toEqual([])
     }
+  })
+
+  it('still checks the sources of anything a question cites', async () => {
+    /* Source integrity is NOT skipped when asking. A question that cites
+       something has still cited it. */
+    const out = await handle(ask('fix it'), NEW_SESSION, ports())
+    expect(out.result.verifications.every((v) => v.kind !== 'constraint')).toBe(true)
   })
 })
 

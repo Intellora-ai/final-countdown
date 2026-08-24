@@ -511,8 +511,31 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
 
   /* --- act -------------------------------------------------------------- */
   if (selected.has('act')) {
+    /* ACTING DOES NOT REQUIRE HAVING BEEN ASKED FOR A PLAN.
+       The router selects `act` on an intent to change the world and `plan` on
+       an intent to sequence work, and those are different questions with
+       different answers --- "delete my old notes and send the summary" is the
+       first and not the second. This branch used to require a task and report
+       `act` unmet whenever `plan` had not also fired, which made the capability
+       structurally unreachable on exactly the requests it exists for.
+       Measured on five action-shaped requests: two selected `act`, and both
+       reported "nothing was planned".
+
+       So a plan is built here when one is needed. The steps are the actions
+       the user listed, which is the same decomposition `plan` uses --- there
+       was never a second thing to work out, only a missing call. */
     if (!task) {
-      couldNot('act', 'there is no task to act on; nothing was planned')
+      const specs = stepsFor(u, text)
+      if (specs.length > 0) {
+        try {
+          task = startTask(u, planFrom(u.goal, specs), at)
+        } catch (e) {
+          couldNot('act', e instanceof Error ? e.message : String(e))
+        }
+      }
+    }
+    if (!task) {
+      couldNot('act', 'the request named no steps that could be carried out')
     } else {
       const executor = stepExecutor(ports, text)
       task = await runTask(task, executor, { now: ports.now, budget: STEP_BUDGET })
@@ -693,11 +716,23 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
      halfway house: the system knows the answer misses a stated constraint and
      hands it over anyway, with the evidence attached where nobody reads it.
      GENERATE -> CHECK -> DETECT -> REPAIR -> CHECK AGAIN, bounded. */
+  /* A QUESTION IS NOT AN ANSWER, AND MUST NOT BE CHECKED AS ONE.
+     When the loop correctly stops to ask, the "answer" is
+     `Before I answer: "it" refers to something not yet named`, and
+     `verifyAddressesGoal` duly reports that it does not address the goal. It
+     does not, by design. That is a verification failing on a turn that did the
+     right thing, and a record where correct behaviour looks like a defect is a
+     record people stop reading --- the same reason a linter nobody trusts gets
+     switched off. The goal-addressing and constraint checks are therefore
+     skipped when asking; source integrity still applies, because a question
+     that cites something has still cited it. */
+  const answering = action.action !== 'ask'
+
   const checks = (s: Repairable): readonly Verification[] => [
     ...(selected.has('verify') || s.claims.length > 0 ? [verifySources(s.claims)] : []),
-    verifyAddressesGoal(s.answer, u.goal),
-    ...verifyConstraints(s.answer, u.constraints),
-    ...(working.corrections.length > 0
+    ...(answering ? [verifyAddressesGoal(s.answer, u.goal)] : []),
+    ...(answering ? verifyConstraints(s.answer, u.constraints) : []),
+    ...(answering && working.corrections.length > 0
       ? [verifyNoContradiction(s.answer, working.corrections)]
       : []),
   ]
@@ -729,12 +764,20 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
          passes needs zero rounds, which is the common case and the reason
          this is affordable at all. */
       await verifyAndRepair({ answer, claims }, checks, repair, 1)
-    : {
-        subject: { answer, claims },
-        verifications: checks({ answer, claims }),
-        passed: false,
-        rounds: 0,
-      }
+    : (() => {
+        /* `passed` is COMPUTED, not hardcoded false. An ask-turn or a degraded
+           turn skips repair because there is nothing to repair with, which
+           says nothing about whether the checks that did run succeeded --- and
+           a verdict of "failed" on a turn whose every check passed is the same
+           lie in the other direction. */
+        const verifications = checks({ answer, claims })
+        return {
+          subject: { answer, claims },
+          verifications,
+          passed: verifications.every((v) => v.passed),
+          rounds: 0,
+        }
+      })()
 
   answer = checked.subject.answer
   verifications.push(...checked.verifications)

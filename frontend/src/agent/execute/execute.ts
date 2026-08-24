@@ -139,9 +139,28 @@ function findCycle(steps: readonly Step[]): string[] | null {
 /* Task state --- Capability 14                                               */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Begin a task.
+ *
+ * THE ID IS A CONTENT HASH, AND THAT HAS A CONSEQUENCE WORTH STATING.
+ *
+ * It covers the goal, the step goals, and the start time, so two DIFFERENT
+ * plans can never collide. Two IDENTICAL plans started at the same instant DO
+ * share an id, and that is the deliberate trade: an id that is a pure function
+ * of its inputs is what lets a serialised task be compared against a replay of
+ * itself, which is the property `resume` and `deserialize` are built on.
+ *
+ * The first version hashed only `goal@at` and I found it collided across
+ * genuinely different plans, which is not defensible. This one is narrower:
+ * same goal, same steps, same millisecond. In production `at` is a real clock,
+ * so that means a true duplicate submission. Under a FIXED clock --- every
+ * test in this repo --- it is guaranteed, so any caller keying storage by id
+ * must not assume uniqueness across two runs of the same fixture. Pinned by
+ * test rather than left for someone to discover from a lost task.
+ */
 export function startTask(u: Understanding, plan: Plan, at: string): TaskState {
   return {
-    id: `t${digest(`${plan.goal}@${at}`)}`,
+    id: `t${digest(`${plan.goal}@${at}@${plan.steps.map((s) => s.goal).join('|')}`)}`,
     plan,
     working: { ...EMPTY_WORKING, objective: u.goal, constraints: u.constraints, entities: u.entities },
     journal: [{ at, event: 'started', detail: plan.goal }],

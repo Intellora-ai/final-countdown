@@ -312,3 +312,54 @@ describe('progress answers the brief’s state questions', () => {
     expect(p.complete).toBe(false)
   })
 })
+
+describe('task ids are derived, and the trade-off is pinned', () => {
+  /* These ids used to come from a module-level counter. That made two agents
+     in one process interleave ids and forced a `resetIds()` export that
+     existed only for tests. Deriving them fixed both and introduced a
+     different property, which is what these tests are for: a derived id is a
+     function of its inputs, so equal inputs give equal ids. That is the point
+     when comparing a serialised task to a replay, and a hazard for anyone
+     keying storage by id. Stated here rather than left to be discovered from a
+     task that overwrote another one. */
+
+  const spec = (n: string): StepSpec[] => [
+    { goal: `${n} first`, capability: 'reason' },
+    { goal: `${n} second`, capability: 'reason' },
+  ]
+
+  it('gives DIFFERENT ids to different plans at the same instant', () => {
+    /* The bug this caught: the id hashed only `goal@at`, so two plans with
+       different steps collided whenever the goal string matched. */
+    const a = startTask(goal(), planFrom('same goal', spec('a')), AT)
+    const b = startTask(goal(), planFrom('same goal', spec('b')), AT)
+    expect(a.id).not.toBe(b.id)
+  })
+
+  it('gives different ids to the same plan at different instants', () => {
+    const a = startTask(goal(), planFrom('g', spec('x')), AT)
+    const b = startTask(goal(), planFrom('g', spec('x')), '2026-08-25T00:00:00.000Z')
+    expect(a.id).not.toBe(b.id)
+  })
+
+  it('gives the SAME id to an identical plan at the same instant --- deliberate', () => {
+    /* Not a defect: it is what makes a replay comparable to the recording.
+       Under a fixed clock this is guaranteed, so a caller that keys storage by
+       id must not assume uniqueness across two runs of one fixture. */
+    const a = startTask(goal(), planFrom('g', spec('x')), AT)
+    const b = startTask(goal(), planFrom('g', spec('x')), AT)
+    expect(a.id).toBe(b.id)
+  })
+
+  it('survives a round trip, which is the reason determinism matters', () => {
+    const a = startTask(goal(), planFrom('g', spec('x')), AT)
+    expect(deserialize(serialize(a)).id).toBe(a.id)
+  })
+
+  it('numbers steps by position, so replanning cannot reuse an id', () => {
+    const t = startTask(goal(), planFrom('g', spec('x')), AT)
+    const grown = replan(t, 'more work', [{ goal: 'third', capability: 'reason' }], AT)
+    const ids = grown.plan.steps.map((s) => s.id)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+})

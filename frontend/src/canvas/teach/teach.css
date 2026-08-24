@@ -305,3 +305,47 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* THE WAY BACK, UNDER EVERY SETTLED REPLY.
+ *
+ * A learner stops the lesson, asks something, reads the reply — and the page
+ * then sits there with the lesson still underneath and nothing saying so. A
+ * detour with no marked exit is indistinguishable from an arrival. This is the
+ * mark, and it appears under a refusal too, because "I could not find that"
+ * with nothing after it leaves somebody who just admitted confusion standing in
+ * a corridor.
+ *
+ * Deliberately quiet: muted ink, no border, no button. Continue already exists
+ * below and is the only control that reveals a beat. A second emphatic control
+ * here would be two buttons doing one job, and the learner would have to guess
+ * which of the two things on screen it acted on. */
+.lc-teach__resume {
+  margin: var(--s-md) 0 0;
+  /* `caption`, not a new "small" role. There are exactly seven type roles and
+     adding an eighth because something needs to be a bit smaller is how a type
+     scale dies (tokens.ts says so in those words). `--type-small-*` was written
+     here first and does not exist — it would have silently inherited the body
+     size and looked deliberate. */
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-height);
+  color: var(--c-ink-muted);
+}
+
+/* WHO WROTE THE SENTENCES.
+ *
+ * `llm/client.py`: "A convincing fake is worse than an obvious one — it invites
+ * judging the system's teaching quality from output no model produced." The
+ * lesson picker already labels its hand-written lesson for the same reason;
+ * this is that rule reaching the doubt path.
+ *
+ * The `label` role, which is what every other piece of chrome in this file
+ * uses. Not a new size: there are exactly seven type roles and adding an eighth
+ * because something needs to be a bit smaller is how a type scale dies. */
+.lc-teach__wrote {
+  margin: var(--s-md) 0 0;
+  font-size: var(--type-label-size);
+  font-weight: var(--type-label-weight);
+  letter-spacing: var(--type-label-tracking);
+  line-height: var(--type-label-height);
+  color: var(--c-ink-faint);
+}

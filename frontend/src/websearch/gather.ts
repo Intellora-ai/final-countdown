@@ -95,6 +95,14 @@ export interface Retrieved {
   truncated: boolean
   retrievedAt: string
   fromCache: boolean
+  /**
+   * True when this came from a PRECOMPUTED entry rather than one cached from a
+   * real earlier request. `fromCache` is also true in that case; this is the
+   * more specific fact, and §32 asks for them to stay distinguishable — a cache
+   * entry answered a real question once, a precomputed one may never have been
+   * asked for at all.
+   */
+  precomputed?: boolean
 }
 
 export interface GatherOptions {

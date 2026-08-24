@@ -44,6 +44,7 @@ import type { FetchOptions, FetchOutcome } from './fetchPage'
 import { gather, type PageCache, type Retrieved } from './gather'
 import { interpret, type SearchRequirements } from './interpret'
 import { Latency } from './latency'
+import { freshnessOf, type Freshness } from './provenance'
 import { planQueries, refine, type QueryPlan } from './strategy'
 import { rankHits, type RankedHit } from './select'
 import type { SearchHit } from './port'
@@ -77,6 +78,12 @@ export interface PipelineResult {
   claims: readonly Claim[]
   findings: readonly Finding[]
   answer: Answer
+  /**
+   * §32 — where the evidence actually came from, and whether the answer may be
+   * called live. Built here rather than left to a caller, because a caller that
+   * has to remember to compute it is a caller that will forget.
+   */
+  freshness: Freshness
   /** How many refinement rounds ran. 0 means the first pass was enough. */
   rounds: number
   /** Always empty in practice. Non-empty means this file has a bug. */
@@ -109,6 +116,12 @@ export async function ask(query: string, options: AskOptions): Promise<PipelineR
     claims: [],
     findings: [],
     answer,
+    /* Literally empty, not `retrieved` — this helper runs on the paths where
+       nothing was fetched, and it is DEFINED before `retrieved` exists.
+       Closing over that binding typechecks cleanly and then throws
+       `Cannot access 'retrieved' before initialization` at runtime, because a
+       closure defers execution past what the type checker can see. */
+    freshness: freshnessOf([], now),
     rounds: 0,
     violations: finalCheck(answer),
     ...extra,
@@ -217,6 +230,7 @@ export async function ask(query: string, options: AskOptions): Promise<PipelineR
     claims,
     findings,
     answer,
+    freshness: freshnessOf(retrieved, now),
     rounds,
     violations: finalCheck(answer),
   }

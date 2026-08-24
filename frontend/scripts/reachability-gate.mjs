@@ -190,24 +190,54 @@ export function blankStrings(src) {
   let i = 0
   const n = src.length
   while (i < n) {
-    if (src[i] !== '`') {
+    const q = src[i]
+    if (q !== '`' && q !== "'" && q !== '"') {
       out += src[i]
       i++
       continue
     }
-    out += '`'
-    i++
-    while (i < n && src[i] !== '`') {
-      if (src[i] === '\\') {
-        out += '  '
-        i += 2
+
+    /* Read the whole literal first, so the decision below can be made on its
+       contents rather than on its opening character. */
+    let body = ''
+    let j = i + 1
+    while (j < n && src[j] !== q) {
+      if (src[j] === '\\') {
+        body += src[j] + (src[j + 1] ?? '')
+        j += 2
         continue
       }
-      out += src[i] === '\n' ? '\n' : ' '
-      i++
+      body += src[j]
+      j++
     }
-    out += src[i] ?? ''
-    i++
+    const closed = j < n
+
+    /* A LITERAL IS BLANKED ONLY IF ITS CONTENTS CAN SIT AT A LINE START,
+       because that is the only way it can mint a phantom edge --- `FROM_RE`
+       anchors on `(?:^|\n)`.
+
+       Backticks always qualify. Quoted strings qualify when they carry a
+       BACKSLASH LINE CONTINUATION, which puts a raw newline inside a
+       double-quoted string and is ES5, not exotic:
+
+           const DOC = "\
+           import { helperA } from './__orphanA'"
+
+       One string, one value, and a real `\n` immediately before `import`. An
+       earlier version of this function asserted that quoted strings "cannot
+       contain a raw newline" and was simply wrong; the gate reported 17/17 PASS
+       on two modules absent from the built bundle.
+
+       Quoted strings WITHOUT a continuation are copied through untouched, and
+       that is not laziness --- the module specifier this whole parser exists to
+       read IS a quoted string, and a specifier never contains a line
+       continuation. Blanking the class wholesale would destroy `m[2]`. */
+    const blank = q === '`' || /\\\r?\n/.test(body)
+
+    out += q
+    out += blank ? body.replace(/[^\n]/g, ' ') : body
+    if (closed) out += q
+    i = j + 1
   }
   return out
 }

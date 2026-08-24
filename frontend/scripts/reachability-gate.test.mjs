@@ -452,3 +452,88 @@ describe('import syntax inside a string is not an edge', () => {
     expect(out).toContain('const b = 2')
   })
 })
+
+describe('a backslash line-continuation cannot mint an edge either', () => {
+  /* THE THIRD BYPASS, and the one that came from a WRONG PREMISE OF MINE.
+     I wrote, in this file's own commit message, that quoted strings "cannot
+     contain a raw newline, so their contents can never sit at a line start".
+     That is false. A backslash line-continuation does exactly that, and it is
+     ES5:
+
+         const DOC = "\
+         import { helperA } from './__orphanA'"
+
+     One string, one value, and a real newline immediately before `import` —
+     which is what FROM_RE's `(?:^|\n)` anchors on.
+
+     Paired with two MUTUALLY-importing orphans, so neither has an unimported
+     export and the dead-export check stays quiet, it produced:
+
+         [agent] 17/17 source files reachable    PASS    exit 0
+         grep dist/ for the orphans              ABSENT
+
+     Neither half is a bypass alone. The string trick gives reachability but
+     leaves the dead-export check firing; the mutual pair silences that check
+     but cannot bootstrap its own reachability. Both of my checks were
+     individually sound and the COMPOSITION was not, which is harder to see
+     than either bug. */
+
+  it('FAILS on an orphan reached only through a line-continued string', () => {
+    const area = fixture({
+      'entry.ts': `export const DOC = "\\\nimport { helperA } from './orphanA'"\nexport const go = 1\n`,
+      'orphanA.ts': `import { helperB } from './orphanB'\nexport function helperA() { return helperB() }\n`,
+      'orphanB.ts': `import { helperA } from './orphanA'\nexport function helperB() { return typeof helperA }\n`,
+    })
+    const out = analyze(area)
+    expect(out.orphans).toContain('.reachability-fixture/orphanA.ts')
+    expect(out.orphans).toContain('.reachability-fixture/orphanB.ts')
+  })
+
+  it('catches a mutually-importing pair on its own, with no string trick', () => {
+    /* The half that already worked, pinned so a fix to the string half cannot
+       break it. Reachability walks FORWARD from declared entries rather than
+       asking "is anything importing this", so a cycle cannot bootstrap itself.
+       That is the design decision this file's header defends, and it holds. */
+    const area = fixture({
+      'entry.ts': `export const go = 1\n`,
+      'a.ts': `import { b } from './b'\nexport const a = b\n`,
+      'b.ts': `import { a } from './a'\nexport const b = typeof a\n`,
+    })
+    const out = analyze(area)
+    expect(out.orphans).toContain('.reachability-fixture/a.ts')
+    expect(out.orphans).toContain('.reachability-fixture/b.ts')
+  })
+
+  it('STILL reads the specifier out of an ordinary quoted import', () => {
+    /* The over-correction this fix had to avoid. The module specifier IS a
+       quoted string, so blanking the whole class would destroy `m[2]` and the
+       parser would see no imports at all — a gate that finds every file to be
+       an orphan is as useless as one that finds none. Only literals carrying a
+       continuation are blanked; a specifier never carries one. */
+    expect(importsOf(`import { a } from './m'\n`).map((i) => i.spec)).toEqual(['./m'])
+    expect(importsOf(`import { a } from "./m"\n`).map((i) => i.spec)).toEqual(['./m'])
+  })
+
+  it('leaves an ordinary quoted string untouched', () => {
+    const src = `const msg = 'hello world'\nconst n = 1`
+    expect(blankStrings(src)).toBe(src)
+  })
+
+  it('blanks a continued string while preserving length and lines', () => {
+    const src = `const d = "a\\\nb"\nconst n = 1`
+    const out = blankStrings(src)
+    expect(out.length).toBe(src.length)
+    expect(out.split('\n').length).toBe(src.split('\n').length)
+    expect(out).toContain('const n = 1')
+    expect(out).not.toContain('b"')
+  })
+
+  it('does not hang or truncate on an unterminated string', () => {
+    /* A real file can be mid-edit. The scanner must terminate and must not
+       silently drop the rest of the file, which would hide every import
+       below the bad line. */
+    const out = blankStrings(`const bad = 'unterminated\nimport { x } from './m'`)
+    expect(out.length).toBeGreaterThan(0)
+    expect(() => importsOf(out)).not.toThrow()
+  })
+})

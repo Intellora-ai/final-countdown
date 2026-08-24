@@ -405,3 +405,73 @@ def test_installed_copy_matches_this_one():
         f"repo copy, so this suite passing says nothing about what actually "
         f"runs. Re-copy: cp '{HOOK}' '{installed}'"
     )
+
+
+def test_reminder_hook_names_exactly_the_skills_the_gate_requires():
+    """
+    THE DRIFT THAT ACTUALLY HAPPENED, AND THE ONE NOTHING WATCHED.
+
+    Two files carry the skill list and neither is derived from the other.
+    `enforce_skills.py` is the Stop hook and the only one that can REFUSE a
+    turn. `~/.claude/hooks/force-skills.py` is the UserPromptSubmit reminder
+    that tells the session which skills to invoke.
+
+    On 2026-08-25 they disagreed: the gate had been raised to five while the
+    reminder still named three. The session invoked the three it was told
+    about, and the gate refused the turn demanding two skills nothing had
+    mentioned. It happened twice before anyone noticed. force-skills.py's own
+    header states the gap plainly --- "Nothing keeps the REMINDER in step
+    except reading this."
+
+    Reading is not a mechanism. This test is.
+
+    A skill the gate requires but the reminder omits is a turn refused with no
+    warning. A skill the reminder names but the gate ignores is noise that
+    trains the reader to skim the list. Both directions are caught here.
+
+    PARSED WITH `ast`, NEVER IMPORTED. Importing force-skills.py runs it, and
+    it WRITES ~/.claude/config.json as a side effect. A test that mutates the
+    user's real config in order to read a list is a worse defect than the one
+    it guards against.
+
+    Skipped rather than failed when the reminder is not installed: a fresh
+    clone on a machine that never installed the hooks is not a broken
+    repository. Same rule as test_installed_copy_matches_this_one above.
+    """
+    import ast
+    import os
+
+    import pytest
+
+    reminder = Path(os.path.expanduser("~/.claude/hooks/force-skills.py"))
+    if not reminder.exists():
+        pytest.skip("reminder hook not installed on this machine")
+
+    tree = ast.parse(reminder.read_text(encoding="utf-8"))
+    listed: list[str] | None = None
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id == "REQUIRED_SKILLS":
+                listed = [str(ast.literal_eval(e)) for e in cast(ast.List, node.value).elts]
+
+    assert listed is not None, (
+        f"{reminder} has no REQUIRED_SKILLS assignment, so the reminder cannot be "
+        f"compared against the gate at all. If it was renamed, this test must "
+        f"follow it rather than be deleted --- an unreadable list is exactly the "
+        f"state that lets the two drift unnoticed."
+    )
+
+    def norm(names: list[str]) -> list[str]:
+        """`/caveman` and `caveman:caveman` are the same skill to the gate."""
+        return sorted(n.lstrip("/").split(":")[-1] for n in names)
+
+    gate = norm(list(_load_hook_module().REQUIRED))
+    assert norm(listed) == gate, (
+        f"the reminder and the gate disagree, which is the failure that blocked "
+        f"two turns.\n"
+        f"  reminder ({reminder}): {norm(listed)}\n"
+        f"  gate     ({HOOK}): {gate}\n"
+        f"Change both or neither."
+    )

@@ -129,6 +129,59 @@ describe('§17 — a broken engine is an outage, not an empty world', () => {
     expect(finalCheck(result.answer)).toEqual([])
   })
 
+  it('ONE planned query failing does not discard the ones that answered', async () => {
+    /*
+     * A question plans several queries. The first round gathered them with
+     * `Promise.all`, so a single rate-limited query rejected the whole batch
+     * and every page the other queries had already found was thrown away — the
+     * answer became "the engine is down" while real evidence sat in hand.
+     *
+     * The REFINEMENT loop never had this problem; its own comment says "a
+     * refinement that fails is one lost round, never a lost answer". The first
+     * round disagreed with that rule, and nothing noticed because nothing
+     * wired this pipeline to a provider that could fail per query.
+     *
+     * An outage is now ALL queries failing. One failing is a smaller result.
+     */
+    let call = 0
+    const flaky: SearchProvider = {
+      name: 'flaky',
+      search: async () => {
+        call += 1
+        if (call > 1) throw new Error('429 rate limited')
+        return [{ url: 'https://mospi.gov.in/gdp-2025', title: 'GDP', snippet: '' }]
+      },
+    }
+    const result = await ask('india gdp growth 2025', {
+      provider: flaky,
+      fetchImpl: fetcherFor({
+        'https://mospi.gov.in/gdp-2025': 'India recorded GDP growth of 7.8 percent in 2025.',
+      }),
+      now,
+    })
+    expect(call).toBeGreaterThan(1)
+    expect(result.retrieved.length).toBeGreaterThan(0)
+    expect(result.answer.refusalReason ?? '').not.toContain('engine')
+  })
+
+  it('EVERY planned query failing is still an outage', async () => {
+    /* The other half of the pair. A rule asserted only to tolerate failure is
+       satisfied by never reporting one. */
+    const dead: SearchProvider = {
+      name: 'dead',
+      search: async () => {
+        throw new Error('connect ETIMEDOUT')
+      },
+    }
+    const result = await ask('india gdp growth 2025', {
+      provider: dead,
+      fetchImpl: fetcherFor({}),
+      now,
+    })
+    expect(result.answer.status).toBe('refused')
+    expect(result.answer.refusalReason).toContain('engine')
+  })
+
   it('an engine that legitimately finds nothing is refused for a DIFFERENT reason', async () => {
     const empty = fixtureProvider({})
     const result = await ask('india gdp growth', { provider: empty, fetchImpl: fetcherFor({}), now })

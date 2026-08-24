@@ -1,7 +1,7 @@
 [project]
 name = "final-countdown"
 version = "0.1.0"
-description = "Learning OS with 100% verified Python code via AXLE + Lean 4"
+description = "Learning OS. Every function in src/ carries a Lean 4 specification kernel-checked by AXLE; the rest is gated by coverage, mutation and type checks"
 requires-python = ">=3.12"
 
 [tool.pytest.ini_options]
@@ -38,9 +38,19 @@ typeCheckingMode = "strict"
 pythonVersion = "3.12"
 reportMissingImports = true
 
-[tool.mutmut]
-paths_to_mutate = ["src/"]
-tests_dir = "tests/"
+# NO [tool.mutmut] SECTION, DELIBERATELY. The mutmut PACKAGE was removed from
+# requirements.txt because nothing imported it; the mutation scoring is done by
+# scripts/mutation_gate.py, which reads none of mutmut's configuration. A config
+# block for a tool that is neither installed nor consulted is a second source of
+# truth that can only ever drift out of agreement with the first: someone edits
+# `paths_to_mutate` here, nothing changes, and the next reader believes the gate
+# was reconfigured. Verified before deleting -- `grep mutmut scripts/mutation_gate.py`
+# returns only a docstring line saying it REPLACED mutmut.
+#
+# THE GATE ID STAYS `mutmut`. It is one of the 17 required status-check contexts
+# in live ruleset 20990225, so renaming it would leave that context permanently
+# pending and block every merge. It is a compatibility name for this repository's
+# own AST mutation scorer, not a reference to the package.
 
 [tool.bandit]
 exclude_dirs = ["tests"]

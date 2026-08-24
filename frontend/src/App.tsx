@@ -29,6 +29,33 @@ import { Placeholder } from './components/Placeholder'
  * nobody notices. */
 const CanvasRoute = React.lazy(() => import('./canvas/CanvasRoute'))
 
+/* WHERE A DOUBT GOES WHEN THE LESSON CANNOT ANSWER IT.
+ *
+ * The canvas answers first from the page the learner is looking at, and that
+ * refusal used to be the end of the road: the learner admitted confusion, was
+ * told this page does not cover it, and nothing caught them. This is the catch.
+ *
+ * THE OPEN WEB, NOT ONE SITE — AND WHAT CHANGED TO MAKE THAT POSSIBLE.
+ * This used to call Wikipedia directly, and not by preference. A general engine
+ * needs an account and a key; a key cannot ship to a browser, because devtools
+ * and the network tab both hand it over; and a browser may not even READ a page
+ * that did not opt into CORS. Wikipedia needed no key and sends CORS headers,
+ * so it was the only source reachable from a page, and `engine.ts`'s general
+ * seam sat there correct and unusable.
+ *
+ * `vite-plugin-search.ts` is the server those two problems needed. The key
+ * stays in the server's environment, the server does the fetching, and this
+ * calls a relative route on its own origin — so the browser never learns which
+ * vendor answered and never holds a credential. Wikipedia may still come back
+ * as a result; it simply has no privileged position any more.
+ *
+ * IMPORTED LAZILY, INSIDE THE CALL. A static import would put the retrieval
+ * layer in the entry chunk for every learner including the ones who never get
+ * stuck. This way it arrives on the first question the lesson cannot answer,
+ * and never otherwise. */
+const searchTheWeb = (query: string, options: Record<string, unknown>) =>
+  import('./websearch/webSearchClient').then((m) => m.searchTheWeb(query, options))
+
 /* The practice map. Lazy for the same reason the canvas is: it carries the
  * whole curriculum and its own stylesheet, and a learner on /today should not
  * pay for either. Nothing outside `src/practice/` imports it, and it imports
@@ -94,7 +121,7 @@ export default function App() {
   if (loc.pathname === '/canvas') {
     return (
       <React.Suspense fallback={<SceneFallback />}>
-        <CanvasRoute />
+        <CanvasRoute search={searchTheWeb} />
       </React.Suspense>
     )
   }

@@ -1,10 +1,22 @@
 # final-countdown
 
-Learning OS with 100% verified Python code via AXLE + Lean 4.
+Learning OS. Every function in `src/` carries a Lean 4 specification kernel-checked by
+AXLE; the rest of the repository is gated by coverage, mutation and type checks.
 
-You write Python. Every function carries a Lean 4 specification and a machine-checked
-proof. AXLE runs the Lean kernel over each proof and CI blocks the merge if anything
-fails.
+You write Python. Every function **in `src/`** carries a Lean 4 specification and a
+machine-checked proof. AXLE runs the Lean kernel over each proof and CI blocks the merge
+if anything fails.
+
+**What that scope is, precisely.** `src/` is the formally verified surface: four modules,
+each with its own spec set under `specs/`, and `correspondence` proves the theorems are
+about the Python actually in the tree. It is NOT every line of Python here.
+`scripts/` (the verifiers themselves), `learning-os/` and the TypeScript frontend carry
+no Lean proofs — they are held by a 95% branch-coverage floor, a 95% AST mutation score,
+strict type checking, and the gates listed in `ci/gates.toml`.
+
+The earlier wording, "100% verified Python code", read as a claim over all Python in the
+repository. That was never true, and `TRUST.md` already said so in more detail than the
+headline did.
 
 ## How verification works
 

@@ -170,6 +170,48 @@ never start a later step because it looks related. Going slow is the point.
 
 ---
 
+## LAW 0 — requirements first, then hard tests, then code
+
+> DEFINE REQUIREMENTS + WHAT MUST BE TRUE TO GET DESIRED OUTCOME THEN BUILD
+> AROUND THAT, DO NOT MAKE TESTS WEAK, EASY. BUILD TESTS THAT FULLFILL DESIRED
+> OUTCOME, ONLY THEN WRITE CODE. CODE WRITTEN SHOULD BE CHANGED AND BETTER BUT
+> TESTS ONLY CHANGE IS MUTANTS SHOW AN REAL EVIDENCE ERROR
+
+It is LAW 0 because the other four describe what may be built; this one decides
+whether anything built can be trusted.
+
+The order is fixed and none of it is optional:
+
+```
+requirements  ->  what must be true  ->  hard tests  ->  code  ->  WATCH IT FAIL  ->  fix the code
+```
+
+**A test encodes the desired outcome. The code is the thing that moves.** When a
+test goes red, the first hypothesis is always that the CODE broke. That
+hypothesis may only be overturned by MUTATION EVIDENCE: a surviving mutant, or a
+measured behaviour proving the assertion contradicts the outcome that was
+specified. Anything less and the code changes, not the test.
+
+**Never weaken a test to reach green.** Not by loosening an assertion, not by
+narrowing a range, not by deleting the case that failed, not by adding a
+carve-out for the input that broke. A test edited to pass destroys the only
+evidence that behaviour changed, and from the outside a justified edit and a
+softened one look identical.
+
+**Tests written after the code are biased by it.** They verify what was built
+rather than what should have been, and they pass on the first run, which proves
+nothing. If you did not watch it fail, you do not know it can fail.
+
+*Measured, in this repository, in a single session:* three tests were edited to
+go green — a pinned catalogue size, a `right triangle` extraction pin, and an
+API-key guard case. Two of those edits were defensible and one was not, and at
+the moment of editing each felt like the defensible kind. That is the whole
+argument for making this absolute rather than a judgement call.
+
+Related, and not a substitute: the reachability gate proves code is REACHED, the
+mutation catalogue proves tests can SEE a defect. Neither proves a test was
+written before the code it checks. Only the red run does, so show it.
+
 ## Four laws
 
 Violating any of these is a bug, not a judgment call.
@@ -250,7 +292,13 @@ If you finish early, stop early.
 - changing the **normal** output of an existing renderer for existing content
 - adding a schema field carrying colour / size / spacing / position
 - `eslint-disable` on the design-value rule
-- weakening a test to make it pass
+- weakening a test to make it pass, in ANY form — loosening an assertion,
+  narrowing a range, deleting the failing case, or carving out the input that
+  broke it. See LAW 0: only mutation evidence may change a test
+- writing the code before the test, or writing a test that passes on its first
+  run. If you did not watch it fail, you have not tested it
+- editing a test because the code disagreed with it, without a surviving mutant
+  or a measured behaviour to prove the test was the wrong one
 - adding a dependency not named in the brief
 - rebuilding something that works instead of layering
 - hardcoding a value "just for now"

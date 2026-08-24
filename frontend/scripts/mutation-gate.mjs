@@ -131,6 +131,128 @@ process.on('uncaughtException', (e) => {
 
 /** Each mutant re-creates a defect that could ship, or inverts a stated rule. */
 const MUTANTS = [
+  /* PER-SOURCE ISOLATION. `gather.ts` states "FAILURE IS PER SOURCE, NEVER PER
+   * SEARCH" in its own header, and nothing enforced it: the worker loop had no
+   * try/catch, so one throwing dependency rejected through `Promise.all` and
+   * lost every other source. Latent only because the shipped fetcher and cache
+   * never throw — a dependency on a fact nobody promised, in a file that
+   * explicitly anticipates a network-backed cache. */
+  {
+    id: 'cache-read-failure-sinks-the-batch',
+    file: 'src/websearch/gather.ts',
+    /* Anchored to the whole recovery BLOCK, not to the bare `cached = undefined`
+       inside it. That assignment is generic text whose uniqueness rested on its
+       indentation, and a stale-anchor refusal there would read as a formatting
+       problem rather than as "the cache recovery moved". `} catch {` paired with
+       the assignment is unique in this file — the fetch recovery below catches
+       `(err)` — and it names the construct the mutant is actually about. */
+    from: '      } catch {\n        cached = undefined\n      }',
+    to: '      } catch (e) {\n        throw e\n      }',
+    breaks: 'a cache whose connection has dropped takes down every search instead of degrading to no-cache; the pages were reachable the whole time',
+  },
+  {
+    id: 'fetch-failure-loses-its-reason',
+    file: 'src/websearch/gather.ts',
+    from: "          detail: err instanceof Error ? err.message : String(err),",
+    to: "          detail: '',",
+    breaks: 'a source that threw is reported as failed with no reason, so nothing upstream can tell a dead host from a host that returned nothing',
+  },
+  {
+    id: 'engine-outage-reported-as-no-answers',
+    file: 'src/websearch/engine.ts',
+    from: '      const body = await fetchJson(url)\n      return config.map(body).filter(usable)',
+    to: '      try { const body = await fetchJson(url); return config.map(body).filter(usable) } catch { return [] }',
+    breaks: 'a dead search engine reports engineFailed:false with zero results, which is byte-identical to a question that genuinely has no answers — an outage presented as a fact about the world',
+  },
+  /* SEARCH RETRIEVAL. `src/websearch` had ZERO mutants while carrying the SSRF
+   * guard, the injection quarantine and the size cap — and the gate reported
+   * PASS on every PR that shipped it, because it was mutating a different
+   * directory. Every real defect in that module was found by something its
+   * author did not write: CodeQL caught a sanitiser bypass, a loopback stub
+   * caught an unbounded body read at 5011ms against a 250ms budget, and
+   * generated encodings caught 42 SSRF bypasses where five had been guessed.
+   * These entries convert that observation into enforcement. */
+  {
+    id: 'ssrf-guard-string-matching',
+    file: 'src/websearch/fetchPage.ts',
+    from: '  const host = withoutRootLabel(hostname).toLowerCase()',
+    to: '  const host = hostname.trim().toLowerCase()',
+    breaks: 'http://localhost./ and http://printer.local./ reach the fetcher, because every internal-name pattern is anchored and the trailing root label survives into URL.hostname',
+  },
+  {
+    id: 'ssrf-mapped-ipv6-unwrap-removed',
+    file: 'src/websearch/fetchPage.ts',
+    from: '    const wrapped = unwrapV4(groups)',
+    to: '    const wrapped = null as number | null',
+    breaks: 'http://[::ffff:169.254.169.254]/ reaches cloud instance metadata: URL serialises it to [::ffff:a9fe:a9fe], so no dotted-quad pattern matches and credentials are one redirect away',
+  },
+  {
+    id: 'ssrf-cgnat-range-dropped',
+    file: 'src/websearch/fetchPage.ts',
+    from: '  [0x64400000, 10],',
+    to: '  [0x64400001, 32],',
+    breaks: '100.64.0.0/10 becomes reachable, so a fetched page can pivot into carrier-internal address space that is not the public internet',
+  },
+  {
+    id: 'injection-fence-fixed-not-chosen',
+    file: 'src/websearch/guard.ts',
+    from: '    if (!content.includes(candidate)) return candidate',
+    to: '    if (true) return candidate',
+    breaks: 'a page that ships the fence delimiter closes its own quarantine block early and the rest of its text is read as though the system said it',
+  },
+  {
+    id: 'size-cap-after-the-fact',
+    file: 'src/websearch/fetchPage.ts',
+    from: '    if (total + value.length > maxBytes) {',
+    to: '    if (false) {',
+    breaks: 'the size cap stops bounding anything: an adversarial host streams until memory gives out, because the limit is only consulted after the bytes have arrived',
+  },
+  /* §24 ACCURACY. This module grades the answer, so a weakness here is
+     invisible by construction: a broken grader reports good numbers, and good
+     numbers are what everyone reads. Every mutant below is a way the grader
+     could keep producing plausible output while measuring nothing. */
+  {
+    id: 'silence-grades-as-a-perfect-answer',
+    file: 'src/websearch/accuracy.ts',
+    from: '      const absoluteError = closest === undefined ? Number.POSITIVE_INFINITY : Math.abs(closest - truth)',
+    to: '      const absoluteError = closest === undefined ? 0 : Math.abs(closest - truth)',
+    breaks: 'an answer that states no figure at all scores zero error, so saying nothing beats saying something wrong and the benchmark is topped by a system that never answers',
+  },
+  {
+    id: 'relative-error-divides-by-a-zero-truth',
+    file: 'src/websearch/accuracy.ts',
+    from: '        truth === 0 || closest === undefined ? undefined : Math.abs(closest - truth) / Math.abs(truth)',
+    to: '        closest === undefined ? undefined : Math.abs(closest - truth) / Math.abs(truth)',
+    breaks: 'a true value of zero yields Infinity or NaN, and that number then poisons every average computed downstream from it',
+  },
+  {
+    id: 'comparative-grading-ignores-direction',
+    file: 'src/websearch/accuracy.ts',
+    from: '          return s >= 0 && rel > s && o > rel',
+    to: '          return s >= 0 && rel >= 0 && o >= 0',
+    breaks: 'a backwards comparison scores as correct, because both directions mention every word and only the ORDER tells "LIFO is higher than FIFO" from its reverse',
+  },
+  {
+    id: 'a-citation-no-claim-supports-is-not-reported',
+    file: 'src/websearch/accuracy.ts',
+    from: '    .filter((c) => !claimKeys.has(`${c.sourceUrl}|${c.offset}|${c.text}`))',
+    to: '    .filter(() => false)',
+    breaks: 'invariant 3 stops being checked: an answer reporting one figure while citing a span that states another grades clean, which is a wrong answer wearing a real source',
+  },
+  {
+    id: 'refusing-everything-scores-as-correct',
+    file: 'src/websearch/accuracy.ts',
+    from: "      outcome: expectation.unanswerable ? 'correct-refusal' : 'missed-answerable',",
+    to: "      outcome: 'correct-refusal',",
+    breaks: 'a refusal is always correct, so a system that answers nothing scores perfectly and the benchmark rewards silence',
+  },
+  {
+    id: 'a-flagged-source-counts-as-support',
+    file: 'src/websearch/accuracy.ts',
+    from: '  if (allClaims.length > 0 && untainted.length === 0) {',
+    to: '  if (false) {',
+    breaks: 'invariant 5 stops being graded: a fact carried only by a page that tried to instruct us is scored as supported evidence',
+  },
   /* THE HONESTY LAYER. `shapeInvariants.ts` is the only thing standing between
    * a dishonest dataset and a picture that looks fine. Every mutant here is a
    * way for a representation to stop being able to refuse. */
@@ -481,6 +603,227 @@ const MUTANTS = [
     from: '        milestone: duration === 0,',
     to: '        milestone: false,',
     breaks: '"royal assent" — a dated event with no duration — is drawn as a rectangle of no width, which paints nothing, so the milestone is simply absent from the schedule',
+  },
+
+  /* ================================================================== */
+  /* THE AI CAPABILITY LAYER                                            */
+  /* ================================================================== */
+  /* `src/agent/**` arrived with 433 tests and, until these, nothing
+   * checking that any of them could fail — the exact condition the header
+   * of this file describes the canvas having been in. Test COUNT is not
+   * evidence: a suite can be broad in kind (unit, integration, end-to-end,
+   * regression) and still assert only that dispatch happened.
+   *
+   * Every mutant below inverts a promise the layer states in writing, and
+   * each one is aimed at a decision that FAILS SILENTLY when broken. That
+   * is the selection rule: a mutant whose damage would be obvious in the
+   * output teaches nothing, because a human would catch it. These all
+   * produce a confident, well-formed, wrong result. */
+
+  {
+    id: 'agent-arithmetic-verification-always-passes',
+    file: 'src/agent/verify/verify.ts',
+    from: '  const ok = Math.abs(actual - stated) <= Math.max(tolerance, Math.abs(actual) * 1e-9)',
+    to: '  const ok = true',
+    breaks: 'the one check a user cannot perform themselves stops performing it: "17.5% of 2400 = 380" ships carrying a passing arithmetic verification, which is worse than shipping unverified because the verification is what earns the trust',
+  },
+  {
+    id: 'agent-explicit-deletion-is-only-a-hide',
+    file: 'src/agent/memory/memory.ts',
+    from: '      p.write(p.read().filter((r) => r.id !== id))',
+    to: '      p.write(p.read())',
+    breaks: 'a user asks for something to be forgotten, is told it was, and the record stays on disk — a lie told with their own data, and the kind that only surfaces when someone reads the store directly',
+  },
+  {
+    id: 'agent-every-tool-failure-is-retried',
+    file: 'src/agent/tools/tools.ts',
+    from: '    if (last.failure !== \'transient\') return last',
+    to: '    if (false) return last',
+    breaks: 'malformed arguments are re-sent unchanged and a DENIED action is attempted a second time — the recovery layer stops distinguishing weather from a decision somebody made',
+  },
+  {
+    id: 'agent-effectful-tools-run-ungated',
+    file: 'src/agent/tools/tools.ts',
+    from: '  if (tool.effectful && !opts.allowEffects) {',
+    to: '  if (false) {',
+    breaks: 'anything that changes the world runs without permission, and it cannot be un-run; the gate exists precisely because a malformed delete is still a delete attempt',
+  },
+  {
+    id: 'agent-partial-work-reported-as-finished',
+    file: 'src/agent/execute/execute.ts',
+    from: '    complete: done === steps.length && steps.length > 0,',
+    to: '    complete: steps.length > 0,',
+    breaks: 'a task whose remaining steps are all BLOCKED has also run out of things to do, so it reports itself complete — half-done work delivered as done, with a journal that says so',
+  },
+  {
+    id: 'agent-disagreement-presented-at-full-confidence',
+    file: 'src/agent/knowledge/knowledge.ts',
+    from: '      confidence: conflict ? Math.min(base, 0.4) : base,',
+    to: '      confidence: base,',
+    breaks: 'two sources saying 6.2% and 4.9% produce one confidently-stated number; the split is laundered into certainty, which is the single failure the whole research path was shaped to prevent',
+  },
+  {
+    id: 'agent-negation-stops-being-read',
+    file: 'src/agent/understand/understand.ts',
+    from: '    if (cur) scores.delete(n.kind)',
+    to: '    if (false) scores.delete(n.kind)',
+    breaks: '"explain closures, but do not search for this" searches anyway — the request is read as a bag of keywords, and the word the user used to REFUSE something becomes evidence for it',
+  },
+  {
+    id: 'agent-unanswerable-requests-answered-anyway',
+    file: 'src/agent/kernel/loop.ts',
+    from: "  if (action.action === 'ask') {",
+    to: '  if (false) {',
+    breaks: '"fix it" with nothing yet named is handed to the model, which answers about whatever it guesses — a fluent, well-sourced answer to a question nobody asked, and harder to catch than no answer',
+  },
+  {
+    id: 'agent-referent-ambiguity-no-longer-blocks',
+    file: 'src/agent/kernel/router.ts',
+    from: '  if (blocking) {',
+    to: '  if (false) {',
+    breaks: 'certainty about the verb is treated as certainty about the noun, so the agent acts confidently on a referent that does not exist',
+  },
+  {
+    id: 'agent-single-fact-forced-into-a-table',
+    file: 'src/agent/communicate/communicate.ts',
+    from: '  const plural = s.cardinality >= 2',
+    to: '  const plural = true',
+    breaks: 'one number is rendered as a one-row comparison table — scaffolding built around nothing, which is how a system that "chooses representations" quietly becomes one that decorates',
+  },
+  {
+    id: 'agent-a-stated-struggle-resets-the-learner',
+    file: 'src/agent/learn/learn.ts',
+    from: "      mastery.set(concept.id, 'partial')",
+    to: "      mastery.set(concept.id, 'unknown')",
+    breaks: 'someone who says "I struggle with integration" is treated as never having met integration, so the curriculum restarts them on material they have already sat through — the fastest way to lose a learner',
+  },
+
+  /* ---- The wiring, and the bug that made it necessary -------------------
+   *
+   * Everything above mutates a DECISION. The nine below mutate the WIRING,
+   * because the wiring is where this layer actually failed: two modules and
+   * five capabilities were selected, reported as used, and never executed,
+   * and every unit test stayed green throughout.
+   *
+   * The selection rule is unchanged and matters more here than anywhere
+   * else. A broken decision produces a wrong answer, which somebody
+   * eventually notices. Broken wiring produces a CONFIDENT answer plus an
+   * audit trail claiming the work was done, and nobody notices at all. */
+
+  {
+    id: 'agent-attached-file-is-never-actually-read',
+    file: 'src/agent/kernel/loop.ts',
+    from: "  if (selected.has('files')) {",
+    to: '  if (false) {',
+    breaks: 'the original bug, exactly: "summarise this PDF" answers from the model\'s own knowledge while the trace reports `files` among the capabilities used — an audit trail that lies in the one direction nobody checks, because everything looks wired',
+  },
+  {
+    id: 'agent-trace-claims-capabilities-that-were-never-selected',
+    file: 'src/agent/kernel/loop.ts',
+    from: '  const didRun = (c: Capability) => void (selected.has(c) && executed.add(c))',
+    to: '  const didRun = (c: Capability) => void executed.add(c)',
+    breaks: 'the execution record over-claims, which is exactly as misleading as under-reporting: "communicate always runs" quietly puts an unselected capability into the trace, and the one guard that makes the record trustworthy is gone',
+  },
+  {
+    id: 'agent-unmet-capability-loses-its-reason',
+    file: 'src/agent/kernel/loop.ts',
+    from: '  const couldNot = (c: Capability, why: string) => void (selected.has(c) && (unmet[c] = why))',
+    to: "  const couldNot = (c: Capability) => void (selected.has(c) && (unmet[c] = ''))",
+    breaks: '"I could not read your file" degrades to a bare flag, so the one thing that makes an absence debuggable — WHY it was absent — is dropped, and the capability is indistinguishable from one that silently did nothing',
+  },
+  {
+    id: 'agent-failed-verification-is-reported-but-never-fixed',
+    file: 'src/agent/kernel/loop.ts',
+    from: '  const repairable = answering && degraded === undefined',
+    to: '  const repairable = false',
+    breaks: 'the system knows the answer misses a stated constraint and ships it unchanged, with the evidence attached where nobody reads it — verification becomes a report rather than a correction',
+  },
+  {
+    id: 'agent-repair-loop-becomes-unbounded',
+    file: 'src/agent/kernel/loop.ts',
+    from: '      await verifyAndRepair({ answer, claims }, checks, repair, 1)',
+    to: '      await verifyAndRepair({ answer, claims }, checks, repair, 12)',
+    breaks: 'a check the repairer cannot satisfy burns twelve model calls per turn instead of one; latency and cost scale with failure, and the round count that would signal "the approach is wrong, not the output" is buried',
+  },
+  {
+    id: 'agent-task-is-dropped-between-turns',
+    file: 'src/agent/kernel/loop.ts',
+    from: "    ...(task && task.status !== 'done' ? { task } : {}),",
+    to: '    ...({}),',
+    breaks: 'cross-session continuity dies silently: "carry on with what we started" starts a second task with a new id, abandoning the first plan and its journal, and every turn looks individually correct',
+  },
+  {
+    id: 'agent-the-answer-step-runs-before-the-work',
+    file: 'src/agent/kernel/loop.ts',
+    from: '    after: specs.map((s) => s.goal),',
+    to: '    after: [],',
+    breaks: 'the synthesis step loses its dependencies, so `nextStep` can hand back "answer the goal" before any of the work it is meant to summarise has run — a confident summary of nothing',
+  },
+  {
+    id: 'agent-production-agent-has-no-calculator',
+    file: 'src/agent/index.ts',
+    from: '  const tools = createRegistry([calculator, ...(opts.files ? fileTools(opts.files) : [])])',
+    to: '  const tools = createRegistry([...(opts.files ? fileTools(opts.files) : [])])',
+    breaks: 'the exact shape of the original defect: arithmetic passes every unit test and cannot work for a real caller, because the only registry the product builds does not contain a calculator',
+  },
+  {
+    /* ANCHOR RE-POINTED, NOT RETIRED. `suspend()` changed from serialising the
+     * task alone to writing the whole session, which moved this line. The
+     * mutant is the same defect at the new address; deleting it because its
+     * anchor drifted would have quietly dropped coverage of a bug that has
+     * already happened once. */
+    id: 'agent-suspended-task-resumes-stuck-mid-step',
+    file: 'src/agent/index.ts',
+    from: '        session = { ...session, task: pause(session.task, session.working, now()) }',
+    to: '        session = { ...session, task: session.task }',
+    breaks: 'an `active` task is serialised, so tomorrow it restores believing a step is still running — `nextStep` skips it, nothing is pending, and the task reports itself stuck the moment someone comes back to it',
+  },
+
+  /* THE TEACHING LEDGER. Four mutants, and the bar for each was: does this
+   * reproduce a defect that ACTUALLY OCCURRED, rather than one that could?
+   * All four are measured failures from this repository, not hypotheses. */
+  {
+    /* THE ONLY ONE OF TWENTY-THREE THAT SURVIVED. Twenty-three mutants were
+     * applied to the ledger before it shipped; twenty-two died. This one
+     * lived, and the gap was real: the corrupt-blob test used `version`, which
+     * is the LEDGER's field name, so that case was being refused for having no
+     * `conversation` rather than for its version. One version gate was tested
+     * twice and the other not at all. A mutant that has caught something is
+     * evidence; the other twenty-two are hypotheses. */
+    id: 'agent-session-envelope-version-ignored',
+    file: 'src/agent/session/persist.ts',
+    from: '  if (raw.v !== SESSION_VERSION) {',
+    to: '  if (false) {',
+    breaks: 'a session written by a different build is read as if its shape had not changed, so a field added since is silently absent and the lesson resumes from a position half of which was never in the file',
+  },
+  {
+    /* OCCURRED. `established` accepted `advanced` as evidence of exposure, so
+     * opening a session on `quad` reported the student as exposed to
+     * quadratics before a single thing had been taught. */
+    id: 'agent-intent-to-teach-counts-as-having-taught',
+    file: 'src/agent/session/ledger.ts',
+    from: "  const seen = l.log.some((e) => e.conceptId === conceptId && e.kind === 'shown')",
+    to: "  const seen = l.log.some((e) => e.conceptId === conceptId && (e.kind === 'shown' || e.kind === 'advanced'))",
+    breaks: 'the teacher moving the lesson to a concept counts as the student having seen it, so a curriculum skips material that was never presented and the log agrees it was',
+  },
+  {
+    /* OCCURRED, measured: the identical `Turn` applied twice took `turnIndex`
+     * from 1 to 2 and appended the goal twice. */
+    id: 'agent-retry-counted-as-a-second-turn',
+    file: 'src/agent/session/wire.ts',
+    from: '  const claimed = beginTurn(l, id)\n  if (claimed.alreadySeen) return l',
+    to: '  const claimed = beginTurn(l, id)',
+    breaks: 'a network retry appends to the evidence log a second time, so a student who asked once is recorded as having asked twice and the learner model drifts toward over-confidence with nothing to notice',
+  },
+  {
+    /* OCCURRED, measured on a conversation already about quadratics:
+     * "continue" produced entities [quadratics, continue] and topicShift=true.
+     * The word whose entire meaning is "do not change the subject". */
+    id: 'agent-continue-reads-as-a-new-subject',
+    file: 'src/agent/understand/understand.ts',
+    from: "  'continue', 'continues', 'continuing', 'carry', 'keep', 'keeps', 'going',",
+    to: "  'continues', 'continuing', 'carry', 'keep', 'keeps', 'going',",
+    breaks: 'asking to carry on is read as changing the subject, so the lesson pushes a detour that never happened and the position the student wanted resumed is buried one frame deeper each time they say it',
   },
 ]
 

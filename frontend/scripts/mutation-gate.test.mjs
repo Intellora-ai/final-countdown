@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 /*
@@ -51,13 +52,44 @@ import { describe, expect, it } from 'vitest'
  * whenever `i - 1 < CATALOGUE`. Shard `i` is empty if and only if
  * `i >= CATALOGUE + 1`, which requires `n >= CATALOGUE + 1`.
  *
- * With a catalogue of 39 that makes 40 the smallest shard count that can empty
- * anything, and index 40 the only empty one at n=40. The cases below sit
- * exactly on that boundary rather than at a comfortable distance from it, so
- * they fail if the catalogue changes size without this file being revisited.
+ * So the cases below sit exactly on that boundary rather than at a comfortable
+ * distance from it.
+ *
+ *
+ * WHY THE SIZE IS MEASURED HERE AND NOT WRITTEN DOWN.
+ *
+ * This constant was a literal `39` for exactly as long as the catalogue had 39
+ * entries in it. A branch that added eleven mutants took it to 50, at which
+ * point `--shard=40/40` stopped being the empty shard this file assumes and
+ * became an ORDINARY, POPULATED one. An ordinary shard does not exit at the
+ * guard. It runs the baseline suite -- which contains this file -- which spawns
+ * the gate again. The suite did not fail. It recursed until the runner was
+ * killed, 15 minutes for a job that takes 70 seconds.
+ *
+ * That is the corollary above, arriving by accident instead of by edit: a
+ * pinned size does not merely go stale, it silently converts every case in this
+ * file into the one kind of invocation the file forbids. The boundary is a
+ * function of the catalogue, so it is computed from the catalogue.
  */
 
-const CATALOGUE = 39
+/* Parsed rather than imported, because importing the gate RUNS it. This is the
+ * same anchor `gate_integrity.py` counts for the ratchet, so the two agree on
+ * what a mutant is by construction. */
+const GATE = readFileSync(new URL('./mutation-gate.mjs', import.meta.url), 'utf8')
+const CATALOGUE = (GATE.match(/^\s*id: '[^']+',$/gm) ?? []).length
+
+/* An UNDERCOUNT is the dangerous direction, and zero is its limit: it makes
+ * `--shard=1/1` the "empty" case, which is the entire catalogue, which recurses.
+ * Throwing at module scope fails collection in a second with this sentence
+ * attached. Never let a broken measurement fall through to a valid shard. */
+if (CATALOGUE < 2) {
+  throw new Error(
+    `Counted ${CATALOGUE} mutants in mutation-gate.mjs, which cannot be right. `
+    + 'The `id:` anchor these tests parse has moved or changed shape. Fix the '
+    + 'pattern before trusting anything below: a wrong count here does not fail '
+    + 'these tests, it makes them run a real shard and recurse into themselves.',
+  )
+}
 
 /* Non-zero exit makes execFileSync throw, and the throw carries what we need.
  * Returning a plain shape keeps each assertion about the gate rather than

@@ -57,6 +57,7 @@ const searchTheWeb = (query: string, options: Record<string, unknown>) =>
  * pay for either. Nothing outside `src/practice/` imports it, and it imports
  * nothing from the canvas or the dashboard. */
 const PracticeView = React.lazy(() => import('./practice/PracticeView'))
+const TutorView = React.lazy(() => import('./tutor/TutorView'))
 
 function SceneFallback() {
   return (
@@ -145,7 +146,7 @@ export default function App() {
                   </React.Suspense>
                 }
               />
-              <Route path="/quick-question" element={<Placeholder kind="quick-question" />} />
+              <Route path="/quick-question" element={<TutorView />} />
               <Route path="/misconception" element={<Placeholder kind="misconception" />} />
               {/* The blackboard's two routes are gone with the blackboard itself
                 * (see docs/migrations/step-0-blackboard-deletion.md). The

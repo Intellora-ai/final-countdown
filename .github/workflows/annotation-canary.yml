@@ -1,0 +1,105 @@
+# ANNOTATION CANARY — the only check here whose oracle is not this repository.
+#
+# WHY THIS EXISTS.
+#
+# `scripts/ci_findings.py::reconcile` treats an annotation whose `path` is not
+# in the tree as a message GitHub silently discarded, and `gh-annotate.mjs` was
+# changed to stop emitting `node_modules` paths for that reason. Both rest on
+# one claim about a system nobody here controls:
+#
+#     GitHub resolves `file=` against the annotated commit and DISCARDS what it
+#     cannot find, without reporting the loss.
+#
+# That claim was inferred from a `node_modules` path not appearing on a run. It
+# was never tested. Nothing else in this repository reads GitHub's annotations
+# API -- the only `check-runs` use in the workflows polls job status. So the
+# verification layer commits the error it exists to catch: it checks its own
+# decision instead of its own effect.
+#
+# This workflow makes GitHub the judge. `emit` puts two annotations on its own
+# check-run -- one path that exists at this commit, one that cannot -- and
+# `verify` reads back what GitHub ACCEPTED. Two ways it fails, both findings:
+#
+#   the probe was KEPT     -> the discard rule is FALSE, `reconcile` is wrong,
+#                             and the node_modules fix addressed nothing
+#   the control VANISHED   -> annotations are not landing at all
+#
+# A canary that can only confirm is not a canary. This one can end the work
+# that created it.
+#
+# IT IS DELIBERATELY NOT A REQUIRED CONTEXT. It reports a fact about GitHub's
+# behaviour, not about this pull request, and a GitHub-side change should not
+# block every merge in the repository until someone reacts to it. Promote it
+# once it has been observed stable.
+#
+# SEPARATE FILE ON PURPOSE. Two other sessions are editing the existing CI
+# workflows; a new file cannot produce an add/add conflict with their work.
+
+name: annotation-canary
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # Weekly, because the thing under test is GitHub's behaviour, and that can
+  # change on a day when nobody happens to open a pull request.
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # `checks: read` is what allows reading back the annotations GitHub kept.
+  # Nothing here writes; the canary must never be able to alter a verdict.
+  checks: read
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  emit:
+    name: canary emit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # `::warning`, never `::error`. The level does not change how GitHub
+      # resolves `file=`, and errors would paint two red annotations on every
+      # green run. Exit status is always 0: this job's only purpose is to put
+      # two annotations on a check-run, and it proves nothing by itself.
+      - name: Emit the control and the probe
+        run: python3 scripts/annotation_canary.py emit
+
+  verify:
+    name: canary verify
+    needs: emit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # A job's annotations are only queryable once its check-run has completed,
+      # which `needs: emit` guarantees. GitHub's job id and check-run id are the
+      # same number, so the jobs listing resolves the id to query.
+      - name: Read back what GitHub accepted
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHECK_ID=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" --paginate \
+            --jq '.jobs[] | select(.name == "canary emit") | .id' | head -1)
+          if [ -z "$CHECK_ID" ]; then
+            echo "::error title=annotation canary::could not resolve the emit job's check-run id"
+            exit 1
+          fi
+          echo "emit check-run id: $CHECK_ID"
+          gh api "repos/$REPO/check-runs/$CHECK_ID/annotations" > annotations.json
+          echo "annotations GitHub kept:"
+          cat annotations.json
+
+      - name: Judge
+        run: python3 scripts/annotation_canary.py verify --annotations annotations.json

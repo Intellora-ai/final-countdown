@@ -40,7 +40,14 @@ REPO = Path(__file__).resolve().parent.parent
 # path -- `/tmp/x/y.py:12` was captured as `tmp/x/y.py`, which is not
 # absolute, is not relative to this repository either, and therefore resolved
 # to nothing. The optional `/` is what makes pyright's output usable.
-_POSITION = re.compile(r"(/?[\w./-]+\.[A-Za-z]{1,6}):(\d+)\b")
+# The column is optional and is the third group. It was not captured at all
+# until now, and that was a loss with no upside: pyright is the one wrapped
+# tool that prints columns -- `/abs/x.py:12:5 - error: ...` -- and
+# blocker_report.location() has always parsed a `file:line:col` `where` and
+# emitted `,col=` into the annotation. Nothing ever produced one, so that
+# branch was unreachable: the system carried the code to report a column and
+# threw the column away one function earlier.
+_POSITION = re.compile(r"(/?[\w./-]+\.[A-Za-z]{1,6}):(\d+)(?::(\d+))?\b")
 
 
 def first_location(text: str) -> str:
@@ -55,7 +62,9 @@ def first_location(text: str) -> str:
     for match in _POSITION.finditer(text):
         candidate = repo_relative(match.group(1))
         if candidate is not None:
-            return f"{candidate}:{match.group(2)}"
+            column = match.group(3)
+            return (f"{candidate}:{match.group(2)}"
+                    + (f":{column}" if column else ""))
     return ""
 
 

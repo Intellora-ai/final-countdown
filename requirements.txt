@@ -16,10 +16,15 @@
 axiom-axle>=1.7.0
 pytest>=8.0
 pytest-cov>=5.0
-# Parallel test execution, pinned like everything else here. Added to measure
-# whether -n auto reduces the coverage gate's wall clock on GitHub runners; if
-# the measurement says no, this line and its lock entries come back out. A
-# dependency inside a hash-pinned trusted computing base has to earn its place.
+# Parallel test execution. NOT a new verifier -- the same tests, the same
+# thresholds, distributed across the runner's cores. Added to measure whether
+# -n auto reduces the coverage gate's wall clock, and the measurement says yes:
+# the coverage gate is 133s of a 147s PR critical path and 115.65s of that is
+# one serial pytest run, so this is the only place where real time is available.
+# A dependency inside a hash-pinned trusted computing base has to earn its
+# place; this one earned it, and if a later measurement says otherwise this line
+# and its lock entries come back out. Brings execnet with it; both are
+# hash-pinned in requirements.lock like everything else.
 pytest-xdist>=3.6
 hypothesis>=6.100
 pyright>=1.1.390

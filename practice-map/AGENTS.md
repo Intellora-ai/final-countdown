@@ -7,3 +7,52 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+<!-- Deliberately OUTSIDE the nextjs-agent-rules block above, which `next dev`
+     rewrites on every run. Anything placed inside those markers is destroyed
+     the next time the dev server starts. -->
+
+# How work is done here
+
+The full rules live in the repository root `CLAUDE.md`. Two of them are
+standing orders from the user and are never overridden, so they are repeated
+here rather than linked — a rule you have to go and find is a rule that gets
+skipped.
+
+## LAW 5 — requirements first, then the hardest test, then the code
+
+> DEFINE REQUIREMENTS + WHAT MUST BE TRUE TO GET THE DESIRED OUTCOME, THEN
+> BUILD AROUND THAT. DO NOT MAKE TESTS WEAK, EASY. BUILD TESTS THAT FULFILL THE
+> DESIRED OUTCOME, ONLY THEN WRITE CODE. CODE SHOULD BE CHANGED AND MADE
+> BETTER, BUT TESTS ONLY CHANGE IF MUTANTS SHOW A REAL EVIDENCE ERROR.
+
+1. Write down the requirement and what must be true. Aim the test at that,
+   never at the implementation.
+2. Write the test as hard as the outcome demands. Generated input over a
+   hand-picked list — a hand-written list is a list of cases already known to
+   pass.
+3. Run it and **watch the CODE fail**. A `Cannot find module` or a collection
+   error is a weak red and does NOT count as watching a test fail.
+4. Fix the **CODE**. Re-run; it must pass for the right reason.
+
+**Never edit a test to make it pass.** The only licence to change an existing
+test is a **surviving mutant** — real evidence that the test cannot fail.
+"The assertion is too strict", "it's flaky", and "just to get CI green" are
+not reasons.
+
+A suite that passes on the first implementation is a smell. Say so, then
+attack it with mutants; that is the only way to learn whether the tests were
+hard or merely lucky.
+
+## Every bug becomes a permanent fix
+
+> EVERY BUG, ERROR, MUST BECOME A PERMANENT FIX AND NOT JUST A SURFACE LEVEL
+> FIX. ENFORCED — NEVER OVERRIDDEN.
+
+Root cause named; fixed at the source and in every copy of the shape; a guard
+that fails if it returns, verified by running it; and if a check let the bug
+through, that check is fixed too.
+
+Banned as fixes: `continue-on-error`, `|| true`, swallowing an exception,
+widening a threshold, deleting an assertion, `eslint-disable`, "quick fix for
+now" — anything that makes the RED go away without changing what was WRONG.

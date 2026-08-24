@@ -447,7 +447,37 @@ PLAYWRIGHT_EXEMPT: dict[str, str] = {}
 # people to raise floors to get their work through, which is how a ratchet
 # becomes a formality. 9 stays as a floor of last resort against wholesale
 # deletion, where the count floor would already have fired first anyway.
-MUTATION_COUNT_FLOOR = 39
+#
+# 39 -> 59: the agent capability layer added nine mutants covering the WIRING
+# rather than the decisions -- the branch that reads an attached file, the
+# guard that keeps the execution record from over-claiming, the composition
+# root's registry, the dependency edge that stops a synthesis step running
+# before the work it summarises. Measured with check (g)'s own regexes against
+# the catalogue, not counted by eye:
+#
+#     mutants: 59
+#     files:   28
+#
+# THE FLOOR MOVES IN THE SAME COMMIT AS THE CATALOGUE, and that is the whole
+# point. "Raise it later" is precisely what produced a floor of 27 against a
+# catalogue of 39 -- twelve mutants of slack that check (g) could not see. A
+# floor raised in a separate commit is a floor that drifts, because the commit
+# that grows the catalogue is the only one that knows the new number.
+#
+# NOT AN EQUALITY CLAUSE. Requiring floor == catalogue would make slack
+# impossible, and it would also fail preflight on every PR that adds a mutant
+# until someone bumps this constant -- which is the literal subject of #69,
+# "the ratchet test punished anyone who added a mutant". That punishment was
+# removed deliberately and is not reinstated here by the back door. If the
+# residual slack needs closing, the move is a preflight step that PRINTS the
+# number to write without failing, so forgetting is cheap to fix rather than
+# expensive to commit.
+# 59 -> 63 in the commit that grew the catalogue, which is the only commit
+# that knows the new number. Raising it later is what left this floor at 27
+# against a catalogue of 39 --- twelve mutants deletable with the gate still
+# green. The four added are the teaching ledger's, and every one reproduces a
+# defect that actually occurred rather than one that could.
+MUTATION_COUNT_FLOOR = 63
 MUTATION_FILE_FLOOR = 9
 
 QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
@@ -526,6 +556,80 @@ def projects_invoked(job: dict[str, Any]) -> set[str]:
         for key in PROJECT_VIA_MATRIX.findall(run):
             found |= set(matrix.get(key, []))
     return found
+
+
+#: Where an enforced step leaves the output an annotator re-reports. Every
+#: genuine annotator in the frontend workflow reads one of these:
+#:
+#:     Annotate typecheck      < "$RUNNER_TEMP/tsc.log"
+#:     Annotate lint           < "$RUNNER_TEMP/eslint.json"
+#:     Annotate unit tests     < "$RUNNER_TEMP/vitest.json"
+#:     Annotate bundle budget    grep "$RUNNER_TEMP/budget.log"
+#:
+#: Both spellings are accepted because YAML and shell both appear in `run:`
+#: bodies and neither is more correct than the other.
+ARTIFACT_SOURCE = re.compile(r"\$\{?RUNNER_TEMP\}?")
+
+#: A `$RUNNER_TEMP` reference immediately preceded by one of these is the step
+#: PRODUCING the artifact, not consuming it.
+#:
+#: This distinction is load-bearing, and "mentions $RUNNER_TEMP" is not a
+#: sufficient rule without it:
+#:
+#:     npm run coverage > "$RUNNER_TEMP/cov.log"
+#:     set -o pipefail; npm run coverage 2>&1 | tee "$RUNNER_TEMP/cov.log"
+#:
+#: Both mention the artifact directory while consuming nothing. Both run a real
+#: check, reach their own verdict, and cannot fail the job. The second is the
+#: dangerous one: `tee` into `$RUNNER_TEMP` is exactly the shape the genuine
+#: ENFORCED steps use, so it reads as idiomatic to a reviewer.
+ARTIFACT_WRITE = re.compile(r"""(?:>>?|\btee\b|-o|--outputFile=|--output=)\s*["']?$""")
+
+
+def consumes_an_artifact(run: str) -> bool:
+    """Does this step READ output that another step produced?
+
+    This is clause (d)'s real question. An annotator re-reports a verdict some
+    enforced step already reached, so it must consume that verdict. A step that
+    consumes nothing is reaching its own conclusion, and a conclusion that
+    cannot fail the job enforces nothing.
+
+    Asking it structurally rather than by name is the point. The previous test
+    was `name.startswith("Annotate")`, so an identical command passed or failed
+    on what someone had called the step — and the gate's own remediation text
+    told people to rename it.
+
+    Reading is deliberately not narrowed to a `<` redirect: `Annotate bundle
+    budget` greps the artifact by path with no redirect at all and is a genuine
+    annotator. A rule keyed to `<` would break a working reporter to satisfy a
+    pattern.
+    """
+    for match in ARTIFACT_SOURCE.finditer(run):
+        if not ARTIFACT_WRITE.search(run[: match.start()]):
+            return True
+    return False
+
+
+def is_annotator(name: str, run: str) -> bool:
+    """Both halves, and neither alone is sufficient.
+
+    NAME alone was the original rule and it was bypassable: the identical
+    command passed or failed on what someone had called the step, and the
+    gate's own remediation text told people to rename it.
+
+    BEHAVIOUR alone is bypassable in the other direction, which is subtler.
+    Take a genuine annotator and rename it to `Check lint results`. It still
+    only reads an artifact, so a behaviour-only rule calls it legal — but the
+    name now advertises a verification step to every human who reads the
+    workflow, while it still cannot fail the job. The declared intent and the
+    enforcement have silently diverged, which is this repo's recurring defect
+    wearing one more hat.
+
+    So an annotator must BOTH say what it is and do what it says. The trailing
+    space in the prefix is deliberate: `startswith("Annotate")` also admitted
+    the unrelated word `Annotated`.
+    """
+    return name.startswith("Annotate ") and consumes_an_artifact(run)
 
 
 def check_frontend(g: Gate) -> bool:
@@ -625,6 +729,37 @@ def check_frontend(g: Gate) -> bool:
 
     enforced = set(re.findall(r"steps\.([A-Za-z0-9_-]+)\.outcome", condition))
 
+    # (c-reverse) EVERY ID THE CONDITION NAMES MUST RESOLVE TO A STEP.
+    #
+    # Clause (c) below walks the STEPS and asks whether each id'd step appears
+    # in the condition. Nothing walked the CONDITION to ask the mirror question,
+    # so the gate could keep a clause pointing at a step that no longer exists.
+    #
+    # GitHub evaluates a missing step's outcome as the empty string, so
+    # `'' == 'failure'` is false for ever. The clause reads as enforcement and
+    # is inert. That is the dead-anchor shape this repository keeps finding: a
+    # check that silently stopped running, with nothing to announce it.
+    #
+    # Reached in practice by deleting or renaming a step and leaving its clause
+    # behind — a rename is the likely accident, because the person doing it is
+    # looking at the step, not at a condition thirty lines below.
+    step_ids = {str(s.get("id")) for s in steps if s.get("id")}
+    for sid in sorted(enforced - step_ids):
+        ok = False
+        g.check(f"gate clause 'steps.{sid}.outcome' resolves", False, "names no step")
+        g.fail(
+            what=f"the verification gate names step '{sid}', which does not exist",
+            where=f"{FRONTEND_WF} -> {FRONTEND_GATE_STEP}",
+            why="GitHub evaluates a missing step's outcome as empty, so "
+            f"`steps.{sid}.outcome == 'failure'` is false whatever happens. "
+            "The clause looks like enforcement and enforces nothing.",
+            requirement="Every id named in the gate condition resolves to a "
+            "step in the same job.",
+            fix=f"Restore the step with id '{sid}', or remove its clause from "
+            f"the '{FRONTEND_GATE_STEP}' condition. Do not leave the clause "
+            "pointing at nothing.",
+        )
+
     # (c) a reporting step with an id must be wired into the verdict.
     # (d) a reporting step WITHOUT an id must be an annotator. This is the half
     #     that stops a real check from hiding as a reporter: give it no id and
@@ -649,18 +784,46 @@ def check_frontend(g: Gate) -> bool:
                     fix=f"Add `steps.{sid}.outcome == 'failure'` to the "
                     f"'{FRONTEND_GATE_STEP}' condition.",
                 )
-        elif not name.startswith("Annotate"):
+        elif not is_annotator(name, str(step.get("run", ""))):
+            # WHAT THIS USED TO ASK, AND WHY IT WAS WRONG.
+            #
+            # The test was `not name.startswith("Annotate")` — the step's NAME,
+            # never what it ran. Holding the payload constant at a genuine check
+            # (`npm run coverage`, continue-on-error, no id) and varying only the
+            # name flipped the verdict:
+            #
+            #     'Coverage threshold'           -> fired
+            #     'Annotate coverage threshold'  -> SILENT
+            #     'Annotated coverage threshold' -> SILENT  (startswith, no space)
+            #     'Annotate'                     -> SILENT
+            #
+            # Worse, the remediation text below used to recommend exactly that:
+            # "rename it to 'Annotate …' if it genuinely only reports". Someone
+            # hits the failure, follows the advice, and the gate goes quiet while
+            # the check still runs and still enforces nothing. A fix instruction
+            # that is also an exploit is worse than no instruction.
+            #
+            # The replacement is structural, matching how this repo already
+            # reasons about gates: an annotator re-reports a verdict someone
+            # else already reached, so it must CONSUME that verdict. All four
+            # real annotators read an artifact an enforced step wrote. A step
+            # that reads none is producing its own unenforced verdict, whatever
+            # it is called.
             ok = False
             g.check(f"frontend step '{name}' is an annotator", False, "no id")
             g.fail(
                 what=f"step '{name}' is continue-on-error with no id",
                 where=f"{FRONTEND_WF} -> {name}",
                 why="with no id it can never appear in the gate condition, so "
-                "it can never fail the job whatever it finds",
-                requirement="Only annotators (name starts with 'Annotate') may "
-                "be continue-on-error without an id.",
-                fix=f"Give '{name}' an id and a gate clause, or rename it to "
-                "'Annotate …' if it genuinely only reports.",
+                "it can never fail the job whatever it finds, and it does not "
+                "read an artifact an enforced step produced — so it is not "
+                "reporting someone else's verdict, it is reaching its own",
+                requirement="A continue-on-error step without an id must be a "
+                "true annotator: it must consume an artifact that an enforced "
+                "step wrote. The name is not evidence.",
+                fix=f"Give '{name}' an id and a clause in the "
+                f"'{FRONTEND_GATE_STEP}' condition. Renaming it will not help — "
+                "this check reads what the step runs, not what it is called.",
             )
 
     # (e) THE PIPEFAIL CLASS. Scoped to steps whose exit status is load-bearing:
@@ -1155,10 +1318,35 @@ def main() -> None:
                 continue
             job = cast("dict[str, Any]", job_obj)
 
-            # 2. job-level condition, only where the manifest declares one
+            # 2. job-level condition — checked in BOTH directions.
+            #
+            # This was `(job_if is None) or (job_if == allowed_if)`, which read
+            # an absent condition as always acceptable. For every job that is
+            # correct: unconditional is what a mandatory job should be. For the
+            # ONE job the manifest declares a condition for it was a hole, and
+            # ci/gates.toml already spells out the damage:
+            #
+            #   "Without it a failing gate skips this job, the required `full`
+            #    context never reports, and the PR hangs pending instead of
+            #    failing."
+            #
+            # Measured before this change, with `if: always()` deleted from the
+            # `full` job and nothing else touched:
+            #
+            #     $ python3 scripts/gate_integrity.py ; echo $?
+            #     0
+            #
+            # So one deleted line disabled the finalizer and the guard on the
+            # guard called it fine. A declared condition is now REQUIRED to be
+            # present, which is the direction the manifest was always making a
+            # claim about.
             allowed_if = spec.get("job_if")
             job_if = job.get("if")
-            if_ok = (job_if is None) or (str(job_if).strip() == str(allowed_if).strip())
+            if allowed_if is None:
+                if_ok = job_if is None
+            else:
+                if_ok = (job_if is not None
+                         and str(job_if).strip() == str(allowed_if).strip())
             # `if: false` parses to the boolean False, which is falsy, so a
             # truthiness test reported "unconditional" for a job conditioned
             # never to run -- the single most misleading case this check has.
@@ -1170,14 +1358,31 @@ def main() -> None:
             )
             if not if_ok:
                 ok = False
-                g.fail(
-                    what=f"job '{job_id}' runs conditionally",
-                    where=str(wf),
-                    why=f"if: {job_if}",
-                    requirement="A required job, or any scanner, must run every time, unless "
-                    f"{MANIFEST} declares the condition.",
-                    fix=f"Remove the condition, or declare job_if in {MANIFEST}.",
-                )
+                if allowed_if is not None and job_if is None:
+                    g.fail(
+                        what=f"job '{job_id}' lost its declared condition",
+                        where=str(wf),
+                        why=f"{MANIFEST} declares job_if = \"{allowed_if}\" for "
+                            f"this job and the workflow carries no `if:`",
+                        requirement="A job the manifest declares a condition "
+                                    "for must carry exactly that condition. "
+                                    "Dropping `if: always()` from the finalizer "
+                                    "makes it skip whenever a gate is red, so "
+                                    "the required check never reports and the "
+                                    "pull request hangs pending instead of "
+                                    "failing.",
+                        fix=f"Restore `if: {allowed_if}` on job `{job_id}`, or "
+                            f"remove job_if from {MANIFEST} if the condition "
+                            f"genuinely no longer belongs there.")
+                else:
+                    g.fail(
+                        what=f"job '{job_id}' runs conditionally",
+                        where=str(wf),
+                        why=f"if: {job_if}",
+                        requirement="A required job, or any scanner, must run every time, unless "
+                        f"{MANIFEST} declares the condition.",
+                        fix=f"Remove the condition, or declare job_if in {MANIFEST}.",
+                    )
 
             # 3. job-level continue-on-error
             if job.get("continue-on-error"):

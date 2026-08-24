@@ -164,9 +164,9 @@ def test_matrix_missing_one_project_is_caught(sandbox: Path) -> None:
     omitted = ALL_PROJECTS[-1]
     edit_workflow(
         sandbox,
-        f"          - {omitted}\n",
+        f"          --project={omitted}\n",
         "",
-        why=f"matrix no longer lists {omitted}",
+        why=f"browser step no longer passes --project={omitted}",
     )
     result = integrity(sandbox)
     assert result.returncode != 0, result.stdout + result.stderr
@@ -185,12 +185,15 @@ def test_matrix_that_lists_projects_without_running_them_is_caught(
     are listed and the browser step ignores the matrix entirely — coverage on
     paper, which is the exact thing check (f) was written to refuse.
     """
-    edit_workflow(
-        sandbox,
-        '--project="$PROJECT"',
-        "--project=desktop-1440",
-        why="browser step no longer reads the matrix through env",
-    )
+    kept, dropped = ALL_PROJECTS[0], ALL_PROJECTS[1:]
+    for name in dropped:
+        edit_workflow(
+            sandbox,
+            f"          --project={name}\n",
+            "",
+            why=f"browser step no longer passes --project={name}",
+        )
+    assert kept == ALL_PROJECTS[0]
     result = integrity(sandbox)
     assert result.returncode != 0, result.stdout + result.stderr
     for name in ALL_PROJECTS[1:]:
@@ -206,9 +209,9 @@ def test_findings_upload_deleted_entirely_is_caught(sandbox: Path) -> None:
     """
     edit_workflow(
         sandbox,
-        "          name: learning-canvas-frontend-findings-${{ matrix.project }}\n"
+        "          name: learning-canvas-frontend-findings-scenes-${{ matrix.shard }}\n"
         "          path: frontend/ci-findings.json\n",
-        "          name: learning-canvas-frontend-findings-${{ matrix.project }}\n"
+        "          name: learning-canvas-frontend-findings-scenes-${{ matrix.shard }}\n"
         "          path: frontend/nothing-here.json\n",
         why="findings upload no longer has the expected path",
     )
@@ -234,3 +237,54 @@ def test_findings_upload_must_still_be_unconditional(sandbox: Path) -> None:
     result = integrity(sandbox)
     assert result.returncode != 0, result.stdout + result.stderr
     assert "the findings artifact is not uploaded on failure" in result.stdout
+
+
+def test_projects_invoked_still_resolves_a_matrix_binding() -> None:
+    """THE REAL WORKFLOW NO LONGER HAS A PROJECT MATRIX. THE CODE STILL DOES.
+
+    `frontend-scenes` was a 5-way matrix, one project per runner, until that
+    split was found to starve Playwright: with `fullyParallel: false` a parallel
+    unit is one file within one project, so a per-project shard could only ever
+    reach 2 of the configured 4 workers.
+
+    Consolidating the job removed the last project matrix in the workflow, and
+    with it the only exercise of `projects_invoked`'s matrix-binding branch.
+    That branch is still live code, and untested live code rots: a refactor
+    could break `${{ matrix.project }}` resolution and every other test in this
+    file would stay green, because the shipped workflow now passes literal
+    flags only.
+
+    Tested against the function rather than by reconstructing a workflow,
+    because the claim is about the resolver, not about any file on disk.
+    """
+    sys.path.insert(0, str(REPO / "scripts"))
+    from gate_integrity import projects_invoked
+
+    job = {
+        "strategy": {"fail-fast": False, "matrix": {"project": list(ALL_PROJECTS)}},
+        "steps": [
+            {
+                "name": "Scene regression guards",
+                "env": {"PROJECT": "${{ matrix.project }}"},
+                "run": 'npx playwright test -c playwright.config.ts --project="$PROJECT"',
+            }
+        ],
+    }
+    assert projects_invoked(job) == set(ALL_PROJECTS)
+
+
+def test_projects_invoked_does_not_credit_a_matrix_nothing_runs() -> None:
+    """The asymmetry that keeps the resolver from becoming a rubber stamp.
+
+    Naming a project in `strategy.matrix` covers nothing if no `--project=`
+    flag ever receives it. This is the property that made widening check (f)
+    safe, and it belongs next to the test above so the two cannot drift apart.
+    """
+    sys.path.insert(0, str(REPO / "scripts"))
+    from gate_integrity import projects_invoked
+
+    job = {
+        "strategy": {"matrix": {"project": list(ALL_PROJECTS)}},
+        "steps": [{"name": "Scene regression guards", "run": "npx playwright test"}],
+    }
+    assert projects_invoked(job) == set()

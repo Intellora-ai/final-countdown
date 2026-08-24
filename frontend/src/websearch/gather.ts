@@ -36,7 +36,7 @@
 
 import { extract } from './extract'
 import { asEvidence, type InjectionSignal } from './guard'
-import { fetchPage, type FetchFailure, type FetchOutcome } from './fetchPage'
+import { fetchPage, type FetchFailure, type FetchOptions, type FetchOutcome } from './fetchPage'
 import { Latency } from './latency'
 import type { SearchHit } from './port'
 
@@ -105,6 +105,24 @@ export interface GatherOptions {
   maxAgeMs?: number
   /** Time-sensitive questions skip the cache outright. */
   requireFresh?: boolean
+  /**
+   * Passed straight to `fetchPage` on the default path.
+   *
+   * Without this, NONE of the fetcher's limits were reachable from here —
+   * `gather` called `fetchPage(url)` with no options, so `timeoutMs`,
+   * `totalBudgetMs`, `maxBytes` and `allowLoopback` were all fixed at their
+   * defaults and no caller could change them. In the shipped configuration one
+   * source could occupy (maxRedirects + 1) x (retries + 1) x timeoutMs, which
+   * is 6 x 3 x 8s = 144 seconds.
+   *
+   * `fetchPage.test.ts` proved every one of those limits works. Nothing proved
+   * they were wired, and a mechanism that is tested but unreachable is the same
+   * as a mechanism that does not exist.
+   *
+   * Ignored when `fetchImpl` is supplied, because then there is no
+   * `fetchPage` to configure.
+   */
+  fetch?: FetchOptions
   fetchImpl?: (url: string) => Promise<FetchOutcome>
   now?: () => number
 }
@@ -145,7 +163,7 @@ export async function gather(
   const latency = options.latency
   const cache = options.cache
   const now = options.now ?? Date.now
-  const doFetch = options.fetchImpl ?? ((url: string) => fetchPage(url))
+  const doFetch = options.fetchImpl ?? ((url: string) => fetchPage(url, options.fetch ?? {}))
 
   /* One request per distinct URL. Two hits pointing at the same page are two
      results and one fetch — anything else pays twice for identical bytes and

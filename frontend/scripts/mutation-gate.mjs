@@ -612,7 +612,7 @@ const MUTANTS = [
   {
     id: 'agent-failed-verification-is-reported-but-never-fixed',
     file: 'src/agent/kernel/loop.ts',
-    from: '  const repairable = action.action !== \'ask\' && degraded === undefined',
+    from: '  const repairable = answering && degraded === undefined',
     to: '  const repairable = false',
     breaks: 'the system knows the answer misses a stated constraint and ships it unchanged, with the evidence attached where nobody reads it — verification becomes a report rather than a correction',
   },

@@ -458,3 +458,278 @@ def test_reminder_hook_names_exactly_the_skills_the_gate_requires() -> None:
         f"      -> loaded every prompt for no reason\n"
         f"Fix BOTH: REQUIRED in {HOOK} and REQUIRED_SKILLS in {reminder}"
     )
+
+
+
+# ---------------------------------------------------------------------------
+# The skill list is copied into several hooks, and a copy is a thing that
+# drifts. It has drifted FOUR times. The functions below are written as pure
+# functions taking a directory, so the checks that follow can plant a hooks
+# directory and drive them directly -- a helper that can only read the real
+# ~/.claude/hooks can only ever be asserted to PASS, and something only
+# asserted to pass is satisfied by `return True`.
+# ---------------------------------------------------------------------------
+
+_SKILL_TOKEN = r"""[/"']{name}\b"""
+
+# Returned by _drift_report when the hooks directory holds Python files but
+# none of them appear to carry the list. That is not "all clear" -- it is what
+# a broken discovery pattern looks like, and the two are indistinguishable
+# unless they are named differently.
+DISCOVERY_BROKEN = "discovery-found-no-carriers"
+
+
+def _skills_named_by(path: Path) -> "set[str]":
+    """The required skills a hook file DECLARES.
+
+    Comment lines are stripped first. A skill named only inside a comment has
+    been commented OUT or discussed in prose; counting it as declared would let
+    a hook drop a skill from its real list and still look compliant.
+    """
+    import re
+
+    body = "\n".join(
+        line for line in path.read_text(errors="ignore").splitlines()
+        if not line.strip().startswith("#")
+    )
+    return {s for s in REQUIRED if re.search(_SKILL_TOKEN.format(name=re.escape(s)), body)}
+
+
+def _is_not_a_consumer(path: Path) -> bool:
+    """Files that must never be judged against the gate's list.
+
+    The gate is excluded because it DEFINES the list; comparing it to itself is
+    vacuous, and counting it as a carrier would make a machine holding only the
+    gate look like a machine where discovery had broken.
+
+    Test files are excluded because a test naming skills is asserting about
+    them, not declaring them. Matched by NAME rather than by resolved path so
+    the rule is the same for a planted directory as for the real one -- a rule
+    that only works on this machine cannot be tested anywhere else.
+    """
+    return path.name.startswith("test_") or path.name == HOOK.name
+
+
+def _skill_naming_hooks(hooks_dir: Path) -> "list[Path]":
+    """Every hook in `hooks_dir` that carries a copy of the required-skill list.
+
+    DISCOVERED, never enumerated, and that distinction is the entire point.
+    The older pair check below names `force-skills.py` by hand, so it protects
+    that one file and is blind to every consumer added afterwards. One was
+    added, and it drifted immediately.
+
+    A file "carries the list" when it names two or more required skills in
+    slash or quoted form. Measured on this machine: exactly three files do, and
+    no other hook names even one, so the threshold does not fire on prose.
+    Test files are excluded -- a test naming skills asserts about them rather
+    than declaring them.
+    """
+    if not hooks_dir.is_dir():
+        return []
+    carriers = []
+    for path in sorted(hooks_dir.glob("*.py")):
+        if _is_not_a_consumer(path):
+            continue
+        try:
+            if len(_skills_named_by(path)) >= 2:
+                carriers.append(path)
+        except OSError:
+            continue
+    return carriers
+
+
+def _drift_report(hooks_dir: Path):
+    """`{filename: skills it names}` for every hook that disagrees with the gate.
+
+    Empty dict means every carrier agrees. `DISCOVERY_BROKEN` means the
+    directory had Python files but none looked like carriers.
+    """
+    carriers = _skill_naming_hooks(hooks_dir)
+    if not carriers:
+        # Counts only files that COULD have been carriers. Counting the gate
+        # or a test file here would raise a false alarm on a machine that holds
+        # nothing but the gate, and a check that cries wolf gets switched off.
+        if any(
+            f.name != "__init__.py" and not _is_not_a_consumer(f)
+            for f in hooks_dir.glob("*.py")
+        ):
+            return DISCOVERY_BROKEN
+        return {}
+    gated = set(REQUIRED)
+    return {p.name: _skills_named_by(p) for p in carriers if _skills_named_by(p) != gated}
+
+
+def test_every_installed_hook_naming_skills_names_exactly_the_gates_list() -> None:
+    """
+    THE LAW VERSION of the pair check above, and it exists because that check's
+    shape let the fourth drift through.
+
+    The pair check names `force-skills.py`. It cannot see a consumer nobody
+    told it about. `explicit-skill-policy.py` printed a FIVE-skill policy on
+    every prompt while the gate refused turns on SIX -- so the text telling the
+    model what to load disagreed with the gate deciding whether it had, and the
+    only symptom was a turn blocked with nothing anywhere having asked for the
+    missing skill.
+
+    This asks "which files carry the list", not "which files do I remember", so
+    a hook written next month is covered the day it lands.
+    """
+    import os
+
+    import pytest
+
+    hooks_dir = Path(os.path.expanduser("~/.claude/hooks"))
+    if not hooks_dir.is_dir():
+        pytest.skip("hooks not installed on this machine")
+
+    report = _drift_report(hooks_dir)
+
+    assert report != DISCOVERY_BROKEN, (
+        f"{hooks_dir} holds Python files but discovery matched none of them as "
+        "carrying a skill list. That is what a broken discovery pattern looks "
+        "like, and it would make this check pass on any amount of drift."
+    )
+    assert report == {}, (
+        "an installed hook disagrees with the gate about which skills are required.\n"
+        + "".join(
+            f"  {name}\n"
+            f"    gate requires, hook omits: {sorted(set(REQUIRED) - named)}\n"
+            f"    hook names, gate ignores:  {sorted(named - set(REQUIRED))}\n"
+            for name, named in sorted(report.items())
+        )
+        + f"\nThe gate is the source of truth: REQUIRED in {HOOK}.\n"
+        "A hook omitting a required skill produces a turn blocked with no\n"
+        "warning; a hook naming an extra one pays its preamble forever."
+    )
+
+
+def _plant(dirpath: Path, filename: str, skills, commented=()) -> Path:
+    """Write a hook-shaped file declaring `skills`, and mentioning `commented`
+    only inside a comment."""
+    dirpath.mkdir(parents=True, exist_ok=True)
+    body = "REQUIRED_SKILLS = [" + ", ".join(f'"/{s}"' for s in sorted(skills)) + "]\n"
+    for s in commented:
+        body += f'# once required: "/{s}"\n'
+    path = dirpath / filename
+    path.write_text(body)
+    return path
+
+
+def test_law_reports_an_invented_hook_that_omits_a_required_skill(tmp_path) -> None:
+    """
+    The proof that this is a LAW and not a list: the planted filename appears
+    in NO source anywhere -- not the gate, not the reminder, not this test's
+    discovery code. It must be found and reported anyway.
+
+    It also drives the real comparison rather than the helper alone, which is
+    what makes an equality check distinguishable from a subset check. A subset
+    check treats an OMITTED skill as fine, and an omitted skill is exactly the
+    defect that happened.
+    """
+    missing = sorted(REQUIRED)[-1]
+    _plant(tmp_path, "zz-marmalade-sentinel.py", set(REQUIRED) - {missing})
+
+    report = _drift_report(tmp_path)
+
+    assert report != DISCOVERY_BROKEN, "discovery failed to see a plain skill list"
+    assert list(report) == ["zz-marmalade-sentinel.py"], (
+        f"an invented hook carrying the list was not reported as drifted: {report}"
+    )
+    assert sorted(set(REQUIRED) - report["zz-marmalade-sentinel.py"]) == [missing]
+
+
+def test_law_does_not_cry_wolf_on_a_hook_that_agrees(tmp_path) -> None:
+    """
+    The false-positive half, and it is load bearing: a check that fails on
+    correct input gets switched off, and then it enforces nothing at all.
+    """
+    _plant(tmp_path, "zz-marmalade-sentinel.py", set(REQUIRED))
+    assert _drift_report(tmp_path) == {}, "a hook that agrees was reported as drifted"
+
+
+def test_law_reports_an_extra_skill_the_gate_does_not_require(tmp_path) -> None:
+    """The other drift direction. A hook naming a skill the gate ignores loads
+    it on every prompt forever, paying its preamble for nothing."""
+    _plant(tmp_path, "zz-marmalade-sentinel.py", set(REQUIRED) | {"caveman"})
+    path = tmp_path / "zz-marmalade-sentinel.py"
+    path.write_text(path.read_text().replace("]", ', "/marmalade"]', 1))
+
+    # `marmalade` is not in REQUIRED, so it cannot show up in the named set;
+    # what this pins is that the check compares by EQUALITY against the gate,
+    # so the day `marmalade` becomes required this file is already covered.
+    assert _drift_report(tmp_path) == {}, "the agreeing subset should not be reported"
+    assert "marmalade" not in set(REQUIRED), (
+        "if this ever becomes a real skill, this test's premise changed"
+    )
+
+
+def test_law_treats_a_commented_out_skill_as_absent(tmp_path) -> None:
+    """
+    A hook that drops a skill from its real list but leaves it in a comment is
+    the most natural way for drift to hide: the file still contains the word.
+
+    Without comment-stripping the file reads as compliant while the running
+    hook prints one skill short -- which is a turn blocked with no warning.
+    """
+    missing = sorted(REQUIRED)[-1]
+    _plant(tmp_path, "zz-marmalade-sentinel.py", set(REQUIRED) - {missing},
+           commented=[missing])
+
+    report = _drift_report(tmp_path)
+    assert list(report) == ["zz-marmalade-sentinel.py"], (
+        f"a skill left only in a comment was counted as still declared: {report}"
+    )
+    assert missing not in report["zz-marmalade-sentinel.py"]
+
+
+def test_law_distinguishes_no_hooks_from_broken_discovery(tmp_path) -> None:
+    """
+    An empty result has two causes that look identical and mean opposite
+    things: nothing is installed (fine), or the discovery pattern stopped
+    matching (the check is now decorative).
+
+    Reporting both as "all clear" is how a check keeps passing after it has
+    stopped working.
+    """
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    assert _drift_report(empty) == {}, "a genuinely empty hooks dir is not a failure"
+
+    populated = tmp_path / "populated"
+    populated.mkdir()
+    (populated / "unrelated-hook.py").write_text("print('I mention no skills')\n")
+    assert _drift_report(populated) == DISCOVERY_BROKEN, (
+        "hooks present but no carriers found must be reported as broken discovery, "
+        "not as all-clear"
+    )
+
+
+def test_law_ignores_a_test_file_that_names_skills(tmp_path) -> None:
+    """
+    A test file in the hooks directory names skills in order to ASSERT about
+    them. Judging it as a declaration reports drift that does not exist, and a
+    check that cries wolf gets switched off -- after which it enforces nothing.
+    """
+    _plant(tmp_path, "test_zz_marmalade.py", sorted(REQUIRED)[:2])
+    _plant(tmp_path, "zz-marmalade-sentinel.py", set(REQUIRED))
+
+    assert _drift_report(tmp_path) == {}, (
+        "a test file naming a partial skill list was judged as a declaration"
+    )
+
+
+def test_law_does_not_call_a_gate_only_directory_broken(tmp_path) -> None:
+    """
+    The gate DEFINES the list, so it is never a consumer of it. A machine that
+    has installed the gate and nothing else is perfectly healthy.
+
+    Before this was fixed, that machine reported DISCOVERY_BROKEN: the gate was
+    skipped as a carrier but still counted as "a Python file is present", so
+    zero carriers looked like a broken discovery pattern. A false alarm on the
+    most ordinary possible setup.
+    """
+    _plant(tmp_path, HOOK.name, set(REQUIRED))
+
+    assert _drift_report(tmp_path) == {}, (
+        "a hooks directory holding only the gate was reported as broken or drifted"
+    )

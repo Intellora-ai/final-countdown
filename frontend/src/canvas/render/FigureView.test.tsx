@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { ReactElement } from 'react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { act, cleanup, render } from '@testing-library/react'
 
 import { billBecomesLaw } from '../lessons/billBecomesLaw'
@@ -43,6 +43,69 @@ import { FigureView } from './FigureView'
  * in a chart engine, so those are checked a little harder: their labels have to
  * be in the document, not merely their wrapper.
  */
+
+/**
+ * A BOX WITH A SIZE, BECAUSE ZERO IS NOT A SIZE ECHARTS SURVIVES.
+ *
+ * jsdom reports every element as 0x0. For most of this file that is fine and is
+ * exactly why no assertion below reads a dimension. For echarts it is not: a
+ * coordinate system built on a zero box leaves `View._rawTransformable.transform`
+ * null, and the sankey view then hands that null straight to zrender:
+ *
+ *     TypeError: Cannot read properties of null (reading '0')
+ *      at copy                       zrender/lib/core/matrix.js:14:15
+ *      at legacyCopyOverallTrans     echarts/lib/coord/View.js:382:5
+ *      at SankeyView._updateViewCoordSys
+ *      at Task._doProgress           echarts/lib/core/task.js:167:10
+ *
+ * `Task._doProgress` is the reason this was so slippery. Progressive rendering
+ * runs OUTSIDE the promise chain `settled()` awaits, so the throw never reaches
+ * the test that caused it. Vitest counts it as an unhandled rejection instead:
+ * the run printed `Test Files 29 passed (29)` and `Errors 1 error` and exited 1,
+ * with no file and no line to annotate. It reddened main and two pull requests
+ * before it was pinned down, and it looked like flake because the scheduling has
+ * to land a certain way — measured here, it reproduces about two runs in three
+ * with `--poolOptions.threads.maxThreads=4`, and almost never with the default
+ * thread count on a larger machine, which is why CI saw it and laptops did not.
+ *
+ * THIS CHANGES WHAT IS MEASURED, NOT WHAT IS CLAIMED. The box now has a size, so
+ * echarts builds a sane transform instead of a null one. Nothing below asserts
+ * on that size, on a rendered bar, or on any painted geometry — those remain
+ * claims only the browser harness is allowed to make. The size exists so the
+ * chart engine does not throw while this file asks its actual question, which is
+ * whether a shape reaches a renderer at all.
+ */
+const STUB_BOX = { width: 640, height: 360 }
+
+beforeAll(() => {
+  for (const [prop, value] of [
+    ['clientWidth', STUB_BOX.width],
+    ['clientHeight', STUB_BOX.height],
+    ['offsetWidth', STUB_BOX.width],
+    ['offsetHeight', STUB_BOX.height],
+  ] as const) {
+    Object.defineProperty(HTMLElement.prototype, prop, {
+      configurable: true,
+      get() {
+        return value
+      },
+    })
+  }
+
+  HTMLElement.prototype.getBoundingClientRect = function getBoundingClientRect() {
+    return {
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      right: STUB_BOX.width,
+      bottom: STUB_BOX.height,
+      width: STUB_BOX.width,
+      height: STUB_BOX.height,
+      toJSON: () => ({}),
+    } as DOMRect
+  }
+})
 
 afterEach(cleanup)
 

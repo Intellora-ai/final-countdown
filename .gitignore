@@ -64,3 +64,9 @@ screenshots/
 # one commit. Ignored by pattern rather than by path, because the same trap
 # waits in any other Next.js app added later.
 .next/
+
+# Official syllabus PDFs — large binaries, fetched by scripts/curriculum/fetch.mjs.
+# The lock file (data/curriculum-sources.lock.json) IS committed: it is the
+# provenance record of which document was reviewed.
+data/source-pdfs/
+data/almanac-ledger.json

@@ -1,7 +1,11 @@
 export type ConceptState = 'notStarted' | 'inProgress' | 'completed' | 'mastered'
 export type MasterySource = 'system' | 'declared' | 'session' | null
 
-export interface Concept { id: string; name: string; minutes: number; deps: string[] }
+/* Where a generated concept was read from. Optional because the original
+ * hand-written curriculum predates provenance; every generated concept has it. */
+export interface ConceptSource { pdf: string; page: number | null }
+
+export interface Concept { id: string; name: string; minutes: number; deps: string[]; source?: ConceptSource }
 export interface Chapter { id: string; name: string; concepts: Concept[] }
 export interface Subject { id: string; name: string; chapters: Chapter[] }
 

@@ -5,6 +5,89 @@ gets compacted; these files do not.
 
 ---
 
+## How to talk to Tanveer — read this first
+
+Tanveer is 12. He has ADHD and autism. He asked for this rule on 2026-08-24:
+
+> **Use simple language. Explain technical things in plain words.**
+
+This applies to EVERY reply, every session, forever.
+
+- Short sentences. One idea each.
+- Plain words: "broken", not "defective". "Check", not "validate".
+- Explain a technical word the first time you use it, in brackets, like:
+  "CI (the robot on GitHub that checks your code)".
+- Answer first. Details after.
+- Use short lists and small tables. Walls of text are hard to scan.
+- **Bold** the part that matters most.
+
+**Do not talk down to him.** He runs this repo, directs several AI sessions at
+once, and catches real mistakes in their work — including mine. Simple is not
+the same as dumb. He also asks for the "HONEST ANSWER" and means it: never soften
+bad news, just say it plainly.
+
+If a hook turns on "caveman mode" (dropping words, using fragments), **this rule
+wins**. Fragments are harder to read, not easier. Write full simple sentences.
+
+---
+
+## How work gets built — read before writing a single line
+
+Tanveer's rule, 2026-08-24, verbatim:
+
+> **"DEFINE REQUIREMENTS + WHAT MUST BE TRUE TO GET DESIRED OUTCOME THEN BUILD
+> AROUND THAT, DO NOT MAKE TESTS WEAK, EASY. BUILD TESTS THAT FULFILL DESIRED
+> OUTCOME, ONLY THEN WRITE CODE. CODE WRITTEN SHOULD BE CHANGED AND BETTER BUT
+> TESTS ONLY CHANGE IF MUTANTS SHOW A REAL EVIDENCE ERROR"**
+
+And, from the same day:
+
+> **"EVERY BUG, ERROR, MUST BECOME A PERMANENT FIX AND NOT JUST SURFACE LEVEL FIX"**
+
+> **"ALL BUGS MUST BE FOUND VIA GITHUB, I DON'T CONSIDER LOCAL TESTS A TEST"**
+
+**The order. Never skipped, never reordered:**
+
+1. **Write down the requirement** and what must be TRUE for the desired outcome.
+   Aim at the requirement, never at what the code currently happens to do.
+2. **Write the hardest test you can** against that outcome. Ugliest realistic
+   input, not the happy path. Assume the code is trying to sneak past you.
+3. **Run it and WATCH IT FAIL.** A real assertion failure. An import error or a
+   collection error is a weak red and does not count as having seen it fail.
+4. **Now write or fix the CODE.**
+5. Re-run. It must pass for the right reason.
+
+**The code is what changes. The test is not.** If a test fails, the code is
+wrong until proven otherwise. The ONLY licence to change an existing test is a
+**surviving mutant** — mutation testing producing real evidence that the test
+itself cannot fail. Not "the test looks too strict". Not "the test is old".
+
+One narrow exception, and it must be stated out loud when used: a test that
+deliberately PINNED a known hole, and whose own docstring instructs the next
+person to update it once the hole is closed. Closing the hole and rewriting
+that test is finishing the job. Weakening any other test to go green is not.
+
+**Test in PAIRS.** Every check needs an input that must FAIL and one that must
+PASS. A check asserted only to fail is satisfied by `return false`, exactly as
+one asserted only to pass is satisfied by `return true`. Both are vacuous.
+
+**Assert the harness is not vacuous.** The clean baseline must exit 0 AND report
+a non-zero passed count. A suite that collected nothing looks identical to a
+suite that looked hard and found nothing.
+
+**A suite that passes on the first implementation is a smell.** Say so plainly
+rather than reporting it as success.
+
+**Permanent, not surface.** Every fix ships with the thing that stops the class
+recurring: the root cause, a test that fails without the fix, every other copy
+of the same bug, and — where one exists — the gate that let it through. A
+comment or a promise is not a fix.
+
+**GitHub is the only real test.** Local green is a hint. The required contexts
+on GitHub are the proof. Never report work as done on local results alone.
+
+---
+
 ## The central principle
 
 > The design system is constant.

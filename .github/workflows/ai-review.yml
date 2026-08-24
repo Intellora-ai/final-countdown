@@ -249,3 +249,123 @@ jobs:
             echo
             echo 'See `docs/ai-review.md`. This check blocks nothing either way.'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # -------------------------------------------------------------------------
+  # REVIEW ROWS — the half that carries the review back out.
+  #
+  # The comments above have teeth because the ruleset requires every review
+  # thread to be resolved before merge. They are also, until now, only readable
+  # by a human scrolling the Files-changed tab. This job turns the review into
+  # one JSON object per line so a fixer can read every open comment, change the
+  # code and push, with nobody transcribing anything.
+  #
+  # `if: always()`, NOT the default. `needs:` alone would skip this job whenever
+  # `ai-review` is skipped or fails -- and both of those are states in which
+  # threads left open by EARLIER runs are still unresolved work. A reviewer that
+  # has nothing new to say is not the same as a pull request with nothing open.
+  #
+  # RESOLUTION STATE IS NOT IN THE REST API. `pulls/{n}/comments` returns every
+  # comment with no `isResolved`, so a loop built on it re-fixes settled findings
+  # forever. It lives on GraphQL `reviewThreads`, which is why this queries
+  # GraphQL rather than the simpler endpoint.
+  #
+  # NO `continue-on-error`. A broken extractor must be visible. It blocks
+  # nothing because the whole workflow is supplementary; that decision belongs
+  # in ci/gates.toml, not in a suppressed exit code.
+  #
+  # tests/test_review_rows_wiring.py asserts each of those properties, including
+  # that this job cannot quietly become `all` instead of `open`.
+  # -------------------------------------------------------------------------
+  review-rows:
+    name: review rows
+    needs: ai-review
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Scoped DOWN from the workflow's `pull-requests: write` + `id-token: write`.
+    # This job reads a review; it must not be able to post, resolve or edit one.
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      # NOTHING FROM THE EVENT PAYLOAD REACHES THE SHELL AS SCRIPT. The pull
+      # request number arrives through `env:`, where it is data. The repository
+      # name is split in bash rather than read from `github.event.repository`.
+      - name: Fetch the review threads
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # `set -e` alone is not enough here: `gh api ... > threads.json`
+          # reports the REDIRECT's status, so a failed call would leave an empty
+          # file behind and exit 0. pipefail plus the envelope check in the
+          # Python are the two independent guards on that.
+          OWNER="${REPO%%/*}"
+          NAME="${REPO##*/}"
+          gh api graphql \
+            -F owner="$OWNER" -F name="$NAME" -F number="$PR_NUMBER" \
+            -f query='
+              query($owner: String!, $name: String!, $number: Int!) {
+                repository(owner: $owner, name: $name) {
+                  pullRequest(number: $number) {
+                    reviewThreads(first: 100) {
+                      totalCount
+                      nodes {
+                        id
+                        isResolved
+                        isOutdated
+                        comments(first: 1) {
+                          nodes { path line body author { login } }
+                        }
+                      }
+                    }
+                  }
+                }
+              }' > threads.json
+
+          # NO SILENT CAP. `first: 100` is a real limit, and a pull request that
+          # exceeds it would otherwise report a truncated review as the whole
+          # one -- fewer findings than exist, which reads as progress.
+          TOTAL=$(jq '.data.repository.pullRequest.reviewThreads.totalCount // 0' threads.json)
+          echo "review threads on this pull request: $TOTAL"
+          if [ "$TOTAL" -gt 100 ]; then
+            echo "TRUNCATED: $TOTAL threads exist, only the first 100 were read" \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # `open`, never `all`: resolved and outdated threads must not come back as
+      # work. Exit 2 here means the response was not a review GitHub answered --
+      # a wrong number, a missing scope, a schema change -- and that is a red
+      # job rather than a green one reporting zero comments.
+      - name: Extract the open comments
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/review_comments.py open --threads threads.json | tee rows.jsonl
+
+      - name: Report the open comments
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          {
+            echo '### open review comments'
+            echo
+            if [ -s rows.jsonl ]; then
+              echo 'One JSON object per line — path, line, body, author, thread id.'
+              echo
+              echo '```json'
+              cat rows.jsonl
+              echo '```'
+            elif [ -f rows.jsonl ]; then
+              echo 'None. Every review thread on this pull request is resolved.'
+            else
+              echo 'The review could not be read. See the job log — this is a'
+              echo 'failed fetch, **not** a pull request with no comments on it.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

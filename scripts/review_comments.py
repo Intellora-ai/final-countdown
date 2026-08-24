@@ -78,6 +78,79 @@ class Comment:
         }
 
 
+class PayloadError(Exception):
+    """The response is not a review GitHub answered, so it has no rows to give."""
+
+
+def envelope(payload: Any) -> None:
+    """Raise unless this response is a review GitHub actually answered.
+
+    WHY THIS IS SEPARATE FROM `parse_threads`, AND WHY BOTH ARE CORRECT.
+
+    Inside the node list, leniency is the right policy: one malformed thread
+    must never cost the threads after it, because a parser that dies on input
+    reports nothing and nothing reads as clean. At the ENVELOPE the same
+    leniency is the bug, because these two are otherwise identical:
+
+        {"errors": [...], "data": {"repository": null}}   the fetch FAILED
+        {"data": {... "reviewThreads": {"nodes": []}}}    the review is CLEAN
+
+    Both used to print `# 0 thread(s)` and exit 0. A loop reading that reports
+    "no open comments" when the truth is "we never reached GitHub" -- absence
+    read as health, on a green check, indefinitely.
+
+    GRAPHQL IS WHY THIS IS LIKELY RATHER THAN THEORETICAL. A wrong pull request
+    number, a missing `pull-requests: read` scope and a schema change all return
+    HTTP 200 with an `errors` array. `gh api` exits 0, `set -e` never fires, and
+    this function is the only place that failure becomes visible.
+
+    `errors` IS CHECKED BEFORE `data` ON PURPOSE. GraphQL may answer with both:
+    some threads resolved, one field errored. Emitting the survivors would
+    report a fraction of a review as the whole of it, and a fix-loop would call
+    the pull request clean having never seen the rest. Fewer findings than exist
+    is worse than none, because it looks like progress.
+    """
+    if not isinstance(payload, dict):
+        raise PayloadError(f"response is {type(payload).__name__}, not an object")
+    doc = cast("dict[str, Any]", payload)
+
+    raw_errors: Any = doc.get("errors")
+    if raw_errors:
+        # A non-list `errors` is off-spec but must still be reported rather than
+        # dropped: wrapping it keeps the value in the message instead of turning
+        # an unrecognised shape into silence.
+        items: list[Any] = (
+            cast("list[Any]", raw_errors)
+            if isinstance(raw_errors, list)
+            else [raw_errors]
+        )
+        said = [
+            str(cast("dict[str, Any]", e).get("message", e))
+            if isinstance(e, dict)
+            else str(e)
+            for e in items
+        ]
+        raise PayloadError("GitHub returned errors: " + "; ".join(said))
+
+    node: Any = doc.get("data")
+    for key in ("repository", "pullRequest", "reviewThreads"):
+        if not isinstance(node, dict):
+            raise PayloadError(
+                f"response has no {key}, so no review was read"
+                if node is None
+                else f"{key} is {type(node).__name__}, not an object"
+            )
+        node = cast("dict[str, Any]", node).get(key)
+
+    if not isinstance(node, dict):
+        raise PayloadError("response has no reviewThreads, so no review was read")
+    nodes: Any = cast("dict[str, Any]", node).get("nodes")
+    if not isinstance(nodes, list):
+        # An EMPTY list is fine and common -- a reviewer with nothing to say is
+        # the success case. A MISSING list is a response that never carried one.
+        raise PayloadError("reviewThreads has no node list, so no review was read")
+
+
 def parse_threads(payload: dict[str, Any]) -> list[Comment]:
     """GraphQL reviewThreads payload -> one row per thread.
 
@@ -164,6 +237,16 @@ def main(argv: list[str] | None = None) -> int:
 
     args = ap.parse_args(argv)
     raw: Any = json.loads(args.threads.read_text(encoding="utf-8"))
+
+    # BEFORE ANY ROWS ARE EMITTED. A response this check rejects has no rows to
+    # give, and printing the ones that happened to survive would report a
+    # fraction of a review as the whole of it.
+    try:
+        envelope(raw)
+    except PayloadError as exc:
+        print(f"# could not read the review: {exc}", file=sys.stderr)
+        return 2
+
     rows = parse_threads(cast("dict[str, Any]", raw) if isinstance(raw, dict) else {})
     if args.cmd == "open":
         rows = open_comments(rows)

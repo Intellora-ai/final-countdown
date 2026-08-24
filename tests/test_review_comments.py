@@ -33,11 +33,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
 
 from review_comments import (
     Comment,
+    main,
     open_comments,
     parse_threads,
     to_jsonl,
@@ -303,3 +306,189 @@ def test_a_thread_missing_author_or_path_still_produces_a_row() -> None:
     assert len(rows) == 1
     assert rows[0].body == "something is wrong"
     assert rows[0].line is None
+
+
+# --- A FAILED FETCH MUST NOT LOOK LIKE A CLEAN REVIEW ------------------------
+#
+# Everything above tests the PARSER, whose leniency is deliberate: one malformed
+# thread must never cost the threads after it. That leniency is correct inside a
+# node list and catastrophic at the envelope, because these two payloads
+# currently produce identical output and an identical exit code:
+#
+#     {"errors": [...], "data": {"repository": null}}      the fetch FAILED
+#     {"data": {... "reviewThreads": {"nodes": []}}}       the review is CLEAN
+#
+#     $ review_comments.py open --threads err.json   ->  "# 0 thread(s)", exit 0
+#     $ review_comments.py open --threads empty.json ->  "# 0 thread(s)", exit 0
+#
+# Measured, not assumed. A workflow reading that cannot tell "the reviewer had
+# nothing to say" from "we never reached GitHub" -- and it would report the
+# second as the first, on a green check, forever. That is the shape this
+# repository keeps closing: absence read as health.
+#
+# GraphQL makes it likely rather than theoretical. A bad PR number, a missing
+# `pull-requests: read` scope, and a schema change all return HTTP 200 with an
+# `errors` array, so `gh api` exits 0 and `set -e` never fires. The envelope is
+# the only place that failure is visible.
+
+
+def error_payload(*messages: str, data: Any = None) -> dict[str, Any]:
+    """What GitHub GraphQL actually returns on failure: HTTP 200 + `errors`."""
+    return {"data": data, "errors": [{"message": m} for m in messages]}
+
+
+def good_payload(*threads: Any) -> dict[str, Any]:
+    return payload(*threads)
+
+
+def run(tmp_path: Path, doc: Any, cmd: str = "open") -> int:
+    p = tmp_path / "threads.json"
+    p.write_text(json.dumps(doc), encoding="utf-8")
+    return main([cmd, "--threads", str(p)])
+
+
+def test_a_genuinely_empty_review_still_exits_clean(tmp_path: Path) -> None:
+    """THE CONTROL FOR THIS WHOLE GROUP. Without it, "reject everything" passes.
+
+    A reviewer with nothing to say is the SUCCESS case and the most common one.
+    If it cannot be told apart from a failure in the other direction, the fix for
+    the silent-failure bug is just a different silent failure: a permanently red
+    check that people learn to scroll past.
+    """
+    assert run(tmp_path, good_payload()) == 0
+
+
+def test_a_graphql_error_payload_is_not_reported_as_zero_open_comments(
+    tmp_path: Path,
+) -> None:
+    """THE BUG. A failed fetch must never exit 0 with an empty result.
+
+    This is the realistic failure: a wrong PR number or a missing
+    `pull-requests: read` scope returns HTTP 200 with an `errors` array, so
+    `gh api` succeeds, `set -e` does not fire, and the only thing standing
+    between that and "no review comments found" is this check.
+    """
+    rc = run(tmp_path, error_payload("Could not resolve to a Repository"))
+    assert rc != 0, (
+        "a GraphQL error payload exited 0 with zero rows — indistinguishable "
+        "from a clean review, which is how a broken fix-loop reports success"
+    )
+
+
+def test_the_error_text_reaches_stderr_so_the_log_says_why(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A non-zero exit with no reason costs whoever reads the log the diagnosis.
+
+    The message GitHub sent is the entire diagnostic value of the failure; a
+    bare exit code sends a reader to guess between auth, scope and schema.
+    """
+    run(tmp_path, error_payload("Resource not accessible by integration"))
+    err = capsys.readouterr().err
+    assert "Resource not accessible by integration" in err, (
+        f"GitHub's own error text was dropped; stderr was: {err!r}"
+    )
+
+
+def test_an_off_spec_errors_value_still_says_what_it_was(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """FOUND BY A SURVIVING MUTANT. The exit code was right; the message was not.
+
+    GraphQL specifies `errors` as a list, so a bare string is off-spec -- which
+    is exactly when a reader most needs to see the value. Dropping it still
+    failed the job, so no test noticed, and whoever opened the log got a
+    non-zero exit with an empty reason: the same diagnostic loss as dropping the
+    message entirely, reachable through a shape nobody anticipated.
+    """
+    assert run(tmp_path, {"data": None, "errors": "the query is malformed"}) != 0
+    assert "the query is malformed" in capsys.readouterr().err, (
+        "an unrecognised `errors` shape was reported as a failure with no reason"
+    )
+
+
+def test_partial_data_alongside_errors_is_a_failure_not_a_partial_review(
+    tmp_path: Path,
+) -> None:
+    """THE HARDEST CASE, AND THE MOST DANGEROUS ONE.
+
+    GraphQL can answer with BOTH: some threads resolved, some field errored.
+    Emitting the threads that survived would report a fraction of the review as
+    if it were all of it, and a fix-loop would then declare the pull request
+    clean having never seen the rest. Fewer findings than exist is worse than
+    none, because it looks like progress.
+    """
+    doc = error_payload("Something went wrong while executing your query")
+    doc["data"] = good_payload(thread(), thread(line=44))["data"]
+    assert run(tmp_path, doc) != 0, (
+        "errors alongside data were ignored and a PARTIAL review was emitted "
+        "as if it were the whole one"
+    )
+
+
+def test_a_pull_request_that_does_not_resolve_is_a_failure(tmp_path: Path) -> None:
+    """`pullRequest: null` with no `errors` key at all — a real GraphQL shape.
+
+    Querying a number that is not a pull request in this repository returns a
+    null node rather than an error. Treating that as an empty review means a
+    workflow pointed at the wrong number reports every pull request clean.
+    """
+    doc = {"data": {"repository": {"pullRequest": None}}}
+    assert run(tmp_path, doc) != 0
+
+
+def test_a_repository_that_does_not_resolve_is_a_failure(tmp_path: Path) -> None:
+    assert run(tmp_path, {"data": {"repository": None}}) != 0
+
+
+def test_a_truncated_or_empty_response_is_a_failure(tmp_path: Path) -> None:
+    """A zero-byte or half-written file is what a killed `gh api` leaves behind.
+
+    `{}` is the shape on disk when the fetch died mid-write or wrote nothing.
+    It must not parse as a review with no comments in it.
+    """
+    assert run(tmp_path, {}) != 0
+    assert run(tmp_path, {"data": {}}) != 0
+
+
+def test_reviewthreads_that_carries_no_node_list_is_a_failure(tmp_path: Path) -> None:
+    """FOUND BY A SURVIVING MUTANT, not by reading the code.
+
+    Deleting the node-list check changed nothing any test could see, because
+    every other malformed payload here fails earlier in the walk. The shape it
+    left unguarded is the one a QUERY EDIT produces: change `nodes` to
+    `totalCount` in the workflow's GraphQL and the response still has a
+    `reviewThreads` object, still parses, and yields zero rows.
+
+    `totalCount: 3` below is the point. Three threads exist, the response says
+    so, and without this check the answer is "no open comments".
+    """
+    doc = {
+        "data": {"repository": {"pullRequest": {"reviewThreads": {"totalCount": 3}}}}
+    }
+    assert run(tmp_path, doc) != 0, (
+        "a response naming three threads but carrying no node list was reported "
+        "as a clean review"
+    )
+
+
+def test_the_envelope_check_applies_to_the_all_subcommand_too(
+    tmp_path: Path,
+) -> None:
+    """`all` reads the same payload; a fetch failure is a failure in both modes.
+
+    Checking only the path a fix-loop happens to call today leaves the other
+    subcommand as the way back into the bug.
+    """
+    assert run(tmp_path, error_payload("boom"), cmd="all") != 0
+    assert run(tmp_path, good_payload(), cmd="all") == 0
+
+
+def test_a_valid_review_with_findings_still_exits_clean(tmp_path: Path) -> None:
+    """Open comments are the working state, not an error state.
+
+    A fix-loop reads rows and acts on them; a non-zero exit here would make
+    "the reviewer found something" indistinguishable from "the fetch broke",
+    which is the original bug pointed the other way.
+    """
+    assert run(tmp_path, good_payload(thread(), thread(line=44))) == 0

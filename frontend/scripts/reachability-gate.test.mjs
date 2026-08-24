@@ -1,9 +1,10 @@
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import {
   analyze,
+  isTestFile,
   blankComments,
   exportsOf,
   importsOf,
@@ -262,4 +263,83 @@ export enum E { A }
     expect(unreachableExports(src, new Set(['a']))).toEqual(['c'])
     expect(unreachableExports(src, new Set()).sort()).toEqual(['a', 'b', 'c'])
   })
+})
+
+describe('the gate agrees with vitest about what a test file is', () => {
+  /* THE BYPASS THIS CLOSES.
+   *
+   * `isTestFile` decides which files are NOT edges. If vitest ever runs a test
+   * that the gate does not recognise as one, that file becomes a SOURCE file
+   * whose imports count as reachability edges — and an orphan imported by it
+   * is laundered into looking connected. That is the original bug wearing a
+   * different hat, and it would arrive silently the day someone adds
+   * `__tests__/**` or `*.spec.mts` to the vitest config.
+   *
+   * Two constants in two files that have to agree, with nothing checking that
+   * they do, is the exact defect class that has bitten this repository four
+   * times today: a mutation floor of 27 against a catalogue of 39, a file
+   * floor pinned to a value that legitimately moves, a hardcoded catalogue
+   * size that made the mutation suite recurse into itself. This is the same
+   * shape, so it gets the same treatment: derived and asserted, not
+   * remembered.
+   */
+
+  const CONFIG = resolve(ROOT, 'vite.config.ts')
+
+  /** The `include:` globs from vitest's `test` block, not the deps one. */
+  function vitestIncludes() {
+    const src = readFileSync(CONFIG, 'utf8')
+    /* Anchor on the src/ glob rather than on "include", because vite.config.ts
+       contains a SECOND `include:` for optimizeDeps listing bare package
+       names. Matching the wrong one would assert nothing and still pass. */
+    const block = src.match(/include:\s*\[([^\]]*'src\/[^\]]*)\]/)
+    if (!block) throw new Error('could not find the vitest test include block')
+    return [...block[1].matchAll(/'([^']+)'/g)].map((m) => m[1])
+  }
+
+  it('recognises every path vitest would run under src/ as a test file', () => {
+    const globs = vitestIncludes().filter((g) => g.startsWith('src/'))
+    expect(globs.length).toBeGreaterThan(0)
+
+    /* Turn each glob into a concrete example and check the gate agrees. A
+       glob the gate does not classify as a test is a laundering channel. */
+    for (const glob of globs) {
+      const samples = expand(glob)
+      expect(samples.length, `no sample generated for ${glob}`).toBeGreaterThan(0)
+      for (const sample of samples) {
+        expect(isTestFile(sample), `vitest runs ${sample} but the gate treats it as source`).toBe(
+          true,
+        )
+      }
+    }
+  })
+
+  it('still treats ordinary source files as source', () => {
+    /* The other half. A classifier that answers "test" to everything would
+       satisfy the check above and make the whole gate vacuous — every file
+       would stop being an edge and nothing would ever be an orphan. */
+    for (const path of [
+      'src/agent/index.ts',
+      'src/agent/kernel/loop.ts',
+      'src/agent/kernel/contracts.ts',
+      'src/canvas/render/FigureView.tsx',
+    ]) {
+      expect(isTestFile(path)).toBe(false)
+    }
+  })
+
+  /** `src/**\/*.{test,spec}.{ts,tsx}` -> concrete paths, one per alternation. */
+  function expand(glob) {
+    const bodies = []
+    const braces = [...glob.matchAll(/\{([^}]*)\}/g)].map((m) => m[1].split(','))
+    const combos = braces.reduce(
+      (acc, options) => acc.flatMap((prefix) => options.map((o) => [...prefix, o])),
+      [[]],
+    )
+    for (const combo of combos) {
+      let i = 0
+      bodies.push(glob.replace(/\{[^}]*\}/g, () => combo[i++]).replace(/\*\*\//g, 'a/').replace(/\*/g, 'x'))
+    }
+    return bodies
+  }
 })

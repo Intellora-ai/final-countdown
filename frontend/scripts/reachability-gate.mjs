@@ -573,10 +573,99 @@ export function runAll(manifest = MANIFEST) {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Product reachability --- the question analyze() structurally cannot ask     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The file the browser actually loads. Everything that ships is downstream of
+ * this; everything that is not, is not shipping, whatever its own tests say.
+ */
+export const PRODUCT_ENTRY = 'src/main.tsx'
+export const PRODUCT_ROOT = 'src'
+
+/**
+ * Is each area's DECLARED ENTRY itself reachable from the product entry?
+ *
+ * `analyze()` walks an area from that area's own entry, so it can only find a
+ * file the area does not import. It cannot find an area the PRODUCT does not
+ * import, because the area's entry is exempt from the question by construction
+ * --- that exemption is what makes declared entries non-vacuous at the file
+ * level, and it is exactly what hides an unimported front door one level up.
+ *
+ * Concretely: seventeen required checks passed on 9ec5d81 with all of
+ * `src/agent` imported by nothing the product loads. This function is the one
+ * that says so.
+ *
+ * Type-only edges are skipped for the same reason as in `analyze()`: tsc erases
+ * them, so an area reached only by `import type` ships nothing.
+ *
+ * @returns {{ area: string, unreachable: string[] }[]} one entry per area that
+ *          has at least one declared entry the product cannot reach; `[]` is
+ *          the healthy result.
+ */
+export function analyzeProductReachability(
+  manifest = MANIFEST,
+  { entry = PRODUCT_ENTRY, root = PRODUCT_ROOT } = {},
+) {
+  const files = walk(resolve(ROOT, root))
+  const sources = files.filter((f) => !isTestFile(f))
+
+  /* Fails closed. A missing entry means the walk reaches nothing, and "reached
+     nothing" rendering as "no findings" is the false assurance this whole file
+     exists to remove. */
+  if (!sources.includes(entry)) {
+    throw new Error(`product entry does not exist or is a test file: ${entry}`)
+  }
+
+  /* Edges from NON-TEST files only. A test importing the area entry is the
+     same laundering the orphan check already refuses, one level out. */
+  const edges = new Map()
+  for (const f of sources) {
+    edges.set(
+      f,
+      importsOf(readFileSync(resolve(ROOT, f), 'utf8'))
+        .map((imp) => ({ ...imp, target: resolveSpec(f, imp.spec) }))
+        .filter((imp) => imp.target !== null),
+    )
+  }
+
+  const reached = new Set()
+  const queue = [entry]
+  while (queue.length > 0) {
+    const f = queue.shift()
+    if (reached.has(f)) continue
+    reached.add(f)
+    for (const imp of edges.get(f) ?? []) {
+      if (imp.typeOnly) continue
+      if (!reached.has(imp.target)) queue.push(imp.target)
+    }
+  }
+
+  const findings = []
+  for (const area of manifest) {
+    const unreachable = area.entries.filter((e) => !reached.has(e))
+    if (unreachable.length > 0) findings.push({ area: area.name, unreachable })
+  }
+  return findings
+}
+
+/* -------------------------------------------------------------------------- */
 /* CLI                                                                        */
 /* -------------------------------------------------------------------------- */
 
-export function report(results) {
+/**
+ * @param results        output of `runAll()`
+ * @param productReachability  output of `analyzeProductReachability()`, or
+ *        `null` to omit the section.
+ *
+ * OPT-IN, DELIBERATELY. The product-reachability finding is real and
+ * merge-blocking: arming it turns a required check red across every open PR
+ * until `src/agent` is either wired into the product or removed. That is the
+ * repo owner's call to make, not this file's, so the default path is byte-for-
+ * byte what it was and the check reports only when asked. Built and proven now;
+ * armed on a decision, separately.
+ */
+export function report(results, { productReachability = null } = {}) {
   const lines = []
   let failed = false
 
@@ -598,6 +687,18 @@ export function report(results) {
     }
   }
 
+  if (productReachability !== null) {
+    for (const p of productReachability) {
+      failed = true
+      for (const e of p.unreachable) {
+        lines.push(
+          `  UNREACHED [${p.area}] ${e} --- the area's own gate passes, ` +
+            `and nothing downstream of ${PRODUCT_ENTRY} imports it`,
+        )
+      }
+    }
+  }
+
   lines.push(failed ? 'REACHABILITY GATE: FAIL' : 'REACHABILITY GATE: PASS')
   return { failed, text: lines.join('\n') }
 }
@@ -606,7 +707,12 @@ const invokedDirectly =
   process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))
 
 if (invokedDirectly) {
-  const { failed, text } = report(runAll())
+  /* `--product` opts into the area-reachability section. Off by default so the
+     shipped gate's verdict is unchanged until someone decides to arm it. */
+  const wantProduct = process.argv.includes('--product')
+  const { failed, text } = report(runAll(), {
+    productReachability: wantProduct ? analyzeProductReachability() : null,
+  })
   process.stdout.write(text + '\n')
   process.exit(failed ? 1 : 0)
 }

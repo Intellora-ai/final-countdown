@@ -13,9 +13,24 @@
  * difference between a deferred chunk and an unreferenced one is visible in
  * the same search. This directory is the second kind.
  *
- * It is an island pointing at an island: `port.ts` names
- * `../agent/knowledge/knowledge`, and `src/agent` has zero references from
- * outside itself either.
+ * WHAT THIS IS NOT, ANY MORE. An earlier version of this comment called it
+ * "an island pointing at an island", because `src/agent` was unreachable too.
+ * That half has since become FALSE and the sentence sat here saying it anyway:
+ * `src/tutor/TutorView.tsx:22` imports `createAgent` from `../agent`, and
+ * `App.tsx:37` lazy-imports `TutorView`. `src/agent` ships.
+ *
+ * The consequence is the opposite of what the old comment implied, so it is
+ * worth stating rather than quietly deleting. Wiring this module in used to be
+ * pointless — it would have moved `websearch` from one unreached island to a
+ * deeper one. It is now the ONE change that would make this code run:
+ * `createAgent()` already takes an optional `search?: SearchPort`
+ * (`src/agent/index.ts`), `SearchProvider extends SearchPort`, and the path
+ * from `App.tsx` to `research()` is complete except for that argument.
+ *
+ * A COMMENT ABOUT REACHABILITY GOES STALE THE MOMENT SOMEONE ELSE SHIPS, and
+ * it goes stale SILENTLY — nothing fails, because a comment cannot fail. Both
+ * halves were verified when written and one of them expired within hours. Run
+ * the greps below before trusting either; do not trust this paragraph.
  *
  * `npm run gate:reachability` PRINTS PASS AND DOES NOT CONTRADICT THIS.
  * It scans one declared area — `src/agent`, from the entry points

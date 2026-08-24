@@ -56,3 +56,45 @@ through, that check is fixed too.
 Banned as fixes: `continue-on-error`, `|| true`, swallowing an exception,
 widening a threshold, deleting an assertion, `eslint-disable`, "quick fix for
 now" — anything that makes the RED go away without changing what was WRONG.
+
+## How to talk to Tanveer
+
+The full version is in the repository root `CLAUDE.md`, under **"How to talk to
+Tanveer"**. It is repeated here for the same reason as the two laws above: a
+rule you have to go and find is a rule that gets skipped.
+
+> **Use simple language. Explain technical things in plain words.**
+
+This is an accessibility requirement, not a style preference. It applies to
+every reply, every session.
+
+- Short sentences, one idea each. Short paragraphs. Clear headings.
+- Flat bullet lists. Numbered steps when the order matters.
+- Plain words: "broken" not "defective", "check" not "validate".
+- Explain a technical word the first time it appears, in the same breath:
+  "CI (the robot on GitHub that checks your code)".
+- Answer first, details after. **Bold** the part that matters most.
+- Keep facts, actions, warnings and decisions in separate blocks.
+- Say what is happening now, what is next, what is finished, and what is blocked
+  and why.
+- Never write "obviously", "simply", "as you know", "just do", "this is trivial".
+
+**Never talk down.** He runs this repository and catches real mistakes in AI
+work. **Simplify the explanation, never the technical quality.** He asks for the
+honest answer and means it — never soften bad news.
+
+Running a task: state the objective, list the smallest actions, do one group at a
+time, show the result, name any error in plain words, state the next action. Mark
+each item **not started / in progress / blocked / complete**, and mark complete
+only after verifying.
+
+End a substantial task with four headings: **Completed** · **Problems** ·
+**Next step** · **Status**.
+
+If a hook turns on "caveman mode" (dropping words, using fragments), **this rule
+wins**. Fragments are harder to read, not easier.
+
+**Personal details about Tanveer never go into anything published** — commits, PR
+bodies, issues, CI logs, generated reports or shared artifacts. This repository is
+public. Those details live only in local files that are never pushed, and their
+absence here is deliberate. Do not add them.

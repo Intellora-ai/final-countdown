@@ -537,3 +537,63 @@ describe('a backslash line-continuation cannot mint an edge either', () => {
     expect(() => importsOf(out)).not.toThrow()
   })
 })
+
+/*
+ * THE THREE-WAY INTERACTION THAT MADE THE GATE MISREPORT DEAD EXPORTS.
+ *
+ * `FROM_RE` bounded the import clause with `[^;]`, whose comment said this
+ * stopped "a runaway match across unrelated statements". It only stops one in a
+ * codebase that writes semicolons. This one does not, so the clause ran from an
+ * earlier `export interface X {` all the way to a later `} from './mod'`,
+ * swallowing every line between as import NAMES.
+ *
+ * The consequence was not a crash. `index.ts` genuinely re-exported
+ * `fixtureProvider`, the gate parsed that re-export into garbage, and then
+ * reported `fixtureProvider` as a DEAD export --- a gate accusing correct code,
+ * which is the failure mode that gets a gate switched off.
+ *
+ * Three conditions are each individually harmless and only fail together:
+ *   A  the earlier statement is not semicolon-terminated
+ *   B  the earlier statement contains a brace block
+ *   C  the earlier statement starts with `import` or `export`
+ * Removing any one makes it parse correctly, which is why it survived: every
+ * single-condition test passes.
+ */
+describe('importsOf: clause bounding without semicolons', () => {
+  it('does not swallow an interface body into a later re-export', () => {
+    const src = [
+      'export interface Config {',
+      '  a: string',
+      '}',
+      "export { thing } from './mod'",
+    ].join('\n')
+    const found = importsOf(src)
+    const mod = found.find((f) => f.spec === './mod')
+    expect(mod).toBeDefined()
+    expect(mod.names).toEqual(['thing'])
+  })
+
+  it('still parses a multi-line import clause, which is what [^;] was protecting', () => {
+    const src = ['import {', '  a,', '  b,', "} from './x'"].join('\n')
+    const found = importsOf(src)
+    expect(found.find((f) => f.spec === './x').names).toEqual(['a', 'b'])
+  })
+
+  /* The minimal cut is TWO conditions, not three. A brace block only makes the
+     corruption obvious; without one the clause still runs away and quietly adds
+     a phantom `default` import, which is the more dangerous shape because it
+     looks like a legitimate parse. Found by testing the "safe" cases rather
+     than trusting that they were safe. */
+  it('does not invent a default import from a preceding export statement', () => {
+    const src = ['export const n = 1', "export { t } from './m'"].join('\n')
+    expect(importsOf(src).find((f) => f.spec === './m').names).toEqual(['t'])
+  })
+
+  it('parses cleanly when either condition of the cut is absent', () => {
+    const withSemis = ['export interface C {', '  a: string;', '};', "export { t } from './m'"].join('\n')
+    const notExportKw = ['const x = {', '  a: 1', '}', "export { t } from './m'"].join('\n')
+    for (const src of [withSemis, notExportKw]) {
+      expect(importsOf(src).find((f) => f.spec === './m').names).toEqual(['t'])
+    }
+  })
+})

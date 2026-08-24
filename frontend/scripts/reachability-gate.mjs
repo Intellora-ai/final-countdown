@@ -80,6 +80,32 @@ export const MANIFEST = [
        exports are the shared vocabulary rather than callable behaviour. */
     entries: ['src/agent/index.ts', 'src/agent/kernel/contracts.ts'],
   },
+  {
+    name: 'websearch',
+    root: 'src/websearch',
+    /* `port.ts` is the surface: it declares the interfaces something outside
+       the area is expected to implement and call. Everything else --- engine,
+       gather, fetchPage, guard, corpus, extract, latency, quality --- must
+       earn its place by being reachable from it.
+
+       This area was MISSING from the manifest, and its absence is exactly the
+       hole the gate exists to close: 20 files, fully unit-tested, imported by
+       nothing that ships, and the gate reported PASS because it had never been
+       told to look. An area the gate does not know about is not "clean" --- it
+       is unmeasured, and unmeasured reads as clean to every later session. */
+    entries: [
+      'src/websearch/index.ts',
+      'src/websearch/corpus.ts',
+      /* Type-only modules, listed for the same reason `agent`'s
+         `contracts.ts` is: a module whose exports are types is imported with
+         `import type`, which is erased before runtime and is therefore not a
+         reachability edge. Its surface is the shared vocabulary, not callable
+         behaviour. `node-http.d.ts` is an ambient declaration file and has no
+         runtime existence at all. */
+      'src/websearch/port.ts',
+      'src/websearch/node-http.d.ts',
+    ],
+  },
 ]
 
 /* -------------------------------------------------------------------------- */
@@ -242,10 +268,31 @@ export function blankStrings(src) {
   return out
 }
 
-/* An import or re-export with a module specifier. The clause is bounded by
-   `[^;]` so a multi-line `import {\n a,\n b,\n}` is matched while a runaway
-   match across unrelated statements is not. */
-const FROM_RE = /(?:^|\n)[ \t]*(?:import|export)\s+([^;]*?)\s*from\s*['"]([^'"]+)['"]/g
+/* An import or re-export with a module specifier.
+   The clause is bounded by the characters that can legally appear INSIDE one --
+   identifiers, whitespace, braces, commas and `*` (which covers `as` and
+   `type`, both word characters). It is deliberately not `[^;]`.
+
+   `[^;]` was the original bound, and its comment claimed it stopped "a runaway
+   match across unrelated statements". It only does so where statements END in
+   semicolons. This codebase writes none, so the clause ran from an earlier
+   `export`/`import` line all the way to a later `} from '...'`, swallowing
+   everything between as import NAMES.
+
+   Two conditions were required and each is harmless alone: (A) the earlier
+   statement is not semicolon-terminated, and (C) it begins with `import` or
+   `export`. A brace block was not required -- it only made the damage visible.
+   Without one, the runaway quietly produced a phantom `default` import, which
+   is worse, because a plausible parse is not investigated.
+
+   The cost was a gate accusing correct code: `websearch/index.ts` genuinely
+   re-exported `fixtureProvider`, and the gate reported it DEAD. A gate that
+   cries wolf gets switched off, so this bound is load-bearing.
+
+   A character class rather than a parser because the failure was an unbounded
+   match, not a misunderstood grammar; anything containing `=`, `:` or `(`
+   cannot be an import clause and now terminates the match. */
+const FROM_RE = /(?:^|\n)[ \t]*(?:import|export)\s+([\w\s{},*$]*?)\s*from\s*['"]([^'"]+)['"]/g
 const BARE_RE = /(?:^|\n)[ \t]*import\s*['"]([^'"]+)['"]/g
 const DYNAMIC_RE = /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g
 

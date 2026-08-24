@@ -6,6 +6,7 @@ import {
   type SearchResult,
 } from '../canvas/teach/webResolver'
 import type { Retrieved } from './gather'
+import { MAX_ORIGINS } from './provenance'
 import { interpret } from './interpret'
 import { rankHits } from './select'
 import { checkClaims, selectEvidence, type ClaimCheck } from './verify'
@@ -152,12 +153,20 @@ function toRetrieved(page: RoutePage, retrievedAt: string): Retrieved {
  * Unknown values are DROPPED, not mapped to a default. An unrecognised origin
  * is not evidence of freshness in either direction, and `live` is carried
  * separately anyway.
+ *
+ * CHECKED AGAINST `provenance.MAX_ORIGINS`, WHICH IS THE ONLY DECLARATION.
+ * This function used to hold its own copy of the three values. The type system
+ * could not see the duplication -- a `readonly Origin[]` holding three of four
+ * union members is perfectly legal -- so declaring a fourth origin would have
+ * typechecked everywhere and then been silently dropped here, on every answer.
+ * Measured: adding a fourth origin produced ONE typecheck error, in
+ * `canvasContract.test.ts`, and NONE in this file. `freshness.origins` is what
+ * §32 renders to say where an answer came from, so a filter that quietly
+ * shortens it tells the same class of lie §32 exists to stop.
  */
-const ORIGINS: readonly Origin[] = ['live', 'recent-cache', 'precomputed']
-
 function originsFrom(value: unknown): readonly Origin[] {
   if (!Array.isArray(value)) return []
-  return value.filter((v): v is Origin => ORIGINS.includes(v as Origin))
+  return value.filter((v): v is Origin => MAX_ORIGINS.includes(v as Origin))
 }
 
 function failure(why: string): SearchResult {

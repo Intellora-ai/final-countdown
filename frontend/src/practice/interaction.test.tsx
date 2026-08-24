@@ -172,9 +172,22 @@ describe('the session dialog is as modal as it claims', () => {
     return start
   }
 
+  /*
+   * These assert CONTAINMENT, where they used to name one button.
+   *
+   * That is not a loosened assertion, it is the one that was always meant.
+   * The dialog was a stub with exactly one focusable element, so "focus is
+   * inside the dialog" and "focus is on Back to the map" were the same
+   * sentence and the weaker one got written down. The dialog now holds a
+   * question, four options and a Next button, and naming a single control
+   * would pin an implementation detail rather than the property the focus
+   * trap actually provides.
+   */
+  const dialog = () => screen.getByRole('dialog', { name: 'Practice session' })
+
   it('takes focus when it opens', () => {
     launch()
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Back to the map' }))
+    expect(dialog().contains(document.activeElement)).toBe(true)
   })
 
   it('pulls focus back when something outside takes it', () => {
@@ -182,7 +195,7 @@ describe('the session dialog is as modal as it claims', () => {
 
     focusOn(chapterButton())
 
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Back to the map' }))
+    expect(dialog().contains(document.activeElement)).toBe(true)
   })
 
   it('returns focus to whatever opened it', () => {

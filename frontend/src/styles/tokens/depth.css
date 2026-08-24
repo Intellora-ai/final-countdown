@@ -1,0 +1,68 @@
+/* Agabi — Depth language: radius, elevation, blur, opacity, z-index, borders.
+   Shadows are cool-tinted (never warm-black), always subtle. Values verbatim from source. */
+:root {
+  /* ── Corner Radius ─────────────────────────────────────────── */
+  --radius: 0.75rem;      /* base — 12px */
+  --radius-xs:   4px;     /* Badges, inline tags */
+  --radius-sm:   8px;     /* Input rows, list items, Button/SM */
+  --radius-md:   10px;    /* Chips */
+  --radius-lg:   12px;    /* Buttons (MD/LG), fields */
+  --radius-xl:   16px;    /* Cards, panels */
+  --radius-2xl:  20px;    /* Modals, sheets, command bar */
+  --radius-full: 9999px;  /* Pills, avatars, progress bars */
+
+  /* ── Elevation / Shadows ───────────────────────────────────── */
+  --shadow-xs: 0 1px 2px rgba(12, 14, 22, 0.04);
+  --shadow-sm: 0 1px 4px rgba(12, 14, 22, 0.06), 0 0 0 1px rgba(60, 70, 110, 0.05);
+  --shadow-md: 0 4px 16px rgba(12, 14, 22, 0.08), 0 1px 4px rgba(12, 14, 22, 0.04);
+  --shadow-lg: 0 8px 32px rgba(12, 14, 22, 0.10), 0 2px 8px rgba(12, 14, 22, 0.06);
+  --shadow-float: 0 12px 40px rgba(12, 14, 22, 0.12), 0 2px 8px rgba(12, 14, 22, 0.06);
+  /* Card hover (JS-driven lift) */
+  --shadow-card-hover: 0 6px 24px rgba(12, 14, 22, 0.09), 0 1px 4px rgba(12, 14, 22, 0.04);
+
+  /* ── Blur Scale ────────────────────────────────────────────── */
+  --blur-xs: 4px;
+  --blur-sm: 8px;
+  --blur-md: 16px;
+  --blur-lg: 24px;
+  --blur-xl: 40px;
+  --blur-2xl: 64px;
+
+  /* ── Opacity Scale ─────────────────────────────────────────── */
+  --opacity-0:   0; /* @kind other */
+  --opacity-4:   0.04; /* @kind other */
+  --opacity-6:   0.06; /* @kind other */
+  --opacity-8:   0.08; /* @kind other */
+  --opacity-10:  0.10; /* @kind other */
+  --opacity-15:  0.15; /* @kind other */
+  --opacity-20:  0.20; /* @kind other */
+  --opacity-30:  0.30; /* @kind other */
+  --opacity-40:  0.40; /* @kind other */
+  --opacity-50:  0.50; /* @kind other */
+  --opacity-60:  0.60; /* @kind other */
+  --opacity-70:  0.70; /* @kind other */
+  --opacity-80:  0.80; /* @kind other */
+  --opacity-90:  0.90; /* @kind other */
+  --opacity-100: 1; /* @kind other */
+
+  /* ── Z-index Layers ────────────────────────────────────────── */
+  --z-below:    -1; /* @kind other */
+  --z-base:      0; /* @kind other */
+  --z-raised:   10; /* @kind other */
+  --z-floating: 20; /* @kind other */
+  --z-dropdown: 100; /* @kind other */
+  --z-sticky:   200; /* @kind other */
+  --z-overlay:  300; /* @kind other */
+  --z-modal:    400; /* @kind other */
+  --z-toast:    500; /* @kind other */
+  --z-tooltip:  600; /* @kind other */
+  --z-command:  700; /* @kind other */
+  --z-top:      9999; /* @kind other */
+
+  /* ── Border Tokens ─────────────────────────────────────────── */
+  --border-width-hairline: 1px;
+  --border-width-thin:     1px;
+  --border-width-medium:   1.5px;
+  --border-width-thick:    2px;
+  --border-style-default:  solid; /* @kind other */
+}

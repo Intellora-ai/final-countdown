@@ -1,0 +1,69 @@
+/* The canvas route's own chrome.
+ *
+ * WHY A SEPARATE FILE FROM canvas.css
+ * -----------------------------------
+ * canvas.css is the LESSON's visual language — blocks, figures, tables, the
+ * grid they sit in. It travelled here from the standalone engine and should be
+ * able to travel again. This file is the frame around a lesson inside THIS
+ * app: a back button to a dashboard the engine knows nothing about, and a
+ * picker for the lessons this product happens to ship. Keeping them apart is
+ * what stops the engine quietly growing a dependency on the shell.
+ *
+ * Every value below is a token from canvas.css. No raw colour or size appears
+ * here, for the same reason the `canvas/design-value` lint rule forbids them in
+ * the .tsx: a value typed twice is a value that drifts. */
+
+.lc-route {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.lc-route-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-lg);
+  padding: var(--s-lg) var(--s-xxl);
+  flex-wrap: wrap;
+}
+
+/* The picker and the mode toggle push apart; the back button stays at the
+   start. `margin-left: auto` on the trailing group rather than a spacer
+   element, so the bar has no child that exists only to be empty. */
+.lc-route-bar > .lc-route-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-lg);
+}
+
+.lc-back {
+  background: none;
+  border: var(--stroke-hair) solid var(--c-line);
+  border-radius: var(--r-md);
+  color: var(--c-ink-muted);
+  font: inherit;
+  font-size: var(--type-label-size);
+  letter-spacing: var(--type-label-tracking);
+  text-transform: uppercase;
+  padding: var(--s-sm) var(--s-md);
+  cursor: pointer;
+}
+.lc-back:hover {
+  color: var(--c-ink);
+  border-color: var(--c-line-strong);
+}
+.lc-back:focus-visible {
+  outline: var(--stroke-thin) solid var(--c-accent);
+  outline-offset: var(--s-xs);
+}
+
+/* The subject label sits beside the picker rather than above the lesson,
+   because the lesson's own title is the question it answers — putting a second
+   heading above that made the page read as having two titles. */
+.lc-route-subject {
+  color: var(--c-ink-faint);
+  font-size: var(--type-label-size);
+  letter-spacing: var(--type-label-tracking);
+  text-transform: uppercase;
+}

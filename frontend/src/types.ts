@@ -52,3 +52,25 @@ export interface PlanDraft {
   cls: string; stream: string | null; subjects: string[]
   minutes: number; deadlines: Record<string, string>
 }
+
+/** One unit of an entrance-exam syllabus, traced to the page it was read from. */
+export interface ExamUnit {
+  number: number
+  title: string
+  topics: string[]
+  source: ConceptSource
+}
+
+export interface ExamSubject {
+  id: string
+  units: ExamUnit[]
+}
+
+/** An entrance-exam syllabus, generated from the official PDF.
+ *  `source.discoveredFrom` records the page the download link was READ off,
+ *  because a guessed URL that 404s looks exactly like a withdrawn document. */
+export interface ExamSyllabus {
+  id: string
+  source: { url: string; discoveredFrom: string; linkText: string; sha256: string }
+  subjects: ExamSubject[]
+}

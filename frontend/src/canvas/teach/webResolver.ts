@@ -1,5 +1,5 @@
 import type { AsyncDoubtResolver, Doubt, Resolution } from './contract'
-import { contentTokens } from './doubt'
+import { contentTokens, HALF } from './doubt'
 import type { Lesson } from '../spec/spec'
 import { validateLesson } from '../spec/validate'
 
@@ -156,35 +156,156 @@ function readableSource(page: RetrievedPage): string {
 }
 
 /**
+ * Is this page about the question, or is it merely what the engine returned?
+ *
+ * THE HOLE THIS CLOSES
+ * --------------------
+ * Every other guard in this file asks whether a page is SAFE, or whether it
+ * FETCHED. Not one of them asked whether it was about anything the learner
+ * typed — so that question was answered by the search engine, and a search
+ * engine RANKS. It never abstains. Asked something it has nothing for, it
+ * returns its best guess anyway. Measured, both rendered to a learner with an
+ * address underneath: an article about CRICKET, and the book LIES MY TEACHER
+ * TOLD ME.
+ *
+ * A citation printed under a paragraph is a claim that the paragraph answers
+ * the question. Printing one over an unrelated page is the exact failure
+ * `lessonResolver` refuses on the lesson side, arriving through a different
+ * door. A refusal is a weaker answer and an honest one; a cricket article
+ * under a citation is neither.
+ *
+ * THE RULE, AND WHERE IT COMES FROM
+ * ---------------------------------
+ * Half of the question's content words must appear in the page — its title and
+ * its text together. `HALF` is imported from `doubt.ts` rather than written
+ * again here for the same reason `contentTokens` is: two copies of one decision
+ * drift, and drift here surfaces as wrong answers wearing citations.
+ *
+ * WHAT IS DELIBERATELY NOT SHARED, AND WHY
+ * ----------------------------------------
+ * `doubt.ts` also requires TWO words to match before the fraction counts. That
+ * clause is right in its direction and wrong in this one. There, the thing
+ * being covered is a NAME an author wrote, and every word of it is subject.
+ * Here it is a QUESTION, and a question carries words that are not subject at
+ * all: in "what does precision mean", `mean` survives the stopword list ON
+ * PURPOSE, because lessons teach "Mean particle speed". Demanding two matches
+ * would require a page to contain `precision` AND `mean` — and, measured
+ * against the live API, all three articles that query returns (Evaluation
+ * measures, Accuracy and precision, Precision and recall) carry only the
+ * first. Every "what does X mean" would refuse, which is a worse feature than
+ * the bug it was closing.
+ *
+ * THE TITLE IS READ, NOT ONLY THE BODY
+ * ------------------------------------
+ * What a page is CALLED is the strongest statement it makes about its own
+ * subject, and a lead paragraph routinely opens "It is..." rather than
+ * repeating the name. Comparing against the body alone would refuse pages
+ * titled with the exact thing that was asked about.
+ *
+ * WHAT THIS STILL DOES NOT CATCH, STATED RATHER THAN IMPLIED
+ * ----------------------------------------------------------
+ * A long page that happens to mention half the question's words in passing
+ * clears this. Nothing here measures whether a page is ABOUT those words or
+ * merely SAYS them. That is survivable rather than ignored because the one
+ * retrieval source wired today hands over a lead extract of a few sentences,
+ * where incidental half-coverage is rare. A general engine returning whole
+ * pages needs a stronger test than word presence, and this paragraph is where
+ * whoever adds one should start.
+ */
+function isAbout(page: RetrievedPage, asked: readonly string[]): boolean {
+  /* `hit.title` as well as `title` because `buildAnswer` already falls back to
+     it — a page whose title arrives empty is a real case, and the name a page
+     is going to be DISPLAYED under is the name it should be judged by. */
+  const found = new Set(contentTokens(`${page.title} ${page.hit.title} ${page.readerText}`))
+
+  let matched = 0
+  for (const token of asked) if (found.has(token)) matched += 1
+
+  /*
+   * THIS LINE IS THE WHOLE RULE. THE TWO GUARDS THAT USED TO SIT ABOVE IT ARE
+   * GONE BECAUSE MUTATION TESTING PROVED THEM DEAD.
+   *
+   * `if (matched === 0) return false` and `if (asked.length === 0) return false`
+   * were both written here first. Deleting either, and deleting both, left
+   * every test green — so neither could ever fail, and code no test can defend
+   * is code the next reader has to reason about for nothing.
+   *
+   * The comparison already covers both:
+   *   nothing matched   -> 0 / n   is 0,   and 0 >= 0.5 is false
+   *   nothing was asked -> 0 / 0   is NaN, and NaN >= 0.5 is false
+   *
+   * The NaN is written down rather than left to be discovered, because it is
+   * the one line here somebody could "fix" into a bug. It is also unreachable
+   * from the only caller: `resolve` refuses a question with no content words
+   * before any page is looked at, pinned by "a question that is ALL filler is
+   * refused without searching".
+   */
+  return matched / asked.length >= HALF
+}
+
+/**
  * Which pages may be shown, and why the others may not.
  *
- * Returns the usable pages AND the count dropped for being unsafe, because the
- * caller has to tell "nothing was found" apart from "everything found was
- * trying to manipulate this system". Those are different facts and a learner
- * told the wrong one stops asking.
+ * Returns the usable pages AND a count for each reason one was dropped, because
+ * the caller has to tell three different facts apart: "nothing was found",
+ * "everything found was trying to manipulate this system", and "everything
+ * found was about something else". A learner told the wrong one of those
+ * changes the wrong thing about how they ask next time — or stops asking.
  */
-function usablePages(results: readonly RetrievedPage[]): {
+function usablePages(
+  results: readonly RetrievedPage[],
+  asked: readonly string[],
+): {
   usable: RetrievedPage[]
   droppedUnsafe: number
+  droppedOffTopic: number
 } {
   let droppedUnsafe = 0
+  let droppedOffTopic = 0
   const usable: RetrievedPage[] = []
 
   for (const page of results) {
+    /* Safety is counted FIRST and unconditionally. A page carrying text aimed
+       at this software is an event somebody needs to see in a log, and letting
+       an aboutness check reclassify it as "off topic" would file an attack
+       under housekeeping. */
     if (page.suspicious) {
       droppedUnsafe += 1
       continue
     }
     if (!page.ok) continue
     if (page.readerText.trim().length === 0) continue
+    if (!isAbout(page, asked)) {
+      droppedOffTopic += 1
+      continue
+    }
     usable.push(page)
   }
 
-  return { usable, droppedUnsafe }
+  return { usable, droppedUnsafe, droppedOffTopic }
 }
 
 function refuse(reason: string): Resolution {
   return { kind: 'refusal', reason, nearest: [] }
+}
+
+/**
+ * The two reasons a page was withheld, each written once.
+ *
+ * Once, because when both happened the learner has to be told both, and a
+ * sentence assembled from two copies of this wording is how one of them
+ * quietly stops matching the other.
+ */
+function unsafeClause(n: number): string {
+  return (
+    `${n} page${n === 1 ? '' : 's'} that could not be trusted — ` +
+    `${n === 1 ? 'it contained' : 'they contained'} text aimed at this software ` +
+    `rather than at you`
+  )
+}
+
+function offTopicClause(n: number): string {
+  return `${n} page${n === 1 ? '' : 's'} that ${n === 1 ? 'was' : 'were'} not about what you asked`
 }
 
 /**
@@ -286,19 +407,35 @@ export function webResolver(deps: WebResolverDeps): AsyncDoubtResolver {
         )
       }
 
-      const { usable, droppedUnsafe } = usablePages(outcome.results)
+      const { usable, droppedUnsafe, droppedOffTopic } = usablePages(outcome.results, terms)
 
       if (usable.length === 0) {
-        if (droppedUnsafe > 0) {
-          /* Named for what it is. Telling a learner "no answer exists" when the
-             truth is "the pages found were trying to manipulate this system"
-             hides an attack from whoever reads this later. */
+        /* Three outcomes that look identical from outside and mean opposite
+           things inside. Named separately, and never collapsed:
+
+             the search is down          -> wait, retry, tell somebody
+             the web has nothing on this -> the question may be unanswerable
+             what came back was elsewhere-> name the thing more exactly
+
+           The middle one is the flattering lie. Reporting a page that was
+           about cricket as "nothing was found" hides both a bad search and,
+           when the dropped page was hostile, an attack. */
+        if (droppedUnsafe > 0 && droppedOffTopic > 0) {
           return refuse(
-            `I found ${droppedUnsafe} page${droppedUnsafe === 1 ? '' : 's'} about that, but ` +
-              `${droppedUnsafe === 1 ? 'it' : 'they'} could not be trusted — ` +
-              `${droppedUnsafe === 1 ? 'it contained' : 'they contained'} text aimed at this ` +
-              `software rather than at you, so I did not show ` +
+            `I found ${unsafeClause(droppedUnsafe)}, and ${offTopicClause(droppedOffTopic)}. ` +
+              `I did not show you either kind.`,
+          )
+        }
+        if (droppedUnsafe > 0) {
+          return refuse(
+            `I found ${unsafeClause(droppedUnsafe)}, so I did not show ` +
               `${droppedUnsafe === 1 ? 'it' : 'them'}.`,
+          )
+        }
+        if (droppedOffTopic > 0) {
+          return refuse(
+            `I searched the web for that and found ${offTopicClause(droppedOffTopic)}. ` +
+              `Try naming the thing you mean — one or two words is enough.`,
           )
         }
         return refuse('I searched the web for that and found nothing usable.')

@@ -174,7 +174,16 @@ function tokenVariants(text: string): string[][] {
  *
  * Returns how many of the name's words were typed; 0 means no match.
  */
-const HALF = 0.5
+/**
+ * Exported because the web rung shares this threshold, and only this threshold.
+ *
+ * `webResolver` asks the mirrored question — does this fetched PAGE cover the
+ * words the learner typed — and a second `0.5` written down over there would be
+ * two numbers meaning one decision, free to stop agreeing. What it does NOT
+ * share is the `matched >= 2` clause below, and the reason it does not is
+ * written where it is not shared: see `isAbout` in `webResolver.ts`.
+ */
+export const HALF = 0.5
 
 function accepts(nameTokens: readonly string[], typed: ReadonlySet<string>): number {
   let matched = 0

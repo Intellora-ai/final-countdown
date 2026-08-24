@@ -5,6 +5,32 @@ gets compacted; these files do not.
 
 ---
 
+## How to talk to Tanveer — read this first
+
+Tanveer is 12. He has ADHD and autism. He asked for this rule on 2026-08-24:
+
+> **Use simple language. Explain technical things in plain words.**
+
+This applies to EVERY reply, every session, forever.
+
+- Short sentences. One idea each.
+- Plain words: "broken", not "defective". "Check", not "validate".
+- Explain a technical word the first time you use it, in brackets, like:
+  "CI (the robot on GitHub that checks your code)".
+- Answer first. Details after.
+- Use short lists and small tables. Walls of text are hard to scan.
+- **Bold** the part that matters most.
+
+**Do not talk down to him.** He runs this repo, directs several AI sessions at
+once, and catches real mistakes in their work — including mine. Simple is not
+the same as dumb. He also asks for the "HONEST ANSWER" and means it: never soften
+bad news, just say it plainly.
+
+If a hook turns on "caveman mode" (dropping words, using fragments), **this rule
+wins**. Fragments are harder to read, not easier. Write full simple sentences.
+
+---
+
 ## The central principle
 
 > The design system is constant.

@@ -573,3 +573,77 @@ describe('the session does not grow without bound', () => {
     expect(second.result.answer.length).toBeGreaterThan(0)
   })
 })
+
+describe('a repair call that dies is not indistinguishable from one that ran', () => {
+  /* `verifyAndRepair` catches a throwing repairer and keeps the last good
+     answer. Correct, and it is also why a try/catch at the CALL SITE can never
+     see this: the throw never reaches it. The consequence was that these two
+     turns were byte-identical from outside —
+
+         repair (2nd call) THREW   calls=2  degraded=null  passed=[false]
+         nothing threw             calls=2  degraded=null  passed=[false]
+
+     — while the file's own trace contract, stated two hundred lines above the
+     call site, is that a degraded turn must be DISTINGUISHABLE from a healthy
+     one. The realistic trigger is a rate limit: under a provider outage every
+     failing turn silently loses its repair round, answers get worse, and
+     nothing points at the cause. */
+
+  function throwingOnCall(n: number) {
+    let calls = 0
+    const model: ModelPort = {
+      async generate() {
+        calls++
+        if (calls === n) throw new Error(`model boom on call ${calls}`)
+        /* Deliberately off-topic so the goal check fails and repair runs. */
+        return 'The rover landed on Mars in 2021.'
+      },
+    }
+    return { model, calls: () => calls }
+  }
+
+  it('records WHY when the repair call throws', async () => {
+    const { model, calls } = throwingOnCall(2)
+    const out = await handle(ask('What is inflation?'), NEW_SESSION, ports({ model: model as Spy }))
+
+    expect(calls()).toBe(2)
+    expect(out.trace.degraded, 'a dead repair port left no trace').toMatch(/repair call failed/)
+  })
+
+  it('distinguishes a dead repair port from a repair that simply did not help', async () => {
+    /* The assertion that would have caught it: the same shape run twice,
+       differing only in whether the second call throws. */
+    const died = await handle(
+      ask('What is inflation?'),
+      NEW_SESSION,
+      ports({ model: throwingOnCall(2).model as Spy }),
+    )
+    const ran = await handle(
+      ask('What is inflation?'),
+      NEW_SESSION,
+      ports({ model: throwingOnCall(99).model as Spy }),
+    )
+
+    expect(ran.trace.degraded).toBeUndefined()
+    expect(died.trace.degraded).toBeTruthy()
+  })
+
+  it('still keeps the last good answer rather than losing the turn', async () => {
+    const out = await handle(
+      ask('What is inflation?'),
+      NEW_SESSION,
+      ports({ model: throwingOnCall(2).model as Spy }),
+    )
+    expect(out.result.answer).toContain('rover')
+    expect(out.result.answer.length).toBeGreaterThan(0)
+  })
+
+  it('sets degraded on the FIRST call throwing too, which already worked', async () => {
+    /* Regression guard on the half that was already correct, so a fix to the
+       second call cannot quietly break the first. */
+    const { model, calls } = throwingOnCall(1)
+    const out = await handle(ask('What is inflation?'), NEW_SESSION, ports({ model: model as Spy }))
+    expect(calls()).toBe(1)
+    expect(out.trace.degraded).toMatch(/boom on call 1/)
+  })
+})

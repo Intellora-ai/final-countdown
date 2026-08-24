@@ -6,6 +6,7 @@ import {
   analyze,
   isTestFile,
   blankComments,
+  blankStrings,
   exportsOf,
   importsOf,
   MANIFEST,
@@ -342,4 +343,112 @@ describe('the gate agrees with vitest about what a test file is', () => {
     }
     return bodies
   }
+})
+
+describe('a type-only import is not a runtime edge', () => {
+  /* THE BYPASS THAT DEFEATED THIS GATE, found by an adversarial pass after the
+     gate was already green and already merged into a PR body as proof.
+     Two lines appended to any reachable file made an orphan invisible:
+
+         import type { neverCalled } from '../__orphan'
+         void (0 as unknown as typeof neverCalled)
+
+         reachability gate: PASS, 16/16
+         grep the built bundle for the orphan: ABSENT
+
+     tsc ERASES a type-only import. The parser stripped the `type` keyword and
+     treated what was left as an ordinary import, so it had no representation
+     for "this edge disappears at compile time" and could not have been right.
+
+     Nobody writes that line to cheat. It is the ordinary way to import a type,
+     which is why it had to be handled rather than trusted. */
+
+  it('FAILS on a module reached only by `import type`', () => {
+    const area = fixture({
+      'entry.ts': `import type { Shape } from './orphan'\nexport const go = (x: Shape) => x\n`,
+      'orphan.ts': `export interface Shape { x: number }\nexport function neverCalled() { return 1 }\n`,
+    })
+    expect(analyze(area).orphans).toEqual(['.reachability-fixture/orphan.ts'])
+  })
+
+  it('FAILS on a module reached only by `export type ... from`', () => {
+    const area = fixture({
+      'entry.ts': `export type { Shape } from './orphan'\nexport const go = 1\n`,
+      'orphan.ts': `export interface Shape { x: number }\n`,
+    })
+    expect(analyze(area).orphans).toEqual(['.reachability-fixture/orphan.ts'])
+  })
+
+  it('FAILS when every specifier is individually marked `type`', () => {
+    const area = fixture({
+      'entry.ts': `import { type A, type B } from './orphan'\nexport const go: A | B = 1 as never\n`,
+      'orphan.ts': `export type A = 1\nexport type B = 2\n`,
+    })
+    expect(analyze(area).orphans).toEqual(['.reachability-fixture/orphan.ts'])
+  })
+
+  it('PASSES a MIXED clause, because one real specifier still ships', () => {
+    /* `{ type A, b }` erases A and keeps b. The module reaches the bundle, so
+       calling it an orphan would be a false positive — and a gate that cries
+       wolf gets switched off, which costs more than the hole. */
+    const area = fixture({
+      'entry.ts': `import { type A, b } from './used'\nexport const go = (x: A) => b\n`,
+      'used.ts': `export type A = 1\nexport const b = 2\n`,
+    })
+    expect(analyze(area).orphans).toEqual([])
+  })
+
+  it('marks the edge typeOnly rather than discarding the names', () => {
+    /* The names still matter for the dead-export check: a type genuinely
+       consumed by a shipping file is not dead in the TypeScript sense, even
+       though it contributes nothing at run time. */
+    const [edge] = importsOf(`import type { Shape } from './orphan'\n`)
+    expect(edge.spec).toBe('./orphan')
+    expect(edge.names).toEqual(['Shape'])
+    expect(edge.typeOnly).toBe(true)
+  })
+
+  it('does not mark an ordinary import as typeOnly', () => {
+    const [edge] = importsOf(`import { thing } from './m'\n`)
+    expect(edge.typeOnly).toBe(false)
+  })
+
+  it('treats a side-effect import as a real edge', () => {
+    /* `import './x'` has no specifiers to be type-only about, and it runs. */
+    const area = fixture({
+      'entry.ts': `import './side'\nexport const go = 1\n`,
+      'side.ts': `export const registered = 1\n`,
+    })
+    expect(analyze(area).orphans).toEqual([])
+  })
+})
+
+describe('import syntax inside a string is not an edge', () => {
+  /* The second hole. FROM_RE anchors on a line start against text where only
+     comments had been blanked, so a documentation string containing import
+     syntax minted an edge to a module nothing imports. One constant took
+     reachability from 15/16 to 16/16. */
+
+  it('FAILS on an orphan "imported" only inside a template literal', () => {
+    const area = fixture({
+      'entry.ts': `export const DOC = \`\nimport { neverCalled } from './orphan'\n\`\nexport const go = 1\n`,
+      'orphan.ts': `export function neverCalled() { return 1 }\n`,
+    })
+    expect(analyze(area).orphans).toEqual(['.reachability-fixture/orphan.ts'])
+  })
+
+  it('still reads the specifier out of a REAL import, which is also a string', () => {
+    /* The obvious over-correction: blanking every string destroys the thing
+       the parser exists to read. Only template literals are blanked, because
+       only they can span lines and put text at the start of one. */
+    expect(importsOf(`import { a } from './m'\n`).map((i) => i.spec)).toEqual(['./m'])
+  })
+
+  it('preserves offsets when blanking a template literal', () => {
+    const src = 'const a = `line one\nline two`\nconst b = 2'
+    const out = blankStrings(src)
+    expect(out.length).toBe(src.length)
+    expect(out.split('\n').length).toBe(src.split('\n').length)
+    expect(out).toContain('const b = 2')
+  })
 })

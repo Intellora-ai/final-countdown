@@ -162,6 +162,56 @@ export function blankComments(src) {
   return out
 }
 
+/**
+ * Blank the INSIDE of template literals, keeping the backticks and newlines.
+ *
+ * THE SECOND WAY THIS GATE WAS FOOLED. `FROM_RE` anchors on a line start
+ * against text where only comments had been blanked, so a documentation string
+ * containing import syntax minted an edge to a module nothing actually
+ * imports:
+ *
+ *     export const USAGE_DOC = `
+ *     import { neverCalled } from './__orphan'
+ *     `
+ *
+ * That one constant took reachability from 15/16 to 16/16.
+ *
+ * ONLY TEMPLATE LITERALS ARE BLANKED, and the restriction is what keeps this
+ * safe. A `'...'` or `"..."` string cannot contain a raw newline, so its
+ * contents can never sit at the start of a line and `FROM_RE` cannot match
+ * inside one. Backtick strings can span lines, so they can. Blanking the
+ * quoted forms too would destroy the specifier this function's whole purpose
+ * is to read --- the specifier IS a quoted string.
+ *
+ * Newlines are preserved so every surviving offset still matches the original.
+ */
+export function blankStrings(src) {
+  let out = ''
+  let i = 0
+  const n = src.length
+  while (i < n) {
+    if (src[i] !== '`') {
+      out += src[i]
+      i++
+      continue
+    }
+    out += '`'
+    i++
+    while (i < n && src[i] !== '`') {
+      if (src[i] === '\\') {
+        out += '  '
+        i += 2
+        continue
+      }
+      out += src[i] === '\n' ? '\n' : ' '
+      i++
+    }
+    out += src[i] ?? ''
+    i++
+  }
+  return out
+}
+
 /* An import or re-export with a module specifier. The clause is bounded by
    `[^;]` so a multi-line `import {\n a,\n b,\n}` is matched while a runaway
    match across unrelated statements is not. */
@@ -172,23 +222,55 @@ const DYNAMIC_RE = /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g
 /**
  * The module specifiers a source file imports, with the names taken from each.
  *
- * Returns `[{ spec, names, star }]`. `star` marks `import * as ns` and
- * `export * from`, both of which consume every export of the target and so
- * suppress the dead-export check for it.
+ * Returns `[{ spec, names, star, typeOnly }]`.
+ *
+ * `star` marks `import * as ns` and `export * from`, both of which consume
+ * every export of the target and so suppress the dead-export check for it.
+ *
+ * `typeOnly` MARKS AN EDGE THAT DOES NOT EXIST AT RUN TIME, and it is the
+ * difference between this gate measuring what it claims to measure and
+ * measuring something adjacent. Earlier versions stripped the `type` keyword
+ * and treated what was left as an ordinary import, which meant two lines
+ * appended to any reachable file made an orphan invisible:
+ *
+ *     import type { neverCalled } from '../__orphan'
+ *     void (0 as unknown as typeof neverCalled)
+ *
+ *     reachability gate: PASS, 16/16
+ *     grep the built bundle for the orphan's contents: ABSENT
+ *
+ * tsc ERASES a type-only import. Nothing of the target reaches the bundle, so
+ * it is not reachable in the only sense that matters here. The parser had no
+ * representation for "this edge disappears at compile time" and therefore could
+ * not have been right, whatever the regex said.
+ *
+ * Nobody would write that line to cheat. It is the ordinary way to import a
+ * type, which is exactly why it had to be handled rather than trusted.
  */
 export function importsOf(src) {
-  const clean = blankComments(src)
+  const clean = blankStrings(blankComments(src))
   const found = []
 
   for (const m of clean.matchAll(FROM_RE)) {
-    const clause = m[1].replace(/^type\s+/, '').trim()
-    found.push({ spec: m[2], ...parseClause(clause) })
+    /* `import type {...}` and `export type {...}` are type-only in whole. */
+    const raw = m[1].trim()
+    const wholeClauseIsType = /^type\b/.test(raw)
+    const clause = raw.replace(/^type\s+/, '').trim()
+    const parsed = parseClause(clause)
+    found.push({
+      spec: m[2],
+      ...parsed,
+      /* Type-only in whole, or every specifier individually marked `type`. A
+         mixed `{ type A, b }` still ships `b`, so it is a real edge. */
+      typeOnly: wholeClauseIsType || parsed.allSpecifiersType === true,
+    })
   }
   for (const m of clean.matchAll(BARE_RE)) {
-    found.push({ spec: m[1], names: [], star: false })
+    /* `import './x'` is a side-effect import. Always a runtime edge. */
+    found.push({ spec: m[1], names: [], star: false, typeOnly: false })
   }
   for (const m of clean.matchAll(DYNAMIC_RE)) {
-    found.push({ spec: m[1], names: [], star: true })
+    found.push({ spec: m[1], names: [], star: true, typeOnly: false })
   }
   return found
 }
@@ -198,10 +280,15 @@ function parseClause(clause) {
 
   const braces = clause.match(/\{([\s\S]*)\}/)
   const names = []
+  let specifiers = 0
+  let typeSpecifiers = 0
   if (braces) {
     for (const raw of braces[1].split(',')) {
-      const part = raw.trim().replace(/^type\s+/, '')
-      if (!part) continue
+      const trimmed = raw.trim()
+      if (!trimmed) continue
+      specifiers++
+      if (/^type\s+/.test(trimmed)) typeSpecifiers++
+      const part = trimmed.replace(/^type\s+/, '')
       /* `a as b` is imported under the name `a`. The alias is the local
          binding and says nothing about what the target module exports. */
       names.push(part.split(/\s+as\s+/)[0].trim())
@@ -209,9 +296,16 @@ function parseClause(clause) {
   }
   const before = braces ? clause.slice(0, braces.index) : clause
   const dflt = before.replace(/,/g, '').trim()
-  if (dflt && dflt !== '*') names.push('default')
+  if (dflt && dflt !== '*') {
+    names.push('default')
+    specifiers++
+  }
 
-  return { names, star: /\*\s+as\s+/.test(clause) }
+  return {
+    names,
+    star: /\*\s+as\s+/.test(clause),
+    allSpecifiersType: specifiers > 0 && typeSpecifiers === specifiers,
+  }
 }
 
 /* Any top-level declaration, exported or not. Anchored at column 0, because a
@@ -402,6 +496,12 @@ export function analyze(area) {
     if (reached.has(f)) continue
     reached.add(f)
     for (const imp of edges.get(f) ?? []) {
+      /* TYPE-ONLY EDGES ARE NOT TRAVERSED. tsc erases them, so a module
+         reachable only through `import type` contributes nothing to the
+         bundle and is exactly as absent as one nobody imports at all. This
+         line is the difference between measuring reachability and measuring
+         "mentioned in something that looks like an import". */
+      if (imp.typeOnly) continue
       if (!reached.has(imp.target)) queue.push(imp.target)
     }
   }

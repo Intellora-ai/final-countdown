@@ -737,20 +737,47 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
       : []),
   ]
 
-  const repair: Repair = async (subject, failures) => ({
-    ...subject,
-    answer: await ports.model.generate({
-      understanding: u,
-      communication,
-      claims: subject.claims,
-      working,
-      capabilities: plan.selected,
-      computed,
-      /* The model is told WHAT failed. Asking it to "try again" without that
-         is asking it to guess which of its sentences was the problem. */
-      mustFix: failures.map((f) => `${f.kind}: ${f.detail}`),
-    }),
-  })
+  const repair: Repair = async (subject, failures) => {
+    try {
+      return {
+        ...subject,
+        answer: await ports.model.generate({
+          understanding: u,
+          communication,
+          claims: subject.claims,
+          working,
+          capabilities: plan.selected,
+          computed,
+          /* The model is told WHAT failed. Asking it to "try again" without
+             that is asking it to guess which of its sentences was the
+             problem. */
+          mustFix: failures.map((f) => `${f.kind}: ${f.detail}`),
+        }),
+      }
+    } catch (e) {
+      /* THE ONLY PORT CALL IN THIS FILE THAT USED TO FAIL IN SILENCE.
+         `verifyAndRepair` catches a throwing repairer and keeps the last good
+         answer, which is correct behaviour and is also why a try/catch at the
+         call site can never see this. The consequence was that a turn whose
+         repair port DIED and a turn whose repair ran and simply could not fix
+         the answer were byte-identical from outside: `degraded` null in both,
+         the same verifications, the same `passed: false`.
+
+         That breaks the promise stated two hundred lines above --- the trace
+         exists so a degraded turn is DISTINGUISHABLE from a healthy one. The
+         realistic trigger is a rate limit, not a bug: under a provider outage
+         EVERY failing turn silently loses its repair round, answers get worse,
+         and nothing anywhere points at the cause.
+
+         Recorded, then rethrown, so `verifyAndRepair` still keeps the last
+         good attempt. The verdict was never wrong --- `passed: false` is true
+         either way. What was missing is the reason. */
+      const why = e instanceof Error ? e.message : String(e)
+      degraded = degraded ?? `the repair call failed: ${why}`
+      couldNot('verify', `the repair call failed: ${why}`)
+      throw e
+    }
+  }
 
   /* NOT REPAIRED WHEN THERE IS NOTHING TO REPAIR WITH. If the turn stopped to
      ask, or the model port already failed, calling it again to fix its own

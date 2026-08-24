@@ -324,11 +324,42 @@ describe('the honest default', () => {
     expect(top).toBe('conversation')
   })
 
-  it.each<IntentKind>(['learning', 'research', 'act' as IntentKind])(
+  /* `'act'` USED TO BE THE THIRD CASE, written as `'act' as IntentKind`.
+     There is no such IntentKind --- `act` is a Capability (contracts.ts:203);
+     the intent for doing something to the world is `'action'` (contracts.ts:95).
+     The cast existed only to silence the compiler, and its effect was that
+     `u.intents` could never contain `'act'` for ANY input, so that case could
+     not fail. A test that cannot fail reports coverage it does not have, and
+     this describe block is called "the honest default".
+
+     Worse, it was the specific guard that mattered most: `action` is the intent
+     that makes the router select `act`, which is the capability that CHANGES
+     THINGS. "Never invent a side-effect intent from noise" was the one claim
+     here worth proving and it was the one not being proven.
+
+     Same shape as the mutation `CATALOGUE = 39` and the ratchet floors: a
+     hand-written value that stopped tracking the thing it names. Here the
+     compiler would have said so, and a cast was used to stop it. */
+  it.each<IntentKind>(['learning', 'research', 'action'])(
     'never invents %s from an unparsed sentence',
     (kind) => {
       const { u } = pipeline('asdkjh qwe zxc')
       expect(u.intents.map((i) => i.kind)).not.toContain(kind)
     },
   )
+
+  it('the cases above name real IntentKinds, so they can actually fail', () => {
+    /* The guard on the guard. If someone reintroduces a cast, this asserts the
+       union membership directly rather than trusting the type annotation that
+       a cast can defeat. */
+    const REAL: readonly IntentKind[] = [
+      'information', 'explanation', 'action', 'research', 'calculation',
+      'comparison', 'recommendation', 'troubleshooting', 'planning', 'coding',
+      'learning', 'conversation', 'memory-write', 'memory-read',
+      'continuation', 'correction',
+    ]
+    for (const kind of ['learning', 'research', 'action'] as IntentKind[]) {
+      expect(REAL, `"${kind}" is not a real IntentKind`).toContain(kind)
+    }
+  })
 })

@@ -1,0 +1,144 @@
+/* Agabi — Color tokens. Values are verbatim from the source theme.css (agabi.fig). */
+:root {
+  /* ── Agabi Color Scales ────────────────────────────────────── */
+  /* Indigo — Primary brand */
+  --agabi-indigo-50:  #EEF1FC;
+  --agabi-indigo-100: #D5DCFA;
+  --agabi-indigo-200: #AABAF5;
+  --agabi-indigo-300: #7F97EF;
+  --agabi-indigo-400: #5573E9;
+  --agabi-indigo-500: #3B55D4;
+  --agabi-indigo-600: #2F44AA;
+  --agabi-indigo-700: #233380;
+  --agabi-indigo-800: #172255;
+  --agabi-indigo-900: #0B112B;
+
+  /* Teal — Accent / AI intelligence */
+  --agabi-teal-50:  #E5F6F5;
+  --agabi-teal-100: #C0EBE8;
+  --agabi-teal-200: #80D6D1;
+  --agabi-teal-300: #40C2BA;
+  --agabi-teal-400: #1AADA6;
+  --agabi-teal-500: #0C9B8E;
+  --agabi-teal-600: #0A7C72;
+  --agabi-teal-700: #085D55;
+  --agabi-teal-800: #053E39;
+  --agabi-teal-900: #031F1C;
+
+  /* Neutral — Grays with cool undertone */
+  --agabi-neutral-0:   #FFFFFF;
+  --agabi-neutral-25:  #FAFBFD;
+  --agabi-neutral-50:  #F7F8FB;
+  --agabi-neutral-100: #F0F1F7;
+  --agabi-neutral-200: #E3E5EF;
+  --agabi-neutral-300: #C8CBE0;
+  --agabi-neutral-400: #9CA3C0;
+  --agabi-neutral-500: #6B7492;
+  --agabi-neutral-600: #4A5275;
+  --agabi-neutral-700: #2F3558;
+  --agabi-neutral-800: #1A1F3B;
+  --agabi-neutral-900: #0C0E16;
+
+  /* Semantic — Green */
+  --agabi-green-50:  #E7F8F2;
+  --agabi-green-500: #0D9F6E;
+  --agabi-green-700: #0A7A54;
+
+  /* Semantic — Amber */
+  --agabi-amber-50:  #FEF3E2;
+  --agabi-amber-500: #D97706;
+  --agabi-amber-700: #B45309;
+
+  /* Semantic — Red */
+  --agabi-red-50:  #FDEAEA;
+  --agabi-red-500: #D93B3B;
+  --agabi-red-700: #B02E2E;
+
+  /* ── Core semantic aliases ─────────────────────────────────── */
+  --background: #F7F8FB;
+  --foreground: #0C0E16;
+  --card: #FFFFFF;
+  --card-foreground: #0C0E16;
+  --popover: #FFFFFF;
+  --popover-foreground: #0C0E16;
+
+  /* Primary: Confident Indigo */
+  --primary: #3B55D4;
+  --primary-foreground: #FFFFFF;
+
+  /* Secondary: Soft blue-gray surface */
+  --secondary: #EEF0F8;
+  --secondary-foreground: #3D4660;
+
+  /* Muted: Near-neutral with cool undertone */
+  --muted: #F0F1F7;
+  --muted-foreground: #6B7492;
+
+  /* Accent: Calm teal — intelligence, forward motion */
+  --accent: #0C9B8E;
+  --accent-foreground: #FFFFFF;
+
+  /* Semantic states */
+  --success: #0D9F6E;
+  --success-foreground: #FFFFFF;
+  --warning: #D97706;
+  --warning-foreground: #FFFFFF;
+  --destructive: #D93B3B;
+  --destructive-foreground: #FFFFFF;
+
+  /* Structure */
+  --border: rgba(60, 70, 110, 0.10);
+  --input: transparent;
+  --input-background: #F0F1F7;
+  --switch-background: #C5C9DC;
+  --ring: #3B55D4;
+
+  /* Chart palette */
+  --chart-1: #3B55D4;
+  --chart-2: #0C9B8E;
+  --chart-3: #8B5CF6;
+  --chart-4: #D97706;
+  --chart-5: #0D9F6E;
+
+  /* Sidebar */
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0C0E16;
+  --sidebar-primary: #3B55D4;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #EEF0F8;
+  --sidebar-accent-foreground: #3D4660;
+  --sidebar-border: rgba(60, 70, 110, 0.08);
+  --sidebar-ring: #3B55D4;
+}
+
+/* ── Dark mode (variable layer) ────────────────────────────────
+   Phase 0A shipped light-first; .dark remaps semantic aliases only.
+   Components never reference raw scale values, so this is complete coverage. */
+.dark {
+  --background: var(--agabi-neutral-900);
+  --foreground: var(--agabi-neutral-25);
+  --card: var(--agabi-neutral-800);
+  --card-foreground: var(--agabi-neutral-25);
+  --popover: var(--agabi-neutral-800);
+  --popover-foreground: var(--agabi-neutral-25);
+  --primary: var(--agabi-indigo-400);
+  --primary-foreground: #FFFFFF;
+  --secondary: var(--agabi-neutral-700);
+  --secondary-foreground: var(--agabi-neutral-200);
+  --muted: var(--agabi-neutral-700);
+  --muted-foreground: var(--agabi-neutral-400);
+  --accent: var(--agabi-teal-400);
+  --accent-foreground: var(--agabi-teal-900);
+  --success: var(--agabi-green-500);
+  --warning: var(--agabi-amber-500);
+  --destructive: var(--agabi-red-500);
+  --border: rgba(255, 255, 255, 0.10);
+  --input-background: var(--agabi-neutral-800);
+  --switch-background: var(--agabi-neutral-600);
+  --ring: var(--agabi-indigo-400);
+  --sidebar: var(--agabi-neutral-900);
+  --sidebar-foreground: var(--agabi-neutral-25);
+  --sidebar-accent: var(--agabi-neutral-700);
+  --sidebar-accent-foreground: var(--agabi-neutral-200);
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+}

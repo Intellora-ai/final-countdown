@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="stylesheet" href="_ds/agabi-16d9fd13-8553-4443-8894-d89905105326/styles.css">
+<script src="_ds/agabi-16d9fd13-8553-4443-8894-d89905105326/_ds_bundle.js"></script>
+<script src="domain/curriculum.js"></script>
+<script src="domain/data-layer.js"></script>
+<style>
+@keyframes osPop { from { opacity: 0; transform: scale(.96) } to { opacity: 1; transform: scale(1) } }
+  @keyframes osIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes osFade{from{opacity:0}to{opacity:1}}
+html{background:var(--agabi-neutral-900)}
+body{margin:0;background:var(--agabi-neutral-900);color:var(--agabi-neutral-25);font-family:var(--font-sans);-webkit-font-smoothing:antialiased}
+a{color:var(--agabi-teal-300);text-decoration:none}
+a:hover{color:var(--agabi-teal-200)}
+input,button{font-family:inherit}
+::selection{background:rgba(26,173,166,.28)}
+:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+[data-shell="scrim"]{display:none}
+[data-shell="shell"]{container-type:inline-size;container-name:oshell}
+@container oshell (max-width:899px){
+  [data-shell="aside"]{position:absolute!important;left:0;top:0;z-index:70;width:min(292px,86%)!important;min-width:0!important;flex:none!important;height:100%!important;box-shadow:0 24px 60px -12px rgba(0,0,0,.7);animation:osDrawer .26s cubic-bezier(.16,1,.3,1)}
+  [data-shell="scrim"]{display:block;position:absolute;inset:0;z-index:60;background:rgba(4,6,8,.62);backdrop-filter:blur(3px)}
+  [data-shell="main"]{width:100%;flex:1 1 100%!important;min-width:0!important}
+}
+@container oshell (max-width:560px){
+  [data-shell="pad"]{padding-left:17px!important;padding-right:17px!important}
+}
+@container oshell (max-width:899px){
+  [data-shell="row"] button{min-height:44px!important}
+  [data-tap="text"]{padding-block:13px!important}
+  [data-tap="icon"]{width:44px!important;height:44px!important;min-width:44px!important}
+}
+@keyframes osDrawer{from{transform:translateX(-14px);opacity:.4}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</helmet>
+
+<div class="dark" style="min-height:100vh;background:var(--background);color:var(--foreground)">
+
+<sc-if value="{{ inSetup }}" hint-placeholder-val="{{ true }}">
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:48px 24px">
+<div style="width:100%;max-width:660px;animation:osIn .35s cubic-bezier(.16,1,.3,1)">
+
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:44px">
+    <span style="width:22px;height:22px;border-radius:6px;background:var(--accent);display:inline-flex;align-items:center;justify-content:center"><span style="width:7px;height:7px;background:var(--background);border-radius:2px"></span></span>
+    <span style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted-foreground)">Blackboard · Learning OS</span>
+  </div>
+
+  <sc-if value="{{ stepIntro }}" hint-placeholder-val="{{ true }}">
+  <div>
+    <h1 style="font-family:var(--font-display);font-weight:600;font-size:46px;line-height:1.06;letter-spacing:-.025em;margin:0 0 16px">What do you want to learn?</h1>
+    <p style="font-size:17px;line-height:1.65;color:var(--muted-foreground);margin:0 0 40px;max-width:46ch">We'll set up your learning plan in a few simple steps.</p>
+    <x-import component-from-global-scope="Agaiba_16d9fd.Button" from="_ds/agabi-16d9fd13-8553-4443-8894-d89905105326/_ds_bundle.js" variant="primary" size="lg" onClick="{{ setup.begin }}" hint-size="auto,44px">Get started</x-import>
+    <sc-if value="{{ canResume }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ resumePlan }}" style="display:block;margin-top:20px;padding:0;border:none;background:none;color:var(--muted-foreground);font-family:var(--font-sans);font-size:13px;cursor:pointer;text-decoration:underline;text-underline-offset:3px" style-hover="color:var(--foreground)">Back to my plan</button>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ stepAsk }}" hint-placeholder-val="{{ false }}">
+  <div>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:26px">
+      <span style="font-family:var(--font-mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-foreground)">Step {{ stepNo }} of {{ stepTotal }}</span>
+      <span style="flex:1;height:2px;background:var(--muted);border-radius:2px;overflow:hidden;max-width:220px"><span style="display:block;height:2px;width:{{ stepPct }};background:var(--accent);transition:width .5s cubic-bezier(.16,1,.3,1)"></span></span>
+    </div>
+
+    <h1 style="font-family:var(--font-display);font-weight:600;font-size:34px;line-height:1.14;letter-spacing:-.02em;margin:0 0 8px">{{ qTitle }}</h1>
+    <p style="font-size:14.5px;line-height:1.6;color:var(--muted-foreground);margin:0 0 30px;max-width:52ch">{{ qHelp }}</p>
+
+    <sc-if value="{{ qIsOptions }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:34px">
+      <sc-for list="{{ qOptions }}" as="o" hint-placeholder-count="4">
+        <button onClick="{{ o.on }}" style="display:flex;align-items:center;gap:14px;text-align:left;padding:16px 18px;border-radius:12px;border:1px solid {{ o.bc }};background:{{ o.bg }};color:var(--foreground);cursor:pointer;transition:border-color .2s cubic-bezier(.16,1,.3,1),background .2s cubic-bezier(.16,1,.3,1)" style-hover="border-color:rgba(26,173,166,.55)">
+          <span style="width:17px;height:17px;flex:none;border-radius:{{ o.shape }};border:1.5px solid {{ o.mc }};background:{{ o.mbg }};display:inline-flex;align-items:center;justify-content:center">
+            <span style="width:7px;height:7px;border-radius:{{ o.shape }};background:{{ o.dot }}"></span>
+          </span>
+          <span style="flex:1;font-size:15.5px">{{ o.label }}</span>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground)">{{ o.meta }}</span>
+        </button>
+      </sc-for>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ qIsDate }}" hint-placeholder-val="{{ false }}">
+    <div style="margin-bottom:34px">
+      <label for="os-date" style="display:block;font-family:var(--font-mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-foreground);margin-bottom:10px">Target date</label>
+      <input id="os-date" type="date" value="{{ dateVal }}" onChange="{{ setDate }}" style="padding:14px 16px;border-radius:12px;border:1px solid var(--border);background:var(--card);color:var(--foreground);font-size:15.5px;width:230px">
+      <div style="font-size:12.5px;color:var(--muted-foreground);margin-top:10px">{{ dateNote }}</div>
+    </div>
+    </sc-if>
+
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+      <x-import component-from-global-scope="Agaiba_16d9fd.Button" from="_ds/agabi-16d9fd13-8553-4443-8894-d89905105326/_ds_bundle.js" variant="primary" size="lg" state="{{ nextState }}" onClick="{{ setup.next }}" hint-size="auto,44px">{{ nextLabel }}</x-import>
+      <x-import component-from-global-scope="Agaiba_16d9fd.Button" from="_ds/agabi-16d9fd13-8553-4443-8894-d89905105326/_ds_bundle.js" variant="ghost" size="lg" onClick="{{ setup.back }}" hint-size="auto,44px">Back</x-import>
+      <span style="font-size:12.5px;color:var(--muted-foreground)">{{ qFooter }}</span>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ stepConfirm }}" hint-placeholder-val="{{ false }}">
+  <div>
+    <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-foreground);margin-bottom:22px">Confirm your plan</div>
+    <h1 style="font-family:var(--font-display);font-weight:600;font-size:34px;line-height:1.14;letter-spacing:-.02em;margin:0 0 32px">Here's your learning plan.</h1>
+
+    <div style="border-top:1px solid var(--border);padding:18px 0;display:flex;gap:24px;align-items:baseline">
+      <span style="flex:0 0 150px;font-family:var(--font-mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-foreground)">Class</span>
+      <span style="font-size:16px">{{ cClass }}</span>
+    </div>
+    <sc-if value="{{ hasStream }}" hint-placeholder-val="{{ false }}">
+    <div style="border-top:1px solid var(--border);padding:18px 0;display:flex;gap:24px;align-items:baseline">
+      <span style="flex:0 0 150px;font-family:var(--font-mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-foreground)">Stream</span>
+      <span style="font-size:16px">{{ cStream }}</span>
+    </div>
+    </sc-if>
+    <div style="border-top:1px solid var(--border);padding:18px 0;display:flex;gap:24px;align-items:baseline">
+      <span style="flex:0 0 150px;font-family:var(--font-mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-foreground)">Subjects</span>
+      <span style="flex:1;display:flex;flex-direction:column;gap:7px">
+        <sc-for list="{{ cSubjects }}" as="s" hint-placeholder-count="2">
+          <span style="font-size:16px">{{ s.name }}</span>
+        </sc-for>
+      </span>
+    </div>
+    <div style="border-top:1px solid var(--border);padding:18px 0;display:flex;gap:24px;align-items:baseline">
+      <span style="flex:0 0 150px;font-family:var(--font-mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-foreground)">Total daily time</span>
+      <span style="flex:1"><span style="font-size:16px">{{ cTime }}</span><span style="display:block;font-size:12.5px;color:var(--muted-foreground);margin-top:5px">Across all subjects together — not per subject.</span></span>
+    </div>
+    <div style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:18px 0;display:flex;gap:24px;align-items:baseline">
+      <span style="flex:0 0 150px;font-family:var(--font-mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-foreground)">Deadlines</span>
+      <span style="flex:1;display:flex;flex-direction:column;gap:8px">
+        <sc-for list="{{ cDeadlines }}" as="d" hint-placeholder-count="2">
+          <span style="display:flex;flex-wrap:wrap;gap:6px 14px"><span style="font-size:15.5px;min-width:130px">{{ d.name }}</span><span style="font-family:var(--font-mono);font-size:13.5px;color:var(--accent)">{{ d.date }}</span></span>
+        </sc-for>
+      </span>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:32px">
+      <x-import component-from-global-scope="Agaiba_16d9fd.Button" from="_ds/agabi-16d9fd13-8553-4443-8894-d89905105326/_ds_bundle.js" variant="primary" size="lg" onClick="{{ setup.build }}" hint-size="auto,44px">Build my learning plan</x-import>
+      <x-import component-from-global-scope="Agaiba_16d9fd.Button" from="_ds/agabi-16d9fd13-8553-4443-8894-d89905105326/_ds_bundle.js" variant="secondary" size="lg" onClick="{{ setup.edit }}" hint-size="auto,44px">Edit</x-import>
+    </div>
+  </div>
+  </sc-if>
+
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ inApp }}" hint-placeholder-val="{{ false }}">
+<div data-shell="shell" style="position:relative"><div data-shell="row" style="display:flex;align-items:stretch;min-height:100vh">
+
+  <sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ true }}">
+  <aside data-shell="aside" style="flex:0 0 272px;min-width:248px;background:var(--card);border-right:1px solid var(--border);padding:20px 0 24px;position:sticky;top:0;align-self:stretch;height:100vh;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 18px 22px">
+      <span style="width:20px;height:20px;border-radius:6px;background:var(--accent);display:inline-flex;align-items:center;justify-content:center;flex:none"><span style="width:6px;height:6px;background:var(--background);border-radius:2px"></span></span>
+      <span style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-foreground);line-height:1.4">Blackboard<br>Learning OS</span>
+    </div>
+
+    <button onClick="{{ nav.today }}" style="display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:11px 18px;border:none;border-left:2px solid {{ todayBar }};background:{{ todayBg }};color:{{ todayCol }};font-size:13.5px;font-weight:500;letter-spacing:.02em;cursor:pointer;transition:background .2s cubic-bezier(.16,1,.3,1)" style-hover="background:rgba(255,255,255,.04)">
+      <span style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase">Today</span>
+      <span style="flex:1"></span>
+      <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--accent)">{{ todayCount }}</span>
+    </button>
+
+    <div style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-foreground);padding:22px 18px 10px">Curriculum</div>
+
+    <sc-for list="{{ tree }}" as="s" hint-placeholder-count="3">
+      <div style="margin-bottom:2px">
+        <button onClick="{{ s.on }}" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 18px;border:none;background:transparent;color:var(--agabi-neutral-200);font-size:13px;font-weight:500;cursor:pointer;transition:background .2s cubic-bezier(.16,1,.3,1)" style-hover="background:rgba(255,255,255,.04)">
+          <span style="font-family:var(--font-mono);font-size:9px;color:var(--muted-foreground);width:8px;flex:none">{{ s.caret }}</span>
+          <span style="flex:1;font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:{{ s.col }}">{{ s.name }}</span>
+          <span style="font-family:var(--font-mono);font-size:10px;color:var(--muted-foreground)">{{ s.done }}</span>
+        </button>
+        <sc-if value="{{ s.open }}" hint-placeholder-val="{{ true }}">
+        <div style="padding:2px 0 8px 0;animation:osFade .2s ease">
+          <sc-for list="{{ s.chapters }}" as="c" hint-placeholder-count="5">
+            <button onClick="{{ c.on }}" style="display:flex;align-items:stretch;gap:0;width:100%;text-align:left;border:none;background:{{ c.bg }};padding:0;cursor:pointer;transition:background .2s cubic-bezier(.16,1,.3,1)" style-hover="background:rgba(255,255,255,.045)">
+              <span style="flex:none;width:34px;position:relative;display:flex;justify-content:center">
+                <span style="position:absolute;top:0;bottom:0;left:26px;width:1px;background:var(--muted)"></span>
+                <span style="position:absolute;top:14px;left:26px;width:9px;height:1px;background:var(--muted)"></span>
+              </span>
+              <span style="flex:1;display:flex;align-items:center;gap:9px;padding:7px 16px 7px 4px">
+                <span style="width:7px;height:7px;flex:none;border-radius:2px;background:{{ c.dotBg }};border:1px solid {{ c.dotBc }}"></span>
+                <span style="flex:1;font-size:12.5px;line-height:1.4;color:{{ c.col }}">{{ c.name }}</span>
+                <span style="font-family:var(--font-mono);font-size:9.5px;color:var(--muted-foreground)">{{ c.count }}</span>
+              </span>
+            </button>
+          </sc-for>
+        </div>
+        </sc-if>
+      </div>
+    </sc-for>
+
+    <div style="border-top:1px solid var(--border);margin:18px 0 0;padding-top:12px">
+      <button onClick="{{ nav.practice }}" style="display:block;width:100%;text-align:left;padding:11px 18px;border:none;border-left:2px solid {{ pracBar }};background:{{ pracBg }};color:{{ pracCol }};font-family:var(--font-mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;cursor:pointer;transition:background .2s cubic-bezier(.16,1,.3,1)" style-hover="background:rgba(255,255,255,.04)">Practice</button>
+      <button onClick="{{ nav.quick }}" style="display:block;width:100%;text-align:left;padding:11px 18px;border:none;border-left:2px solid {{ quickBar }};background:{{ quickBg }};color:{{ quickCol }};font-family:var(--font-mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;cursor:pointer;transition:background .2s cubic-bezier(.16,1,.3,1)" style-hover="background:rgba(255,255,255,.04)">Ask quick question</button>
+    </div>
+
+    <div style="padding:18px 18px 0;border-top:1px solid var(--border);margin-top:18px">
+      <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-foreground);margin-bottom:10px">Signed in as</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <sc-for list="{{ profiles }}" as="p" hint-placeholder-count="3">
+          <button onClick="{{ p.on }}" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:7px 8px;border-radius:9px;border:1px solid {{ p.bc }};background:{{ p.bg }};cursor:pointer" style-hover="border-color:var(--accent)">
+            <span style="width:22px;height:22px;flex:none;border-radius:7px;display:grid;place-items:center;background:{{ p.avBg }};color:{{ p.avFg }};font-family:var(--font-mono);font-size:9px">{{ p.initials }}</span>
+            <span style="flex:1;min-width:0">
+              <span style="display:block;font-size:12.5px;color:{{ p.nameCol }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.name }}</span>
+              <span style="display:block;font-family:var(--font-mono);font-size:8.5px;letter-spacing:.1em;color:var(--muted-foreground)">{{ p.meta }}</span>
+            </span>
+          </button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="padding:18px 18px 0;border-top:1px solid var(--border);margin-top:auto;flex:none">
+      <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-foreground);margin-bottom:8px">Daily budget</div>
+      <div style="font-family:var(--font-mono);font-size:13px;color:var(--agabi-neutral-200)">{{ budgetLine }}</div>
+      <button data-tap="text" onClick="{{ setup.edit }}" style="margin-top:12px;padding:0;border:none;background:transparent;color:var(--muted-foreground);font-size:11.5px;cursor:pointer;text-decoration:underline;text-underline-offset:3px" style-hover="color:var(--accent)">Edit plan</button>
+    </div>
+  </aside>
+    <div data-shell="scrim" onClick="{{ toggleDrawer }}" aria-hidden="true"></div>
+  </sc-if>
+
+  <main data-shell="main" role="main" style="flex:1;min-width:0">
+
+  <div style="display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:14px 26px;border-bottom:1px solid var(--border);background:rgba(11,15,18,.86);backdrop-filter:blur(16px);position:sticky;top:0;z-index:30">
+    <button onClick="{{ toggleDrawer }}" style="padding:7px 11px;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--agabi-neutral-200);font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap;cursor:pointer" style-hover="background:rgba(255,255,255,.06)">{{ drawerLabel }}</button>
+    <span style="font-family:var(--font-mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted-foreground)">{{ crumb }}</span>
+    <span style="flex:1;min-width:12px"></span>
+    <span style="font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-foreground)">{{ classLine }}</span>
+  </div>
+
+  <sc-if value="{{ vToday }}" hint-placeholder-val="{{ true }}">
+  <div style="padding:40px 30px 80px;max-width:1080px;animation:osIn .3s cubic-bezier(.16,1,.3,1)">
+    <h1 style="font-family:var(--font-display);font-weight:600;font-size:38px;line-height:1.08;letter-spacing:-.025em;margin:0 0 10px">Today's learning</h1>
+    <p style="font-size:16px;line-height:1.6;color:var(--muted-foreground);margin:0 0 30px">Your next learning actions for today.</p>
+
+    <div style="display:flex;flex-wrap:wrap;gap:10px 26px;align-items:center;padding:16px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:34px">
+      <span style="font-family:var(--font-mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-foreground)">Allocated</span>
+      <span style="font-family:var(--font-mono);font-size:14px;color:var(--foreground)">{{ allocLine }}</span>
+      <span style="flex:1;min-width:120px;height:4px;border-radius:3px;background:var(--muted);overflow:hidden;display:flex">
+        <sc-for list="{{ allocBars }}" as="b" hint-placeholder-count="4">
+          <span style="display:block;height:4px;width:{{ b.w }};background:{{ b.c }}"></span>
+        </sc-for>
+      </span>
+      <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground)">{{ allocNote }}</span>
+    </div>
+
+    <sc-for list="{{ todayList }}" as="t" hint-placeholder-count="3">
+      <div style="border-bottom:1px solid var(--border);padding:22px 0;display:flex;flex-wrap:wrap;gap:16px 28px;align-items:center">
+        <div style="flex:0 0 132px">
+          <div style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:{{ t.subCol }}">{{ t.subject }}</div>
+          <div style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground);margin-top:6px">{{ t.chapter }}</div>
+        </div>
+        <div style="flex:1 1 260px;min-width:0">
+          <div style="font-family:var(--font-display);font-weight:600;font-size:21px;letter-spacing:-.01em;line-height:1.2">{{ t.concept }}</div>
+          <div style="font-size:12.5px;color:var(--muted-foreground);margin-top:6px">{{ t.state }}</div>
+        </div>
+        <div style="flex:0 0 76px;font-family:var(--font-mono);font-size:14px;color:var(--agabi-neutral-200)">{{ t.minutes }} min</div>
+        <x-import component-from-global-scope="Agaiba_16d9fd.Button" from="_ds/agabi-16d9fd13-8553-4443-8894-d89905105326/_ds_bundle.js" variant="primary" size="md" onClick="{{ t.on }}" hint-size="auto,36px">Start</x-import>
+      </div>
+    </sc-for>
+
+    <div style="border-bottom:1px solid var(--border);padding:22px 0;display:flex;flex-wrap:wrap;gap:16px 28px;align-items:center">
+      <div style="flex:0 0 132px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--warning)">Misconception</div>
+      <div style="flex:1 1 260px;min-width:0">
+        <div style="font-family:var(--font-display);font-weight:600;font-size:21px;letter-spacing:-.01em;line-height:1.2">Misconception practice</div>
+        <div style="font-size:12.5px;color:var(--muted-foreground);margin-top:6px">Practice the concept you are currently struggling with.</div>
+      </div>
+      <div style="flex:0 0 76px;font-family:var(--font-mono);font-size:14px;color:var(--agabi-neutral-200)">10 min</div>
+      <x-import component-from-global-scope="Agaiba_16d9fd.Button" from="_ds/agabi-16d9fd13-8553-4443-8894-d89905105326/_ds_bundle.js" variant="secondary" size="md" onClick="{{ nav.misconception }}" hint-size="auto,36px">Start</x-import>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ vChapter }}" hint-placeholder-val="{{ false }}">
+  <div style="animation:osIn .3s cubic-bezier(.16,1,.3,1)">
+    <div style="padding:36px 30px 22px;max-width:1180px">
+      <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-foreground);margin-bottom:12px">{{ chEyebrow }}</div>
+      <h1 style="font-family:var(--font-display);font-weight:600;font-size:36px;line-height:1.08;letter-spacing:-.025em;margin:0 0 12px">{{ chName }}</h1>
+      <sc-if value="{{ hasStarter }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:center;gap:11px;margin:0 0 16px">
+          <button onClick="{{ startNext }}" style="display:flex;align-items:center;gap:8px;padding:7px 14px;border-radius:10px;border:none;background:var(--primary);color:var(--primary-foreground);font-family:var(--font-sans);font-size:12.5px;cursor:pointer;transition:background .16s ease" style-hover="background:var(--agabi-indigo-600)">{{ starterLabel }}</button>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground)">{{ starterTarget }}</span>
+        </div>
+      </sc-if>
+      <div style="display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center">
+        <span style="font-family:var(--font-mono);font-size:11.5px;color:var(--muted-foreground)">{{ chConceptCount }} atomic concepts</span>
+        <span style="font-family:var(--font-mono);font-size:11.5px;color:var(--muted-foreground)">{{ chDoneCount }}</span>
+        <span style="font-family:var(--font-mono);font-size:11.5px;color:var(--muted-foreground)">{{ chMinutes }}</span>
+        <span data-legend="1" style="display:flex;flex-wrap:wrap;gap:6px 13px;font-size:10px;color:var(--muted-foreground)"><span style="display:flex;gap:6px;align-items:center;white-space:nowrap"><span style="width:9px;height:9px;border-radius:2px;border:1px dashed var(--agabi-neutral-500);box-sizing:border-box"></span>Not started</span>
+          <span style="display:flex;gap:6px;align-items:center;white-space:nowrap"><span style="width:9px;height:9px;border-radius:2px;border:1.5px solid var(--accent);box-sizing:border-box"></span>In progress</span>
+          <span style="display:flex;gap:6px;align-items:center;white-space:nowrap"><span style="width:9px;height:9px;border-radius:2px;background:rgba(26,173,166,.38)"></span>Completed</span>
+          <span style="display:flex;gap:6px;align-items:center;white-space:nowrap"><span style="width:9px;height:9px;border-radius:2px;background:var(--accent)"></span>Mastered</span>
+        </span>
+        <sc-if value="{{ canMaster }}" hint-placeholder-val="{{ false }}">
+          <button data-tap="text" onClick="{{ askMaster }}" style="padding:0;border:none;background:transparent;color:var(--muted-foreground);font-family:var(--font-sans);font-size:12.5px;cursor:pointer;text-decoration:underline;text-underline-offset:3px" style-hover="color:var(--accent)">Mark {{ selName }} as mastered</button>
+        </sc-if>
+        <sc-if value="{{ isDeclared }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ undoMaster }}" style="padding:0;border:none;background:transparent;color:var(--accent);font-family:var(--font-sans);font-size:12.5px;cursor:pointer;text-decoration:underline;text-underline-offset:3px" style-hover="color:var(--agabi-teal-300)">Undo mastery of {{ selName }}</button>
+        </sc-if>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;border-top:1px solid var(--border)">
+      <div style="background:var(--background);position:relative;overflow:hidden">
+        <div style="position:absolute;top:14px;left:16px;z-index:5;display:flex;gap:7px;align-items:center">
+          <button data-tap="icon" onClick="{{ zoomOut }}" style="width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:rgba(11,15,18,.8);color:var(--agabi-neutral-200);font-size:15px;cursor:pointer;line-height:1" style-hover="background:var(--muted)">−</button>
+          <button data-tap="icon" onClick="{{ zoomIn }}" style="width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:rgba(11,15,18,.8);color:var(--agabi-neutral-200);font-size:15px;cursor:pointer;line-height:1" style-hover="background:var(--muted)">+</button>
+          <button onClick="{{ zoomReset }}" style="height:30px;padding:0 11px;border-radius:8px;border:1px solid var(--border);background:rgba(11,15,18,.8);color:var(--agabi-neutral-200);font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer" style-hover="background:var(--muted)">Fit</button>
+        </div>
+        <span data-hint="1" style="position:absolute;right:16px;bottom:16px;font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--agabi-neutral-500)">Drag · ⌘ scroll zooms</span>
+        <div ref="{{ panRef }}" onClick="{{ mapBgClick }}" style="width:100%;height:100%;min-height:520px;cursor:grab;touch-action:none;overflow:hidden">
+          <svg viewBox="{{ mapView }}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style="display:block;min-height:520px" role="img" aria-label="Atomic concept map for this chapter">
+            <sc-for list="{{ mapEdges }}" as="e" hint-placeholder-count="8">
+              <path d="{{ e.d }}" fill="none" stroke="{{ e.stroke }}" stroke-width="{{ e.w }}"></path>
+            </sc-for>
+            <sc-for list="{{ mapNodes }}" as="n" hint-placeholder-count="8">
+              <g onClick="{{ n.on }}" onKeyDown="{{ n.onKey }}" tabindex="0" role="button" aria-label="{{ n.aria }}" aria-pressed="{{ n.selected }}" style="cursor:pointer;outline-offset:3px">
+                <rect x="{{ n.hx }}" y="{{ n.hy }}" width="{{ n.hw }}" height="{{ n.hh }}" rx="17" fill="none" stroke="var(--accent)" stroke-width="1.25" opacity="{{ n.haloOp }}" style="transition:opacity .22s ease"></rect>
+                <rect x="{{ n.x }}" y="{{ n.y }}" width="{{ n.w }}" height="46" rx="12" fill="{{ n.fill }}" stroke="{{ n.stroke }}" stroke-width="{{ n.sw }}" stroke-dasharray="{{ n.dash }}"></rect>
+                <foreignObject x="{{ n.x }}" y="{{ n.y }}" width="{{ n.w }}" height="46" style="pointer-events:none">
+                  <div style="width:100%;height:46px;display:flex;flex-direction:column;justify-content:center;padding:0 13px;box-sizing:border-box">
+                    <div style="font-size:{{ n.fs }}px;line-height:1.2;color:{{ n.text }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ n.name }}</div>
+                    <div style="font-family:var(--font-mono);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:{{ n.stateCol }};margin-top:2px;overflow:hidden;white-space:nowrap">{{ n.state }}</div>
+                  </div>
+                </foreignObject>
+              </g>
+            </sc-for>
+
+            <sc-if value="{{ hasSel }}" hint-placeholder-val="{{ false }}">
+            <g>
+              <line x1="{{ card.leadX1 }}" y1="{{ card.leadY1 }}" x2="{{ card.leadX2 }}" y2="{{ card.leadY2 }}" stroke="{{ card.edge }}" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.85"></line>
+            </g>
+            </sc-if>
+          </svg>
+        </div>
+
+        <sc-if value="{{ hasSel }}" hint-placeholder-val="{{ false }}">
+            <div data-concept-card="1" style="position:absolute;z-index:6;left:{{ card.left }};top:{{ card.top }};width:{{ card.w }};background:var(--card);border:1.5px solid {{ card.edge }};border-radius:12px;box-shadow:0 10px 26px rgba(0,0,0,.42);animation:osPop .19s cubic-bezier(.16,1,.3,1)">
+                <div style="display:flex;align-items:center;gap:11px;padding:13px 14px">
+                  <span style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:{{ card.stateCol }};white-space:nowrap">{{ selState }}</span>
+                  <sc-if value="{{ showTime }}" hint-placeholder-val="{{ true }}">
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground);white-space:nowrap">{{ selMinutes }} min</span>
+                  </sc-if>
+                  <span style="flex:1;min-width:4px"></span>
+                  <button onClick="{{ selStart }}" style="padding:7px 15px;border-radius:10px;border:none;background:var(--primary);color:var(--primary-foreground);font-family:var(--font-sans);font-size:12.5px;cursor:pointer;white-space:nowrap;transition:background .16s ease" style-hover="background:var(--agabi-indigo-600)">{{ actionLabel }}</button>
+                </div>
+            </div>
+        </sc-if>
+
+      </div>
+
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ vPlaceholder }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:calc(100vh - 54px);display:flex;align-items:center;justify-content:center;padding:40px;animation:osFade .25s ease">
+    <div style="text-align:center">
+      <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted-foreground);margin-bottom:18px">{{ phEyebrow }}</div>
+      <h1 style="font-family:var(--font-display);font-weight:600;font-size:38px;letter-spacing:-.025em;margin:0">{{ phTitle }}</h1>
+      <p style="font-size:16px;color:var(--muted-foreground);margin:14px 0 32px">Not designed yet.</p>
+      <x-import component-from-global-scope="Agaiba_16d9fd.Button" from="_ds/agabi-16d9fd13-8553-4443-8894-d89905105326/_ds_bundle.js" variant="secondary" size="lg" onClick="{{ phBack }}" hint-size="auto,44px">Back</x-import>
+    </div>
+  </div>
+  </sc-if>
+
+  </main>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ confirmOpen }}" hint-placeholder-val="{{ false }}">
+<div style="position:fixed;inset:0;z-index:80;background:rgba(6,9,11,.72);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:24px;animation:osFade .2s ease">
+  <div style="width:100%;max-width:452px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,.55);animation:osIn .28s cubic-bezier(.16,1,.3,1)">
+    <h2 style="font-family:var(--font-display);font-weight:600;font-size:23px;letter-spacing:-.015em;margin:0 0 12px">Are you sure?</h2>
+    <p style="font-size:14.5px;line-height:1.6;color:var(--agabi-neutral-300);margin:0 0 8px">You're marking <span style="color:var(--foreground)">{{ selName }}</span> as permanently mastered without requiring the system's full learning evidence.</p>
+    <p style="font-size:12.5px;line-height:1.55;color:var(--muted-foreground);margin:0 0 24px">It will be recorded as your declaration, kept separate from mastery the system observed. You can undo it later.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end">
+      <x-import component-from-global-scope="Agaiba_16d9fd.Button" from="_ds/agabi-16d9fd13-8553-4443-8894-d89905105326/_ds_bundle.js" variant="secondary" size="lg" onClick="{{ cancelMaster }}" hint-size="auto,44px">Cancel</x-import>
+      <x-import component-from-global-scope="Agaiba_16d9fd.Button" from="_ds/agabi-16d9fd13-8553-4443-8894-d89905105326/_ds_bundle.js" variant="primary" size="lg" onClick="{{ doMaster }}" hint-size="auto,44px">Yes, mark as mastered</x-import>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;startPhase&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;intro&quot;,&quot;app&quot;],&quot;default&quot;:&quot;intro&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Prototype&quot;}}">
+const TEAL = "var(--accent)";
+const SUBCOL = { mathematics: "var(--agabi-teal-300)", physics: "var(--agabi-indigo-300)", chemistry: "var(--agabi-indigo-200)", biology: "var(--agabi-green-500)", accountancy: "var(--agabi-amber-500)", economics: "var(--agabi-teal-200)", history: "var(--agabi-neutral-300)" };
+
+function iso(d) { return d.toISOString().slice(0, 10); }
+function pretty(s) {
+  if (!s) return "—";
+  const d = new Date(s + "T00:00:00");
+  return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+class Component extends DCLogic {
+  state = {
+    phase: "intro",
+    step: 0,
+    cls: null, stream: null, subjects: [], minutes: null,
+    deadlines: {}, dlIndex: 0,
+    view: "today", subjectId: null, chapterId: null, selConcept: null, from: "today",
+    conceptState: {}, declared: {},
+    open: {}, drawer: true, confirm: false,
+    zoom: 1, pan: { x: 0, y: 0 }, box: { w: 0, h: 0 },
+    placeholder: null
+  };
+
+  C() { return window.CURRICULUM; }
+  S() { return window.LEARNING_STORE; }
+
+  ensureStore() {
+    const store = this.S();
+    if (!store || store.__booting || store.adapter) return;
+    store.__booting = true;
+    store.init().then(() => {
+      this.unsub = store.subscribe(() => {
+        if (this.__gone) return;
+        /* A student change from ANY source — the profile switcher, a remote
+         * edit, a sync — must re-derive the phase. Repainting alone left setup
+         * on screen for a learner who already had a plan, with no route back. */
+        if (this.__lastStudent !== store.currentId) { this.__lastStudent = store.currentId; this.hydrate(); return; }
+        this.forceUpdate();
+      });
+      this.hydrate();
+    }).catch((e) => { console.error("data layer failed to init", e); });
+  }
+
+  componentDidMount() {
+    this.ensureStore();
+    /* On a phone the curriculum column is an overlay, so it must start closed —
+     * otherwise it covers the whole screen on first load. */
+    if (this.narrow()) this.setState({ drawer: false });
+    this.__onResize = () => {
+      const n = this.narrow();
+      if (n === this.__wasNarrow) return;
+      this.__wasNarrow = n;
+      this.setState({ drawer: !n });   // crossing the breakpoint resets to the sane default
+    };
+    this.__wasNarrow = this.narrow();
+    window.addEventListener("resize", this.__onResize);
+  }
+
+  narrow() { return typeof window !== "undefined" && window.innerWidth < 900; }
+  componentWillUnmount() {
+    this.__gone = true;
+    if (this.__onResize) window.removeEventListener("resize", this.__onResize);
+    if (this.unsub) this.unsub();
+    if (this.__ro) this.__ro.disconnect();
+    window.removeEventListener("resize", this.measureBox);
+  }
+
+  /* Pull the signed-in student's plan out of the store into local view state. */
+  hydrate() {
+    const store = this.S(), st = store.student();
+    this.__lastStudent = store.currentId;
+    if (!st) { this.forceUpdate(); return; }
+    if (store.hasPlan()) {
+      const C = this.C();
+      const subs = C.subjectsFor(st.cls, st.stream).filter((x) => st.subjects.indexOf(x.id) >= 0);
+      const first = subs[0];
+      const resume = store.lastTouched();
+      this.setState({
+        phase: "app", view: "today", step: 0,
+        cls: st.cls, stream: st.stream, subjects: st.subjects.slice(),
+        minutes: st.minutes, deadlines: Object.assign({}, st.deadlines),
+        subjectId: first ? first.id : null,
+        chapterId: first && first.chapters[0] ? first.chapters[0].id : null,
+        selConcept: resume ? resume.conceptId : (first && first.chapters[0] ? first.chapters[0].concepts[0].id : null),
+        open: first ? { [first.id]: true } : {}
+      });
+    } else {
+      this.setState({
+        phase: "intro", step: 0, cls: st.cls, stream: st.stream,
+        subjects: (st.subjects || []).slice(), minutes: st.minutes,
+        deadlines: Object.assign({}, st.deadlines || {}), view: "today"
+      });
+    }
+  }
+
+  /* Single source of truth. During setup the answers live in local state;
+   * once the plan is built the STORE owns them, so a remote edit (another
+   * device, a teacher) reaches the sidebar without a local click. */
+  livePlan() {
+    const st = this.S();
+    if (this.state.phase === "app" && st && st.db && st.hasPlan()) return st.student();
+    return this.state;
+  }
+
+  availableSubjects() {
+    const C = this.C(), p = this.livePlan();
+    if (!C || !p.cls) return [];
+    return C.subjectsFor(p.cls, p.stream);
+  }
+
+  chosenSubjects() {
+    const ids = this.livePlan().subjects || [];
+    return this.availableSubjects().filter((s) => ids.indexOf(s.id) >= 0);
+  }
+
+  /* Ordered question list — stream and per-subject deadlines appear conditionally. */
+  steps() {
+    const C = this.C();
+    const out = ["class"];
+    if (C && C.needsStream(this.state.cls)) out.push("stream");
+    out.push("subjects", "time");
+    this.chosenSubjects().forEach((s) => out.push("deadline:" + s.id));
+    return out;
+  }
+
+  currentStep() { return this.steps()[this.state.step] || null; }
+
+  chapter() {
+    const s = this.chosenSubjects().filter((x) => x.id === this.state.subjectId)[0];
+    if (!s) return null;
+    return s.chapters.filter((c) => c.id === this.state.chapterId)[0] || s.chapters[0];
+  }
+
+  cstate(chId, cId) {
+    const store = this.S();
+    if (store && store.db) return store.stateOf(chId, cId);
+    return "notStarted";
+  }
+
+  /* Every start is a write first and a navigation second: the concept is put
+   * in progress, the activity is logged, and the adapter persists — so the
+   * sidebar counts, today's plan and the node states all move together. */
+  beginConcept(chId, cId, from) {
+    const st = this.S();
+    if (st && st.db && chId && cId) {
+      const cur = st.stateOf(chId, cId);
+      /* setState already logs the transition, persists through the adapter,
+       * bumps the memo counter and notifies subscribers — so one call moves
+       * the record, the sidebar counts, today's plan and the node together.
+       * A concept already in progress has nothing new to record. */
+      if (cur !== "inProgress" && cur !== "mastered") st.setState(chId, cId, "inProgress", "session");
+    }
+    this.setState({ view: "placeholder", placeholder: "canvas", from: from || "chapter", selConcept: cId || null });
+  }
+
+  stateLabel(v) {
+    return v === "mastered" ? "Mastered" : v === "completed" ? "Completed" : v === "inProgress" ? "In progress" : "Not started";
+  }
+
+  /* State is carried by fill and border weight — the same four treatments the
+   * legend shows — in one hue. Nothing here introduces a second colour. */
+  nodeStyle(v) {
+    if (v === "mastered")   return { fill: TEAL, stroke: TEAL, sw: 1, dash: "none", bar: TEAL, text: "var(--accent-foreground)", sub: "rgba(12,14,22,.62)" };
+    if (v === "completed")  return { fill: "rgba(26,173,166,.13)", stroke: "rgba(26,173,166,.42)", sw: 1, dash: "none", bar: "rgba(26,173,166,.5)", text: "var(--foreground)", sub: "var(--muted-foreground)" };
+    if (v === "inProgress") return { fill: "var(--card)", stroke: TEAL, sw: 1.5, dash: "none", bar: TEAL, text: "var(--foreground)", sub: "var(--accent)" };
+    return { fill: "var(--input-background)", stroke: "var(--agabi-neutral-600)", sw: 1, dash: "4 4", bar: "var(--agabi-neutral-600)", text: "var(--agabi-neutral-300)", sub: "var(--muted-foreground)" };
+  }
+
+  /* Plan today: one concept per subject minimum, then fill to the budget. */
+  /* Today's plan is derived by the data layer, not by the view. */
+  todayPlan() {
+    const store = this.S();
+    if (!store || !store.db || !store.hasPlan()) return { list: [], total: 0, budget: this.state.minutes || 120 };
+    const p = store.plan();
+    const reserve = p.reserve || 10; // misconception practice — owned by the planner
+    const list = p.items.map((it) => ({
+      subject: it.subject, chapter: it.chapter, concept: it.concept,
+      minutes: it.minutes, resume: !!it.resume, daysLeft: it.daysLeft, review: !!it.review
+    }));
+    let total = list.reduce((n, x) => n + x.minutes, 0);
+    let i = 0;
+    while (total > p.capacity - reserve && i < 400) {
+      const t = list[i % list.length];
+      if (t.minutes > 10) { t.minutes -= 5; total -= 5; }
+      i++;
+    }
+    return { list: list, total: total, budget: p.capacity };
+  }
+
+  measureBox = () => {   // retained only for the resize hook; viewBox no longer depends on it
+    const el = this.__roEl;
+    if (!el || this.__gone) return;
+    const r = el.getBoundingClientRect();
+    const w = Math.round(r.width), h = Math.round(r.height);
+    if (!w || !h) return;
+    if (this.state.box.w !== w || this.state.box.h !== h) this.setState({ box: { w: w, h: h } });
+  };
+
+  componentDidUpdate() { this.measureBox(); }
+
+  attachPan = (el) => {
+    if (!el) return;
+    this.__roEl = el;
+    if (!el.__ro) {
+      el.__ro = true;
+      this.measureBox();
+      if (typeof ResizeObserver !== "undefined") {
+        if (this.__ro) this.__ro.disconnect();
+        this.__ro = new ResizeObserver(this.measureBox);
+        this.__ro.observe(el);
+      }
+      window.addEventListener("resize", this.measureBox);
+    }
+    if (el.__p) return;
+    el.__p = true;
+    let dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+    const units = () => {
+      const svg = el.querySelector("svg"), r = el.getBoundingClientRect();
+      const vb = svg && svg.viewBox ? svg.viewBox.baseVal : null;
+      if (!vb || !vb.width || !vb.height || !r.width || !r.height) return 1 / this.state.zoom;
+      const scale = Math.min(r.width / vb.width, r.height / vb.height);
+      return scale > 0 ? 1 / scale : 1 / this.state.zoom;
+    };
+    el.addEventListener("pointerdown", (e) => {
+      dragging = true; this.__dragged = false;
+      el.setPointerCapture(e.pointerId); el.style.cursor = "grabbing";
+      sx = e.clientX; sy = e.clientY; ox = this.state.pan.x; oy = this.state.pan.y;
+    });
+    el.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (Math.abs(dx) + Math.abs(dy) > 4) this.__dragged = true;
+      const k = units();
+      this.setState({ pan: { x: ox - dx * k, y: oy - dy * k } });
+    });
+    const stop = () => { dragging = false; el.style.cursor = "grab"; setTimeout(() => { this.__dragged = false; }, 0); };
+    el.addEventListener("pointerup", stop);
+    el.addEventListener("pointercancel", stop);
+    /* Plain wheel belongs to the page — the map must never trap it. Zoom is
+     * opt-in with a modifier, the same gesture every map app uses. */
+    el.addEventListener("wheel", (e) => {
+      if (!(e.ctrlKey || e.metaKey || e.shiftKey)) return;   // let the page scroll
+      e.preventDefault();
+      const z = Math.max(0.5, Math.min(2.4, this.state.zoom * (e.deltaY > 0 ? 0.92 : 1.08)));
+      this.setState({ zoom: z });
+    }, { passive: false });
+  };
+
+  /* The concept the learner is actually on: what they started, else the next
+   * one their prerequisites allow, else the first unfinished. Opening a chapter
+   * on concept #1 landed them on work already mastered. */
+  currentConcept(ch) {
+    if (!ch || !ch.concepts.length) return null;
+    const st = (c) => this.cstate(ch.id, c.id);
+    const inProg = ch.concepts.filter((c) => st(c) === "inProgress")[0];
+    if (inProg) return inProg;
+    const store = this.S();
+    const ready = ch.concepts.filter((c) => {
+      const v = st(c);
+      if (v === "completed" || v === "mastered") return false;
+      return store && store.prereqsMet ? store.prereqsMet(ch, c) : true;
+    })[0];
+    if (ready) return ready;
+    const anyOpen = ch.concepts.filter((c) => { const v = st(c); return v !== "completed" && v !== "mastered"; })[0];
+    return anyOpen || ch.concepts[ch.concepts.length - 1];
+  }
+
+  openChapter = (subjectId, chapterId) => {
+    const s = this.chosenSubjects().filter((x) => x.id === subjectId)[0];
+    const ch = s ? s.chapters.filter((c) => c.id === chapterId)[0] : null;
+    const cur = this.currentConcept(ch);
+    this.setState({
+      view: "chapter", subjectId: subjectId, chapterId: chapterId,
+      selConcept: null,     // no box until the learner opens one
+      placeholder: null, zoom: 1, pan: { x: 0, y: 0 },
+      drawer: this.narrow() ? false : this.state.drawer   // overlay would hide the graph it opened
+    });
+  };
+
+  renderVals() {
+    this.ensureStore();
+    const s = this.state, C = this.C();
+    const step = this.currentStep();
+    const allSteps = this.steps();
+    const avail = this.availableSubjects();
+    const chosen = this.chosenSubjects();
+
+    // ── setup question model
+    let qTitle = "", qHelp = "", qOptions = [], isOpts = true, isDate = false, ready = false, footer = "";
+    if (step === "class") {
+      qTitle = "Which class are you in?";
+      qHelp = "Pick one. Everything else follows from this.";
+      qOptions = (C ? C.classes : []).map((c) => ({
+        label: c, meta: "", single: true, on: () => this.setState({ cls: c, stream: null, subjects: [], deadlines: {} }),
+        sel: s.cls === c
+      }));
+      ready = !!s.cls;
+    } else if (step === "stream") {
+      qTitle = "Which stream are you in?";
+      qHelp = "Your stream decides which subjects are available.";
+      qOptions = (C ? C.streams : []).map((t) => ({
+        label: t, meta: "", single: true, on: () => this.setState({ stream: t, subjects: [], deadlines: {} }), sel: s.stream === t
+      }));
+      ready = !!s.stream;
+    } else if (step === "subjects") {
+      qTitle = "Which subjects do you want to learn?";
+      qHelp = "Choose as many as you like. At least one is required.";
+      qOptions = avail.map((sub) => ({
+        label: sub.name, meta: sub.chapters.length + " chapters", single: false,
+        sel: s.subjects.indexOf(sub.id) >= 0,
+        on: () => {
+          const has = s.subjects.indexOf(sub.id) >= 0;
+          this.setState({ subjects: has ? s.subjects.filter((x) => x !== sub.id) : s.subjects.concat([sub.id]) });
+        }
+      }));
+      ready = s.subjects.length > 0;
+      footer = s.subjects.length ? s.subjects.length + " selected" : "";
+    } else if (step === "time") {
+      qTitle = "How much total time can you study each day?";
+      qHelp = "This is the total across every subject you picked — not per subject.";
+      qOptions = (C ? C.dayOptions : []).map((o) => ({
+        label: o.label, meta: o.minutes + " min total", single: true,
+        sel: s.minutes === o.minutes, on: () => this.setState({ minutes: o.minutes })
+      }));
+      ready = !!s.minutes;
+    } else if (step && step.indexOf("deadline:") === 0) {
+      const sid = step.split(":")[1];
+      const sub = chosen.filter((x) => x.id === sid)[0];
+      qTitle = "When do you want to be ready for " + (sub ? sub.name : "this subject") + "?";
+      qHelp = "Each subject gets its own deadline.";
+      isOpts = false; isDate = true;
+      ready = !!s.deadlines[sid];
+      footer = "Subject " + (chosen.indexOf(sub) + 1) + " of " + chosen.length;
+    }
+
+    const stepNo = s.step + 1;
+    const isLast = s.step >= allSteps.length - 1;
+    const dl = step && step.indexOf("deadline:") === 0 ? step.split(":")[1] : null;
+    const soon = new Date(); soon.setMonth(soon.getMonth() + 4);
+
+    // ── chapter map
+    const ch = this.chapter();
+    const concepts = ch ? ch.concepts : [];
+    const lay = C && concepts.length ? C.layout(concepts) : { pos: {}, width: 600, height: 400 };
+    const NODEW = 176;
+    const curConcept0 = ch ? this.currentConcept(ch) : null;
+    const curId = curConcept0 ? curConcept0.id : null;
+    const mapNodes = [], mapEdges = [];
+    concepts.forEach((c) => {
+      const p = lay.pos[c.id];
+      if (!p) return;
+      const st = this.cstate(ch.id, c.id);
+      const ns = this.nodeStyle(st);
+      const isSel = s.selConcept === c.id;
+      mapNodes.push({
+        x: p.x, y: p.y, w: NODEW,
+        fill: ns.fill, stroke: isSel ? "var(--foreground)" : ns.stroke, sw: isSel ? 2 : ns.sw,
+        dash: isSel ? "none" : ns.dash, bar: ns.bar,
+        hx: p.x - 6, hy: p.y - 6, hw: NODEW + 12, hh: 58,
+        haloOp: isSel ? 1 : (curId === c.id && !s.selConcept ? 0.4 : 0),
+        name: c.name, state: this.stateLabel(st),
+        fs: c.name.length > 26 ? 11.5 : 13,
+        text: ns.text, stateCol: ns.sub,
+        on: (e) => { if (this.__dragged) return; if (e && e.stopPropagation) e.stopPropagation(); this.setState({ selConcept: c.id === s.selConcept ? null : c.id }); },
+        /* The graph is the product's core interaction, so each node is a real
+         * button: reachable by Tab, actioned by Enter/Space, and named for a
+         * screen reader with its own state — not just a coloured rectangle. */
+        selected: isSel,
+        aria: c.name + ", " + this.stateLabel(st) + ", " + c.minutes + " minutes",
+        onKey: (e) => {
+          if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+          e.preventDefault(); e.stopPropagation();
+          this.setState({ selConcept: c.id === s.selConcept ? null : c.id });
+        }
+      });
+      (c.deps || []).forEach((d) => {
+        const q = lay.pos[d];
+        if (!q) return;
+        const x1 = q.x + NODEW / 2, y1 = q.y + 46, x2 = p.x + NODEW / 2, y2 = p.y;
+        const my = (y1 + y2) / 2;
+        const dSt = this.cstate(ch.id, d);
+        const live = dSt === "mastered" || dSt === "completed";
+        mapEdges.push({
+          d: "M" + x1 + " " + y1 + " C" + x1 + " " + my + " " + x2 + " " + my + " " + x2 + " " + y2,
+          stroke: live ? "rgba(26,173,166,.62)" : "var(--agabi-neutral-700)",
+          w: live ? 1.6 : 1.2
+        });
+      });
+    });
+
+    /* Labels live inside the SVG (foreignObject), so they share the viewBox
+     * transform with the nodes and cannot drift from them.
+     * The viewBox frames the graph's own bounds — never the panel's pixel size
+     * — so zoom 1 fits every chapter map, large or small, with no measuring. */
+    const bw = s.box.w || 900, bh = s.box.h || 520;
+    const vw = bw / s.zoom, vh = bh / s.zoom;
+    const vx = lay.width / 2 - vw / 2 + s.pan.x, vy = lay.height / 2 - vh / 2 + s.pan.y;
+    const mapView = vx.toFixed(1) + " " + vy.toFixed(1) + " " + vw.toFixed(1) + " " + vh.toFixed(1);
+
+    /* The detail card hangs off the selected node: same edge colour as that
+     * node's state, flipped above when the node sits low in the graph so the
+     * card is never clipped. Position is in graph units, so it tracks the node
+     * through pan and zoom. */
+    const CARDW = 244, CARDH = 62;
+    const selPos = s.selConcept ? lay.pos[s.selConcept] : null;
+    const selConcept = concepts.filter((c) => c.id === s.selConcept)[0] || null;
+    let card = null;
+    if (selPos && selConcept) {
+      const ns2 = this.nodeStyle(this.cstate(ch ? ch.id : "", selConcept.id));
+      /* Four candidate berths around the node, scored by how many other concepts
+       * each would cover. Lowest score wins, so the card takes the emptiest
+       * space available rather than a fixed side. */
+      /* Four berths hugging the node at a 16px gap — so the anchor is always
+       * within 24px of it — scored by how many other concepts each would cover
+       * at its FINAL position. Least obstructive wins; no distant fallback. */
+      const cw = CARDW / s.zoom, chh = CARDH / s.zoom, gap = 16;
+      const CHROME = 36;   // bottom strip held for the pan hint
+      const others = concepts.map((c) => lay.pos[c.id]).filter((p) => p && p !== selPos);
+      const nodePx = { px: (selPos.x - vx) * s.zoom, py: (selPos.y - vy) * s.zoom };
+      const hitsPx = (px, py) => {
+        const gx0 = px / s.zoom + vx, gy0 = py / s.zoom + vy;
+        return others.filter((p) =>
+          !(gx0 + cw < p.x || gx0 > p.x + NODEW || gy0 + chh < p.y || gy0 > p.y + 46)).length;
+      };
+      const nw = NODEW * s.zoom, nh = 46 * s.zoom;
+      const cands = [
+        { px: nodePx.px + nw + gap, py: nodePx.py + nh / 2 - CARDH / 2 },
+        { px: nodePx.px - gap - CARDW, py: nodePx.py + nh / 2 - CARDH / 2 },
+        { px: nodePx.px + nw / 2 - CARDW / 2, py: nodePx.py + nh + gap },
+        { px: nodePx.px + nw / 2 - CARDW / 2, py: nodePx.py - gap - CARDH }
+      ].map((c) => {
+        /* Judge the berth where it will really sit: clamping a berth back into
+         * the panel can drop it onto its own node, so the clamped rect is what
+         * gets scored, and covering the selected node is the worst outcome. */
+        const px = Math.max(6, Math.min(Math.max(6, bw - CARDW - 6), c.px));
+        const py = Math.max(6, Math.min(Math.max(6, bh - CARDH - CHROME), c.py));
+        const selfHit = !(px + CARDW < nodePx.px || px > nodePx.px + nw ||
+                          py + CARDH < nodePx.py || py > nodePx.py + nh);
+        const chromeHit = py + CARDH > bh - CHROME ? 1 : 0;   // legend + hint band
+        const drift = Math.abs(px - c.px) + Math.abs(py - c.py);
+        return { px: px, py: py,
+          score: (selfHit ? 9000 : 0) + hitsPx(px, py) * 1000 + chromeHit * 600 + drift * 3 };
+      }).sort((a, b) => a.score - b.score);
+      const pick = cands[0];
+      const left = pick.px, top = pick.py;
+      /* Leader runs from the node's centre to the box's nearest edge, so it
+       * reads as attached from any berth. */
+      const bx0 = left / s.zoom + vx, by0 = top / s.zoom + vy;
+      const bx1 = bx0 + cw, by1 = by0 + chh;
+      const ncx = selPos.x + NODEW / 2, ncy = selPos.y + 23;
+      const ex = Math.max(bx0, Math.min(bx1, ncx)), ey = Math.max(by0, Math.min(by1, ncy));
+      card = {
+        left: Math.round(left) + "px", top: Math.round(top) + "px", w: CARDW + "px",
+        edge: ns2.stroke === "none" ? "var(--border)" : ns2.stroke,
+        stateCol: ns2.sub,
+        leadX1: ncx.toFixed(1), leadY1: ncy.toFixed(1), leadX2: ex.toFixed(1), leadY2: ey.toFixed(1)
+      };
+    }
+
+    const sel = concepts.filter((c) => c.id === s.selConcept)[0] || concepts[0] || null;
+    const curConcept = ch ? this.currentConcept(ch) : null;
+    /* The starter follows the open box when there is one, so the button and the
+     * box never disagree about what "start" means; otherwise it's the graph's
+     * own next unblocked concept. */
+    const selOpen = ch && s.selConcept ? concepts.filter((c) => c.id === s.selConcept)[0] : null;
+    const selOpenSt = selOpen ? this.cstate(ch.id, selOpen.id) : null;
+    const starter = (selOpen && selOpenSt !== "mastered" && selOpenSt !== "completed")
+      ? selOpen : (curConcept0 || curConcept || null);
+    const selKey = ch && sel ? ch.id + "/" + sel.id : "";
+    const selSt = ch && sel ? this.cstate(ch.id, sel.id) : "notStarted";
+    const selNs = this.nodeStyle(selSt);
+    const unlocks = sel ? concepts.filter((c) => (c.deps || []).indexOf(sel.id) >= 0) : [];
+    const doneCount = concepts.filter((c) => { const v = this.cstate(ch ? ch.id : "", c.id); return v === "completed" || v === "mastered"; }).length;
+
+    const plan = this.todayPlan();
+    const lp = this.livePlan();
+    const rollStore = this.S();
+    const roll = rollStore && rollStore.db ? rollStore.rollups() : { chapters: {}, subjects: {} };
+    const sub = chosen.filter((x) => x.id === s.subjectId)[0];
+
+    return {
+      inSetup: s.phase !== "app", inApp: s.phase === "app",
+      stepIntro: s.phase === "intro", stepAsk: s.phase === "ask", stepConfirm: s.phase === "confirm",
+      /* If the signed-in learner already has a plan, the intro is never a
+       * one-way door: offer the way back explicitly. */
+      canResume: this.S().hasPlan(),
+      resumePlan: () => this.hydrate(),
+      setup: {
+        begin: () => this.setState({ phase: "ask", step: 0 }),
+        next: () => {
+          if (!ready) return;
+          if (isLast) this.setState({ phase: "confirm" });
+          else this.setState({ step: s.step + 1 });
+        },
+        back: () => {
+          /* Backing out of step 0 must return to the dashboard when a plan
+           * already exists — falling through to the intro screen stranded the
+           * learner with no route back to a plan the store still held. */
+          if (s.step > 0) { this.setState({ step: s.step - 1 }); return; }
+          if (this.S().hasPlan()) this.hydrate();
+          else this.setState({ phase: "intro" });
+        },
+        edit: () => this.setState({ phase: "ask", step: 0 }),
+        build: () => {
+          const first = chosen[0];
+          const store = this.S();
+          if (store && store.db) {
+            store.savePlan({ cls: s.cls, stream: s.stream, subjects: s.subjects, minutes: s.minutes, deadlines: s.deadlines });
+          }
+          this.setState({
+            phase: "app", view: "today",
+            subjectId: first ? first.id : null,
+            chapterId: first && first.chapters[0] ? first.chapters[0].id : null,
+            open: chosen.reduce((o, x, i) => { o[x.id] = i === 0; return o; }, {})
+          });
+        }
+      },
+      stepNo: stepNo, stepTotal: allSteps.length,
+      stepPct: ((stepNo / allSteps.length) * 100).toFixed(1) + "%",
+      qTitle: qTitle, qHelp: qHelp, qFooter: footer,
+      qIsOptions: isOpts, qIsDate: isDate,
+      qOptions: qOptions.map((o) => ({
+        label: o.label, meta: o.meta, on: o.on,
+        shape: o.single ? "50%" : "5px",
+        bc: o.sel ? "rgba(26,173,166,.62)" : "var(--border)",
+        bg: o.sel ? "rgba(26,173,166,.1)" : "var(--input-background)",
+        mc: o.sel ? TEAL : "var(--agabi-neutral-500)",
+        mbg: "transparent",
+        dot: o.sel ? TEAL : "transparent"
+      })),
+      dateVal: dl ? (s.deadlines[dl] || "") : "",
+      setDate: (e) => { const v = e.target.value; this.setState({ deadlines: Object.assign({}, s.deadlines, { [dl]: v }) }); },
+      dateNote: dl && s.deadlines[dl] ? "Ready for " + pretty(s.deadlines[dl]) + "." : "Suggested: around " + pretty(iso(soon)) + ".",
+      nextLabel: isLast ? "Review plan" : "Continue",
+      nextState: ready ? "default" : "disabled",
+
+      cClass: s.cls || "—", cStream: s.stream || "—", hasStream: !!s.stream,
+      cSubjects: chosen.map((x) => ({ name: x.name })),
+      cTime: (C && s.minutes ? (C.dayOptions.filter((o) => o.minutes === s.minutes)[0] || { label: s.minutes + " min" }).label : "—"),
+      cDeadlines: chosen.map((x) => ({ name: x.name, date: pretty(s.deadlines[x.id]) })),
+
+      nav: {
+        today: () => this.setState({ view: "today", placeholder: null }),
+        practice: () => this.setState({ view: "placeholder", placeholder: "practice", from: "today" }),
+        quick: () => this.setState({ view: "placeholder", placeholder: "quick", from: "today" }),
+        misconception: () => this.setState({ view: "placeholder", placeholder: "misconception", from: "today" })
+      },
+      vToday: s.view === "today", vChapter: s.view === "chapter", vPlaceholder: s.view === "placeholder",
+      phEyebrow: s.placeholder === "practice" ? "Sidebar · practice" : s.placeholder === "quick" ? "Sidebar · ask quick question" : s.placeholder === "misconception" ? "Today · misconception practice" : "Today · concept",
+      phTitle: s.placeholder === "practice" ? "Practice" : s.placeholder === "quick" ? "Quick question" : s.placeholder === "misconception" ? "Misconception practice" : "Learning canvas",
+      phBack: () => this.setState({ view: s.from || "today", placeholder: null }),
+
+      drawer: s.drawer, drawerOpen: s.drawer,
+      /* Opening a chapter from the drawer on a phone must close the drawer, or
+       * the overlay hides the very graph the tap asked for. */
+      toggleDrawer: () => this.setState({ drawer: !s.drawer }),
+      drawerLabel: s.drawer ? "Hide curriculum" : "Curriculum",
+      crumb: s.view === "today" ? "Today" : s.view === "chapter" ? (sub ? sub.name + " · " + (ch ? ch.name : "") : "") : (s.placeholder || ""),
+      classLine: (lp.cls || "") + (lp.stream ? " · " + lp.stream : ""),
+      budgetLine: (lp.minutes || 0) + " min / day",
+
+      todayBar: s.view === "today" ? TEAL : "transparent",
+      todayBg: s.view === "today" ? "rgba(26,173,166,.09)" : "transparent",
+      todayCol: s.view === "today" ? "var(--foreground)" : "var(--agabi-neutral-300)",
+      todayCount: plan.list.length + 1,
+      pracBar: s.placeholder === "practice" ? TEAL : "transparent",
+      pracBg: s.placeholder === "practice" ? "rgba(26,173,166,.09)" : "transparent",
+      pracCol: s.placeholder === "practice" ? "var(--foreground)" : "var(--muted-foreground)",
+      quickBar: s.placeholder === "quick" ? TEAL : "transparent",
+      quickBg: s.placeholder === "quick" ? "rgba(26,173,166,.09)" : "transparent",
+      quickCol: s.placeholder === "quick" ? "var(--foreground)" : "var(--muted-foreground)",
+
+      tree: chosen.map((sb) => {
+        const sr = roll.subjects[sb.id] || { done: 0, total: 0 };
+        const done = sr.done, tot = sr.total;
+        return {
+          name: sb.name, col: SUBCOL[sb.id] || "var(--agabi-neutral-300)",
+          caret: s.open[sb.id] ? "▾" : "▸",
+          open: !!s.open[sb.id],
+          done: done + "/" + tot,
+          on: () => this.setState({ open: Object.assign({}, s.open, { [sb.id]: !s.open[sb.id] }) }),
+          chapters: sb.chapters.map((c) => {
+            const cr = roll.chapters[c.id] || { done: 0, total: c.concepts.length, complete: false };
+            const dn = cr.done, ip = cr.inProgress || 0;
+            const active = s.view === "chapter" && s.chapterId === c.id && s.subjectId === sb.id;
+            const allDone = cr.complete;
+            /* Started counts as a trace: a chapter with work in it takes the
+             * accent outline — the same language the in-progress node uses — so
+             * beginning a concept is visible in the curriculum immediately. */
+            return {
+              name: c.name, count: dn + "/" + c.concepts.length,
+              bg: active ? "rgba(26,173,166,.09)" : "transparent",
+              col: active ? "var(--foreground)" : "var(--agabi-neutral-300)",
+              dotBg: allDone ? TEAL : dn > 0 ? "rgba(26,173,166,.34)" : "transparent",
+              dotBc: allDone || dn > 0 || ip > 0 ? TEAL : "var(--agabi-neutral-500)",
+              on: () => this.openChapter(sb.id, c.id)
+            };
+          })
+        };
+      }),
+
+      todayList: plan.list.map((p) => ({
+        subject: p.subject.name, subCol: SUBCOL[p.subject.id] || "var(--agabi-neutral-300)",
+        chapter: p.chapter.name, concept: p.concept.name, minutes: p.minutes,
+        state: this.stateLabel(this.cstate(p.chapter.id, p.concept.id)) + " · " + p.chapter.name,
+        on: () => this.beginConcept(p.chapter.id, p.concept.id, "today")
+      })),
+      allocLine: plan.total + 10 + " of " + (lp.minutes || 0) + " min",
+      allocNote: "Every subject gets at least one concept",
+      allocBars: plan.list.map((p) => ({
+        w: ((p.minutes / (lp.minutes || 120)) * 100).toFixed(2) + "%",
+        c: SUBCOL[p.subject.id] || "var(--agabi-neutral-300)"
+      })).concat([{ w: ((10 / (lp.minutes || 120)) * 100).toFixed(2) + "%", c: "var(--warning)" }]),
+
+      chEyebrow: (sub ? sub.name.toUpperCase() : "") + (ch ? " · " + (lp.cls || "") : ""),
+      chName: ch ? ch.name : "—",
+      chConceptCount: concepts.length,
+      chDoneCount: doneCount + " completed or mastered",
+      chMinutes: concepts.reduce((n, c) => n + c.minutes, 0) + " min of concepts",
+      mapNodes: mapNodes, mapEdges: mapEdges, mapView: mapView,
+      panRef: this.attachPan,
+      mapBgClick: () => { if (!this.__dragged && this.state.selConcept) this.setState({ selConcept: null }); },
+      showTime: selSt !== "mastered",
+      actionLabel: selSt === "inProgress" ? "Continue" : (selSt === "completed" || selSt === "mastered") ? "Review" : "Start",
+      zoomIn: () => this.setState({ zoom: Math.min(2.4, s.zoom * 1.18) }),
+      zoomOut: () => this.setState({ zoom: Math.max(0.5, s.zoom / 1.18) }),
+      zoomReset: () => this.setState({ zoom: 1, pan: { x: 0, y: 0 } }),
+
+      selName: sel ? sel.name : "—",
+      selState: this.stateLabel(selSt),
+      selMinutes: sel ? sel.minutes : 0,
+      selChipBg: selSt === "notStarted" ? "rgba(255,255,255,.04)" : "rgba(26,173,166,.12)",
+      selChipBc: selSt === "notStarted" ? "var(--border)" : "rgba(26,173,166,.4)",
+      selChipDot: selSt === "mastered" ? TEAL : selNs.bar,
+      selChipCol: selSt === "notStarted" ? "var(--muted-foreground)" : TEAL,
+      selDeps: (sel && sel.deps || []).map((d) => {
+        const c = concepts.filter((x) => x.id === d)[0];
+        const v = c ? this.cstate(ch.id, c.id) : "notStarted";
+        return { name: c ? c.name : d, state: this.stateLabel(v), dot: this.nodeStyle(v).bar, on: () => this.setState({ selConcept: d }) };
+      }),
+      selHasDeps: !!(sel && sel.deps && sel.deps.length), selNoDeps: !(sel && sel.deps && sel.deps.length),
+      selUnlocks: unlocks.map((u) => ({ name: u.name, dot: this.nodeStyle(this.cstate(ch.id, u.id)).bar, on: () => this.setState({ selConcept: u.id }) })),
+      selHasUnlocks: unlocks.length > 0, selNoUnlocks: unlocks.length === 0,
+      isCurrent: !!(sel && curConcept && sel.id === curConcept.id),
+      hasSel: !!card, card: card || { left: "0px", top: "0px", w: "0px", edge: "none", stateCol: "none", leadX1: 0, leadY1: 0, leadX2: 0, leadY2: 0 },
+      selStart: () => { if (sel && ch) this.beginConcept(ch.id, sel.id, "chapter"); },
+
+      /* Header starter: whatever the learner has open, else the graph's own
+       * next unblocked concept. Name-agnostic, so it works in any chapter. */
+      hasStarter: !!starter,
+      starterLabel: starter ? (this.cstate(ch.id, starter.id) === "inProgress" ? "Continue concept" : "Start concept") : "Start concept",
+      starterTarget: starter ? starter.name + " · " + starter.minutes + " min" : "",
+      startNext: () => { if (starter && ch) this.beginConcept(ch.id, starter.id, "chapter"); },
+
+      profiles: (this.S() && this.S().db ? this.S().students() : []).map((p) => ({
+        id: p.id, name: p.name, initials: p.initials,
+        meta: p.cls ? p.cls + " · " + p.done + " done" : "No plan yet",
+        bc: p.current ? "rgba(26,173,166,.5)" : "var(--border)",
+        bg: p.current ? "rgba(26,173,166,.09)" : "transparent",
+        nameCol: p.current ? "var(--foreground)" : "var(--agabi-neutral-300)",
+        avBg: p.current ? "var(--accent)" : "var(--muted)",
+        avFg: p.current ? "var(--accent-foreground)" : "var(--muted-foreground)",
+        on: () => { this.S().switchStudent(p.id); this.hydrate(); }
+      })),
+
+      canMaster: selSt !== "mastered",
+      isDeclared: this.S() && this.S().db && ch && sel ? this.S().sourceOf(ch.id, sel.id) === "declared" : false,
+      isObserved: selSt === "mastered" && !(this.S() && this.S().db && ch && sel && this.S().sourceOf(ch.id, sel.id) === "declared"),
+      askMaster: () => this.setState({ confirm: true }),
+      confirmOpen: s.confirm,
+      cancelMaster: () => this.setState({ confirm: false }),
+      doMaster: () => {
+        this.setState({ confirm: false });
+        if (ch && sel) this.S().declare(ch.id, sel.id);
+      },
+      undoMaster: () => {
+        if (ch && sel) this.S().undeclare(ch.id, sel.id);
+      }
+    };
+  }
+}
+
+</script>
+</body>
+</html>

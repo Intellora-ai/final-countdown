@@ -59,11 +59,13 @@ def report(spec: str, mutants: int, survivors: list[str]) -> dict[str, Any]:
 
 def source_of(spec: str) -> str:
     """Stands in for spec_source.source_for: specs/<stem>_spec.lean -> src/<x>.py."""
-    return {"specs/add_spec.lean": "src/add.py",
-            "specs/addid_spec.lean": "src/add.py",
-            "specs/subself_spec.lean": "src/subtract.py",
-            "specs/subtract_spec.lean": "src/subtract.py",
-            "specs/clamp_spec.lean": "src/clamp.py"}[spec]
+    return {
+        "specs/add_spec.lean": "src/add.py",
+        "specs/addid_spec.lean": "src/add.py",
+        "specs/subself_spec.lean": "src/subtract.py",
+        "specs/subtract_spec.lean": "src/subtract.py",
+        "specs/clamp_spec.lean": "src/clamp.py",
+    }[spec]
 
 
 def score(scored: list[dict[str, Any]]) -> float:
@@ -71,6 +73,7 @@ def score(scored: list[dict[str, Any]]) -> float:
 
 
 # --- the defect ------------------------------------------------------------
+
 
 def test_two_incomplete_sources_do_not_score_a_perfect_set() -> None:
     """THE BUG. Both sources have survivors; neither cancels the other.
@@ -80,12 +83,17 @@ def test_two_incomplete_sources_do_not_score_a_perfect_set() -> None:
     old intersection the two sets were disjoint, the intersection was empty, and
     the score was 1.00 with exit 0.
     """
-    scored = [report("specs/add_spec.lean", 2, ["src/add.py::return constant 0"]),
-              report("specs/subself_spec.lean", 3,
-                     ["src/subtract.py::swap operands",
-                      "src/subtract.py::return constant 0"])]
+    scored = [
+        report("specs/add_spec.lean", 2, ["src/add.py::return constant 0"]),
+        report(
+            "specs/subself_spec.lean",
+            3,
+            ["src/subtract.py::swap operands", "src/subtract.py::return constant 0"],
+        ),
+    ]
     assert score(scored) == pytest.approx(2 / 5), (
-        "three mutants survive out of five; the set is 0.40, not 1.00")
+        "three mutants survive out of five; the set is 0.40, not 1.00"
+    )
     assert score(scored) < 0.9, "this input must fail a 0.90 gate"
 
 
@@ -105,35 +113,43 @@ def test_adding_a_source_with_survivors_can_never_reach_a_perfect_score() -> Non
     anywhere survives its own function's spec set, the score is strictly below
     1.00 and no number of additional sources can lift it there.
     """
-    weak = [report("specs/subself_spec.lean", 3,
-                   ["src/subtract.py::swap operands",
-                    "src/subtract.py::return constant 0"])]
+    weak = [
+        report(
+            "specs/subself_spec.lean",
+            3,
+            ["src/subtract.py::swap operands", "src/subtract.py::return constant 0"],
+        )
+    ]
     assert score(weak) == pytest.approx(1 / 3)
 
-    for extra in ([report("specs/clamp_spec.lean", 2,
-                          ["src/clamp.py::binop Add->Sub"])],
-                  [report("specs/clamp_spec.lean", 2, []),
-                   report("specs/add_spec.lean", 2, [])]):
+    for extra in (
+        [report("specs/clamp_spec.lean", 2, ["src/clamp.py::binop Add->Sub"])],
+        [report("specs/clamp_spec.lean", 2, []), report("specs/add_spec.lean", 2, [])],
+    ):
         joined = score(weak + extra)
         assert joined < 1.0, (
             f"survivors remain and the set still scored {joined:.2f}; under the "
-            f"old intersection this was exactly 1.00")
+            f"old intersection this was exactly 1.00"
+        )
         assert joined < 0.9, (
             f"a set containing an unkilled mutant must fail a 0.90 gate, "
-            f"got {joined:.2f}")
+            f"got {joined:.2f}"
+        )
 
 
 def test_a_single_surviving_mutant_anywhere_is_visible_in_the_score() -> None:
     """One survivor in four complete sources must not round away."""
-    scored = [report("specs/add_spec.lean", 2, []),
-              report("specs/clamp_spec.lean", 2, []),
-              report("specs/subself_spec.lean", 3,
-                     ["src/subtract.py::swap operands"])]
+    scored = [
+        report("specs/add_spec.lean", 2, []),
+        report("specs/clamp_spec.lean", 2, []),
+        report("specs/subself_spec.lean", 3, ["src/subtract.py::swap operands"]),
+    ]
     assert score(scored) == pytest.approx(6 / 7)
     assert score(scored) < 1.0
 
 
 # --- what must NOT change: set-scoring within one source -------------------
+
 
 def test_specs_of_one_function_still_score_as_a_set() -> None:
     """The documented reason the gate exists at all.
@@ -144,15 +160,14 @@ def test_specs_of_one_function_still_score_as_a_set() -> None:
     throw the correct set away. That argument is about specs of ONE function,
     and it is preserved exactly.
     """
-    commutativity = report("specs/add_spec.lean", 2,
-                           ["src/add.py::return constant 0"])
-    identity = report("specs/addid_spec.lean", 2,
-                      ["src/add.py::binop Add->Sub"])
+    commutativity = report("specs/add_spec.lean", 2, ["src/add.py::return constant 0"])
+    identity = report("specs/addid_spec.lean", 2, ["src/add.py::binop Add->Sub"])
     assert score([commutativity]) == pytest.approx(0.5)
     assert score([identity]) == pytest.approx(0.5)
     assert score([commutativity, identity]) == pytest.approx(1.0), (
         "two half-strength specs of one function must still compose to a "
-        "complete set; per-spec gating is exactly what this gate rejects")
+        "complete set; per-spec gating is exactly what this gate rejects"
+    )
 
 
 def test_one_source_is_scored_identically_to_before() -> None:
@@ -162,16 +177,20 @@ def test_one_source_is_scored_identically_to_before() -> None:
     unchanged by this fix -- confirmed against the real repository: all four
     sources 1.00, exit 0, same as before.
     """
-    scored = [report("specs/subself_spec.lean", 3,
-                     ["src/subtract.py::swap operands"]),
-              report("specs/subtract_spec.lean", 3,
-                     ["src/subtract.py::swap operands",
-                      "src/subtract.py::return constant 0"])]
+    scored = [
+        report("specs/subself_spec.lean", 3, ["src/subtract.py::swap operands"]),
+        report(
+            "specs/subtract_spec.lean",
+            3,
+            ["src/subtract.py::swap operands", "src/subtract.py::return constant 0"],
+        ),
+    ]
     # Intersection within the source: only `swap operands` survives both.
     assert score(scored) == pytest.approx(2 / 3)
 
 
 # --- the denominator -------------------------------------------------------
+
 
 def test_the_denominator_is_every_mutant_not_the_largest_source() -> None:
     """`max(mutants)` across unrelated sources was never the size of anything.
@@ -179,9 +198,11 @@ def test_the_denominator_is_every_mutant_not_the_largest_source() -> None:
     Four sources of 2, 2, 2 and 3 mutants are nine mutants. Taking the largest
     made the denominator 3 and the score a ratio of two unrelated quantities.
     """
-    scored = [report("specs/add_spec.lean", 2, []),
-              report("specs/clamp_spec.lean", 2, []),
-              report("specs/subself_spec.lean", 3, [])]
+    scored = [
+        report("specs/add_spec.lean", 2, []),
+        report("specs/clamp_spec.lean", 2, []),
+        report("specs/subself_spec.lean", 3, []),
+    ]
     _joint, _survivors, total, rows = joint_score(scored, source_of=source_of)
     assert total == 7, f"expected 2+2+3=7 mutants, got {total}"
     assert len(rows) == 3, "one row per source"
@@ -194,9 +215,11 @@ def test_a_complete_set_still_scores_one() -> None:
     multiply 2/2, subtract 3/3, JOINT 1.00 (9/9), exit 0 -- earned rather than
     structural.
     """
-    scored = [report("specs/add_spec.lean", 2, []),
-              report("specs/clamp_spec.lean", 2, []),
-              report("specs/subself_spec.lean", 3, [])]
+    scored = [
+        report("specs/add_spec.lean", 2, []),
+        report("specs/clamp_spec.lean", 2, []),
+        report("specs/subself_spec.lean", 3, []),
+    ]
     assert score(scored) == pytest.approx(1.0)
 
 
@@ -217,13 +240,15 @@ def test_the_same_operator_in_two_files_is_two_different_names() -> None:
     add = {m.name for m in generate_mutants(ADD, qualifier="src/add.py")}
     sub = {m.name for m in generate_mutants(SUB, qualifier="src/subtract.py")}
     assert add & sub == set(), (
-        f"mutants of different files still share names: {add & sub}")
+        f"mutants of different files still share names: {add & sub}"
+    )
 
     bare_add = {m.name for m in generate_mutants(ADD)}
     bare_sub = {m.name for m in generate_mutants(SUB)}
     assert bare_add & bare_sub, (
         "the unqualified names were expected to collide; if they no longer do, "
-        "this test is asserting nothing and the operator set has changed")
+        "this test is asserting nothing and the operator set has changed"
+    )
 
 
 def test_an_unqualified_call_is_unchanged() -> None:

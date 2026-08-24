@@ -23,13 +23,18 @@ class Mutant:
 
 
 _BINOP_SWAPS: dict[type[ast.operator], type[ast.operator]] = {
-    ast.Add: ast.Sub, ast.Sub: ast.Add,
-    ast.Mult: ast.FloorDiv, ast.FloorDiv: ast.Mult,
+    ast.Add: ast.Sub,
+    ast.Sub: ast.Add,
+    ast.Mult: ast.FloorDiv,
+    ast.FloorDiv: ast.Mult,
 }
 _CMP_SWAPS: dict[type[ast.cmpop], type[ast.cmpop]] = {
-    ast.GtE: ast.Gt, ast.LtE: ast.Lt,
-    ast.Gt: ast.GtE, ast.Lt: ast.LtE,
-    ast.Eq: ast.NotEq, ast.NotEq: ast.Eq,
+    ast.GtE: ast.Gt,
+    ast.LtE: ast.Lt,
+    ast.Gt: ast.GtE,
+    ast.Lt: ast.LtE,
+    ast.Eq: ast.NotEq,
+    ast.NotEq: ast.Eq,
 }
 
 
@@ -139,6 +144,7 @@ def generate_mutants(source: str, qualifier: str = "") -> list[Mutant]:
 
 if __name__ == "__main__":
     import sys
+
     with open(sys.argv[1]) as f:
         src = f.read()
     for i, mut in enumerate(generate_mutants(src), 1):

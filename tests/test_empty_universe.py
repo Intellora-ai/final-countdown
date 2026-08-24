@@ -53,28 +53,40 @@ def workspace(tmp_path: Path, manifest: str | None) -> Path:
 
 
 def run(work: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run([PY, "aggregate_gates.py", "--evidence-root", "evidence"],
-                          cwd=work, capture_output=True, text=True, timeout=120)
+    return subprocess.run(
+        [PY, "aggregate_gates.py", "--evidence-root", "evidence"],
+        cwd=work,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
 
 
 # Each of these leaves the expected gate set unknown. None may report a verdict.
-@pytest.mark.parametrize(("label", "manifest"), [
-    ("missing", None),
-    ("empty file", ""),
-    ("no gates table", "[ruleset]\nid = 20990225\n"),
-    ("empty gates table", "[gates]\n"),
-    ("malformed toml", "[gates\nthis is not toml"),
-])
+@pytest.mark.parametrize(
+    ("label", "manifest"),
+    [
+        ("missing", None),
+        ("empty file", ""),
+        ("no gates table", "[ruleset]\nid = 20990225\n"),
+        ("empty gates table", "[gates]\n"),
+        ("malformed toml", "[gates\nthis is not toml"),
+    ],
+)
 def test_an_unknown_gate_set_is_never_a_pass(
-        tmp_path: Path, label: str, manifest: str | None) -> None:
+    tmp_path: Path, label: str, manifest: str | None
+) -> None:
     result = run(workspace(tmp_path, manifest))
     assert result.returncode == 2, (
         f"{label}: expected INFRASTRUCTURE_FAILURE (exit 2), got "
-        f"{result.returncode}\n{result.stdout[-600:]}")
+        f"{result.returncode}\n{result.stdout[-600:]}"
+    )
     assert "INFRASTRUCTURE_FAILURE" in result.stdout, (
-        f"{label}: the status was not stated")
+        f"{label}: the status was not stated"
+    )
     assert "PASS" not in result.stdout.replace("INFRASTRUCTURE_FAILURE", ""), (
-        f"{label}: the word PASS appeared in a run that judged nothing")
+        f"{label}: the word PASS appeared in a run that judged nothing"
+    )
 
 
 def test_the_reason_is_stated_not_just_the_status(tmp_path: Path) -> None:
@@ -85,7 +97,8 @@ def test_the_reason_is_stated_not_just_the_status(tmp_path: Path) -> None:
 
 
 def test_an_annotation_is_emitted_so_it_appears_on_the_pull_request(
-        tmp_path: Path) -> None:
+    tmp_path: Path,
+) -> None:
     """This failure has no file to point at, so the annotation is title-only.
 
     It still has to reach the PR: a finalizer that could not run is the most
@@ -105,27 +118,29 @@ def test_exit_two_is_distinct_from_a_real_gate_failure(tmp_path: Path) -> None:
     verifier is broken" would be indistinguishable to the person reading it.
     """
     valid = (
-        '[gates.pyright]\n'
+        "[gates.pyright]\n"
         'workflow = "verify.yml"\n'
         'job = "pyright"\n'
-        'mandatory = true\n'
+        "mandatory = true\n"
         'role = "gate"\n'
         'evidence = "reports/pyright.json"\n'
     )
     result = run(workspace(tmp_path, valid))
     assert result.returncode == 1, (
         "a declared-but-unreported gate must be a verdict (1), not an "
-        f"infrastructure failure (2)\n{result.stdout[-600:]}")
+        f"infrastructure failure (2)\n{result.stdout[-600:]}"
+    )
     assert "INFRASTRUCTURE_FAILURE" not in result.stdout
 
 
 def test_the_real_repository_manifest_still_aggregates(tmp_path: Path) -> None:
     """The fix must not reject the manifest this repository actually ships."""
-    work = workspace(tmp_path, (REPO / "ci" / "gates.toml").read_text(
-        encoding="utf-8"))
+    work = workspace(tmp_path, (REPO / "ci" / "gates.toml").read_text(encoding="utf-8"))
     result = run(work)
     assert result.returncode == 1, (
         "the real manifest with no evidence should block (1), not fail to "
-        f"load (2)\n{result.stdout[-600:]}")
+        f"load (2)\n{result.stdout[-600:]}"
+    )
     assert "INFRASTRUCTURE_FAILURE" not in result.stdout, (
-        "the real ci/gates.toml was rejected as unreadable")
+        "the real ci/gates.toml was rejected as unreadable"
+    )

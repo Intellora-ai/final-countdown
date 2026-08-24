@@ -21,47 +21,52 @@ import argparse
 import sys
 
 TEMPLATES = {
-    'commutativity': {
-        'args': 'a b : Int',
-        'statement': '{func} a b = {func} b a',
+    "commutativity": {
+        "args": "a b : Int",
+        "statement": "{func} a b = {func} b a",
     },
-    'associativity': {
-        'args': 'a b c : Int',
-        'statement': '{func} ({func} a b) c = {func} a ({func} b c)',
+    "associativity": {
+        "args": "a b c : Int",
+        "statement": "{func} ({func} a b) c = {func} a ({func} b c)",
     },
-    'identity': {
-        'args': 'x : Int',
-        'statement': '{func} {v0} {unit} = {v0}',
+    "identity": {
+        "args": "x : Int",
+        "statement": "{func} {v0} {unit} = {v0}",
     },
-    'self_inverse': {
-        'args': 'a b : Int',
-        'statement': '{func} {v0} {v0} = 0',
+    "self_inverse": {
+        "args": "a b : Int",
+        "statement": "{func} {v0} {v0} = 0",
     },
-    'bounds': {
-        'args': 'lo hi x : Int',
-        'statement': 'lo ≤ {func} lo hi x ∧ {func} lo hi x ≤ hi',
+    "bounds": {
+        "args": "lo hi x : Int",
+        "statement": "lo ≤ {func} lo hi x ∧ {func} lo hi x ≤ hi",
     },
-    'monotonicity': {
-        'args': 'x y : Int',
-        'statement': '{v0} ≤ {v1} → {func} {v0} ≤ {func} {v1}',
+    "monotonicity": {
+        "args": "x y : Int",
+        "statement": "{v0} ≤ {v1} → {func} {v0} ≤ {func} {v1}",
     },
 }
 
 
-def generate_spec(template_name: str, func_name: str, body: str,
-                  args: str | None = None, hyp: str | None = None,
-                  unit: str = '0') -> str | None:
+def generate_spec(
+    template_name: str,
+    func_name: str,
+    body: str,
+    args: str | None = None,
+    hyp: str | None = None,
+    unit: str = "0",
+) -> str | None:
     if template_name not in TEMPLATES:
         print(f"❌ Unknown template: {template_name}", file=sys.stderr)
         print(f"Available: {', '.join(TEMPLATES)}", file=sys.stderr)
         return None
 
     tpl = TEMPLATES[template_name]
-    def_args = args or tpl['args']
-    binders = def_args.split(':')[0].split()
-    vs = {f'v{i}': n for i, n in enumerate(binders)}
-    vs['unit'] = unit
-    statement = tpl['statement'].format(func=func_name, **vs)
+    def_args = args or tpl["args"]
+    binders = def_args.split(":")[0].split()
+    vs = {f"v{i}": n for i, n in enumerate(binders)}
+    vs["unit"] = unit
+    statement = tpl["statement"].format(func=func_name, **vs)
     hypothesis = f" (h : {hyp})" if hyp else ""
 
     return (

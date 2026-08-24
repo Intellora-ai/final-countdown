@@ -137,15 +137,22 @@ def collect_uses(text: str, path: str) -> list[UsesRef]:
         called = _get(job, "uses")
         if isinstance(called, ScalarNode):
             found.append(
-                UsesRef(path, _line(called), job_id, "<reusable workflow>",
-                        str(called.value)))
+                UsesRef(
+                    path,
+                    _line(called),
+                    job_id,
+                    "<reusable workflow>",
+                    str(called.value),
+                )
+            )
         for index, step in enumerate(_sequence(_get(job, "steps"))):
             uses = _get(step, "uses")
             if not isinstance(uses, ScalarNode):
                 continue
             named = _get(step, "name")
-            label = (str(named.value) if isinstance(named, ScalarNode)
-                     else f"steps[{index}]")
+            label = (
+                str(named.value) if isinstance(named, ScalarNode) else f"steps[{index}]"
+            )
             found.append(UsesRef(path, _line(uses), job_id, label, str(uses.value)))
     return found
 
@@ -167,22 +174,30 @@ def unpinned_uses(text: str, path: str) -> list[Violation]:
         where = f"job '{use.job}', step '{use.step}'"
         matched = ACTION_REF.match(use.ref)
         if matched is None:
-            out.append(Violation(
-                path, use.line,
-                f"{where}: uses: {use.ref!r} is not owner/repo@ref — a Docker "
-                f"or malformed reference cannot be SHA-pinned and is not "
-                f"allowed here"))
+            out.append(
+                Violation(
+                    path,
+                    use.line,
+                    f"{where}: uses: {use.ref!r} is not owner/repo@ref — a Docker "
+                    f"or malformed reference cannot be SHA-pinned and is not "
+                    f"allowed here",
+                )
+            )
             continue
         ref = str(matched.group("ref"))
         if SHA40.match(ref) is None:
             action = str(matched.group("action"))
             repo = "/".join(action.split("/")[:2])
-            out.append(Violation(
-                path, use.line,
-                f"{where}: uses: {use.ref} is pinned to '{ref}', a MUTABLE tag "
-                f"or branch. Resolve it once and pin the commit: "
-                f"`gh api repos/{repo}/commits/{ref} --jq .sha`, then write "
-                f"`{action}@<sha> # {ref}`"))
+            out.append(
+                Violation(
+                    path,
+                    use.line,
+                    f"{where}: uses: {use.ref} is pinned to '{ref}', a MUTABLE tag "
+                    f"or branch. Resolve it once and pin the commit: "
+                    f"`gh api repos/{repo}/commits/{ref} --jq .sha`, then write "
+                    f"`{action}@<sha> # {ref}`",
+                )
+            )
     return out
 
 
@@ -200,8 +215,9 @@ def raw_uses_lines(text: str) -> list[tuple[int, str, str]]:
     for number, line in enumerate(text.splitlines(), 1):
         matched = USES_LINE.match(line)
         if matched is not None:
-            out.append((number, str(matched.group("ref")),
-                        str(matched.group("rest")).strip()))
+            out.append(
+                (number, str(matched.group("ref")), str(matched.group("rest")).strip())
+            )
     return out
 
 
@@ -218,11 +234,15 @@ def uses_without_version_comment(text: str, path: str) -> list[Violation]:
         if ref.startswith("./"):
             continue
         if VERSION_COMMENT.match(rest) is None:
-            out.append(Violation(
-                path, number,
-                f"uses: {ref} has no trailing `# v...` version comment "
-                f"(found {rest or '<nothing>'!r}) — the pin becomes unreadable "
-                f"and Dependabot cannot bump it"))
+            out.append(
+                Violation(
+                    path,
+                    number,
+                    f"uses: {ref} has no trailing `# v...` version comment "
+                    f"(found {rest or '<nothing>'!r}) — the pin becomes unreadable "
+                    f"and Dependabot cannot bump it",
+                )
+            )
     return out
 
 
@@ -231,7 +251,8 @@ def uses_without_version_comment(text: str, path: str) -> list[Violation]:
 # ---------------------------------------------------------------------------
 
 PIP_INSTALL = re.compile(
-    r"\bpip[0-9]*\s+install\b|\bpython[0-9.]*\s+-m\s+pip\s+install\b")
+    r"\bpip[0-9]*\s+install\b|\bpython[0-9.]*\s+-m\s+pip\s+install\b"
+)
 DASH_R = re.compile(r"(?:^|\s)-r\s+(?P<target>\S+)")
 
 
@@ -283,23 +304,35 @@ def pip_install_violations(text: str, path: str) -> list[Violation]:
         # `--hash=sha256:...` has no space before its `#`-free digest.
         command = re.split(r"\s#", line, maxsplit=1)[0]
         if "--require-hashes" not in command:
-            out.append(Violation(
-                path, number,
-                f"`pip install` without --require-hashes: {command.strip()!r} — "
-                f"pip will install whatever bytes the index serves"))
+            out.append(
+                Violation(
+                    path,
+                    number,
+                    f"`pip install` without --require-hashes: {command.strip()!r} — "
+                    f"pip will install whatever bytes the index serves",
+                )
+            )
         targets = [str(m.group("target")) for m in DASH_R.finditer(command)]
         if not targets:
-            out.append(Violation(
-                path, number,
-                f"`pip install` with a bare package list: {command.strip()!r} — "
-                f"install from requirements.lock so the toolchain matches every "
-                f"other job"))
+            out.append(
+                Violation(
+                    path,
+                    number,
+                    f"`pip install` with a bare package list: {command.strip()!r} — "
+                    f"install from requirements.lock so the toolchain matches every "
+                    f"other job",
+                )
+            )
         for target in targets:
             if not target.endswith(".lock"):
-                out.append(Violation(
-                    path, number,
-                    f"`pip install -r {target}` does not point at a .lock file — "
-                    f"only the lock carries `==` pins and sha256 hashes"))
+                out.append(
+                    Violation(
+                        path,
+                        number,
+                        f"`pip install -r {target}` does not point at a .lock file — "
+                        f"only the lock carries `==` pins and sha256 hashes",
+                    )
+                )
     return out
 
 
@@ -310,7 +343,8 @@ def pip_install_violations(text: str, path: str) -> list[Violation]:
 REQ_PIN = re.compile(
     r"^(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*)"
     r"(?P<extras>\[[A-Za-z0-9,._\s-]+\])?"
-    r"==(?P<version>[A-Za-z0-9][A-Za-z0-9.!+*_-]*)$")
+    r"==(?P<version>[A-Za-z0-9][A-Za-z0-9.!+*_-]*)$"
+)
 HASH_OPT = re.compile(r"^--hash=sha256:(?P<digest>[0-9a-f]{64})$")
 
 
@@ -353,39 +387,50 @@ def parse_lock(text: str, path: str) -> tuple[dict[str, LockEntry], list[Violati
         if stripped.startswith("--hash"):
             digest = HASH_OPT.match(stripped)
             if digest is None:
-                violations.append(Violation(
-                    path, number,
-                    f"malformed hash {stripped!r} — expected "
-                    f"`--hash=sha256:<64 hex chars>`"))
+                violations.append(
+                    Violation(
+                        path,
+                        number,
+                        f"malformed hash {stripped!r} — expected "
+                        f"`--hash=sha256:<64 hex chars>`",
+                    )
+                )
                 continue
             if current is None:
-                violations.append(Violation(
-                    path, number,
-                    f"hash {stripped!r} belongs to no requirement"))
+                violations.append(
+                    Violation(
+                        path, number, f"hash {stripped!r} belongs to no requirement"
+                    )
+                )
                 continue
             hashes[current].add(str(digest.group("digest")))
             continue
 
         pinned = REQ_PIN.match(stripped)
         if pinned is None:
-            violations.append(Violation(
-                path, number,
-                f"{stripped!r} is not an exact `name==version` pin — a range or "
-                f"a bare name in a hash-locked file is an unpinned dependency"))
+            violations.append(
+                Violation(
+                    path,
+                    number,
+                    f"{stripped!r} is not an exact `name==version` pin — a range or "
+                    f"a bare name in a hash-locked file is an unpinned dependency",
+                )
+            )
             current = None
             continue
         current = canonical(str(pinned.group("name")))
         if current in hashes:
-            violations.append(Violation(
-                path, number, f"{current} is pinned twice"))
+            violations.append(Violation(path, number, f"{current} is pinned twice"))
         hashes[current] = set()
         order.append(current)
-        entries[current] = LockEntry(current, str(pinned.group("version")),
-                                     frozenset(), number)
+        entries[current] = LockEntry(
+            current, str(pinned.group("version")), frozenset(), number
+        )
 
     for name in order:
-        entries[name] = LockEntry(name, entries[name].version,
-                                  frozenset(hashes[name]), entries[name].line)
+        entries[name] = LockEntry(
+            name, entries[name].version, frozenset(hashes[name]), entries[name].line
+        )
     return entries, violations
 
 
@@ -418,8 +463,9 @@ def rel(path: Path) -> str:
 @pytest.fixture(scope="module")
 def workflows() -> list[tuple[Path, str]]:
     files = workflow_files()
-    assert files, f"no workflows found under {rel(WORKFLOWS)} — this guard " \
-                  f"would pass vacuously"
+    assert files, (
+        f"no workflows found under {rel(WORKFLOWS)} — this guard would pass vacuously"
+    )
     return [(p, p.read_text(encoding="utf-8")) for p in files]
 
 
@@ -429,7 +475,8 @@ def workflows() -> list[tuple[Path, str]]:
 
 
 def test_every_uses_is_pinned_to_a_commit_sha(
-        workflows: list[tuple[Path, str]]) -> None:
+    workflows: list[tuple[Path, str]],
+) -> None:
     violations: list[Violation] = []
     total = 0
     for path, text in workflows:
@@ -440,8 +487,8 @@ def test_every_uses_is_pinned_to_a_commit_sha(
     assert total > 0, "no `uses:` found at all — the SHA-pinning guard is vacuous"
     assert not violations, (
         "GitHub Actions pinned to a mutable ref. The upstream owner can move a "
-        "tag, so the same commit no longer runs the same CI:"
-        + render(violations))
+        "tag, so the same commit no longer runs the same CI:" + render(violations)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -450,17 +497,20 @@ def test_every_uses_is_pinned_to_a_commit_sha(
 
 
 def test_every_pinned_sha_carries_a_version_comment(
-        workflows: list[tuple[Path, str]]) -> None:
+    workflows: list[tuple[Path, str]],
+) -> None:
     violations: list[Violation] = []
     for path, text in workflows:
         violations.extend(uses_without_version_comment(text, rel(path)))
     assert not violations, (
         "A 40-char SHA with no `# v...` beside it is unreviewable, and "
-        "Dependabot needs the comment to bump the pin:" + render(violations))
+        "Dependabot needs the comment to bump the pin:" + render(violations)
+    )
 
 
 def test_the_version_comment_scan_sees_every_invoked_action(
-        workflows: list[tuple[Path, str]]) -> None:
+    workflows: list[tuple[Path, str]],
+) -> None:
     """Rule 2 reads raw text; rule 1 reads the parse tree. They must agree.
 
     If they ever diverge, one of the two guards is inspecting a set of lines
@@ -473,7 +523,8 @@ def test_the_version_comment_scan_sees_every_invoked_action(
         if parsed != raw:
             mismatches.append(
                 f"{rel(path)}: parse tree has {parsed} `uses:` but raw text has "
-                f"{raw} — one scan is missing references the other sees")
+                f"{raw} — one scan is missing references the other sees"
+            )
     assert not mismatches, "\n" + "\n".join(f"  {m}" for m in mismatches)
 
 
@@ -483,7 +534,8 @@ def test_the_version_comment_scan_sees_every_invoked_action(
 
 
 def test_every_pip_install_requires_hashes_and_a_lock(
-        workflows: list[tuple[Path, str]]) -> None:
+    workflows: list[tuple[Path, str]],
+) -> None:
     violations: list[Violation] = []
     installs = 0
     for path, text in workflows:
@@ -494,7 +546,8 @@ def test_every_pip_install_requires_hashes_and_a_lock(
     assert installs > 0, "no `pip install` found — this guard is vacuous"
     assert not violations, (
         "A pip install that is not hash-locked puts an unverified toolchain "
-        "inside the verification system:" + render(violations))
+        "inside the verification system:" + render(violations)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -507,16 +560,24 @@ def test_requirements_lock_is_fully_pinned_and_hashed() -> None:
     entries, violations = parse_lock(text, rel(LOCK))
     assert not violations, (
         f"{rel(LOCK)} has lines that are neither comments, exact pins, nor "
-        f"sha256 hashes:" + render(violations))
+        f"sha256 hashes:" + render(violations)
+    )
     assert entries, f"{rel(LOCK)} declares no packages at all"
 
-    unhashed = [Violation(rel(LOCK), e.line,
-                          f"{e.name}=={e.version} carries no --hash=sha256: — "
-                          f"`==` says WHICH version, only the hash says which "
-                          f"BYTES")
-                for e in entries.values() if not e.hashes]
-    assert not unhashed, (
-        "Requirements pinned by version but not by content:" + render(unhashed))
+    unhashed = [
+        Violation(
+            rel(LOCK),
+            e.line,
+            f"{e.name}=={e.version} carries no --hash=sha256: — "
+            f"`==` says WHICH version, only the hash says which "
+            f"BYTES",
+        )
+        for e in entries.values()
+        if not e.hashes
+    ]
+    assert not unhashed, "Requirements pinned by version but not by content:" + render(
+        unhashed
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -533,39 +594,54 @@ def test_preflight_lock_is_a_strict_subset_of_the_main_lock() -> None:
     preflight is judging a system it is not running on.
     """
     main, main_bad = parse_lock(LOCK.read_text(encoding="utf-8"), rel(LOCK))
-    sub, sub_bad = parse_lock(PREFLIGHT_LOCK.read_text(encoding="utf-8"),
-                              rel(PREFLIGHT_LOCK))
-    assert not main_bad + sub_bad, (
-        "lock files did not parse cleanly:" + render(main_bad + sub_bad))
+    sub, sub_bad = parse_lock(
+        PREFLIGHT_LOCK.read_text(encoding="utf-8"), rel(PREFLIGHT_LOCK)
+    )
+    assert not main_bad + sub_bad, "lock files did not parse cleanly:" + render(
+        main_bad + sub_bad
+    )
     assert sub, f"{rel(PREFLIGHT_LOCK)} declares no packages at all"
 
     violations: list[Violation] = []
     for name, entry in sub.items():
         parent = main.get(name)
         if parent is None:
-            violations.append(Violation(
-                rel(PREFLIGHT_LOCK), entry.line,
-                f"{name} is not in {rel(LOCK)} at all — preflight would install "
-                f"something no other job installs"))
+            violations.append(
+                Violation(
+                    rel(PREFLIGHT_LOCK),
+                    entry.line,
+                    f"{name} is not in {rel(LOCK)} at all — preflight would install "
+                    f"something no other job installs",
+                )
+            )
             continue
         if parent.version != entry.version:
-            violations.append(Violation(
-                rel(PREFLIGHT_LOCK), entry.line,
-                f"{name}=={entry.version} but {rel(LOCK)}:{parent.line} pins "
-                f"=={parent.version} — preflight and the gates it judges would "
-                f"run different code"))
+            violations.append(
+                Violation(
+                    rel(PREFLIGHT_LOCK),
+                    entry.line,
+                    f"{name}=={entry.version} but {rel(LOCK)}:{parent.line} pins "
+                    f"=={parent.version} — preflight and the gates it judges would "
+                    f"run different code",
+                )
+            )
         if parent.hashes != entry.hashes:
             only_here = sorted(entry.hashes - parent.hashes)[:2]
             only_there = sorted(parent.hashes - entry.hashes)[:2]
-            violations.append(Violation(
-                rel(PREFLIGHT_LOCK), entry.line,
-                f"{name} hash set differs from {rel(LOCK)}:{parent.line} "
-                f"({len(entry.hashes)} vs {len(parent.hashes)} hashes; "
-                f"only here: {only_here}; only there: {only_there}) — copy the "
-                f"block from {rel(LOCK)} verbatim"))
+            violations.append(
+                Violation(
+                    rel(PREFLIGHT_LOCK),
+                    entry.line,
+                    f"{name} hash set differs from {rel(LOCK)}:{parent.line} "
+                    f"({len(entry.hashes)} vs {len(parent.hashes)} hashes; "
+                    f"only here: {only_here}; only there: {only_there}) — copy the "
+                    f"block from {rel(LOCK)} verbatim",
+                )
+            )
     assert not violations, (
         "requirements-preflight.lock has drifted from requirements.lock:"
-        + render(violations))
+        + render(violations)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -598,7 +674,8 @@ def test_mutmut_stays_out_of_every_requirements_file() -> None:
         f"renaming it does not fail the check, it leaves that context "
         f"permanently PENDING and blocks every pull request with no error to "
         f"read. Restore the name (the gate runs scripts/mutation_gate.py; it "
-        f"never ran the mutmut package)")
+        f"never ran the mutmut package)"
+    )
 
     sources: list[tuple[Path, set[str]]] = [
         (REQUIREMENTS, parse_requirements(REQUIREMENTS.read_text(encoding="utf-8"))),
@@ -607,13 +684,17 @@ def test_mutmut_stays_out_of_every_requirements_file() -> None:
         entries, _ = parse_lock(lock.read_text(encoding="utf-8"), rel(lock))
         sources.append((lock, set(entries)))
 
-    offenders = [f"  {rel(path)}: declares 'mutmut'"
-                 for path, names in sources if "mutmut" in names]
+    offenders = [
+        f"  {rel(path)}: declares 'mutmut'"
+        for path, names in sources
+        if "mutmut" in names
+    ]
     assert not offenders, (
         "mutmut is back in the dependency set. It is imported nowhere; the "
         "gate named `mutmut` runs scripts/mutation_gate.py. Remove the package "
         "and DO NOT rename the gate (its name is a required status-check "
-        "context):\n" + "\n".join(offenders))
+        "context):\n" + "\n".join(offenders)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -630,7 +711,8 @@ def test_dependabot_configures_both_ecosystems_on_a_schedule() -> None:
     """
     assert DEPENDABOT.is_file(), (
         f"{rel(DEPENDABOT)} is missing — every SHA pin and every `==` pin in "
-        f"this repository would stop receiving security updates, silently")
+        f"this repository would stop receiving security updates, silently"
+    )
 
     text = DEPENDABOT.read_text(encoding="utf-8")
     try:
@@ -638,36 +720,46 @@ def test_dependabot_configures_both_ecosystems_on_a_schedule() -> None:
     except yaml.YAMLError as exc:
         pytest.fail(f"{rel(DEPENDABOT)} is not valid YAML: {exc}")
     assert isinstance(loaded, dict), (
-        f"{rel(DEPENDABOT)}:1: top level is {type(loaded).__name__}, not a mapping")
+        f"{rel(DEPENDABOT)}:1: top level is {type(loaded).__name__}, not a mapping"
+    )
     config = cast("dict[str, Any]", loaded)
 
     assert config.get("version") == 2, (
         f"{rel(DEPENDABOT)}: `version` is {config.get('version')!r}, must be 2 — "
-        f"GitHub ignores the file otherwise")
+        f"GitHub ignores the file otherwise"
+    )
 
     raw_updates: Any = config.get("updates")
     assert isinstance(raw_updates, list) and raw_updates, (
-        f"{rel(DEPENDABOT)}: `updates` is missing or empty")
+        f"{rel(DEPENDABOT)}: `updates` is missing or empty"
+    )
     updates = cast("list[Any]", raw_updates)
 
     # Line numbers for the ecosystems, so a failure points at the file.
-    lines = {m.group(1): i
-             for i, line in enumerate(text.splitlines(), 1)
-             for m in [re.match(r"\s*-?\s*package-ecosystem:\s*\"?([\w-]+)\"?", line)]
-             if m is not None}
+    lines = {
+        m.group(1): i
+        for i, line in enumerate(text.splitlines(), 1)
+        for m in [re.match(r"\s*-?\s*package-ecosystem:\s*\"?([\w-]+)\"?", line)]
+        if m is not None
+    }
 
     problems: list[str] = []
     for ecosystem in ("github-actions", "pip"):
         blocks: list[dict[str, Any]] = [
-            cast("dict[str, Any]", u) for u in updates
+            cast("dict[str, Any]", u)
+            for u in updates
             if isinstance(u, dict)
-            and cast("dict[str, Any]", u).get("package-ecosystem") == ecosystem]
+            and cast("dict[str, Any]", u).get("package-ecosystem") == ecosystem
+        ]
         if not blocks:
             problems.append(
                 f"{rel(DEPENDABOT)}: no `package-ecosystem: {ecosystem}` block — "
-                + ("every `uses:` SHA pin stops receiving bumps"
-                   if ecosystem == "github-actions"
-                   else "the Python floors in requirements.txt stop receiving bumps"))
+                + (
+                    "every `uses:` SHA pin stops receiving bumps"
+                    if ecosystem == "github-actions"
+                    else "the Python floors in requirements.txt stop receiving bumps"
+                )
+            )
             continue
         for entry in blocks:
             at = f"{rel(DEPENDABOT)}:{lines.get(ecosystem, 1)}"
@@ -676,17 +768,20 @@ def test_dependabot_configures_both_ecosystems_on_a_schedule() -> None:
                 problems.append(
                     f"{at}: `{ecosystem}` has no `schedule:` mapping — without "
                     f"an explicit schedule the cadence is implicit and "
-                    f"unreviewable")
+                    f"unreviewable"
+                )
                 continue
             interval: Any = cast("dict[str, Any]", schedule).get("interval")
             if not isinstance(interval, str) or not interval:
                 problems.append(
                     f"{at}: `{ecosystem}` schedule has no `interval:` — "
-                    f"`interval` is the only required schedule key")
+                    f"`interval` is the only required schedule key"
+                )
             if entry.get("directory") is None and entry.get("directories") is None:
                 problems.append(
                     f"{at}: `{ecosystem}` declares neither `directory:` nor "
-                    f"`directories:` — Dependabot will not know where to look")
+                    f"`directories:` — Dependabot will not know where to look"
+                )
 
     assert not problems, "\n" + "\n".join(f"  {p}" for p in problems)
 
@@ -743,9 +838,11 @@ def test_control_sha_pinning_rejects_a_floating_tag() -> None:
     assert "actions/checkout@v5" in only.what
     assert "MUTABLE" in only.what
     assert only.what.startswith("job 'verify'"), (
-        f"failure does not name the job: {only}")
+        f"failure does not name the job: {only}"
+    )
     assert str(only).startswith("bad.yml:7:"), (
-        f"failure is not actionable — no file:line: {only}")
+        f"failure is not actionable — no file:line: {only}"
+    )
 
 
 def test_control_sha_pinning_accepts_a_correct_workflow() -> None:
@@ -754,12 +851,15 @@ def test_control_sha_pinning_accepts_a_correct_workflow() -> None:
 
 def test_control_sha_pinning_ignores_a_uses_inside_a_run_block() -> None:
     """A `uses:` in a shell heredoc is text, not an invocation."""
-    text = GOOD_WORKFLOW + """\
+    text = (
+        GOOD_WORKFLOW
+        + """\
       - run: |
           cat > /tmp/note <<'EOF'
           uses: actions/checkout@v5
           EOF
 """
+    )
     assert unpinned_uses(text, "heredoc.yml") == []
 
 
@@ -770,10 +870,12 @@ def test_control_version_comment_rejects_a_bare_sha() -> None:
     # rule 1 also catches) and line 9 (a correct SHA stripped of its comment,
     # which ONLY this rule catches).
     assert set(by_line) == {7, 9}, (
-        f"expected missing version comments on lines 7 and 9, got: {render(found)}")
+        f"expected missing version comments on lines 7 and 9, got: {render(found)}"
+    )
     assert "actions/setup-python" in by_line[9].what
     assert str(by_line[9]).startswith("bad.yml:9:"), (
-        f"failure is not actionable — no file:line: {by_line[9]}")
+        f"failure is not actionable — no file:line: {by_line[9]}"
+    )
 
 
 def test_control_version_comment_accepts_a_correct_workflow() -> None:
@@ -784,7 +886,8 @@ def test_control_pip_rejects_requirements_txt_and_bare_packages() -> None:
     found = pip_install_violations(BAD_WORKFLOW, "bad.yml")
     by_line = {v.line: v for v in found}
     assert set(by_line) == {10, 11}, (
-        f"expected violations on lines 10 and 11, got: {render(found)}")
+        f"expected violations on lines 10 and 11, got: {render(found)}"
+    )
     assert "requirements.txt" in by_line[10].what
     assert ".lock" in by_line[10].what
     bare = [v.what for v in found if v.line == 11]
@@ -814,7 +917,8 @@ jobs:
     unhashed = split.replace("--require-hashes ", "")
     found = pip_install_violations(unhashed, "split.yml")
     assert [v.line for v in found] == [8], (
-        f"continuation not joined, or violation mis-located: {render(found)}")
+        f"continuation not joined, or violation mis-located: {render(found)}"
+    )
 
 
 def test_control_lock_parser_rejects_unpinned_and_unhashed_entries() -> None:
@@ -830,14 +934,17 @@ pyyaml==6.0.3 \\
     assert 2 in by_line and "not an exact" in by_line[2], by_line
     assert 5 in by_line and "malformed hash" in by_line[5], by_line
     assert entries["hypothesis"].hashes == frozenset(), (
-        "an entry with no hashes must be reported as unhashed")
+        "an entry with no hashes must be reported as unhashed"
+    )
 
 
 def test_control_lock_parser_accepts_a_correct_block() -> None:
-    good = ("attrs==26.1.0 \\\n"
-            f"    --hash=sha256:{'a' * 64} \\\n"
-            f"    --hash=sha256:{'b' * 64}\n"
-            "    # via aiohttp\n")
+    good = (
+        "attrs==26.1.0 \\\n"
+        f"    --hash=sha256:{'a' * 64} \\\n"
+        f"    --hash=sha256:{'b' * 64}\n"
+        "    # via aiohttp\n"
+    )
     entries, violations = parse_lock(good, "good.lock")
     assert violations == []
     assert entries["attrs"].version == "26.1.0"

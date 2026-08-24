@@ -1,0 +1,47 @@
+/* Agabi — Base element defaults + shared component support rules. */
+html {
+  font-size: var(--font-size);
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.6;
+  color: var(--foreground);
+  background: var(--background);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  font-family: var(--font-display);
+  color: var(--foreground);
+}
+
+p { margin: 0; }
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color var(--duration-base) var(--ease-out);
+}
+a:hover { color: var(--agabi-indigo-600); }
+
+::selection {
+  background: var(--agabi-indigo-100);
+  color: var(--agabi-indigo-900);
+}
+
+code, kbd, pre, samp { font-family: var(--font-mono); }
+
+/* Focus ring spec: 2px solid var(--ring), 2px offset, :focus-visible only */
+.agabi-focusable:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+}
+.agabi-focusable:focus { outline: none; }
+
+/* Scrollbar — subtle, cool-tinted */
+* { scrollbar-width: thin; scrollbar-color: var(--agabi-neutral-300) transparent; }

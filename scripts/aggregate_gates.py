@@ -51,7 +51,7 @@ import json
 import os
 import sys
 import tomllib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
@@ -70,9 +70,12 @@ SCHEMA_MAJOR = "1"
 
 # Fallback only for a repository with no manifest; ci/gates.toml [schema] is
 # the real declaration and is what CI reads.
-DEFAULT_IDENTITY = {"commit": "GITHUB_SHA", "run_id": "GITHUB_RUN_ID",
-                    "run_attempt": "GITHUB_RUN_ATTEMPT",
-                    "workflow": "GITHUB_WORKFLOW"}
+DEFAULT_IDENTITY = {
+    "commit": "GITHUB_SHA",
+    "run_id": "GITHUB_RUN_ID",
+    "run_attempt": "GITHUB_RUN_ATTEMPT",
+    "workflow": "GITHUB_WORKFLOW",
+}
 
 
 class CannotAggregate(Exception):
@@ -110,7 +113,8 @@ def load_manifest() -> dict[str, Any]:
         raise CannotAggregate(
             f"{MANIFEST} is missing, so the expected gate set is unknown. "
             "An empty expected set is not an empty set of requirements; it is "
-            "the absence of the record that says what was required.")
+            "the absence of the record that says what was required."
+        )
     try:
         parsed = tomllib.loads(MANIFEST.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError) as exc:
@@ -120,7 +124,8 @@ def load_manifest() -> dict[str, Any]:
         raise CannotAggregate(
             f"{MANIFEST} declares no gates. A manifest with an empty gate "
             "table cannot distinguish 'nothing was required' from 'the "
-            "requirements were lost'.")
+            "requirements were lost'."
+        )
     return parsed
 
 
@@ -146,12 +151,18 @@ def topology(manifest: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
     #   code-scanning  the results check, posted by GitHub's app, not a job
     # Every other mandatory gate must be present, and absence still blocks.
     excluded = {"finalizer", "scanner", "code-scanning"}
-    expected = [name for name, spec in gates.items()
-                if spec.get("mandatory") and spec.get("role") not in excluded]
+    expected = [
+        name
+        for name, spec in gates.items()
+        if spec.get("mandatory") and spec.get("role") not in excluded
+    ]
     schema: dict[str, Any] = manifest.get("schema", {})
     declared = schema.get("run_identity")
-    identity = cast("dict[str, str]", declared) if isinstance(declared, dict) \
+    identity = (
+        cast("dict[str, str]", declared)
+        if isinstance(declared, dict)
         else DEFAULT_IDENTITY
+    )
     return sorted(expected), identity
 
 
@@ -160,9 +171,9 @@ def run_identity(fields: dict[str, str]) -> dict[str, str]:
     return {field: os.environ.get(var, "local") for field, var in fields.items()}
 
 
-def rejection(stem: str, data: Any, identity: dict[str, str]
-              ) -> dict[str, Any] | None:
+def rejection(stem: str, data: Any, identity: dict[str, str]) -> dict[str, Any] | None:
     """Why this report is not admissible evidence for this run, or None."""
+
     def no(reason: str, expected: Any = None, found: Any = None) -> dict[str, Any]:
         return {"gate": stem, "reason": reason, "expected": expected, "found": found}
 
@@ -172,18 +183,26 @@ def rejection(stem: str, data: Any, identity: dict[str, str]
 
     version = report.get("schema_version")
     if not isinstance(version, str) or version.split(".")[0] != SCHEMA_MAJOR:
-        return no("schema_version is missing or not a major version this "
-                  "finalizer understands", f"{SCHEMA_MAJOR}.x", version)
+        return no(
+            "schema_version is missing or not a major version this "
+            "finalizer understands",
+            f"{SCHEMA_MAJOR}.x",
+            version,
+        )
 
     required = ("schema_version", "gate", "status", *identity)
     missing = [f for f in required if f not in report]
     if missing:
-        return no("report omits identity fields, so it cannot be shown to "
-                  "belong to this run", required, f"missing {missing}")
+        return no(
+            "report omits identity fields, so it cannot be shown to belong to this run",
+            required,
+            f"missing {missing}",
+        )
 
     if report["gate"] != stem:
-        return no("report claims a different gate than its filename",
-                  stem, report["gate"])
+        return no(
+            "report claims a different gate than its filename", stem, report["gate"]
+        )
 
     for field in identity:
         want, found = identity[field], report[field]
@@ -204,8 +223,9 @@ def discover(root: Path) -> list[Path]:
     return sorted(p for p in root.rglob("*.json") if p.name != MANIFEST_NAME)
 
 
-def load_reports(root: Path, identity: dict[str, str]) -> tuple[
-        dict[str, dict[str, Any]], list[dict[str, Any]], dict[str, list[str]]]:
+def load_reports(
+    root: Path, identity: dict[str, str]
+) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]], dict[str, list[str]]]:
     """(admissible reports, rejected ones, gate -> every path claiming it).
 
     Keyed by filename stem, never by the report's own `gate` field: keying by
@@ -221,8 +241,11 @@ def load_reports(root: Path, identity: dict[str, str]) -> tuple[
         try:
             data = json.loads(p.read_text(encoding="utf-8"))
         except (OSError, ValueError):
-            out[p.stem] = {"gate": p.stem, "status": "UNKNOWN",
-                           "failures": [{"what": f"{p} is unreadable or corrupt"}]}
+            out[p.stem] = {
+                "gate": p.stem,
+                "status": "UNKNOWN",
+                "failures": [{"what": f"{p} is unreadable or corrupt"}],
+            }
             continue
         bad = rejection(p.stem, data, identity)
         if bad is not None:
@@ -234,8 +257,11 @@ def load_reports(root: Path, identity: dict[str, str]) -> tuple[
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--evidence-root", default=str(REPORTS),
-                    help="directory searched recursively for gate reports")
+    ap.add_argument(
+        "--evidence-root",
+        default=str(REPORTS),
+        help="directory searched recursively for gate reports",
+    )
     ns = ap.parse_args()
     root = Path(ns.evidence_root)
 
@@ -247,17 +273,20 @@ def main() -> int:
         # so it cannot be mistaken for a normal red run, and returned as 2 so
         # "could not run" is distinguishable from "ran and something failed".
         bar = "=" * 72
-        print(f"\n{bar}\n[GATE MANIFEST] overall=INFRASTRUCTURE_FAILURE  "
-              f"mergeable=False\n{bar}")
+        print(
+            f"\n{bar}\n[GATE MANIFEST] overall=INFRASTRUCTURE_FAILURE  "
+            f"mergeable=False\n{bar}"
+        )
         print(f"  {exc}")
-        print("\n  No gates is not all gates passing. Nothing was aggregated, "
-              "so nothing is claimed.")
+        print(
+            "\n  No gates is not all gates passing. Nothing was aggregated, "
+            "so nothing is claimed."
+        )
         summary = os.environ.get("GITHUB_STEP_SUMMARY")
         if summary:
             try:
                 with open(summary, "a", encoding="utf-8") as fh:
-                    fh.write(f"## ❌ Gate manifest — INFRASTRUCTURE_FAILURE\n\n"
-                             f"{exc}\n")
+                    fh.write(f"## ❌ Gate manifest — INFRASTRUCTURE_FAILURE\n\n{exc}\n")
             except OSError:
                 pass
         print(f"::error title=gate manifest::{str(exc)[:900]}")
@@ -272,34 +301,45 @@ def main() -> int:
 
     gates: dict[str, dict[str, Any]] = {}
     for name in sorted(set(expected) | set(found) | set(rejected_by)):
-        entry: dict[str, Any] = {"status": "UNKNOWN", "duration_ms": None,
-                                 "evidence": None}
+        entry: dict[str, Any] = {
+            "status": "UNKNOWN",
+            "duration_ms": None,
+            "evidence": None,
+        }
         if name in duplicates:
             # Two authoritative answers for one gate is not redundancy. Refuse
             # to choose; a re-run that left both attempts behind lands here.
-            entry["note"] = (f"{len(duplicates[name])} conflicting reports claim "
-                             f"this gate: {', '.join(duplicates[name])}")
+            entry["note"] = (
+                f"{len(duplicates[name])} conflicting reports claim "
+                f"this gate: {', '.join(duplicates[name])}"
+            )
             gates[name] = entry
             continue
         if name in unexpected:
-            entry["note"] = ("evidence for a gate ci/gates.toml does not "
-                             "declare; it verifies nothing and cannot stand in "
-                             "for a gate that is expected")
+            entry["note"] = (
+                "evidence for a gate ci/gates.toml does not "
+                "declare; it verifies nothing and cannot stand in "
+                "for a gate that is expected"
+            )
             gates[name] = entry
             continue
         bad = rejected_by.get(name)
         if bad is not None:
-            entry["note"] = (f"report rejected — {bad['reason']} "
-                             f"(expected {bad['expected']!r}, found {bad['found']!r})")
+            entry["note"] = (
+                f"report rejected — {bad['reason']} "
+                f"(expected {bad['expected']!r}, found {bad['found']!r})"
+            )
             gates[name] = entry
             continue
         r = found.get(name)
         if r is None:
             # Absence is never success. The job may well be green: a step
             # conditioned away, an upload that failed, an exit 0 after a crash.
-            entry["note"] = ("no report produced — the gate did not run, "
-                             "crashed before writing, or its artifact never "
-                             "arrived")
+            entry["note"] = (
+                "no report produced — the gate did not run, "
+                "crashed before writing, or its artifact never "
+                "arrived"
+            )
             gates[name] = entry
             continue
         gates[name] = {
@@ -330,7 +370,7 @@ def main() -> int:
         "evidence_root": str(root),
         "repository": os.environ.get("GITHUB_REPOSITORY", "local"),
         "ref": os.environ.get("GITHUB_REF", "local"),
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "run_identity": identity,
         "gates_expected": expected,
         "gates_reported": sorted(found),
@@ -347,17 +387,23 @@ def main() -> int:
     }
 
     REPORTS.mkdir(parents=True, exist_ok=True)
-    (REPORTS / MANIFEST_NAME).write_text(json.dumps(out, indent=2),
-                                         encoding="utf-8")
+    (REPORTS / MANIFEST_NAME).write_text(json.dumps(out, indent=2), encoding="utf-8")
 
     icon = "✅" if overall == "PASS" else "❌"
-    lines = [f"## {icon} Gate manifest — {overall}", "",
-             f"commit `{str(identity.get('commit', 'local'))[:12]}` · "
-             f"run `{identity.get('run_id', 'local')}` · "
-             f"attempt `{identity.get('run_attempt', 'local')}`", "",
-             "| Gate | Result | Duration | Evidence |", "|---|---|---|---|"]
-    print(f"\n{'=' * 72}\n[GATE MANIFEST] overall={overall}  "
-          f"mergeable={out['mergeable']}\n{'=' * 72}")
+    lines = [
+        f"## {icon} Gate manifest — {overall}",
+        "",
+        f"commit `{str(identity.get('commit', 'local'))[:12]}` · "
+        f"run `{identity.get('run_id', 'local')}` · "
+        f"attempt `{identity.get('run_attempt', 'local')}`",
+        "",
+        "| Gate | Result | Duration | Evidence |",
+        "|---|---|---|---|",
+    ]
+    print(
+        f"\n{'=' * 72}\n[GATE MANIFEST] overall={overall}  "
+        f"mergeable={out['mergeable']}\n{'=' * 72}"
+    )
     print("  run identity: " + "  ".join(f"{k}={v}" for k, v in identity.items()))
     print(f"  evidence root: {root}  ({len(discover(root))} report file(s))")
     print(f"  expected {len(expected)} gate(s), admissible reports {len(found)}")
@@ -397,8 +443,10 @@ def main() -> int:
     try:
         blocker_report.emit(out, MERGEABLE)
     except Exception as exc:  # noqa: BLE001 - rendering must never decide
-        print(f"\n  [blocker report unavailable: {exc!r}] "
-              f"the verdict above stands; see reports/{MANIFEST_NAME}")
+        print(
+            f"\n  [blocker report unavailable: {exc!r}] "
+            f"the verdict above stands; see reports/{MANIFEST_NAME}"
+        )
 
     return 0 if overall == "PASS" else 1
 

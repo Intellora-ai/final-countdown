@@ -31,8 +31,9 @@ import ast
 import json
 import subprocess
 import sys
-from pathlib import Path
+import tempfile
 from collections.abc import Callable, Sequence
+from pathlib import Path
 from typing import Any, cast
 
 # (test_id, file) pairs eligible for verification. Eligibility is not approval:
@@ -42,11 +43,20 @@ from typing import Any, cast
 # SQL - our regex builder trips it. Both are heuristics, so they get the same
 # treatment as subprocess: an exception is granted only if the claim is
 # re-derived from the source, never because the id was allowlisted.
-HEURISTIC = {("B105", "scripts/gate.py"), ("B105", "scripts/aggregate_gates.py"),
-             ("B608", "scripts/gate_integrity.py")}
+HEURISTIC = {
+    ("B105", "scripts/gate.py"),
+    ("B105", "scripts/aggregate_gates.py"),
+    ("B608", "scripts/gate_integrity.py"),
+}
 
-STATUS_LITERALS = {"PASS", "FAIL", "INFRASTRUCTURE_FAILURE", "SKIPPED",
-                   "NOT_APPLICABLE", "UNKNOWN"}
+STATUS_LITERALS = {
+    "PASS",
+    "FAIL",
+    "INFRASTRUCTURE_FAILURE",
+    "SKIPPED",
+    "NOT_APPLICABLE",
+    "UNKNOWN",
+}
 DB_MODULES = {"sqlite3", "psycopg2", "pymysql", "sqlalchemy", "asyncpg", "MySQLdb"}
 
 
@@ -74,8 +84,9 @@ def check_is_status_literal(path: str, line_no: int) -> tuple[bool, str]:
     # secret into the logs of a public repository the one time it mattered.
     # Naming which known status constant matched carries the same information
     # without the value.
-    return True, ("matched a declared status constant, not a credential; "
-                  "value withheld from logs")
+    return True, (
+        "matched a declared status constant, not a credential; value withheld from logs"
+    )
 
 
 def check_no_sql(path: str, line_no: int) -> tuple[bool, str]:
@@ -93,23 +104,59 @@ def check_no_sql(path: str, line_no: int) -> tuple[bool, str]:
     return True, "no database driver imported; the string is a regex, not a query"
 
 
-ELIGIBLE = {("B404", "scripts/proof_gate.py"), ("B603", "scripts/proof_gate.py"),
-            ("B404", "scripts/security_gate.py"), ("B603", "scripts/security_gate.py"),
-            ("B404", "scripts/axle_health.py"), ("B603", "scripts/axle_health.py"),
-            ("B404", "scripts/gate.py"), ("B603", "scripts/gate.py"),
-            ("B404", "scripts/run_gate.py"), ("B603", "scripts/run_gate.py"),
-            ("B404", "scripts/axle_gate.py"), ("B603", "scripts/axle_gate.py"),
-            ("B404", "scripts/check_ruleset.py"), ("B603", "scripts/check_ruleset.py"),
-            ("B404", "scripts/correspondence_gate.py"),
-            ("B603", "scripts/correspondence_gate.py"),
-            ("B404", "scripts/ruleset_admin.py"),
-            ("B603", "scripts/ruleset_admin.py"),
-            ("B404", "scripts/generate_evidence.py"),
-            ("B603", "scripts/generate_evidence.py"),
-            ("B404", "scripts/tcb_gate.py"),
-            ("B603", "scripts/tcb_gate.py"),
-            ("B404", "scripts/ci_metrics.py"),
-            ("B603", "scripts/ci_metrics.py")}
+ELIGIBLE = {
+    ("B404", "scripts/proof_gate.py"),
+    ("B603", "scripts/proof_gate.py"),
+    ("B404", "scripts/security_gate.py"),
+    ("B603", "scripts/security_gate.py"),
+    ("B404", "scripts/axle_health.py"),
+    ("B603", "scripts/axle_health.py"),
+    ("B404", "scripts/gate.py"),
+    ("B603", "scripts/gate.py"),
+    ("B404", "scripts/run_gate.py"),
+    ("B603", "scripts/run_gate.py"),
+    ("B404", "scripts/axle_gate.py"),
+    ("B603", "scripts/axle_gate.py"),
+    ("B404", "scripts/check_ruleset.py"),
+    ("B603", "scripts/check_ruleset.py"),
+    ("B404", "scripts/correspondence_gate.py"),
+    ("B603", "scripts/correspondence_gate.py"),
+    ("B404", "scripts/ruleset_admin.py"),
+    ("B603", "scripts/ruleset_admin.py"),
+    ("B404", "scripts/generate_evidence.py"),
+    ("B603", "scripts/generate_evidence.py"),
+    ("B404", "scripts/tcb_gate.py"),
+    ("B603", "scripts/tcb_gate.py"),
+    ("B404", "scripts/ci_metrics.py"),
+    ("B603", "scripts/ci_metrics.py"),
+    # merge_evidence_gate.py shells out to `gh` three times: the API
+    # reader, the job-log reader, and the pull request body reader. Being
+    # listed here buys it nothing on its own -- check_subprocess_safety
+    # re-derives the safe pattern from its AST on every run, so the entry
+    # is a claim that gets re-proven, not a suppression that gets
+    # remembered. Delete a `shutil.which` guard or a `timeout=` from that
+    # file and this line stops covering it in the same run.
+    ("B404", "scripts/merge_evidence_gate.py"),
+    ("B603", "scripts/merge_evidence_gate.py"),
+    # local_gates.py runs the required checks that can honestly run offline. It
+    # takes argv arrays from ci/local-execution.toml and never a shell string,
+    # and it resolves argv[0] through shutil.which so PATH cannot decide which
+    # binary executes. Listing it here proves nothing on its own:
+    # check_subprocess_safety re-derives that pattern from its AST every run, so
+    # deleting the `which` guard or the timeout stops this line covering it in
+    # the same run that deleted them.
+    ("B404", "scripts/local_gates.py"),
+    ("B603", "scripts/local_gates.py"),
+    # build_bundle.py calls git three times -- cat-file to prove the SHA names a
+    # real commit, show to read that commit's timestamp, and archive to produce
+    # the source snapshot. All three go through one helper whose argv[0] is bound
+    # exactly once, from shutil.which("git"). Listing it here buys it nothing on
+    # its own: check_subprocess_safety re-derives the pattern from this file's AST
+    # every run, so removing the `which` guard or the timeout stops this line
+    # covering it in the same run that removed them.
+    ("B404", "scripts/build_bundle.py"),
+    ("B603", "scripts/build_bundle.py"),
+}
 
 
 def target_names(node: ast.expr | None) -> list[str]:
@@ -129,14 +176,14 @@ def target_names(node: ast.expr | None) -> list[str]:
 # from `git_facts(...)`. Module-wide, one name looks like two conflicting
 # bindings and the legitimate exception evaporates — a false positive on the
 # repository's own source, which is how a security gate gets switched off.
-SCOPES = (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda,
-          ast.ClassDef)
+SCOPES = (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
 
 Bindings = dict[int, dict[str, list[ast.expr | None]]]
 
 
-def enclosing_scopes(tree: ast.AST) -> tuple[dict[int, ast.AST],
-                                             dict[int, ast.AST | None]]:
+def enclosing_scopes(
+    tree: ast.AST,
+) -> tuple[dict[int, ast.AST], dict[int, ast.AST | None]]:
     """(scope each node belongs to, parent of each scope).
 
     A function node itself belongs to the scope AROUND it — that is where its
@@ -158,8 +205,9 @@ def enclosing_scopes(tree: ast.AST) -> tuple[dict[int, ast.AST],
     return owner, parent
 
 
-def bindings_by_scope(tree: ast.AST) -> tuple[Bindings, dict[int, ast.AST],
-                                              dict[int, ast.AST | None]]:
+def bindings_by_scope(
+    tree: ast.AST,
+) -> tuple[Bindings, dict[int, ast.AST], dict[int, ast.AST | None]]:
     """Every binding of every name, filed under the scope it happens in.
 
     `None` marks a binding whose value this checker cannot read as an
@@ -180,8 +228,13 @@ def bindings_by_scope(tree: ast.AST) -> tuple[Bindings, dict[int, ast.AST],
         table.setdefault(id(scope), {}).setdefault(name, []).append(value)
 
     def bind_args(scope: ast.AST, args: ast.arguments) -> None:
-        for arg in (*args.posonlyargs, *args.args, *args.kwonlyargs,
-                    args.vararg, args.kwarg):
+        for arg in (
+            *args.posonlyargs,
+            *args.args,
+            *args.kwonlyargs,
+            args.vararg,
+            args.kwarg,
+        ):
             if arg is not None:
                 bind(scope, arg.arg, None)
 
@@ -213,8 +266,8 @@ def bindings_by_scope(tree: ast.AST) -> tuple[Bindings, dict[int, ast.AST],
             for alias in node.names:
                 bind(here, (alias.asname or alias.name).split(".")[0], None)
         elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-            bind(here, node.name, None)     # the name binds OUTSIDE the body
-            bind_args(node, node.args)      # the parameters bind INSIDE it
+            bind(here, node.name, None)  # the name binds OUTSIDE the body
+            bind_args(node, node.args)  # the parameters bind INSIDE it
         elif isinstance(node, ast.Lambda):
             bind_args(node, node.args)
         elif isinstance(node, ast.ClassDef):
@@ -235,8 +288,11 @@ def bindings_by_scope(tree: ast.AST) -> tuple[Bindings, dict[int, ast.AST],
 
 def unwrap_cast(value: ast.expr | None) -> ast.expr | None:
     """`typing.cast(T, X)` is a type-level assertion with no runtime effect."""
-    while (isinstance(value, ast.Call) and len(value.args) == 2
-           and ast.unparse(value.func).split(".")[-1] == "cast"):
+    while (
+        isinstance(value, ast.Call)
+        and len(value.args) == 2
+        and ast.unparse(value.func).split(".")[-1] == "cast"
+    ):
         value = value.args[1]
     return value
 
@@ -251,8 +307,9 @@ def resolves_a_path(value: ast.expr | None) -> bool:
     return ast.unparse(inner) == "sys.executable"
 
 
-def make_resolver(tree: ast.AST) -> tuple[
-        Callable[[ast.AST, str], bool], dict[int, ast.AST]]:
+def make_resolver(
+    tree: ast.AST,
+) -> tuple[Callable[[ast.AST, str], bool], dict[int, ast.AST]]:
     """Build `is_resolved(scope, name)` — does that name ALWAYS hold a path
     the process resolved itself, as seen from that scope?
 
@@ -290,14 +347,15 @@ def make_resolver(tree: ast.AST) -> tuple[
             here = parent.get(id(here))
         return None
 
-    def is_resolved(scope: ast.AST, name: str,
-                    seen: frozenset[tuple[int, str]] = frozenset()) -> bool:
+    def is_resolved(
+        scope: ast.AST, name: str, seen: frozenset[tuple[int, str]] = frozenset()
+    ) -> bool:
         home = binding_scope(scope, name)
         if home is None:
-            return False                    # never bound here: nothing proven
+            return False  # never bound here: nothing proven
         key = (id(home), name)
         if key in seen:
-            return False                    # an alias cycle proves nothing
+            return False  # an alias cycle proves nothing
         values = table[id(home)][name]
         # Aliasing: `narrowed = exe` is still a resolved path when every
         # binding of `exe` is. Narrowing a value for the type checker must not
@@ -305,7 +363,8 @@ def make_resolver(tree: ast.AST) -> tuple[
         return bool(values) and all(
             resolves_a_path(v)
             or (isinstance(v, ast.Name) and is_resolved(home, v.id, seen | {key}))
-            for v in values)
+            for v in values
+        )
 
     return is_resolved, owner
 
@@ -316,8 +375,10 @@ def check_subprocess_safety(path: str) -> tuple[bool, str]:
     is_resolved, scope_of = make_resolver(tree)
 
     calls = [
-        n for n in ast.walk(tree)
-        if isinstance(n, ast.Call) and ast.unparse(n.func) in {"subprocess.run", "subprocess.Popen"}
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call)
+        and ast.unparse(n.func) in {"subprocess.run", "subprocess.Popen"}
     ]
     if not calls:
         return False, "no subprocess call found — stale exception"
@@ -325,30 +386,39 @@ def check_subprocess_safety(path: str) -> tuple[bool, str]:
     evidence: list[str] = []
     for call in calls:
         kw = {k.arg: k.value for k in call.keywords}
-        if "shell" in kw and not (isinstance(kw["shell"], ast.Constant) and kw["shell"].value is False):
+        if "shell" in kw and not (
+            isinstance(kw["shell"], ast.Constant) and kw["shell"].value is False
+        ):
             return False, "shell=True"
         if not call.args or not isinstance(call.args[0], ast.List):
             return False, "argv is not a list literal"
         head = call.args[0].elts[0]
         head_src = ast.unparse(head)
-        resolved = (isinstance(head, ast.Name)
-                    and is_resolved(scope_of[id(call)], head.id)) \
-            or head_src == "sys.executable"
+        resolved = (
+            isinstance(head, ast.Name) and is_resolved(scope_of[id(call)], head.id)
+        ) or head_src == "sys.executable"
         if not resolved:
             if isinstance(head, ast.Name):
                 return False, (
                     f"argv[0] is {head_src!r}, and that name is bound in its "
                     "scope by something other than shutil.which(...) or "
                     "sys.executable — what it holds at the call is not decided "
-                    "here")
-            return False, (f"argv[0] is {head_src!r} — not shutil.which(...) "
-                           "and not sys.executable")
+                    "here"
+                )
+            return False, (
+                f"argv[0] is {head_src!r} — not shutil.which(...) "
+                "and not sys.executable"
+            )
         if "timeout" not in kw:
             return False, "no timeout"
-        origin = "sys.executable" if head_src == "sys.executable" else (
-            f"{head_src}, every binding in its scope from shutil.which")
+        origin = (
+            "sys.executable"
+            if head_src == "sys.executable"
+            else (f"{head_src}, every binding in its scope from shutil.which")
+        )
         evidence.append(
-            f"shell=False, argv list literal, argv[0]={origin}, timeout set")
+            f"shell=False, argv list literal, argv[0]={origin}, timeout set"
+        )
     return True, "; ".join(evidence)
 
 
@@ -366,31 +436,101 @@ def run_bandit(targets: Sequence[str]) -> list[dict[str, Any]]:
     `.get`-with-a-default: a report missing any of them is unusable, and
     unusable must not read as clean.
     """
-    out = subprocess.run(
-        [sys.executable, "-m", "bandit", "-r", *targets, "-f", "json",
-         "--severity-level", "low", "--confidence-level", "low"],
-        capture_output=True, text=True, timeout=300,
-    )
+    # THE REPORT IS READ FROM A FILE, NOT FROM STDOUT, AND THAT IS THE FIX.
+    #
+    # This function used to do `json.loads(out.stdout)`. bandit renders a rich
+    # progress bar ("Working... ---- 100%") onto that same stream, ahead of the
+    # JSON, and then json.loads dies at "line 1 column 1 (char 0)" and the gate
+    # exits 2 --- a security gate going red with a root cause that reads like a
+    # JSON error and has nothing to do with the code being scanned.
+    #
+    # AN EARLIER VERSION OF THIS COMMENT SAID THE TRIGGER WAS DURATION, that
+    # the bar appeared "once the scan runs long enough", past roughly two
+    # seconds. THAT WAS WRONG, and it was falsified by measurement rather than
+    # by argument:
+    #
+    #     with the extra file:     16891ms   first char 'W'   JSON broken
+    #     without the extra file:  19064ms   first char '{'   JSON fine
+    #
+    # The SLOWER run produced clean JSON. Whatever flips bandit's progress
+    # rendering, elapsed time is not it. That matters because a wrong mechanism
+    # invites a fix aimed at the wrong thing: believing it was duration made
+    # `-q` look like a complete answer, when `-q` only suppresses one way this
+    # stream gets polluted.
+    #
+    # THE REAL DEFECT WAS THE ASSUMPTION. Nothing in bandit promises stdout is
+    # pure JSON. A bandit upgrade, a different terminal, a plugin that warns on
+    # startup --- any of them re-breaks a parser that trusts the stream. `-o`
+    # removes the dependency entirely: the report goes to a file, and whatever
+    # bandit prints to the console cannot corrupt it.
+    #
+    # This is the pattern the repository already uses one file away, in
+    # `bandit_sarif()` in tests/test_sarif_suppress.py. There were two call
+    # sites and only one of them was right.
+    #
+    # `-q` is kept as well. It is not redundant: it keeps the console readable
+    # in CI logs, which is worth something on its own now that correctness no
+    # longer rests on it.
+    with tempfile.TemporaryDirectory() as tmp:
+        report_path = Path(tmp) / "bandit.json"
+        out = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "bandit",
+                "-r",
+                *targets,
+                "-q",
+                "-f",
+                "json",
+                "-o",
+                str(report_path),
+                "--severity-level",
+                "low",
+                "--confidence-level",
+                "low",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        try:
+            raw = report_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            # NO REPORT IS NOT A CLEAN SCAN, exactly as an empty result set is
+            # not. bandit failing before it could write is the one case where
+            # stdout/stderr is all the evidence there is, so it is printed.
+            print(f"  bandit wrote no report file: {exc}", file=sys.stderr)
+            print(out.stdout[:400] or out.stderr[:400], file=sys.stderr)
+            sys.exit(2)
+
     try:
-        report = cast("dict[str, Any]", json.loads(out.stdout))
+        report = cast("dict[str, Any]", json.loads(raw))
         errors = cast("list[dict[str, Any]]", report["errors"])
         metrics = cast("dict[str, Any]", report["metrics"])
         results = cast("list[dict[str, Any]]", report["results"])
     except (ValueError, KeyError, TypeError) as exc:
         print(f"  bandit emitted no usable JSON report: {exc}", file=sys.stderr)
-        print(out.stdout[:400] or out.stderr[:400], file=sys.stderr)
+        print(raw[:400] or out.stderr[:400], file=sys.stderr)
         sys.exit(2)
 
     if errors:
         for err in errors:
-            print(f"  BANDIT ERROR  {err.get('filename')}: {err.get('reason')}",
-                  file=sys.stderr)
-        print(f"\n  FAIL — bandit could not read {len(errors)} target(s); a file "
-              "it never scanned is not a file it found clean", file=sys.stderr)
+            print(
+                f"  BANDIT ERROR  {err.get('filename')}: {err.get('reason')}",
+                file=sys.stderr,
+            )
+        print(
+            f"\n  FAIL — bandit could not read {len(errors)} target(s); a file "
+            "it never scanned is not a file it found clean",
+            file=sys.stderr,
+        )
         sys.exit(2)
     if not [name for name in metrics if name != "_totals"]:
-        print(f"\n  FAIL — bandit scanned no files under {', '.join(targets)}",
-              file=sys.stderr)
+        print(
+            f"\n  FAIL — bandit scanned no files under {', '.join(targets)}",
+            file=sys.stderr,
+        )
         sys.exit(2)
     return results
 
@@ -401,7 +541,15 @@ def main(targets: Sequence[str]) -> int:
     unresolved: list[dict[str, Any]] = []
 
     for f in findings:
-        key = (f["test_id"], f["filename"].lstrip("./"))
+        # `removeprefix`, never `lstrip`. `lstrip` strips a character SET, so
+        # a finding in any dot-directory (".github/workflows/x.py") arrives
+        # here as "github/workflows/x.py" -- a path that is not in the tree.
+        # That string is half of the key ELIGIBLE and HEURISTIC are matched
+        # on, so a declared exception would stop being found and the checker
+        # below would read a file that does not exist. It fails closed today,
+        # but it fails for the wrong reason and would be unexplainable from
+        # the output. Latent only while the scan roots are src and scripts.
+        key = (f["test_id"], f["filename"].removeprefix("./"))
         if key in HEURISTIC:
             checker = check_is_status_literal if key[0] == "B105" else check_no_sql
             ok, evidence = checker(key[1], f["line_number"])
@@ -430,11 +578,15 @@ def main(targets: Sequence[str]) -> int:
         # that IS the candidate credential. Print the rule id and location; the
         # reader opens the file. Same reason as check_is_status_literal above.
         detail = f.get("_reason") or str(f.get("test_name") or f["test_id"])
-        print(f"  UNRESOLVED  {f['test_id']} {f['filename'].lstrip('./')}"
-              f":{f['line_number']}  {detail}")
+        print(
+            f"  UNRESOLVED  {f['test_id']} {f['filename'].removeprefix('./')}"
+            f":{f['line_number']}  {detail}"
+        )
 
     if unresolved:
-        print(f"\n  FAIL — {len(unresolved)} finding(s) not covered by a verified safe pattern")
+        print(
+            f"\n  FAIL — {len(unresolved)} finding(s) not covered by a verified safe pattern"
+        )
         return 1
     print(f"\n  PASS (with {len(verified)} verified exceptions)")
     return 0

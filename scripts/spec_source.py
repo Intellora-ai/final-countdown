@@ -5,13 +5,13 @@ Filename arithmetic (`${spec/specs/src}`) breaks as soon as one function has two
 specs: `specs/addid_spec.lean` maps to `src/addid.py`, which does not exist. The
 spec already names its subject in the `def` line, so read it from there.
 """
+
 import re
 import sys
 from pathlib import Path
 
-
 # Lean block comment, including the /-- doc form. Non-greedy: the first -/ ends it.
-BLOCK_COMMENT = re.compile(r'/-.*?-/', re.DOTALL)
+BLOCK_COMMENT = re.compile(r"/-.*?-/", re.DOTALL)
 
 
 def source_for(spec_file: str) -> Path | None:
@@ -26,7 +26,7 @@ def source_for(spec_file: str) -> Path | None:
     # contract_strength, check_vacuity, check_composition, honest_report) then
     # verified a source file against a spec that defines nothing. A
     # commented-out definition is not a definition, so the comments go first.
-    m = re.search(r'^def\s+(\w+)', BLOCK_COMMENT.sub('', text), re.MULTILINE)
+    m = re.search(r"^def\s+(\w+)", BLOCK_COMMENT.sub("", text), re.MULTILINE)
     if not m:
         return None
     candidate = Path("src") / f"{m.group(1)}.py"

@@ -123,8 +123,15 @@ from typing import Any
 class SpecParseError(Exception):
     """Base: the spec is not in the supported subset. Never recoverable."""
 
-    def __init__(self, message: str, text: str, position: int, line: int,
-                 column: int, spec_file: str | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        text: str,
+        position: int,
+        line: int,
+        column: int,
+        spec_file: str | None = None,
+    ) -> None:
         self.message = message
         self.text = text
         self.position = position
@@ -229,8 +236,8 @@ class SpecFile:
 
 @dataclass(frozen=True)
 class Token:
-    kind: str          # IDENT INT OP LPAREN RPAREN COLON ASSIGN KEYWORD
-    text: str          # UNSUPPORTED EOF
+    kind: str  # IDENT INT OP LPAREN RPAREN COLON ASSIGN KEYWORD
+    text: str  # UNSUPPORTED EOF
     position: int
     line: int
     column: int
@@ -242,13 +249,46 @@ STRUCTURAL_KEYWORDS: frozenset[str] = frozenset({"def", "theorem", "by"})
 
 # Recognised Lean words this subset excludes. Tokenized so the rejection can
 # name the construct instead of blaming an arbitrary character.
-UNSUPPORTED_WORDS: frozenset[str] = frozenset({
-    "fun", "match", "with", "if", "then", "else", "let", "do", "where",
-    "instance", "class", "structure", "example", "lemma", "variable", "open",
-    "namespace", "end", "mutual", "partial", "noncomputable", "deriving",
-    "have", "show", "calc", "forall", "exists", "attribute", "macro",
-    "notation", "abbrev", "inductive", "axiom", "section", "import", "set_option",
-})
+UNSUPPORTED_WORDS: frozenset[str] = frozenset(
+    {
+        "fun",
+        "match",
+        "with",
+        "if",
+        "then",
+        "else",
+        "let",
+        "do",
+        "where",
+        "instance",
+        "class",
+        "structure",
+        "example",
+        "lemma",
+        "variable",
+        "open",
+        "namespace",
+        "end",
+        "mutual",
+        "partial",
+        "noncomputable",
+        "deriving",
+        "have",
+        "show",
+        "calc",
+        "forall",
+        "exists",
+        "attribute",
+        "macro",
+        "notation",
+        "abbrev",
+        "inductive",
+        "axiom",
+        "section",
+        "import",
+        "set_option",
+    }
+)
 
 # Two-character symbols must be tried before one-character ones.
 _SYMBOLS: tuple[tuple[str, str], ...] = (
@@ -269,26 +309,83 @@ _SYMBOLS: tuple[tuple[str, str], ...] = (
     ("∨", "OP"),
 )
 
-UNSUPPORTED_SYMBOLS: frozenset[str] = frozenset({
-    "→", "↔", "∀", "∃", "λ", "Σ", "Π", "¬", ",", "{", "}", "[", "]", "⟨", "⟩",
-    "/", "%", "|", "^", "&", "!", "@", "$", ".", "_", "'", '"', ";", "⊢", "×",
-    "≡", "∘", "⇒", "⟹", "~", "?", "`", "\\", "∈", "∉", "⊆", "∪", "∩",
-})
+UNSUPPORTED_SYMBOLS: frozenset[str] = frozenset(
+    {
+        "→",
+        "↔",
+        "∀",
+        "∃",
+        "λ",
+        "Σ",
+        "Π",
+        "¬",
+        ",",
+        "{",
+        "}",
+        "[",
+        "]",
+        "⟨",
+        "⟩",
+        "/",
+        "%",
+        "|",
+        "^",
+        "&",
+        "!",
+        "@",
+        "$",
+        ".",
+        "_",
+        "'",
+        '"',
+        ";",
+        "⊢",
+        "×",
+        "≡",
+        "∘",
+        "⇒",
+        "⟹",
+        "~",
+        "?",
+        "`",
+        "\\",
+        "∈",
+        "∉",
+        "⊆",
+        "∪",
+        "∩",
+    }
+)
 
 _UNSUPPORTED_REASON: dict[str, str] = {
-    "λ": "lambda abstraction", "fun": "lambda abstraction",
-    "match": "pattern match", "with": "pattern match",
-    "Σ": "dependent pair (Sigma type)", "Π": "dependent function (Pi type)",
-    "∀": "universal quantifier", "∃": "existential quantifier",
-    "→": "implication / function arrow", "↔": "if-and-only-if",
-    "¬": "negation", "[": "typeclass or instance binder",
+    "λ": "lambda abstraction",
+    "fun": "lambda abstraction",
+    "match": "pattern match",
+    "with": "pattern match",
+    "Σ": "dependent pair (Sigma type)",
+    "Π": "dependent function (Pi type)",
+    "∀": "universal quantifier",
+    "∃": "existential quantifier",
+    "→": "implication / function arrow",
+    "↔": "if-and-only-if",
+    "¬": "negation",
+    "[": "typeclass or instance binder",
     "]": "typeclass or instance binder",
-    "{": "implicit binder", "}": "implicit binder",
-    "⟨": "anonymous constructor", "⟩": "anonymous constructor",
-    "/": "division", "%": "modulo", ",": "comma",
-    "_": "placeholder", ".": "field access or namespace",
-    "if": "conditional", "then": "conditional", "else": "conditional",
-    "let": "let binding", "have": "have binding", "do": "do notation",
+    "{": "implicit binder",
+    "}": "implicit binder",
+    "⟨": "anonymous constructor",
+    "⟩": "anonymous constructor",
+    "/": "division",
+    "%": "modulo",
+    ",": "comma",
+    "_": "placeholder",
+    ".": "field access or namespace",
+    "if": "conditional",
+    "then": "conditional",
+    "else": "conditional",
+    "let": "let binding",
+    "have": "have binding",
+    "do": "do notation",
 }
 
 
@@ -341,8 +438,9 @@ def strip_comments(text: str, spec_file: str | None = None) -> str:
         i += 1
     if depth > 0:
         line, column = _line_col(text, block_start)
-        raise SpecTokenizeError("unterminated block comment", "/-", block_start,
-                                line, column, spec_file)
+        raise SpecTokenizeError(
+            "unterminated block comment", "/-", block_start, line, column, spec_file
+        )
     return "".join(out)
 
 
@@ -361,8 +459,13 @@ def tokenize(source: str, spec_file: str | None = None) -> list[Token]:
         if ch in UNSUPPORTED_SYMBOLS:
             reason = _UNSUPPORTED_REASON.get(ch, "construct")
             raise UnsupportedConstructError(
-                f"{reason} is outside the supported Lean subset", ch, i,
-                line, column, spec_file)
+                f"{reason} is outside the supported Lean subset",
+                ch,
+                i,
+                line,
+                column,
+                spec_file,
+            )
 
         matched = False
         for symbol, kind in _SYMBOLS:
@@ -392,15 +495,21 @@ def tokenize(source: str, spec_file: str | None = None) -> list[Token]:
             if word in UNSUPPORTED_WORDS:
                 reason = _UNSUPPORTED_REASON.get(word, f"`{word}`")
                 raise UnsupportedConstructError(
-                    f"{reason} is outside the supported Lean subset", word, i,
-                    line, column, spec_file)
+                    f"{reason} is outside the supported Lean subset",
+                    word,
+                    i,
+                    line,
+                    column,
+                    spec_file,
+                )
             kind = "KEYWORD" if word in STRUCTURAL_KEYWORDS else "IDENT"
             tokens.append(Token(kind, word, i, line, column))
             i = j
             continue
 
-        raise SpecTokenizeError("character is not in the supported alphabet",
-                                ch, i, line, column, spec_file)
+        raise SpecTokenizeError(
+            "character is not in the supported alphabet", ch, i, line, column, spec_file
+        )
 
     tokens.append(Token("EOF", "", n, *_line_col(source, n)))
     return tokens
@@ -435,9 +544,14 @@ class _Parser:
         return token
 
     def _fail(self, token: Token, message: str) -> SpecSyntaxError:
-        return SpecSyntaxError(message, token.text or "<end of input>",
-                               token.position, token.line, token.column,
-                               self._spec_file)
+        return SpecSyntaxError(
+            message,
+            token.text or "<end of input>",
+            token.position,
+            token.line,
+            token.column,
+            self._spec_file,
+        )
 
     def _expect(self, kind: str, message: str, text: str | None = None) -> Token:
         token = self._peek()
@@ -452,8 +566,10 @@ class _Parser:
             raise self._fail(token, f"{role} is not a valid identifier")
         if keyword.iskeyword(name) or keyword.issoftkeyword(name):
             raise self._fail(
-                token, f"{role} {name!r} is a Python keyword and cannot be "
-                       "translated into an executable claim")
+                token,
+                f"{role} {name!r} is a Python keyword and cannot be "
+                "translated into an executable claim",
+            )
         return name
 
     # -- declarations ------------------------------------------------------
@@ -467,18 +583,23 @@ class _Parser:
             elif token.kind == "KEYWORD" and token.text == "theorem":
                 if theorem is not None:
                     raise self._fail(
-                        token, "a spec file declares exactly one theorem; "
-                               "a second one is ambiguous about what is scored")
+                        token,
+                        "a spec file declares exactly one theorem; "
+                        "a second one is ambiguous about what is scored",
+                    )
                 theorem = self._parse_theorem(tuple(d.name for d in defs))
             else:
-                raise self._fail(
-                    token, "expected a `def` or `theorem` declaration")
+                raise self._fail(token, "expected a `def` or `theorem` declaration")
         if theorem is None:
             end = self._tokens[-1]
             raise SpecSyntaxError(
                 "no `theorem <name>_spec ... := by ...` declaration found",
-                end.text or "<end of input>", end.position, end.line,
-                end.column, self._spec_file)
+                end.text or "<end of input>",
+                end.position,
+                end.line,
+                end.column,
+                self._spec_file,
+            )
         return SpecFile(tuple(defs), theorem)
 
     def _parse_def(self, known_defs: tuple[str, ...]) -> DefDecl:
@@ -486,21 +607,23 @@ class _Parser:
         name_token = self._expect("IDENT", "expected a name after `def`")
         name = self._check_name(name_token, "def name")
         if name in BUILTIN_CALLS:
-            raise self._fail(name_token,
-                             f"def name {name!r} shadows a builtin function")
+            raise self._fail(
+                name_token, f"def name {name!r} shadows a builtin function"
+            )
         binders, hypotheses = self._parse_binders(known_defs + (name,))
         if hypotheses:
-            raise self._fail(self._peek(),
-                             "a `def` cannot take a hypothesis binder")
+            raise self._fail(self._peek(), "a `def` cannot take a hypothesis binder")
         if not binders:
-            raise self._fail(self._peek(),
-                             "a `def` must take at least one value binder")
+            raise self._fail(
+                self._peek(), "a `def` must take at least one value binder"
+            )
         self._expect("COLON", "expected `:` before the def's return type")
         return_type = self._parse_type()
         self._expect("ASSIGN", "expected `:=` before the def's body")
         bound = frozenset(n for b in binders for n in b.names)
-        body = self._parse_expression(bound, frozenset(BUILTIN_CALLS)
-                                      | set(known_defs) | {name})
+        body = self._parse_expression(
+            bound, frozenset(BUILTIN_CALLS) | set(known_defs) | {name}
+        )
         return DefDecl(name, tuple(binders), return_type, body)
 
     def _parse_theorem(self, known_defs: tuple[str, ...]) -> TheoremDecl:
@@ -511,7 +634,8 @@ class _Parser:
             raise self._fail(
                 name_token,
                 "theorem name must end in `_spec`; the function under test is "
-                "the name with that suffix removed")
+                "the name with that suffix removed",
+            )
         function_name = name[: -len("_spec")]
         if not function_name:
             raise self._fail(name_token, "theorem name is only the `_spec` suffix")
@@ -519,18 +643,21 @@ class _Parser:
             raise self._fail(
                 name_token,
                 f"no `def {function_name}` appears before this theorem, so the "
-                "claim is not about a function this file defines")
+                "claim is not about a function this file defines",
+            )
 
         binders, hypotheses = self._parse_binders(known_defs)
         if not binders:
-            raise self._fail(self._peek(),
-                             "theorem must declare at least one value binder")
+            raise self._fail(
+                self._peek(), "theorem must declare at least one value binder"
+            )
         types = {b.type_name for b in binders}
         if len(types) != 1:
             raise self._fail(
                 self._peek(),
                 f"value binders mix types {sorted(types)}; one input strategy "
-                "cannot cover both")
+                "cannot cover both",
+            )
 
         self._expect("COLON", "expected `:` before the theorem's claim")
         bound = frozenset(n for b in binders for n in b.names)
@@ -538,16 +665,19 @@ class _Parser:
         conclusion = self._parse_expression(bound, calls)
         self._expect("ASSIGN", "expected `:=` before the proof body")
         self._expect("KEYWORD", "expected `by` after `:=`", "by")
-        self._expect("IDENT", "expected a single tactic identifier after `by`; "
-                              "tactic blocks are not supported")
-        return TheoremDecl(name, function_name, tuple(binders),
-                           tuple(hypotheses), conclusion)
+        self._expect(
+            "IDENT",
+            "expected a single tactic identifier after `by`; "
+            "tactic blocks are not supported",
+        )
+        return TheoremDecl(
+            name, function_name, tuple(binders), tuple(hypotheses), conclusion
+        )
 
     def _parse_type(self) -> str:
         token = self._peek()
         if token.kind != "IDENT" or token.text not in TYPE_NAMES:
-            raise self._fail(
-                token, f"expected one of {sorted(TYPE_NAMES)} as the type")
+            raise self._fail(token, f"expected one of {sorted(TYPE_NAMES)} as the type")
         self._advance()
         return token.text
 
@@ -564,19 +694,21 @@ class _Parser:
             ahead += 1
         if self._peek(ahead).kind != "COLON":
             return False
-        return (self._peek(ahead + 1).kind == "IDENT"
-                and self._peek(ahead + 2).kind == "RPAREN")
+        return (
+            self._peek(ahead + 1).kind == "IDENT"
+            and self._peek(ahead + 2).kind == "RPAREN"
+        )
 
-    def _parse_binders(self, known_defs: tuple[str, ...]
-                       ) -> tuple[list[Binder], list[Expr]]:
+    def _parse_binders(
+        self, known_defs: tuple[str, ...]
+    ) -> tuple[list[Binder], list[Expr]]:
         binders: list[Binder] = []
         hypotheses: list[Expr] = []
         while self._peek().kind == "LPAREN":
             if self._looks_like_value_binder():
                 binders.append(self._parse_value_binder(known_defs))
             else:
-                hypotheses.append(self._parse_hypothesis_binder(
-                    binders, known_defs))
+                hypotheses.append(self._parse_hypothesis_binder(binders, known_defs))
         return binders, hypotheses
 
     def _parse_value_binder(self, known_defs: tuple[str, ...]) -> Binder:
@@ -589,7 +721,8 @@ class _Parser:
                 raise self._fail(
                     token,
                     f"binder {name!r} shadows a function name; the claim would "
-                    "be ambiguous about which one it means")
+                    "be ambiguous about which one it means",
+                )
             if name in names:
                 raise self._fail(token, f"binder {name!r} is declared twice")
             names.append(name)
@@ -600,11 +733,13 @@ class _Parser:
         self._expect("RPAREN", "expected `)` to close the binder group")
         return Binder(tuple(names), type_name)
 
-    def _parse_hypothesis_binder(self, binders: list[Binder],
-                                 known_defs: tuple[str, ...]) -> Expr:
+    def _parse_hypothesis_binder(
+        self, binders: list[Binder], known_defs: tuple[str, ...]
+    ) -> Expr:
         self._expect("LPAREN", "expected `(` to open a hypothesis binder")
         name_token = self._expect(
-            "IDENT", "a hypothesis binder names exactly one proof term")
+            "IDENT", "a hypothesis binder names exactly one proof term"
+        )
         self._check_name(name_token, "hypothesis name")
         self._expect("COLON", "expected `:` in the hypothesis binder")
         bound = frozenset(n for b in binders for n in b.names)
@@ -614,8 +749,9 @@ class _Parser:
         return condition
 
     # -- expressions -------------------------------------------------------
-    def parse_standalone_expression(self, bound: frozenset[str],
-                                    calls: frozenset[str]) -> Expr:
+    def parse_standalone_expression(
+        self, bound: frozenset[str], calls: frozenset[str]
+    ) -> Expr:
         """One expression and nothing else. Trailing input is a failure."""
         node = self._parse_expression(bound, calls)
         trailing = self._peek()
@@ -623,8 +759,7 @@ class _Parser:
             raise self._fail(trailing, "trailing input after the expression")
         return node
 
-    def _parse_expression(self, bound: frozenset[str],
-                          calls: frozenset[str]) -> Expr:
+    def _parse_expression(self, bound: frozenset[str], calls: frozenset[str]) -> Expr:
         previous = (self._bound, self._calls)
         self._bound, self._calls = bound, calls
         try:
@@ -655,8 +790,10 @@ class _Parser:
             after = self._peek()
             if after.kind == "OP" and after.text in _CMP_OPS:
                 raise self._fail(
-                    after, "comparison operators do not chain in this subset; "
-                           "write the conjunction with `∧`")
+                    after,
+                    "comparison operators do not chain in this subset; "
+                    "write the conjunction with `∧`",
+                )
             return BinOp(token.text, node, right)
         return node
 
@@ -694,20 +831,28 @@ class _Parser:
         node = self._atom()
         if not self._starts_atom(self._peek()):
             # A function name standing alone is not a value in this subset.
-            if (isinstance(node, Var) and node.name not in self._bound
-                    and node.name in self._calls):
+            if (
+                isinstance(node, Var)
+                and node.name not in self._bound
+                and node.name in self._calls
+            ):
                 raise self._fail(
                     head_token,
                     f"{node.name!r} is a function and must be applied to "
-                    "arguments; it is not a value")
+                    "arguments; it is not a value",
+                )
             return node
         # Juxtaposition: only a named function can be applied.
-        if (not isinstance(node, Var) or node.name in self._bound
-                or node.name not in self._calls):
+        if (
+            not isinstance(node, Var)
+            or node.name in self._bound
+            or node.name not in self._calls
+        ):
             raise self._fail(
                 head_token,
                 "only `min`, `max`, `abs` and functions defined by a `def` in "
-                "this file can be applied to arguments")
+                "this file can be applied to arguments",
+            )
         args: list[Expr] = []
         while self._starts_atom(self._peek()):
             args.append(self._atom())
@@ -728,13 +873,14 @@ class _Parser:
                 # A function name with no arguments is not a value here.
                 return Var(token.text)
             raise self._fail(
-                token, f"{token.text!r} is not bound by any binder and is not a "
-                       "function this file defines")
+                token,
+                f"{token.text!r} is not bound by any binder and is not a "
+                "function this file defines",
+            )
         if token.kind == "LPAREN":
             self._advance()
             inner = self._or_expr()
-            self._expect("RPAREN", "expected `)` to close a parenthesised "
-                                   "expression")
+            self._expect("RPAREN", "expected `)` to close a parenthesised expression")
             return inner
         raise self._fail(token, "expected an identifier, an integer or `(`")
 
@@ -744,16 +890,33 @@ class _Parser:
 # ==========================================================================
 
 _PRECEDENCE: dict[str, int] = {
-    "∨": 1, "∧": 2,
-    "=": 3, "≠": 3, "≤": 3, "<": 3, "≥": 3, ">": 3,
-    "+": 4, "-": 4, "*": 5,
+    "∨": 1,
+    "∧": 2,
+    "=": 3,
+    "≠": 3,
+    "≤": 3,
+    "<": 3,
+    "≥": 3,
+    ">": 3,
+    "+": 4,
+    "-": 4,
+    "*": 5,
 }
 _ATOM_PRECEDENCE = 7
 _UNARY_PRECEDENCE = 6
 
 _PYTHON_OPS: dict[str, str] = {
-    "∨": "or", "∧": "and", "=": "==", "≠": "!=", "≤": "<=", "≥": ">=",
-    "<": "<", ">": ">", "+": "+", "-": "-", "*": "*",
+    "∨": "or",
+    "∧": "and",
+    "=": "==",
+    "≠": "!=",
+    "≤": "<=",
+    "≥": ">=",
+    "<": "<",
+    ">": ">",
+    "+": "+",
+    "-": "-",
+    "*": "*",
 }
 
 
@@ -762,7 +925,11 @@ def _render(node: Expr, min_precedence: int, python: bool) -> str:
         return node.name
     if isinstance(node, IntLit):
         text = str(node.value)
-        return f"({text})" if node.value < 0 and min_precedence > _UNARY_PRECEDENCE else text
+        return (
+            f"({text})"
+            if node.value < 0 and min_precedence > _UNARY_PRECEDENCE
+            else text
+        )
     if isinstance(node, App):
         if python:
             inner = ", ".join(_render(a, 0, python) for a in node.args)
@@ -801,19 +968,25 @@ def expr_to_lean(node: Expr) -> str:
 # ==========================================================================
 
 
-def parse_expression(text: str, *, bound: Sequence[str],
-                     calls: Sequence[str] = (),
-                     spec_file: str | None = None) -> Expr:
+def parse_expression(
+    text: str,
+    *,
+    bound: Sequence[str],
+    calls: Sequence[str] = (),
+    spec_file: str | None = None,
+) -> Expr:
     """Parse a standalone Lean expression. Raises on anything unsupported."""
     tokens = tokenize(strip_comments(text, spec_file), spec_file)
     return _Parser(tokens, spec_file).parse_standalone_expression(
-        frozenset(bound), frozenset(BUILTIN_CALLS) | set(calls))
+        frozenset(bound), frozenset(BUILTIN_CALLS) | set(calls)
+    )
 
 
 def parse_spec_text(text: str, spec_file: str | None = None) -> SpecFile:
     """Full Lean spec text -> typed AST. Raises SpecParseError on anything else."""
-    return _Parser(tokenize(strip_comments(text, spec_file), spec_file),
-                   spec_file).parse_file()
+    return _Parser(
+        tokenize(strip_comments(text, spec_file), spec_file), spec_file
+    ).parse_file()
 
 
 def parse_lean_spec(spec_file: str) -> dict[str, Any]:
@@ -827,16 +1000,20 @@ def parse_lean_spec(spec_file: str) -> dict[str, Any]:
         with open(spec_file, "r", encoding="utf-8") as handle:
             content = handle.read()
     except OSError as exc:
-        raise SpecFileError(f"cannot read spec file ({exc.strerror})",
-                            spec_file, 0, 1, 1, spec_file) from exc
+        raise SpecFileError(
+            f"cannot read spec file ({exc.strerror})", spec_file, 0, 1, 1, spec_file
+        ) from exc
 
     parsed = parse_spec_text(content, spec_file)
     theorem = parsed.theorem
 
     hypothesis_ast: Expr | None = None
     for condition in theorem.hypotheses:
-        hypothesis_ast = (condition if hypothesis_ast is None
-                          else BinOp("∧", hypothesis_ast, condition))
+        hypothesis_ast = (
+            condition
+            if hypothesis_ast is None
+            else BinOp("∧", hypothesis_ast, condition)
+        )
 
     return {
         "function_name": theorem.function_name,
@@ -906,13 +1083,15 @@ def generate_hypothesis_test(spec_info: dict[str, Any]) -> str:
     # what silencing a warning usually buys.
     settings = ""
     if guard:
-        settings = ("@settings(max_examples=500,\n"
-                    "          suppress_health_check=[HealthCheck.filter_too_much])\n")
+        settings = (
+            "@settings(max_examples=500,\n"
+            "          suppress_health_check=[HealthCheck.filter_too_much])\n"
+        )
 
     # Parameters are annotated and `assume` is imported only when a
     # precondition exists: pyright strict rejects untyped params and unused
     # imports, and generated files are checked like any other source.
-    imports = ("HealthCheck, assume, given, settings" if guard else "given")
+    imports = "HealthCheck, assume, given, settings" if guard else "given"
     params = ", ".join(f"{a}: int" for a in args)
     return f'''"""Auto-generated from specs/{func}_spec.lean by scripts/spec_to_test.py.
 
@@ -924,7 +1103,7 @@ from hypothesis import {imports}, strategies as st
 from src.{func} import {func}
 
 
-{settings}@given({', '.join(strategy for _ in args)})
+{settings}@given({", ".join(strategy for _ in args)})
 def test_{func}_spec({params}) -> None:
 {guard}    assert {assertion}
 '''

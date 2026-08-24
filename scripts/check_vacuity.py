@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Gate: reject specs whose precondition is (almost) never satisfiable."""
+
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from spec_source import source_for
-from spec_strength import build_property, load_module, RUN, INTS, SpecViolation
-from spec_to_test import SpecParseError, parse_lean_spec
 from hypothesis import given
+from spec_source import source_for
+from spec_strength import INTS, RUN, SpecViolation, build_property, load_module
+from spec_to_test import SpecParseError, parse_lean_spec
 
 FLOOR = 0.01
 
@@ -16,8 +18,10 @@ if __name__ == "__main__":
         # examined no spec at all. Same class as an empty scan uploading a
         # valid-but-blank report: the set has to be non-empty before any
         # statement about its members means anything.
-        print("❌ no spec files given — this gate would have checked nothing",
-              file=sys.stderr)
+        print(
+            "❌ no spec files given — this gate would have checked nothing",
+            file=sys.stderr,
+        )
         sys.exit(1)
     bad = False
     for spec in sys.argv[1:]:
@@ -26,12 +30,17 @@ if __name__ == "__main__":
         try:
             info = parse_lean_spec(spec)
         except SpecParseError as exc:
-            print(f"❌ {spec}: unparsable — {exc}"); bad = True; continue
+            print(f"❌ {spec}: unparsable — {exc}")
+            bad = True
+            continue
         src = source_for(spec)
         if src is None:
-            print(f"❌ {spec}: unresolvable"); bad = True; continue
+            print(f"❌ {spec}: unresolvable")
+            bad = True
+            continue
         if not info["hypothesis"]:
-            print(f"✓ {spec}: no precondition to be vacuous about"); continue
+            print(f"✓ {spec}: no precondition to be vacuous about")
+            continue
         check, stats = build_property(info, load_module(src.read_text()))
         # A property failure here is expected and irrelevant: this gate only
         # measures how often the PRECONDITION held, which `check` records

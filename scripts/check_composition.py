@@ -5,20 +5,24 @@ Scored as a set on purpose. add's commutativity misses `return 0`; its identity
 spec misses `Add->Sub`. Each scores 0.50 and would be rejected alone, yet
 together they kill every mutant. Gating per-spec throws away correct sets.
 """
+
 import argparse
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from spec_source import source_for
-from spec_strength import evaluate
-from spec_to_test import SpecParseError
 from collections.abc import Callable
 from typing import Any
 
+from spec_source import source_for
+from spec_strength import evaluate
+from spec_to_test import SpecParseError
 
-def joint_score(scored: list[dict[str, Any]],
-                source_of: Callable[[str], object] = source_for
-                ) -> tuple[float, set[str], int, list[tuple[str, float, int, int, int]]]:
+
+def joint_score(
+    scored: list[dict[str, Any]],
+    source_of: Callable[[str], object] = source_for,
+) -> tuple[float, set[str], int, list[tuple[str, float, int, int, int]]]:
     """(joint, survivors, total, per-source rows) for a set of scored specs.
 
     A module-level function rather than inline in __main__ so the arithmetic can
@@ -85,9 +89,15 @@ def joint_score(scored: list[dict[str, Any]],
         survivors |= group_survivors
         total += group_total
         killed = group_total - len(group_survivors)
-        rows.append((src_name,
-                     killed / group_total if group_total else 0.0,
-                     killed, group_total, len(group)))
+        rows.append(
+            (
+                src_name,
+                killed / group_total if group_total else 0.0,
+                killed,
+                group_total,
+                len(group),
+            )
+        )
 
     joint = (total - len(survivors)) / total if total else 0.0
     return joint, survivors, total, rows
@@ -103,7 +113,8 @@ if __name__ == "__main__":
     for spec in ns.specs:
         src = source_for(spec)
         if src is None:
-            print(f"❌ {spec}: unresolvable"); sys.exit(1)
+            print(f"❌ {spec}: unresolvable")
+            sys.exit(1)
         # Fail closed. `evaluate` raises rather than returning None, so an
         # unparsable spec cannot be mistaken for one with nothing to report.
         try:
@@ -117,13 +128,18 @@ if __name__ == "__main__":
 
     scored: list[dict[str, Any]] = [r for r in reports if "mutants" in r]
     if not scored:
-        print("❌ nothing scored"); sys.exit(1)
+        print("❌ nothing scored")
+        sys.exit(1)
     joint, survivors, total, rows = joint_score(scored)
     if len(rows) > 1:
         for src_name, group_joint, killed, group_total, n_specs in rows:
-            print(f"  {src_name}: {group_joint:.2f} "
-                  f"({killed}/{group_total} killed by {n_specs} spec(s))")
-    print(f"\nJOINT strength: {joint:.2f} ({total - len(survivors)}/{total} killed by the set)")
+            print(
+                f"  {src_name}: {group_joint:.2f} "
+                f"({killed}/{group_total} killed by {n_specs} spec(s))"
+            )
+    print(
+        f"\nJOINT strength: {joint:.2f} ({total - len(survivors)}/{total} killed by the set)"
+    )
     if survivors:
         print(f"survives the whole set: {', '.join(sorted(survivors))}")
     sys.exit(0 if joint >= ns.min_strength else 1)

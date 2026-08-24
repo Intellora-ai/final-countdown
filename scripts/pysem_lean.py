@@ -25,7 +25,7 @@ READ THE SEMANTIC CHOICES, THEY ARE NOT NEUTRAL:
                    theorem by default, so scripts/pysem.py rejects it.
 """
 
-SEMANTICS = r'''import Mathlib
+SEMANTICS = r"""import Mathlib
 
 /-!
 FORMAL SEMANTICS OF THE SUPPORTED PYTHON SUBSET.
@@ -109,4 +109,4 @@ def evalFunc (f : PyFunc) (args : List Int) : Option Int :=
   if f.params.length = args.length then
     runGuards (f.params.zip args) f.ret f.guards
   else none
-'''
+"""

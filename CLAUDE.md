@@ -209,7 +209,11 @@ it. Check `package.json` rather than this list; the list is a summary and can
 rot, the manifest cannot.
 
 Note what `lint` actually covers today: `eslint src/canvas src/practice
-src/agent`. Flat config only lints a path with a matching `files:` block, so
+src/agent src/websearch`. That fourth path was missing from this line for as
+long as `src/websearch` has existed, which is this section's own warning
+arriving on schedule: the list said less than the manifest, a session read it,
+and the gap sat there. Flat config only lints a path with a matching `files:`
+block, so
 adding a directory to that script alone changes nothing — `eslint.config.js`
 needs the block too, or the target is silently skipped with no error.
 

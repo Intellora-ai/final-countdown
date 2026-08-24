@@ -195,6 +195,21 @@ function readableSource(page: RetrievedPage): string {
  * first. Every "what does X mean" would refuse, which is a worse feature than
  * the bug it was closing.
  *
+ * THE ENGINE RUNG ALREADY DECIDED THIS, THE SAME WAY
+ * --------------------------------------------------
+ * `learning-os/.../session/doubt.py` maps a doubt to a skill with
+ * `MATCH_STRENGTH = 0.5` scored as `len(hit) / len(asked)` — the fraction OF
+ * THE QUESTION, not of the thing being matched — and its own comment says the
+ * first version scored it the other way round and refused everything. So all
+ * three rungs now agree on the threshold, and two of the three agree on the
+ * direction; this one was simply not asking the question at all.
+ *
+ * It also carries `MIN_OVERLAP = 2`, the clause dropped here — and it can,
+ * because `mean` is in its `_NOISE` list. `contentTokens` cannot drop `mean`,
+ * for the reason above. The asymmetry is real, deliberate, and the thing most
+ * likely to be "harmonised" into a bug by someone tidying the three of them
+ * into one. It should be measured before it is unified, never assumed.
+ *
  * THE TITLE IS READ, NOT ONLY THE BODY
  * ------------------------------------
  * What a page is CALLED is the strongest statement it makes about its own

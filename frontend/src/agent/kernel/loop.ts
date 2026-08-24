@@ -717,6 +717,42 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
     if (selected.has('knowledge')) {
       couldNot('knowledge', 'the turn stopped to ask rather than answering')
     }
+  } else if (action.action === 'decline') {
+    /* DECLINING IS ALSO A DECISION THE LOOP ALREADY MADE, and this branch did
+       not exist. Stage 9 tested only for `ask`, so a `decline` fell through to
+       `ports.model.generate` and the model answered from its own knowledge --- in
+       the exact situation the system had just concluded it has no usable
+       information about. Measured:
+
+           action    "decline"
+           answer    "Brazil won the 2026 World Cup, 3-1 over France."
+           claims    0
+           degraded  null
+           unmet     {}
+
+       A fabricated winner, opponent AND scoreline, with zero claims, so the
+       claim-verification layer had nothing to check and nothing anywhere
+       recorded that a decision had been made and not honoured.
+
+       `decide()` calls this outcome "the worst option available: it answers a
+       question we just established we have no current information about, in the
+       confident voice of something that did research." The comment guarding the
+       `ask` branch four lines above says the same thing in general terms. Both
+       were right; the code implemented one of them. */
+    answer =
+      `I could not find current information to answer this: ${action.because}. ` +
+      `Rather than answer from memory that may be out of date, I would rather say so.`
+    /* NOT `didRun('ask')`. Declining is not asking, and marking it as such
+       would put a capability in the execution record that did not run --- the
+       over-claiming half of the invariant this loop is built around. The
+       `action` field on the trace already carries "decline"; that is where a
+       reader looks. */
+    if (selected.has('knowledge')) {
+      couldNot('knowledge', `declined: ${action.because}`)
+    }
+    if (selected.has('ask')) {
+      couldNot('ask', 'the turn declined for lack of evidence rather than asking')
+    }
   } else {
     if (selected.has('ask')) {
       couldNot('ask', 'the ambiguity did not block, so the turn proceeded on a stated assumption')
@@ -770,7 +806,12 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
      switched off. The goal-addressing and constraint checks are therefore
      skipped when asking; source integrity still applies, because a question
      that cites something has still cited it. */
-  const answering = action.action !== 'ask'
+  /* A QUESTION IS NOT AN ANSWER, AND NEITHER IS A REFUSAL. Both are outcomes
+     the loop chose, and checking either against "does it address the goal"
+     reports a failure on a turn that did the right thing. `decline` was added
+     here at the same time as its stage 9 branch; leaving it out would have
+     produced the same false failure the `ask` case used to. */
+  const answering = action.action !== 'ask' && action.action !== 'decline'
 
   const checks = (s: Repairable): readonly Verification[] => [
     ...(selected.has('verify') || s.claims.length > 0 ? [verifySources(s.claims)] : []),
@@ -826,7 +867,11 @@ export async function handle(turn: Turn, session: Session, ports: Ports): Promis
   /* NOT REPAIRED WHEN THERE IS NOTHING TO REPAIR WITH. If the turn stopped to
      ask, or the model port already failed, calling it again to fix its own
      absent output would turn one failure into two. */
-  const repairable = action.action !== 'ask' && degraded === undefined
+  /* REPAIR CALLS THE MODEL. So it must be off for every outcome where calling
+     the model is the thing we decided not to do --- otherwise the decline
+     branch above refuses to generate an answer and the repair pass immediately
+     generates one anyway, which is the bug wearing a disguise. */
+  const repairable = answering && degraded === undefined
   const checked: VerifyResult = repairable
     ? /* ONE repair round, not two. A check the repairer cannot satisfy is not
          satisfied any better on the third try, and each round is a full model
@@ -1007,13 +1052,37 @@ const LITERAL_CHAR = /[0-9A-Za-z._]/
  */
 function truncated(text: string, match: RegExpMatchArray): boolean {
   const start = match.index ?? 0
-  const end = start + match[0].length
+  /* TRIMMED, because `\s*` sits INSIDE the repeated group of the bare regex, so
+     the match SWALLOWS ITS OWN TRAILING SPACE. Without the trim, `after` is the
+     first letter of the next word and every expression not at the very end of
+     the string was refused:
+
+         "Add 10+20 please"            match "10+20 "   after "p"   REFUSED
+         "please compute 2+2 for me"   match "2+2 "     after "f"   REFUSED
+         "the answer to 5*5 is"        match "5*5 "     after "i"   REFUSED
+
+     All three extracted and verified CORRECTLY before the guard. It was a
+     regression in the SAFE direction --- honest `unmet`, never a wrong number
+     --- which is exactly why it could have lived a long time: `calculate`
+     quietly stops firing on natural phrasing and nothing looks broken. */
+  const end = start + match[0].trimEnd().length
   const before = text[start - 1]
   const after = text[end]
-  return (
-    (before !== undefined && LITERAL_CHAR.test(before)) ||
-    (after !== undefined && LITERAL_CHAR.test(after))
-  )
+
+  /* THE TWO SIDES ARE NOT SYMMETRIC, and treating them the same leaked `.5+1`.
+     A `.` immediately BEFORE the match is always a decimal point, because the
+     match begins with a digit by construction --- so ".5" is one number and
+     matching "5" alone is a truncation. */
+  if (before !== undefined && LITERAL_CHAR.test(before)) return true
+
+  if (after === undefined || !LITERAL_CHAR.test(after)) return false
+
+  /* A `.` AFTER the match is a decimal point only when a digit follows it.
+     Otherwise it is a full stop, and treating every sentence-ending period as
+     a truncation refused "Compute 3*4." and "what is 17.5% of 2400." --- both
+     ordinary phrasing, both correct before this guard existed. */
+  if (after === '.') return /\d/.test(text[end + 1] ?? '')
+  return true
 }
 
 /**

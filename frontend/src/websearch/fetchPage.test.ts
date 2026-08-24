@@ -121,6 +121,180 @@ describe('scheme and host are checked before anything is dialled', () => {
     expect(calls).toHaveLength(0)
   })
 
+  /* ------------------------------------------------------------------ *
+   * The generated encoding space.
+   *
+   * A hand-written list of spellings is what produced this bug: the guard
+   * was tested against the notations its author was already thinking of.
+   * Enumerating instead found 42 bypasses where five had been guessed —
+   * IPv4-mapped IPv6 in three spellings, NAT64, CGNAT, 192.0.0.0/24,
+   * `localhost.`, `[::]`.
+   *
+   * BOTH DIRECTIONS ARE GENERATED, and that symmetry is the point. If the
+   * deny side is a property and the allow side is one hand-picked host, the
+   * exact asymmetry that caused this is rebuilt pointing the other way, and
+   * over-blocking ships instead. A functionality hole found in production
+   * costs more than this test does.
+   * ------------------------------------------------------------------ */
+
+  const asInt = (ip: string) => ip.split('.').reduce((a, o) => a * 256 + Number(o), 0) >>> 0
+
+  /** Every spelling of one IPv4 address that a URL parser will accept. */
+  const spellings = (ip: string): string[] => {
+    const n = asInt(ip)
+    const o = ip.split('.').map(Number)
+    return [
+      ip,
+      `${n}`,
+      `0x${n.toString(16)}`,
+      o.map((x) => `0${x.toString(8)}`).join('.'),
+      `${ip}.`,
+      `[::ffff:${ip}]`,
+      `[::FFFF:${ip}]`,
+      `[0:0:0:0:0:ffff:${ip}]`,
+      `[64:ff9b::${ip}]`,
+      `[2002:${o[0].toString(16).padStart(2, '0')}${o[1].toString(16).padStart(2, '0')}:${o[2]
+        .toString(16)
+        .padStart(2, '0')}${o[3].toString(16).padStart(2, '0')}::]`,
+    ]
+  }
+
+  /* Boundary pairs are deliberate: the address one below each range and one
+     inside it. An off-by-one in a CIDR mask is invisible against midpoints. */
+  const MUST_BLOCK = [
+    '0.0.0.0', '0.1.2.3',
+    '10.0.0.1', '10.255.255.255',
+    '100.64.0.0', '100.127.255.255',
+    '127.0.0.1', '127.255.255.254',
+    '169.254.169.254', '169.254.0.1',
+    '172.16.0.0', '172.31.255.255',
+    '192.0.0.1', '192.0.0.255',
+    '192.168.1.1', '192.168.255.255',
+    '198.18.0.1', '198.19.255.255',
+    '224.0.0.1', '255.255.255.255',
+  ]
+
+  const MUST_REACH = [
+    '8.8.8.8', '1.1.1.1', '93.184.216.34',
+    '9.255.255.255', '11.0.0.1',
+    '100.63.255.255', '100.128.0.0',
+    '126.255.255.255', '128.0.0.1',
+    '169.253.255.255', '169.255.0.1',
+    '172.15.255.255', '172.32.0.1',
+    '192.0.1.1', '192.167.255.255', '192.169.0.1',
+    '198.17.255.255', '198.20.0.1',
+    '223.255.255.255',
+  ]
+
+  it.each(MUST_BLOCK.flatMap((ip) => spellings(ip).map((s) => [ip, s] as const)))(
+    'blocks %s spelled as %s',
+    async (_ip, spelling) => {
+      const { fetchImpl, calls } = transport([{ body: 'AccessKeyId ASIA...' }])
+      const out = await fetchPage(`http://${spelling}/latest/meta-data/`, {
+        fetchImpl,
+        sleep: noSleep,
+      })
+
+      expect(out.ok).toBe(false)
+      if (out.ok) throw new Error('unreachable')
+      expect(out.reason).toBe('blocked-host')
+      /* Nothing was dialled. Asserting only the return value would pass just
+         as well if the request went out and the response was discarded. */
+      expect(calls).toHaveLength(0)
+    },
+  )
+
+  it.each(MUST_REACH.flatMap((ip) => spellings(ip).map((s) => [ip, s] as const)))(
+    'still reaches the public host %s spelled as %s',
+    async (_ip, spelling) => {
+      const { fetchImpl } = transport([{ body: 'public page' }])
+      const out = await fetchPage(`http://${spelling}/`, { fetchImpl, sleep: noSleep })
+      expect(out.ok).toBe(true)
+    },
+  )
+
+  it.each([
+    ['unspecified address', 'http://[::]/'],
+    ['unspecified, long form', 'http://[::0]/'],
+    ['IPv6 loopback', 'http://[::1]/'],
+    ['trailing-dot localhost', 'http://localhost./'],
+    ['unique local', 'http://[fd00::1]/'],
+    ['link-local v6', 'http://[fe80::1]/'],
+  ])('refuses %s', async (_name, url) => {
+    /* SECURITY. The guard matched the hostname STRING, and WHATWG URL
+       serialises an IPv4-mapped IPv6 address to HEX:
+
+         http://[::ffff:169.254.169.254]/  ->  hostname [::ffff:a9fe:a9fe]
+
+       `169.254.` never appears, so nothing matched and the cloud metadata
+       endpoint was reachable. The dotted-quad form was blocked the whole
+       time, which is what made this invisible — and decimal notation
+       (http://2130706433/) was caught only because URL normalises THAT one
+       back to dotted-quad. Free coverage I mistook for real coverage.
+
+       `[::]` is the unspecified address, which routes to localhost on most
+       stacks. 100.64.0.0/10 is CGNAT, carrier-internal and not public. */
+    const { fetchImpl, calls } = transport([{ body: 'AccessKeyId ASIA...' }])
+    const out = await fetchPage(url, { fetchImpl, sleep: noSleep })
+
+    expect(out.ok).toBe(false)
+    if (out.ok) throw new Error('unreachable')
+    expect(out.reason).toBe('blocked-host')
+    expect(calls).toHaveLength(0)
+  })
+
+  it('refuses a scoped link-local literal, as an unparseable URL', async () => {
+    /* `http://[fe80::1%25eth0]/` is refused, but as `blocked-scheme` rather
+       than `blocked-host`: Node's URL parser rejects the percent-encoded zone
+       id outright, so the guard never sees a hostname.
+       Written down because I first asserted `blocked-host` here and the test
+       failed — the address never reaches the address check, and a test that
+       claims otherwise documents a code path that does not exist. */
+    const { fetchImpl, calls } = transport([{ body: 'internal' }])
+    const out = await fetchPage('http://[fe80::1%25eth0]/', { fetchImpl, sleep: noSleep })
+
+    expect(out.ok).toBe(false)
+    if (out.ok) throw new Error('unreachable')
+    expect(out.reason).toBe('blocked-scheme')
+    expect(calls).toHaveLength(0)
+  })
+
+  it('refuses a REDIRECT to an IPv4-mapped metadata address', async () => {
+    /* The path that actually steals credentials: a legitimate-looking page
+       answers 302 to the mapped form. The per-hop re-check ran correctly the
+       whole time — it was just blind to this encoding. */
+    const { fetchImpl, calls } = transport([
+      { status: 302, headers: { location: 'http://[::ffff:169.254.169.254]/latest/meta-data/' } },
+      { body: '{"AccessKeyId":"ASIA..."}' },
+    ])
+    const out = await fetchPage(OK, { fetchImpl, sleep: noSleep })
+
+    expect(out.ok).toBe(false)
+    if (out.ok) throw new Error('unreachable')
+    expect(out.reason).toBe('blocked-host')
+    expect(calls).toHaveLength(1)
+  })
+
+  it('does NOT over-block a mapped PUBLIC address', async () => {
+    /* The fix must unwrap the mapping, not refuse every mapped address.
+       `[::ffff:8.8.8.8]` serialises to `[::ffff:0808:0808]` and is an
+       ordinary public host. Blocking it would trade a security hole for a
+       functionality hole. */
+    const { fetchImpl } = transport([{ body: 'public' }])
+    const out = await fetchPage('http://[::ffff:8.8.8.8]/', { fetchImpl, sleep: noSleep })
+    expect(out.ok).toBe(true)
+  })
+
+  it('honours allowLoopback for the mapped form too', async () => {
+    const { fetchImpl } = transport([{ body: 'stub' }])
+    const out = await fetchPage('http://[::ffff:127.0.0.1]/page', {
+      fetchImpl,
+      sleep: noSleep,
+      allowLoopback: true,
+    })
+    expect(out.ok).toBe(true)
+  })
+
   it('allows loopback only when explicitly opted in', async () => {
     const { fetchImpl } = transport([{ body: 'stub' }])
     const out = await fetchPage('http://127.0.0.1:9/page', {
@@ -418,6 +592,34 @@ describe('the overall deadline, which per-request timeouts do not provide', () =
     expect(out.detail).toContain('budget')
     /* Stopped early rather than running the full 20 hops. */
     expect(calls.length).toBeLessThan(20)
+  })
+
+  it('bounds RETRIES, not just hops', async () => {
+    /* The budget was sampled only at the top of each hop, so the retry loop
+       inside a hop ran unbounded. Measured on a single non-redirecting host
+       that accepts the connection and goes silent: 500ms budget, 1205ms
+       actual, three attempts — and the failure reported the per-request
+       timeout, so the overrun was invisible in the logs.
+       At shipped defaults (8000ms x 3 attempts) that is 24 seconds inside
+       one hop, against whatever budget the caller asked for.
+       The existing budget test only exercised a REDIRECT CHAIN, which is
+       why it passed throughout. */
+    const { fetchImpl, calls } = transport([{ hangs: true }])
+    const out = await fetchPage(OK, {
+      fetchImpl,
+      sleep: noSleep,
+      timeoutMs: 100,
+      retries: 5,
+      totalBudgetMs: 150,
+    })
+
+    expect(out.ok).toBe(false)
+    if (out.ok) throw new Error('unreachable')
+    /* Named as a budget overrun, not as a per-request timeout — otherwise
+       nobody reading the log can tell which limit actually fired. */
+    expect(out.detail).toContain('budget')
+    /* Five retries were allowed; the budget stopped it far sooner. */
+    expect(calls.length).toBeLessThanOrEqual(3)
   })
 
   it('lets a fast chain finish well inside the budget', async () => {

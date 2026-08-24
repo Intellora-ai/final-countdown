@@ -9,7 +9,7 @@ import {
 } from './kernel/loop'
 import { createStore, inMemoryPersistence, type Persistence } from './memory/memory'
 import { calculator, createRegistry, fileTools, type FileSource } from './tools/tools'
-import { buildGraph, type Concept } from './learn/learn'
+import { buildGraph, type Attempt, type Concept } from './learn/learn'
 import type { SearchPort } from './knowledge/knowledge'
 import { pause } from './execute/execute'
 import { openSession, type Ledger, type Position } from './session/ledger'
@@ -115,7 +115,7 @@ export interface Agent {
    * and fabricated mastery data moves a curriculum confidently in the wrong
    * direction. A caller that knows the answer was wrong says so.
    */
-  recordAttempt(a: { conceptId: string; correct: boolean; difficulty: number; at?: string }): void
+  recordAttempt(a: Omit<Attempt, 'at'> & { at?: string }): void
 }
 
 /** What `ask` returns: the loop's result, plus whether this was a replay. */
@@ -213,11 +213,30 @@ export function createAgent(opts: AgentOptions): Agent {
       session = { ...session, ledger: moveTo(session.ledger, to, now()) }
     },
 
+    /*
+     * TWO CONSUMERS, AND THE MERGE THAT NEARLY DROPPED ONE.
+     *
+     * `main` and this branch each added `recordAttempt` independently, to feed
+     * DIFFERENT things, and taking either side whole would have silently
+     * removed a capability:
+     *
+     *   session.attempts  ->  learn.ts: `feedbackFor`, `nextDifficulty`,
+     *                         `nextReview`, `dueForReview`. Permanently empty
+     *                         before main's fix, so all four were unreachable
+     *                         through the loop.
+     *   ledger            ->  `established()`, which is what decides whether
+     *                         the teacher may say the student knows something.
+     *
+     * So it writes to both. The ledger write is conditional because a session
+     * that is not teaching has no ledger; the attempts write is not, because
+     * the learner model is not a teaching-only concern.
+     */
     recordAttempt(a) {
-      if (!session.ledger) return
+      const attempt = { ...a, at: a.at ?? now() }
       session = {
         ...session,
-        ledger: noteAttempt(session.ledger, { ...a, at: a.at ?? now() }),
+        attempts: [...session.attempts, attempt],
+        ...(session.ledger ? { ledger: noteAttempt(session.ledger, attempt) } : {}),
       }
     },
 

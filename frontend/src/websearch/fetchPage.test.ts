@@ -594,6 +594,34 @@ describe('the overall deadline, which per-request timeouts do not provide', () =
     expect(calls.length).toBeLessThan(20)
   })
 
+  it('bounds RETRIES, not just hops', async () => {
+    /* The budget was sampled only at the top of each hop, so the retry loop
+       inside a hop ran unbounded. Measured on a single non-redirecting host
+       that accepts the connection and goes silent: 500ms budget, 1205ms
+       actual, three attempts — and the failure reported the per-request
+       timeout, so the overrun was invisible in the logs.
+       At shipped defaults (8000ms x 3 attempts) that is 24 seconds inside
+       one hop, against whatever budget the caller asked for.
+       The existing budget test only exercised a REDIRECT CHAIN, which is
+       why it passed throughout. */
+    const { fetchImpl, calls } = transport([{ hangs: true }])
+    const out = await fetchPage(OK, {
+      fetchImpl,
+      sleep: noSleep,
+      timeoutMs: 100,
+      retries: 5,
+      totalBudgetMs: 150,
+    })
+
+    expect(out.ok).toBe(false)
+    if (out.ok) throw new Error('unreachable')
+    /* Named as a budget overrun, not as a per-request timeout — otherwise
+       nobody reading the log can tell which limit actually fired. */
+    expect(out.detail).toContain('budget')
+    /* Five retries were allowed; the budget stopped it far sooner. */
+    expect(calls.length).toBeLessThanOrEqual(3)
+  })
+
   it('lets a fast chain finish well inside the budget', async () => {
     const { fetchImpl } = transport([
       { status: 302, headers: { location: 'https://example.gov.in/b' } },

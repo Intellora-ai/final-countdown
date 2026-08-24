@@ -498,6 +498,18 @@ export async function fetchPage(target: string, options: FetchOptions = {}): Pro
     attempts,
   })
 
+  /**
+   * Time left in the WHOLE call, or `Infinity` when the caller set no ceiling.
+   *
+   * Read at every point that is about to spend time, because a budget is only
+   * a budget where it is consulted. Sampling it once per hop left the retry
+   * loop inside a hop unbounded.
+   */
+  const budgetLeft = (): number =>
+    totalBudgetMs === undefined ? Infinity : totalBudgetMs - (now() - started)
+
+  const overBudget = (): FetchOutcome =>
+    fail('timeout', `exceeded total budget of ${totalBudgetMs}ms`)
 
   const first = check(target, undefined, allowLoopback)
   if (!first.ok) return fail(first.reason, `refused ${target}`)
@@ -505,11 +517,11 @@ export async function fetchPage(target: string, options: FetchOptions = {}): Pro
   let current = first.url
 
   for (let hop = 0; ; hop += 1) {
-    if (totalBudgetMs !== undefined && now() - started > totalBudgetMs) {
+    if (budgetLeft() <= 0) {
       /* Checked per hop rather than only at the end: the point is to stop
          spending, and a budget noticed after the last request has bought
          nothing. */
-      return fail('timeout', `exceeded total budget of ${totalBudgetMs}ms`)
+      return overBudget()
     }
     if (hop > maxRedirects) {
       return fail('too-many-redirects', `stopped after ${maxRedirects} redirects`)
@@ -541,14 +553,45 @@ export async function fetchPage(target: string, options: FetchOptions = {}): Pro
       armedTimer = null
     }
 
+    /**
+     * THE BUDGET HAS TO BE READ HERE, NOT ONLY AT THE TOP OF THE HOP.
+     *
+     * Every attempt below is individually punctual — each one is stopped by
+     * `timeoutMs` exactly as designed — and the hop as a whole still ran for as
+     * long as the retry count allowed. Measured against a host that accepts the
+     * connection and then goes silent: a 500ms budget, 1,205ms actual, three
+     * attempts. At shipped defaults that is 8,000ms x 3 = 24 seconds spent
+     * inside ONE hop by a caller who asked for less.
+     *
+     * The redirect-chain budget test passed throughout, because a chain
+     * re-enters the hop loop and therefore re-reads the budget; a single
+     * non-redirecting host never does. Nothing was wrong with the check — it
+     * was in the one place the slow case does not pass through.
+     */
+    let budgetSpent = false
+
     for (let attempt = 0; attempt <= retries; attempt += 1) {
       if (attempt > 0) {
         /* Exponential, so a struggling host is not hit at a fixed rate by
-           every caller that happens to be retrying at the same moment. */
-        await sleep(100 * 2 ** (attempt - 1))
+           every caller that happens to be retrying at the same moment. The
+           backoff is itself clamped: waiting past the deadline to make a
+           request that cannot start is pure overrun. */
+        await sleep(Math.max(0, Math.min(100 * 2 ** (attempt - 1), budgetLeft())))
       }
+
+      const left = budgetLeft()
+      if (left <= 0) {
+        budgetSpent = true
+        break
+      }
+
       const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), timeoutMs)
+      /* The deadline is whichever limit expires first. Using `timeoutMs`
+         unconditionally is how an attempt outlives the budget it is spending:
+         the failure then reports the per-request timeout, and the overrun is
+         invisible to whoever reads the log. */
+      const deadline = Math.max(1, Math.min(timeoutMs, left))
+      const timer = setTimeout(() => controller.abort(), deadline)
       attempts += 1
       try {
         res = await call(current.toString(), {
@@ -585,6 +628,7 @@ export async function fetchPage(target: string, options: FetchOptions = {}): Pro
       /* Which limit fired is the first thing anyone reading this asks, so the
          budget is named whenever it is the one that ran out — including when
          it ran out by cutting an attempt short. */
+      if (budgetSpent || budgetLeft() <= 0) return overBudget()
       return timedOut
         ? fail('timeout', `no response within ${timeoutMs}ms`)
         : fail('network', describe(lastError))
@@ -634,6 +678,7 @@ export async function fetchPage(target: string, options: FetchOptions = {}): Pro
       const cutOff = aborted(err) || armedSignal?.aborted === true
       /* The read shares the attempt's deadline, so the budget can be what cut
          it short. Name the limit that actually fired. */
+      if (cutOff && budgetLeft() <= 0) return overBudget()
       return cutOff
         ? fail('timeout', `body did not complete within ${timeoutMs}ms`)
         : fail('network', describe(err))

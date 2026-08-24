@@ -398,25 +398,39 @@ jobs:
   # `fail-fast: false` so a failure at 375px does not cancel the keyboard run.
   # Which viewports break is the finding; one of them is not.
   frontend-scenes:
-    name: scenes ${{ matrix.project }}
+    # ONE RUNNER FOR ALL FIVE PROJECTS, AND THE SPLIT WAS COSTING TIME.
+    #
+    # This was a 5-way matrix, one project per runner. `playwright.config.ts`
+    # sets `workers: 4` with `fullyParallel: false`, and its own header records
+    # what that combination means: a parallel unit is ONE FILE within ONE
+    # project, and these two specs are the only files.
+    #
+    #     all five projects, one runner   2 files x 5 projects = 10 units -> 4 workers
+    #     one project per runner (shard)  2 files x 1 project  =  2 units -> 2 workers
+    #
+    # So sharding by project starved Playwright of the parallelism it is
+    # configured for: every shard could only ever reach 2 workers. The measured
+    # numbers in that same header are workers=1 234s, workers=2 149s, workers=4
+    # 77s/87s/115s -- for ALL FIVE projects together.
+    #
+    # Measured on this repository, the 5-way split cost 5 x 92s = 460s of runner
+    # time, a third of the whole run's 1398s, and held five of the eight
+    # concurrent slots the account allows. One job is ~28s of setup plus ~95s of
+    # work. Same five projects, same two specs, same assertions -- the coverage
+    # is identical and gate_integrity check (f) still resolves all five, because
+    # it reads literal `--project=` flags as well as matrix bindings.
+    #
+    # IF THE PERF SPECS ARE EVER RECONNECTED, REVERT THIS WITH THEM.
+    # playwright.config.ts requires `workers: 1` if `./util/cdp` comes back,
+    # because parallel workers poison every p95 they touch. At workers=1 the
+    # unit-starvation argument above disappears and one-project-per-runner
+    # becomes the faster shape again.
+    name: scenes
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
       run:
         working-directory: frontend
-    strategy:
-      fail-fast: false
-      matrix:
-        # Every project playwright.config.ts declares. gate_integrity check (f)
-        # resolves this matrix through the `env:` binding below and fails if any
-        # declared project is missing from it, so this list cannot silently drift
-        # out of step with the config.
-        project:
-          - desktop-1440
-          - square-900
-          - mobile-375
-          - reduced-motion
-          - keyboard
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
@@ -431,27 +445,35 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Was five installs of the same browser, one per shard, at ~11s each.
+      # Collapsing the matrix collapses that too, without adding a cache action
+      # this repository does not already pin.
       - name: Install Chromium
         run: npx playwright install chromium
 
+      # The projects are written out rather than looped: gate_integrity check
+      # (f) reads literal `--project=` flags, so this list IS the coverage
+      # claim, and a project silently dropped from it fails preflight.
       - name: Scene regression guards
-        env:
-          PROJECT: ${{ matrix.project }}
         run: >-
           npx playwright test -c playwright.config.ts
           e2e/scene-regressions.spec.ts e2e/composed-renderer.spec.ts
-          --project="$PROJECT"
+          --project=desktop-1440
+          --project=square-900
+          --project=mobile-375
+          --project=reduced-motion
+          --project=keyboard
           --fail-on-flaky-tests
 
-      # ONE DOWNLOAD INSTEAD OF A LOG CRAWL, NOW ONE PER PROJECT.
+      # ONE DOWNLOAD INSTEAD OF A LOG CRAWL.
       #
       # canvas-reporter writes ci-findings.json: every failure with its source
-      # file, spec location, attempt count and message. Uploading it under the
-      # single old name from five concurrent shards would collide, so the name
-      # carries the project. The findings stay machine-readable and now say
-      # which viewport produced them without opening the file.
+      # file, spec location, attempt count and message. The per-project name
+      # suffix existed only because five concurrent shards would collide on one
+      # artifact name; with a single job the plain name is unambiguous again,
+      # and the findings still carry the project on every row.
       #
-      # `if: always()` because a green shard's findings file is the useful
+      # `if: always()` because a green run's findings file is the useful
       # baseline: count 0 proves the reporter ran and found nothing, which is a
       # different claim from the file being absent. `error`, not `warn`, for the
       # reason ci/gates.toml requires on every gate artifact -- a missing
@@ -461,7 +483,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: learning-canvas-frontend-findings-${{ matrix.project }}
+          name: learning-canvas-frontend-findings-scenes
           path: frontend/ci-findings.json
           if-no-files-found: error
 

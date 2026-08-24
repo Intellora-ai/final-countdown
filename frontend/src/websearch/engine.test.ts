@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { fixtureProvider, jsonProvider, search } from './engine'
+import { DEFAULT_RESULT_LIMIT, fixtureProvider, jsonProvider, search } from './engine'
 import { Latency } from './latency'
 import type { FetchOutcome } from './fetchPage'
 import type { SearchHit } from './port'
@@ -133,6 +133,39 @@ describe('search composes the engine with retrieval', () => {
   })
 })
 
+describe('the engine asks for exactly what the search will use', () => {
+  it('shares one constant, so the provider cannot fetch results nobody reads', async () => {
+    /* BUG. `jsonProvider` defaulted to limit 10 while `search` defaulted to
+       maxResults 8. Two results paid for and discarded on every call to a
+       metered API — invisible, because no test read both numbers. */
+    let requested = ''
+    const provider = jsonProvider({
+      name: 'e',
+      endpoint: 'https://api.example/s?q={query}&n={limit}',
+      map: () => [],
+      fetchJson: async (url) => {
+        requested = url
+        return {}
+      },
+    })
+
+    await provider.search('q')
+    expect(requested).toContain(`n=${DEFAULT_RESULT_LIMIT}`)
+
+    /* And `search` must not silently discard what it asked for. */
+    const hits = Array.from({ length: DEFAULT_RESULT_LIMIT }, (_, i) => hit(`https://s${i}.gov.in/`))
+    let fetched = 0
+    await search('many', {
+      provider: fixtureProvider({ many: hits }),
+      fetchImpl: async (url) => {
+        fetched += 1
+        return page('<p>x</p>', url)
+      },
+    })
+    expect(fetched).toBe(DEFAULT_RESULT_LIMIT)
+  })
+})
+
 describe('the JSON provider, which is the shape a real engine plugs into', () => {
   it('builds the request from a template and maps the response', async () => {
     let requested = ''
@@ -214,13 +247,72 @@ describe('the JSON provider, which is the shape a real engine plugs into', () =>
     const provider = jsonProvider({
       name: 'e',
       endpoint: 'https://api.example/s?q={query}&key={key}',
-      key: 'SUPER-SECRET',
+      /* One field, not two. `apiKey ?? key ?? ''` accepted either name and
+         silently accepted neither, which is how the empty-key request got
+         out. */
+      apiKey: 'SUPER-SECRET',
       map: () => [{ url: 'https://ok.gov.in/1', title: 'ok', snippet: '' }],
       fetchJson: async () => ({}),
     })
 
     const hits = await provider.search('q')
     expect(JSON.stringify(hits)).not.toContain('SUPER-SECRET')
+  })
+
+  it('bounds the default transport, which nothing else does', async () => {
+    /* BUG. Every other test in this file injects `fetchJson`, so the DEFAULT
+       path — the one that calls the real `fetch` — was executed by nothing.
+       It had no AbortController, no deadline, no size cap. A search API that
+       accepts the connection and goes quiet held `search()` open forever.
+
+       Exactly the failure fixed in `fetchPage` after a loopback stub caught
+       it at 5011ms against a 250ms budget, left open at the front door
+       because the tests all walked around it. */
+    const original = globalThis.fetch
+    try {
+      globalThis.fetch = (async (_url: string, init?: { signal?: AbortSignal }) =>
+        await new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () =>
+            reject(new DOMException('Aborted', 'AbortError')),
+          )
+        })) as unknown as typeof fetch
+
+      const provider = jsonProvider({
+        name: 'slow',
+        endpoint: 'https://api.example/s?q={query}',
+        map: () => [],
+        timeoutMs: 50,
+      })
+
+      const started = Date.now()
+      await expect(provider.search('q')).resolves.toEqual([])
+      expect(Date.now() - started).toBeLessThan(2000)
+    } finally {
+      globalThis.fetch = original
+    }
+  })
+
+  it('refuses to build a provider whose endpoint needs a key it was not given', () => {
+    /* BUG. `{key}` was substituted with '' when no secret was supplied. The
+       request went out unauthenticated, the engine answered 401, the mapper
+       threw, the catch returned [] — and `engineFailed` stayed FALSE.
+
+       A silent auth failure presented as "this question has no answer",
+       destroying the one distinction `engineFailed` exists to preserve.
+       Config errors belong at construction, where they are loud. */
+    expect(() =>
+      jsonProvider({
+        name: 'e',
+        endpoint: 'https://api.example/s?q={query}&key={key}',
+        map: () => [],
+      }),
+    ).toThrow(/key/i)
+  })
+
+  it('builds fine when the endpoint needs no key', () => {
+    expect(() =>
+      jsonProvider({ name: 'e', endpoint: 'https://api.example/s?q={query}', map: () => [] }),
+    ).not.toThrow()
   })
 
   it('never throws when the transport fails', async () => {

@@ -722,6 +722,13 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # `actions: read` ONLY here, and only to read this run's own job list. Not
+    # granted workflow-wide: the twelve gate jobs have no business reading the
+    # Actions API, and a permission is easiest to reason about where it is
+    # smallest.
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
@@ -733,8 +740,41 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: evidence
+
+      # WHAT GITHUB SAYS THE JOBS ACTUALLY DID, as opposed to what their
+      # reports claim.
+      #
+      # gate.py writes reports/<gate>.json in Gate.__exit__ and every upload
+      # step carries `if: always()`. A job cancelled AFTER that write uploads
+      # an artifact saying PASS, and until now the finalizer certified it. The
+      # window is small -- the gate step is the last substantive step in every
+      # gate job -- but a cancelled required check certified as passing is the
+      # exact failure this repository exists to prevent.
+      #
+      # `skipped` matters more than it looks: GitHub counts a skipped job as
+      # SATISFYING its required status check, so a gate conditioned into
+      # skipping is green in the ruleset and visible only here.
+      #
+      # `continue-on-error` is correct on THIS step and only this one. The file
+      # can only ever turn a pass into a block: aggregate_gates.py treats an
+      # absent, empty or malformed file as "no opinion" and falls back to
+      # deciding on reports alone, where missing evidence still blocks. A
+      # transient API failure must not be able to fail the finalizer, and it
+      # equally must not be able to pass it.
+      - name: Record this run's job conclusions
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/jobs?per_page=100" \
+            > job-conclusions.json
+          python3 -c "import json;d=json.load(open('job-conclusions.json'));print('jobs read:', len(d.get('jobs', [])))"
+
       - name: Gate manifest
-        run: python3 scripts/aggregate_gates.py --evidence-root evidence
+        run: |
+          python3 scripts/aggregate_gates.py --evidence-root evidence \
+            --job-conclusions job-conclusions.json
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

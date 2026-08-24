@@ -1,0 +1,4 @@
+/* Agabi — Webfonts (exact source: src/styles/fonts.css from agabi.fig build)
+   Fraunces (display serif) · DM Sans (body/UI) · JetBrains Mono (labels/data)
+   All three load from Google Fonts — no local binaries exist in the source. */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=JetBrains+Mono:wght@400;500&display=swap');

@@ -1,0 +1,32 @@
+{
+  "problemMatcher": [
+    {
+      "owner": "pyright",
+      "severity": "error",
+      "pattern": [
+        {
+          "regexp": "^\\s*(.+?):(\\d+):(\\d+)\\s+-\\s+(error|warning|information):\\s+(.+)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      ]
+    },
+    {
+      "owner": "gcc-style",
+      "severity": "error",
+      "pattern": [
+        {
+          "regexp": "^(.+?):(\\d+):(\\d+):\\s+(error|warning|note):\\s+(.+)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      ]
+    }
+  ]
+}

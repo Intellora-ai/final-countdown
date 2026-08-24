@@ -1,0 +1,42 @@
+/* Agabi — Spacing, grid, containers, touch targets.
+   8px base grid; every distance is a multiple of 4px. Scale documented in the source board. */
+:root {
+  /* ── Spacing scale (4px base unit) ─────────────────────────── */
+  --space-1:  4px;   /* Inline gap, icon nudge */
+  --space-2:  8px;   /* Tight pairing */
+  --space-3:  12px;  /* Compact elements */
+  --space-4:  16px;  /* Standard inline gap */
+  --space-5:  20px;  /* Card inner gap */
+  --space-6:  24px;  /* Section sub-gap */
+  --space-8:  32px;  /* Card padding */
+  --space-10: 40px;  /* Section gap */
+  --space-12: 48px;  /* Large section gap */
+  --space-16: 64px;  /* Page section margin */
+  --space-20: 80px;  /* Page side margin */
+  --space-24: 96px;  /* Hero space */
+
+  /* ── Touch Target ──────────────────────────────────────────── */
+  --touch-target-min: 44px;
+
+  /* ── Grid System ───────────────────────────────────────────── */
+  --grid-columns-mobile:  4; /* @kind other */
+  --grid-columns-tablet:  8; /* @kind other */
+  --grid-columns-laptop:  12; /* @kind other */
+  --grid-columns-desktop: 12; /* @kind other */
+  --grid-gutter-mobile:   16px;
+  --grid-gutter-tablet:   24px;
+  --grid-gutter-laptop:   32px;
+  --grid-gutter-desktop:  32px;
+  --grid-margin-mobile:   16px;
+  --grid-margin-tablet:   32px;
+  --grid-margin-laptop:   48px;
+  --grid-margin-desktop:  80px;
+
+  /* ── Container Widths ──────────────────────────────────────── */
+  --container-sm:  640px;
+  --container-md:  768px;
+  --container-lg:  1024px;
+  --container-xl:  1280px;
+  --container-2xl: 1440px;
+  --container-max: 1600px;
+}

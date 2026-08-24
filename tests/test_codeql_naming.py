@@ -48,26 +48,48 @@ SCRIPTS: Final = REPO / "scripts"
 # The tokens CodeQL's sensitive-data heuristic keys on, reduced to singular
 # stems. Plurals are handled by _singular(), so "secrets" and "TOKENS" match
 # without listing them.
-SENSITIVE_WORDS: Final[frozenset[str]] = frozenset({
-    "secret", "credential", "token", "password", "passwd",
-    "apikey", "privatekey",
-})
+SENSITIVE_WORDS: Final[frozenset[str]] = frozenset(
+    {
+        "secret",
+        "credential",
+        "token",
+        "password",
+        "passwd",
+        "apikey",
+        "privatekey",
+    }
+)
 
 # snake_case, camelCase, PascalCase and SCREAMING_CASE all split here.
 # "APIKey" -> API, Key. "TOKENS" -> TOKENS. "tokenize" -> tokenize (one word).
 _WORD: Final = re.compile(r"[A-Z]+(?![a-z])|[A-Z][a-z]+|[a-z]+|[0-9]+")
 
-_LOG_METHODS: Final[frozenset[str]] = frozenset({
-    "debug", "info", "warning", "warn", "error", "exception", "critical",
-    "log", "print",
-})
+_LOG_METHODS: Final[frozenset[str]] = frozenset(
+    {
+        "debug",
+        "info",
+        "warning",
+        "warn",
+        "error",
+        "exception",
+        "critical",
+        "log",
+        "print",
+    }
+)
 _STREAM_SINKS: Final[frozenset[str]] = frozenset({"sys.stderr", "sys.stdout"})
 # print()'s plumbing arguments carry no data.
 _META_KWARGS: Final[frozenset[str]] = frozenset({"file", "flush", "sep", "end"})
 # `xs.append(v)` puts v into xs just as surely as `xs = [v]` does.
-_MUTATORS: Final[frozenset[str]] = frozenset({
-    "append", "add", "extend", "update", "insert",
-})
+_MUTATORS: Final[frozenset[str]] = frozenset(
+    {
+        "append",
+        "add",
+        "extend",
+        "update",
+        "insert",
+    }
+)
 
 
 class Violation(NamedTuple):
@@ -80,8 +102,10 @@ class Violation(NamedTuple):
 
     def describe(self) -> str:
         via = "" if self.origin == self.identifier else f" (value from {self.origin!r})"
-        return (f"{self.filename}:{self.line}: {self.identifier!r}{via} reaches a "
-                f"print/logging call under a sensitivity-suggesting name")
+        return (
+            f"{self.filename}:{self.line}: {self.identifier!r}{via} reaches a "
+            f"print/logging call under a sensitivity-suggesting name"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -159,13 +183,15 @@ def _is_literal_data(node: ast.expr) -> bool:
     if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
         return all(_is_literal_data(e) for e in node.elts)
     if isinstance(node, ast.Dict):
-        return all(k is not None and _is_literal_data(k) for k in node.keys) and \
-            all(_is_literal_data(v) for v in node.values)
+        return all(k is not None and _is_literal_data(k) for k in node.keys) and all(
+            _is_literal_data(v) for v in node.values
+        )
     if isinstance(node, ast.BinOp):
         return _is_literal_data(node.left) and _is_literal_data(node.right)
     if isinstance(node, ast.Call):
-        return (_dotted(node.func) == "re.compile"
-                and all(_is_literal_data(a) for a in node.args))
+        return _dotted(node.func) == "re.compile" and all(
+            _is_literal_data(a) for a in node.args
+        )
     return False
 
 
@@ -176,22 +202,28 @@ def _pattern_constants(tree: ast.Module) -> set[str]:
         if isinstance(stmt, ast.Assign) and _is_literal_data(stmt.value):
             for t in stmt.targets:
                 exempt.update(_bound_names(t))
-        elif isinstance(stmt, ast.AnnAssign) and stmt.value is not None \
-                and _is_literal_data(stmt.value):
+        elif (
+            isinstance(stmt, ast.AnnAssign)
+            and stmt.value is not None
+            and _is_literal_data(stmt.value)
+        ):
             exempt.update(_bound_names(stmt.target))
     return exempt
 
 
 def _is_scope(node: ast.AST) -> bool:
-    return isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef,
-                             ast.ClassDef, ast.Lambda))
+    return isinstance(
+        node,
+        (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda),
+    )
 
 
 def _own_nodes(scope: ast.AST) -> list[ast.AST]:
     """Nodes belonging to `scope`, not descending into nested scopes."""
     stack: list[ast.AST] = []
-    if isinstance(scope, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef,
-                          ast.ClassDef)):
+    if isinstance(
+        scope, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+    ):
         # A nested def is its own scope and is visited separately; pulling its
         # body in here would merge every function's locals into the module and
         # make one bad name taint the whole file.
@@ -223,8 +255,7 @@ def _log_sink_args(call: ast.Call) -> list[ast.expr] | None:
             sink = True
     if not sink:
         return None
-    return [*call.args,
-            *(k.value for k in call.keywords if k.arg not in _META_KWARGS)]
+    return [*call.args, *(k.value for k in call.keywords if k.arg not in _META_KWARGS)]
 
 
 # ---------------------------------------------------------------------------
@@ -257,16 +288,20 @@ def _edges(nodes: Sequence[ast.AST]) -> dict[str, set[str]]:
             for item in node.items:
                 if item.optional_vars is not None:
                     link(_bound_names(item.optional_vars), item.context_expr)
-        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
-                and node.func.attr in _MUTATORS \
-                and isinstance(node.func.value, ast.Name):
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr in _MUTATORS
+            and isinstance(node.func.value, ast.Name)
+        ):
             for arg in node.args:
                 link([node.func.value.id], arg)
     return edges
 
 
-def _origins(edges: dict[str, set[str]], extra: set[str], exempt: set[str],
-             seeds: dict[str, str]) -> dict[str, str]:
+def _origins(
+    edges: dict[str, set[str]], extra: set[str], exempt: set[str], seeds: dict[str, str]
+) -> dict[str, str]:
     """name -> the sensitive name its value ultimately came from.
 
     `seeds` carries names that are tainted for a reason other than their own
@@ -278,7 +313,8 @@ def _origins(edges: dict[str, set[str]], extra: set[str], exempt: set[str],
     for srcs in edges.values():
         names |= srcs
     origin: dict[str, str] = {
-        n: n for n in names if n not in exempt and is_sensitive_name(n)}
+        n: n for n in names if n not in exempt and is_sensitive_name(n)
+    }
     for name, src in seeds.items():
         if name not in exempt:
             origin.setdefault(name, src)
@@ -296,8 +332,13 @@ def _origins(edges: dict[str, set[str]], extra: set[str], exempt: set[str],
 
 
 def _log_calls(nodes: Sequence[ast.AST]) -> list[tuple[ast.Call, list[ast.expr]]]:
-    return [(n, args) for n in nodes if isinstance(n, ast.Call)
-            for args in [_log_sink_args(n)] if args is not None]
+    return [
+        (n, args)
+        for n in nodes
+        if isinstance(n, ast.Call)
+        for args in [_log_sink_args(n)]
+        if args is not None
+    ]
 
 
 def scan_source(source: str, filename: str) -> list[Violation]:
@@ -307,8 +348,11 @@ def scan_source(source: str, filename: str) -> list[Violation]:
 
     scopes = [s for s in ast.walk(tree) if _is_scope(s)]
     facts = [(s, nodes, _edges(nodes)) for s in scopes for nodes in [_own_nodes(s)]]
-    top_level = {s.name for s in tree.body
-                 if isinstance(s, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    top_level = {
+        s.name
+        for s in tree.body
+        if isinstance(s, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
 
     # ONE HOP out of the function that names the value, and no further.
     #
@@ -370,27 +414,55 @@ def script_files() -> list[Path]:
 
 def _defined_callables(path: Path) -> set[str]:
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=path.name)
-    return {n.name for n in ast.walk(tree)
-            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))}
+    return {
+        n.name
+        for n in ast.walk(tree)
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+    }
 
 
 # ---------------------------------------------------------------------------
 # THE MATCHER ITSELF
 # ---------------------------------------------------------------------------
 def test_sensitive_tokens_match_word_aware() -> None:
-    for name in ("secret", "get_secret_value", "SECRETS", "the_credential",
-                 "credentials", "token_run", "TOKENS", "authToken", "password",
-                 "passwd", "apikey", "api_key", "API_KEY", "apiKey",
-                 "private_key", "privateKey", "PRIVATE_KEYS"):
+    for name in (
+        "secret",
+        "get_secret_value",
+        "SECRETS",
+        "the_credential",
+        "credentials",
+        "token_run",
+        "TOKENS",
+        "authToken",
+        "password",
+        "passwd",
+        "apikey",
+        "api_key",
+        "API_KEY",
+        "apiKey",
+        "private_key",
+        "privateKey",
+        "PRIVATE_KEYS",
+    ):
         assert is_sensitive_name(name), f"{name!r} should match"
 
 
 def test_lookalike_names_do_not_match() -> None:
     # Substring matching flags every one of these. That is the failure mode
     # that gets a naming rule deleted, so it is pinned here.
-    for name in ("tokenize", "tokenizer", "detokenize", "sortedcontainers",
-                 "container", "keyword", "keys", "private", "credentialise",
-                 "passwd_", "tokens_"):
+    for name in (
+        "tokenize",
+        "tokenizer",
+        "detokenize",
+        "sortedcontainers",
+        "container",
+        "keyword",
+        "keys",
+        "private",
+        "credentialise",
+        "passwd_",
+        "tokens_",
+    ):
         expected = name in {"passwd_", "tokens_"}
         assert is_sensitive_name(name) is expected, f"{name!r} misjudged"
 
@@ -398,16 +470,16 @@ def test_lookalike_names_do_not_match() -> None:
 # ---------------------------------------------------------------------------
 # POSITIVE CONTROL -- a guard that has never fired is not known to work
 # ---------------------------------------------------------------------------
-VIOLATING_SOURCE: Final = '''
+VIOLATING_SOURCE: Final = """
 def get_secret_value() -> str:
     return "status"
 
 
 def report() -> None:
     print(f"  value: {get_secret_value()}")
-'''
+"""
 
-VIOLATING_INDIRECT: Final = '''
+VIOLATING_INDIRECT: Final = """
 def scan_for_secrets(text: str) -> list[str]:
     return [text]
 
@@ -416,9 +488,9 @@ def report(text: str) -> None:
     findings = scan_for_secrets(text)
     for line in findings:
         print(line)
-'''
+"""
 
-CLEAN_SOURCE: Final = '''
+CLEAN_SOURCE: Final = """
 import re
 
 _LITERAL_PREFIXES = ("github_pat_", "ghp_", "AKIA")
@@ -441,7 +513,7 @@ def report(text: str) -> None:
     for finding in scan_for_disclosure_shapes(text):
         print(finding)
     print(f"searched {len(tokenize(text))} words for {_LITERAL_PREFIXES}")
-'''
+"""
 
 
 def test_positive_control_direct_call_is_flagged() -> None:
@@ -457,7 +529,7 @@ def test_positive_control_through_a_variable_is_flagged() -> None:
     assert hits[0].origin == "scan_for_secrets", hits
 
 
-RETURNING_SOURCE: Final = '''
+RETURNING_SOURCE: Final = """
 import re
 
 _TOKEN_RUN = re.compile(r"[A-Za-z0-9]{32,}")
@@ -473,7 +545,7 @@ def find_runs(text: str) -> list[str]:
 def main(text: str) -> None:
     for hit in find_runs(text):
         print(hit)
-'''
+"""
 
 
 def test_negative_control_pattern_constants_are_not_flagged() -> None:
@@ -500,27 +572,33 @@ def test_one_hop_is_followed_and_two_are_not() -> None:
     stricter than CodeQL, which has never reported the five-function
     lexer chain in scripts/spec_to_test.py.
     """
-    one_hop = ('def make() -> str:\n'
-               '    token = "x"\n'
-               '    return token\n'
-               'def show() -> None:\n'
-               '    print(make())\n')
+    one_hop = (
+        "def make() -> str:\n"
+        '    token = "x"\n'
+        "    return token\n"
+        "def show() -> None:\n"
+        "    print(make())\n"
+    )
     assert [h.origin for h in scan_source(one_hop, "<one-hop>")] == ["token"]
 
-    two_hops = ('def make() -> str:\n'
-                '    token = "x"\n'
-                '    return token\n'
-                'def relay() -> str:\n'
-                '    return make()\n'
-                'def show() -> None:\n'
-                '    print(relay())\n')
+    two_hops = (
+        "def make() -> str:\n"
+        '    token = "x"\n'
+        "    return token\n"
+        "def relay() -> str:\n"
+        "    return make()\n"
+        "def show() -> None:\n"
+        "    print(relay())\n"
+    )
     assert scan_source(two_hops, "<two-hops>") == []
 
 
 def test_a_comment_mentioning_secret_is_not_an_identifier() -> None:
-    src = ('def f(v: str) -> None:\n'
-           '    # the secret must never reach this log\n'
-           '    print("no secret here", v)\n')
+    src = (
+        "def f(v: str) -> None:\n"
+        "    # the secret must never reach this log\n"
+        '    print("no secret here", v)\n'
+    )
     assert scan_source(src, "<comment>") == []
 
 
@@ -536,7 +614,8 @@ def test_no_script_logs_a_sensitively_named_value() -> None:
     assert not hits, (
         "CodeQL py/clear-text-logging-sensitive-data will fire on these. Rename "
         "the identifier to describe what it does, do not suppress the alert:\n"
-        + "\n".join("  " + h.describe() for h in hits))
+        + "\n".join("  " + h.describe() for h in hits)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -554,7 +633,7 @@ def test_generate_evidence_defines_no_secret_named_callable() -> None:
 
 def test_the_renamed_replacements_still_exist() -> None:
     # Without this, deleting the function passes the two tests above.
-    assert "check_is_status_literal" in _defined_callables(
-        SCRIPTS / "security_gate.py")
+    assert "check_is_status_literal" in _defined_callables(SCRIPTS / "security_gate.py")
     assert "scan_for_disclosure_shapes" in _defined_callables(
-        SCRIPTS / "generate_evidence.py")
+        SCRIPTS / "generate_evidence.py"
+    )

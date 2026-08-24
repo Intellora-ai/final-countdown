@@ -48,8 +48,12 @@ def git(*args: str) -> tuple[int, str]:
     # finding here would delete it before that check runs, turning a verified
     # exemption into an asserted one.
     out = subprocess.run(
-        [exe, *args], capture_output=True, text=True, timeout=60,
-        stdin=subprocess.DEVNULL, shell=False,
+        [exe, *args],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        stdin=subprocess.DEVNULL,
+        shell=False,
     )
     return out.returncode, out.stdout
 
@@ -68,8 +72,9 @@ def changed_files(since: str) -> list[str]:
 
 
 def touches_tcb(paths: list[str]) -> list[str]:
-    return sorted(p for p in paths
-                  if any(p == t or p.startswith(t) for t in TRUSTED_PREFIXES))
+    return sorted(
+        p for p in paths if any(p == t or p.startswith(t) for t in TRUSTED_PREFIXES)
+    )
 
 
 def acknowledgements(since: str) -> list[str]:
@@ -77,14 +82,18 @@ def acknowledgements(since: str) -> list[str]:
     code, out = git("log", "--format=%B", f"{since}..HEAD")
     if code != 0:
         return []
-    return [ln.strip() for ln in out.splitlines()
-            if ln.strip().startswith(TRAILER) and len(ln.strip()) > len(TRAILER) + 4]
+    return [
+        ln.strip()
+        for ln in out.splitlines()
+        if ln.strip().startswith(TRAILER) and len(ln.strip()) > len(TRAILER) + 4
+    ]
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--base", default="origin/main",
-                    help="branch this change will merge into")
+    ap.add_argument(
+        "--base", default="origin/main", help="branch this change will merge into"
+    )
     ns = ap.parse_args()
 
     try:
@@ -95,8 +104,11 @@ def main() -> int:
 
     base = merge_base(base_ref)
     if base is None:
-        print("CANNOT COMPARE: no merge base with the configured base ref. "
-              "A shallow clone needs fetch-depth: 0.", file=sys.stderr)
+        print(
+            "CANNOT COMPARE: no merge base with the configured base ref. "
+            "A shallow clone needs fetch-depth: 0.",
+            file=sys.stderr,
+        )
         return 2
 
     files = changed_files(base)
@@ -117,7 +129,8 @@ def main() -> int:
         print(f"\nacknowledged in {len(acks)} commit message(s)")
         return 0
 
-    print(f"""
+    print(
+        f"""
 FAIL — this change edits the trusted computing base and no commit says why.
 
 {len(tcb_files)} trusted-path file(s) changed. These decide what "verified"
@@ -129,7 +142,9 @@ Add a line to a commit message on this branch:
 
 A trailer is required rather than a PR-description checkbox because the PR
 body can be edited after the checks pass; a commit message changes the commit
-SHA and therefore causes the checks to run again.""", file=sys.stderr)
+SHA and therefore causes the checks to run again.""",
+        file=sys.stderr,
+    )
     return 1
 
 

@@ -69,18 +69,28 @@ nothing. That is reported as FAIL regardless of --min-score: a spec that killed
 nothing scored nothing. The excluded count is printed next to the score always,
 so an inflated-looking score can never hide the exclusions that produced it.
 """
-import argparse, sys
+
+import argparse
+import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from typing import Any
+
 from mutate import Mutant, generate_mutants
 from spec_source import source_for
-from spec_strength import (DISTINGUISHER_EXAMPLES,
-                           OBSERVATIONALLY_EQUIVALENT_UNDER_WITNESS_SET,
-                           SAMPLE_SEED, SampleVerdict, describe_witness_set,
-                           holds, load_module,
-                           observationally_equivalent_under_witness_set)
+from spec_strength import (
+    DISTINGUISHER_EXAMPLES,
+    OBSERVATIONALLY_EQUIVALENT_UNDER_WITNESS_SET,
+    SAMPLE_SEED,
+    SampleVerdict,
+    describe_witness_set,
+    holds,
+    load_module,
+    observationally_equivalent_under_witness_set,
+)
 from spec_to_test import SpecParseError, parse_lean_spec
-from typing import Any
+
 
 def score(spec_files: list[str], threshold: float = 0.9) -> dict[str, Any]:
     """Raises SpecParseError if ANY spec fails to parse.
@@ -120,7 +130,8 @@ def score(spec_files: list[str], threshold: float = 0.9) -> dict[str, Any]:
     distinguished: list[tuple[str, SampleVerdict]] = []
     for m in generate_mutants(source):
         verdict = observationally_equivalent_under_witness_set(
-            source, m.source, name, arity)
+            source, m.source, name, arity
+        )
         if verdict.indistinguishable:
             excluded.append((m.name, verdict))
         else:
@@ -132,8 +143,17 @@ def score(spec_files: list[str], threshold: float = 0.9) -> dict[str, Any]:
     for m in live:
         try:
             mod = load_module(m.source)
-            alive = any(holds(i, mod)[0] for _, i in infos) and all(
-                holds(i, mod)[0] for _, i in infos)
+            # `all` alone. The previous form was `any(...) and all(...)`,
+            # and for a non-empty `infos` -- which score() guarantees, since it
+            # returns early on an empty spec set -- `all` implies `any`. The
+            # `any` therefore decided nothing and ran a second independent
+            # Hypothesis search per mutant whose result was discarded.
+            #
+            # Worth stating because RUN is not derandomized: this removes real
+            # random draws, not cached ones. It cannot change the verdict --
+            # `all` is evaluated identically -- but the searches it removes
+            # were genuinely being performed and thrown away.
+            alive = all(holds(i, mod)[0] for _, i in infos)
         except Exception:
             alive = False
         if alive:
@@ -144,10 +164,15 @@ def score(spec_files: list[str], threshold: float = 0.9) -> dict[str, Any]:
     s = killed / total if total else 0.0
     # 0/0 is not 100%. Failed here rather than left to the threshold, which
     # would let --min-score 0 pass a run that scored nothing at all.
-    fail_reason = None if total else (
-        f"zero denominator: {len(excluded) + total} mutants generated, "
-        f"{len(excluded)} excluded as "
-        f"{OBSERVATIONALLY_EQUIVALENT_UNDER_WITNESS_SET}, 0 scored")
+    fail_reason = (
+        None
+        if total
+        else (
+            f"zero denominator: {len(excluded) + total} mutants generated, "
+            f"{len(excluded)} excluded as "
+            f"{OBSERVATIONALLY_EQUIVALENT_UNDER_WITNESS_SET}, 0 scored"
+        )
+    )
     verdict = "FAIL" if fail_reason else ("PASS" if s >= threshold else "FAIL")
     # The SMALLEST witness set any mutant was judged on, with the breakdown from
     # that same mutant. Reporting the smallest is the conservative direction: it
@@ -158,64 +183,84 @@ def score(spec_files: list[str], threshold: float = 0.9) -> dict[str, Any]:
     points = min((v.points_tested for _, v in excluded), default=0)
     witness_size = weakest.witness_set_size if weakest else 0
     counts: tuple[tuple[str, int], ...] = weakest.strategy_counts if weakest else ()
-    return {"mutation_score": round(s, 3), "mutants_killed": killed,
-            "mutants": total,
-            "observationally_equivalent": len(excluded),
-            # Kept alongside the precise name so scripts/run_gate.py's
-            # stdout scraper and any reader of the old key keep working.
-            "indistinguishable_on_sample": len(excluded),
-            "excluded_names": [n for n, _ in excluded],
-            "witness_set_size": witness_size,
-            "witness_strategies": [f"{k}:{n}" for k, n in counts],
-            "distinguished_by": {n: v.witness_provenance
-                                 for n, v in distinguished},
-            "sample_points": points, "sample_seed": SAMPLE_SEED,
-            "hypothesis_examples": DISTINGUISHER_EXAMPLES,
-            # DEPRECATED MISNOMER. The count is right; the word "equivalent"
-            # unqualified is the exact claim this module exists to stop making.
-            # Retained only because scripts/honest_report.py reads this key and
-            # is not owned here. Read "observationally_equivalent" instead.
-            "equivalent_excluded": len(excluded),
-            "survivors": survivors, "verdict": verdict,
-            "fail_reason": fail_reason,
-            "excluded_detail": [(n, describe_witness_set(v))
-                                for n, v in excluded]}
+    return {
+        "mutation_score": round(s, 3),
+        "mutants_killed": killed,
+        "mutants": total,
+        "observationally_equivalent": len(excluded),
+        # Kept alongside the precise name so scripts/run_gate.py's
+        # stdout scraper and any reader of the old key keep working.
+        "indistinguishable_on_sample": len(excluded),
+        "excluded_names": [n for n, _ in excluded],
+        "witness_set_size": witness_size,
+        "witness_strategies": [f"{k}:{n}" for k, n in counts],
+        "distinguished_by": {n: v.witness_provenance for n, v in distinguished},
+        "sample_points": points,
+        "sample_seed": SAMPLE_SEED,
+        "hypothesis_examples": DISTINGUISHER_EXAMPLES,
+        # DEPRECATED MISNOMER. The count is right; the word "equivalent"
+        # unqualified is the exact claim this module exists to stop making.
+        # Retained only because scripts/honest_report.py reads this key and
+        # is not owned here. Read "observationally_equivalent" instead.
+        "equivalent_excluded": len(excluded),
+        "survivors": survivors,
+        "verdict": verdict,
+        "fail_reason": fail_reason,
+        "excluded_detail": [(n, describe_witness_set(v)) for n, v in excluded],
+    }
+
 
 if __name__ == "__main__":
-    p = argparse.ArgumentParser(); p.add_argument("specs", nargs="+")
-    p.add_argument("--min-score", type=float, default=0.9); ns = p.parse_args()
+    p = argparse.ArgumentParser()
+    p.add_argument("specs", nargs="+")
+    p.add_argument("--min-score", type=float, default=0.9)
+    ns = p.parse_args()
     try:
         r = score(ns.specs, ns.min_score)
     except SpecParseError as exc:
         print(f"❌ unparsable spec — the set was NOT scored: {exc}")
         sys.exit(1)
-    print(f"  mutation discrimination: {r['mutants_killed']}/{r['mutants']} "
-          f"({r['mutation_score']:.0%})")
+    print(
+        f"  mutation discrimination: {r['mutants_killed']}/{r['mutants']} "
+        f"({r['mutation_score']:.0%})"
+    )
     # Printed on every run, passing or failing: the score is uninterpretable
     # without the size of the denominator that was removed to produce it.
     # The wording keeps "indistinguishable on sample: N" verbatim because
     # scripts/run_gate.py scrapes exactly that phrase into the gate's evidence
     # and is not owned here; a renamed line would silently empty that field.
-    budget = (f"{r['sample_points']} points each + {r['hypothesis_examples']} "
-              f"hypothesis examples, " if r["observationally_equivalent"] else "")
-    print(f"  observationally equivalent under witness set "
-          f"(indistinguishable on sample: {r['observationally_equivalent']} "
-          f"excluded) ({budget}seed {r['sample_seed']})")
-    print(f"  smallest witness set: {r['witness_set_size']} derived values "
-          f"[{', '.join(r['witness_strategies']) or 'none'}] — this is NOT "
-          f"proven semantic equivalence: no distinguishing input was FOUND, "
-          f"which is not a proof that none EXISTS")
+    budget = (
+        f"{r['sample_points']} points each + {r['hypothesis_examples']} "
+        f"hypothesis examples, "
+        if r["observationally_equivalent"]
+        else ""
+    )
+    print(
+        f"  observationally equivalent under witness set "
+        f"(indistinguishable on sample: {r['observationally_equivalent']} "
+        f"excluded) ({budget}seed {r['sample_seed']})"
+    )
+    print(
+        f"  smallest witness set: {r['witness_set_size']} derived values "
+        f"[{', '.join(r['witness_strategies']) or 'none'}] — this is NOT "
+        f"proven semantic equivalence: no distinguishing input was FOUND, "
+        f"which is not a proof that none EXISTS"
+    )
     if r["excluded_names"]:
-        print(f"  excluded: {', '.join(r['excluded_names'])} — no witness told "
-              f"them apart, NOT proven equivalent")
+        print(
+            f"  excluded: {', '.join(r['excluded_names'])} — no witness told "
+            f"them apart, NOT proven equivalent"
+        )
     # The strategy that caught each surviving-in-the-denominator mutant. This is
     # the evidence that the witnesses are derived rather than stumbled on.
     for mutant_name, strategy in r["distinguished_by"].items():
         print(f"  distinguished: {mutant_name} by strategy {strategy}")
     if r["fail_reason"]:
         print(f"  ZERO DENOMINATOR — {r['fail_reason']}.")
-        print(f"  A spec that killed nothing scored nothing: hard FAIL, "
-              f"independent of --min-score.")
+        print(
+            "  A spec that killed nothing scored nothing: hard FAIL, "
+            "independent of --min-score."
+        )
     if r["survivors"]:
         print(f"  survivors: {', '.join(r['survivors'])}")
     sys.exit(0 if r["verdict"] == "PASS" else 1)

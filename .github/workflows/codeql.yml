@@ -76,6 +76,60 @@ jobs:
           category: /language:python
           upload: always
 
+  # THE LANGUAGE THAT WAS MISSING, AND WHAT ITS ABSENCE COST.
+  #
+  # This workflow's header justifies its language set with a measurement:
+  # `GET /repos/.../languages` returned Python 84055, Lean 3422, Shell 885.
+  # That was true when it was written. One hundred TypeScript files have landed
+  # since, and the matrix was never revisited.
+  #
+  # The consequence is recorded in codeql-python's own log for the canvas
+  # branch: `Processed 0 modules` from a 104-file changeset, then a pass in
+  # 42 seconds. A required check that cannot parse 96% of a diff is not a weak
+  # gate, it is an absent one wearing a green tick.
+  #
+  # NOT MANDATORY, and that is not a preference. `scripts/check_ruleset.py`
+  # asserts the manifest's required_checks set EQUALS GitHub's live
+  # required_status_checks. Declaring a context required here before a
+  # repository admin adds it on the GitHub side would fail preflight on the
+  # very push that added it. It is declared `mandatory = false` in
+  # ci/gates.toml until that half is done.
+  #
+  # The results check `CodeQL` IS already required, with an alert threshold of
+  # `all`. So the analysis being non-required does not mean its findings are
+  # ignored: any alert this job publishes flows into that check.
+  codeql-javascript-typescript:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
+        with:
+          languages: javascript-typescript
+          # TypeScript needs no build for CodeQL: the extractor reads sources
+          # directly. Asking autobuild to find a build would invent a failure
+          # mode, the same reasoning recorded for python above.
+          build-mode: none
+          # Scoped to the application. `technology-universe/runtimes/**` holds
+          # pinned lockfiles for version measurement that no build installs,
+          # and scanning them would report on code this repository never runs.
+          config: |
+            paths:
+              - frontend/src
+              - frontend/e2e
+              - frontend/scripts
+              - frontend/eslint-rules
+      - name: Analyze
+        uses: github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
+        with:
+          category: /language:javascript-typescript
+          upload: always
+
   codeql-actions:
     runs-on: ubuntu-latest
     timeout-minutes: 20

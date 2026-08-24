@@ -41,8 +41,12 @@ def gh_json(path: str) -> Any:
     # `PASS (with 27 verified exceptions)`; without it, the same edit reports
     # `FAIL -- no timeout` and `argv[0] is 'path' -- not shutil.which(...)`.
     out = subprocess.run(
-        [gh, "api", path], capture_output=True, text=True, timeout=120,
-        stdin=subprocess.DEVNULL, shell=False,
+        [gh, "api", path],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        stdin=subprocess.DEVNULL,
+        shell=False,
     )
     if out.returncode != 0:
         raise SystemExit("gh api failed; see the command output above")
@@ -61,10 +65,10 @@ def percentile(values: list[float], fraction: float) -> float:
     return ordered[index]
 
 
-def collect(pages: int, since: str | None,
-            include_failures: bool) -> dict[str, list[float]]:
-    cutoff = dt.datetime.fromisoformat(since).replace(
-        tzinfo=dt.timezone.utc) if since else None
+def collect(
+    pages: int, since: str | None, include_failures: bool
+) -> dict[str, list[float]]:
+    cutoff = dt.datetime.fromisoformat(since).replace(tzinfo=dt.UTC) if since else None
     durations: dict[str, list[float]] = defaultdict(list)
     for page in range(1, pages + 1):
         data = gh_json(f"repos/{REPO}/actions/runs?per_page=100&page={page}")
@@ -79,9 +83,9 @@ def collect(pages: int, since: str | None,
             if not include_failures and run.get("conclusion") != "success":
                 continue
             started = dt.datetime.fromisoformat(
-                run["run_started_at"].replace("Z", "+00:00"))
-            ended = dt.datetime.fromisoformat(
-                run["updated_at"].replace("Z", "+00:00"))
+                run["run_started_at"].replace("Z", "+00:00")
+            )
+            ended = dt.datetime.fromisoformat(run["updated_at"].replace("Z", "+00:00"))
             if cutoff and started < cutoff:
                 continue
             durations[run["name"]].append((ended - started).total_seconds())
@@ -93,27 +97,38 @@ def summarise(durations: dict[str, list[float]]) -> dict[str, dict[str, float]]:
     for name, values in durations.items():
         if not values:
             continue
-        out[name] = {"n": len(values), "median": statistics.median(values),
-                     "p50": percentile(values, 0.50),
-                     "p95": percentile(values, 0.95),
-                     "min": min(values), "max": max(values),
-                     "total": sum(values)}
+        out[name] = {
+            "n": len(values),
+            "median": statistics.median(values),
+            "p50": percentile(values, 0.50),
+            "p95": percentile(values, 0.95),
+            "min": min(values),
+            "max": max(values),
+            "total": sum(values),
+        }
     return out
 
 
 def render(summary: dict[str, dict[str, float]]) -> None:
-    print(f"  {'workflow':10s} {'N':>4s} {'median':>9s} {'p95':>9s} "
-          f"{'min':>8s} {'max':>8s}")
+    print(
+        f"  {'workflow':10s} {'N':>4s} {'median':>9s} {'p95':>9s} "
+        f"{'min':>8s} {'max':>8s}"
+    )
     for name in sorted(summary):
         s = summary[name]
-        print(f"  {name:10s} {int(s['n']):4d} {s['median']:8.1f}s "
-              f"{s['p95']:8.1f}s {s['min']:7.1f}s {s['max']:7.1f}s")
+        print(
+            f"  {name:10s} {int(s['n']):4d} {s['median']:8.1f}s "
+            f"{s['p95']:8.1f}s {s['min']:7.1f}s {s['max']:7.1f}s"
+        )
 
 
-def compare(now: dict[str, dict[str, float]],
-            base: dict[str, dict[str, float]]) -> None:
-    print(f"\n  {'workflow':10s} {'median before':>14s} {'after':>9s} "
-          f"{'delta':>9s} {'change':>9s}")
+def compare(
+    now: dict[str, dict[str, float]], base: dict[str, dict[str, float]]
+) -> None:
+    print(
+        f"\n  {'workflow':10s} {'median before':>14s} {'after':>9s} "
+        f"{'delta':>9s} {'change':>9s}"
+    )
     for name in sorted(set(now) | set(base)):
         if name not in now or name not in base:
             print(f"  {name:10s} {'— present in only one sample —':>44s}")
@@ -123,14 +138,17 @@ def compare(now: dict[str, dict[str, float]],
         pct = (delta / before * 100) if before else 0.0
         weak = min(now[name]["n"], base[name]["n"]) < 3
         note = "  (N<3, preliminary)" if weak else ""
-        print(f"  {name:10s} {before:13.1f}s {after:8.1f}s "
-              f"{delta:+8.1f}s {pct:+8.1f}%{note}")
+        print(
+            f"  {name:10s} {before:13.1f}s {after:8.1f}s "
+            f"{delta:+8.1f}s {pct:+8.1f}%{note}"
+        )
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pages", type=int, default=3,
-                    help="pages of 100 runs to read (default 3)")
+    ap.add_argument(
+        "--pages", type=int, default=3, help="pages of 100 runs to read (default 3)"
+    )
     ap.add_argument("--since", help="ISO date; ignore runs started before it")
     ap.add_argument("--include-failures", action="store_true")
     ap.add_argument("--save", help="write these numbers to a JSON baseline")
@@ -144,8 +162,7 @@ def main() -> int:
         return 1
 
     scope = "all completed" if ns.include_failures else "successful"
-    print(f"[CI DURATIONS]  {scope} runs"
-          f"{f', since {ns.since}' if ns.since else ''}\n")
+    print(f"[CI DURATIONS]  {scope} runs{f', since {ns.since}' if ns.since else ''}\n")
     render(summary)
 
     if ns.baseline:
@@ -153,8 +170,7 @@ def main() -> int:
         compare(summary, base)
 
     if ns.save:
-        Path(ns.save).write_text(json.dumps(summary, indent=2) + "\n",
-                                 encoding="utf-8")
+        Path(ns.save).write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
         print(f"\n  baseline written to {ns.save}")
     return 0
 

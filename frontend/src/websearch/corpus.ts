@@ -34,6 +34,7 @@ import type { SearchProvider } from './engine'
 import { ask } from './pipeline'
 import { Latency } from './latency'
 import { citationSupports, independentSources, precision, recall, coverage } from './quality'
+import { grade, type Expectation, type Outcome } from './accuracy'
 import { checkClaims, selectEvidence, type ClaimStatus } from './verify'
 import type { FetchOutcome } from './fetchPage'
 
@@ -97,6 +98,15 @@ export interface BenchmarkCase {
   relevantTotal: number
   /** True when a cached answer would be wrong however recent. */
   timeSensitive: boolean
+  /**
+   * What a CORRECT answer would have contained.
+   *
+   * Retrieval metrics say the right pages came back and mention the right
+   * words. Neither says the answer was right, and a benchmark without this
+   * cannot tell a correct answer from a confident wrong one. A case with no
+   * expectation is counted and never judged, which inflates the score.
+   */
+  expectation: Expectation
   /** Why this case is in the corpus. Read this before changing it. */
   why: string
 }
@@ -108,6 +118,7 @@ export interface BenchmarkCase {
 export const CORPUS: readonly BenchmarkCase[] = [
   {
     id: 'gdp-2025',
+    expectation: { type: 'numeric', value: 6.1 },
     query: 'india gdp growth 2025',
     category: 'simple-factual',
     aspectsRequired: ['growth rate', '2025'],
@@ -120,6 +131,7 @@ export const CORPUS: readonly BenchmarkCase[] = [
   },
   {
     id: 'apple-revenue',
+    expectation: { type: 'numeric', value: 383 },
     query: 'apple revenue',
     category: 'ambiguous',
     aspectsRequired: ['revenue', 'fiscal'],
@@ -132,6 +144,7 @@ export const CORPUS: readonly BenchmarkCase[] = [
   },
   {
     id: 'repo-rate-now',
+    expectation: { type: 'numeric', value: 6.5 },
     query: 'current rbi repo rate',
     category: 'current',
     aspectsRequired: ['repo rate', 'effective'],
@@ -144,6 +157,7 @@ export const CORPUS: readonly BenchmarkCase[] = [
   },
   {
     id: 'chain-minister',
+    expectation: { type: 'factual', facts: ['governor', 'monetary policy committee'] },
     query: 'who chairs the committee that sets the indian repo rate',
     category: 'multi-hop',
     aspectsRequired: ['committee', 'chair'],
@@ -156,6 +170,7 @@ export const CORPUS: readonly BenchmarkCase[] = [
   },
   {
     id: 'tcp-window',
+    expectation: { type: 'factual', facts: ['7323', 'window scaling'] },
     query: 'tcp receive window scaling option',
     category: 'technical',
     aspectsRequired: ['window scaling', 'rfc'],
@@ -168,6 +183,7 @@ export const CORPUS: readonly BenchmarkCase[] = [
   },
   {
     id: 'literacy-rate',
+    expectation: { type: 'numeric', value: 96.2 },
     query: 'kerala literacy rate percentage',
     category: 'numerical',
     aspectsRequired: ['literacy', 'percent'],
@@ -180,6 +196,12 @@ export const CORPUS: readonly BenchmarkCase[] = [
   },
   {
     id: 'lifo-fifo',
+    expectation: {
+      type: 'comparative',
+      /* ORDER is the whole claim. Both directions mention every word; only the
+         sequence separates "newest is expensed first" from its reverse. */
+      relationships: [{ subject: 'lifo', relation: 'newest', object: 'expensed' }],
+    },
     query: 'lifo vs fifo inventory valuation difference',
     category: 'comparison',
     aspectsRequired: ['lifo', 'fifo', 'difference'],
@@ -192,6 +214,7 @@ export const CORPUS: readonly BenchmarkCase[] = [
   },
   {
     id: 'vaccine-efficacy',
+    expectation: { type: 'numeric', value: 97 },
     query: 'measles vaccine efficacy',
     category: 'source-sensitive',
     aspectsRequired: ['vaccine', 'efficacy'],
@@ -204,6 +227,7 @@ export const CORPUS: readonly BenchmarkCase[] = [
   },
   {
     id: 'population-dispute',
+    expectation: { type: 'factual', facts: ['population'] },
     query: 'population of a disputed territory',
     category: 'contradictory-source',
     aspectsRequired: ['population', 'estimate'],
@@ -216,6 +240,7 @@ export const CORPUS: readonly BenchmarkCase[] = [
   },
   {
     id: 'rare-term',
+    expectation: { type: 'numeric', value: 1944 },
     query: 'zzyzx california post office founding',
     category: 'rare',
     aspectsRequired: ['post office', 'founding'],
@@ -246,6 +271,16 @@ export interface CaseResult {
    * what they SAY can be relied on, and the two come apart constantly: perfect
    * precision with one publisher is still `single-source`.
    */
+  /**
+   * How the ANSWER scored, not the evidence behind it.
+   *
+   * `answered-unanswerable` is the one that matters most: it is the single
+   * failure this whole feature exists to prevent, and it must be visible as
+   * its own outcome rather than as "slightly wrong".
+   */
+  outcome: Outcome
+  /** Citations that no claim supports. A second, independent citation check. */
+  distortions: readonly string[]
   status: ClaimStatus
   /**
    * Whether the span chosen for display is actually supported by the page it
@@ -380,6 +415,10 @@ export async function runCase(
   const citationSupported =
     chosen !== null && citedPage !== undefined && citationSupports(chosen.text, citedPage.text)
 
+  /* `accuracy.ts` was written, fully tested, and reached by nothing that ran.
+     It grades the answer against what a correct one would have said. */
+  const graded = grade(result.answer, testCase.expectation)
+
   const p = precision(judged)
   const r = recall(found, testCase.relevantTotal)
   const c = coverage(aspectsCovered, testCase.aspectsRequired)
@@ -390,6 +429,8 @@ export async function runCase(
     ...(p === undefined ? {} : { precision: p }),
     ...(r === undefined ? {} : { recall: r }),
     ...(c === undefined ? {} : { coverage: c }),
+    outcome: graded.outcome,
+    distortions: graded.distortions,
     status: check.status,
     citationSupported,
     rounds: result.rounds,

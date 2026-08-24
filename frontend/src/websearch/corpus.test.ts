@@ -135,6 +135,10 @@ describe('running the corpus', () => {
     relevantUrls: ['https://mospi.gov.in/gdp-2025'],
     relevantTotal: 1,
     timeSensitive: false,
+    /* Required since `accuracy.ts` was wired. A case with no expectation is
+       counted and never judged, so the type refuses one. Nothing asserted here
+       changed; the fixture simply now says what a correct answer looks like. */
+    expectation: { type: 'numeric', value: 6.1 },
     why: 'A single controlled case used to prove the runner scores what it claims to score.',
   }
 
@@ -423,5 +427,76 @@ describe('citationSupports can come out FALSE, which is what makes it a measure'
         'The ministry reported the growth rate for 2025 was 6.1 percent.',
       ),
     ).toBe(true)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Grading the answer against what a correct answer would have been           */
+/* -------------------------------------------------------------------------- */
+
+describe('the benchmark grades the answer, not only the evidence behind it', () => {
+  it('records an outcome for every case', async () => {
+    /* `accuracy.ts` was written, fully tested, and reached by nothing. Precision
+       says the right pages came back; coverage says they mention the right
+       words. Neither says the ANSWER was right. */
+    const report = await runCorpus({
+      provider: fixtureProvider({
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'a', snippet: '' }],
+      }),
+      fetchImpl: async (url: string) =>
+        served('The ministry reported that the growth rate for the year 2025 was 6.1 percent.', url),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+    expect(report.cases[0]?.outcome).toBe('graded')
+  })
+
+  it('answering a question that has no answer is its own, worse outcome', async () => {
+    /* The single failure this whole feature exists to prevent. It must be
+       visible in the score as something other than "slightly wrong". */
+    const unanswerable: BenchmarkCase = {
+      ...(CORPUS[0] as BenchmarkCase),
+      id: 'invented',
+      expectation: { type: 'factual', unanswerable: true },
+    }
+    const report = await runCorpus({
+      provider: fixtureProvider({
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'a', snippet: '' }],
+      }),
+      fetchImpl: async (url: string) =>
+        served('The ministry reported that the growth rate for the year 2025 was 6.1 percent.', url),
+      cases: [unanswerable],
+    })
+    expect(report.cases[0]?.outcome).toBe('answered-unanswerable')
+  })
+
+  it('refusing a question that has no answer is CORRECT, not a miss', async () => {
+    /* The other half. A system rewarded only for answering learns to answer. */
+    const unanswerable: BenchmarkCase = {
+      ...(CORPUS[0] as BenchmarkCase),
+      id: 'nothing-there',
+      expectation: { type: 'factual', unanswerable: true },
+    }
+    const report = await runCorpus({ provider: fixtureProvider({}), cases: [unanswerable] })
+    expect(report.cases[0]?.outcome).toBe('correct-refusal')
+  })
+
+  it('every corpus case states what a correct answer would look like', async () => {
+    /* A case with no expectation cannot be graded, and an ungradeable case
+       inflates the benchmark by being counted and never judged. */
+    for (const c of CORPUS) {
+      expect(c.expectation, `${c.id} has no expectation`).toBeDefined()
+    }
+  })
+
+  it('reports citations that no claim supports', async () => {
+    const report = await runCorpus({
+      provider: fixtureProvider({
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'a', snippet: '' }],
+      }),
+      fetchImpl: async (url: string) =>
+        served('The ministry reported that the growth rate for the year 2025 was 6.1 percent.', url),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+    expect(report.cases[0]?.distortions).toEqual([])
   })
 })

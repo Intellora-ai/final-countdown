@@ -28,6 +28,8 @@ function caseResult(over: Partial<CaseResult> = {}): CaseResult {
     category: 'simple-factual',
     precision: 1,
     coverage: 1,
+    outcome: 'graded',
+    distortions: [],
     status: 'supported',
     citationSupported: true,
     rounds: 0,
@@ -151,5 +153,34 @@ describe('the floors that ship are real numbers, not zero', () => {
     expect(FLOORS.meanPrecision).toBeGreaterThan(0)
     expect(FLOORS.meanCoverage).toBeGreaterThan(0)
     expect(FLOORS.minCases).toBeGreaterThan(0)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Answering a question that has no answer                                    */
+/* -------------------------------------------------------------------------- */
+
+describe('the outcome the whole feature exists to prevent fails the run', () => {
+  it('FAILS when a case answered a question that has no answer', async () => {
+    /* Worse than being wrong. A system that is merely wrong can be corrected;
+       one that invents an answer where none exists teaches the learner that
+       an answer existed. It must never be averaged away. */
+    const v = evaluate(report([caseResult({ outcome: 'answered-unanswerable' })]), STRICT)
+    expect(v.ok).toBe(false)
+    expect(v.failures.join(' ')).toContain('no answer')
+  })
+
+  it('FAILS when a citation points at something no claim supports', async () => {
+    const v = evaluate(report([caseResult({ distortions: ['https://a.test/x@40'] })]), STRICT)
+    expect(v.ok).toBe(false)
+    expect(v.failures.join(' ')).toContain('distort')
+  })
+
+  it('a correct refusal is NOT a failure', async () => {
+    /* The other half. A benchmark that punishes refusing teaches the system to
+       answer everything, which is the behaviour this repo spent the day
+       removing. */
+    const v = evaluate(report([caseResult({ outcome: 'correct-refusal' })]), STRICT)
+    expect(v.ok).toBe(true)
   })
 })

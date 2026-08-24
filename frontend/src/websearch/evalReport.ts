@@ -115,6 +115,26 @@ export function evaluate(report: CorpusReport, floors: Floors): Verdict {
     failures.push(`${c.id}: the quoted citation is not supported by the page it names`)
   }
 
+  /*
+   * The outcome this whole feature exists to prevent, and it is NOT averaged.
+   *
+   * Being wrong can be corrected. Inventing an answer where none exists teaches
+   * the learner that an answer existed, and no amount of good scores elsewhere
+   * makes that acceptable in a run.
+   */
+  for (const c of report.cases.filter((x) => x.outcome === 'answered-unanswerable')) {
+    failures.push(`${c.id}: answered a question that has no answer`)
+  }
+
+  /* A second, independent citation check. `citationSupported` asks whether the
+     DISPLAYED span is backed; this asks whether every citation the answer
+     carries traces to a claim at all. They fail in different ways. */
+  for (const c of report.cases.filter((x) => x.distortions.length > 0)) {
+    failures.push(
+      `${c.id}: ${c.distortions.length} citation(s) distort their source — no claim supports them`,
+    )
+  }
+
   const died = report.cases.filter((c) => c.engineFailed)
   for (const c of died) {
     failures.push(`${c.id}: the engine failed, so this case scored an outage rather than an answer`)

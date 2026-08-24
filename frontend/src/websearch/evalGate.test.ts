@@ -89,7 +89,14 @@ describe('the eval gate', () => {
         `EVAL GATE — ${report.cases.length} cases`,
         ...rows,
         `statuses: ${JSON.stringify(statuses)}`,
+        `outcomes: ${JSON.stringify(
+          report.cases.reduce<Record<string, number>>((acc, c) => {
+            acc[c.outcome] = (acc[c.outcome] ?? 0) + 1
+            return acc
+          }, {}),
+        )}`,
         `citations supported: ${report.cases.filter((c) => c.citationSupported).length}/${report.cases.length}`,
+        `citation distortions: ${report.cases.reduce((n, c) => n + c.distortions.length, 0)}`,
         `refinement rounds: ${report.cases.reduce((n, c) => n + c.rounds, 0)}`,
         '',
       ].join('\n'),

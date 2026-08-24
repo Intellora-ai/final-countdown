@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 
 import { CHAPTER_BY_ID, CHAPTER_OF_TOPIC, TOPIC_BY_ID, topicsOfChapter } from './curriculum'
+import { modelProvider } from './engine/modelProvider'
 import { fixtureProvider } from './engine/provider'
 import type { TopicProfile } from './engine/plan'
 import type { OptionKey, QuestionCount } from './engine/types'
@@ -12,6 +13,30 @@ import {
   useSessionStore,
 } from './sessionStore'
 import { usePracticeStore } from './store'
+
+/**
+ * Which generator the session uses.
+ *
+ * THE FIXTURE IS THE DEFAULT, AND THAT IS DELIBERATE
+ * --------------------------------------------------
+ * `modelProvider` posts to a same-origin proxy that holds the API key, because
+ * a key shipped to a browser is a key you have published. Until that proxy
+ * exists, defaulting to the model would mean every practice session opens,
+ * fails, and shows the learner a refusal — a worse experience than templated
+ * questions.
+ *
+ * So the switch is explicit. Set `VITE_PRACTICE_PROVIDER=model` once the
+ * endpoint is deployed. Both providers go through the identical verifier, so
+ * flipping this changes where questions come from and nothing about what is
+ * allowed to reach a student.
+ */
+function chooseProvider() {
+  const configured = import.meta.env['VITE_PRACTICE_PROVIDER'];
+  if (configured === 'model') {
+    return modelProvider({ endpoint: import.meta.env['VITE_PRACTICE_ENDPOINT'] });
+  }
+  return fixtureProvider();
+}
 
 /** Everything the browser will hand focus to inside the card. */
 const FOCUSABLE =
@@ -145,7 +170,7 @@ export function SessionView() {
       userId: 'local',
       profile,
       count: settings.questionCount as QuestionCount,
-      provider: fixtureProvider(),
+      provider: chooseProvider(),
       timerEnabled: settings.timerEnabled,
       timerMinutes: settings.timerMinutes,
     })

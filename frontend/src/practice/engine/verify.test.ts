@@ -17,6 +17,7 @@ const SPEC: QuestionSpec = {
   topicId: 't1',
   chapterId: 'ch1',
   conceptId: 'ideal-gas-pressure',
+  conceptName: 'ideal gas pressure',
   questionType: 'standard',
   difficultyTarget: 'easy',
   reasoningStructure: 'single_step_application',

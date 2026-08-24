@@ -153,6 +153,15 @@ export interface QuestionSpec {
   readonly chapterId: string;
   /** The specific idea under test. Narrower than the topic. */
   readonly conceptId: string;
+  /**
+   * The concept as a human would say it.
+   *
+   * The id is a slug — `eco-1-opportunity-cost` — and a generator that only has
+   * the id ends up writing "eco 1 opportunity cost" into the question a student
+   * reads. Carrying the name costs one field and removes the temptation to
+   * de-slugify at the point of use, which never quite works.
+   */
+  readonly conceptName: string;
   readonly questionType: QuestionType;
   readonly difficultyTarget: Difficulty;
   /** How the student has to get from the given to the asked. */

@@ -218,7 +218,7 @@ function sound(spec: QuestionSpec, attempt: number): CandidateQuestion {
     a: 20 + (seed % 17) * 5 + attempt * 3,
     b: 2 + ((seed >> 4) % 7) + attempt,
     c: 4 + ((seed >> 8) % 11) * 2 + attempt,
-    concept: spec.conceptId.replace(/-/g, ' '),
+    concept: spec.conceptName,
   };
 
   const computation = template.shape(vars);

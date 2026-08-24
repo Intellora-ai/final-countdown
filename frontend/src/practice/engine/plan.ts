@@ -324,6 +324,7 @@ export function buildPlan(profile: TopicProfile, count: QuestionCount): readonly
       topicId: profile.topicId,
       chapterId: profile.chapterId,
       conceptId: concept.id,
+      conceptName: concept.name,
       questionType,
       difficultyTarget,
       reasoningStructure,

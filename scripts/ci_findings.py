@@ -158,14 +158,42 @@ class Finding:
 
 @dataclass(frozen=True)
 class Problem:
-    """A way this run's verdict is not addressable."""
+    """A way this run's verdict is not addressable.
+
+    `blocking` separates a LOST message from an IMPRECISE one, and the
+    distinction is what makes this check safe to enforce.
+
+    Measured across 10 real red runs before the split existed:
+
+        annotation-without-a-line     18 instances
+        annotation-path-not-in-tree    2 instances
+        red runs with zero annotations 0
+
+    Treating all twenty as blocking put the enforced pass rate at 60%. The
+    eighteen are not defects. `scripts/blocker_report.py` gives the reasoning in
+    its own docstring: most gates here record a bare path, "requiring a line
+    meant every one of those produced no annotation at all", and GitHub
+    attaching a line-less annotation to the file "is a true and useful claim;
+    refusing to make it bought nothing."
+
+    So blocking on them would fail 40% of red runs for doing the deliberate
+    right thing -- the shape of #69, "the ratchet test punished anyone who added
+    a mutant". An annotation nobody can OPEN blocks. One that opens at the wrong
+    line informs.
+    """
 
     kind: str
     detail: str
     where: str
+    blocking: bool = True
 
     def as_dict(self) -> dict[str, Any]:
-        return {"kind": self.kind, "detail": self.detail, "where": self.where}
+        return {
+            "kind": self.kind,
+            "detail": self.detail,
+            "where": self.where,
+            "blocking": self.blocking,
+        }
 
 
 # Labels that mean "this line IS a failure" on their own, with or without a
@@ -310,6 +338,7 @@ def reconcile(
         if a.get("start_line") in (None, 0):
             problems.append(
                 Problem(
+                    blocking=False,
                     kind="annotation-without-a-line",
                     detail=(
                         f"{path!r} was annotated with no line, so it pins to line 1 "
@@ -342,10 +371,14 @@ def reconcile(
     return problems
 
 
-def _emit_problem(p: Problem) -> None:
+def emit_problem(p: Problem) -> None:
     """Annotate the reconciler's own findings, so it is not another silent log."""
     where = f"file={p.where}," if "/" in p.where else ""
-    print(f"::error {where}title=unlocatable failure: {p.kind}::{p.detail}")
+    # Level tracks severity. An advisory printed as `::error` paints a red
+    # annotation for a deliberate choice, and readers learn to ignore both.
+    level = "error" if p.blocking else "notice"
+    label = "unlocatable failure" if p.blocking else "imprecise location"
+    print(f"::{level} {where}title={label}: {p.kind}::{p.detail}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -400,7 +433,7 @@ def main(argv: list[str] | None = None) -> int:
             path_exists=lambda p: (root / p).exists(),
         )
         for p in problems:
-            _emit_problem(p)
+            emit_problem(p)
         target = os.environ.get("GITHUB_STEP_SUMMARY")
         if target and problems:
             with open(target, "a", encoding="utf-8") as fh:
@@ -409,10 +442,23 @@ def main(argv: list[str] | None = None) -> int:
                 for p in problems:
                     fh.write(f"| {p.kind} | `{p.where}` | {p.detail} |\n")
         print(json.dumps([p.as_dict() for p in problems], indent=2))
-        if problems:
+        blocking = [p for p in problems if p.blocking]
+        advisory = [p for p in problems if not p.blocking]
+
+        # THE EXIT CODE IS THE ENFORCEMENT SURFACE, so it honours severity and
+        # nothing else. Failing on advisories would make this impossible to
+        # require without punishing gates that record a bare path on purpose --
+        # measured at 18 of 20 findings across 10 real red runs.
+        if advisory:
             print(
-                f"\nci-findings: FAIL — {len(problems)} failure(s) on this run "
-                "cannot be located from the annotations alone."
+                f"ci-findings: {len(advisory)} advisory finding(s) — annotations "
+                "that open at the wrong line rather than nowhere. Reported, not "
+                "blocking."
+            )
+        if blocking:
+            print(
+                f"\nci-findings: FAIL — {len(blocking)} failure(s) on this run "
+                "cannot be located at all."
             )
             return 1
         print(

@@ -157,11 +157,11 @@ function annotateVitest(text) {
       if (t.status === 'passed' || t.status === 'pending') continue
       const first = (t.failureMessages ?? [])[0] ?? 'failed'
       /* Recover a source location from the stack when vitest supplies one. */
-      const at = first.match(/\((\/[^):]+):(\d+):(\d+)\)/)
+      const at = pickFrame(first)
       emit('error', {
-        file: at ? prefix(at[1]) : prefix(suite.name),
-        line: at ? at[2] : undefined,
-        col: at ? at[3] : undefined,
+        file: at ? at.file : prefix(suite.name),
+        line: at ? at.line : undefined,
+        col: at ? at.col : undefined,
         title: `vitest: ${[...(t.ancestorTitles ?? []), t.title].join(' > ')}`,
         message: first.split('\n').slice(0, 6).join('\n'),
       })
@@ -169,6 +169,44 @@ function annotateVitest(text) {
     }
   }
   return n
+}
+
+/* Every source location in a stack, parenthesised (`at fn (/p:1:2)`) or bare
+ * (`at /p:1:2`). Both shapes appear in a single vitest failure message. */
+const FRAME = /(?:\(|\s|^)(\/[^\s():]+):(\d+):(\d+)\)?/g
+
+/**
+ * The first frame that names code in this repository.
+ *
+ * THE TOP OF THE STACK IS ALMOST NEVER THE CODE THAT IS WRONG.
+ *
+ * An assertion library throws from inside itself, so frame zero is chai,
+ * vitest's own expect, or a node internal. This used to take frame zero
+ * unconditionally, which produced `file=frontend/node_modules/chai/chai.js`.
+ *
+ * That is not a cosmetic mis-attribution. GitHub resolves `file=` against the
+ * commit it is annotating and SILENTLY DISCARDS anything it cannot find, so a
+ * node_modules path means the annotation never appears at all — while the
+ * emitted count still went up, which is the number the contradiction check at
+ * the bottom of this file trusts. The failure ends up with no location
+ * anywhere and nothing reporting that fact: precisely the blindness this
+ * script exists to remove, entered from the side the guard does not watch.
+ *
+ * Returns null when every frame is library code. The caller then falls back to
+ * the spec file, which is less precise and still true — never a dependency.
+ */
+function pickFrame(message) {
+  for (const m of String(message).matchAll(FRAME)) {
+    const [, raw, line, col] = m
+    if (raw.includes('/node_modules/')) continue
+    const file = prefix(raw)
+    /* `prefix` strips a leading slash from anything outside the checkout, which
+     * manufactures a repo-relative path that does not exist — the same silent
+     * drop by another route. Only paths that landed inside frontend/ are real. */
+    if (!file || !file.startsWith('frontend/')) continue
+    return { file, line, col }
+  }
+  return null
 }
 
 /* Annotations must be repo-relative. Every tool here runs inside `frontend/`,
@@ -188,9 +226,31 @@ const input = readStdin()
 const handlers = { tsc: annotateTsc, eslint: annotateEslint, vitest: annotateVitest }
 const handler = handlers[mode]
 
+/* Read BEFORE the unknown-mode branch, because that branch used to exit above
+ * the contradiction check and route straight around it. */
+const outcome = process.env.STEP_OUTCOME ?? ''
+
 if (!handler) {
-  process.stdout.write(`::warning::gh-annotate: unknown mode '${mode}'\n`)
-  process.exit(0)
+  /* AN UNRECOGNISED MODE IS THE GUARD'S BLIND SPOT, NOT A HARMLESS TYPO.
+   *
+   * This used to print a fileless `::warning` and `process.exit(0)` from above
+   * the contradiction check, so a renamed handler or a misspelt mode in the
+   * workflow produced zero annotations, exit 0, and no run annotation pointing
+   * at anything. A red step with no locations and nothing naming the cause is
+   * the state this whole script was written to make impossible; leaving one
+   * door into it open made the guard advisory.
+   *
+   * Same asymmetry the check below relies on: this cannot turn a green build
+   * red, because the exit status is raised only when the step it was annotating
+   * had already failed. */
+  process.stdout.write(
+    `::error file=frontend/scripts/gh-annotate.mjs,title=unknown gh-annotate mode::`
+    + `'${mode}' is not one of: ${Object.keys(handlers).join(', ')}. `
+    + `No annotations were produced for this step, so any failure it reported `
+    + `has no file or line anywhere on this run. Fix the mode in the workflow, `
+    + `or add a handler for it here.\n`,
+  )
+  process.exit(outcome === 'failure' ? 1 : 0)
 }
 
 const count = handler(input)
@@ -201,7 +261,6 @@ process.stdout.write(
 
 /* THE CONTRADICTION CHECK. A failed step with nothing to point at is the exact
  * state that made GitHub logs useless: red, and silent about where. */
-const outcome = process.env.STEP_OUTCOME ?? ''
 if (outcome === 'failure' && (parseFailed || count === 0)) {
   process.stdout.write(
     `::error file=frontend/scripts/gh-annotate.mjs,title=${mode} failed with no annotations::`

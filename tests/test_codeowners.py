@@ -47,8 +47,10 @@ from tcb_gate import TRUSTED_PREFIXES  # noqa: E402
 # GitHub accepts three owner forms and nothing else: @user, @org/team, and an
 # email address. Anything else on a rule line is a syntax error on GitHub's
 # side, which is precisely the failure that produced this file.
-_OWNER = re.compile(r"^(@[A-Za-z0-9][A-Za-z0-9-]*(/[A-Za-z0-9._-]+)?"
-                    r"|[^@\s]+@[^@\s]+\.[^@\s]+)$")
+_OWNER = re.compile(
+    r"^(@[A-Za-z0-9][A-Za-z0-9-]*(/[A-Za-z0-9._-]+)?"
+    r"|[^@\s]+@[^@\s]+\.[^@\s]+)$"
+)
 
 
 def rule_lines(text: str) -> list[tuple[int, str]]:
@@ -83,30 +85,35 @@ def test_every_rule_line_is_wellformed() -> None:
         ok, why = owners_are_valid(rule)
         if not ok:
             broken.append(f"  .github/CODEOWNERS:{number}  {why}\n    {rule}")
-    assert not broken, (
-        "CODEOWNERS lines GitHub cannot parse:\n" + "\n".join(broken))
+    assert not broken, "CODEOWNERS lines GitHub cannot parse:\n" + "\n".join(broken)
 
 
 # A parser that accepts everything proves nothing, so these are the shapes it
 # must reject -- the first is the exact line that shipped.
-@pytest.mark.parametrize("malformed", [
-    "requirements-preflight.lock are here because a verifier is only as",
-    "/scripts/",                          # pattern, no owner
-    "/scripts/ Intellora-ai",             # owner missing its @
-    "/scripts/ @Intellora-ai extra-word",  # one good owner, one not
-])
+@pytest.mark.parametrize(
+    "malformed",
+    [
+        "requirements-preflight.lock are here because a verifier is only as",
+        "/scripts/",  # pattern, no owner
+        "/scripts/ Intellora-ai",  # owner missing its @
+        "/scripts/ @Intellora-ai extra-word",  # one good owner, one not
+    ],
+)
 def test_the_shapes_that_must_be_rejected(malformed: str) -> None:
     ok, _ = owners_are_valid(malformed)
     assert not ok, f"parser accepted an invalid rule: {malformed!r}"
 
 
-@pytest.mark.parametrize("wellformed", [
-    "*                       @Intellora-ai",
-    "/.github/               @Intellora-ai",
-    "requirements.lock       @Intellora-ai",
-    "/ci/  @Intellora-ai @some-org/reviewers",
-    "/ci/  owner@example.com",
-])
+@pytest.mark.parametrize(
+    "wellformed",
+    [
+        "*                       @Intellora-ai",
+        "/.github/               @Intellora-ai",
+        "requirements.lock       @Intellora-ai",
+        "/ci/  @Intellora-ai @some-org/reviewers",
+        "/ci/  owner@example.com",
+    ],
+)
 def test_the_shapes_that_must_be_accepted(wellformed: str) -> None:
     """And it must not buy strictness by rejecting valid files."""
     ok, why = owners_are_valid(wellformed)
@@ -125,13 +132,17 @@ def test_codeowners_covers_the_trusted_computing_base() -> None:
     This is how `requirements-preflight.lock` came to be discussed in a comment
     and owned by no rule.
     """
-    patterns = {rule.split()[0]
-                for _, rule in rule_lines(CODEOWNERS.read_text(encoding="utf-8"))}
+    patterns = {
+        rule.split()[0]
+        for _, rule in rule_lines(CODEOWNERS.read_text(encoding="utf-8"))
+    }
     # CODEOWNERS directory patterns are written with a leading slash; the TCB
     # prefixes are repository-relative. Compare on the same footing.
     normalised = {p.lstrip("/").rstrip("/") for p in patterns}
-    missing = [prefix for prefix in TRUSTED_PREFIXES
-               if prefix.rstrip("/") not in normalised]
+    missing = [
+        prefix for prefix in TRUSTED_PREFIXES if prefix.rstrip("/") not in normalised
+    ]
     assert not missing, (
         "in tcb_gate.TRUSTED_PREFIXES but owned by nothing in CODEOWNERS: "
-        + ", ".join(missing))
+        + ", ".join(missing)
+    )

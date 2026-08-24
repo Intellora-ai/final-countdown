@@ -26,7 +26,7 @@ def _docstring_contract(doc: str | None) -> list[dict[str, str]]:
     clauses: list[dict[str, str]] = []
     for raw in doc.splitlines():
         line = raw.strip().lstrip("-*").strip()
-        m = re.match(r'^([a-z][a-z_ ]{2,30}):\s+(.+)$', line)
+        m = re.match(r"^([a-z][a-z_ ]{2,30}):\s+(.+)$", line)
         if m and not line.lower().startswith(("args", "returns", "raises", "example")):
             clauses.append({"name": m.group(1).strip(), "claim": m.group(2).strip()})
     return clauses
@@ -87,6 +87,8 @@ if __name__ == "__main__":
         print(f"   anchor   : {strength(a)}")
         for c in a["contract"]:
             print(f"   contract : {c['name']}: {c['claim']}")
-        print(f"   hints    : {a['type_hints']['args']} -> {a['type_hints']['returns']}")
+        print(
+            f"   hints    : {a['type_hints']['args']} -> {a['type_hints']['returns']}"
+        )
         print(f"   tests    : {len(a['tests'])} assertions")
         print(f"   reference: {a['reference'] or 'none'}")

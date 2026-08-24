@@ -12,13 +12,29 @@ import operator
 from collections.abc import Callable
 from typing import Any
 
-_BIN: dict[type[ast.operator], Callable[[Any, Any], Any]] = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
-        ast.FloorDiv: lambda a, b: a // b, ast.Mod: operator.mod,
-        ast.BitXor: lambda a, b: a ^ b, ast.BitOr: lambda a, b: a | b,
-        ast.BitAnd: lambda a, b: a & b}
-_CMP: dict[type[ast.cmpop], Callable[[Any, Any], Any]] = {ast.Eq: operator.eq, ast.NotEq: operator.ne, ast.Lt: operator.lt,
-        ast.LtE: operator.le, ast.Gt: operator.gt, ast.GtE: operator.ge}
-_UNARY: dict[type[ast.unaryop], Callable[[Any], Any]] = {ast.USub: operator.neg, ast.UAdd: operator.pos, ast.Not: operator.not_}
+_BIN: dict[type[ast.operator], Callable[[Any, Any], Any]] = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.FloorDiv: lambda a, b: a // b,
+    ast.Mod: operator.mod,
+    ast.BitXor: lambda a, b: a ^ b,
+    ast.BitOr: lambda a, b: a | b,
+    ast.BitAnd: lambda a, b: a & b,
+}
+_CMP: dict[type[ast.cmpop], Callable[[Any, Any], Any]] = {
+    ast.Eq: operator.eq,
+    ast.NotEq: operator.ne,
+    ast.Lt: operator.lt,
+    ast.LtE: operator.le,
+    ast.Gt: operator.gt,
+    ast.GtE: operator.ge,
+}
+_UNARY: dict[type[ast.unaryop], Callable[[Any], Any]] = {
+    ast.USub: operator.neg,
+    ast.UAdd: operator.pos,
+    ast.Not: operator.not_,
+}
 
 ALLOWED_CALLS: set[str] = {"min", "max", "abs"}
 

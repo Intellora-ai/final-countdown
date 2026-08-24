@@ -81,9 +81,9 @@ REPO = "Intellora-ai/final-countdown"
 # than as module-level PASS/FAIL string constants because bandit's B105 keys
 # on the identifier, and scripts/security_gate.py's exemption list covers only
 # B404 and B603 for this file.
-EXIT_ALIGNED = 0            # gate.py PASS
-EXIT_DRIFT = 1              # gate.py FAIL
-EXIT_CANNOT_COMPARE = 2     # gate.py INFRASTRUCTURE_FAILURE
+EXIT_ALIGNED = 0  # gate.py PASS
+EXIT_DRIFT = 1  # gate.py FAIL
+EXIT_CANNOT_COMPARE = 2  # gate.py INFRASTRUCTURE_FAILURE
 
 # Bounded: a gate that retries forever is a gate that hits the job timeout with
 # no verdict at all. Three tries per transport, ~7s of backoff worst case.
@@ -113,11 +113,13 @@ def _parse(raw: str, source: str) -> dict[str, Any]:
     try:
         parsed: object = json.loads(raw)
     except ValueError as exc:
-        raise Unreachable(f"{source} returned output that is not JSON: {exc}",
-                          transient=True) from exc
+        raise Unreachable(
+            f"{source} returned output that is not JSON: {exc}", transient=True
+        ) from exc
     if not isinstance(parsed, dict):
-        raise Unreachable(f"{source} returned JSON that is not a ruleset object",
-                          transient=False)
+        raise Unreachable(
+            f"{source} returned JSON that is not a ruleset object", transient=False
+        )
     return cast("dict[str, Any]", parsed)
 
 
@@ -129,19 +131,23 @@ def _gh_fetch(repo: str, ruleset_id: int) -> dict[str, Any]:
     try:
         out = subprocess.run(
             [gh, "api", f"repos/{repo}/rulesets/{ruleset_id}"],
-            capture_output=True, text=True, timeout=TIMEOUT_S)
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT_S,
+        )
     except (OSError, subprocess.SubprocessError) as exc:
-        raise Unreachable(f"gh could not reach GitHub: {exc}",
-                          transient=True) from exc
+        raise Unreachable(f"gh could not reach GitHub: {exc}", transient=True) from exc
     if out.returncode != 0:
         err = (out.stderr or out.stdout).strip()[:200]
         # A token that is missing, expired or unauthorised will still be
         # missing, expired and unauthorised in two seconds. Fall through to the
         # anonymous transport instead of retrying the same refusal.
-        denied = ("auth" in err.lower()
-                  or any(str(code) in err for code in DETERMINISTIC_HTTP))
-        raise Unreachable(f"gh api failed (exit {out.returncode}): {err}",
-                          transient=not denied)
+        denied = "auth" in err.lower() or any(
+            str(code) in err for code in DETERMINISTIC_HTTP
+        )
+        raise Unreachable(
+            f"gh api failed (exit {out.returncode}): {err}", transient=not denied
+        )
     return _parse(out.stdout, "gh")
 
 
@@ -157,16 +163,28 @@ def _curl_fetch(repo: str, ruleset_id: int) -> dict[str, Any]:
     url = f"https://api.github.com/repos/{repo}/rulesets/{ruleset_id}"
     try:
         out = subprocess.run(
-            [curl, "-sS", "-H", "Accept: application/vnd.github+json",
-             "-w", "\n%{http_code}", url],
-            capture_output=True, text=True, timeout=TIMEOUT_S)
+            [
+                curl,
+                "-sS",
+                "-H",
+                "Accept: application/vnd.github+json",
+                "-w",
+                "\n%{http_code}",
+                url,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT_S,
+        )
     except (OSError, subprocess.SubprocessError) as exc:
-        raise Unreachable(f"curl could not reach GitHub: {exc}",
-                          transient=True) from exc
+        raise Unreachable(
+            f"curl could not reach GitHub: {exc}", transient=True
+        ) from exc
     if out.returncode != 0:
         raise Unreachable(
             f"curl failed (exit {out.returncode}): {out.stderr.strip()[:200]}",
-            transient=True)
+            transient=True,
+        )
     body, _, code_text = out.stdout.rpartition("\n")
     try:
         code = int(code_text.strip())
@@ -179,16 +197,19 @@ def _curl_fetch(repo: str, ruleset_id: int) -> dict[str, Any]:
         # Naming it in the log is what stops a human reading a rate limit as
         # a deleted ruleset.
         note = _describe(code, body)
-        raise Unreachable(f"GitHub answered HTTP {code} for the ruleset{note}",
-                          transient=code not in DETERMINISTIC_HTTP
-                          or "rate limit" in body.lower())
+        raise Unreachable(
+            f"GitHub answered HTTP {code} for the ruleset{note}",
+            transient=code not in DETERMINISTIC_HTTP or "rate limit" in body.lower(),
+        )
     return _parse(body, "curl")
 
 
 def _describe(code: int, body: str) -> str:
     if "rate limit" in body.lower():
-        return (" — anonymous rate limit exhausted for this runner's IP; "
-                "an authenticated GH_TOKEN raises it to 1000/hr per repository")
+        return (
+            " — anonymous rate limit exhausted for this runner's IP; "
+            "an authenticated GH_TOKEN raises it to 1000/hr per repository"
+        )
     if code in DETERMINISTIC_HTTP:
         return " — the repository may be private, or the ruleset deleted"
     return f": {body.strip()[:160]}"
@@ -211,8 +232,9 @@ def fetch_ruleset(repo: str, ruleset_id: int) -> dict[str, Any]:
                     break
                 time.sleep(BACKOFF_S[min(attempt, len(BACKOFF_S) - 1)])
     # dict.fromkeys de-duplicates while keeping the order the failures happened.
-    raise Unreachable(" | ".join(dict.fromkeys(reasons)) or "no transport ran",
-                      transient=False)
+    raise Unreachable(
+        " | ".join(dict.fromkeys(reasons)) or "no transport ran", transient=False
+    )
 
 
 def _rules(ruleset: dict[str, Any], rule_type: str) -> list[dict[str, Any]]:
@@ -236,8 +258,11 @@ def _parameter_list(rule: dict[str, Any], key: str) -> list[dict[str, Any]]:
     raw: object = cast("dict[str, Any]", params).get(key)
     if not isinstance(raw, list):
         return []
-    return [cast("dict[str, Any]", i) for i in cast("list[object]", raw)
-            if isinstance(i, dict)]
+    return [
+        cast("dict[str, Any]", i)
+        for i in cast("list[object]", raw)
+        if isinstance(i, dict)
+    ]
 
 
 def live_checks(ruleset: dict[str, Any]) -> list[dict[str, Any]]:
@@ -256,8 +281,9 @@ def live_checks(ruleset: dict[str, Any]) -> list[dict[str, Any]]:
 def live_tools(ruleset: dict[str, Any]) -> list[str]:
     out: list[str] = []
     for rule in _rules(ruleset, "code_scanning"):
-        out.extend(str(t.get("tool"))
-                   for t in _parameter_list(rule, "code_scanning_tools"))
+        out.extend(
+            str(t.get("tool")) for t in _parameter_list(rule, "code_scanning_tools")
+        )
     return sorted(out)
 
 
@@ -268,8 +294,11 @@ def main() -> int:
     manifest = tomllib.loads(MANIFEST.read_text(encoding="utf-8"))
     ruleset_decl: dict[str, Any] = manifest.get("ruleset", {})
     declared = sorted(str(c) for c in ruleset_decl.get("required_checks", []))
-    mandatory = sorted(name for name, spec in manifest.get("gates", {}).items()
-                       if spec.get("mandatory"))
+    mandatory = sorted(
+        name
+        for name, spec in manifest.get("gates", {}).items()
+        if spec.get("mandatory")
+    )
     ruleset_id = ruleset_decl.get("id")
     repo = str(ruleset_decl.get("repository", REPO))
 
@@ -294,8 +323,10 @@ def main() -> int:
     except Unreachable as exc:
         # Not "aligned", not "misaligned" — unknown. Say so, and go red.
         print(f"CANNOT COMPARE: {exc}")
-        print("\n[RESULT] INFRASTRUCTURE_FAILURE — the live ruleset could not "
-              "be read, so drift was neither confirmed nor ruled out.")
+        print(
+            "\n[RESULT] INFRASTRUCTURE_FAILURE — the live ruleset could not "
+            "be read, so drift was neither confirmed nor ruled out."
+        )
         return EXIT_CANNOT_COMPARE
 
     checks = live_checks(live)
@@ -305,8 +336,10 @@ def main() -> int:
 
     if not_enforced:
         ok = False
-        print("GATES THAT BLOCK NOTHING — declared required, GitHub does not "
-              "require them:")
+        print(
+            "GATES THAT BLOCK NOTHING — declared required, GitHub does not "
+            "require them:"
+        )
         for name in not_enforced:
             print(f"  {name}")
     if not_declared:
@@ -317,8 +350,9 @@ def main() -> int:
 
     # A context not pinned to an app can be satisfied by any actor that reports
     # a status with that name, which is a required check anyone can forge.
-    unpinned = sorted(str(c.get("context")) for c in checks
-                      if c.get("integration_id") is None)
+    unpinned = sorted(
+        str(c.get("context")) for c in checks if c.get("integration_id") is None
+    )
     if unpinned:
         ok = False
         print("CONTEXTS NOT PINNED TO AN APP (any actor may satisfy them):")
@@ -327,8 +361,7 @@ def main() -> int:
 
     # The code_scanning rule is enforcement too: a tool the manifest declares
     # but GitHub does not run means those findings block nothing.
-    declared_tools = sorted(str(t) for t in
-                            ruleset_decl.get("code_scanning_tools", []))
+    declared_tools = sorted(str(t) for t in ruleset_decl.get("code_scanning_tools", []))
     if declared_tools:
         enforced_tools = live_tools(live)
         if enforced_tools != declared_tools:
@@ -342,13 +375,17 @@ def main() -> int:
             print(f"  code-scanning tools enforced: {', '.join(enforced_tools)}")
 
     if ok:
-        print(f"ALIGNED: {len(live_contexts)} required checks, all pinned, "
-              f"manifest and GitHub agree")
+        print(
+            f"ALIGNED: {len(live_contexts)} required checks, all pinned, "
+            f"manifest and GitHub agree"
+        )
         print("  " + ", ".join(live_contexts))
         print("\n[RESULT] PASS")
         return EXIT_ALIGNED
-    print("\n[RESULT] FAIL — ci/gates.toml and the live ruleset disagree. "
-          "Reconcile them; do not silence this.")
+    print(
+        "\n[RESULT] FAIL — ci/gates.toml and the live ruleset disagree. "
+        "Reconcile them; do not silence this."
+    )
     return EXIT_DRIFT
 
 

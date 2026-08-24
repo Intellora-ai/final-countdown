@@ -21,42 +21,52 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from collections.abc import Callable, Sequence
+from typing import Any
+
 from spec_source import source_for
 from spec_strength import holds, load_module
 from spec_to_test import SpecParseError, parse_lean_spec
-from collections.abc import Callable, Sequence
-from typing import Any
 
 # Alternatives are plausible whole functions, not mutations. Each must be
 # behaviourally distinct from the original to count as a witness.
 ALTERNATIVES_2: dict[str, Callable[[int, int], int]] = {
-    "constant zero":  lambda a, b: 0,
+    "constant zero": lambda a, b: 0,
     "first argument": lambda a, b: a,
     "second argument": lambda a, b: b,
-    "bitwise xor":    lambda a, b: a ^ b,
-    "bitwise or":     lambda a, b: a | b,
+    "bitwise xor": lambda a, b: a ^ b,
+    "bitwise or": lambda a, b: a | b,
     "multiplication": lambda a, b: operator.mul(a, b),
-    "subtraction":    lambda a, b: operator.sub(a, b),
-    "minimum":        lambda a, b: min(a, b),
-    "maximum":        lambda a, b: max(a, b),
+    "subtraction": lambda a, b: operator.sub(a, b),
+    "minimum": lambda a, b: min(a, b),
+    "maximum": lambda a, b: max(a, b),
     "sum of squares": lambda a, b: a * a + b * b,
 }
 ALTERNATIVES_3: dict[str, Callable[[int, int, int], int]] = {
-    "constant zero":   lambda lo, hi, x: 0,
-    "always lo":       lambda lo, hi, x: lo,
-    "always hi":       lambda lo, hi, x: hi,
-    "identity on x":   lambda lo, hi, x: x,
-    "min(hi, x)":      lambda lo, hi, x: min(hi, x),
-    "max(lo, x)":      lambda lo, hi, x: max(lo, x),
-    "midpoint":        lambda lo, hi, x: (lo + hi) // 2,
-    "reversed clamp":  lambda lo, hi, x: min(lo, max(hi, x)),
+    "constant zero": lambda lo, hi, x: 0,
+    "always lo": lambda lo, hi, x: lo,
+    "always hi": lambda lo, hi, x: hi,
+    "identity on x": lambda lo, hi, x: x,
+    "min(hi, x)": lambda lo, hi, x: min(hi, x),
+    "max(lo, x)": lambda lo, hi, x: max(lo, x),
+    "midpoint": lambda lo, hi, x: (lo + hi) // 2,
+    "reversed clamp": lambda lo, hi, x: min(lo, max(hi, x)),
 }
 PROBES_2: list[tuple[int, ...]] = [(0, 0), (1, 0), (2, 3), (-4, 7), (5, 5), (11, -2)]
-PROBES_3: list[tuple[int, ...]] = [(0, 10, 5), (0, 10, -3), (0, 10, 50), (-5, 5, 0), (2, 2, 9)]
+PROBES_3: list[tuple[int, ...]] = [
+    (0, 10, 5),
+    (0, 10, -3),
+    (0, 10, 50),
+    (-5, 5, 0),
+    (2, 2, 9),
+]
 
 
-def distinct(original: Callable[..., int], alt: Callable[..., int],
-             probes: Sequence[tuple[int, ...]]) -> bool:
+def distinct(
+    original: Callable[..., int],
+    alt: Callable[..., int],
+    probes: Sequence[tuple[int, ...]],
+) -> bool:
     """True if the alternative differs observably from the original."""
     for values in probes:
         try:
@@ -121,8 +131,11 @@ def assess(spec_files: list[str]) -> dict[str, Any]:
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("specs", nargs="+")
-    p.add_argument("--strict", action="store_true",
-                   help="exit non-zero when sufficiency is not established")
+    p.add_argument(
+        "--strict",
+        action="store_true",
+        help="exit non-zero when sufficiency is not established",
+    )
     ns = p.parse_args()
 
     try:

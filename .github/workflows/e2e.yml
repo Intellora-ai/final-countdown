@@ -2,10 +2,20 @@ name: e2e
 
 # BROWSER-LEVEL SMOKE TEST. Separate from `verify` on purpose.
 #
-# This workflow adds a check; it does not touch one. No job here shares an id
-# with any of the 16 required contexts in ci/gates.toml, so nothing it does can
-# satisfy, replace, or weaken an existing gate. It is not in `required_checks`
-# and does not become blocking unless the ruleset is edited by hand.
+# `e2e` IS A REQUIRED CHECK. The header used to say the opposite -- "It is not
+# in `required_checks` and does not become blocking unless the ruleset is
+# edited by hand" -- and that was false. ci/gates.toml lists `e2e` with
+# `mandatory = true` among 17 required_checks, and scripts/check_ruleset.py
+# confirms GitHub enforces the same set live: "ALIGNED: 17 required checks, all
+# pinned, manifest and GitHub agree". A comment in a trusted path that
+# describes a weaker contract than the one in force is the kind of thing this
+# repository exists to catch.
+#
+# It stays in its own workflow, and it cannot join `full`'s `needs:`, because
+# cross-workflow `needs:` does not exist -- separate workflows are separate
+# runs with separate filesystems. So the ruleset enforces it directly, and
+# `full` aggregates only what it can see. Both are required; neither stands in
+# for the other.
 #
 # WHY PYTHON IS INSTALLED IN A BROWSER WORKFLOW.
 # The page under test is this repository's coverage report, and that report is
@@ -58,10 +68,83 @@ jobs:
       - name: Install Python dependencies
         run: pip install --require-hashes -r requirements.lock
 
-      # Produces htmlcov/index.html, which is the page the browser test opens.
-      # Without this step the Playwright webServer has nothing to serve.
-      - name: Generate the coverage report under test
-        run: pytest -n auto --cov=src --cov-branch --cov-report=html -m "not axle" -q
+      # THE RENDERING FIXTURE, NOT A COVERAGE CERTIFICATION.
+      #
+      # This step used to run the whole 764-test non-AXLE suite --
+      # `pytest --cov=src --cov-branch --cov-report=html -m "not axle" -q` --
+      # purely to produce htmlcov/index.html for the browser to open. Measured
+      # on run 32354712507: 117s of a 146s job, to run a 3s Playwright test.
+      # The `coverage` gate in verify.yml already runs that same selection on
+      # the same commit, so the suite executed twice per pull request and this
+      # execution established no additional full-suite coverage property.
+      #
+      # `--cov=src` measures four files totalling 1.1 KB. Running only the four
+      # tests that cover them produces the same five rows at the same values:
+      #
+      #   src/__init__.py 100%   src/add.py 100%   src/clamp.py 100%
+      #   src/multiply.py 100%   src/subtract.py 100%   TOTAL 100%
+      #   measured 0.30s, against "Total coverage: 100.00%" from the full suite
+      #
+      # So the rendered page the browser asserts on is unchanged, and the
+      # browser assertions themselves are unchanged. What is removed is a
+      # duplicated full-suite EXECUTION, not a verification property.
+      #
+      # THIS FIXTURE IS NOT COVERAGE EVIDENCE. It certifies nothing: no
+      # threshold, no full-suite selection. reports/e2e-scope.json says so in
+      # machine-readable form, tests/e2e/smoke.spec.ts refuses to run without
+      # it, and the artifact name below can never be mistaken for the coverage
+      # gate's. `coverage` remains the sole full-suite coverage certification.
+      - name: Generate the browser rendering fixture
+        env:
+          # Through env: rather than inline `${{ }}` in run:, so no expression
+          # is ever spliced into a shell string. These are GitHub-controlled
+          # values, not attacker input, but the rule is worth keeping uniform.
+          E2E_SHA: ${{ github.sha }}
+          E2E_RUN_ID: ${{ github.run_id }}
+          E2E_RUN_ATTEMPT: ${{ github.run_attempt }}
+          E2E_WORKFLOW: ${{ github.workflow }}
+          E2E_JOB: ${{ github.job }}
+        run: |
+          set -euo pipefail
+          # Spelled out rather than expanded from a variable. `$CMD` as a
+          # command relies on unquoted word-splitting: bash splits it, zsh does
+          # not, and shellcheck flags it either way. The literal form runs the
+          # same everywhere and is what the scope file records.
+          pytest tests/test_add.py tests/test_clamp.py \
+                 tests/test_multiply.py tests/test_subtract.py \
+                 --cov=src --cov-branch --cov-report=html -q
+          test -f htmlcov/index.html
+          mkdir -p reports
+          python3 - <<'PY'
+          import json, os, pathlib
+          tests = "tests/test_add.py tests/test_clamp.py tests/test_multiply.py tests/test_subtract.py"
+          pathlib.Path("reports/e2e-scope.json").write_text(json.dumps({
+              "schema_version": "1.0",
+              "scope": "e2e-rendering-fixture",
+              "commit_sha": os.environ["E2E_SHA"],
+              "run_id": os.environ["E2E_RUN_ID"],
+              "run_attempt": os.environ["E2E_RUN_ATTEMPT"],
+              "workflow": os.environ["E2E_WORKFLOW"],
+              "job": os.environ["E2E_JOB"],
+              "producer_command":
+                  f"pytest {tests} --cov=src --cov-branch --cov-report=html -q",
+              "coverage_target": "src",
+              "is_full_suite_coverage": False,
+              "purpose": "Playwright rendering and navigation verification only",
+          }, indent=2) + "\n", encoding="utf-8")
+          PY
+          {
+            echo "## e2e rendering fixture"
+            echo ""
+            echo "\`scope=e2e-rendering-fixture\` · \`is_full_suite_coverage=false\`"
+            echo ""
+            echo "This report is a **browser rendering fixture**, generated from four"
+            echo "targeted \`src\` tests. It is NOT full-suite coverage evidence and does"
+            echo "not certify any coverage threshold. The \`coverage\` gate in verify.yml"
+            echo "remains the sole full-suite coverage certification."
+            echo ""
+            echo "    producer: $(python3 -c 'import json;print(json.load(open("reports/e2e-scope.json"))["producer_command"])')"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -87,6 +170,26 @@ jobs:
       # No `continue-on-error`: Playwright's exit code is the verdict.
       - name: Run Playwright
         run: npm run test:e2e
+
+      # THE SCOPE DECLARATION, ALWAYS. Uploaded on green as well as red,
+      # because its job is to say what this run's HTML report IS -- and a
+      # provenance record that only survives failures cannot answer that
+      # question about a passing run.
+      #
+      # The artifact name carries `e2e-rendering-fixture` deliberately. It must
+      # never be mistaken for, or substituted into, the coverage gate's
+      # evidence: `coverage-${{ github.sha }}-...` is a name this workflow may
+      # not use. Nothing here writes reports/coverage.json, and the finalizer's
+      # download-artifact carries no run-id, so it only ever sees verify's own
+      # run -- this artifact cannot reach aggregate_gates.py at all.
+      - name: Upload the fixture scope declaration
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: e2e-rendering-fixture-${{ github.sha }}-${{ github.run_id }}
+          path: reports/e2e-scope.json
+          retention-days: 14
+          if-no-files-found: error
 
       # Failure evidence only. On a green run there is nothing worth keeping,
       # and uploading a report nobody opens is just storage.

@@ -1,0 +1,11 @@
+# pnpm refuses to run a dependency's install scripts unless it is named here,
+# and newer pnpm wants an explicit decision per package rather than a list.
+#
+# `unrs-resolver` is eslint-config-next's native module resolver. Without its
+# build step every pnpm script aborts before it starts — `pnpm typecheck` never
+# reaches tsc. It is a first-party Next.js dependency, so it is allowed.
+allowBuilds:
+  unrs-resolver: true
+
+onlyBuiltDependencies:
+  - unrs-resolver

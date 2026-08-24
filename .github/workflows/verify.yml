@@ -72,11 +72,67 @@ jobs:
       # guard on the guard ran against an unpinned dependency resolved fresh
       # each day. One install path, one set of hashes, no exceptions.
       - run: pip install --quiet --require-hashes -r requirements-preflight.lock
+      # THE GATE — three verifications that owned no report, plus the one that
+      # writes it, now in a single wrapper. The reasoning per verification is
+      # kept below, unchanged; what follows is why they are one step.
+      #
+      # BEFORE: gate_integrity.py runs LAST and is what writes
+      # reports/preflight.json, so a failure in any earlier step meant no
+      # report existed at all. That is fail-closed and was deliberate --
+      # aggregate_gates.py turns the absence into a blocking UNKNOWN, so the
+      # merge stays blocked and both required checks agree. It is still true
+      # here; nothing about the verdict changes.
+      #
+      # What was missing is every DETAIL of that verdict. The finalizer could
+      # only say "no evidence was produced for this gate" -- never which
+      # trusted path drifted, which required check the ruleset had dropped, or
+      # which assumption went unaccepted. That detail existed only in the job
+      # log, which is the thing this repository is removing.
+      #
+      # WHY THE WRAPPER DOES NOT COST THE 84 CHECKS. gate_integrity.py writes
+      # the same reports/preflight.json the wrapper writes, so wrapping used to
+      # mean overwriting: measured, that report carries 84 structured checks
+      # and a bare wrapper report carries one. run_gate.py now MERGES an inner
+      # report it finds -- checks, scope and warnings -- while the wrapper's
+      # STATUS stays the verdict, because the chain's exit code is what saw the
+      # whole chain and the inner script only ever saw its own step. A report
+      # older than this run's command is refused rather than folded.
+      #
+      # The `echo`s name which verification failed, and run_gate.py records the
+      # ones after it as never having run: "could not check" is not "checked
+      # and fine". See the note on the bandit gate.
+      # THE BASE REF ARRIVES AS AN ENVIRONMENT VARIABLE, NOT INLINE. Written
+      # as `${{ github.base_ref || 'main' }}` inside this single-quoted
+      # `bash -c`, the fallback needs the '"'"' escaping dance -- and that
+      # breaks the `${{ ... }}` stripper in ci_integrity's suppression
+      # detector, which then sees a bare `||` and correctly reports the gate
+      # as having its failure suppressed. The expression belongs where it does
+      # not have to survive two levels of quoting.
+      - name: Trusted base, ruleset, registries, and gate integrity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_REF: ${{ github.base_ref || 'main' }}
+        run: |
+          python3 scripts/run_gate.py --name preflight -- bash -c '
+            set -e
+            echo "== preflight gate 1/4: trusted computing base" >&2
+            python3 scripts/tcb_gate.py --base "origin/$BASE_REF"
+            echo "== preflight gate 2/4: ruleset alignment" >&2
+            python3 scripts/check_ruleset.py
+            echo "== preflight gate 3/4: requirement and assumption registries" >&2
+            python3 scripts/registry_gate.py
+            echo "== preflight gate 4/4: gate integrity" >&2
+            python3 scripts/gate_integrity.py
+          '
+      # The per-verification reasoning below is unchanged. Each of these ran as
+      # its own step until the wrapper above absorbed them.
+      #
+      # TRUSTED COMPUTING BASE
       # A trusted-path change must say why, in a commit message. See the
       # module docstring: CODEOWNERS cannot enforce this without a reviewer,
       # and a one-person repository has none.
-      - name: Trusted computing base
-        run: python3 scripts/tcb_gate.py --base origin/${{ github.base_ref || 'main' }}
+      #
+      # RULESET ALIGNMENT
       # The manifest agreeing with the workflows is not the manifest agreeing
       # with GitHub. gate_integrity check 9 compares ci/gates.toml against
       # itself; this compares it against the live ruleset, which is the only
@@ -108,10 +164,8 @@ jobs:
       # back to an anonymous read when the token is absent or refused. Exit 1
       # is drift, exit 2 is "could not read the ruleset"; both are red, because
       # "could not compare" is not "aligned".
-      - name: Ruleset alignment
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/check_ruleset.py
+      #
+      # REQUIREMENT AND ASSUMPTION REGISTRIES
       # What the gates prove, and what they do not. ci/requirements.yml names
       # 39 claims and which gate establishes each -- six of them nothing does,
       # and that is the point of writing them down. ci/assumptions.yml records
@@ -134,10 +188,6 @@ jobs:
       # Before gate_integrity for the same reason as the ruleset check above:
       # gate_integrity writes reports/preflight.json, and aggregate_gates.py
       # reads reports rather than job conclusions.
-      - name: Requirement and assumption registries
-        run: python3 scripts/registry_gate.py
-      - name: Gate integrity
-        run: python3 scripts/gate_integrity.py
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -160,13 +210,37 @@ jobs:
       # failures. It exits non-zero either way: unverifiable must not merge.
       - name: AXLE service health
         run: python3 scripts/axle_health.py
-      - name: Enforce strong specs (syntactic)
-        run: python3 scripts/enforce_spec.py specs/*_spec.lean
-      # Proves SPEC_SET == PROOF_SET and that the set is non-empty before
-      # submitting any proof, then owns the verdict: `axle verify-proof` exits
-      # 0 on "okay": false, so the exit code is not the answer.
-      - name: Verify all proofs with AXLE
-        run: python3 scripts/axle_gate.py
+      # THE GATE — same defect and same fix as `bandit` and `correspondence`;
+      # the reasoning in full is on the preflight job below.
+      #
+      # `enforce_spec.py` used to be a bare step and owned no report, so a spec
+      # that broke a syntactic rule turned this job red while every detail of
+      # WHICH spec broke WHICH rule existed only in the job log. axle_gate.py
+      # is what writes reports/axle-verify.json, and it never ran.
+      #
+      #   enforce_spec.py  the syntactic rules, per spec.
+      #   axle_gate.py     proves SPEC_SET == PROOF_SET and that the set is
+      #     non-empty before submitting any proof, then owns the verdict:
+      #     `axle verify-proof` exits 0 on "okay": false, so the exit code is
+      #     not the answer.
+      #
+      # run_gate.py MERGES rather than overwrites, so axle_gate.py's own
+      # checks and scope survive being wrapped. The chain's exit code is still
+      # the verdict; an inner report saying PASS never survives a chain that
+      # failed after it.
+      #
+      # `axle_health.py` stays its own step above, deliberately, for the same
+      # reason it does on the correspondence job: a dead service is an
+      # INFRASTRUCTURE_FAILURE, and run_gate maps every non-zero exit to FAIL.
+      - name: Enforce specs, then verify all proofs with AXLE
+        run: |
+          python3 scripts/run_gate.py --name axle-verify -- bash -c '
+            set -e
+            echo "== axle-verify gate 1/2: syntactic spec rules" >&2
+            python3 scripts/enforce_spec.py specs/*_spec.lean
+            echo "== axle-verify gate 2/2: AXLE proof verification" >&2
+            python3 scripts/axle_gate.py
+          '
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -288,21 +362,6 @@ jobs:
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
       - name: Tests + branch coverage
-      # `-n auto` runs the suite across the runner's cores. Measured on run
-      # 32309344878: this job was 133s of a 147s PR critical path, and pytest
-      # self-reported `680 passed, 2 skipped in 115.65s` of that -- serial.
-      # `full` cannot start until this job ends, so every second here is a
-      # second on the PR. The floor is ~74s, where honest-report (61s) becomes
-      # the binding gate.
-      #
-      # NOT A WEAKENING. Same tests, same markers, same --cov-fail-under=95.
-      # pytest-cov combines the per-worker coverage data before the threshold
-      # is applied, so the number the gate checks is the number it always
-      # checked. Measured locally at -n 4: 672 tests, 0 failures over 9 runs,
-      # coverage identical, 0 leftover .coverage.* fragments.
-      #
-      # `auto` rather than a literal: the runner is 4-core today and a hard 4
-      # would silently stop matching the machine the day that changes.
       # `--junitxml` writes the standard per-test report. The gate does NOT
       # parse it -- it reads pytest's short summary out of captured stdout,
       # because parsing XML in-process would mean `xml.etree`, which bandit
@@ -311,7 +370,7 @@ jobs:
       # The XML is emitted and uploaded anyway: it costs one flag, it is the
       # format every other tool understands, and keeping it means the gate's
       # decision path and the interchange format are not the same dependency.
-        run: python3 scripts/run_gate.py --name coverage -- pytest -n auto --cov=src --cov-branch --cov-fail-under=95 -m "not axle" --junitxml=test-results/pytest.xml
+        run: python3 scripts/run_gate.py --name coverage -- pytest -n auto --dist loadfile --cov=src --cov-branch --cov-fail-under=95 -m "not axle" --junitxml=test-results/pytest.xml
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -332,6 +391,26 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      # PROBLEM MATCHERS — turn "Process completed with exit code 1" into a red box
+      # on the exact file and line.
+      #
+      # Registered immediately AFTER checkout, not at step 0. The matcher file lives in
+      # the repository, so registering it before actions/checkout fails with "Could not
+      # find a part of the path" -- measured on run 32393030673, where it took pyright,
+      # bandit, full and merge-evidence red from one cause.
+      #
+      # Registered per job rather than once globally because a matcher belongs to the
+      # tool that produces the lines it parses; a matcher registered where its tool does
+      # not run is a regex nobody exercises.
+      #
+      # The regexes were built from REAL output captured from these tools, not from a
+      # template. That mattered: the obvious generic pattern `(file):(line):(col): error:`
+      # does NOT match pyright, which prints `file:line:col - error:` with a dash. Shipping
+      # the generic one would have produced a matcher that silently matched nothing --
+      # the failure mode a problem matcher exists to remove.
+      # tests/test_problem_matchers.py pins both regexes against sample lines.
+      - name: register problem matchers
+        run: echo "::add-matcher::.github/matchers/tools.json"
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
@@ -355,6 +434,26 @@ jobs:
       security-events: write   # required to upload SARIF to code scanning
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      # PROBLEM MATCHERS — turn "Process completed with exit code 1" into a red box
+      # on the exact file and line.
+      #
+      # Registered immediately AFTER checkout, not at step 0. The matcher file lives in
+      # the repository, so registering it before actions/checkout fails with "Could not
+      # find a part of the path" -- measured on run 32393030673, where it took pyright,
+      # bandit, full and merge-evidence red from one cause.
+      #
+      # Registered per job rather than once globally because a matcher belongs to the
+      # tool that produces the lines it parses; a matcher registered where its tool does
+      # not run is a regex nobody exercises.
+      #
+      # The regexes were built from REAL output captured from these tools, not from a
+      # template. That mattered: the obvious generic pattern `(file):(line):(col): error:`
+      # does NOT match pyright, which prints `file:line:col - error:` with a dash. Shipping
+      # the generic one would have produced a matcher that silently matched nothing --
+      # the failure mode a problem matcher exists to remove.
+      # tests/test_problem_matchers.py pins both regexes against sample lines.
+      - name: register problem matchers
+        run: echo "::add-matcher::.github/matchers/tools.json"
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
@@ -503,7 +602,7 @@ jobs:
             echo "== bandit gate 2/4: SARIF suppression" >&2
             python3 scripts/sarif_suppress.py --sarif bandit.sarif src scripts
             echo "== bandit gate 3/4: shell analysis" >&2
-            shellcheck scripts/*.sh
+            shellcheck -f gcc scripts/*.sh
             echo "== bandit gate 4/4: credential scan" >&2
             python3 scripts/credential_scan.py
           '
@@ -644,3 +743,89 @@ jobs:
           path: reports/
           retention-days: 30
           if-no-files-found: error
+
+  # MERGE EVIDENCE — the numbers in the pull request body, checked against the
+  # logs that produced them.
+  #
+  # WHY THIS RUNS AFTER `full`. Every other gate here proves something about the
+  # tree. This one proves something about the *description* of the tree: that a
+  # measured figure written in the pull request is the figure GitHub recorded.
+  # Pull request #28 merged with "42 AXLE calls before, 13 after" when the real
+  # figures were 9 and 3, and the measurement refuting it -- 22.27s against
+  # 14.17s -- was already sitting in a `correspondence` job log of that same run.
+  # Seventeen checks were green. Nothing was reading the arithmetic.
+  #
+  # ADVISORY, DELIBERATELY, FOR NOW. `mandatory = false` in ci/gates.toml, and it
+  # is not one of the 17 required contexts, so a red result here blocks nothing
+  # yet. That is the point of this first pull request: measure the real overhead,
+  # confirm the token can read what it needs, and see the false-block rate on
+  # live bodies BEFORE anything depends on it. Promoting it is a separate,
+  # deliberate ruleset change. See docs/merge-evidence.md.
+  #
+  # `if: always()` because the failure dossier is worth most in exactly the case
+  # `needs: [full]` would otherwise skip: when something already went red.
+  #
+  # It cannot join `full`'s `needs:` -- `full` is its dependency, and a cycle is
+  # not a verification order. It waits on `e2e` and the three CodeQL contexts by
+  # polling the check-runs API, because cross-workflow `needs:` does not exist.
+  # It excludes its own context from that wait: a gate that waits for itself to
+  # become terminal never becomes terminal.
+  merge-evidence:
+    needs: [full]
+    # PULL REQUESTS ONLY, and the reason is structural rather than a preference.
+    #
+    # `CodeQL` is one of the 17 required contexts, and on a push SHA it does not
+    # exist. Measured on 7cc6b0bb, the merged main commit: sixteen of the
+    # seventeen appear as check-runs and `CodeQL` is absent entirely, because it
+    # is a code-scanning analysis status GitHub raises for pull requests. So the
+    # gate waited its full 420-second budget for a check that could never
+    # arrive, and then correctly reported NOT_FETCHED.
+    #
+    # The bug was not the waiting. It was running a MERGE policy on a POST-MERGE
+    # event: required contexts decide whether a pull request may merge, and by
+    # the time a commit is on main that decision is already made and there is no
+    # pull request body left to check. Teaching the evidence logic to tolerate a
+    # missing context would have bought this at the price of the fail-closed
+    # rule that makes it worth having. Not running where it has no meaning costs
+    # nothing.
+    #
+    # `always()` is still here: within a pull request, the failure dossier is
+    # worth most exactly when `needs: [full]` would otherwise skip this job.
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Narrower than it looks: the workflow grants `contents: read` and these two
+    # additions are scoped to this job alone, so the other thirteen keep exactly
+    # the privileges they had. `actions: read` reads runs, jobs and logs;
+    # `checks: read` reads the conclusions of the contexts this job waits on.
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
+      # No pip install. This gate reads ci/gates.toml with the standard-library
+      # tomllib and talks to GitHub through the `gh` already on the runner, so
+      # the 36-package locked set it does not use is 36 packages of latency.
+      - name: Check the PR's measured claims against this run's evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          python3 scripts/merge_evidence_gate.py --pr "$PR_NUMBER" --sha "$HEAD_SHA"
+
+      - name: Upload the evidence dossier
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: reports-merge-evidence
+          path: reports/
+          retention-days: 14
+          if-no-files-found: warn

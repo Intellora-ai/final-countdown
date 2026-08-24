@@ -72,7 +72,10 @@ def verified_locations(targets: list[str]) -> tuple[set[tuple[str, str, int]], b
     unresolved = 0
 
     for finding in findings:
-        path = str(finding["filename"]).lstrip("./")
+        # `removeprefix`, never `lstrip` -- see result_location() below. This
+        # string is half of the key a suppression is matched on, so mangling
+        # it means a suppression silently stops applying.
+        path = str(finding["filename"]).removeprefix("./")
         key = (str(finding["test_id"]), path)
         line = int(finding["line_number"])
         # THE TWO BANDIT FORMATTERS DISAGREE ABOUT WHICH LINE A MULTI-LINE
@@ -100,8 +103,11 @@ def verified_locations(targets: list[str]) -> tuple[set[tuple[str, str, int]], b
         lines = {int(n) for n in cast("list[Any]", span)} | {line}
 
         if key in security_gate.HEURISTIC:
-            checker = (security_gate.check_is_status_literal
-                       if key[0] == "B105" else security_gate.check_no_sql)
+            checker = (
+                security_gate.check_is_status_literal
+                if key[0] == "B105"
+                else security_gate.check_no_sql
+            )
             good, _ = checker(path, line)
         elif key in security_gate.ELIGIBLE:
             good, _ = security_gate.check_subprocess_safety(path)
@@ -135,7 +141,13 @@ def result_location(result: dict[str, Any]) -> tuple[str, str, int] | None:
     line = cast("dict[str, Any]", region).get("startLine")
     if not isinstance(uri, str) or not isinstance(line, int):
         return None
-    return (rule, uri.lstrip("./"), line)
+    # `removeprefix`, never `lstrip`. `lstrip` strips a character SET, so a
+    # URI under any dot-directory (".github/...") loses its leading dot here
+    # while the finder above keeps whatever bandit reported. The two halves of
+    # the key would then disagree, and a suppression would be written for a
+    # location that never matches -- a suppression that suppresses nothing,
+    # which is the one outcome this file must never produce silently.
+    return (rule, uri.removeprefix("./"), line)
 
 
 def main() -> int:
@@ -156,8 +168,10 @@ def main() -> int:
 
     ok_locations, gate_passed = verified_locations(targets)
     if not gate_passed:
-        print("gate FAILED — suppressing nothing; a red gate publishes every "
-              "finding, which is when a human most needs to see them")
+        print(
+            "gate FAILED — suppressing nothing; a red gate publishes every "
+            "finding, which is when a human most needs to see them"
+        )
         return 0
 
     runs = doc.get("runs")
@@ -199,8 +213,10 @@ def main() -> int:
     path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
     for entry in sorted(removed):
         print(f"    gate-verified, withheld from code scanning: {entry}")
-    print(f"  bandit SARIF: {total} result(s), {len(removed)} verified by the "
-          f"gate, {total - len(removed)} left for a human")
+    print(
+        f"  bandit SARIF: {total} result(s), {len(removed)} verified by the "
+        f"gate, {total - len(removed)} left for a human"
+    )
     return 0
 
 

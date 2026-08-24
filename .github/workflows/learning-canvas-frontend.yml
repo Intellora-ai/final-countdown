@@ -552,9 +552,19 @@ jobs:
         # which interpolations are the dangerous kind.
         env:
           SHARD: ${{ matrix.shard }}
+        # `token-invariance.spec.ts` is Goal 1, and until 2026-08-25 nothing
+        # checked it. CLAUDE.md's enforcement table named that filename as the
+        # mechanism; the file had never existed on any branch, so the first line
+        # of the repository's central principle -- "the design system is
+        # constant" -- was documented as guarded and was not.
+        #
+        # It runs on ALL FIVE projects deliberately. A token that changes at a
+        # breakpoint would satisfy a desktop-only check and still break the
+        # grammar on a phone, and the measurement is cheap: 2.2s on mobile-375.
         run: >-
           npx playwright test -c playwright.config.ts
           e2e/scene-regressions.spec.ts e2e/composed-renderer.spec.ts
+          e2e/token-invariance.spec.ts
           --project=desktop-1440
           --project=square-900
           --project=mobile-375

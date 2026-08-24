@@ -303,8 +303,24 @@ export function unreachableExports(src, imported) {
   return symbols.filter((s) => s.exported && !live.has(s.name)).map((s) => s.name)
 }
 
+/**
+ * Escape a symbol name for use inside a RegExp.
+ *
+ * THE FIRST VERSION ESCAPED ONLY `$`, which is the bug CodeQL calls
+ * `js/incomplete-sanitization`: a partial escape reads as deliberate, so
+ * nobody looks at it again. The name comes from `DECL_RE`, so today it can
+ * only ever be `[A-Za-z_$][\w$]*` and no other metacharacter can reach here
+ * --- but that is an argument for why the bug is currently unreachable, not
+ * for why the escape should stay incomplete. The character class that made it
+ * safe lives in a different constant, forty lines away, and the day someone
+ * widens `DECL_RE` this silently starts building malformed patterns.
+ *
+ * Escaping the whole metacharacter set costs nothing and removes the
+ * dependency between two regexes that have no reason to know about each other.
+ * Backslash is first in the class so it is escaped before anything else.
+ */
 function escapeName(name) {
-  return name.replace(/[$]/g, '\\$&')
+  return name.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')
 }
 
 /* -------------------------------------------------------------------------- */

@@ -31,6 +31,7 @@ import ast
 import json
 import subprocess
 import sys
+import tempfile
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any, cast
@@ -435,50 +436,82 @@ def run_bandit(targets: Sequence[str]) -> list[dict[str, Any]]:
     `.get`-with-a-default: a report missing any of them is unusable, and
     unusable must not read as clean.
     """
-    out = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "bandit",
-            "-r",
-            *targets,
-            # `-q` IS LOad-BEARING, NOT TIDINESS.
-            #
-            # bandit renders a rich progress bar ("Working... ---- 100%") onto
-            # the SAME stream this function parses as JSON, but only once the
-            # scan runs long enough for rich to draw it. Below that threshold
-            # stdout is clean JSON and everything works; above it, json.loads
-            # dies at "line 1 column 1 (char 0)" and the gate exits 2.
-            #
-            # That made the gate a tripwire on FILE COUNT rather than on
-            # security: adding one ~330-line file to scripts/ pushed the scan
-            # past ~2s and turned `coverage` and `bandit` red, with a root cause
-            # that reads like a JSON error and has nothing to do with the code
-            # being scanned. Reproduced by isolation --- main passed, main plus
-            # that one file failed.
-            #
-            # `-q` suppresses the progress bar and leaves the report untouched:
-            # verified 44 results and 0 errors either way, first byte "{".
-            "-q",
-            "-f",
-            "json",
-            "--severity-level",
-            "low",
-            "--confidence-level",
-            "low",
-        ],
-        capture_output=True,
-        text=True,
-        timeout=300,
-    )
+    # THE REPORT IS READ FROM A FILE, NOT FROM STDOUT, AND THAT IS THE FIX.
+    #
+    # This function used to do `json.loads(out.stdout)`. bandit renders a rich
+    # progress bar ("Working... ---- 100%") onto that same stream, ahead of the
+    # JSON, and then json.loads dies at "line 1 column 1 (char 0)" and the gate
+    # exits 2 --- a security gate going red with a root cause that reads like a
+    # JSON error and has nothing to do with the code being scanned.
+    #
+    # AN EARLIER VERSION OF THIS COMMENT SAID THE TRIGGER WAS DURATION, that
+    # the bar appeared "once the scan runs long enough", past roughly two
+    # seconds. THAT WAS WRONG, and it was falsified by measurement rather than
+    # by argument:
+    #
+    #     with the extra file:     16891ms   first char 'W'   JSON broken
+    #     without the extra file:  19064ms   first char '{'   JSON fine
+    #
+    # The SLOWER run produced clean JSON. Whatever flips bandit's progress
+    # rendering, elapsed time is not it. That matters because a wrong mechanism
+    # invites a fix aimed at the wrong thing: believing it was duration made
+    # `-q` look like a complete answer, when `-q` only suppresses one way this
+    # stream gets polluted.
+    #
+    # THE REAL DEFECT WAS THE ASSUMPTION. Nothing in bandit promises stdout is
+    # pure JSON. A bandit upgrade, a different terminal, a plugin that warns on
+    # startup --- any of them re-breaks a parser that trusts the stream. `-o`
+    # removes the dependency entirely: the report goes to a file, and whatever
+    # bandit prints to the console cannot corrupt it.
+    #
+    # This is the pattern the repository already uses one file away, in
+    # `bandit_sarif()` in tests/test_sarif_suppress.py. There were two call
+    # sites and only one of them was right.
+    #
+    # `-q` is kept as well. It is not redundant: it keeps the console readable
+    # in CI logs, which is worth something on its own now that correctness no
+    # longer rests on it.
+    with tempfile.TemporaryDirectory() as tmp:
+        report_path = Path(tmp) / "bandit.json"
+        out = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "bandit",
+                "-r",
+                *targets,
+                "-q",
+                "-f",
+                "json",
+                "-o",
+                str(report_path),
+                "--severity-level",
+                "low",
+                "--confidence-level",
+                "low",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        try:
+            raw = report_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            # NO REPORT IS NOT A CLEAN SCAN, exactly as an empty result set is
+            # not. bandit failing before it could write is the one case where
+            # stdout/stderr is all the evidence there is, so it is printed.
+            print(f"  bandit wrote no report file: {exc}", file=sys.stderr)
+            print(out.stdout[:400] or out.stderr[:400], file=sys.stderr)
+            sys.exit(2)
+
     try:
-        report = cast("dict[str, Any]", json.loads(out.stdout))
+        report = cast("dict[str, Any]", json.loads(raw))
         errors = cast("list[dict[str, Any]]", report["errors"])
         metrics = cast("dict[str, Any]", report["metrics"])
         results = cast("list[dict[str, Any]]", report["results"])
     except (ValueError, KeyError, TypeError) as exc:
         print(f"  bandit emitted no usable JSON report: {exc}", file=sys.stderr)
-        print(out.stdout[:400] or out.stderr[:400], file=sys.stderr)
+        print(raw[:400] or out.stderr[:400], file=sys.stderr)
         sys.exit(2)
 
     if errors:

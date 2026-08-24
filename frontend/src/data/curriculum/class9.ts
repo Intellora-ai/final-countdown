@@ -4,7 +4,7 @@
  * syllabus documents recorded in data/curriculum-sources.lock.json.
  * Re-generate with: npm run curriculum:build
  *
- * Class 9: 9 subjects, 762 concepts.
+ * Class 9: 9 subjects, 548 concepts.
  *
  * Every concept carries the pdf and page it was read from. Every "minutes"
  * value is an ESTIMATE derived from the concept's wording, not a figure the
@@ -473,23 +473,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "cg-11--music",
-            "name": "Music",
-            "minutes": 10,
-            "deps": [
-              "cg-11--visual-arts"
-            ],
-            "source": {
-              "pdf": "maths-ix",
-              "page": 3
-            }
-          },
-          {
             "id": "cg-11--vocational-education",
             "name": "Vocational Education",
             "minutes": 10,
             "deps": [
-              "cg-11--music"
+              "cg-11--visual-arts"
             ],
             "source": {
               "pdf": "maths-ix",
@@ -581,23 +569,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "triangles--sides",
-            "name": "sides",
-            "minutes": 10,
-            "deps": [
-              "triangles--quadrilateral-congruence-of-triangles-c-4-1"
-            ],
-            "source": {
-              "pdf": "maths-ix",
-              "page": 8
-            }
-          },
-          {
             "id": "triangles--in-general",
             "name": "in general",
             "minutes": 10,
             "deps": [
-              "triangles--sides"
+              "triangles--quadrilateral-congruence-of-triangles-c-4-1"
             ],
             "source": {
               "pdf": "maths-ix",
@@ -639,35 +615,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "example-1--find-x-and-y",
-            "name": "find x and y",
-            "minutes": 15,
-            "deps": [
-              "example-1--whose-first-term-is-3-and-common-difference-is-4"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 42
-            }
-          },
-          {
-            "id": "example-1--let-us-take-a-point-p",
-            "name": "Let us take a point P",
-            "minutes": 20,
-            "deps": [
-              "example-1--find-x-and-y"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 60
-            }
-          },
-          {
             "id": "example-1--positioned-in-quadrant-ii",
             "name": "positioned in Quadrant II",
             "minutes": 15,
             "deps": [
-              "example-1--let-us-take-a-point-p"
+              "example-1--whose-first-term-is-3-and-common-difference-is-4"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -684,18 +636,6 @@ export const CLASS_9: Subject[] = [
             "source": {
               "pdf": "maths-advanced",
               "page": 60
-            }
-          },
-          {
-            "id": "example-1--find-the-sum-upto-n-terms-of-the-sequence-3",
-            "name": "Find the sum upto n terms of the sequence 3",
-            "minutes": 25,
-            "deps": [
-              "example-1--having-coordinates-p-2-3-now-p-takes-two-jumps-as-follows"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 88
             }
           }
         ]
@@ -751,9 +691,9 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "solution--since-the-power-set-of-a-is-again-a-set-containing-all-its-subsets",
-            "name": "Since the power set of A is again a set containing all its subsets",
-            "minutes": 25,
+            "id": "solution--we-denote-it-by-p-a",
+            "name": "we denote it by P(A)",
+            "minutes": 20,
             "deps": [
               "solution--it-is-not-an-empty-set-ii-since-a-composite-number-has-more-than-two-factors"
             ],
@@ -763,59 +703,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "solution--we-denote-it-by-p-a",
-            "name": "we denote it by P(A)",
-            "minutes": 20,
-            "deps": [
-              "solution--since-the-power-set-of-a-is-again-a-set-containing-all-its-subsets"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 11
-            }
-          },
-          {
-            "id": "solution--since-a-b-consists-of-all-the-elements-of-a-as-well-as-b-hence",
-            "name": "Since A B consists of all the elements of A as well as B. Hence",
-            "minutes": 25,
-            "deps": [
-              "solution--we-denote-it-by-p-a"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 13
-            }
-          },
-          {
-            "id": "solution--since-a-b-consists-of-elements-that-are-common-to-a-and-b-hence",
-            "name": "Since A  B consists of elements that are common to A and B. Hence",
-            "minutes": 25,
-            "deps": [
-              "solution--since-a-b-consists-of-all-the-elements-of-a-as-well-as-b-hence"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 14
-            }
-          },
-          {
-            "id": "solution--since",
-            "name": "Since",
-            "minutes": 10,
-            "deps": [
-              "solution--since-a-b-consists-of-elements-that-are-common-to-a-and-b-hence"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 15
-            }
-          },
-          {
             "id": "solution--denoted-by-a-b-is-the-set-containing-elements-which-are-in-a-but-not-in-b-symbol",
             "name": "denoted by A – B is the set containing elements which are in A but not in B. Symbolically",
             "minutes": 25,
             "deps": [
-              "solution--since"
+              "solution--we-denote-it-by-p-a"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -847,23 +739,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "solution--let-a",
-            "name": "Let A",
-            "minutes": 10,
-            "deps": [
-              "solution--we-know-that"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 21
-            }
-          },
-          {
             "id": "solution--b-and-c-represent-the-sets-of-consumers-who-rated-5-stars-to-the-shampoos-a",
             "name": "B and C represent the sets of consumers who rated 5-stars to the shampoos A",
             "minutes": 25,
             "deps": [
-              "solution--let-a"
+              "solution--we-know-that"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -895,23 +775,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "solution--since-the-ordered-pairs-are-equal",
-            "name": "Since the ordered pairs are equal",
-            "minutes": 20,
-            "deps": [
-              "solution--using-the-product-rule"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 42
-            }
-          },
-          {
             "id": "solution--equating-their-abscissas-and-ordinates",
             "name": "equating their abscissas and ordinates",
             "minutes": 20,
             "deps": [
-              "solution--since-the-ordered-pairs-are-equal"
+              "solution--using-the-product-rule"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -991,35 +859,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "solution--a-since",
-            "name": "(a) Since",
-            "minutes": 10,
-            "deps": [
-              "solution--both-domain-and-range-of-the-relation-s-are-the-set-of-integers-z"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 50
-            }
-          },
-          {
-            "id": "solution--let-us-fill-the-tables",
-            "name": "Let us fill the tables",
-            "minutes": 20,
-            "deps": [
-              "solution--a-since"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 55
-            }
-          },
-          {
             "id": "solution--the-coordinates-must-be-m-8-6-therefore",
             "name": "the coordinates must be M (–8, 6). Therefore",
             "minutes": 25,
             "deps": [
-              "solution--let-us-fill-the-tables"
+              "solution--both-domain-and-range-of-the-relation-s-are-the-set-of-integers-z"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -1039,23 +883,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "solution--let-us-analyze-slope-first-slope",
-            "name": "Let us analyze slope first. Slope",
-            "minutes": 20,
-            "deps": [
-              "solution--reflecting-a-k-3-in-the-y-axis-negates-the-x-coordinate"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 66
-            }
-          },
-          {
             "id": "solution--m-since-a-is-positive-and-b-is-b-a-a-negative",
             "name": "m  . Since A is positive and B is B A A negative",
             "minutes": 25,
             "deps": [
-              "solution--let-us-analyze-slope-first-slope"
+              "solution--reflecting-a-k-3-in-the-y-axis-negates-the-x-coordinate"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -1183,23 +1015,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "solution--let-the-equation-of-required-line-be-1-a-b-it-is-given-that",
-            "name": "Let the equation of required line be  1 a b It is given that",
-            "minutes": 25,
-            "deps": [
-              "solution--line-passes-through-4-5-so-this-point-must-satisfies-the-equation-of-line"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 71
-            }
-          },
-          {
             "id": "solution--we-get-x",
             "name": "we get x ",
             "minutes": 15,
             "deps": [
-              "solution--let-the-equation-of-required-line-be-1-a-b-it-is-given-that"
+              "solution--line-passes-through-4-5-so-this-point-must-satisfies-the-equation-of-line"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -1303,23 +1123,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "solution--here",
-            "name": "Here",
-            "minutes": 10,
-            "deps": [
-              "solution--the-student-joins-a-sports-club-or-a-music-club-or-a-debate-club-exactly-one"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 79
-            }
-          },
-          {
             "id": "solution--we-observe-that-each-term-can-be-written-as",
             "name": "we observe that each term can be written as",
             "minutes": 25,
             "deps": [
-              "solution--here"
+              "solution--the-student-joins-a-sports-club-or-a-music-club-or-a-debate-club-exactly-one"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -1387,23 +1195,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "solution--let-us-consider-the-3-science-books-as-one-single-block-now-we-have",
-            "name": "Let us consider the 3 Science books as one single block. Now we have",
-            "minutes": 25,
-            "deps": [
-              "solution--the-thousands-digit-must-be-7"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 81
-            }
-          },
-          {
             "id": "solution--we-have-to-arrange-total-5-units-now",
             "name": "we have to arrange total 5 units. Now",
             "minutes": 25,
             "deps": [
-              "solution--let-us-consider-the-3-science-books-as-one-single-block-now-we-have"
+              "solution--the-thousands-digit-must-be-7"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -1471,9 +1267,9 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "solution--since-the-order-of-selection-of-members-does-not-matter-in-the-formation-of-a-co",
-            "name": "Since the order of selection of members does not matter in the formation of a committee",
-            "minutes": 25,
+            "id": "solution--the-required-number-of-ways-is-120",
+            "name": "the required number of ways is 120",
+            "minutes": 20,
             "deps": [
               "solution--720-ways"
             ],
@@ -1483,47 +1279,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "solution--since-the-order-of-selection-of-questions-does-not-matter",
-            "name": "Since the order of selection of questions does not matter",
-            "minutes": 25,
-            "deps": [
-              "solution--since-the-order-of-selection-of-members-does-not-matter-in-the-formation-of-a-co"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 83
-            }
-          },
-          {
-            "id": "solution--the-required-number-of-ways-is-120",
-            "name": "the required number of ways is 120",
-            "minutes": 20,
-            "deps": [
-              "solution--since-the-order-of-selection-of-questions-does-not-matter"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 83
-            }
-          },
-          {
-            "id": "solution--therefore-it-is-a-gp",
-            "name": "therefore it is a GP",
-            "minutes": 20,
-            "deps": [
-              "solution--the-required-number-of-ways-is-120"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 88
-            }
-          },
-          {
             "id": "solution--0-25-cm-in-the-second",
             "name": "0.25 cm in the second",
             "minutes": 20,
             "deps": [
-              "solution--therefore-it-is-a-gp"
+              "solution--the-required-number-of-ways-is-120"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -1543,23 +1303,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "solution--let-us-check-the-differences-of-consecutive-terms-t2-t1-4",
-            "name": "Let us check the differences of consecutive terms. t2  t1  4",
-            "minutes": 25,
-            "deps": [
-              "solution--he-then"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 94
-            }
-          },
-          {
             "id": "solution--the-sequence-is-3",
             "name": "The sequence is 3",
             "minutes": 15,
             "deps": [
-              "solution--let-us-check-the-differences-of-consecutive-terms-t2-t1-4"
+              "solution--he-then"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -1580,18 +1328,6 @@ export const CLASS_9: Subject[] = [
             "source": {
               "pdf": "maths-advanced",
               "page": 5
-            }
-          },
-          {
-            "id": "example-2--find-the-sum-upto-n-terms-of-the-sequence-0-3",
-            "name": "Find the sum upto n terms of the sequence 0.3",
-            "minutes": 25,
-            "deps": [
-              "example-2--write-the-following-sets-in-the-set-builder-form"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 89
             }
           }
         ]
@@ -1679,23 +1415,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "example-9--therefore-each-is-a-subset-of-the-other-i-e",
-            "name": "therefore each is a subset of the other i.e",
-            "minutes": 25,
-            "deps": [
-              "example-9--i-a-b-ii-since-is-subset-of-every-set"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 10
-            }
-          },
-          {
             "id": "example-9--we-say",
             "name": "we say",
             "minutes": 10,
             "deps": [
-              "example-9--therefore-each-is-a-subset-of-the-other-i-e"
+              "example-9--i-a-b-ii-since-is-subset-of-every-set"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -1712,34 +1436,6 @@ export const CLASS_9: Subject[] = [
             "source": {
               "pdf": "maths-advanced",
               "page": 35
-            }
-          },
-          {
-            "id": "example-9--find-n",
-            "name": "Find n",
-            "minutes": 10,
-            "deps": [
-              "example-9--an-earthquake-measures-2-on-the-richter-scale"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 78
-            }
-          }
-        ]
-      },
-      {
-        "id": "example-18",
-        "name": "Example 18",
-        "concepts": [
-          {
-            "id": "example-18--given",
-            "name": "Given",
-            "minutes": 10,
-            "deps": [],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 16
             }
           }
         ]
@@ -1833,22 +1529,10 @@ export const CLASS_9: Subject[] = [
         "name": "Proof",
         "concepts": [
           {
-            "id": "proof--let-x-loga-mn",
-            "name": "Let x  loga ( MN )",
-            "minutes": 20,
-            "deps": [],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 28
-            }
-          },
-          {
             "id": "proof--y-log-a-m",
             "name": "y  log a M",
             "minutes": 20,
-            "deps": [
-              "proof--let-x-loga-mn"
-            ],
+            "deps": [],
             "source": {
               "pdf": "maths-advanced",
               "page": 28
@@ -1867,23 +1551,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "proof--let-x-loga",
-            "name": "Let x  loga  ",
-            "minutes": 20,
-            "deps": [
-              "proof--z-log-a-n"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 28
-            }
-          },
-          {
             "id": "proof--y-loga-m",
             "name": "y  loga M",
             "minutes": 15,
             "deps": [
-              "proof--let-x-loga"
+              "proof--z-log-a-n"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -1927,47 +1599,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "proof--let-x-loga-m-k-and-y-loga-m",
-            "name": "Let x  loga  M k  and y  loga M",
-            "minutes": 25,
-            "deps": [
-              "proof--loga-m-loga-n-loga-n"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 29
-            }
-          },
-          {
-            "id": "proof--let-x-loga-m-ax-m-now-take-log-with-base-b-on-both-the-sides",
-            "name": "Let x  loga ( M )  ax  M Now take log with base b on both the sides",
-            "minutes": 25,
-            "deps": [
-              "proof--let-x-loga-m-k-and-y-loga-m"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 29
-            }
-          },
-          {
             "id": "proof--logb-ax-logb-m-x-logb-a-logb-m-logb-m-thus",
             "name": "logb (ax )  logb M  x logb a  logb M logb ( M ) Thus",
             "minutes": 25,
             "deps": [
-              "proof--let-x-loga-m-ax-m-now-take-log-with-base-b-on-both-the-sides"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 29
-            }
-          },
-          {
-            "id": "proof--let-x-loga-a-ax-a",
-            "name": "Let x  loga a  ax  a",
-            "minutes": 25,
-            "deps": [
-              "proof--logb-ax-logb-m-x-logb-a-logb-m-logb-m-thus"
+              "proof--loga-m-loga-n-loga-n"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -2049,22 +1685,6 @@ export const CLASS_9: Subject[] = [
         ]
       },
       {
-        "id": "example-3",
-        "name": "Example 3",
-        "concepts": [
-          {
-            "id": "example-3--find-how-many-subsets-will-a-b-have",
-            "name": "find how many subsets will A × B have?",
-            "minutes": 25,
-            "deps": [],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 42
-            }
-          }
-        ]
-      },
-      {
         "id": "let-us-represent-the-relation-r",
         "name": "Let us represent the relation, R",
         "concepts": [
@@ -2081,58 +1701,6 @@ export const CLASS_9: Subject[] = [
         ]
       },
       {
-        "id": "example-7",
-        "name": "Example 7",
-        "concepts": [
-          {
-            "id": "example-7--find-its-domain",
-            "name": "find its domain",
-            "minutes": 15,
-            "deps": [],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 44
-            }
-          },
-          {
-            "id": "example-7--range",
-            "name": "range",
-            "minutes": 10,
-            "deps": [
-              "example-7--find-its-domain"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 44
-            }
-          },
-          {
-            "id": "example-7--find-the-nth-term-of-the-sequence-3",
-            "name": "Find the nth term of the sequence 3",
-            "minutes": 25,
-            "deps": [
-              "example-7--range"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 94
-            }
-          },
-          {
-            "id": "example-7--and-hence-find-its-8th-term",
-            "name": "… and hence find its 8th term",
-            "minutes": 20,
-            "deps": [
-              "example-7--find-the-nth-term-of-the-sequence-3"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 94
-            }
-          }
-        ]
-      },
-      {
         "id": "in-other-words-a-relation-r",
         "name": "In other words a relation R",
         "concepts": [
@@ -2144,58 +1712,6 @@ export const CLASS_9: Subject[] = [
             "source": {
               "pdf": "maths-advanced",
               "page": 46
-            }
-          }
-        ]
-      },
-      {
-        "id": "example-14",
-        "name": "Example 14",
-        "concepts": [
-          {
-            "id": "example-14--determine-which-of-the-following-rules-describes-a-function-give-reason-for-each",
-            "name": "Determine which of the following rules describes a function. Give reason for each",
-            "minutes": 25,
-            "deps": [],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 48
-            }
-          },
-          {
-            "id": "example-14--in-an-8-person-race",
-            "name": "In an 8-person race",
-            "minutes": 15,
-            "deps": [
-              "example-14--determine-which-of-the-following-rules-describes-a-function-give-reason-for-each"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 81
-            }
-          },
-          {
-            "id": "example-14--how-many-ways-can-gold",
-            "name": "how many ways can Gold",
-            "minutes": 20,
-            "deps": [
-              "example-14--in-an-8-person-race"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 81
-            }
-          },
-          {
-            "id": "example-14--silver",
-            "name": "Silver",
-            "minutes": 10,
-            "deps": [
-              "example-14--how-many-ways-can-gold"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 81
             }
           }
         ]
@@ -2345,18 +1861,6 @@ export const CLASS_9: Subject[] = [
               "pdf": "maths-advanced",
               "page": 71
             }
-          },
-          {
-            "id": "example-11--find-the-coordinates-of-that-fixed-point-x-y",
-            "name": "find the coordinates of that fixed point. x y",
-            "minutes": 25,
-            "deps": [
-              "example-11--a-moving-straight-line-intercepts-x-axis-at-a-and-y-axis-at-b-as-the-line-moves"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 71
-            }
           }
         ]
       },
@@ -2469,62 +1973,42 @@ export const CLASS_9: Subject[] = [
               "pdf": "maths-advanced",
               "page": 77
             }
+          }
+        ]
+      },
+      {
+        "id": "example-14",
+        "name": "Example 14",
+        "concepts": [
+          {
+            "id": "example-14--in-an-8-person-race",
+            "name": "In an 8-person race",
+            "minutes": 15,
+            "deps": [],
+            "source": {
+              "pdf": "maths-advanced",
+              "page": 81
+            }
           },
           {
-            "id": "example-5--5-if-repetition-of-digits-is-not-allowed",
-            "name": "5 if repetition of digits is not allowed?",
-            "minutes": 25,
+            "id": "example-14--how-many-ways-can-gold",
+            "name": "how many ways can Gold",
+            "minutes": 20,
             "deps": [
-              "example-5--how-many-2-digit-numbers-can-be-formed-using-the-digits-1"
+              "example-14--in-an-8-person-race"
             ],
             "source": {
               "pdf": "maths-advanced",
-              "page": 77
+              "page": 81
             }
-          }
-        ]
-      },
-      {
-        "id": "example-10",
-        "name": "Example 10",
-        "concepts": [
+          },
           {
-            "id": "example-10--find-x",
-            "name": "Find x",
+            "id": "example-14--silver",
+            "name": "Silver",
             "minutes": 10,
-            "deps": [],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 79
-            }
-          }
-        ]
-      },
-      {
-        "id": "example-12",
-        "name": "Example 12",
-        "concepts": [
-          {
-            "id": "example-12--find-the-value-of-x-y",
-            "name": "Find the value of x  y",
-            "minutes": 20,
-            "deps": [],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 79
-            }
-          }
-        ]
-      },
-      {
-        "id": "example-16",
-        "name": "Example 16",
-        "concepts": [
-          {
-            "id": "example-16--in-how-many-ways-can-6-students-stand-in-a-straight-line-for-a-photograph",
-            "name": "In how many ways can 6 students stand in a straight line for a photograph?",
-            "minutes": 25,
-            "deps": [],
+            "deps": [
+              "example-14--how-many-ways-can-gold"
+            ],
             "source": {
               "pdf": "maths-advanced",
               "page": 81
@@ -2549,17 +2033,17 @@ export const CLASS_9: Subject[] = [
         ]
       },
       {
-        "id": "think",
-        "name": "Think",
+        "id": "example-7",
+        "name": "Example 7",
         "concepts": [
           {
-            "id": "think--what-if-the-digits-can-be-repeated",
-            "name": "What if the digits can be repeated?",
+            "id": "example-7--and-hence-find-its-8th-term",
+            "name": "… and hence find its 8th term",
             "minutes": 20,
             "deps": [],
             "source": {
               "pdf": "maths-advanced",
-              "page": 81
+              "page": 94
             }
           }
         ]
@@ -2651,23 +2135,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--determine-which-elements-of-the-set",
-            "name": "Determine which elements of the set",
-            "minutes": 20,
-            "deps": [
-              "syllabus--list-the-elements-of-the-following-sets"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 9
-            }
-          },
-          {
             "id": "syllabus--write-the-following-sets-in-roster-form",
             "name": "Write the following sets in roster form:",
             "minutes": 20,
             "deps": [
-              "syllabus--determine-which-elements-of-the-set"
+              "syllabus--list-the-elements-of-the-following-sets"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -2687,23 +2159,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--which-of-the-following-pairs-of-sets-are-equal",
-            "name": "Which of the following pairs of sets are equal",
-            "minutes": 25,
-            "deps": [
-              "syllabus--write-the-following-sets-in-set-builder-form"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 9
-            }
-          },
-          {
             "id": "syllabus--state-which-of-the-following-sets-are-finite-or-infinite",
             "name": "State which of the following sets are finite or infinite",
             "minutes": 25,
             "deps": [
-              "syllabus--which-of-the-following-pairs-of-sets-are-equal"
+              "syllabus--write-the-following-sets-in-set-builder-form"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -2723,23 +2183,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--determine-whether-the-following-statements-are-true-or-false",
-            "name": "Determine whether the following statements are true or false",
-            "minutes": 25,
-            "deps": [
-              "syllabus--fill-in-the-blanks-with-symbol-or"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 12
-            }
-          },
-          {
             "id": "syllabus--write-the-power-set-of-the-following-sets",
             "name": "Write the power set of the following sets:",
             "minutes": 25,
             "deps": [
-              "syllabus--determine-whether-the-following-statements-are-true-or-false"
+              "syllabus--fill-in-the-blanks-with-symbol-or"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -2759,23 +2207,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--let-a-be-a-set-and-n-a-10-then-find-the-value-of-n-p-a-what-if-a-has-100-element",
-            "name": "Let A be a set and n(A) = 10, then find the value of n[P(A)]? What if A has 100 elements?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--what-is-the-cardinality-of-the-following-sets"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 12
-            }
-          },
-          {
             "id": "syllabus--14-1-if-a-and-b-are-two-finite-sets-then-their-cardinal-numbers-are-related-as-b",
             "name": "14.1 If A and B are two finite sets, then their cardinal numbers are related as below:",
             "minutes": 25,
             "deps": [
-              "syllabus--let-a-be-a-set-and-n-a-10-then-find-the-value-of-n-p-a-what-if-a-has-100-element"
+              "syllabus--what-is-the-cardinality-of-the-following-sets"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -2819,8 +2255,8 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--find-the-union-of-sets-a-and-b-i-e-a-b-in-each-of-the-following-pairs",
-            "name": "Find the union of sets A and B i.e. A B, in each of the following pairs",
+            "id": "syllabus--use-the-venn-diagram-given-below-to-answer-the-questions-that-follow-hint-you-ca",
+            "name": "Use the Venn diagram given below to answer the questions that follow. Hint: You can find sets A, B, C and universal set U from the given Venn diagram.Page | 20",
             "minutes": 25,
             "deps": [
               "syllabus--n-neither-in-a-nor-in-b-n-a-b-n-a-b-n-u-n-a-b"
@@ -2831,71 +2267,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--evaluate-each-of-the-following",
-            "name": "Evaluate each of the following",
-            "minutes": 20,
-            "deps": [
-              "syllabus--find-the-union-of-sets-a-and-b-i-e-a-b-in-each-of-the-following-pairs"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 22
-            }
-          },
-          {
-            "id": "syllabus--which-of-the-following-sets-are-disjoint",
-            "name": "Which of the following sets are disjoint?",
-            "minutes": 20,
-            "deps": [
-              "syllabus--evaluate-each-of-the-following"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 22
-            }
-          },
-          {
-            "id": "syllabus--find-a-b-in-each-of-the-following",
-            "name": "Find A – B in each of the following",
-            "minutes": 25,
-            "deps": [
-              "syllabus--which-of-the-following-sets-are-disjoint"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 22
-            }
-          },
-          {
-            "id": "syllabus--use-the-venn-diagram-given-below-to-answer-the-questions-that-follow-hint-you-ca",
-            "name": "Use the Venn diagram given below to answer the questions that follow. Hint: You can find sets A, B, C and universal set U from the given Venn diagram.Page | 20",
-            "minutes": 25,
-            "deps": [
-              "syllabus--find-a-b-in-each-of-the-following"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 22
-            }
-          },
-          {
-            "id": "syllabus--verify-a-b-a-b-using-the-venn-diagram-given-below",
-            "name": "Verify A – B = A B using the Venn diagram given below:",
-            "minutes": 25,
-            "deps": [
-              "syllabus--use-the-venn-diagram-given-below-to-answer-the-questions-that-follow-hint-you-ca"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 23
-            }
-          },
-          {
             "id": "syllabus--for-a-competitive-exam-85-of-students-opted-for-a-mock-test-in-mathematics-and-7",
             "name": "For a competitive exam, 85% of students opted for a Mock Test in Mathematics and 75% opted for a Mock Test in Science",
             "minutes": 25,
             "deps": [
-              "syllabus--verify-a-b-a-b-using-the-venn-diagram-given-below"
+              "syllabus--use-the-venn-diagram-given-below-to-answer-the-questions-that-follow-hint-you-ca"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -2975,35 +2351,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--find-the-value-of",
-            "name": "Find the value of",
-            "minutes": 15,
-            "deps": [
-              "syllabus--write-an-equivalent-exponential-statement-for"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 27
-            }
-          },
-          {
             "id": "syllabus--express-the-following-as-a-single-logarithm",
             "name": "Express the following as a single logarithm:",
             "minutes": 20,
             "deps": [
-              "syllabus--find-the-value-of"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 33
-            }
-          },
-          {
-            "id": "syllabus--find-the-exact-value-of",
-            "name": "Find the exact value of",
-            "minutes": 20,
-            "deps": [
-              "syllabus--express-the-following-as-a-single-logarithm"
+              "syllabus--write-an-equivalent-exponential-statement-for"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -3015,19 +2367,7 @@ export const CLASS_9: Subject[] = [
             "name": "If  2 log 3 p and  2 log 5 . q Write the following in terms of p and q",
             "minutes": 25,
             "deps": [
-              "syllabus--find-the-exact-value-of"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 33
-            }
-          },
-          {
-            "id": "syllabus--which-of-the-following-are-true",
-            "name": "Which of the following are true?",
-            "minutes": 20,
-            "deps": [
-              "syllabus--if-2-log-3-p-and-2-log-5-q-write-the-following-in-terms-of-p-and-q"
+              "syllabus--express-the-following-as-a-single-logarithm"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -3039,7 +2379,7 @@ export const CLASS_9: Subject[] = [
             "name": "If 2026 2026 2026 2026 log log , log log x y a y z b     and 2026 2026 log log , z x c   then find the value of . b c c a a b x y z y z x",
             "minutes": 25,
             "deps": [
-              "syllabus--which-of-the-following-are-true"
+              "syllabus--if-2-log-3-p-and-2-log-5-q-write-the-following-in-terms-of-p-and-q"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -3083,23 +2423,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--evaluate",
-            "name": "Evaluate:",
-            "minutes": 10,
-            "deps": [
-              "syllabus--using-the-properties-of-logs-simplify-2-2-log-16-log-4"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 35
-            }
-          },
-          {
             "id": "syllabus--if-2-log-7-p-and-2-log-3-q-write-in-terms-of-p-and-q",
             "name": "If  2 log 7 p and  2 log 3 . q Write in terms of p and q",
             "minutes": 25,
             "deps": [
-              "syllabus--evaluate"
+              "syllabus--using-the-properties-of-logs-simplify-2-2-log-16-log-4"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -3131,8 +2459,8 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--which-is-the-greatest-integer-that-is-less-than-the-number-4-9-log-9-log-28",
-            "name": "Which is the greatest integer that is less than the number  4 9 log 9 log 28?",
+            "id": "syllabus--43-43-1-log-and-40-2-x-y",
+            "name": "43 43 1 log and . 40 2 x y",
             "minutes": 25,
             "deps": [
               "syllabus--true-or-false-explain-your-reasoning"
@@ -3143,59 +2471,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--evaluate-the-value-of-x-5y-where",
-            "name": "Evaluate the value of (x + 5y), where,",
-            "minutes": 25,
-            "deps": [
-              "syllabus--which-is-the-greatest-integer-that-is-less-than-the-number-4-9-log-9-log-28"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 36
-            }
-          },
-          {
-            "id": "syllabus--43-43-1-log-and-40-2-x-y",
-            "name": "43 43 1 log and . 40 2 x y",
-            "minutes": 25,
-            "deps": [
-              "syllabus--evaluate-the-value-of-x-5y-where"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 36
-            }
-          },
-          {
-            "id": "syllabus--solve-for-x",
-            "name": "Solve for x",
-            "minutes": 15,
-            "deps": [
-              "syllabus--43-43-1-log-and-40-2-x-y"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 38
-            }
-          },
-          {
             "id": "syllabus--if-x-5-y-1-4-6-find-x-and-y",
             "name": "If (x − 5, y + 1) = (4, 6), find x and y",
             "minutes": 25,
             "deps": [
-              "syllabus--solve-for-x"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 43
-            }
-          },
-          {
-            "id": "syllabus--let-a-1-2-and-b-2-3-5-list-all-elements-of-a-b-and-b-a",
-            "name": "Let A = {1, 2} and B = {2, 3, 5}. List all elements of A × B and B × A",
-            "minutes": 25,
-            "deps": [
-              "syllabus--if-x-5-y-1-4-6-find-x-and-y"
+              "syllabus--43-43-1-log-and-40-2-x-y"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -3207,7 +2487,7 @@ export const CLASS_9: Subject[] = [
             "name": "If n(A × B) = 20 and n(A) = 4, find n(B)",
             "minutes": 25,
             "deps": [
-              "syllabus--let-a-1-2-and-b-2-3-5-list-all-elements-of-a-b-and-b-a"
+              "syllabus--if-x-5-y-1-4-6-find-x-and-y"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -3239,111 +2519,15 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--verify-a-b-c-a-b-a-c-for-a-1-2-b-2-3-c-4-5",
-            "name": "Verify, A × (B  C) = (A × B)  (A × C) for A = {1, 2}, B = {2, 3}, C = {4, 5}",
+            "id": "syllabus--write-r-x-x2-x-is-a-prime-number-less-than-10-in-roster-form-also-find-the-range",
+            "name": "Write R = {(x, x2) : x is a prime number less than 10} in roster form. Also find the range of R",
             "minutes": 25,
             "deps": [
               "syllabus--if-a-1-2-3-and-b-2-3-7-find-a-b-b-a"
             ],
             "source": {
               "pdf": "maths-advanced",
-              "page": 43
-            }
-          },
-          {
-            "id": "syllabus--given-a-2-3-4-5-b-3-6-7-10-define-r-a-b-a-divides-b-a-a-b-b-write-r-in-roster-fo",
-            "name": "Given A = {2, 3, 4, 5}, B = {3, 6, 7, 10}. Define R = {(a, b) : a divides b; a  A, b  B}. Write R in roster form hence find its domain and range",
-            "minutes": 25,
-            "deps": [
-              "syllabus--verify-a-b-c-a-b-a-c-for-a-1-2-b-2-3-c-4-5"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
               "page": 46
-            }
-          },
-          {
-            "id": "syllabus--let-r-a-b-a-2b-12-a-b-write-r-in-roster-form-and-hence-find-its-domain-and-range",
-            "name": "Let R = {(a, b) : a + 2b = 12, a, b   Write R in roster form and hence find its domain and range",
-            "minutes": 25,
-            "deps": [
-              "syllabus--given-a-2-3-4-5-b-3-6-7-10-define-r-a-b-a-divides-b-a-a-b-b-write-r-in-roster-fo"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 46
-            }
-          },
-          {
-            "id": "syllabus--write-r-x-x2-x-is-a-prime-number-less-than-10-in-roster-form-also-find-the-range",
-            "name": "Write R = {(x, x2) : x is a prime number less than 10} in roster form. Also find the range of R",
-            "minutes": 25,
-            "deps": [
-              "syllabus--let-r-a-b-a-2b-12-a-b-write-r-in-roster-form-and-hence-find-its-domain-and-range"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 46
-            }
-          },
-          {
-            "id": "syllabus--let-a-p-q-r-s-and-b-1-2-how-many-relations-can-be-defined-from-set-a-to-set-b-li",
-            "name": "Let A = {p, q, r, s} and B = {1, 2}. How many relations can be defined from set A to set B? List any four of them",
-            "minutes": 25,
-            "deps": [
-              "syllabus--write-r-x-x2-x-is-a-prime-number-less-than-10-in-roster-form-also-find-the-range"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 46
-            }
-          },
-          {
-            "id": "syllabus--let-a-1-2-3-4-5-define-a-relation-r-on-a-by-r-a-b-a-b-2-write-r-in-roster-form-a",
-            "name": "Let A = {1, 2, 3, 4, 5}. Define a relation R on A by R = {(a, b) : |a − b| = 2}. Write R in roster form and hence find its domain and range",
-            "minutes": 25,
-            "deps": [
-              "syllabus--let-a-p-q-r-s-and-b-1-2-how-many-relations-can-be-defined-from-set-a-to-set-b-li"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 46
-            }
-          },
-          {
-            "id": "syllabus--which-of-the-following-relations-are-functions-justify-your-answer-page-48",
-            "name": "Which of the following relations are functions? Justify your answer.Page | 48",
-            "minutes": 25,
-            "deps": [
-              "syllabus--let-a-1-2-3-4-5-define-a-relation-r-on-a-by-r-a-b-a-b-2-write-r-in-roster-form-a"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 51
-            }
-          },
-          {
-            "id": "syllabus--which-of-the-following-relations-from-a-3-5-7-9-to-b-1-2-3-4-5-are-functions-fro",
-            "name": "Which of the following relations from A = {3, 5, 7, 9} to B = {1, 2, 3, 4, 5} are functions from A to B?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--which-of-the-following-relations-are-functions-justify-your-answer-page-48"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 51
-            }
-          },
-          {
-            "id": "syllabus--what-is-the-domain-and-range-of-each-of-the-relations-given-below-which-of-these",
-            "name": "What is the domain and range of each of the relations given below? Which of these relations are functions:",
-            "minutes": 25,
-            "deps": [
-              "syllabus--which-of-the-following-relations-from-a-3-5-7-9-to-b-1-2-3-4-5-are-functions-fro"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 56
             }
           },
           {
@@ -3351,7 +2535,7 @@ export const CLASS_9: Subject[] = [
             "name": "Draw a rough sketch of each of the following relations. Also write their domain and range",
             "minutes": 25,
             "deps": [
-              "syllabus--what-is-the-domain-and-range-of-each-of-the-relations-given-below-which-of-these"
+              "syllabus--write-r-x-x2-x-is-a-prime-number-less-than-10-in-roster-form-also-find-the-range"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -3359,35 +2543,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--determine-the-domain-and-range-of-the-following-functions",
-            "name": "Determine the domain and range of the following functions:",
-            "minutes": 25,
-            "deps": [
-              "syllabus--draw-a-rough-sketch-of-each-of-the-following-relations-also-write-their-domain-a"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 57
-            }
-          },
-          {
             "id": "syllabus--an-ordered-pair-is-a-pair-of-objects-generally-numbers-or-variables-written-in-s",
             "name": "An ordered pair is a pair of objects generally numbers or variables written in specific order. For example: (3, –5), (x, y) etc",
             "minutes": 25,
             "deps": [
-              "syllabus--determine-the-domain-and-range-of-the-following-functions"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 57
-            }
-          },
-          {
-            "id": "syllabus--the-cartesian-product-of-two-non-empty-sets-a-and-b-is-the-set-of-all-ordered-pa",
-            "name": "The Cartesian product of two non-empty sets A and B is the set of all ordered pairs (a, b) where a  A and b  B. i.e., A × B = {(a, b) : a  A, b  B}",
-            "minutes": 25,
-            "deps": [
-              "syllabus--an-ordered-pair-is-a-pair-of-objects-generally-numbers-or-variables-written-in-s"
+              "syllabus--draw-a-rough-sketch-of-each-of-the-following-relations-also-write-their-domain-a"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -3399,7 +2559,7 @@ export const CLASS_9: Subject[] = [
             "name": "The graph of y = f (x) + c can be obtained from the graph of y = f (x) by shifting it",
             "minutes": 25,
             "deps": [
-              "syllabus--the-cartesian-product-of-two-non-empty-sets-a-and-b-is-the-set-of-all-ordered-pa"
+              "syllabus--an-ordered-pair-is-a-pair-of-objects-generally-numbers-or-variables-written-in-s"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -3443,23 +2603,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--a-point-a-a-b-is-reflected-across-the-x-axis-to-become-point-b-point-b-is-exactl",
-            "name": "A point A (a, b) is reflected across the x-axis to become point B. Point B is exactly 8 units below point A. What was the y-coordinate of point A?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--the-second-jump"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 61
-            }
-          },
-          {
             "id": "syllabus--6-the-concept-of-slope-gradient-the-slope-or-gradient-denoted-by-m-measures-the-",
             "name": "6 The Concept of Slope (Gradient) The slope (or gradient) denoted by m, measures the steepness and direction of a line",
             "minutes": 25,
             "deps": [
-              "syllabus--a-point-a-a-b-is-reflected-across-the-x-axis-to-become-point-b-point-b-is-exactl"
+              "syllabus--the-second-jump"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -3503,23 +2651,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--points-p-2-3-q-5-7-and-r-13-k-are-three-consecutive-vertices-of-a-rectangle-what",
-            "name": "Points P (2, 3), Q (5, 7), and R (13, k) are three consecutive vertices of a rectangle. What is the value of k?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--8-2-the-x-intercept-this-is-the-point-where-the-line-crosses-the-horizontal-x-ax"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 65
-            }
-          },
-          {
             "id": "syllabus--9-different-forms-of-the-equation-of-a-line-a-straight-line-can-be-represented-a",
             "name": "9 Different Forms of the Equation of a Line A straight line can be represented algebraically in several ways depending on the given information.Page | 63",
             "minutes": 25,
             "deps": [
-              "syllabus--points-p-2-3-q-5-7-and-r-13-k-are-three-consecutive-vertices-of-a-rectangle-what"
+              "syllabus--8-2-the-x-intercept-this-is-the-point-where-the-line-crosses-the-horizontal-x-ax"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -3551,23 +2687,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--determine-the-equation-of-the-line-in-slope-intercept-form-that-is-perpendicular",
-            "name": "Determine the equation of the line in slope-intercept form that is perpendicular to the line   1 4 3 y x and passes through the origin",
-            "minutes": 25,
-            "deps": [
-              "syllabus--write-the-equation-of-a-line-in-slope-intercept-form-that-is-parallel-to-the-lin"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 69
-            }
-          },
-          {
             "id": "syllabus--a-straight-line-passes-through-the-points-0-6-and-4-10-find-the-equation-of-this",
             "name": "A straight line passes through the points (0, –6) and (4,10). Find the equation of this line in slope-intercept form",
             "minutes": 25,
             "deps": [
-              "syllabus--determine-the-equation-of-the-line-in-slope-intercept-form-that-is-perpendicular"
+              "syllabus--write-the-equation-of-a-line-in-slope-intercept-form-that-is-parallel-to-the-lin"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -3599,23 +2723,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--a-straight-line-passes-through-the-point-3-2-the-x-intercept-a-and-y-intercept",
-            "name": "A straight line passes through the point (3, 2). The x-intercept (a) and y-intercept",
-            "minutes": 25,
-            "deps": [
-              "syllabus--9-3-intercept-form-1-x-y-a-b"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 71
-            }
-          },
-          {
             "id": "syllabus--the-cartesian-system",
             "name": "The Cartesian System",
             "minutes": 15,
             "deps": [
-              "syllabus--a-straight-line-passes-through-the-point-3-2-the-x-intercept-a-and-y-intercept"
+              "syllabus--9-3-intercept-form-1-x-y-a-b"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -3671,171 +2783,15 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--a-restaurant-offers-4-starters-5-main-courses-and-3-desserts-in-how-many-ways-ca",
-            "name": "A restaurant offers 4 starters, 5 main courses, and 3 desserts. In how many ways can a 3-course meal be ordered?",
+            "id": "syllabus--4-1-the-permutation-formula-the-number-of-permutations-of-n-distinct-objects-tak",
+            "name": "4.1 The Permutation Formula The number of permutations of n distinct objects taken r at a time is given by:",
             "minutes": 25,
             "deps": [
               "syllabus--forms-of-the-equation-of-a-line-a-straight-line-can-be-written-in-three-primary-"
             ],
             "source": {
               "pdf": "maths-advanced",
-              "page": 77
-            }
-          },
-          {
-            "id": "syllabus--there-are-5-doors-to-enter-a-hall-and-3-different-doors-to-exit-in-how-many-ways",
-            "name": "There are 5 doors to enter a hall and 3 different doors to exit. In how many ways can a person enter and exit the hall?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--a-restaurant-offers-4-starters-5-main-courses-and-3-desserts-in-how-many-ways-ca"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 77
-            }
-          },
-          {
-            "id": "syllabus--a-bicycle-lock-has-3-dials-each-with-digits-0-to-9-how-many-different-lock-combi",
-            "name": "A bicycle lock has 3 dials, each with digits 0 to 9. How many different lock combinations are possible if a digit can be repeated?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--there-are-5-doors-to-enter-a-hall-and-3-different-doors-to-exit-in-how-many-ways"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 77
-            }
-          },
-          {
-            "id": "syllabus--how-many-numbers-between-2000-and-3000-can-be-formed-from-the-digits-2-3-4-5-6-7",
-            "name": "How many numbers between 2000 and 3000 can be formed from the digits 2, 3, 4, 5, 6, 7 when repetition of digits is not allowed?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--a-bicycle-lock-has-3-dials-each-with-digits-0-to-9-how-many-different-lock-combi"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 77
-            }
-          },
-          {
-            "id": "syllabus--how-many-3-digit-even-numbers-can-be-formed-from-the-digits-1-2-3-4-6-without-re",
-            "name": "How many 3-digit even numbers can be formed from the digits 1, 2, 3, 4, 6 without repetition? What if the repetition of digits is allowed?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--how-many-numbers-between-2000-and-3000-can-be-formed-from-the-digits-2-3-4-5-6-7"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 77
-            }
-          },
-          {
-            "id": "syllabus--find-the-hcf-and-lcm-of-6-5",
-            "name": "Find the HCF and LCM of 6! , 5!",
-            "minutes": 25,
-            "deps": [
-              "syllabus--how-many-3-digit-even-numbers-can-be-formed-from-the-digits-1-2-3-4-6-without-re"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
               "page": 80
-            }
-          },
-          {
-            "id": "syllabus--find-n-if",
-            "name": "Find n if",
-            "minutes": 15,
-            "deps": [
-              "syllabus--find-the-hcf-and-lcm-of-6-5"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 80
-            }
-          },
-          {
-            "id": "syllabus--find-x-if-1-1",
-            "name": "Find x, if 1 1",
-            "minutes": 20,
-            "deps": [
-              "syllabus--find-n-if"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 80
-            }
-          },
-          {
-            "id": "syllabus--find-the-value-s-of-x-in-each-of-the-following-here-x-0",
-            "name": "Find the value(s) of x in each of the following: (Here, x  0)",
-            "minutes": 25,
-            "deps": [
-              "syllabus--find-x-if-1-1"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 80
-            }
-          },
-          {
-            "id": "syllabus--4-1-the-permutation-formula-the-number-of-permutations-of-n-distinct-objects-tak",
-            "name": "4.1 The Permutation Formula The number of permutations of n distinct objects taken r at a time is given by:",
-            "minutes": 25,
-            "deps": [
-              "syllabus--find-the-value-s-of-x-in-each-of-the-following-here-x-0"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 80
-            }
-          },
-          {
-            "id": "syllabus--in-how-many-ways-can-4-distinct-cars-be-parked-in-6-empty-spaces",
-            "name": "In how many ways can 4 distinct cars be parked in 6 empty spaces?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--4-1-the-permutation-formula-the-number-of-permutations-of-n-distinct-objects-tak"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 82
-            }
-          },
-          {
-            "id": "syllabus--how-many-3-letter-words-with-or-without-meaning-can-be-formed-using-the-letters-",
-            "name": "How many 3-letter words (with or without meaning) can be formed using the letters of the word “LOGIC”?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--in-how-many-ways-can-4-distinct-cars-be-parked-in-6-empty-spaces"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 82
-            }
-          },
-          {
-            "id": "syllabus--in-how-many-ways-can-5-boys-and-2-girls-be-seated-in-a-row-of-7-chairs-if-the-2-",
-            "name": "In how many ways can 5 boys and 2 girls be seated in a row of 7 chairs if the 2 girls must always sit together?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--how-many-3-letter-words-with-or-without-meaning-can-be-formed-using-the-letters-"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 82
-            }
-          },
-          {
-            "id": "syllabus--how-many-4-digit-numbers-can-be-formed-using-the-digits-2-4-6-8-9-without-repeti",
-            "name": "How many 4-digit numbers can be formed using the digits 2, 4, 6, 8, 9 (without repetition) if the number must be strictly greater than 6000?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--in-how-many-ways-can-5-boys-and-2-girls-be-seated-in-a-row-of-7-chairs-if-the-2-"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 82
             }
           },
           {
@@ -3843,7 +2799,7 @@ export const CLASS_9: Subject[] = [
             "name": "How many words (with or without meaning) can be formed from the letters of the word, ‘DAUGHTER’, so that:",
             "minutes": 25,
             "deps": [
-              "syllabus--how-many-4-digit-numbers-can-be-formed-using-the-digits-2-4-6-8-9-without-repeti"
+              "syllabus--4-1-the-permutation-formula-the-number-of-permutations-of-n-distinct-objects-tak"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -3863,59 +2819,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--in-how-many-ways-can-3-students-be-chosen-from-a-class-of-12-to-represent-the-sc",
-            "name": "In how many ways can 3 students be chosen from a class of 12 to represent the school?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--5-1-the-combination-formula-the-number-of-combinations-selections-of-n-distinct-"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 84
-            }
-          },
-          {
-            "id": "syllabus--how-many-triangles-can-be-formed-from-12-points-in-a-plane-of-which-5-are-collin",
-            "name": "How many triangles can be formed from 12 points in a plane, of which 5 are collinear?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--in-how-many-ways-can-3-students-be-chosen-from-a-class-of-12-to-represent-the-sc"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 84
-            }
-          },
-          {
-            "id": "syllabus--how-many-diagonals-does-a-polygon-with-10-sides-have",
-            "name": "How many diagonals does a polygon with 10 sides have?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--how-many-triangles-can-be-formed-from-12-points-in-a-plane-of-which-5-are-collin"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 84
-            }
-          },
-          {
-            "id": "syllabus--if-you-invite-15-of-your-friends-to-a-party-and-all-shake-hands-exactly-once-how",
-            "name": "If you invite 15 of your friends to a party and all shake hands exactly once, how many handshakes occur?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--how-many-diagonals-does-a-polygon-with-10-sides-have"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 84
-            }
-          },
-          {
             "id": "syllabus--1-introduction-let-us-observe-a-few-examples-of-progressions-below-4-8-16-32-1-1",
             "name": "1 Introduction Let us observe a few examples of Progressions below: 4, 8, 16, 32, … 1 1 3, 1, , , 3 9",
             "minutes": 25,
             "deps": [
-              "syllabus--if-you-invite-15-of-your-friends-to-a-party-and-all-shake-hands-exactly-once-how"
+              "syllabus--5-1-the-combination-formula-the-number-of-combinations-selections-of-n-distinct-"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -3935,71 +2843,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--find-the-sum-of-the-series-0-15-0-015-0-0015-to-15-terms",
-            "name": "Find the sum of the series 0.15 + 0.015 + 0.0015 + … to 15 terms",
-            "minutes": 25,
-            "deps": [
-              "syllabus--2-t-t-r-t-t"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 92
-            }
-          },
-          {
-            "id": "syllabus--find-the-sum-to-n-terms-of-the-series-0-9-0-99-0-999",
-            "name": "Find the sum to n terms of the series 0.9 + 0.99 + 0.999 + …",
-            "minutes": 25,
-            "deps": [
-              "syllabus--find-the-sum-of-the-series-0-15-0-015-0-0015-to-15-terms"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 92
-            }
-          },
-          {
-            "id": "syllabus--find-the-sum-to-n-terms-of-the-series-5-55-555",
-            "name": "Find the sum to n terms of the series 5 + 55 + 555 + …",
-            "minutes": 25,
-            "deps": [
-              "syllabus--find-the-sum-to-n-terms-of-the-series-0-9-0-99-0-999"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 92
-            }
-          },
-          {
             "id": "syllabus--the-sum-of-the-first-n-terms-of-the-sequence-3-6-12-is-381-find-n-page-90",
             "name": "The sum of the first n terms of the sequence 3, 6, 12, … is 381. Find n.Page | 90",
             "minutes": 25,
             "deps": [
-              "syllabus--find-the-sum-to-n-terms-of-the-series-5-55-555"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 93
-            }
-          },
-          {
-            "id": "syllabus--find-the-sum-to-n-terms-of-the-series",
-            "name": "Find the sum to n terms of the series",
-            "minutes": 25,
-            "deps": [
-              "syllabus--the-sum-of-the-first-n-terms-of-the-sequence-3-6-12-is-381-find-n-page-90"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 93
-            }
-          },
-          {
-            "id": "syllabus--find-the-sum-of-the-infinite-terms-of-the-series",
-            "name": "Find the sum of the infinite terms of the series",
-            "minutes": 25,
-            "deps": [
-              "syllabus--find-the-sum-to-n-terms-of-the-series"
+              "syllabus--2-t-t-r-t-t"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -4011,19 +2859,7 @@ export const CLASS_9: Subject[] = [
             "name": "The sum of an infinite series of GP is 6 and sum of the squares of these terms is",
             "minutes": 25,
             "deps": [
-              "syllabus--find-the-sum-of-the-infinite-terms-of-the-series"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 93
-            }
-          },
-          {
-            "id": "syllabus--find-the-common-ratio-of-the-original-gp",
-            "name": "Find the common ratio of the original GP",
-            "minutes": 25,
-            "deps": [
-              "syllabus--the-sum-of-an-infinite-series-of-gp-is-6-and-sum-of-the-squares-of-these-terms-i"
+              "syllabus--the-sum-of-the-first-n-terms-of-the-sequence-3-6-12-is-381-find-n-page-90"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -4035,19 +2871,7 @@ export const CLASS_9: Subject[] = [
             "name": "If the sum to infinity of the series     2 3 1 r r r is S, given that |r| < 1 then write r in terms of S",
             "minutes": 25,
             "deps": [
-              "syllabus--find-the-common-ratio-of-the-original-gp"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 93
-            }
-          },
-          {
-            "id": "syllabus--find-the-value-of-4-1-2-4-1-4-4-1-8-4-1-16-to",
-            "name": "Find the value of 4 1 2 ∙ 4 1 4 ∙ 4 1 8 ∙ 4 1 16 … to ",
-            "minutes": 25,
-            "deps": [
-              "syllabus--if-the-sum-to-infinity-of-the-series-2-3-1-r-r-r-is-s-given-that-r-1-then-write-"
+              "syllabus--the-sum-of-an-infinite-series-of-gp-is-6-and-sum-of-the-squares-of-these-terms-i"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -4059,19 +2883,7 @@ export const CLASS_9: Subject[] = [
             "name": "The midpoints D, E and F of the sides of an equilateral triangle ABC are joined to form another smaller equilateral triangle. This process is repeated in the",
             "minutes": 25,
             "deps": [
-              "syllabus--find-the-value-of-4-1-2-4-1-4-4-1-8-4-1-16-to"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 93
-            }
-          },
-          {
-            "id": "syllabus--let-f-x-2x-1-then-find-the-number-of-values-of-x-for-which-f-x-f-2x-f-4x-are-in-",
-            "name": "Let f(x) = 2x + 1, then find the number of values of x for which f(x), f(2x), f(4x) are in a GP",
-            "minutes": 25,
-            "deps": [
-              "syllabus--the-midpoints-d-e-and-f-of-the-sides-of-an-equilateral-triangle-abc-are-joined-t"
+              "syllabus--if-the-sum-to-infinity-of-the-series-2-3-1-r-r-r-is-s-given-that-r-1-then-write-"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -4083,7 +2895,7 @@ export const CLASS_9: Subject[] = [
             "name": "If  1 2 3 4 , , , , t t t t are the terms of a GP whose common ratio is r such that",
             "minutes": 25,
             "deps": [
-              "syllabus--let-f-x-2x-1-then-find-the-number-of-values-of-x-for-which-f-x-f-2x-f-4x-are-in-"
+              "syllabus--the-midpoints-d-e-and-f-of-the-sides-of-an-equilateral-triangle-abc-are-joined-t"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -4115,59 +2927,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--find-the-nth-term-and-the-sum-of-the-first-n-terms-of-the-series-1-9-24-46-75",
-            "name": "Find the nth term and the sum of the first n terms of the series 1 + 9 + 24 + 46 + 75 + …",
-            "minutes": 25,
-            "deps": [
-              "syllabus--also-find-the-sum-of-the-first-8-terms-using-the-above-formula-solution-the-sequ"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 97
-            }
-          },
-          {
-            "id": "syllabus--find-the-10th-term-and-the-sum-of-the-first-10-terms-of-the-series-4-5-9-16-26",
-            "name": "Find the 10th term and the sum of the first 10 terms of the series 4 + 5 + 9 + 16 + 26 + ⋯",
-            "minutes": 25,
-            "deps": [
-              "syllabus--find-the-nth-term-and-the-sum-of-the-first-n-terms-of-the-series-1-9-24-46-75"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 97
-            }
-          },
-          {
-            "id": "syllabus--find-the-nth-term-and-the-sum-of-the-first-12-terms-of-the-series-3-6-11-18-27",
-            "name": "Find the nth term and the sum of the first 12 terms of the series 3 + 6 + 11 + 18 + 27 + ⋯",
-            "minutes": 25,
-            "deps": [
-              "syllabus--find-the-10th-term-and-the-sum-of-the-first-10-terms-of-the-series-4-5-9-16-26"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 97
-            }
-          },
-          {
-            "id": "syllabus--find-the-8th-term-and-the-sum-of-the-first-8-terms-of-the-series-4-13-28-49-76-s",
-            "name": "Find the 8th term and the sum of the first 8 terms of the series 4 + 13 + 28 + 49 + 76 + ⋯ Summary",
-            "minutes": 25,
-            "deps": [
-              "syllabus--find-the-nth-term-and-the-sum-of-the-first-12-terms-of-the-series-3-6-11-18-27"
-            ],
-            "source": {
-              "pdf": "maths-advanced",
-              "page": 97
-            }
-          },
-          {
             "id": "syllabus--the-sum-of-the-first-n-terms-of-a-gp-is-given-by",
             "name": "The sum of the first n terms of a GP is given by",
             "minutes": 25,
             "deps": [
-              "syllabus--find-the-8th-term-and-the-sum-of-the-first-8-terms-of-the-series-4-13-28-49-76-s"
+              "syllabus--also-find-the-sum-of-the-first-8-terms-using-the-above-formula-solution-the-sequ"
             ],
             "source": {
               "pdf": "maths-advanced",
@@ -4313,35 +3077,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--preparation-of-stained-temporary-mounts-of-a-onion-peel-rhoeo-leaf-b-human-cheek",
-            "name": "Preparation of stained temporary mounts of (a) onion peel/ Rhoeo leaf (b) human cheek cells to record observations and drawtheir labeled diagrams. Ch. 2",
-            "minutes": 25,
-            "deps": [
-              "syllabus--verification-of-the-law-of-conservation-of-mass-in-a-chemical-reaction-ch-9"
-            ],
-            "source": {
-              "pdf": "science-ix-x",
-              "page": 19
-            }
-          },
-          {
-            "id": "syllabus--to-study-a-budding-in-yeast-and-hydra-b-spore-formation-in-bread-mold-with-the-h",
-            "name": "To study (a) budding in yeast and Hydra (b) spore formation in bread mold with the help of prepared slides Ch. 11",
-            "minutes": 25,
-            "deps": [
-              "syllabus--preparation-of-stained-temporary-mounts-of-a-onion-peel-rhoeo-leaf-b-human-cheek"
-            ],
-            "source": {
-              "pdf": "science-ix-x",
-              "page": 19
-            }
-          },
-          {
             "id": "syllabus--to-study-and-identify-different-parts-of-a-typical-bisexual-flower-draw-labeled-",
             "name": "To study and identify different parts of a typical bisexual flower. Draw labeled diagrams. Ch. 11",
             "minutes": 25,
             "deps": [
-              "syllabus--to-study-a-budding-in-yeast-and-hydra-b-spore-formation-in-bread-mold-with-the-h"
+              "syllabus--verification-of-the-law-of-conservation-of-mass-in-a-chemical-reaction-ch-9"
             ],
             "source": {
               "pdf": "science-ix-x",
@@ -4483,35 +3223,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "materials--chalk",
-            "name": "Chalk",
-            "minutes": 10,
-            "deps": [
-              "materials--stopwatch-mobile-timer"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 11
-            }
-          },
-          {
             "id": "materials--graph-paper",
             "name": "Graph paper",
             "minutes": 10,
             "deps": [
-              "materials--chalk"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 12
-            }
-          },
-          {
-            "id": "materials--ruler",
-            "name": "ruler",
-            "minutes": 10,
-            "deps": [
-              "materials--graph-paper"
+              "materials--stopwatch-mobile-timer"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -4523,7 +3239,7 @@ export const CLASS_9: Subject[] = [
             "name": "1. On a graph paper",
             "minutes": 20,
             "deps": [
-              "materials--ruler"
+              "materials--graph-paper"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -4729,38 +3445,6 @@ export const CLASS_9: Subject[] = [
         ]
       },
       {
-        "id": "now-understanding-the-scenario",
-        "name": "Now understanding the scenario",
-        "concepts": [
-          {
-            "id": "now-understanding-the-scenario--why-does-a-passenger-fall-backwards-when-a-bus-starts-suddenly",
-            "name": "Why does a passenger fall backwards when a bus starts suddenly?",
-            "minutes": 25,
-            "deps": [],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 16
-            }
-          }
-        ]
-      },
-      {
-        "id": "orbital-motion",
-        "name": "Orbital Motion",
-        "concepts": [
-          {
-            "id": "orbital-motion--why-the-earth-and-moon-do-not-fall-despite-gravity",
-            "name": "Why the Earth and Moon Do Not Fall Despite Gravity?",
-            "minutes": 25,
-            "deps": [],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 18
-            }
-          }
-        ]
-      },
-      {
         "id": "let-us-calculate",
         "name": "Let us Calculate",
         "concepts": [
@@ -4803,23 +3487,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "examples--would-a-moving-object-ever-stop-why-do-pendulums-slowly-stop-after-some-time",
-            "name": "would a moving object ever stop? ● Why do pendulums slowly stop after some time?",
-            "minutes": 25,
-            "deps": [
-              "examples--if-there-were-no-friction"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 31
-            }
-          },
-          {
             "id": "examples--production-of-insulin-using-bacteria",
             "name": "Production of insulin using bacteria",
             "minutes": 20,
             "deps": [
-              "examples--would-a-moving-object-ever-stop-why-do-pendulums-slowly-stop-after-some-time"
+              "examples--if-there-were-no-friction"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -4839,8 +3511,8 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "examples--salt",
-            "name": "salt",
+            "id": "examples--colour",
+            "name": "colour",
             "minutes": 10,
             "deps": [
               "examples--preparing-probiotic-kanji-prepare-kanji"
@@ -4848,58 +3520,6 @@ export const CLASS_9: Subject[] = [
             "source": {
               "pdf": "science-advanced",
               "page": 72
-            }
-          },
-          {
-            "id": "examples--colour",
-            "name": "colour",
-            "minutes": 10,
-            "deps": [
-              "examples--salt"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 72
-            }
-          }
-        ]
-      },
-      {
-        "id": "example",
-        "name": "Example",
-        "concepts": [
-          {
-            "id": "example--a-using-the-graph",
-            "name": "(a) Using the graph",
-            "minutes": 15,
-            "deps": [],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 34
-            }
-          },
-          {
-            "id": "example--calculate-the-maximum-speed-of-a-body-of-mass-0-5-kg-attached-to-the-spring",
-            "name": "calculate the maximum speed of a body of mass 0.5 kg attached to the spring",
-            "minutes": 25,
-            "deps": [
-              "example--a-using-the-graph"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 34
-            }
-          },
-          {
-            "id": "example--production-of-using-bacteria",
-            "name": "Production of __________ using bacteria",
-            "minutes": 20,
-            "deps": [
-              "example--calculate-the-maximum-speed-of-a-body-of-mass-0-5-kg-attached-to-the-spring"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 73
             }
           }
         ]
@@ -5025,22 +3645,10 @@ export const CLASS_9: Subject[] = [
         "name": "Application",
         "concepts": [
           {
-            "id": "application--today",
-            "name": "Today",
-            "minutes": 10,
-            "deps": [],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 51
-            }
-          },
-          {
             "id": "application--chromatography-is-widely-used-in-chemistry",
             "name": "chromatography is widely used in chemistry",
             "minutes": 20,
-            "deps": [
-              "application--today"
-            ],
+            "deps": [],
             "source": {
               "pdf": "science-advanced",
               "page": 51
@@ -5140,6 +3748,22 @@ export const CLASS_9: Subject[] = [
             "source": {
               "pdf": "science-advanced",
               "page": 71
+            }
+          }
+        ]
+      },
+      {
+        "id": "example",
+        "name": "Example",
+        "concepts": [
+          {
+            "id": "example--production-of-using-bacteria",
+            "name": "Production of __________ using bacteria",
+            "minutes": 20,
+            "deps": [],
+            "source": {
+              "pdf": "science-advanced",
+              "page": 73
             }
           }
         ]
@@ -5415,23 +4039,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--why-is-si-system-preferred-over-other-systems",
-            "name": "Why is SI system preferred over other systems?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--name-any-two-systems-of-units"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 7
-            }
-          },
-          {
             "id": "syllabus--convert-250-n-into-gcm-s2",
             "name": "Convert 250 N into gcm/s2",
             "minutes": 20,
             "deps": [
-              "syllabus--why-is-si-system-preferred-over-other-systems"
+              "syllabus--name-any-two-systems-of-units"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -5451,71 +4063,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--which-of-the-following-is-not-an-si-unit-a-meter-b-kilogram-c-second8-d-foot",
-            "name": "Which of the following is not an SI unit? a) Meter b) Kilogram c) Second8 d) foot",
-            "minutes": 25,
-            "deps": [
-              "syllabus--convert-1000-kg-l-into-kg-m3-check-your-understanding"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 7
-            }
-          },
-          {
-            "id": "syllabus--the-si-unit-of-mass-is-a-gram-b-kilogram-c-pound-d-tonne",
-            "name": "The SI unit of mass is: a) Gram b) Kilogram c) Pound d) tonne",
-            "minutes": 25,
-            "deps": [
-              "syllabus--which-of-the-following-is-not-an-si-unit-a-meter-b-kilogram-c-second8-d-foot"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 8
-            }
-          },
-          {
             "id": "syllabus--name-the-system-of-units-used-internationally",
             "name": "Name the system of units used internationally",
             "minutes": 20,
             "deps": [
-              "syllabus--the-si-unit-of-mass-is-a-gram-b-kilogram-c-pound-d-tonne"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 8
-            }
-          },
-          {
-            "id": "syllabus--why-is-a-common-system-of-units-necessary",
-            "name": "Why is a common system of units necessary?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--name-the-system-of-units-used-internationally"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 8
-            }
-          },
-          {
-            "id": "syllabus--why-is-measurement-necessary-in-physics",
-            "name": "Why is measurement necessary in physics?",
-            "minutes": 20,
-            "deps": [
-              "syllabus--why-is-a-common-system-of-units-necessary"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 8
-            }
-          },
-          {
-            "id": "syllabus--why-was-there-a-need-for-a-common-system-of-units",
-            "name": "Why was there a need for a common system of units?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--why-is-measurement-necessary-in-physics"
+              "syllabus--convert-1000-kg-l-into-kg-m3-check-your-understanding"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -5527,43 +4079,7 @@ export const CLASS_9: Subject[] = [
             "name": "Explain the relation: Magnitude = Numerical value × Unit",
             "minutes": 25,
             "deps": [
-              "syllabus--why-was-there-a-need-for-a-common-system-of-units"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 8
-            }
-          },
-          {
-            "id": "syllabus--why-are-numerical-values-different",
-            "name": "Why are numerical values different?",
-            "minutes": 20,
-            "deps": [
-              "syllabus--explain-the-relation-magnitude-numerical-value-unit"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 8
-            }
-          },
-          {
-            "id": "syllabus--is-the-actual-size-of-the-classroom-different-why-or-why-not",
-            "name": "Is the actual size of the classroom different? Why or Why not?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--why-are-numerical-values-different"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 8
-            }
-          },
-          {
-            "id": "syllabus--what-conclusion-can-you-draw-about-units-and-measurement-from-this-activity",
-            "name": "What conclusion can you draw about units and measurement from this activity?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--is-the-actual-size-of-the-classroom-different-why-or-why-not"
+              "syllabus--name-the-system-of-units-used-internationally"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -5575,43 +4091,7 @@ export const CLASS_9: Subject[] = [
             "name": "Match the following: Column A Column B CGS Kelvin FPS Pound SI International system MKS Meter-Kilogram-Second",
             "minutes": 25,
             "deps": [
-              "syllabus--what-conclusion-can-you-draw-about-units-and-measurement-from-this-activity"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 9
-            }
-          },
-          {
-            "id": "syllabus--what-problems-might-occur-if-every-country-used-its-own-system-of-units-for-meas",
-            "name": "What problems might occur if every country used its own system of units for measurement?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--match-the-following-column-a-column-b-cgs-kelvin-fps-pound-si-international-syst"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 9
-            }
-          },
-          {
-            "id": "syllabus--a-scientist-measures-length-in-feet-and-another-in-meters-what-difficulties-may-",
-            "name": "A scientist measures length in feet and another in meters. What difficulties may it lead to?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--what-problems-might-occur-if-every-country-used-its-own-system-of-units-for-meas"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 9
-            }
-          },
-          {
-            "id": "syllabus--if-1-meter-was-defined-differently-in-different-countries-what-would-happen-to-i",
-            "name": "If 1 meter was defined differently in different countries, what would happen to international trade?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--a-scientist-measures-length-in-feet-and-another-in-meters-what-difficulties-may-"
+              "syllabus--explain-the-relation-magnitude-numerical-value-unit"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -5623,7 +4103,7 @@ export const CLASS_9: Subject[] = [
             "name": "Mark two points 5 meters apart in the classroom corridor or playground",
             "minutes": 25,
             "deps": [
-              "syllabus--if-1-meter-was-defined-differently-in-different-countries-what-would-happen-to-i"
+              "syllabus--match-the-following-column-a-column-b-cgs-kelvin-fps-pound-si-international-syst"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -5655,23 +4135,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--let-one-student-stand-still-while-another-walks-past-him",
-            "name": "Let one student stand still while another walks past him",
-            "minutes": 25,
-            "deps": [
-              "syllabus--repeat-the-experiment-with-the-student-running"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 11
-            }
-          },
-          {
             "id": "syllabus--ask-each-student-to-describe-the-motion-of-the-other-student",
             "name": "Ask each student to describe the motion of the other student",
             "minutes": 25,
             "deps": [
-              "syllabus--let-one-student-stand-still-while-another-walks-past-him"
+              "syllabus--repeat-the-experiment-with-the-student-running"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -5847,23 +4315,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--why-does-a-person-sitting-in-a-moving-train-appear-at-rest-to-another-passenger",
-            "name": "Why does a person sitting in a moving train appear at rest to another passenger?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--give-two-real-life-examples-where-motion-depends-on-the-observer"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 14
-            }
-          },
-          {
             "id": "syllabus--classify-the-following-as-scalar-or-vector-quantities-speed-velocity-displacemen",
             "name": "Classify the following as scalar or vector quantities: speed, velocity, displacement, distance, acceleration and mass",
             "minutes": 25,
             "deps": [
-              "syllabus--why-does-a-person-sitting-in-a-moving-train-appear-at-rest-to-another-passenger"
+              "syllabus--give-two-real-life-examples-where-motion-depends-on-the-observer"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -5967,23 +4423,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--in-which-type-of-reference-frame-are-newtons-laws-valid",
-            "name": "In which type of reference frame are Newton’s laws valid?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--1-limitations-of-newtons-laws-in-accelerating-frames-activity-3-1-let-us-observe"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 18
-            }
-          },
-          {
             "id": "syllabus--define-pseudo-force-and-write-its-formula",
             "name": "Define pseudo force and write its formula",
             "minutes": 20,
             "deps": [
-              "syllabus--in-which-type-of-reference-frame-are-newtons-laws-valid"
+              "syllabus--1-limitations-of-newtons-laws-in-accelerating-frames-activity-3-1-let-us-observe"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -6003,23 +4447,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--why-does-pseudo-force-disappear-in-an-inertial-frame",
-            "name": "Why does pseudo force disappear in an inertial frame?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--a-lift-accelerates-upward-at-4-5-2"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 18
-            }
-          },
-          {
             "id": "syllabus--tie-the-ring-bob-securely-to-one-end-of-the-thread-of-length-approx-1-m",
             "name": "Tie the ring/bob securely to one end of the thread of length approx. 1 m",
             "minutes": 25,
             "deps": [
-              "syllabus--why-does-pseudo-force-disappear-in-an-inertial-frame"
+              "syllabus--a-lift-accelerates-upward-at-4-5-2"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -6075,119 +4507,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--where-does-the-acceleration-due-to-gravity-reach-its-maximum-value-on-the-surfac",
-            "name": "Where does the acceleration due to gravity reach its maximum value—on the surface, above, or below the Earth?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--now-slowly-reduce-the-speed-of-rotation"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 23
-            }
-          },
-          {
-            "id": "syllabus--what-happens-to-g-at-the-centre-of-the-earth",
-            "name": "What happens to g at the centre of the Earth?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--where-does-the-acceleration-due-to-gravity-reach-its-maximum-value-on-the-surfac"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 23
-            }
-          },
-          {
-            "id": "syllabus--calculate-g-at-a-height-of-400-km-if-r-6400-km",
-            "name": "Calculate g at a height of 400 km if R = 6400 km",
-            "minutes": 25,
-            "deps": [
-              "syllabus--what-happens-to-g-at-the-centre-of-the-earth"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 23
-            }
-          },
-          {
-            "id": "syllabus--at-what-depth-will-g-become-half-of-its-surface-value",
-            "name": "At what depth will g become half of its surface value?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--calculate-g-at-a-height-of-400-km-if-r-6400-km"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 23
-            }
-          },
-          {
-            "id": "syllabus--why-does-gravity-decrease-both-above-and-below-the-surface-of-the-earth-24",
-            "name": "Why does gravity decrease both above and below the surface of the earth?24",
-            "minutes": 25,
-            "deps": [
-              "syllabus--at-what-depth-will-g-become-half-of-its-surface-value"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 24
-            }
-          },
-          {
-            "id": "syllabus--why-is-it-easier-to-open-a-door-when-you-push-at-the-handle-rather-than-near-the",
-            "name": "Why is it easier to open a door when you push at the handle rather than near the hinges?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--why-does-gravity-decrease-both-above-and-below-the-surface-of-the-earth-24"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 25
-            }
-          },
-          {
-            "id": "syllabus--is-it-possible-for-a-force-to-act-on-a-body-and-still-produce-zero-turning-about",
-            "name": "Is it possible for a force to act on a body and still produce zero turning about a given fixed point? Give a real-life example",
-            "minutes": 25,
-            "deps": [
-              "syllabus--why-is-it-easier-to-open-a-door-when-you-push-at-the-handle-rather-than-near-the"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 25
-            }
-          },
-          {
-            "id": "syllabus--how-can-a-mechanic-loosen-a-tight-bolt-using-a-long-spanner-instead-of-applying-",
-            "name": "How can a mechanic loosen a tight bolt using a long spanner instead of applying a very large force? Explain using the torque formula",
-            "minutes": 25,
-            "deps": [
-              "syllabus--is-it-possible-for-a-force-to-act-on-a-body-and-still-produce-zero-turning-about"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 25
-            }
-          },
-          {
-            "id": "syllabus--a-force-of-20-n-is-applied-to-a-door-at-0-8-m-from-the-hinge-calculate-the-torqu",
-            "name": "A force of 20 N is applied to a door at 0.8 m from the hinge. Calculate the torque when the force is applied at (a) 90°, (b) 60° (c) 30° to the door surface",
-            "minutes": 25,
-            "deps": [
-              "syllabus--how-can-a-mechanic-loosen-a-tight-bolt-using-a-long-spanner-instead-of-applying-"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 25
-            }
-          },
-          {
             "id": "syllabus--2-wheel-and-axle-the-steering-mastery-activity-4-2-think-and-answer",
             "name": "2 Wheel and Axle – The Steering Mastery Activity 4.2: Think and Answer",
             "minutes": 25,
             "deps": [
-              "syllabus--a-force-of-20-n-is-applied-to-a-door-at-0-8-m-from-the-hinge-calculate-the-torqu"
+              "syllabus--now-slowly-reduce-the-speed-of-rotation"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -6195,35 +4519,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--if-the-seconds-gear-is-2-mm-how-large-would-the-hour-gear-be-in-meters",
-            "name": "If the seconds gear is 2 mm, how large would the hour gear be in meters?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--2-wheel-and-axle-the-steering-mastery-activity-4-2-think-and-answer"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 27
-            }
-          },
-          {
-            "id": "syllabus--which-of-the-three-hands-gear-should-be-directly-connected-to-the-motor-why-28",
-            "name": "Which of the three hands gear should be directly connected to the motor? Why?28",
-            "minutes": 25,
-            "deps": [
-              "syllabus--if-the-seconds-gear-is-2-mm-how-large-would-the-hour-gear-be-in-meters"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 27
-            }
-          },
-          {
             "id": "syllabus--do-the-setup-of-weights-string-and-simple-pulley-as-shown",
             "name": "Do the setup of weights, string and simple pulley as shown",
             "minutes": 25,
             "deps": [
-              "syllabus--which-of-the-three-hands-gear-should-be-directly-connected-to-the-motor-why-28"
+              "syllabus--2-wheel-and-axle-the-steering-mastery-activity-4-2-think-and-answer"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -6303,23 +4603,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--find-tension-examples",
-            "name": "Find Tension: __________________ Examples:",
-            "minutes": 15,
-            "deps": [
-              "syllabus--acceleration-of-the-system"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 29
-            }
-          },
-          {
             "id": "syllabus--a-5kg-object-is-suspended-stationary-from-a-rope-calculate-the-tension-ans-the-w",
             "name": "A 5kg object is suspended stationary from a rope. Calculate the tension. Ans: The weight of the object is: 𝑇 = 𝑚 × 𝑔 = 5 × 9.8 = 49𝑁",
             "minutes": 25,
             "deps": [
-              "syllabus--find-tension-examples"
+              "syllabus--acceleration-of-the-system"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -6363,23 +4651,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "syllabus--observe-the-given-diagram-find-out-in-which-direction-the-rope-will-move-what-wi",
-            "name": "Observe the given diagram. Find out in which direction the rope will move? What will be the net downward force?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--an-8-kg-mass-hangs-freely-from-a-single-fixed-pulley-the-system-is-at-rest-find-"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 30
-            }
-          },
-          {
             "id": "syllabus--a-6-kg-mass-hangs-freely-from-a-single-fixed-pulley-the-system-is-at-rest-find-t",
             "name": "A 6 kg mass hangs freely from a single fixed pulley. The system is at rest. Find the tension in the rope",
             "minutes": 25,
             "deps": [
-              "syllabus--observe-the-given-diagram-find-out-in-which-direction-the-rope-will-move-what-wi"
+              "syllabus--an-8-kg-mass-hangs-freely-from-a-single-fixed-pulley-the-system-is-at-rest-find-"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -6415,59 +4691,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "1-conservative-and-non-conservative-forces--why-is-gravitational-force-called-a-conservative-force",
-            "name": "Why is gravitational force called a conservative force?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--define-a-conservative-force-with-one-example"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 32
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--why-is-friction-called-a-non-conservative-force",
-            "name": "Why is friction called a non-conservative force?",
-            "minutes": 20,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--why-is-gravitational-force-called-a-conservative-force"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 32
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--what-happens-to-energy-when-a-non-conservative-force-acts-on-an-object",
-            "name": "What happens to energy when a non-conservative force acts on an object?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--why-is-friction-called-a-non-conservative-force"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 32
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--if-there-were-no-friction-on-earth-how-would-motion-be-different-explain",
-            "name": "If there were no friction on Earth, how would motion be different? Explain",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--what-happens-to-energy-when-a-non-conservative-force-acts-on-an-object"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 32
-            }
-          },
-          {
             "id": "1-conservative-and-non-conservative-forces--2-potential-energy-of-a-spring-activity-5-1-collect-the-following-items-a-spring",
             "name": "2 Potential Energy of a Spring Activity 5.1: Collect the following items: A spring, a stand, a weight hanger, slotted weights, a ruler",
             "minutes": 25,
             "deps": [
-              "1-conservative-and-non-conservative-forces--if-there-were-no-friction-on-earth-how-would-motion-be-different-explain"
+              "1-conservative-and-non-conservative-forces--define-a-conservative-force-with-one-example"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -6535,83 +4763,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "1-conservative-and-non-conservative-forces--why-do-cathode-rays-bend-towards-the-positive-plate",
-            "name": "Why do cathode rays bend towards the positive plate?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--repeat-the-experiment-using-springs-made-of-different-materials-or-thickness-obs"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 39
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--what-conclusion-did-thomson-draw-from-using-different-gases-in-discharge-tubes",
-            "name": "What conclusion did Thomson draw from using different gases in discharge tubes?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--why-do-cathode-rays-bend-towards-the-positive-plate"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 39
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--why-are-canal-rays-different-from-cathode-rays-in-nature",
-            "name": "Why are canal rays different from cathode rays in nature?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--what-conclusion-did-thomson-draw-from-using-different-gases-in-discharge-tubes"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 39
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--why-was-the-discovery-of-neutron-necessary",
-            "name": "Why was the discovery of neutron necessary?",
-            "minutes": 20,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--why-are-canal-rays-different-from-cathode-rays-in-nature"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 39
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--in-a-cathode-ray-experiment-it-was-observed-that-the-rays-bend-towards-a-positiv",
-            "name": "In a cathode ray experiment, it was observed that the rays bend towards a positively charged plate. What can we conclude about the nature of these rays?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--why-was-the-discovery-of-neutron-necessary"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 39
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--if-cathode-rays-were-neutral-instead-of-being-negatively-charged-how-would-their",
-            "name": "If cathode rays were neutral instead of being negatively charged, how would their behaviour differ in an electric field?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--in-a-cathode-ray-experiment-it-was-observed-that-the-rays-bend-towards-a-positiv"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 39
-            }
-          },
-          {
             "id": "1-conservative-and-non-conservative-forces--4-limitation-of-rutheford-model-of-atom",
             "name": "4 Limitation of Rutheford Model of Atom",
             "minutes": 20,
             "deps": [
-              "1-conservative-and-non-conservative-forces--if-cathode-rays-were-neutral-instead-of-being-negatively-charged-how-would-their"
+              "1-conservative-and-non-conservative-forces--repeat-the-experiment-using-springs-made-of-different-materials-or-thickness-obs"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -6667,59 +4823,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "1-conservative-and-non-conservative-forces--a-discharge-tube-filled-with-an-unknown-gas-produces-a-line-spectrum-identical-t",
-            "name": "A discharge tube filled with an unknown gas produces a line spectrum identical to hydrogen. What can you conclude about the gas? Give reason",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--explain-why-would-rutherfords-model-predict-a-continuous-spectrum-rather-than-a-"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 42
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--if-electrons-in-an-atom-were-allowed-to-have-a-continuous-set-of-energy-values-w",
-            "name": "If electrons in an atom were allowed to have a continuous set of energy values, what kind of spectrum would you expect? Why is this not observed?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--a-discharge-tube-filled-with-an-unknown-gas-produces-a-line-spectrum-identical-t"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 42
-            }
-          },
-          {
             "id": "1-conservative-and-non-conservative-forces--bohrs-model-solved-all-problems-of-atomic-structure-comment",
             "name": "“Bohr’s model solved all problems of atomic structure.” Comment",
             "minutes": 25,
             "deps": [
-              "1-conservative-and-non-conservative-forces--if-electrons-in-an-atom-were-allowed-to-have-a-continuous-set-of-energy-values-w"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 42
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--how-does-the-concept-of-fixed-energy-levels-explain-the-stability-of-atoms",
-            "name": "How does the concept of fixed energy levels explain the stability of atoms?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--bohrs-model-solved-all-problems-of-atomic-structure-comment"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 42
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--why-do-different-elements-produce-different-line-spectra-give-a-conceptual-expla",
-            "name": "Why do different elements produce different line spectra? Give a conceptual explanation.43",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--how-does-the-concept-of-fixed-energy-levels-explain-the-stability-of-atoms"
+              "1-conservative-and-non-conservative-forces--explain-why-would-rutherfords-model-predict-a-continuous-spectrum-rather-than-a-"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -6731,7 +4839,7 @@ export const CLASS_9: Subject[] = [
             "name": "Explain why Bohr’s model works well for hydrogen but not for multi-electron atoms",
             "minutes": 25,
             "deps": [
-              "1-conservative-and-non-conservative-forces--why-do-different-elements-produce-different-line-spectra-give-a-conceptual-expla"
+              "1-conservative-and-non-conservative-forces--bohrs-model-solved-all-problems-of-atomic-structure-comment"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -6763,35 +4871,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "1-conservative-and-non-conservative-forces--what-was-the-main-drawback-of-rutherfords-model-regarding-electron-motion-what-a",
-            "name": "What was the main drawback of Rutherford’s model regarding electron motion? What assumption was made by Bohr to overcome this problem",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--rutherfords-model-explained-the-structure-of-the-atom-but-failed-to-explain-atom"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 43
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--how-does-bohrs-model-explain-line-spectrum-of-hydrogen",
-            "name": "How does Bohr’s model explain line spectrum of hydrogen?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--what-was-the-main-drawback-of-rutherfords-model-regarding-electron-motion-what-a"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 43
-            }
-          },
-          {
             "id": "1-conservative-and-non-conservative-forces--outline-the-limitations-of-bohrs-model",
             "name": "Outline the limitations of Bohr’s model",
             "minutes": 20,
             "deps": [
-              "1-conservative-and-non-conservative-forces--how-does-bohrs-model-explain-line-spectrum-of-hydrogen"
+              "1-conservative-and-non-conservative-forces--rutherfords-model-explained-the-structure-of-the-atom-but-failed-to-explain-atom"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -6823,135 +4907,15 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "1-conservative-and-non-conservative-forces--what-is-meant-by-fine-structure-in-hydrogen-spectrum",
-            "name": "What is meant by fine structure in hydrogen spectrum?",
+            "id": "1-conservative-and-non-conservative-forces--draw-the-lewis-dot-structure-of-bf-and-explain-why-boron-does-not-complete-its-o",
+            "name": "Draw the Lewis dot structure of BF₃ and explain why boron does not complete its octet",
             "minutes": 25,
             "deps": [
               "1-conservative-and-non-conservative-forces--write-two-main-postulates-of-bohrs-model"
             ],
             "source": {
               "pdf": "science-advanced",
-              "page": 43
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--what-is-the-significance-of-rydberg-equation-44",
-            "name": "What is the significance of Rydberg equation?44",
-            "minutes": 20,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--what-is-meant-by-fine-structure-in-hydrogen-spectrum"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 44
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--what-is-meant-by-the-octet-rule",
-            "name": "What is meant by the octet rule?",
-            "minutes": 20,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--what-is-the-significance-of-rydberg-equation-44"
-            ],
-            "source": {
-              "pdf": "science-advanced",
               "page": 46
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--why-does-hydrogen-not-follow-the-octet-rule",
-            "name": "Why does hydrogen not follow the octet rule?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--what-is-meant-by-the-octet-rule"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 46
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--give-one-example-each-of-the-molecule-with-a-incomplete-octet-b-expanded-octet-c",
-            "name": "Give one example each of the molecule with a) incomplete octet b) expanded octet c) an odd electron",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--why-does-hydrogen-not-follow-the-octet-rule"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 46
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--why-can-boron-form-compounds-with-only-six-electrons-around-it",
-            "name": "Why can boron form compounds with only six electrons around it?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--give-one-example-each-of-the-molecule-with-a-incomplete-octet-b-expanded-octet-c"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 46
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--what-is-meant-by-a-duplet-configuration",
-            "name": "What is meant by a duplet configuration?",
-            "minutes": 20,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--why-can-boron-form-compounds-with-only-six-electrons-around-it"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 46
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--why-is-no-considered-an-exception-to-the-octet-rule",
-            "name": "Why is NO considered an exception to the octet rule?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--what-is-meant-by-a-duplet-configuration"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 46
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--draw-the-lewis-dot-structure-of-bf-and-explain-why-boron-does-not-complete-its-o",
-            "name": "Draw the Lewis dot structure of BF₃ and explain why boron does not complete its octet",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--why-is-no-considered-an-exception-to-the-octet-rule"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 46
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--what-is-meant-by-the-term-electron-sea-in-metals",
-            "name": "What is meant by the term “electron sea” in metals?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--draw-the-lewis-dot-structure-of-bf-and-explain-why-boron-does-not-complete-its-o"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 48
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--what-type-of-particles-are-in-a-fixed-position-in-a-metal-according-to-the-elect",
-            "name": "What type of particles are in a fixed position in a metal according to the Electron sea model?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--what-is-meant-by-the-term-electron-sea-in-metals"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 48
             }
           },
           {
@@ -6959,19 +4923,7 @@ export const CLASS_9: Subject[] = [
             "name": "Define metallic bonding",
             "minutes": 15,
             "deps": [
-              "1-conservative-and-non-conservative-forces--what-type-of-particles-are-in-a-fixed-position-in-a-metal-according-to-the-elect"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 48
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--why-are-metallic-bonds-called-non-directional",
-            "name": "Why are metallic bonds called non-directional?",
-            "minutes": 20,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--define-metallic-bonding"
+              "1-conservative-and-non-conservative-forces--draw-the-lewis-dot-structure-of-bf-and-explain-why-boron-does-not-complete-its-o"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -6983,7 +4935,7 @@ export const CLASS_9: Subject[] = [
             "name": "Name two properties of metals explained by the electron sea model.49",
             "minutes": 25,
             "deps": [
-              "1-conservative-and-non-conservative-forces--why-are-metallic-bonds-called-non-directional"
+              "1-conservative-and-non-conservative-forces--define-metallic-bonding"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -7003,71 +4955,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "1-conservative-and-non-conservative-forces--how-does-the-electron-sea-model-explain-thermal-conductivity-in-metals",
-            "name": "How does the electron sea model explain thermal conductivity in metals?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--explain-how-the-electron-sea-model-accounts-for-electrical-conductivity-in-metal"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 49
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--why-can-metals-be-beaten-into-thin-sheets-explain-using-the-electron-sea-model",
-            "name": "Why can metals be beaten into thin sheets? Explain using the Electron sea model",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--how-does-the-electron-sea-model-explain-thermal-conductivity-in-metals"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 49
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--what-is-meant-by-ductility-how-is-it-explained-by-the-electron-sea-model",
-            "name": "What is meant by ductility? How is it explained by the electron sea model?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--why-can-metals-be-beaten-into-thin-sheets-explain-using-the-electron-sea-model"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 49
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--how-is-metallic-bonding-different-from-covalent-bonding",
-            "name": "How is metallic bonding different from covalent bonding?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--what-is-meant-by-ductility-how-is-it-explained-by-the-electron-sea-model"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 49
-            }
-          },
-          {
             "id": "1-conservative-and-non-conservative-forces--explain-the-structure-of-a-metal-according-to-the-electron-sea-model",
             "name": "Explain the structure of a metal according to the electron sea model",
             "minutes": 25,
             "deps": [
-              "1-conservative-and-non-conservative-forces--how-is-metallic-bonding-different-from-covalent-bonding"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 49
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--if-electrons-in-a-metal-were-not-free-to-move-which-property-would-be-most-affec",
-            "name": "If electrons in a metal were not free to move, which property would be most affected? Explain",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--explain-the-structure-of-a-metal-according-to-the-electron-sea-model"
+              "1-conservative-and-non-conservative-forces--explain-how-the-electron-sea-model-accounts-for-electrical-conductivity-in-metal"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -7079,7 +4971,7 @@ export const CLASS_9: Subject[] = [
             "name": "Explain why metals do not break when hammered but instead change shape",
             "minutes": 25,
             "deps": [
-              "1-conservative-and-non-conservative-forces--if-electrons-in-a-metal-were-not-free-to-move-which-property-would-be-most-affec"
+              "1-conservative-and-non-conservative-forces--explain-the-structure-of-a-metal-according-to-the-electron-sea-model"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -7099,155 +4991,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "1-conservative-and-non-conservative-forces--why-are-metals-generally-good-conductors-of-heat-as-compared-to-non-metals",
-            "name": "Why are metals generally good conductors of heat as compared to non- metals?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--copper-is-used-for-electrical-wiring-while-rubber-is-not-explain-using-the-elect"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 49
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--2-2-how-is-it-different-from-simple-distillation",
-            "name": "2.2 How is it different from simple distillation?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--why-are-metals-generally-good-conductors-of-heat-as-compared-to-non-metals"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 53
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--what-is-chromatography-mention-its-two-main-phases",
-            "name": "What is chromatography? Mention its two main phases",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--2-2-how-is-it-different-from-simple-distillation"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 54
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--who-discovered-chromatography-and-in-which-year",
-            "name": "Who discovered chromatography and in which year?",
-            "minutes": 20,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--what-is-chromatography-mention-its-two-main-phases"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 54
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--what-is-meant-by-stationary-phase-and-mobile-phase",
-            "name": "What is meant by stationary phase and mobile phase?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--who-discovered-chromatography-and-in-which-year"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 54
-            }
-          },
-          {
             "id": "1-conservative-and-non-conservative-forces--name-two-common-adsorbents-used-in-column-chromatography",
             "name": "Name two common adsorbents used in column chromatography",
             "minutes": 25,
             "deps": [
-              "1-conservative-and-non-conservative-forces--what-is-meant-by-stationary-phase-and-mobile-phase"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 54
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--what-is-an-eluent-in-column-chromatography",
-            "name": "What is an eluent in column chromatography?",
-            "minutes": 20,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--name-two-common-adsorbents-used-in-column-chromatography"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 54
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--why-do-different-substances-move-at-different-speeds-in-column-chromatography",
-            "name": "Why do different substances move at different speeds in column chromatography?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--what-is-an-eluent-in-column-chromatography"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 54
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--what-is-fractional-distillation",
-            "name": "What is fractional distillation?",
-            "minutes": 15,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--why-do-different-substances-move-at-different-speeds-in-column-chromatography"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 54
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--when-is-fractional-distillation-preferred-over-simple-distillation",
-            "name": "When is fractional distillation preferred over simple distillation?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--what-is-fractional-distillation"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 54
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--what-is-the-role-of-the-fractionating-column",
-            "name": "What is the role of the fractionating column?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--when-is-fractional-distillation-preferred-over-simple-distillation"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 54
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--in-column-chromatography-a-mixture-of-two-compounds-a-and-b-is-separated-a-comes",
-            "name": "In column chromatography, a mixture of two compounds A and B is separated. A comes out first. What can you say about its interaction with the stationary phase?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--what-is-the-role-of-the-fractionating-column"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 54
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--a-mixture-of-ethanol-b-p-78-c-and-water-b-p-100-c-is-to-be-separated-which-metho",
-            "name": "A mixture of ethanol (b.p. 78°C) and water (b.p. 100°C) is to be separated. Which method will you use and why?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--in-column-chromatography-a-mixture-of-two-compounds-a-and-b-is-separated-a-comes"
+              "1-conservative-and-non-conservative-forces--copper-is-used-for-electrical-wiring-while-rubber-is-not-explain-using-the-elect"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -7259,31 +5007,7 @@ export const CLASS_9: Subject[] = [
             "name": "Explain why repeated condensation and vaporization improve separation in fractional distillation",
             "minutes": 25,
             "deps": [
-              "1-conservative-and-non-conservative-forces--a-mixture-of-ethanol-b-p-78-c-and-water-b-p-100-c-is-to-be-separated-which-metho"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 54
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--in-a-fractional-distillation-column-why-does-temperature-decrease-from-bottom-to",
-            "name": "In a fractional distillation column, why does temperature decrease from bottom to top?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--explain-why-repeated-condensation-and-vaporization-improve-separation-in-fractio"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 54
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--why-is-simple-distillation-not-suitable-for-separating-liquids-with-close-boilin",
-            "name": "Why is simple distillation not suitable for separating liquids with close boiling points?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--in-a-fractional-distillation-column-why-does-temperature-decrease-from-bottom-to"
+              "1-conservative-and-non-conservative-forces--name-two-common-adsorbents-used-in-column-chromatography"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -7295,7 +5019,7 @@ export const CLASS_9: Subject[] = [
             "name": "In column chromatography, the solid substance that is filled in the column is called the: A. Mobile phase B. Solvent C. Stationary phase D. Mixture",
             "minutes": 25,
             "deps": [
-              "1-conservative-and-non-conservative-forces--why-is-simple-distillation-not-suitable-for-separating-liquids-with-close-boilin"
+              "1-conservative-and-non-conservative-forces--explain-why-repeated-condensation-and-vaporization-improve-separation-in-fractio"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -7411,35 +5135,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "1-conservative-and-non-conservative-forces--if-you-use-a-15x-eyepiece-and-10x-objective-what-will-be-the-total-magnification",
-            "name": "If you use a 15X eyepiece and 10X objective, what will be the total magnification?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--if-a-cell-measures-5-mm-on-100x-image-calculate-its-actual-size"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 62
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--if-4-cells-fit-across-a-0-8-mm-field-of-view-what-will-be-the-approximate-size-o",
-            "name": "If 4 cells fit across a 0.8 mm field of view, what will be the approximate size of one cell?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--if-you-use-a-15x-eyepiece-and-10x-objective-what-will-be-the-total-magnification"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 62
-            }
-          },
-          {
             "id": "1-conservative-and-non-conservative-forces--5-1-magnification-vs-resolution-big-vs-sharp-image-generally-students-think-more",
             "name": "5.1 Magnification vs. Resolution – Big vs. Sharp image Generally, students think: “More magnification is always better.” Not always true!",
             "minutes": 25,
             "deps": [
-              "1-conservative-and-non-conservative-forces--if-4-cells-fit-across-a-0-8-mm-field-of-view-what-will-be-the-approximate-size-o"
+              "1-conservative-and-non-conservative-forces--if-a-cell-measures-5-mm-on-100x-image-calculate-its-actual-size"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -7591,9 +5291,9 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "1-conservative-and-non-conservative-forces--vacuum-required-no-yes-yes-reflect-why-do-you-think-electron-microscopes-are-usu",
-            "name": "Vacuum required No Yes Yes Reflect Why do you think electron microscopes are usually found in big research centres and not in school laboratories?",
-            "minutes": 25,
+            "id": "1-conservative-and-non-conservative-forces--6-2-limitations",
+            "name": "6.2 Limitations",
+            "minutes": 10,
             "deps": [
               "1-conservative-and-non-conservative-forces--cost-low"
             ],
@@ -7603,71 +5303,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "1-conservative-and-non-conservative-forces--6-what-is-new-in-microscopy-what-are-the-limits",
-            "name": "6. What is new in Microscopy? What are the limits?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--vacuum-required-no-yes-yes-reflect-why-do-you-think-electron-microscopes-are-usu"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 66
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--6-2-limitations",
-            "name": "6.2 Limitations",
-            "minutes": 10,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--6-what-is-new-in-microscopy-what-are-the-limits"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 66
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--7-where-do-we-use-microscopes-you-might-be-surprised-how-often-microscopes-quiet",
-            "name": "7. Where do we use Microscopes? You might be surprised how often microscopes quietly support our lives",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--6-2-limitations"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 66
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--a-you-want-to-watch-live-protozoa-moving-in-pond-water-which-microscope",
-            "name": "a) You want to watch live protozoa moving in pond water. Which microscope",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--7-where-do-we-use-microscopes-you-might-be-surprised-how-often-microscopes-quiet"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 68
-            }
-          },
-          {
             "id": "1-conservative-and-non-conservative-forces--draw-a-ray-diagram-of-a-compound-microscope",
             "name": "Draw a ray diagram of a compound microscope",
             "minutes": 25,
             "deps": [
-              "1-conservative-and-non-conservative-forces--a-you-want-to-watch-live-protozoa-moving-in-pond-water-which-microscope"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 68
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--design-a-simple-poster-how-to-take-care-of-a-microscope-with-three-dos-and-three",
-            "name": "Design a simple poster “How to take care of a microscope?” with three do’s and three don’ts",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--draw-a-ray-diagram-of-a-compound-microscope"
+              "1-conservative-and-non-conservative-forces--6-2-limitations"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -7679,19 +5319,7 @@ export const CLASS_9: Subject[] = [
             "name": "At 40X total magnification, the field diameter is 4 mm. Predict the field diameter at 400X magnification (assume it is inversely proportional to magnification)",
             "minutes": 25,
             "deps": [
-              "1-conservative-and-non-conservative-forces--design-a-simple-poster-how-to-take-care-of-a-microscope-with-three-dos-and-three"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 68
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--a-student-accidentally-traps-many-air-bubbles-while-placing-the-cover-slip-how-w",
-            "name": "A student accidentally traps many air bubbles while placing the cover slip. How will this affect observation? Suggest two ways to avoid bubbles next time",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--at-40x-total-magnification-the-field-diameter-is-4-mm-predict-the-field-diameter"
+              "1-conservative-and-non-conservative-forces--draw-a-ray-diagram-of-a-compound-microscope"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -7703,19 +5331,7 @@ export const CLASS_9: Subject[] = [
             "name": "Compare TEM and SEM in terms of:",
             "minutes": 20,
             "deps": [
-              "1-conservative-and-non-conservative-forces--a-student-accidentally-traps-many-air-bubbles-while-placing-the-cover-slip-how-w"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 68
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--can-we-rely-on-electron-microscopes-for-studying-living-cells-explain-the-reason",
-            "name": "Can we rely on electron microscopes for studying living cells? Explain the reason",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--compare-tem-and-sem-in-terms-of"
+              "1-conservative-and-non-conservative-forces--at-40x-total-magnification-the-field-diameter-is-4-mm-predict-the-field-diameter"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -7727,7 +5343,7 @@ export const CLASS_9: Subject[] = [
             "name": "List two ways how microscopes are used in hospitals and one way they are used in industries that manufacture mobile phones",
             "minutes": 25,
             "deps": [
-              "1-conservative-and-non-conservative-forces--can-we-rely-on-electron-microscopes-for-studying-living-cells-explain-the-reason"
+              "1-conservative-and-non-conservative-forces--compare-tem-and-sem-in-terms-of"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -7939,9 +5555,9 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "1-conservative-and-non-conservative-forces--what-is-biotechnology",
-            "name": "What is biotechnology?",
-            "minutes": 15,
+            "id": "1-conservative-and-non-conservative-forces--give-two-examples-from-your-daily-life-demonstrating-the-use-of-biotechnology",
+            "name": "Give two examples from your daily life demonstrating the use of biotechnology",
+            "minutes": 25,
             "deps": [
               "1-conservative-and-non-conservative-forces--add-a-spoonful-of-curd-into-it"
             ],
@@ -7951,47 +5567,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "1-conservative-and-non-conservative-forces--give-two-examples-from-your-daily-life-demonstrating-the-use-of-biotechnology",
-            "name": "Give two examples from your daily life demonstrating the use of biotechnology",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--what-is-biotechnology"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 71
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--why-are-microorganisms-important-in-biotechnology",
-            "name": "Why are microorganisms important in biotechnology?",
-            "minutes": 20,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--give-two-examples-from-your-daily-life-demonstrating-the-use-of-biotechnology"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 71
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--3-microbes-as-tools-in-biotechnology-microorganisms-such-as-bacteria-yeast-and-f",
-            "name": "3 Microbes as Tools in Biotechnology Microorganisms such as bacteria, yeast and fungi are widely used in biotechnology. Why is the reason for this?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--why-are-microorganisms-important-in-biotechnology"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 73
-            }
-          },
-          {
             "id": "1-conservative-and-non-conservative-forces--crop-production-and-agriculture",
             "name": "Crop production and agriculture",
             "minutes": 15,
             "deps": [
-              "1-conservative-and-non-conservative-forces--3-microbes-as-tools-in-biotechnology-microorganisms-such-as-bacteria-yeast-and-f"
+              "1-conservative-and-non-conservative-forces--give-two-examples-from-your-daily-life-demonstrating-the-use-of-biotechnology"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -8071,35 +5651,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "1-conservative-and-non-conservative-forces--why-is-temperature-control-important-in-fermenters",
-            "name": "Why is temperature control important in fermenters?",
-            "minutes": 20,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--5-2-fermentation-process-preparation-of-culture-medium"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 79
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--what-happens-if-contamination-occurs",
-            "name": "What happens if contamination occurs?",
-            "minutes": 20,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--why-is-temperature-control-important-in-fermenters"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 79
-            }
-          },
-          {
             "id": "1-conservative-and-non-conservative-forces--explain-sterilization-and-its-importance-in-microbial-growth",
             "name": "Explain sterilization and its importance in microbial growth",
             "minutes": 25,
             "deps": [
-              "1-conservative-and-non-conservative-forces--what-happens-if-contamination-occurs"
+              "1-conservative-and-non-conservative-forces--5-2-fermentation-process-preparation-of-culture-medium"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -8131,23 +5687,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "1-conservative-and-non-conservative-forces--during-which-time-period-do-microorganisms-grow-most-rapidly",
-            "name": "During which time period do microorganisms grow most rapidly?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--identify-and-label-the-following-growth-phases-on-the-graph"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 81
-            }
-          },
-          {
             "id": "1-conservative-and-non-conservative-forces--suggest-one-reason-why-the-population-decreases-after-a-certain-time",
             "name": "Suggest one reason why the population decreases after a certain time",
             "minutes": 25,
             "deps": [
-              "1-conservative-and-non-conservative-forces--during-which-time-period-do-microorganisms-grow-most-rapidly"
+              "1-conservative-and-non-conservative-forces--identify-and-label-the-following-growth-phases-on-the-graph"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -8191,47 +5735,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "1-conservative-and-non-conservative-forces--why-are-fermenters-used-instead-of-open-containers-for-industrial-production-of-",
-            "name": "Why are fermenters used instead of open containers for industrial production of useful substances? Give any two reasons",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--differentiate-between-traditional-biotechnology-and-modern-biotechnology-using-s"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 82
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--explain-the-importance-of-maintaining-sterility-inside-a-fermenter-what-problems",
-            "name": "Explain the importance of maintaining sterility inside a fermenter. What problems may arise if sterility is not maintained?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--why-are-fermenters-used-instead-of-open-containers-for-industrial-production-of-"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 82
-            }
-          },
-          {
             "id": "1-conservative-and-non-conservative-forces--microbes-are-used-in-food-production-medicine-and-environmental-protection-analy",
             "name": "Microbes are used in food production, medicine and environmental protection. Analyse how biotechnology helps improve human life using any three examples",
             "minutes": 25,
             "deps": [
-              "1-conservative-and-non-conservative-forces--explain-the-importance-of-maintaining-sterility-inside-a-fermenter-what-problems"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 83
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--a-scientist-wants-to-produce-insulin-using-bacteria-explain-how-modern-biotechno",
-            "name": "A scientist wants to produce insulin using bacteria. Explain how modern biotechnology makes this possible. Why has traditional biotechnology not achieved this?",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--microbes-are-used-in-food-production-medicine-and-environmental-protection-analy"
+              "1-conservative-and-non-conservative-forces--differentiate-between-traditional-biotechnology-and-modern-biotechnology-using-s"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -8243,7 +5751,7 @@ export const CLASS_9: Subject[] = [
             "name": "Biotechnology has helped increase food production, but some people have ethical concerns regarding GM crops. Evaluate both advantages and concerns",
             "minutes": 25,
             "deps": [
-              "1-conservative-and-non-conservative-forces--a-scientist-wants-to-produce-insulin-using-bacteria-explain-how-modern-biotechno"
+              "1-conservative-and-non-conservative-forces--microbes-are-used-in-food-production-medicine-and-environmental-protection-analy"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -8263,35 +5771,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "1-conservative-and-non-conservative-forces--which-microorganism-is-commonly-used-in-bread-making-a-bacteria-b-virus-c-yeast-",
-            "name": "Which microorganism is commonly used in bread making? a) Bacteria b) Virus c) Yeast d) Algae84",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--design-a-simple-biotechnology-product-that-can-help-solve-an-environmental-probl"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 83
-            }
-          },
-          {
-            "id": "1-conservative-and-non-conservative-forces--during-which-phase-do-microorganisms-show-maximum-growth-a-lag-phase-b-log-phase",
-            "name": "During which phase do microorganisms show maximum growth? a) Lag phase b) Log phase c) Stationary phase d) Death phase",
-            "minutes": 25,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--which-microorganism-is-commonly-used-in-bread-making-a-bacteria-b-virus-c-yeast-"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 84
-            }
-          },
-          {
             "id": "1-conservative-and-non-conservative-forces--https-www-britannica-com-technology-biotechnology",
             "name": "https://www.britannica.com/technology/biotechnology",
             "minutes": 10,
             "deps": [
-              "1-conservative-and-non-conservative-forces--during-which-phase-do-microorganisms-show-maximum-growth-a-lag-phase-b-log-phase"
+              "1-conservative-and-non-conservative-forces--design-a-simple-biotechnology-product-that-can-help-solve-an-environmental-probl"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -8347,23 +5831,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "1-conservative-and-non-conservative-forces--https-ncert-nic-in-textbook-php-lebt1-2-1385",
-            "name": "https://ncert.nic.in/textbook.php?lebt1=2-1385",
-            "minutes": 10,
-            "deps": [
-              "1-conservative-and-non-conservative-forces--https-www-sciencedirect-com-topics-engineering-production-fermenter"
-            ],
-            "source": {
-              "pdf": "science-advanced",
-              "page": 85
-            }
-          },
-          {
             "id": "1-conservative-and-non-conservative-forces--https-www-cambridgeinternational-org-programmes-and-qualifications-cambridge-igc",
             "name": "https://www.cambridgeinternational.org/programmes-and- qualifications/cambridge-igcse-biology-0610/",
             "minutes": 10,
             "deps": [
-              "1-conservative-and-non-conservative-forces--https-ncert-nic-in-textbook-php-lebt1-2-1385"
+              "1-conservative-and-non-conservative-forces--https-www-sciencedirect-com-topics-engineering-production-fermenter"
             ],
             "source": {
               "pdf": "science-advanced",
@@ -8489,23 +5961,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "puzzle--tides",
-            "name": "tides",
-            "minutes": 10,
-            "deps": [
-              "puzzle--including-waves"
-            ],
-            "source": {
-              "pdf": "social-science-ix",
-              "page": 11
-            }
-          },
-          {
             "id": "puzzle--navigation-resources-for-human-livelihoods-and-fishing",
             "name": "navigation resources for human livelihoods and fishing",
             "minutes": 20,
             "deps": [
-              "puzzle--tides"
+              "puzzle--including-waves"
             ],
             "source": {
               "pdf": "social-science-ix",
@@ -8969,23 +6429,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "unit-1--mouse",
-            "name": "mouse",
-            "minutes": 10,
-            "deps": [
-              "unit-1--keyboard"
-            ],
-            "source": {
-              "pdf": "computer-applications-ix",
-              "page": 1
-            }
-          },
-          {
             "id": "unit-1--monitor",
             "name": "monitor",
             "minutes": 10,
             "deps": [
-              "unit-1--mouse"
+              "unit-1--keyboard"
             ],
             "source": {
               "pdf": "computer-applications-ix",
@@ -9041,23 +6489,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "unit-1--wi-fi",
-            "name": "Wi-Fi",
-            "minutes": 10,
-            "deps": [
-              "unit-1--wired-wireless-communication"
-            ],
-            "source": {
-              "pdf": "computer-applications-ix",
-              "page": 1
-            }
-          },
-          {
             "id": "unit-1--bluetooth",
             "name": "Bluetooth",
             "minutes": 10,
             "deps": [
-              "unit-1--wi-fi"
+              "unit-1--wired-wireless-communication"
             ],
             "source": {
               "pdf": "computer-applications-ix",
@@ -9077,35 +6513,11 @@ export const CLASS_9: Subject[] = [
             }
           },
           {
-            "id": "unit-1--audio",
-            "name": "audio",
-            "minutes": 10,
-            "deps": [
-              "unit-1--images"
-            ],
-            "source": {
-              "pdf": "computer-applications-ix",
-              "page": 1
-            }
-          },
-          {
-            "id": "unit-1--video",
-            "name": "video",
-            "minutes": 10,
-            "deps": [
-              "unit-1--audio"
-            ],
-            "source": {
-              "pdf": "computer-applications-ix",
-              "page": 1
-            }
-          },
-          {
             "id": "unit-1--animation",
             "name": "animation",
             "minutes": 10,
             "deps": [
-              "unit-1--video"
+              "unit-1--images"
             ],
             "source": {
               "pdf": "computer-applications-ix",
@@ -9447,22 +6859,10 @@ export const CLASS_9: Subject[] = [
         "name": "Introduction to Book Keeping and Accounting",
         "concepts": [
           {
-            "id": "introduction-to-book-keeping-and-accounting--need",
-            "name": "Need",
-            "minutes": 10,
-            "deps": [],
-            "source": {
-              "pdf": "elements-of-accountancy-ix",
-              "page": 1
-            }
-          },
-          {
             "id": "introduction-to-book-keeping-and-accounting--objectives",
             "name": "objectives",
             "minutes": 10,
-            "deps": [
-              "introduction-to-book-keeping-and-accounting--need"
-            ],
+            "deps": [],
             "source": {
               "pdf": "elements-of-accountancy-ix",
               "page": 1

@@ -4,7 +4,7 @@
  * syllabus documents recorded in data/curriculum-sources.lock.json.
  * Re-generate with: npm run curriculum:build
  *
- * Class 12: 21 subjects, 1509 concepts.
+ * Class 12: 21 subjects, 1431 concepts.
  *
  * Every concept carries the pdf and page it was read from. Every "minutes"
  * value is an ESTIMATE derived from the concept's wording, not a figure the
@@ -127,22 +127,10 @@ export const CLASS_12: Subject[] = [
         "name": "Unit IV",
         "concepts": [
           {
-            "id": "unit-iv--work",
-            "name": "Work",
-            "minutes": 10,
-            "deps": [],
-            "source": {
-              "pdf": "physics",
-              "page": 4
-            }
-          },
-          {
             "id": "unit-iv--energy-and-power",
             "name": "Energy and Power",
             "minutes": 15,
-            "deps": [
-              "unit-iv--work"
-            ],
+            "deps": [],
             "source": {
               "pdf": "physics",
               "page": 4
@@ -230,18 +218,6 @@ export const CLASS_12: Subject[] = [
             "minutes": 15,
             "deps": [
               "wave-motion--standing-waves-in-strings-and-organ-pipes"
-            ],
-            "source": {
-              "pdf": "physics",
-              "page": 6
-            }
-          },
-          {
-            "id": "wave-motion--beats",
-            "name": "Beats",
-            "minutes": 10,
-            "deps": [
-              "wave-motion--fundamental-mode-and-harmonics"
             ],
             "source": {
               "pdf": "physics",
@@ -4841,59 +4817,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "unit-1--gain",
-            "name": "Gain",
-            "minutes": 10,
-            "deps": [
-              "unit-1--capital-profit"
-            ],
-            "source": {
-              "pdf": "accountancy",
-              "page": 2
-            }
-          },
-          {
-            "id": "unit-1--loss",
-            "name": "Loss",
-            "minutes": 10,
-            "deps": [
-              "unit-1--gain"
-            ],
-            "source": {
-              "pdf": "accountancy",
-              "page": 2
-            }
-          },
-          {
             "id": "unit-1--purchase",
             "name": "Purchase",
             "minutes": 10,
             "deps": [
-              "unit-1--loss"
-            ],
-            "source": {
-              "pdf": "accountancy",
-              "page": 2
-            }
-          },
-          {
-            "id": "unit-1--sales",
-            "name": "Sales",
-            "minutes": 10,
-            "deps": [
-              "unit-1--purchase"
-            ],
-            "source": {
-              "pdf": "accountancy",
-              "page": 2
-            }
-          },
-          {
-            "id": "unit-1--goods",
-            "name": "Goods",
-            "minutes": 10,
-            "deps": [
-              "unit-1--sales"
+              "unit-1--capital-profit"
             ],
             "source": {
               "pdf": "accountancy",
@@ -4905,7 +4833,7 @@ export const CLASS_12: Subject[] = [
             "name": "Debtor",
             "minutes": 10,
             "deps": [
-              "unit-1--goods"
+              "unit-1--purchase"
             ],
             "source": {
               "pdf": "accountancy",
@@ -5029,23 +4957,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "bank-reconciliation-statement--need",
-            "name": "Need",
-            "minutes": 10,
-            "deps": [
-              "bank-reconciliation-statement--features"
-            ],
-            "source": {
-              "pdf": "accountancy",
-              "page": 4
-            }
-          },
-          {
             "id": "bank-reconciliation-statement--per-their-nature-in-different-subsidiary-books-causes",
             "name": "per their nature in different subsidiary books . Causes",
             "minutes": 25,
             "deps": [
-              "bank-reconciliation-statement--need"
+              "bank-reconciliation-statement--features"
             ],
             "source": {
               "pdf": "accountancy",
@@ -6305,22 +6221,10 @@ export const CLASS_12: Subject[] = [
         "name": "Process of Entrepreneurship Development",
         "concepts": [
           {
-            "id": "process-of-entrepreneurship-development--ed",
-            "name": "(ED)",
-            "minutes": 10,
-            "deps": [],
-            "source": {
-              "pdf": "business-studies",
-              "page": 6
-            }
-          },
-          {
             "id": "process-of-entrepreneurship-development--intellectual-property-rights-start-up-india-scheme",
             "name": "Intellectual Property Rights Start-up India Scheme",
             "minutes": 20,
-            "deps": [
-              "process-of-entrepreneurship-development--ed"
-            ],
+            "deps": [],
             "source": {
               "pdf": "business-studies",
               "page": 6
@@ -6443,23 +6347,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "planning--rule",
-            "name": "Rule",
-            "minutes": 10,
-            "deps": [
-              "planning--method"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 10
-            }
-          },
-          {
             "id": "planning--policies",
             "name": "policies",
             "minutes": 10,
             "deps": [
-              "planning--rule"
+              "planning--method"
             ],
             "source": {
               "pdf": "business-studies",
@@ -8367,83 +8259,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "dth--why-have-they-selected-this-product-service",
-            "name": "Why have they selected this product/service?",
-            "minutes": 20,
-            "deps": [
-              "dth--water-storage-tank"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 28
-            }
-          },
-          {
-            "id": "dth--find-out-5-competitive-brands-that-exist-in-the-market",
-            "name": "Find out ‘5’ competitive brands that exist in the market",
-            "minutes": 25,
-            "deps": [
-              "dth--why-have-they-selected-this-product-service"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 28
-            }
-          },
-          {
-            "id": "dth--what-permission-and-licences-would-be-required-to-make-the-product",
-            "name": "What permission and licences would be required to make the product?",
-            "minutes": 25,
-            "deps": [
-              "dth--find-out-5-competitive-brands-that-exist-in-the-market"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 28
-            }
-          },
-          {
-            "id": "dth--what-are-your-competitors-unique-selling-proposition-u-s-p",
-            "name": "What are your competitors Unique Selling Proposition.[U.S.P.]?",
-            "minutes": 20,
-            "deps": [
-              "dth--what-permission-and-licences-would-be-required-to-make-the-product"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 28
-            }
-          },
-          {
-            "id": "dth--does-your-product-have-any-range-give-details",
-            "name": "Does your product have any range give details?",
-            "minutes": 25,
-            "deps": [
-              "dth--what-are-your-competitors-unique-selling-proposition-u-s-p"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 28
-            }
-          },
-          {
-            "id": "dth--what-is-the-name-of-your-product",
-            "name": "What is the name of your product?",
-            "minutes": 20,
-            "deps": [
-              "dth--does-your-product-have-any-range-give-details"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 28
-            }
-          },
-          {
             "id": "dth--enlist-its-features",
             "name": "Enlist its features",
             "minutes": 15,
             "deps": [
-              "dth--what-is-the-name-of-your-product"
+              "dth--water-storage-tank"
             ],
             "source": {
               "pdf": "business-studies",
@@ -8487,47 +8307,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "dth--what-is-the-selling-price-of-your-competitors-product",
-            "name": "What is the selling price of your competitor’s product?",
-            "minutes": 25,
-            "deps": [
-              "dth--draft-a-tag-line"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 28
-            }
-          },
-          {
-            "id": "dth--which-channel-of-distribution-are-you-going-to-use-give-reasons-for-selection",
-            "name": "Which channel of distribution are you going to use? Give reasons for selection?",
-            "minutes": 25,
-            "deps": [
-              "dth--what-is-the-selling-price-of-your-competitors-product"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 29
-            }
-          },
-          {
             "id": "dth--decisions-related-to-warehousing-state-reasons",
             "name": "Decisions related to warehousing, state reasons",
             "minutes": 20,
             "deps": [
-              "dth--which-channel-of-distribution-are-you-going-to-use-give-reasons-for-selection"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 29
-            }
-          },
-          {
-            "id": "dth--what-is-going-to-be-your-selling-price",
-            "name": "What is going to be your selling price?",
-            "minutes": 25,
-            "deps": [
-              "dth--decisions-related-to-warehousing-state-reasons"
+              "dth--draft-a-tag-line"
             ],
             "source": {
               "pdf": "business-studies",
@@ -8539,7 +8323,7 @@ export const CLASS_12: Subject[] = [
             "name": "List 5 ways of promoting your product",
             "minutes": 20,
             "deps": [
-              "dth--what-is-going-to-be-your-selling-price"
+              "dth--decisions-related-to-warehousing-state-reasons"
             ],
             "source": {
               "pdf": "business-studies",
@@ -8559,35 +8343,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "dth--what-is-going-to-be-your-u-s-p",
-            "name": "What is going to be your ‘U.S.P?",
-            "minutes": 20,
-            "deps": [
-              "dth--any-schemes-for"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 29
-            }
-          },
-          {
-            "id": "dth--what-means-of-transport-you-will-use-and-why",
-            "name": "What means of transport you will use and why?",
-            "minutes": 25,
-            "deps": [
-              "dth--what-is-going-to-be-your-u-s-p"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 29
-            }
-          },
-          {
             "id": "dth--draft-a-social-message-for-your-label",
             "name": "Draft a social message for your label",
             "minutes": 20,
             "deps": [
-              "dth--what-means-of-transport-you-will-use-and-why"
+              "dth--any-schemes-for"
             ],
             "source": {
               "pdf": "business-studies",
@@ -9629,22 +9389,10 @@ export const CLASS_12: Subject[] = [
         "name": "Mahajanapada and cities",
         "concepts": [
           {
-            "id": "mahajanapada-and-cities--vajji",
-            "name": "Vajji",
-            "minutes": 10,
-            "deps": [],
-            "source": {
-              "pdf": "history",
-              "page": 13
-            }
-          },
-          {
             "id": "mahajanapada-and-cities--magadha",
             "name": "Magadha",
             "minutes": 10,
-            "deps": [
-              "mahajanapada-and-cities--vajji"
-            ],
+            "deps": [],
             "source": {
               "pdf": "history",
               "page": 13
@@ -9663,23 +9411,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "mahajanapada-and-cities--kuru",
-            "name": "Kuru",
-            "minutes": 10,
-            "deps": [
-              "mahajanapada-and-cities--kosala"
-            ],
-            "source": {
-              "pdf": "history",
-              "page": 13
-            }
-          },
-          {
             "id": "mahajanapada-and-cities--panchala",
             "name": "Panchala",
             "minutes": 10,
             "deps": [
-              "mahajanapada-and-cities--kuru"
+              "mahajanapada-and-cities--kosala"
             ],
             "source": {
               "pdf": "history",
@@ -9747,23 +9483,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "mahajanapada-and-cities--topra",
-            "name": "Topra",
-            "minutes": 10,
-            "deps": [
-              "mahajanapada-and-cities--taxila"
-            ],
-            "source": {
-              "pdf": "history",
-              "page": 13
-            }
-          },
-          {
             "id": "mahajanapada-and-cities--shakas",
             "name": "Shakas",
             "minutes": 10,
             "deps": [
-              "mahajanapada-and-cities--topra"
+              "mahajanapada-and-cities--taxila"
             ],
             "source": {
               "pdf": "history",
@@ -9819,23 +9543,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "mahajanapada-and-cities--puhar",
-            "name": "Puhar",
-            "minutes": 10,
-            "deps": [
-              "mahajanapada-and-cities--kanauj"
-            ],
-            "source": {
-              "pdf": "history",
-              "page": 13
-            }
-          },
-          {
             "id": "mahajanapada-and-cities--braghukachchha",
             "name": "Braghukachchha",
             "minutes": 10,
             "deps": [
-              "mahajanapada-and-cities--puhar"
+              "mahajanapada-and-cities--kanauj"
             ],
             "source": {
               "pdf": "history",
@@ -9907,23 +9619,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "territories-cities-under-british-control-in1857--sindh",
-            "name": "Sindh",
-            "minutes": 10,
-            "deps": [
-              "territories-cities-under-british-control-in1857--punjab"
-            ],
-            "source": {
-              "pdf": "history",
-              "page": 13
-            }
-          },
-          {
             "id": "territories-cities-under-british-control-in1857--bombay",
             "name": "Bombay",
             "minutes": 10,
             "deps": [
-              "territories-cities-under-british-control-in1857--sindh"
+              "territories-cities-under-british-control-in1857--punjab"
             ],
             "source": {
               "pdf": "history",
@@ -9955,35 +9655,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "territories-cities-under-british-control-in1857--bihar",
-            "name": "Bihar",
-            "minutes": 10,
-            "deps": [
-              "territories-cities-under-british-control-in1857--bengal"
-            ],
-            "source": {
-              "pdf": "history",
-              "page": 13
-            }
-          },
-          {
             "id": "territories-cities-under-british-control-in1857--orissa",
             "name": "Orissa",
             "minutes": 10,
             "deps": [
-              "territories-cities-under-british-control-in1857--bihar"
-            ],
-            "source": {
-              "pdf": "history",
-              "page": 13
-            }
-          },
-          {
-            "id": "territories-cities-under-british-control-in1857--surat",
-            "name": "Surat",
-            "minutes": 10,
-            "deps": [
-              "territories-cities-under-british-control-in1857--orissa"
+              "territories-cities-under-british-control-in1857--bengal"
             ],
             "source": {
               "pdf": "history",
@@ -9995,19 +9671,7 @@ export const CLASS_12: Subject[] = [
             "name": "Calcutta",
             "minutes": 10,
             "deps": [
-              "territories-cities-under-british-control-in1857--surat"
-            ],
-            "source": {
-              "pdf": "history",
-              "page": 13
-            }
-          },
-          {
-            "id": "territories-cities-under-british-control-in1857--patna",
-            "name": "Patna",
-            "minutes": 10,
-            "deps": [
-              "territories-cities-under-british-control-in1857--calcutta"
+              "territories-cities-under-british-control-in1857--orissa"
             ],
             "source": {
               "pdf": "history",
@@ -10019,7 +9683,7 @@ export const CLASS_12: Subject[] = [
             "name": "Allahabad",
             "minutes": 10,
             "deps": [
-              "territories-cities-under-british-control-in1857--patna"
+              "territories-cities-under-british-control-in1857--calcutta"
             ],
             "source": {
               "pdf": "history",
@@ -10033,22 +9697,10 @@ export const CLASS_12: Subject[] = [
         "name": "Main centres of the Revolt of 1857",
         "concepts": [
           {
-            "id": "main-centres-of-the-revolt-of-1857--delhi",
-            "name": "Delhi",
-            "minutes": 10,
-            "deps": [],
-            "source": {
-              "pdf": "history",
-              "page": 13
-            }
-          },
-          {
             "id": "main-centres-of-the-revolt-of-1857--meerut",
             "name": "Meerut",
             "minutes": 10,
-            "deps": [
-              "main-centres-of-the-revolt-of-1857--delhi"
-            ],
+            "deps": [],
             "source": {
               "pdf": "history",
               "page": 13
@@ -10139,35 +9791,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "main-centres-of-the-revolt-of-1857--agra",
-            "name": "Agra",
-            "minutes": 10,
-            "deps": [
-              "main-centres-of-the-revolt-of-1857--jabalpur"
-            ],
-            "source": {
-              "pdf": "history",
-              "page": 13
-            }
-          },
-          {
             "id": "main-centres-of-the-revolt-of-1857--champaran",
             "name": "Champaran",
             "minutes": 10,
             "deps": [
-              "main-centres-of-the-revolt-of-1857--agra"
-            ],
-            "source": {
-              "pdf": "history",
-              "page": 13
-            }
-          },
-          {
-            "id": "main-centres-of-the-revolt-of-1857--kheda",
-            "name": "Kheda",
-            "minutes": 10,
-            "deps": [
-              "main-centres-of-the-revolt-of-1857--champaran"
+              "main-centres-of-the-revolt-of-1857--jabalpur"
             ],
             "source": {
               "pdf": "history",
@@ -10179,7 +9807,7 @@ export const CLASS_12: Subject[] = [
             "name": "10 Ahmedabad",
             "minutes": 10,
             "deps": [
-              "main-centres-of-the-revolt-of-1857--kheda"
+              "main-centres-of-the-revolt-of-1857--champaran"
             ],
             "source": {
               "pdf": "history",
@@ -10235,23 +9863,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "main-centres-of-the-revolt-of-1857--dandi",
-            "name": "Dandi",
-            "minutes": 10,
-            "deps": [
-              "main-centres-of-the-revolt-of-1857--bardoli"
-            ],
-            "source": {
-              "pdf": "history",
-              "page": 13
-            }
-          },
-          {
             "id": "main-centres-of-the-revolt-of-1857--bombay-quit-india-resolution",
             "name": "Bombay (Quit India Resolution)",
             "minutes": 15,
             "deps": [
-              "main-centres-of-the-revolt-of-1857--dandi"
+              "main-centres-of-the-revolt-of-1857--bardoli"
             ],
             "source": {
               "pdf": "history",
@@ -10525,23 +10141,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "europe--paris",
-            "name": "Paris",
-            "minutes": 10,
-            "deps": [
-              "europe--moscow"
-            ],
-            "source": {
-              "pdf": "geography",
-              "page": 17
-            }
-          },
-          {
             "id": "europe--berlin-and-rome",
             "name": "Berlin and Rome",
             "minutes": 15,
             "deps": [
-              "europe--paris"
+              "europe--moscow"
             ],
             "source": {
               "pdf": "geography",
@@ -10729,23 +10333,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "asia--aden",
-            "name": "Aden",
-            "minutes": 10,
-            "deps": [
-              "asia--hong-kong"
-            ],
-            "source": {
-              "pdf": "geography",
-              "page": 17
-            }
-          },
-          {
             "id": "asia--karachi",
             "name": "Karachi",
             "minutes": 10,
             "deps": [
-              "asia--aden"
+              "asia--hong-kong"
             ],
             "source": {
               "pdf": "geography",
@@ -10765,23 +10357,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "asia--tokyo",
-            "name": "Tokyo",
-            "minutes": 10,
-            "deps": [
-              "asia--kolkata"
-            ],
-            "source": {
-              "pdf": "geography",
-              "page": 17
-            }
-          },
-          {
             "id": "asia--beijing",
             "name": "Beijing",
             "minutes": 10,
             "deps": [
-              "asia--tokyo"
+              "asia--kolkata"
             ],
             "source": {
               "pdf": "geography",
@@ -10819,22 +10399,10 @@ export const CLASS_12: Subject[] = [
         "name": "Australia",
         "concepts": [
           {
-            "id": "australia--perth",
-            "name": "Perth",
-            "minutes": 10,
-            "deps": [],
-            "source": {
-              "pdf": "geography",
-              "page": 17
-            }
-          },
-          {
             "id": "australia--sydney",
             "name": "Sydney",
             "minutes": 10,
-            "deps": [
-              "australia--perth"
-            ],
+            "deps": [],
             "source": {
               "pdf": "geography",
               "page": 17
@@ -11401,23 +10969,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "prescribed--human",
-            "name": "human",
-            "minutes": 10,
-            "deps": [
-              "prescribed--the-world"
-            ],
-            "source": {
-              "pdf": "geography",
-              "page": null
-            }
-          },
-          {
             "id": "prescribed--primary-activities-areas-of-subsistence-gathering",
             "name": "Primary Activities Areas of subsistence gathering",
             "minutes": 20,
             "deps": [
-              "prescribed--human"
+              "prescribed--the-world"
             ],
             "source": {
               "pdf": "geography",
@@ -12399,23 +11955,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "social-justice--caste",
-            "name": "caste",
-            "minutes": 10,
-            "deps": [
-              "social-justice--religion"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 23
-            }
-          },
-          {
             "id": "social-justice--gender-and-place-of-birth",
             "name": "gender and place of birth",
             "minutes": 20,
             "deps": [
-              "social-justice--caste"
+              "social-justice--religion"
             ],
             "source": {
               "pdf": "political-science",
@@ -12429,34 +11973,10 @@ export const CLASS_12: Subject[] = [
         "name": "Economic Justice",
         "concepts": [
           {
-            "id": "economic-justice--cloth",
-            "name": "cloth",
-            "minutes": 10,
-            "deps": [],
-            "source": {
-              "pdf": "political-science",
-              "page": 23
-            }
-          },
-          {
             "id": "economic-justice--by-making-provisions-for-equal-pay-for-equal-work",
             "name": "by making provisions for equal pay for equal work",
             "minutes": 25,
-            "deps": [
-              "economic-justice--cloth"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 23
-            }
-          },
-          {
-            "id": "economic-justice--fair",
-            "name": "fair",
-            "minutes": 10,
-            "deps": [
-              "economic-justice--by-making-provisions-for-equal-pay-for-equal-work"
-            ],
+            "deps": [],
             "source": {
               "pdf": "political-science",
               "page": 23
@@ -12611,35 +12131,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "chapter-2--india",
-            "name": "India",
-            "minutes": 10,
-            "deps": [
-              "chapter-2--russia"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 25
-            }
-          },
-          {
-            "id": "chapter-2--china",
-            "name": "China",
-            "minutes": 10,
-            "deps": [
-              "chapter-2--india"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 25
-            }
-          },
-          {
             "id": "chapter-2--the-bloc-expanded-beyond-the-original-five-members-egypt",
             "name": "the bloc expanded beyond the original five members. Egypt",
             "minutes": 25,
             "deps": [
-              "chapter-2--china"
+              "chapter-2--russia"
             ],
             "source": {
               "pdf": "political-science",
@@ -12659,23 +12155,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "chapter-2--iran",
-            "name": "Iran",
-            "minutes": 10,
-            "deps": [
-              "chapter-2--ethiopia"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 25
-            }
-          },
-          {
             "id": "chapter-2--russia-is-a-nuclear-state-with-25",
             "name": "Russia is a nuclear state with 25",
             "minutes": 20,
             "deps": [
-              "chapter-2--iran"
+              "chapter-2--ethiopia"
             ],
             "source": {
               "pdf": "political-science",
@@ -12852,106 +12336,6 @@ export const CLASS_12: Subject[] = [
             "source": {
               "pdf": "political-science",
               "page": 33
-            }
-          }
-        ]
-      },
-      {
-        "id": "syllabus",
-        "name": "Syllabus",
-        "concepts": [
-          {
-            "id": "syllabus--challenges-of-nation-building-topics-to-be-focused-a-challenges-for-the-newnatio",
-            "name": "Challenges of Nation Building Topics to be focused: a) Challenges for the newNation",
-            "minutes": 25,
-            "deps": [],
-            "source": {
-              "pdf": "political-science",
-              "page": 13
-            }
-          },
-          {
-            "id": "syllabus--era-of-one-partydominance-topics-to-be-focused-a-challenge-of-building-democracy",
-            "name": "Era of One-PartyDominance Topics to be focused: a) Challenge of building democracy. b) Congress dominance in the first three general elect ions",
-            "minutes": 25,
-            "deps": [
-              "syllabus--challenges-of-nation-building-topics-to-be-focused-a-challenges-for-the-newnatio"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 13
-            }
-          },
-          {
-            "id": "syllabus--politics-of-planned-development-topics-to-be-focused-a-political-contestation",
-            "name": "Politics of Planned Development Topics to be focused: a) Political contestation",
-            "minutes": 25,
-            "deps": [
-              "syllabus--era-of-one-partydominance-topics-to-be-focused-a-challenge-of-building-democracy"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 13
-            }
-          },
-          {
-            "id": "syllabus--indias-external-relations-topics-to-be-focused-a-international-context-b-the-pol",
-            "name": "India’s External Relations Topics to be focused: a) International Context b) The Policy of Non-Alignment. Students will be able to:",
-            "minutes": 25,
-            "deps": [
-              "syllabus--politics-of-planned-development-topics-to-be-focused-a-political-contestation"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 13
-            }
-          },
-          {
-            "id": "syllabus--challenges-to-and-restoration-of-the-congress-system-topics-to-be-focused-a-chal",
-            "name": "Challenges to and Restoration of the Congress System Topics to be focused: a) Challenge of Political Succession",
-            "minutes": 25,
-            "deps": [
-              "syllabus--indias-external-relations-topics-to-be-focused-a-international-context-b-the-pol"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 14
-            }
-          },
-          {
-            "id": "syllabus--the-crisis-of-democratic-order-topics-to-be-focused-a-background-to-emergency",
-            "name": "The Crisis of Democratic Order Topics to be focused: a) Background to Emergency",
-            "minutes": 25,
-            "deps": [
-              "syllabus--challenges-to-and-restoration-of-the-congress-system-topics-to-be-focused-a-chal"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 14
-            }
-          },
-          {
-            "id": "syllabus--regional-aspirations-topics-to-be-focused-a-region-and-the-nation",
-            "name": "Regional Aspirations Topics to be focused: a) Region and the Nation",
-            "minutes": 25,
-            "deps": [
-              "syllabus--the-crisis-of-democratic-order-topics-to-be-focused-a-background-to-emergency"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 15
-            }
-          },
-          {
-            "id": "syllabus--recent-developments-in-indian-politics-topics-to-be-focused-a-context-of-1990s-b",
-            "name": "Recent Developments in Indian Politics Topics to be focused a) Context of 1990s b) Era of Coalition",
-            "minutes": 25,
-            "deps": [
-              "syllabus--regional-aspirations-topics-to-be-focused-a-region-and-the-nation"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 15
             }
           }
         ]
@@ -13829,23 +13213,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "syllabus--historical-context-b-indian-constitutional-framework-on-human-rights-and-related",
-            "name": "Historical Context b) Indian Constitutional framework on Human Rights and related Laws in India",
-            "minutes": 25,
-            "deps": [
-              "syllabus--law-is-too-vast-and-complicated-to-be-taught-in-a-non-professional-setting"
-            ],
-            "source": {
-              "pdf": "legal-studies",
-              "page": 10
-            }
-          },
-          {
             "id": "syllabus--the-preamble",
             "name": "The Preamble",
             "minutes": 10,
             "deps": [
-              "syllabus--historical-context-b-indian-constitutional-framework-on-human-rights-and-related"
+              "syllabus--law-is-too-vast-and-complicated-to-be-taught-in-a-non-professional-setting"
             ],
             "source": {
               "pdf": "legal-studies",
@@ -14681,23 +14053,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "lists--pop",
-            "name": "pop()",
-            "minutes": 10,
-            "deps": [
-              "lists--remove"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
-          },
-          {
             "id": "lists--reverse",
             "name": "reverse()",
             "minutes": 10,
             "deps": [
-              "lists--pop"
+              "lists--remove"
             ],
             "source": {
               "pdf": "informatics-practices",
@@ -14710,42 +14070,6 @@ export const CLASS_12: Subject[] = [
             "minutes": 10,
             "deps": [
               "lists--reverse"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
-          },
-          {
-            "id": "lists--min",
-            "name": "min()",
-            "minutes": 10,
-            "deps": [
-              "lists--sort"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
-          },
-          {
-            "id": "lists--max",
-            "name": "max()",
-            "minutes": 10,
-            "deps": [
-              "lists--min"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
-          },
-          {
-            "id": "lists--sum",
-            "name": "sum()",
-            "minutes": 10,
-            "deps": [
-              "lists--max"
             ],
             "source": {
               "pdf": "informatics-practices",
@@ -14817,23 +14141,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "dictionary--len",
-            "name": "len()",
-            "minutes": 10,
-            "deps": [
-              "dictionary--dictionary-methods-and-built-in-functions-dict"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
-          },
-          {
             "id": "dictionary--keys",
             "name": "keys()",
             "minutes": 10,
             "deps": [
-              "dictionary--len"
+              "dictionary--dictionary-methods-and-built-in-functions-dict"
             ],
             "source": {
               "pdf": "informatics-practices",
@@ -14877,23 +14189,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "dictionary--del",
-            "name": "del()",
-            "minutes": 10,
-            "deps": [
-              "dictionary--update"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
-          },
-          {
             "id": "dictionary--clear",
             "name": "clear()",
             "minutes": 10,
             "deps": [
-              "dictionary--del"
+              "dictionary--update"
             ],
             "source": {
               "pdf": "informatics-practices",
@@ -14973,23 +14273,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "relational-data-model--tuple",
-            "name": "tuple",
-            "minutes": 10,
-            "deps": [
-              "relational-data-model--concept-of-domain"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
-          },
-          {
             "id": "relational-data-model--relation",
             "name": "relation",
             "minutes": 10,
             "deps": [
-              "relational-data-model--tuple"
+              "relational-data-model--concept-of-domain"
             ],
             "source": {
               "pdf": "informatics-practices",
@@ -15107,30 +14395,6 @@ export const CLASS_12: Subject[] = [
               "pdf": "informatics-practices",
               "page": 2
             }
-          },
-          {
-            "id": "data-definition--drop",
-            "name": "DROP",
-            "minutes": 10,
-            "deps": [
-              "data-definition--create-table"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
-          },
-          {
-            "id": "data-definition--alter",
-            "name": "ALTER",
-            "minutes": 10,
-            "deps": [
-              "data-definition--drop"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
           }
         ]
       },
@@ -15149,23 +14413,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "data-query--from",
-            "name": "FROM",
-            "minutes": 10,
-            "deps": [
-              "data-query--select"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
-          },
-          {
             "id": "data-query--between",
             "name": "BETWEEN",
             "minutes": 10,
             "deps": [
-              "data-query--from"
+              "data-query--select"
             ],
             "source": {
               "pdf": "informatics-practices",
@@ -15495,18 +14747,6 @@ export const CLASS_12: Subject[] = [
             "name": "adding label",
             "minutes": 10,
             "deps": [],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 6
-            }
-          },
-          {
-            "id": "customizing-plots--title",
-            "name": "title",
-            "minutes": 10,
-            "deps": [
-              "customizing-plots--adding-label"
-            ],
             "source": {
               "pdf": "informatics-practices",
               "page": 6
@@ -15871,22 +15111,10 @@ export const CLASS_12: Subject[] = [
         "name": "Network Devices",
         "concepts": [
           {
-            "id": "network-devices--modem",
-            "name": "modem",
-            "minutes": 10,
-            "deps": [],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 6
-            }
-          },
-          {
             "id": "network-devices--switch",
             "name": "switch",
             "minutes": 10,
-            "deps": [
-              "network-devices--modem"
-            ],
+            "deps": [],
             "source": {
               "pdf": "informatics-practices",
               "page": 6
@@ -15935,70 +15163,10 @@ export const CLASS_12: Subject[] = [
         "name": "Network Topologies",
         "concepts": [
           {
-            "id": "network-topologies--star",
-            "name": "Star",
-            "minutes": 10,
-            "deps": [],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 6
-            }
-          },
-          {
-            "id": "network-topologies--tree",
-            "name": "Tree",
-            "minutes": 10,
-            "deps": [
-              "network-topologies--star"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 6
-            }
-          },
-          {
             "id": "network-topologies--mesh-introduction-to-internet",
             "name": "Mesh. Introduction to Internet",
             "minutes": 15,
-            "deps": [
-              "network-topologies--tree"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 6
-            }
-          },
-          {
-            "id": "network-topologies--email",
-            "name": "email",
-            "minutes": 10,
-            "deps": [
-              "network-topologies--mesh-introduction-to-internet"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 6
-            }
-          },
-          {
-            "id": "network-topologies--chat",
-            "name": "Chat",
-            "minutes": 10,
-            "deps": [
-              "network-topologies--email"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 6
-            }
-          },
-          {
-            "id": "network-topologies--voip",
-            "name": "VoIP",
-            "minutes": 10,
-            "deps": [
-              "network-topologies--chat"
-            ],
+            "deps": [],
             "source": {
               "pdf": "informatics-practices",
               "page": 6
@@ -16453,23 +15621,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "syllabus--given-a-series-print-all-the-elements-that-are-above-the-75th-percentile",
-            "name": "Given a Series, print all the elements that are above the 75th percentile",
-            "minutes": 25,
-            "deps": [
-              "syllabus--create-a-pandas-series-from-a-dictionary-of-values-and-a-ndarray"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 8
-            }
-          },
-          {
             "id": "syllabus--create-a-data-frame-for-examination-result-and-display-row-labels-column-labels-",
             "name": "Create a data frame for examination result and display row labels, column labels data types of each column and the dimensions",
             "minutes": 25,
             "deps": [
-              "syllabus--given-a-series-print-all-the-elements-that-are-above-the-75th-percentile"
+              "syllabus--create-a-pandas-series-from-a-dictionary-of-values-and-a-ndarray"
             ],
             "source": {
               "pdf": "informatics-practices",
@@ -16513,23 +15669,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "syllabus--given-the-school-result-data-analyses-the-performance-of-the-students-on-differe",
-            "name": "Given the school result data, analyses the performance of the students on different parameters, e.g subject wise or class wise",
-            "minutes": 25,
-            "deps": [
-              "syllabus--2-visualization"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 8
-            }
-          },
-          {
             "id": "syllabus--for-the-data-frames-created-above-analyze-and-plot-appropriate-charts-with-title",
             "name": "For the Data frames created above, analyze, and plot appropriate charts with title and legend",
             "minutes": 25,
             "deps": [
-              "syllabus--given-the-school-result-data-analyses-the-performance-of-the-students-on-differe"
+              "syllabus--2-visualization"
             ],
             "source": {
               "pdf": "informatics-practices",
@@ -16597,35 +15741,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "syllabus--find-the-min-max-sum-and-average-of-the-marks-in-a-student-marks-table",
-            "name": "Find the min, max, sum, and average of the marks in a student marks table",
-            "minutes": 25,
-            "deps": [
-              "syllabus--use-the-select-command-to-get-the-details-of-the-students-with-marks-more-than-8"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 8
-            }
-          },
-          {
-            "id": "syllabus--find-the-total-number-of-customers-from-each-country-in-the-table-customer-id-cu",
-            "name": "Find the total number of customers from each country in the table (customer ID, customer Name, country) using group by",
-            "minutes": 25,
-            "deps": [
-              "syllabus--find-the-min-max-sum-and-average-of-the-marks-in-a-student-marks-table"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 8
-            }
-          },
-          {
             "id": "syllabus--write-a-sql-query-to-order-the-student-id-marks-table-in-descending-order-of-the",
             "name": "Write a SQL query to order the (student ID, marks) table in descending order of the marks",
             "minutes": 25,
             "deps": [
-              "syllabus--find-the-total-number-of-customers-from-each-country-in-the-table-customer-id-cu"
+              "syllabus--use-the-select-command-to-get-the-details-of-the-students-with-marks-more-than-8"
             ],
             "source": {
               "pdf": "informatics-practices",
@@ -17219,23 +16339,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "load--skill",
-            "name": "Skill",
-            "minutes": 10,
-            "deps": [
-              "load--adaptation"
-            ],
-            "source": {
-              "pdf": "physical-education",
-              "page": 11
-            }
-          },
-          {
             "id": "load--techniques",
             "name": "Techniques",
             "minutes": 10,
             "deps": [
-              "load--skill"
+              "load--adaptation"
             ],
             "source": {
               "pdf": "physical-education",
@@ -18627,22 +17735,10 @@ export const CLASS_12: Subject[] = [
         "name": "UNIT I",
         "concepts": [
           {
-            "id": "unit-i--work",
-            "name": "Work",
-            "minutes": 10,
-            "deps": [],
-            "source": {
-              "pdf": "home-science",
-              "page": 15
-            }
-          },
-          {
             "id": "unit-i--livelihood-and-career",
             "name": "Livelihood and Career",
             "minutes": 15,
-            "deps": [
-              "unit-i--work"
-            ],
+            "deps": [],
             "source": {
               "pdf": "home-science",
               "page": 15
@@ -18690,30 +17786,6 @@ export const CLASS_12: Subject[] = [
             "source": {
               "pdf": "home-science",
               "page": 18
-            }
-          },
-          {
-            "id": "chapter--fads",
-            "name": "fads",
-            "minutes": 10,
-            "deps": [
-              "chapter--institutions-and-programmes-for-children"
-            ],
-            "source": {
-              "pdf": "home-science",
-              "page": 19
-            }
-          },
-          {
-            "id": "chapter--style",
-            "name": "style",
-            "minutes": 10,
-            "deps": [
-              "chapter--fads"
-            ],
-            "source": {
-              "pdf": "home-science",
-              "page": 19
             }
           }
         ]
@@ -18857,23 +17929,11 @@ export const CLASS_12: Subject[] = [
             }
           },
           {
-            "id": "modification-of-normal-diet-to-soft-diet-for-elderly-person--evaluate-any-one-advertisement-for-any-job-position",
-            "name": "Evaluate any one advertisement for any job position",
-            "minutes": 25,
-            "deps": [
-              "modification-of-normal-diet-to-soft-diet-for-elderly-person--remove-different-types-of-stains-from-white-cotton-cloth-ball-pen-curry-grease-i"
-            ],
-            "source": {
-              "pdf": "home-science",
-              "page": 22
-            }
-          },
-          {
             "id": "modification-of-normal-diet-to-soft-diet-for-elderly-person--visit-to-the-neighboring-areas-and-interview-two-adolescents-and-two-adults-rega",
             "name": "Visit to the neighboring areas and interview two adolescents and two adults regarding their perception of persons with special needs",
             "minutes": 25,
             "deps": [
-              "modification-of-normal-diet-to-soft-diet-for-elderly-person--evaluate-any-one-advertisement-for-any-job-position"
+              "modification-of-normal-diet-to-soft-diet-for-elderly-person--remove-different-types-of-stains-from-white-cotton-cloth-ball-pen-curry-grease-i"
             ],
             "source": {
               "pdf": "home-science",

@@ -28,6 +28,7 @@
  */
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { whyNotATopic } from './concept-quality.mjs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -142,13 +143,24 @@ export function conceptsForClass(doc, meta, cls) {
 export function teachableItems(doc, meta, cls) {
   const concepts = conceptsForClass(doc, meta, cls)
   const topics = doc.topics ?? []
-  if (concepts.length >= topics.length) return concepts
+  const picked =
+    concepts.length >= topics.length
+      ? concepts
+      : (() => {
+          const seen = new Set(concepts.map((c) => c.title.toLowerCase()))
+          const borrowed = topics
+            .filter((t) => typeof t.title === 'string' && !seen.has(t.title.toLowerCase()))
+            .map((t) => ({ title: t.title, heading: 'Prescribed', page: t.page ?? null }))
+          return [...concepts, ...borrowed]
+        })()
 
-  const seen = new Set(concepts.map((c) => c.title.toLowerCase()))
-  const borrowed = topics
-    .filter((t) => typeof t.title === 'string' && !seen.has(t.title.toLowerCase()))
-    .map((t) => ({ title: t.title, heading: 'Prescribed', page: t.page ?? null }))
-  return [...concepts, ...borrowed]
+  // THE CHOKEPOINT. Everything a subject ships passes through here, so this is
+  // the one place that can guarantee a student is never handed "Since" as a
+  // topic to spend fifteen minutes on. The "at advanced level" documents are
+  // worked-problem books, and reading their solved examples as curriculum put
+  // 569 such fragments into the shipped data past a provenance gate that saw
+  // nothing wrong with any of them.
+  return picked.filter((item) => whyNotATopic(item.title) === null)
 }
 
 /**
@@ -214,11 +226,13 @@ export const KNOWN_THIN = {
     'Nine concepts against a floor of ten, and that is genuinely all the document contains. Class IX English names one prescribed textbook — "Kaveri: Textbook of English for Grade 9" — and does not reproduce its contents, so there is no text list to read. Its syllabus is reading, writing, grammar and literature SKILLS. Closing this needs the Kaveri contents from another source, not a better parser.',
   '9|elements-of-business':
     'Table-layout syllabus (Content / Learning Outcomes columns) which the prose extractor cannot read yet.',
-      '9|elements-of-book-keeping-accountancy':
+  '9|elements-of-book-keeping-accountancy':
     'Table-layout syllabus (Units/Topics and Learning Outcomes columns) not yet readable by the extractor.',
-    '10|elements-of-business':
+  '10|elements-of-business':
     'Table-layout syllabus (Content / Learning Outcomes columns) which the prose extractor cannot read yet.',
-            }
+  '11|political-science':
+    'Seventeen items were extracted and eleven of them were worked-example and question fragments out of the document, leaving six. This subject did not shrink -- it was never sixteen real concepts, and the count floor read the rubbish as content. Its syllabus is a themes-and-questions layout the prose extractor does not read. Closing it needs a table reader, not a lower floor.',
+}
 
 /**
  * Check that every subject the manifest promised actually arrived, and arrived

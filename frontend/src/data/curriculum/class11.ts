@@ -4,7 +4,7 @@
  * syllabus documents recorded in data/curriculum-sources.lock.json.
  * Re-generate with: npm run curriculum:build
  *
- * Class 11: 21 subjects, 1473 concepts.
+ * Class 11: 21 subjects, 1404 concepts.
  *
  * Every concept carries the pdf and page it was read from. Every "minutes"
  * value is an ESTIMATE derived from the concept's wording, not a figure the
@@ -127,22 +127,10 @@ export const CLASS_11: Subject[] = [
         "name": "Unit IV",
         "concepts": [
           {
-            "id": "unit-iv--work",
-            "name": "Work",
-            "minutes": 10,
-            "deps": [],
-            "source": {
-              "pdf": "physics",
-              "page": 4
-            }
-          },
-          {
             "id": "unit-iv--energy-and-power",
             "name": "Energy and Power",
             "minutes": 15,
-            "deps": [
-              "unit-iv--work"
-            ],
+            "deps": [],
             "source": {
               "pdf": "physics",
               "page": 4
@@ -230,18 +218,6 @@ export const CLASS_11: Subject[] = [
             "minutes": 15,
             "deps": [
               "wave-motion--standing-waves-in-strings-and-organ-pipes"
-            ],
-            "source": {
-              "pdf": "physics",
-              "page": 6
-            }
-          },
-          {
-            "id": "wave-motion--beats",
-            "name": "Beats",
-            "minutes": 10,
-            "deps": [
-              "wave-motion--fundamental-mode-and-harmonics"
             ],
             "source": {
               "pdf": "physics",
@@ -2079,46 +2055,10 @@ export const CLASS_11: Subject[] = [
         "name": "Morphology of different parts of flowering plants",
         "concepts": [
           {
-            "id": "morphology-of-different-parts-of-flowering-plants--root",
-            "name": "root",
-            "minutes": 10,
-            "deps": [],
-            "source": {
-              "pdf": "biology",
-              "page": 3
-            }
-          },
-          {
-            "id": "morphology-of-different-parts-of-flowering-plants--stem",
-            "name": "stem",
-            "minutes": 10,
-            "deps": [
-              "morphology-of-different-parts-of-flowering-plants--root"
-            ],
-            "source": {
-              "pdf": "biology",
-              "page": 3
-            }
-          },
-          {
-            "id": "morphology-of-different-parts-of-flowering-plants--leaf",
-            "name": "leaf",
-            "minutes": 10,
-            "deps": [
-              "morphology-of-different-parts-of-flowering-plants--stem"
-            ],
-            "source": {
-              "pdf": "biology",
-              "page": 3
-            }
-          },
-          {
             "id": "morphology-of-different-parts-of-flowering-plants--inflorescence",
             "name": "inflorescence",
             "minutes": 10,
-            "deps": [
-              "morphology-of-different-parts-of-flowering-plants--leaf"
-            ],
+            "deps": [],
             "source": {
               "pdf": "biology",
               "page": 3
@@ -2405,23 +2345,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "chapter-8--cilia",
-            "name": "cilia",
-            "minutes": 10,
-            "deps": [
-              "chapter-8--cytoskeleton"
-            ],
-            "source": {
-              "pdf": "biology",
-              "page": 4
-            }
-          },
-          {
             "id": "chapter-8--flagella",
             "name": "flagella",
             "minutes": 10,
             "deps": [
-              "chapter-8--cilia"
+              "chapter-8--cytoskeleton"
             ],
             "source": {
               "pdf": "biology",
@@ -3495,18 +3423,6 @@ export const CLASS_11: Subject[] = [
               "pdf": "biology",
               "page": 5
             }
-          },
-          {
-            "id": "chapter-17--gout",
-            "name": "gout",
-            "minutes": 10,
-            "deps": [
-              "chapter-17--osteoporosis"
-            ],
-            "source": {
-              "pdf": "biology",
-              "page": 5
-            }
           }
         ]
       },
@@ -4519,22 +4435,10 @@ export const CLASS_11: Subject[] = [
         "name": "Measures of Dispersion",
         "concepts": [
           {
-            "id": "measures-of-dispersion--range",
-            "name": "Range",
-            "minutes": 10,
-            "deps": [],
-            "source": {
-              "pdf": "maths-senior",
-              "page": 4
-            }
-          },
-          {
             "id": "measures-of-dispersion--mean-deviation",
             "name": "Mean deviation",
             "minutes": 10,
-            "deps": [
-              "measures-of-dispersion--range"
-            ],
+            "deps": [],
             "source": {
               "pdf": "maths-senior",
               "page": 4
@@ -5913,59 +5817,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "unit-1--gain",
-            "name": "Gain",
-            "minutes": 10,
-            "deps": [
-              "unit-1--capital-profit"
-            ],
-            "source": {
-              "pdf": "accountancy",
-              "page": 2
-            }
-          },
-          {
-            "id": "unit-1--loss",
-            "name": "Loss",
-            "minutes": 10,
-            "deps": [
-              "unit-1--gain"
-            ],
-            "source": {
-              "pdf": "accountancy",
-              "page": 2
-            }
-          },
-          {
             "id": "unit-1--purchase",
             "name": "Purchase",
             "minutes": 10,
             "deps": [
-              "unit-1--loss"
-            ],
-            "source": {
-              "pdf": "accountancy",
-              "page": 2
-            }
-          },
-          {
-            "id": "unit-1--sales",
-            "name": "Sales",
-            "minutes": 10,
-            "deps": [
-              "unit-1--purchase"
-            ],
-            "source": {
-              "pdf": "accountancy",
-              "page": 2
-            }
-          },
-          {
-            "id": "unit-1--goods",
-            "name": "Goods",
-            "minutes": 10,
-            "deps": [
-              "unit-1--sales"
+              "unit-1--capital-profit"
             ],
             "source": {
               "pdf": "accountancy",
@@ -5977,7 +5833,7 @@ export const CLASS_11: Subject[] = [
             "name": "Debtor",
             "minutes": 10,
             "deps": [
-              "unit-1--goods"
+              "unit-1--purchase"
             ],
             "source": {
               "pdf": "accountancy",
@@ -6101,23 +5957,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "bank-reconciliation-statement--need",
-            "name": "Need",
-            "minutes": 10,
-            "deps": [
-              "bank-reconciliation-statement--features"
-            ],
-            "source": {
-              "pdf": "accountancy",
-              "page": 4
-            }
-          },
-          {
             "id": "bank-reconciliation-statement--per-their-nature-in-different-subsidiary-books-causes",
             "name": "per their nature in different subsidiary books . Causes",
             "minutes": 25,
             "deps": [
-              "bank-reconciliation-statement--need"
+              "bank-reconciliation-statement--features"
             ],
             "source": {
               "pdf": "accountancy",
@@ -7377,22 +7221,10 @@ export const CLASS_11: Subject[] = [
         "name": "Process of Entrepreneurship Development",
         "concepts": [
           {
-            "id": "process-of-entrepreneurship-development--ed",
-            "name": "(ED)",
-            "minutes": 10,
-            "deps": [],
-            "source": {
-              "pdf": "business-studies",
-              "page": 6
-            }
-          },
-          {
             "id": "process-of-entrepreneurship-development--intellectual-property-rights-start-up-india-scheme",
             "name": "Intellectual Property Rights Start-up India Scheme",
             "minutes": 20,
-            "deps": [
-              "process-of-entrepreneurship-development--ed"
-            ],
+            "deps": [],
             "source": {
               "pdf": "business-studies",
               "page": 6
@@ -7515,23 +7347,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "planning--rule",
-            "name": "Rule",
-            "minutes": 10,
-            "deps": [
-              "planning--method"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 10
-            }
-          },
-          {
             "id": "planning--policies",
             "name": "policies",
             "minutes": 10,
             "deps": [
-              "planning--rule"
+              "planning--method"
             ],
             "source": {
               "pdf": "business-studies",
@@ -9439,83 +9259,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "dth--why-have-they-selected-this-product-service",
-            "name": "Why have they selected this product/service?",
-            "minutes": 20,
-            "deps": [
-              "dth--water-storage-tank"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 28
-            }
-          },
-          {
-            "id": "dth--find-out-5-competitive-brands-that-exist-in-the-market",
-            "name": "Find out ‘5’ competitive brands that exist in the market",
-            "minutes": 25,
-            "deps": [
-              "dth--why-have-they-selected-this-product-service"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 28
-            }
-          },
-          {
-            "id": "dth--what-permission-and-licences-would-be-required-to-make-the-product",
-            "name": "What permission and licences would be required to make the product?",
-            "minutes": 25,
-            "deps": [
-              "dth--find-out-5-competitive-brands-that-exist-in-the-market"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 28
-            }
-          },
-          {
-            "id": "dth--what-are-your-competitors-unique-selling-proposition-u-s-p",
-            "name": "What are your competitors Unique Selling Proposition.[U.S.P.]?",
-            "minutes": 20,
-            "deps": [
-              "dth--what-permission-and-licences-would-be-required-to-make-the-product"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 28
-            }
-          },
-          {
-            "id": "dth--does-your-product-have-any-range-give-details",
-            "name": "Does your product have any range give details?",
-            "minutes": 25,
-            "deps": [
-              "dth--what-are-your-competitors-unique-selling-proposition-u-s-p"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 28
-            }
-          },
-          {
-            "id": "dth--what-is-the-name-of-your-product",
-            "name": "What is the name of your product?",
-            "minutes": 20,
-            "deps": [
-              "dth--does-your-product-have-any-range-give-details"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 28
-            }
-          },
-          {
             "id": "dth--enlist-its-features",
             "name": "Enlist its features",
             "minutes": 15,
             "deps": [
-              "dth--what-is-the-name-of-your-product"
+              "dth--water-storage-tank"
             ],
             "source": {
               "pdf": "business-studies",
@@ -9559,47 +9307,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "dth--what-is-the-selling-price-of-your-competitors-product",
-            "name": "What is the selling price of your competitor’s product?",
-            "minutes": 25,
-            "deps": [
-              "dth--draft-a-tag-line"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 28
-            }
-          },
-          {
-            "id": "dth--which-channel-of-distribution-are-you-going-to-use-give-reasons-for-selection",
-            "name": "Which channel of distribution are you going to use? Give reasons for selection?",
-            "minutes": 25,
-            "deps": [
-              "dth--what-is-the-selling-price-of-your-competitors-product"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 29
-            }
-          },
-          {
             "id": "dth--decisions-related-to-warehousing-state-reasons",
             "name": "Decisions related to warehousing, state reasons",
             "minutes": 20,
             "deps": [
-              "dth--which-channel-of-distribution-are-you-going-to-use-give-reasons-for-selection"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 29
-            }
-          },
-          {
-            "id": "dth--what-is-going-to-be-your-selling-price",
-            "name": "What is going to be your selling price?",
-            "minutes": 25,
-            "deps": [
-              "dth--decisions-related-to-warehousing-state-reasons"
+              "dth--draft-a-tag-line"
             ],
             "source": {
               "pdf": "business-studies",
@@ -9611,7 +9323,7 @@ export const CLASS_11: Subject[] = [
             "name": "List 5 ways of promoting your product",
             "minutes": 20,
             "deps": [
-              "dth--what-is-going-to-be-your-selling-price"
+              "dth--decisions-related-to-warehousing-state-reasons"
             ],
             "source": {
               "pdf": "business-studies",
@@ -9631,35 +9343,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "dth--what-is-going-to-be-your-u-s-p",
-            "name": "What is going to be your ‘U.S.P?",
-            "minutes": 20,
-            "deps": [
-              "dth--any-schemes-for"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 29
-            }
-          },
-          {
-            "id": "dth--what-means-of-transport-you-will-use-and-why",
-            "name": "What means of transport you will use and why?",
-            "minutes": 25,
-            "deps": [
-              "dth--what-is-going-to-be-your-u-s-p"
-            ],
-            "source": {
-              "pdf": "business-studies",
-              "page": 29
-            }
-          },
-          {
             "id": "dth--draft-a-social-message-for-your-label",
             "name": "Draft a social message for your label",
             "minutes": 20,
             "deps": [
-              "dth--what-means-of-transport-you-will-use-and-why"
+              "dth--any-schemes-for"
             ],
             "source": {
               "pdf": "business-studies",
@@ -10869,23 +10557,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "unit-1--size",
-            "name": "Size",
-            "minutes": 10,
-            "deps": [
-              "unit-1--chapter-1-india-location"
-            ],
-            "source": {
-              "pdf": "geography",
-              "page": 6
-            }
-          },
-          {
             "id": "unit-1--latitudinal-and-longitudinal-extent",
             "name": "Latitudinal and Longitudinal extent",
             "minutes": 15,
             "deps": [
-              "unit-1--size"
+              "unit-1--chapter-1-india-location"
             ],
             "source": {
               "pdf": "geography",
@@ -11613,23 +11289,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "prescribed--human",
-            "name": "human",
-            "minutes": 10,
-            "deps": [
-              "prescribed--the-world"
-            ],
-            "source": {
-              "pdf": "geography",
-              "page": null
-            }
-          },
-          {
             "id": "prescribed--primary-activities-areas-of-subsistence-gathering",
             "name": "Primary Activities Areas of subsistence gathering",
             "minutes": 20,
             "deps": [
-              "prescribed--human"
+              "prescribed--the-world"
             ],
             "source": {
               "pdf": "geography",
@@ -11827,147 +11491,15 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "syllabus--election-and-representation-a-elections-and-democracy-b-election-system-in-india",
-            "name": "Election and Representation a) Elections and democracy b) Election system in India",
-            "minutes": 25,
+            "id": "syllabus--contents-of-amendments-made-so-far",
+            "name": "Contents of amendments made so far",
+            "minutes": 20,
             "deps": [
               "syllabus--politics-in-india-since-independence"
             ],
             "source": {
               "pdf": "political-science",
-              "page": 5
-            }
-          },
-          {
-            "id": "syllabus--executive-a-what-is-an-executive-b-what-are-the-different-types-of-executives-c-",
-            "name": "Executive a) What is an executive? b) What are the different types of executives? c) Parliamentary executive in India",
-            "minutes": 25,
-            "deps": [
-              "syllabus--election-and-representation-a-elections-and-democracy-b-election-system-in-india"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 5
-            }
-          },
-          {
-            "id": "syllabus--legislature-a-why-do-we-need-a-parliament-b-why-do-we-need-two-houses-of-parliam",
-            "name": "Legislature a) Why do we need a parliament? b) Why do we need two houses of parliament?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--executive-a-what-is-an-executive-b-what-are-the-different-types-of-executives-c-"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 5
-            }
-          },
-          {
-            "id": "syllabus--judiciary-a-why-do-we-need-an-independent-judiciary",
-            "name": "Judiciary a) Why do we need an independent judiciary?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--legislature-a-why-do-we-need-a-parliament-b-why-do-we-need-two-houses-of-parliam"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 5
-            }
-          },
-          {
-            "id": "syllabus--federalism-a-what-is-federalism-b-federalism-in-the-indian-constitution",
-            "name": "Federalism a) What is Federalism? b) Federalism in the Indian Constitution",
-            "minutes": 25,
-            "deps": [
-              "syllabus--judiciary-a-why-do-we-need-an-independent-judiciary"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 6
-            }
-          },
-          {
-            "id": "syllabus--local-governments-a-whylocal-governments-b-growth-of-local-government-in-india",
-            "name": "Local Governments a) Whylocal governments? b) Growth of Local Government in India",
-            "minutes": 25,
-            "deps": [
-              "syllabus--federalism-a-what-is-federalism-b-federalism-in-the-indian-constitution"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 6
-            }
-          },
-          {
-            "id": "syllabus--contents-of-amendments-made-so-far",
-            "name": "Contents of amendments made so far",
-            "minutes": 20,
-            "deps": [
-              "syllabus--local-governments-a-whylocal-governments-b-growth-of-local-government-in-india"
-            ],
-            "source": {
-              "pdf": "political-science",
               "page": 7
-            }
-          },
-          {
-            "id": "syllabus--the-philosophy-of-the-constitution-a-what-is-meant-by-philosophy-of-the-constitu",
-            "name": "The Philosophy of the Constitution a) What is meant by philosophy of the constitution?",
-            "minutes": 25,
-            "deps": [
-              "syllabus--contents-of-amendments-made-so-far"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 7
-            }
-          },
-          {
-            "id": "syllabus--equality-a-why-does-equality-matter",
-            "name": "Equality a) Why does equality matter?",
-            "minutes": 20,
-            "deps": [
-              "syllabus--the-philosophy-of-the-constitution-a-what-is-meant-by-philosophy-of-the-constitu"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 8
-            }
-          },
-          {
-            "id": "syllabus--social-justice-a-what-is-justice",
-            "name": "Social Justice a) What is Justice?",
-            "minutes": 20,
-            "deps": [
-              "syllabus--equality-a-why-does-equality-matter"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 8
-            }
-          },
-          {
-            "id": "syllabus--nationalism-a-introducing-nationalism-b-nations-and-nationalism",
-            "name": "Nationalism a) Introducing Nationalism b) Nations and Nationalism",
-            "minutes": 25,
-            "deps": [
-              "syllabus--social-justice-a-what-is-justice"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 9
-            }
-          },
-          {
-            "id": "syllabus--secularism-a-what-is-secularism-b-inter-religious-domination-c-intra-religious-d",
-            "name": "Secularism a) What is Secularism? b) Inter-religious Domination c) Intra-religious Domination d) Secular State",
-            "minutes": 25,
-            "deps": [
-              "syllabus--nationalism-a-introducing-nationalism-b-nations-and-nationalism"
-            ],
-            "source": {
-              "pdf": "political-science",
-              "page": 9
             }
           },
           {
@@ -11975,7 +11507,7 @@ export const CLASS_11: Subject[] = [
             "name": "Indian Constitution at Work, Class XI, Published by NCERT",
             "minutes": 25,
             "deps": [
-              "syllabus--secularism-a-what-is-secularism-b-inter-religious-domination-c-intra-religious-d"
+              "syllabus--contents-of-amendments-made-so-far"
             ],
             "source": {
               "pdf": "political-science",
@@ -13249,23 +12781,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "syllabus--historical-context-b-indian-constitutional-framework-on-human-rights-and-related",
-            "name": "Historical Context b) Indian Constitutional framework on Human Rights and related Laws in India",
-            "minutes": 25,
-            "deps": [
-              "syllabus--law-is-too-vast-and-complicated-to-be-taught-in-a-non-professional-setting"
-            ],
-            "source": {
-              "pdf": "legal-studies",
-              "page": 10
-            }
-          },
-          {
             "id": "syllabus--the-preamble",
             "name": "The Preamble",
             "minutes": 10,
             "deps": [
-              "syllabus--historical-context-b-indian-constitutional-framework-on-human-rights-and-related"
+              "syllabus--law-is-too-vast-and-complicated-to-be-taught-in-a-non-professional-setting"
             ],
             "source": {
               "pdf": "legal-studies",
@@ -14101,23 +13621,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "lists--pop",
-            "name": "pop()",
-            "minutes": 10,
-            "deps": [
-              "lists--remove"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
-          },
-          {
             "id": "lists--reverse",
             "name": "reverse()",
             "minutes": 10,
             "deps": [
-              "lists--pop"
+              "lists--remove"
             ],
             "source": {
               "pdf": "informatics-practices",
@@ -14130,42 +13638,6 @@ export const CLASS_11: Subject[] = [
             "minutes": 10,
             "deps": [
               "lists--reverse"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
-          },
-          {
-            "id": "lists--min",
-            "name": "min()",
-            "minutes": 10,
-            "deps": [
-              "lists--sort"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
-          },
-          {
-            "id": "lists--max",
-            "name": "max()",
-            "minutes": 10,
-            "deps": [
-              "lists--min"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
-          },
-          {
-            "id": "lists--sum",
-            "name": "sum()",
-            "minutes": 10,
-            "deps": [
-              "lists--max"
             ],
             "source": {
               "pdf": "informatics-practices",
@@ -14237,23 +13709,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "dictionary--len",
-            "name": "len()",
-            "minutes": 10,
-            "deps": [
-              "dictionary--dictionary-methods-and-built-in-functions-dict"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
-          },
-          {
             "id": "dictionary--keys",
             "name": "keys()",
             "minutes": 10,
             "deps": [
-              "dictionary--len"
+              "dictionary--dictionary-methods-and-built-in-functions-dict"
             ],
             "source": {
               "pdf": "informatics-practices",
@@ -14297,23 +13757,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "dictionary--del",
-            "name": "del()",
-            "minutes": 10,
-            "deps": [
-              "dictionary--update"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
-          },
-          {
             "id": "dictionary--clear",
             "name": "clear()",
             "minutes": 10,
             "deps": [
-              "dictionary--del"
+              "dictionary--update"
             ],
             "source": {
               "pdf": "informatics-practices",
@@ -14393,23 +13841,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "relational-data-model--tuple",
-            "name": "tuple",
-            "minutes": 10,
-            "deps": [
-              "relational-data-model--concept-of-domain"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
-          },
-          {
             "id": "relational-data-model--relation",
             "name": "relation",
             "minutes": 10,
             "deps": [
-              "relational-data-model--tuple"
+              "relational-data-model--concept-of-domain"
             ],
             "source": {
               "pdf": "informatics-practices",
@@ -14527,30 +13963,6 @@ export const CLASS_11: Subject[] = [
               "pdf": "informatics-practices",
               "page": 2
             }
-          },
-          {
-            "id": "data-definition--drop",
-            "name": "DROP",
-            "minutes": 10,
-            "deps": [
-              "data-definition--create-table"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
-          },
-          {
-            "id": "data-definition--alter",
-            "name": "ALTER",
-            "minutes": 10,
-            "deps": [
-              "data-definition--drop"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
           }
         ]
       },
@@ -14569,23 +13981,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "data-query--from",
-            "name": "FROM",
-            "minutes": 10,
-            "deps": [
-              "data-query--select"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 2
-            }
-          },
-          {
             "id": "data-query--between",
             "name": "BETWEEN",
             "minutes": 10,
             "deps": [
-              "data-query--from"
+              "data-query--select"
             ],
             "source": {
               "pdf": "informatics-practices",
@@ -14915,18 +14315,6 @@ export const CLASS_11: Subject[] = [
             "name": "adding label",
             "minutes": 10,
             "deps": [],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 6
-            }
-          },
-          {
-            "id": "customizing-plots--title",
-            "name": "title",
-            "minutes": 10,
-            "deps": [
-              "customizing-plots--adding-label"
-            ],
             "source": {
               "pdf": "informatics-practices",
               "page": 6
@@ -15291,22 +14679,10 @@ export const CLASS_11: Subject[] = [
         "name": "Network Devices",
         "concepts": [
           {
-            "id": "network-devices--modem",
-            "name": "modem",
-            "minutes": 10,
-            "deps": [],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 6
-            }
-          },
-          {
             "id": "network-devices--switch",
             "name": "switch",
             "minutes": 10,
-            "deps": [
-              "network-devices--modem"
-            ],
+            "deps": [],
             "source": {
               "pdf": "informatics-practices",
               "page": 6
@@ -15355,70 +14731,10 @@ export const CLASS_11: Subject[] = [
         "name": "Network Topologies",
         "concepts": [
           {
-            "id": "network-topologies--star",
-            "name": "Star",
-            "minutes": 10,
-            "deps": [],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 6
-            }
-          },
-          {
-            "id": "network-topologies--tree",
-            "name": "Tree",
-            "minutes": 10,
-            "deps": [
-              "network-topologies--star"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 6
-            }
-          },
-          {
             "id": "network-topologies--mesh-introduction-to-internet",
             "name": "Mesh. Introduction to Internet",
             "minutes": 15,
-            "deps": [
-              "network-topologies--tree"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 6
-            }
-          },
-          {
-            "id": "network-topologies--email",
-            "name": "email",
-            "minutes": 10,
-            "deps": [
-              "network-topologies--mesh-introduction-to-internet"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 6
-            }
-          },
-          {
-            "id": "network-topologies--chat",
-            "name": "Chat",
-            "minutes": 10,
-            "deps": [
-              "network-topologies--email"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 6
-            }
-          },
-          {
-            "id": "network-topologies--voip",
-            "name": "VoIP",
-            "minutes": 10,
-            "deps": [
-              "network-topologies--chat"
-            ],
+            "deps": [],
             "source": {
               "pdf": "informatics-practices",
               "page": 6
@@ -15873,23 +15189,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "syllabus--given-a-series-print-all-the-elements-that-are-above-the-75th-percentile",
-            "name": "Given a Series, print all the elements that are above the 75th percentile",
-            "minutes": 25,
-            "deps": [
-              "syllabus--create-a-pandas-series-from-a-dictionary-of-values-and-a-ndarray"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 8
-            }
-          },
-          {
             "id": "syllabus--create-a-data-frame-for-examination-result-and-display-row-labels-column-labels-",
             "name": "Create a data frame for examination result and display row labels, column labels data types of each column and the dimensions",
             "minutes": 25,
             "deps": [
-              "syllabus--given-a-series-print-all-the-elements-that-are-above-the-75th-percentile"
+              "syllabus--create-a-pandas-series-from-a-dictionary-of-values-and-a-ndarray"
             ],
             "source": {
               "pdf": "informatics-practices",
@@ -15933,23 +15237,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "syllabus--given-the-school-result-data-analyses-the-performance-of-the-students-on-differe",
-            "name": "Given the school result data, analyses the performance of the students on different parameters, e.g subject wise or class wise",
-            "minutes": 25,
-            "deps": [
-              "syllabus--2-visualization"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 8
-            }
-          },
-          {
             "id": "syllabus--for-the-data-frames-created-above-analyze-and-plot-appropriate-charts-with-title",
             "name": "For the Data frames created above, analyze, and plot appropriate charts with title and legend",
             "minutes": 25,
             "deps": [
-              "syllabus--given-the-school-result-data-analyses-the-performance-of-the-students-on-differe"
+              "syllabus--2-visualization"
             ],
             "source": {
               "pdf": "informatics-practices",
@@ -16017,35 +15309,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "syllabus--find-the-min-max-sum-and-average-of-the-marks-in-a-student-marks-table",
-            "name": "Find the min, max, sum, and average of the marks in a student marks table",
-            "minutes": 25,
-            "deps": [
-              "syllabus--use-the-select-command-to-get-the-details-of-the-students-with-marks-more-than-8"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 8
-            }
-          },
-          {
-            "id": "syllabus--find-the-total-number-of-customers-from-each-country-in-the-table-customer-id-cu",
-            "name": "Find the total number of customers from each country in the table (customer ID, customer Name, country) using group by",
-            "minutes": 25,
-            "deps": [
-              "syllabus--find-the-min-max-sum-and-average-of-the-marks-in-a-student-marks-table"
-            ],
-            "source": {
-              "pdf": "informatics-practices",
-              "page": 8
-            }
-          },
-          {
             "id": "syllabus--write-a-sql-query-to-order-the-student-id-marks-table-in-descending-order-of-the",
             "name": "Write a SQL query to order the (student ID, marks) table in descending order of the marks",
             "minutes": 25,
             "deps": [
-              "syllabus--find-the-total-number-of-customers-from-each-country-in-the-table-customer-id-cu"
+              "syllabus--use-the-select-command-to-get-the-details-of-the-students-with-marks-more-than-8"
             ],
             "source": {
               "pdf": "informatics-practices",
@@ -16639,23 +15907,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "load--skill",
-            "name": "Skill",
-            "minutes": 10,
-            "deps": [
-              "load--adaptation"
-            ],
-            "source": {
-              "pdf": "physical-education",
-              "page": 11
-            }
-          },
-          {
             "id": "load--techniques",
             "name": "Techniques",
             "minutes": 10,
             "deps": [
-              "load--skill"
+              "load--adaptation"
             ],
             "source": {
               "pdf": "physical-education",
@@ -18119,34 +17375,10 @@ export const CLASS_11: Subject[] = [
         "name": "CHAPTER",
         "concepts": [
           {
-            "id": "chapter--understanding-the-self-a-what-makes-me-i",
-            "name": "UNDERSTANDING THE SELF A. What makes me ‘I’?",
-            "minutes": 25,
-            "deps": [],
-            "source": {
-              "pdf": "home-science",
-              "page": 5
-            }
-          },
-          {
-            "id": "chapter--food",
-            "name": "FOOD",
-            "minutes": 10,
-            "deps": [
-              "chapter--understanding-the-self-a-what-makes-me-i"
-            ],
-            "source": {
-              "pdf": "home-science",
-              "page": 6
-            }
-          },
-          {
             "id": "chapter--nutrition",
             "name": "NUTRITION",
             "minutes": 10,
-            "deps": [
-              "chapter--food"
-            ],
+            "deps": [],
             "source": {
               "pdf": "home-science",
               "page": 6
@@ -18349,47 +17581,11 @@ export const CLASS_11: Subject[] = [
             }
           },
           {
-            "id": "understanding-oneself-with-reference-to--list-and-discuss-4-5-areas-of-agreement-and-disagreement-with-a-mother-b-father-",
-            "name": "List and discuss 4-5 areas of agreement and disagreement with- a) Mother b) Father c) Siblings / Friends d) Teacher",
-            "minutes": 25,
-            "deps": [
-              "understanding-oneself-with-reference-to--observe-developmental-norms-physical-motor-language-social-and-emotional-birth-t"
-            ],
-            "source": {
-              "pdf": "home-science",
-              "page": 12
-            }
-          },
-          {
-            "id": "understanding-oneself-with-reference-to--a-record-own-diet-for-a-day-b-evaluate-qualitatively-for-adequacy",
-            "name": "a) Record own diet for a day. b) Evaluate qualitatively for adequacy",
-            "minutes": 25,
-            "deps": [
-              "understanding-oneself-with-reference-to--list-and-discuss-4-5-areas-of-agreement-and-disagreement-with-a-mother-b-father-"
-            ],
-            "source": {
-              "pdf": "home-science",
-              "page": 12
-            }
-          },
-          {
             "id": "understanding-oneself-with-reference-to--preparation-of-different-healthy-snacks-for-an-adolescent",
             "name": "Preparation of different healthy snacks for an adolescent",
             "minutes": 25,
             "deps": [
-              "understanding-oneself-with-reference-to--a-record-own-diet-for-a-day-b-evaluate-qualitatively-for-adequacy"
-            ],
-            "source": {
-              "pdf": "home-science",
-              "page": 12
-            }
-          },
-          {
-            "id": "understanding-oneself-with-reference-to--a-record-one-days-activities-relating-to-time-use-and-work-b-prepare-a-time-plan",
-            "name": "a) Record one day’s activities relating to time use and work. b) Prepare a time plan for yourself",
-            "minutes": 25,
-            "deps": [
-              "understanding-oneself-with-reference-to--preparation-of-different-healthy-snacks-for-an-adolescent"
+              "understanding-oneself-with-reference-to--observe-developmental-norms-physical-motor-language-social-and-emotional-birth-t"
             ],
             "source": {
               "pdf": "home-science",
@@ -18401,31 +17597,7 @@ export const CLASS_11: Subject[] = [
             "name": "Plan a budget for a given situation/purpose",
             "minutes": 20,
             "deps": [
-              "understanding-oneself-with-reference-to--a-record-one-days-activities-relating-to-time-use-and-work-b-prepare-a-time-plan"
-            ],
-            "source": {
-              "pdf": "home-science",
-              "page": 12
-            }
-          },
-          {
-            "id": "understanding-oneself-with-reference-to--a-record-the-fabrics-and-apparel-used-in-a-day-b-categorize-them-according-to-fu",
-            "name": "a) Record the fabrics and apparel used in a day. b) Categorize them according to functionality",
-            "minutes": 25,
-            "deps": [
-              "understanding-oneself-with-reference-to--plan-a-budget-for-a-given-situation-purpose"
-            ],
-            "source": {
-              "pdf": "home-science",
-              "page": 12
-            }
-          },
-          {
-            "id": "understanding-oneself-with-reference-to--relationship-of-fibre-properties-to-their-usage-a-thermal-property-and-flammabil",
-            "name": "Relationship of fibre properties to their usage: a) Thermal property and flammability b) Moisture absorbency and comfort",
-            "minutes": 25,
-            "deps": [
-              "understanding-oneself-with-reference-to--a-record-the-fabrics-and-apparel-used-in-a-day-b-categorize-them-according-to-fu"
+              "understanding-oneself-with-reference-to--preparation-of-different-healthy-snacks-for-an-adolescent"
             ],
             "source": {
               "pdf": "home-science",
@@ -18437,7 +17609,7 @@ export const CLASS_11: Subject[] = [
             "name": "Preparation of healthy snacks for an adolescent. 7",
             "minutes": 25,
             "deps": [
-              "understanding-oneself-with-reference-to--relationship-of-fibre-properties-to-their-usage-a-thermal-property-and-flammabil"
+              "understanding-oneself-with-reference-to--plan-a-budget-for-a-given-situation-purpose"
             ],
             "source": {
               "pdf": "home-science",

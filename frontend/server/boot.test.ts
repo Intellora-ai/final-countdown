@@ -30,7 +30,28 @@ const FRONTEND = fileURLToPath(new URL('..', import.meta.url))
 const BUNDLE = join(FRONTEND, 'dist-server', 'index.js')
 
 /** Start the built server, run `body`, always kill the child. */
-async function withServer(env, body) {
+/**
+ * Start the built server, wait until `until` appears in its output, run `body`.
+ *
+ * `until` is not decoration. The server prints THREE separate lines from its
+ * listen callback:
+ *
+ *     almanac server listening on http://...
+ *       ledger: ...
+ *     WARNING: bound to ..., not loopback
+ *
+ * Three `console.log` calls are three writes, which arrive as three separate
+ * `data` events on the pipe. A helper that always waited for `listening on`
+ * therefore returned while the later chunks were still in flight, and the
+ * WARNING assertion read output that had not arrived yet. It passed alone and
+ * failed inside the full suite, where the machine is busy -- 0 failures in 5
+ * isolated runs, and a failure in the full run.
+ *
+ * The fix is to wait for the thing the test actually needs rather than for a
+ * proxy that usually precedes it. A test that waits for the wrong event does
+ * not become correct by waiting longer.
+ */
+async function withServer(env, body, until = 'listening on') {
   const port = 8900 + Math.floor(Math.random() * 90)
   const child = spawn(process.execPath, [BUNDLE], {
     cwd: FRONTEND,
@@ -45,7 +66,7 @@ async function withServer(env, body) {
   try {
     const deadline = Date.now() + 10_000
     while (Date.now() < deadline) {
-      if (output.includes('listening on')) break
+      if (output.includes(until)) break
       if (child.exitCode !== null) break
       await new Promise((r) => setTimeout(r, 50))
     }
@@ -99,8 +120,18 @@ describe('the built server', () => {
 
   it('warns when bound somewhere other than loopback', async () => {
     /* A process holding an API key should say so out loud if it is exposed. */
-    await withServer({ ANTHROPIC_API_KEY: 'sk-ant-boot-test', HOST: '0.0.0.0' }, async (s) => {
-      expect(s.output()).toContain('WARNING')
-    })
+    await withServer(
+      { ANTHROPIC_API_KEY: 'sk-ant-boot-test', HOST: '0.0.0.0' },
+      async (s) => {
+        /* Evidence first: a process that died on boot also prints no WARNING,
+         * and waiting for WARNING would then just time out. Require it to have
+         * genuinely started before reading anything into the warning's
+         * presence. */
+        expect(s.output()).toContain('listening on')
+        expect(s.output()).toContain('WARNING')
+        expect(s.output()).toContain('0.0.0.0')
+      },
+      'WARNING',
+    )
   })
 })

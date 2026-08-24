@@ -99,6 +99,24 @@ concurrency:
 permissions:
   contents: read
   pull-requests: write
+  # REQUIRED BY claude-code-action, AND ITS ABSENCE IS SILENT UNTIL THE TOKEN
+  # EXISTS. The action authenticates by exchanging a GitHub OIDC token, and
+  # without this scope the runner never sets ACTIONS_ID_TOKEN_REQUEST_URL, so
+  # the exchange cannot even be attempted:
+  #
+  #   Failed to get OIDC token: Unable to get ACTIONS_ID_TOKEN_REQUEST_URL
+  #   Attempt 3 failed: Could not fetch an OIDC token.
+  #   Action failed with error: ... Did you remember to add `id-token: write`?
+  #
+  # Measured on run 32711168060, the first run after the review secret was
+  # created. Before that the job short-circuited on the missing secret and never
+  # reached this code, so the gap was invisible for the whole life of the file.
+  # A workflow can be wrong in a way only the happy path reveals.
+  #
+  # This grants the job the ability to REQUEST an identity token. It does not
+  # grant repository write: `contents: read` still holds, and the deny list on
+  # the action still refuses edits to the gate files.
+  id-token: write
 
 jobs:
   ai-review:

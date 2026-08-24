@@ -209,9 +209,9 @@ def test_findings_upload_deleted_entirely_is_caught(sandbox: Path) -> None:
     """
     edit_workflow(
         sandbox,
-        "          name: learning-canvas-frontend-findings-scenes\n"
+        "          name: learning-canvas-frontend-findings-scenes-${{ matrix.shard }}\n"
         "          path: frontend/ci-findings.json\n",
-        "          name: learning-canvas-frontend-findings-scenes\n"
+        "          name: learning-canvas-frontend-findings-scenes-${{ matrix.shard }}\n"
         "          path: frontend/nothing-here.json\n",
         why="findings upload no longer has the expected path",
     )

@@ -425,12 +425,35 @@ jobs:
     # because parallel workers poison every p95 they touch. At workers=1 the
     # unit-starvation argument above disappears and one-project-per-runner
     # becomes the faster shape again.
-    name: scenes
+    name: scenes ${{ matrix.shard }}/2
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
       run:
         working-directory: frontend
+    strategy:
+      fail-fast: false
+      matrix:
+        # TWO MACHINES, NOT FIVE, AND NOT ONE. MEASURED BOTH TIMES.
+        #
+        # Five (one project per runner) starved Playwright: with
+        # `fullyParallel: false` a parallel unit is one file within one project,
+        # and two specs per project meant every shard capped at 2 of the 4
+        # workers it was configured for.
+        #
+        # One runner fixed the workers and became the critical path instead.
+        # Measured on run 32696164041: `Running 290 tests using 4 workers`,
+        # `290 passed (3.8m)` -- 230s of work in a 257s job, and the whole CI
+        # wall clock was 262s. The config's header quotes 77-115s for workers=4;
+        # that was measured before the suite reached 290 tests, and trusting it
+        # instead of the runner is what produced the five-way split.
+        #
+        # `workers: 4` caps the process and the runner has 4 vCPU, so more
+        # workers cannot help. Only more MACHINES can. `--shard` splits the
+        # tests across them while every shard still runs all five projects, so
+        # gate_integrity check (f) reads five literal `--project=` flags here
+        # exactly as before.
+        shard: [1, 2]
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
@@ -455,6 +478,12 @@ jobs:
       # (f) reads literal `--project=` flags, so this list IS the coverage
       # claim, and a project silently dropped from it fails preflight.
       - name: Scene regression guards
+        # SHARD THROUGH env, NOT INTERPOLATED INTO THE RUN BODY. The value is
+        # workflow-defined and harmless, but this repository's convention is
+        # that no `${{ }}` reaches a shell line, so no reviewer has to decide
+        # which interpolations are the dangerous kind.
+        env:
+          SHARD: ${{ matrix.shard }}
         run: >-
           npx playwright test -c playwright.config.ts
           e2e/scene-regressions.spec.ts e2e/composed-renderer.spec.ts
@@ -463,6 +492,7 @@ jobs:
           --project=mobile-375
           --project=reduced-motion
           --project=keyboard
+          --shard="$SHARD/2"
           --fail-on-flaky-tests
 
       # ONE DOWNLOAD INSTEAD OF A LOG CRAWL.
@@ -483,7 +513,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: learning-canvas-frontend-findings-scenes
+          name: learning-canvas-frontend-findings-scenes-${{ matrix.shard }}
           path: frontend/ci-findings.json
           if-no-files-found: error
 

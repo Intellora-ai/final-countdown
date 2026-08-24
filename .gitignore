@@ -15,10 +15,20 @@ coverage.xml
 htmlcov/
 .mutmut-cache
 .hypothesis/
-.venv/
+# Bare, NOT `node_modules/` --- a trailing slash matches directories only, and
+# the standard way to make one of this repo's ~40 worktrees usable is to symlink
+# frontend/node_modules at the main checkout's 436MB copy. A symlink is not a
+# directory, so the slashed form left it untracked-but-visible and one
+# `git add -A` away from committing an absolute path into one machine's disk.
+# Same for .venv, which was already being papered over by a bare entry in
+# .git/info/exclude --- per-clone, never committed, so a fresh clone or a CI
+# checkout gets the bug back. A fix that does not travel is memory, not
+# mechanism. The bare form matches files, directories and symlinks at any
+# depth, and a tracked file named node_modules is never correct either.
+.venv
 venv/
 reports/
-node_modules/
+node_modules
 playwright-report/
 test-results/
 

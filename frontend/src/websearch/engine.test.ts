@@ -84,6 +84,62 @@ describe('search composes the engine with retrieval', () => {
     expect(out.engineError).toContain('provider exploded')
   })
 
+  it.each([
+    ['transport failure', () => Promise.reject(new Error('ECONNREFUSED'))],
+    ['engine 500', () => Promise.reject(new Error('HTTP 500'))],
+    ['response shape changed', () => Promise.resolve({ unexpected: true })],
+  ])('reports engineFailed for a %s, not an empty answer', async (_name, fetchJson) => {
+    /* THE LIE IN A STATUS FIELD.
+     *
+     * `jsonProvider.search` caught every failure internally and returned [],
+     * so it never threw, so `search()`'s own catch never fired. A dead engine
+     * produced `{ results: [], engineFailed: false }` — byte-identical to a
+     * question that genuinely has no answers.
+     *
+     * Those two mean opposite things. One is an answer about the world; the
+     * other is an outage. `engineFailed` exists ONLY to tell them apart, and
+     * it was reporting the wrong one for every real failure mode a live
+     * engine has.
+     *
+     * Generated over the failure modes rather than asserted once, because a
+     * transport that refuses, an engine that 500s, and a response whose shape
+     * drifted all reach this through different paths and all previously
+     * reported success. */
+    const provider = jsonProvider({
+      name: 'e',
+      endpoint: 'https://api.example/s?q={query}',
+      map: (body) => {
+        const items = (body as { items?: { url: string }[] }).items
+        if (!items) throw new Error('unexpected shape')
+        return items.map((i) => ({ url: i.url, title: '', snippet: '' }))
+      },
+      fetchJson: fetchJson as () => Promise<unknown>,
+    })
+
+    const out = await search('q', { provider })
+
+    expect(out.results).toEqual([])
+    expect(out.engineFailed).toBe(true)
+    expect(out.engineError).toBeTruthy()
+  })
+
+  it('an engine that genuinely finds nothing is NOT reported as failed', async () => {
+    /* The other half of the distinction. If everything empty became
+       "engineFailed", the field would be just as useless in the opposite
+       direction. */
+    const provider = jsonProvider({
+      name: 'e',
+      endpoint: 'https://api.example/s?q={query}',
+      map: () => [],
+      fetchJson: async () => ({ items: [] }),
+    })
+
+    const out = await search('q', { provider })
+    expect(out.results).toEqual([])
+    expect(out.engineFailed).toBe(false)
+    expect(out.engineError).toBeUndefined()
+  })
+
   it('caps how many hits it will fetch', async () => {
     const hits = Array.from({ length: 20 }, (_, i) => hit(`https://s${i}.gov.in/`))
     let fetched = 0
@@ -226,8 +282,13 @@ describe('the JSON provider, which is the shape a real engine plugs into', () =>
     expect(hits[0].url).toBe('https://ok.gov.in/1')
   })
 
-  it('returns nothing when the mapper throws on an unexpected shape', async () => {
-    /* An engine changing its response format is an outage, not a crash. */
+  it('propagates a mapper failure so the caller can tell it apart from emptiness', async () => {
+    /* This test used to assert `resolves.toEqual([])` and was the buggy
+       behaviour written down as a requirement. An engine changing its
+       response format IS an outage — and reporting it as "no results" is
+       precisely how an outage became indistinguishable from an answer. The
+       failure still does not crash the caller: `search()` catches it and
+       reports `engineFailed`. */
     const provider = jsonProvider({
       name: 'e',
       endpoint: 'https://api.example/s?q={query}',
@@ -237,7 +298,7 @@ describe('the JSON provider, which is the shape a real engine plugs into', () =>
       fetchJson: async () => ({}),
     })
 
-    await expect(provider.search('q')).resolves.toEqual([])
+    await expect(provider.search('q')).rejects.toThrow(/unexpected shape/)
   })
 
   it('keeps the api key out of anything it returns', async () => {
@@ -285,7 +346,10 @@ describe('the JSON provider, which is the shape a real engine plugs into', () =>
       })
 
       const started = Date.now()
-      await expect(provider.search('q')).resolves.toEqual([])
+      /* Still bounded — that is what this test is for. It now REJECTS rather
+         than resolving to [], because a timeout is a failure and reporting it
+         as an empty answer is the lie this module just stopped telling. */
+      await expect(provider.search('q')).rejects.toThrow()
       expect(Date.now() - started).toBeLessThan(2000)
     } finally {
       globalThis.fetch = original
@@ -315,7 +379,7 @@ describe('the JSON provider, which is the shape a real engine plugs into', () =>
     ).not.toThrow()
   })
 
-  it('never throws when the transport fails', async () => {
+  it('surfaces a transport failure instead of hiding it as no results', async () => {
     const provider = jsonProvider({
       name: 'e',
       endpoint: 'https://api.example/s?q={query}',
@@ -324,6 +388,10 @@ describe('the JSON provider, which is the shape a real engine plugs into', () =>
         throw new Error('ECONNREFUSED')
       },
     })
-    await expect(provider.search('q')).resolves.toEqual([])
+    /* Renamed from "never throws". The old name described a guarantee nobody
+       needed and nothing upstream wanted: `search()` already converts this
+       into `engineFailed` with the reason attached, so swallowing it here
+       only removed information. */
+    await expect(provider.search('q')).rejects.toThrow(/ECONNREFUSED/)
   })
 })

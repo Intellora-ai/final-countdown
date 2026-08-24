@@ -131,6 +131,82 @@ process.on('uncaughtException', (e) => {
 
 /** Each mutant re-creates a defect that could ship, or inverts a stated rule. */
 const MUTANTS = [
+  /* PER-SOURCE ISOLATION. `gather.ts` states "FAILURE IS PER SOURCE, NEVER PER
+   * SEARCH" in its own header, and nothing enforced it: the worker loop had no
+   * try/catch, so one throwing dependency rejected through `Promise.all` and
+   * lost every other source. Latent only because the shipped fetcher and cache
+   * never throw — a dependency on a fact nobody promised, in a file that
+   * explicitly anticipates a network-backed cache. */
+  {
+    id: 'cache-read-failure-sinks-the-batch',
+    file: 'src/websearch/gather.ts',
+    /* Anchored to the whole recovery BLOCK, not to the bare `cached = undefined`
+       inside it. That assignment is generic text whose uniqueness rested on its
+       indentation, and a stale-anchor refusal there would read as a formatting
+       problem rather than as "the cache recovery moved". `} catch {` paired with
+       the assignment is unique in this file — the fetch recovery below catches
+       `(err)` — and it names the construct the mutant is actually about. */
+    from: '      } catch {\n        cached = undefined\n      }',
+    to: '      } catch (e) {\n        throw e\n      }',
+    breaks: 'a cache whose connection has dropped takes down every search instead of degrading to no-cache; the pages were reachable the whole time',
+  },
+  {
+    id: 'fetch-failure-loses-its-reason',
+    file: 'src/websearch/gather.ts',
+    from: "          detail: err instanceof Error ? err.message : String(err),",
+    to: "          detail: '',",
+    breaks: 'a source that threw is reported as failed with no reason, so nothing upstream can tell a dead host from a host that returned nothing',
+  },
+  {
+    id: 'engine-outage-reported-as-no-answers',
+    file: 'src/websearch/engine.ts',
+    from: '      const body = await fetchJson(url)\n      return config.map(body).filter(usable)',
+    to: '      try { const body = await fetchJson(url); return config.map(body).filter(usable) } catch { return [] }',
+    breaks: 'a dead search engine reports engineFailed:false with zero results, which is byte-identical to a question that genuinely has no answers — an outage presented as a fact about the world',
+  },
+  /* SEARCH RETRIEVAL. `src/websearch` had ZERO mutants while carrying the SSRF
+   * guard, the injection quarantine and the size cap — and the gate reported
+   * PASS on every PR that shipped it, because it was mutating a different
+   * directory. Every real defect in that module was found by something its
+   * author did not write: CodeQL caught a sanitiser bypass, a loopback stub
+   * caught an unbounded body read at 5011ms against a 250ms budget, and
+   * generated encodings caught 42 SSRF bypasses where five had been guessed.
+   * These entries convert that observation into enforcement. */
+  {
+    id: 'ssrf-guard-string-matching',
+    file: 'src/websearch/fetchPage.ts',
+    from: '  const host = withoutRootLabel(hostname).toLowerCase()',
+    to: '  const host = hostname.trim().toLowerCase()',
+    breaks: 'http://localhost./ and http://printer.local./ reach the fetcher, because every internal-name pattern is anchored and the trailing root label survives into URL.hostname',
+  },
+  {
+    id: 'ssrf-mapped-ipv6-unwrap-removed',
+    file: 'src/websearch/fetchPage.ts',
+    from: '    const wrapped = unwrapV4(groups)',
+    to: '    const wrapped = null as number | null',
+    breaks: 'http://[::ffff:169.254.169.254]/ reaches cloud instance metadata: URL serialises it to [::ffff:a9fe:a9fe], so no dotted-quad pattern matches and credentials are one redirect away',
+  },
+  {
+    id: 'ssrf-cgnat-range-dropped',
+    file: 'src/websearch/fetchPage.ts',
+    from: '  [0x64400000, 10],',
+    to: '  [0x64400001, 32],',
+    breaks: '100.64.0.0/10 becomes reachable, so a fetched page can pivot into carrier-internal address space that is not the public internet',
+  },
+  {
+    id: 'injection-fence-fixed-not-chosen',
+    file: 'src/websearch/guard.ts',
+    from: '    if (!content.includes(candidate)) return candidate',
+    to: '    if (true) return candidate',
+    breaks: 'a page that ships the fence delimiter closes its own quarantine block early and the rest of its text is read as though the system said it',
+  },
+  {
+    id: 'size-cap-after-the-fact',
+    file: 'src/websearch/fetchPage.ts',
+    from: '    if (total + value.length > maxBytes) {',
+    to: '    if (false) {',
+    breaks: 'the size cap stops bounding anything: an adversarial host streams until memory gives out, because the limit is only consulted after the bytes have arrived',
+  },
   /* THE HONESTY LAYER. `shapeInvariants.ts` is the only thing standing between
    * a dishonest dataset and a picture that looks fine. Every mutant here is a
    * way for a representation to stop being able to refuse. */
@@ -612,7 +688,7 @@ const MUTANTS = [
   {
     id: 'agent-failed-verification-is-reported-but-never-fixed',
     file: 'src/agent/kernel/loop.ts',
-    from: '  const repairable = action.action !== \'ask\' && degraded === undefined',
+    from: '  const repairable = answering && degraded === undefined',
     to: '  const repairable = false',
     breaks: 'the system knows the answer misses a stated constraint and ships it unchanged, with the evidence attached where nobody reads it — verification becomes a report rather than a correction',
   },
@@ -645,11 +721,63 @@ const MUTANTS = [
     breaks: 'the exact shape of the original defect: arithmetic passes every unit test and cannot work for a real caller, because the only registry the product builds does not contain a calculator',
   },
   {
+    /* ANCHOR RE-POINTED, NOT RETIRED. `suspend()` changed from serialising the
+     * task alone to writing the whole session, which moved this line. The
+     * mutant is the same defect at the new address; deleting it because its
+     * anchor drifted would have quietly dropped coverage of a bug that has
+     * already happened once. */
     id: 'agent-suspended-task-resumes-stuck-mid-step',
     file: 'src/agent/index.ts',
-    from: '      const stopped = pause(session.task, session.working, now())',
-    to: '      const stopped = session.task',
+    from: '        session = { ...session, task: pause(session.task, session.working, now()) }',
+    to: '        session = { ...session, task: session.task }',
     breaks: 'an `active` task is serialised, so tomorrow it restores believing a step is still running — `nextStep` skips it, nothing is pending, and the task reports itself stuck the moment someone comes back to it',
+  },
+
+  /* THE TEACHING LEDGER. Four mutants, and the bar for each was: does this
+   * reproduce a defect that ACTUALLY OCCURRED, rather than one that could?
+   * All four are measured failures from this repository, not hypotheses. */
+  {
+    /* THE ONLY ONE OF TWENTY-THREE THAT SURVIVED. Twenty-three mutants were
+     * applied to the ledger before it shipped; twenty-two died. This one
+     * lived, and the gap was real: the corrupt-blob test used `version`, which
+     * is the LEDGER's field name, so that case was being refused for having no
+     * `conversation` rather than for its version. One version gate was tested
+     * twice and the other not at all. A mutant that has caught something is
+     * evidence; the other twenty-two are hypotheses. */
+    id: 'agent-session-envelope-version-ignored',
+    file: 'src/agent/session/persist.ts',
+    from: '  if (raw.v !== SESSION_VERSION) {',
+    to: '  if (false) {',
+    breaks: 'a session written by a different build is read as if its shape had not changed, so a field added since is silently absent and the lesson resumes from a position half of which was never in the file',
+  },
+  {
+    /* OCCURRED. `established` accepted `advanced` as evidence of exposure, so
+     * opening a session on `quad` reported the student as exposed to
+     * quadratics before a single thing had been taught. */
+    id: 'agent-intent-to-teach-counts-as-having-taught',
+    file: 'src/agent/session/ledger.ts',
+    from: "  const seen = l.log.some((e) => e.conceptId === conceptId && e.kind === 'shown')",
+    to: "  const seen = l.log.some((e) => e.conceptId === conceptId && (e.kind === 'shown' || e.kind === 'advanced'))",
+    breaks: 'the teacher moving the lesson to a concept counts as the student having seen it, so a curriculum skips material that was never presented and the log agrees it was',
+  },
+  {
+    /* OCCURRED, measured: the identical `Turn` applied twice took `turnIndex`
+     * from 1 to 2 and appended the goal twice. */
+    id: 'agent-retry-counted-as-a-second-turn',
+    file: 'src/agent/session/wire.ts',
+    from: '  const claimed = beginTurn(l, id)\n  if (claimed.alreadySeen) return l',
+    to: '  const claimed = beginTurn(l, id)',
+    breaks: 'a network retry appends to the evidence log a second time, so a student who asked once is recorded as having asked twice and the learner model drifts toward over-confidence with nothing to notice',
+  },
+  {
+    /* OCCURRED, measured on a conversation already about quadratics:
+     * "continue" produced entities [quadratics, continue] and topicShift=true.
+     * The word whose entire meaning is "do not change the subject". */
+    id: 'agent-continue-reads-as-a-new-subject',
+    file: 'src/agent/understand/understand.ts',
+    from: "  'continue', 'continues', 'continuing', 'carry', 'keep', 'keeps', 'going',",
+    to: "  'continues', 'continuing', 'carry', 'keep', 'keeps', 'going',",
+    breaks: 'asking to carry on is read as changing the subject, so the lesson pushes a detour that never happened and the position the student wanted resumed is buried one frame deeper each time they say it',
   },
 ]
 

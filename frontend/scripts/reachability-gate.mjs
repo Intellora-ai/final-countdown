@@ -245,7 +245,23 @@ export function blankStrings(src) {
 /* An import or re-export with a module specifier. The clause is bounded by
    `[^;]` so a multi-line `import {\n a,\n b,\n}` is matched while a runaway
    match across unrelated statements is not. */
-const FROM_RE = /(?:^|\n)[ \t]*(?:import|export)\s+([^;]*?)\s*from\s*['"]([^'"]+)['"]/g
+/* THE CLAUSE MAY NOT CROSS A STATEMENT BOUNDARY, and the old `[^;]*?` did.
+ *
+ * This codebase does not use semicolons, so "everything up to the next `;`"
+ * had nothing to stop it. A single match ran from an `export type { ... }` near
+ * the top of `index.ts` all the way to an `export { httpModel } from ...` three
+ * hundred lines below, captured the whole span as the specifier list, and --- 
+ * because the FIRST statement it swallowed was type-only --- tagged the edge
+ * `typeOnly: true`. The gate then dropped it and reported `ports/httpModel` as
+ * an orphan while `index.ts` was importing it in plain sight.
+ *
+ * The regex was correct only under a style convention this repository does not
+ * follow. Its uniqueness was accidental, which is the same defect shape as a
+ * mutation anchor that happens to be unique because of its indentation.
+ *
+ * So the clause now refuses to swallow a newline that begins another
+ * `import`/`export`, which is exactly the boundary it must not cross. */
+const FROM_RE = /(?:^|\n)[ \t]*(?:import|export)\s+((?:[^;\n]|\n(?![ \t]*(?:import|export)\b))*?)\s*from\s*['"]([^'"]+)['"]/g
 const BARE_RE = /(?:^|\n)[ \t]*import\s*['"]([^'"]+)['"]/g
 const DYNAMIC_RE = /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g
 

@@ -131,6 +131,33 @@ process.on('uncaughtException', (e) => {
 
 /** Each mutant re-creates a defect that could ship, or inverts a stated rule. */
 const MUTANTS = [
+  /* PER-SOURCE ISOLATION. `gather.ts` states "FAILURE IS PER SOURCE, NEVER PER
+   * SEARCH" in its own header, and nothing enforced it: the worker loop had no
+   * try/catch, so one throwing dependency rejected through `Promise.all` and
+   * lost every other source. Latent only because the shipped fetcher and cache
+   * never throw — a dependency on a fact nobody promised, in a file that
+   * explicitly anticipates a network-backed cache. */
+  {
+    id: 'cache-read-failure-sinks-the-batch',
+    file: 'src/websearch/gather.ts',
+    from: '        cached = undefined',
+    to: '        throw new Error("cache read failed")',
+    breaks: 'a cache whose connection has dropped takes down every search instead of degrading to no-cache; the pages were reachable the whole time',
+  },
+  {
+    id: 'fetch-failure-loses-its-reason',
+    file: 'src/websearch/gather.ts',
+    from: "          detail: err instanceof Error ? err.message : String(err),",
+    to: "          detail: '',",
+    breaks: 'a source that threw is reported as failed with no reason, so nothing upstream can tell a dead host from a host that returned nothing',
+  },
+  {
+    id: 'engine-outage-reported-as-no-answers',
+    file: 'src/websearch/engine.ts',
+    from: '      const body = await fetchJson(url)\n      return config.map(body).filter(usable)',
+    to: '      try { const body = await fetchJson(url); return config.map(body).filter(usable) } catch { return [] }',
+    breaks: 'a dead search engine reports engineFailed:false with zero results, which is byte-identical to a question that genuinely has no answers — an outage presented as a fact about the world',
+  },
   /* SEARCH RETRIEVAL. `src/websearch` had ZERO mutants while carrying the SSRF
    * guard, the injection quarantine and the size cap — and the gate reported
    * PASS on every PR that shipped it, because it was mutating a different

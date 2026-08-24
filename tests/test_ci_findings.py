@@ -30,7 +30,7 @@ import pytest
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
 
-from ci_findings import (
+from ci_findings import (  # noqa: E402 - the sys.path insert above must run first
     Finding,
     Problem,
     parse_log,
@@ -105,7 +105,7 @@ def test_to_jsonl_is_one_object_per_line_and_parses() -> None:
     import json
 
     text = to_jsonl(parse_log(LOG))
-    lines = [l for l in text.splitlines() if l.strip()]
+    lines = [ln for ln in text.splitlines() if ln.strip()]
     assert len(lines) == len(parse_log(LOG))
     for line in lines:
         json.loads(line)  # raises if this is not machine-readable

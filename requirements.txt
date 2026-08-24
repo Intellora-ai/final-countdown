@@ -38,3 +38,10 @@ bandit[sarif]>=1.8
 # it is a required status-check context in the live ruleset, and renaming
 # it would make that context permanently pending.
 PyYAML>=6.0
+
+# Ruff, for the ROOT project. learning-os has run it since it was created;
+# this half of the repository never did, so `scripts/` and `tests/` were the
+# only Python here with no linter at all. Same version as
+# learning-os/requirements-learning-os.lock deliberately -- two ruff versions
+# in one repository is two rule sets wearing one name.
+ruff>=0.16,<1

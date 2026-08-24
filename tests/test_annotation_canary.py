@@ -52,7 +52,7 @@ from typing import Any
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
 
-from annotation_canary import (
+from annotation_canary import (  # noqa: E402 - the sys.path insert above must run first
     BAD_PATH,
     GOOD_PATH,
     Verdict,

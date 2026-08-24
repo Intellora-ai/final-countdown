@@ -434,8 +434,33 @@ jobs:
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
-      - name: Types
-        run: python3 scripts/run_gate.py --name pyright -- pyright
+      # TWO CHECKS, ONE CONTEXT --- the shape `preflight` (six tools) and
+      # `bandit` (five) already use here. A separate `ruff` job was built first
+      # and withdrawn: `full` must wait for every job in this workflow
+      # (tests/test_blocker_report.py:414), but aggregate_gates.py derives its
+      # EXPECTED set from MANDATORY gates only, so a non-mandatory job's report
+      # lands in `unexpected` and blocks the finalizer. Making it mandatory
+      # instead needs `ruff` added to live ruleset 20990225, which is the
+      # repository owner's change to make.
+      #
+      # Folding it in here is not a workaround, it is the stronger outcome:
+      # ruff BLOCKS from the first run rather than sitting advisory until
+      # somebody remembers to promote it.
+      #
+      # The `echo`s are load-bearing. run_gate.py reads `== gate N/M ==` from
+      # stderr to attribute a failure to the check that produced it and to
+      # record the later ones as never having run --- "could not check" is not
+      # "checked and fine". Same construction as the bandit gate.
+      - name: Types and lint
+        run: |
+          python3 scripts/run_gate.py --name pyright -- bash -c '
+            set -e
+            echo "== pyright gate 1/2: types" >&2
+            pyright
+            echo "== pyright gate 2/2: lint" >&2
+            python3 scripts/ruff_gate.py src scripts tests
+            ruff check src scripts tests --output-format=concise
+          '
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

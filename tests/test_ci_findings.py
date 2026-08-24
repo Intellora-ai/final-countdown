@@ -196,6 +196,66 @@ def test_reconcile_is_silent_on_a_healthy_failed_run() -> None:
     assert problems == [], problems
 
 
+LOCATED_ANNOTATION = [
+    {
+        "path": "frontend/src/canvas/layout/layout.ts",
+        "start_line": 88,
+        "annotation_level": "failure",
+        "message": "AssertionError: overlapping blocks",
+    }
+]
+
+
+def test_reconcile_refuses_to_certify_when_annotation_data_was_not_fetched() -> None:
+    """AN API ERROR IS NOT AN EMPTY RESULT, AND THE DIFFERENCE IS THE WHOLE POINT.
+
+    `ci-findings.yml` fetched each job's annotations with
+
+        gh api ".../check-runs/$id/annotations" > one.json 2>/dev/null \\
+            || echo '[]' > one.json
+
+    so an auth failure, a rate limit, a timeout or a 5xx all arrived here as
+    zero annotations -- indistinguishable from a job that genuinely produced
+    none. Every located failure then reconciled cleanly and this module printed
+
+        ci-findings: PASS -- every failure on this run has a resolvable location.
+
+    which is a statement about data it never received. That sentence is the
+    output a human reads to decide whether a red run is diagnosable, and it was
+    capable of being confidently wrong in the one direction that matters.
+
+    So the caller now records which check-runs it could NOT read, and an
+    unreadable one is a problem in its own right. The annotation below is
+    perfectly good: without the fetch failure this input is the healthy case
+    asserted directly above, so nothing here can pass by accident.
+    """
+    problems = reconcile(
+        FAILED_JOB,
+        annotations=LOCATED_ANNOTATION,
+        path_exists=lambda p: True,
+        fetch_failures=["4242"],
+    )
+    assert any(p.kind == "annotation-data-unavailable" for p in problems), problems
+    assert any("4242" in p.detail or "4242" in p.where for p in problems), problems
+
+
+def test_reconcile_stays_silent_when_every_fetch_succeeded() -> None:
+    """THE PAIR. Without this, `return [Problem(...)]` satisfies the test above.
+
+    Same job, same annotation, empty failure list -- the only difference is the
+    thing under test. A checker that fires on a clean fetch would turn every
+    green run into a diagnosis nobody needs, and would be switched off within a
+    week.
+    """
+    problems = reconcile(
+        FAILED_JOB,
+        annotations=LOCATED_ANNOTATION,
+        path_exists=lambda p: True,
+        fetch_failures=[],
+    )
+    assert problems == [], problems
+
+
 def test_reconcile_ignores_a_green_run() -> None:
     # Annotated because `steps: []` alone infers `list[Unknown]`, which
     # pyright reports as a partially unknown argument at the call below.

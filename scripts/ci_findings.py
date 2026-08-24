@@ -263,13 +263,38 @@ def reconcile(
     jobs: list[dict[str, Any]],
     annotations: list[dict[str, Any]],
     path_exists: Callable[[str], bool],
+    fetch_failures: list[str] | None = None,
 ) -> list[Problem]:
     """Compare what failed against what can actually be located.
 
     `path_exists` is injected rather than hardcoded to `Path.exists` so this
     stays pure and the silent-drop case is testable without building a tree.
+
+    `fetch_failures` carries the check-run ids whose annotations the CALLER
+    could not read. It is separate from `annotations` on purpose: "GitHub
+    returned no annotations" and "we never heard back from GitHub" are
+    different facts that used to arrive here as the same empty list, and only
+    the caller can tell them apart.
     """
     problems: list[Problem] = []
+
+    # UNREAD IS NOT EMPTY. This runs FIRST, before any annotation is examined,
+    # because the verdict it produces does not depend on what did arrive: a run
+    # whose located failures all reconcile cleanly is still unreconciled if a
+    # check-run's annotations were never fetched. Reporting PASS there is a
+    # claim about data this process does not have.
+    for check_run_id in fetch_failures or []:
+        problems.append(
+            Problem(
+                kind="annotation-data-unavailable",
+                detail=(
+                    f"annotations for check-run {check_run_id} could not be "
+                    "read, so this run cannot be certified as diagnosable; "
+                    "an API error is not a clean result"
+                ),
+                where=f"check-run {check_run_id}",
+            )
+        )
 
     for a in annotations:
         path = a.get("path")
@@ -359,6 +384,13 @@ def main(argv: list[str] | None = None) -> int:
     rc.add_argument("--jobs", type=Path, required=True)
     rc.add_argument("--annotations", type=Path, required=True)
     rc.add_argument("--root", type=Path, default=Path("."))
+    # One check-run id per line; written by the caller for every annotations
+    # request that did NOT succeed. OPTIONAL, and absent means "every fetch
+    # succeeded" rather than "unknown" -- the file is written by the same step
+    # that does the fetching, so its absence is the caller reporting a clean
+    # run, not this script guessing. A caller that stops writing it is a
+    # caller that stopped fetching, which shows up as missing annotations.
+    rc.add_argument("--fetch-failures", type=Path, default=None)
 
     args = ap.parse_args(argv)
 
@@ -394,10 +426,21 @@ def main(argv: list[str] | None = None) -> int:
             if isinstance(raw_annotations, list)
             else []
         )
+        failures_path: Path | None = args.fetch_failures
+        fetch_failures: list[str] = (
+            [
+                line.strip()
+                for line in failures_path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+            if failures_path is not None and failures_path.exists()
+            else []
+        )
         problems = reconcile(
             jobs,
             annotations,
             path_exists=lambda p: (root / p).exists(),
+            fetch_failures=fetch_failures,
         )
         for p in problems:
             _emit_problem(p)
@@ -409,6 +452,21 @@ def main(argv: list[str] | None = None) -> int:
                 for p in problems:
                     fh.write(f"| {p.kind} | `{p.where}` | {p.detail} |\n")
         print(json.dumps([p.as_dict() for p in problems], indent=2))
+        unavailable = [p for p in problems if p.kind == "annotation-data-unavailable"]
+        if unavailable:
+            # NAMED SEPARATELY, because the two verdicts call for different
+            # work. "cannot be located" means go fix the annotator. "could not
+            # be read" means the measurement did not happen, and the honest
+            # report is that this run's diagnosability is UNKNOWN -- not that
+            # it is bad, and emphatically not that it is fine.
+            print(
+                f"\nci-findings: annotation data unavailable — "
+                f"{len(unavailable)} check-run(s) could not be read. This run "
+                "is NOT certified as diagnosable; the remaining "
+                f"{len(problems) - len(unavailable)} problem(s) below are what "
+                "was visible from the data that did arrive."
+            )
+            return 1
         if problems:
             print(
                 f"\nci-findings: FAIL — {len(problems)} failure(s) on this run "

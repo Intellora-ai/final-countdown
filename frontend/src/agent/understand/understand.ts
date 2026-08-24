@@ -408,11 +408,124 @@ export function extractEntities(text: string, turnIndex: number): Entity[] {
     // A sentence-initial capital is not a proper noun.
     if (label.length > 2 && !STOPWORDS.has(label.toLowerCase())) add(label, 'named')
   }
-  for (const m of text.matchAll(/\b([a-z][a-z0-9_-]{3,})\b/gi)) {
-    const w = (m[1] ?? '').toLowerCase()
-    if (!STOPWORDS.has(w)) add(w, 'term')
+  for (const span of termSpans(text)) {
+    add(span, 'term')
+    /* THE SPAN AND ITS PARTS, NOT THE SPAN INSTEAD OF THEM.
+     *
+     * The first version of this emitted only the span, and it broke the
+     * opposite way from the bug it fixed:
+     *
+     *     "And how is inflation measured?"  ->  ["inflation measured"]
+     *     "and how do quadratics factor?"   ->  ["quadratics factor"]
+     *
+     * Neither is a compound noun. Adjacency cannot tell a noun-noun compound
+     * from a noun followed by a verb without knowing parts of speech, so a
+     * tokeniser that only joins WILL over-join. Both of those turns then
+     * overlapped nothing in the conversation and read as changes of subject,
+     * which is the same defect as `continue` shifting the topic --- arrived at
+     * from the other side.
+     *
+     * So the tokeniser PROPOSES and does not decide. The span is offered first,
+     * because `wire.ts` takes the teaching concept from `entities[0]` and the
+     * most specific reading is the right default there. The constituent words
+     * follow, because `topicShift` matches ids exactly and continuity depends
+     * on `inflation` still being present as itself.
+     *
+     * Only content words are emitted as parts. That is what keeps `right` out
+     * of "right triangle" while keeping `triangle` in, and it is why adding
+     * this did not reintroduce the 238 leaking phrasings. */
+    const words = span.split(' ')
+    if (words.length > 1) {
+      for (const w of words) if (w.length >= 4 && !STOPWORDS.has(w)) add(w, 'term')
+    }
   }
   return [...found.values()]
+}
+
+/**
+ * Words that are filler standing alone and part of the name standing in front
+ * of a noun.
+ *
+ * THE SET THAT PROVES A LIST CANNOT DECIDE THIS BY ITSELF. `right` is pure
+ * discourse in "right, continue" and half the subject in "right triangle".
+ * Membership cannot separate those because it is the same token; only POSITION
+ * can. So these words are not admitted or refused, they are ATTACHED --- kept
+ * when a content word follows them immediately, dropped when nothing does.
+ *
+ * Deliberately small. Every entry is a word measured to appear in both roles,
+ * not every word that might.
+ */
+const ATTACHABLE = new Set([
+  'right', 'left', 'next', 'last', 'first', 'second', 'third', 'final',
+  'further', 'natural', 'general', 'special', 'common', 'simple',
+])
+
+/** A word and where it sat, because where it sat is half the answer. */
+interface Tok { readonly w: string; readonly at: number; readonly end: number }
+
+/**
+ * The subject spans of a turn, as spans rather than as loose words.
+ *
+ * WHY THIS IS NOT A `matchAll` OVER WORDS ANY MORE. It was, and it split every
+ * compound noun in the language:
+ *
+ *     "what is a transformation graph"  ->  ["transformation", "graph"]
+ *     "explain the quadratic formula"   ->  ["quadratic", "formula"]
+ *
+ * Downstream that is not cosmetic. `wire.ts` takes the teaching concept from
+ * `entities[0].id`, so a split compound does not blur the subject, it picks the
+ * WRONG subject and teaches against it for the rest of the session. And
+ * `reason` was handed two unrelated nouns, found no relation between them, and
+ * reported itself unmet on the most ordinary question shape there is.
+ *
+ * ADJACENCY IS THE WHOLE MECHANISM, and it is deliberately strict: two words
+ * join only when separated by exactly one space. Any comma, dash, or other
+ * punctuation ends the span, which is what makes "right, continue" and "right
+ * triangle" different inputs rather than the same tokens in the same order.
+ * That distinction is unavailable to a word list, and it is the reason this is
+ * a tokeniser and not a bigger vocabulary.
+ */
+export function termSpans(text: string): string[] {
+  const toks: Tok[] = []
+  for (const m of text.matchAll(/[a-z][a-z0-9_-]*/gi)) {
+    const at = m.index ?? 0
+    toks.push({ w: m[0].toLowerCase(), at, end: at + m[0].length })
+  }
+
+  const spans: string[] = []
+  let run: string[] = []
+  let hasContent = false
+  const flush = (): void => {
+    /* A run of attachables that never reached a content word is filler, not a
+       subject. This is what keeps "right", "next" and "first" out on their own
+       while letting "right triangle" through. */
+    if (hasContent) spans.push(run.join(' '))
+    run = []
+    hasContent = false
+  }
+
+  for (let i = 0; i < toks.length; i++) {
+    const t = toks[i] as Tok
+    const prev = toks[i - 1]
+    /* Exactly one space. `text.slice` rather than an index check so that a tab,
+       a newline or a comma all correctly break the span. */
+    const joined = prev !== undefined && text.slice(prev.end, t.at) === ' '
+    if (!joined) flush()
+
+    const content = t.w.length >= 4 && !STOPWORDS.has(t.w)
+    if (content) {
+      run.push(t.w)
+      hasContent = true
+    } else if (ATTACHABLE.has(t.w) && !hasContent) {
+      /* Leading only. A trailing attachable ends the span instead of joining
+         it, so "the triangle right" is `triangle`, not `triangle right`. */
+      run.push(t.w)
+    } else {
+      flush()
+    }
+  }
+  flush()
+  return spans
 }
 
 const PRONOUN = /\b(it|its|that|this|they|them|those|these|the (first|second|third|last|latest|newest|next|previous|other) one)\b/i

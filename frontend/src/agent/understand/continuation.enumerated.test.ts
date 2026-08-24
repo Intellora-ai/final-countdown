@@ -23,7 +23,7 @@
  * to get green would be removing the only thing that found it.
  */
 import { describe, expect, it } from 'vitest'
-import { extractEntities, understand } from './understand'
+import { extractEntities, termSpans, understand } from './understand'
 import type { Turn } from '../kernel/contracts'
 
 const ask = (content: string): Turn => ({ parts: [{ modality: 'text', content }], at: '2026-01-01T00:00:00.000Z' })
@@ -109,6 +109,118 @@ describe('the same space, with a subject named, still shifts', () => {
 })
 
 /*
+ * THE OTHER DIRECTION, NOW FIXED --- AND WHAT THE FIX COST.
+ *
+ * The stopword list keeps words OUT of the subject extractor. A separate
+ * session probing `reason` found the same function failing the opposite way:
+ * it split compound nouns, so "what is a transformation graph" produced two
+ * unrelated `term`s and `reason` found no relation between them.
+ *
+ * These were pinned as a KNOWN DEFECT and are now `termSpans`. The block below
+ * is what the pins turned into once the tokeniser landed --- kept as tests
+ * rather than deleted, because the behaviours they describe are exactly the
+ * ones a later "simplification" would undo.
+ *
+ * The collision that forced the design is still the clearest statement of why
+ * a list could never have worked: `right` is filler in "right, continue" and
+ * half the subject in "right triangle". Same token, same spelling, decided by
+ * position and by nothing else.
+ */
+describe('compound nouns survive as spans, and their parts survive with them', () => {
+  it('the compound is offered first, because that is what names the concept', () => {
+    /* `wire.ts` takes the teaching concept from `entities[0].id`. Before the
+       tokeniser, "what is a transformation graph" made the concept
+       `transformation`, and the whole session was then taught against the wrong
+       subject. Order is load bearing, not cosmetic. */
+    for (const [text, head] of [
+      ['what is a transformation graph', 'transformation graph'],
+      ['explain the quadratic formula', 'quadratic formula'],
+      ['what is machine learning', 'machine learning'],
+      ['explain natural selection', 'natural selection'],
+      ['what is a right triangle', 'right triangle'],
+    ] as const) {
+      expect(extractEntities(text, 0)[0]?.id, text).toBe(head)
+    }
+  })
+
+  it('the parts are still there, because continuity matches ids exactly', () => {
+    const ids = extractEntities('what is a transformation graph', 0).map((e) => e.id)
+    expect(ids).toEqual(['transformation graph', 'transformation', 'graph'])
+  })
+
+  it('a noun followed by a verb keeps the noun addressable', () => {
+    /* The over-join the span-only version caused. "inflation measured" is not a
+       compound, and if the span were the ONLY entity then a follow-up about
+       inflation would overlap nothing and read as a change of subject. */
+    expect(extractEntities('And how is inflation measured?', 0).map((e) => e.id)).toContain('inflation')
+    expect(extractEntities('and how do quadratics factor?', 0).map((e) => e.id)).toContain('quadratics')
+  })
+
+  it('an attachable word is never emitted on its own', () => {
+    /* `right` rides along in front of `triangle` and appears nowhere by itself,
+       which is the whole reason position beats membership here. */
+    const ids = extractEntities('what is a right triangle', 0).map((e) => e.id)
+    expect(ids).toEqual(['right triangle', 'triangle'])
+    expect(ids).not.toContain('right')
+    /* And the discourse use of the identical token still yields nothing. */
+    expect(extractEntities('right, continue', 0)).toEqual([])
+    expect(extractEntities('right continue', 0)).toEqual([])
+  })
+
+  /*
+   * THE ADJACENCY RULE ITSELF, PINNED BY MUTATION RATHER THAN BY TASTE.
+   *
+   * Eight mutations were applied to `termSpans` after the suite went green.
+   * Five died. Three survived, and every test below exists because one of them
+   * lived --- not because the behaviour looked worth asserting.
+   *
+   * One of the three taught me something about my own method: I labelled a
+   * mutant "adjacency ignores punctuation" and it survived, which I read as a
+   * hole in these tests. It was not. The mutant was `.trim() === ''`, and
+   * `", ".trim()` is `","`, not the empty string, so it never affected a comma
+   * at all --- it only made multi-space and newline gaps join. A WEAK MUTANT
+   * READS EXACTLY LIKE A MISSING TEST, and the only thing that separated them
+   * was tracing the actual gap value instead of trusting the label I had
+   * written on it.
+   */
+  it('a comma ends a span --- this is what separates the two uses of `right`', () => {
+    expect(termSpans('a graph, transformation of it')).toEqual(['graph', 'transformation'])
+    expect(termSpans('fractions, algebra')).toEqual(['fractions', 'algebra'])
+  })
+
+  it('only a single space joins --- not a newline, a tab, or two spaces', () => {
+    /* SURVIVING MUTANT 1. The rule is `=== " "`, and nothing asserted that the
+       strictness was deliberate. A line break between two nouns is a sentence
+       boundary far more often than it is a compound. */
+    expect(termSpans('transformation  graph')).toEqual(['transformation', 'graph'])
+    expect(termSpans('transformation\ngraph')).toEqual(['transformation', 'graph'])
+    expect(termSpans('transformation\tgraph')).toEqual(['transformation', 'graph'])
+  })
+
+  it('an attachable word only ever joins forwards', () => {
+    /* SURVIVING MUTANT 2. Dropping `&& !hasContent` let a trailing attachable
+       glue itself to the end of a span, so "the triangle right" became a
+       subject called `triangle right`. Attachables qualify what FOLLOWS them;
+       nothing licenses reading them backwards. */
+    expect(termSpans('the triangle right')).toEqual(['triangle'])
+    expect(termSpans('a graph next')).toEqual(['graph'])
+    expect(termSpans('right triangle')).toEqual(['right triangle'])
+  })
+
+  it('the four-character floor is a rule, not an accident', () => {
+    /* SURVIVING MUTANT 3. Lowering it to three changed nothing any test could
+       see, and the floor is load bearing: `go on` escapes being read as a
+       subject ONLY because both its words are under it. That was luck when it
+       was discovered and it should not be luck now. */
+    expect(termSpans('go on')).toEqual([])
+    expect(termSpans('add two and sin')).toEqual([])
+    /* And the boundary itself, so a later change has to face the tradeoff:
+       four characters admits `sine` and refuses `sin`. */
+    expect(termSpans('what is sine')).toEqual(['sine'])
+  })
+})
+
+/*
  * A KNOWN DEFECT, PINNED RATHER THAN PAPERED OVER.
  *
  * The generator found this and it is NOT the stopword list. `topicShift`
@@ -130,50 +242,6 @@ describe('the same space, with a subject named, still shifts', () => {
  * pronoun rule it will go red, and the failure message is the instruction:
  * delete this block and remove the `keep at it` exclusion above.
  */
-/*
- * THE OTHER DIRECTION, AND THE PRICE OF THE FIX ABOVE.
- *
- * The stopword list keeps words OUT of the subject extractor. A separate
- * session probing `reason` found the same function failing the opposite way ---
- * it splits compound nouns, so "what is a transformation graph" yields two
- * unrelated `term`s, `reason` finds no relation between them, and reports
- * itself unmet on the most ordinary question shape there is.
- *
- * The two directions collide on a single word, and that collision is the
- * evidence that no list can settle this: `right` is filler in "right, continue"
- * and half the name of the subject in "right triangle". Adding it fixed the
- * first and cost the second.
- *
- * Pinned rather than argued about. If someone splits this into a tokeniser and
- * a vocabulary step --- see the long comment beside the list in
- * `understand.ts` --- these go green and the block should be deleted.
- */
-describe('KNOWN DEFECT: one function, wrong in both directions', () => {
-  it('compound nouns are split into unrelated parts', () => {
-    for (const [text, parts] of [
-      ['what is a transformation graph', ['transformation', 'graph']],
-      ['explain the quadratic formula', ['quadratic', 'formula']],
-      ['what is machine learning', ['machine', 'learning']],
-      ['explain natural selection', ['natural', 'selection']],
-    ] as const) {
-      expect(
-        extractEntities(text, 0).map((e) => e.id),
-        `if this now yields one span, the tokeniser landed --- delete this block`,
-      ).toEqual([...parts])
-    }
-  })
-
-  it('stopwording `right` cost "right triangle" its qualifier', () => {
-    /* The regression this change introduced, stated plainly rather than left
-       for someone to find. It is bounded: the turn still names `triangle`, so
-       a change of subject is still detected and only the precision of the
-       entity identity is lost. */
-    expect(extractEntities('what is a right triangle', 0).map((e) => e.id)).toEqual(['triangle'])
-    /* And the thing it bought, which is why the trade was taken. */
-    expect(extractEntities('right, continue', 0)).toEqual([])
-  })
-})
-
 describe('KNOWN DEFECT: a pronoun suppresses a genuine change of subject', () => {
   it('"keep at it with fractions" names fractions and still does not shift', () => {
     const p = 'keep at it with fractions'

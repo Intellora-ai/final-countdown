@@ -280,4 +280,13 @@ export function textTurn(text: string, at: string): Turn {
   return { parts: [{ modality: 'text', content: text }], at }
 }
 
+/* THE PORT IS PART OF THE PUBLIC SURFACE, and re-exporting it here is not
+   tidiness. `index.ts` is the agent area's only declared entry point, so a
+   product file importing `ports/httpModel` directly leaves that module
+   unreachable from any entry and the reachability gate calls it an orphan ---
+   correctly, because the gate cannot see outside the area. Routing it through
+   the one surface keeps `createAgent()` the single way in and keeps the gate
+   measuring something true. */
+export { httpModel, buildPrompt, type HttpModelOptions } from './ports/httpModel'
+
 export type { LoopResult, ModelPort, Ports, Session, TaskState }

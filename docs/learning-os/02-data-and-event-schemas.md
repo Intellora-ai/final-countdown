@@ -9,17 +9,19 @@ above. Where this document and that commit disagree, the commit is right and
 this document is a bug. Naming the commit is what makes that sentence
 checkable — "the code" was five different commits when this was written.
 
-> **Pinned to `2e0832d`** on `learning-os/llm`, the integration branch —
-> `api domain llm mastery memory models policy runtime verifiers`. **262 tests
-> passing**, ruff clean, `mypy --strict` clean, as measured by session
-> `final-countdown-2d` on CI's configuration (Python 3.12, hash-locked install).
-> Counted independently here: 238 `def test_` across 11 files, the difference
-> being parametrised cases.
+> **Pinned to `93a175c`** on `learning-os/llm`, the integration branch —
+> `api diagnosis domain llm mastery memory models policy runtime verifiers`.
+> `diagnosis/` merged in here; there is no longer a stacked branch to describe
+> it against.
 >
-> `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
-> stacked above this pin and **not yet integrated**. `mastery/` is integrated
-> into the branch and **imported by nothing but its own tests** — doc 07 §9.1
-> for why that is a distinct state from done.
+> **293 tests passing**, measured here:
+> `PYTHONPATH=src .venv/bin/python -m pytest tests -q` on Python 3.14 with
+> pydantic 2.13.4.
+>
+> **Integration state, checked by grep rather than assumed** (doc 07 §9.1):
+> `mastery/` is **integrated** — `runtime/loop.py:42` imports it.
+> `diagnosis/` is **built but not consumed**: `select_bottleneck` is called by
+> its own package and its tests, and by no other module.
 
 ---
 
@@ -517,7 +519,7 @@ session:
 
 | Check | Result |
 |---|---|
-| `pytest tests -q` | **262 tests, all passing** at `2e0832d` |
+| `pytest tests -q` | **293 passed** at `93a175c` |
 | `ruff check src tests` | clean |
 | `mypy --strict src/learning_os` | clean on src and tests |
 
@@ -534,7 +536,7 @@ and 7; described in doc 01 §5.
 
 ## 11. `mastery/estimate.py` — the learner model as built
 
-> Describes **`2e0832d`** on `learning-os/llm`. §3 states the *contract* for
+> Describes **`93a175c`** on `learning-os/llm`. §3 states the *contract* for
 > learner state; this is the module that computes it.
 
 ### 11.1 Nine states, because a threshold on a number cannot say the useful thing
@@ -620,8 +622,38 @@ The right spacing is an empirical question per domain, and freezing one schedule
 is how a system stops being able to learn the answer. Consistent with §6: the
 thing that adapts is reviewed and versioned, never adapted live.
 
-### 11.6 Integration status
+### 11.6 Integration status — now a consumer, and what it revealed
 
-**Nothing outside `tests/test_mastery.py` imports `mastery`.** It is built,
-tested, and consumed by no other module — the same state `diagnosis/` was in.
-See doc 07 §9 for why that is not "done".
+`mastery/` is **integrated**: `runtime/loop.py:42` imports `Belief`,
+`MasteryState` and `state_of`. It was imported by nothing but its own tests
+until that landed, which is the state doc 07 §9.1 names as `built`.
+
+The consumer is `_proficiency_of(belief)`, the translation the runtime performs
+before calling the policy — and it is a better argument for §9.1 than the rule
+itself, because the interesting behaviour only became necessary once something
+outside the tests had to use the module.
+
+```python
+if belief is None:
+    return None
+if state_of(belief.estimate) in (MasteryState.UNKNOWN, MasteryState.INSUFFICIENT_EVIDENCE):
+    return None
+return belief.estimate.estimate
+```
+
+**Two different situations both return `None`, and the second one is the
+point.** No belief at all is one. A belief the mastery model does not yet stand
+behind is the other: an estimate of 0.9 from two observations is a guess with a
+decimal point, and handing it to the policy would let thin evidence steer a
+strategy choice exactly as confidently as solid evidence does — the failure
+`MasteryState` exists to make visible in the first place.
+
+`UNKNOWN` and `INSUFFICIENT_EVIDENCE` are the model saying *do not use this
+number yet*, so the runtime does not. And `None` is a real answer downstream
+rather than a missing one: the policy keeps its authored ordering instead of
+guessing (doc 04 §10.2). The cost of withholding is a compromise; the cost of
+passing a thin number would be a wrong turn taken confidently.
+
+**The runtime is the only layer that can do this translation.** `mastery/` owns
+`Belief` and `policy/` deliberately does not import it — the number crosses the
+boundary and the doubt is resolved before it does.

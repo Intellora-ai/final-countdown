@@ -3,17 +3,19 @@
 **Package:** `final-countdown/learning-os/`, a Python package.
 **Read with:** doc 02 (the contracts every boundary speaks).
 
-> **Pinned to `2e0832d`** on `learning-os/llm`, the integration branch —
-> `api domain llm mastery memory models policy runtime verifiers`. **262 tests
-> passing**, ruff clean, `mypy --strict` clean, as measured by session
-> `final-countdown-2d` on CI's configuration (Python 3.12, hash-locked install).
-> Counted independently here: 238 `def test_` across 11 files, the difference
-> being parametrised cases.
+> **Pinned to `93a175c`** on `learning-os/llm`, the integration branch —
+> `api diagnosis domain llm mastery memory models policy runtime verifiers`.
+> `diagnosis/` merged in here; there is no longer a stacked branch to describe
+> it against.
 >
-> `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
-> stacked above this pin and **not yet integrated**. `mastery/` is integrated
-> into the branch and **imported by nothing but its own tests** — doc 07 §9.1
-> for why that is a distinct state from done.
+> **293 tests passing**, measured here:
+> `PYTHONPATH=src .venv/bin/python -m pytest tests -q` on Python 3.14 with
+> pydantic 2.13.4.
+>
+> **Integration state, checked by grep rather than assumed** (doc 07 §9.1):
+> `mastery/` is **integrated** — `runtime/loop.py:42` imports it.
+> `diagnosis/` is **built but not consumed**: `select_bottleneck` is called by
+> its own package and its tests, and by no other module.
 
 ---
 
@@ -73,16 +75,20 @@ credentials. If a test needs a key to pass, the boundary is in the wrong place.
 | `memory/` | What was tried, what failed, what is worth retrieving | done |
 | `verifiers/` | Whether a claim can be checked, and what a check established | done |
 | `llm/` | Generation behind a fake-able protocol | **done** — `contract.py`, `client.py`, `validation.py` |
-| `diagnosis/` | Estimating skill from evidence; selecting the bottleneck | **done at `ebc4059`**, not yet integrated — doc 04 §9 |
-| `mastery/` | Learner model, mastery states, retention | **done at `f4b2fe6`**, integrated into the branch, imported only by its own tests — doc 02 §11 |
+| `diagnosis/` | Estimating skill from evidence; selecting the bottleneck | merged at `93a175c`; **built, not yet consumed** by a non-test module — doc 04 §9 |
+| `mastery/` | Learner model, mastery states, retention | **integrated** — `runtime/loop.py` imports it — doc 02 §11 |
 | `policy/` | Candidate actions, ranking, the `Decision` | **done** — `select.py` |
 | `runtime/` | The teaching loop | **done** — `loop.py` |
 | `api/` | `LessonSpec` emission. No decisions. | **done** — `emit.py` |
 
-`diagnosis/` exists at `ebc4059` on a branch stacked above the pinned commit;
-statements about it are marked with that commit where they appear. `mastery/`
-has not been started — the branch is cut at the old canvas head and contains no
-`learning_os` source, so nothing in this set describes its internals.
+All ten modules now have source on the pinned branch. Two of them are described
+in sections written after the fact rather than in this table: `diagnosis/` in
+doc 04 §9, `mastery/` in doc 02 §11.
+
+The column that matters is **consumed by**, not **done**. `mastery/` is
+integrated because `runtime/loop.py` imports it; `diagnosis/` is merged and
+still called by nothing outside its own package and tests. Doc 07 §9.1 explains
+why those are recorded as different states rather than both as finished.
 
 ---
 
@@ -379,7 +385,7 @@ Measured against the tree, not quoted:
 ```bash
 cd learning-os
 python3 -m venv .venv && ./.venv/bin/pip install -e ".[dev]"
-./.venv/bin/python -m pytest tests -q       # 262 tests, all passing at 2e0832d
+PYTHONPATH=src ./.venv/bin/python -m pytest tests -q    # 293 passed at 93a175c
 ./.venv/bin/ruff check src tests            # clean
 MYPYPATH=src ./.venv/bin/mypy --strict src/learning_os   # clean, 11 files
 ```

@@ -4,17 +4,19 @@
 This document describes it.
 **Read with:** doc 02 §5 (`Decision`, `CandidateAction`), doc 01 §5 (`memory/`).
 
-> **Pinned to `2e0832d`** on `learning-os/llm`, the integration branch —
-> `api domain llm mastery memory models policy runtime verifiers`. **262 tests
-> passing**, ruff clean, `mypy --strict` clean, as measured by session
-> `final-countdown-2d` on CI's configuration (Python 3.12, hash-locked install).
-> Counted independently here: 238 `def test_` across 11 files, the difference
-> being parametrised cases.
+> **Pinned to `93a175c`** on `learning-os/llm`, the integration branch —
+> `api diagnosis domain llm mastery memory models policy runtime verifiers`.
+> `diagnosis/` merged in here; there is no longer a stacked branch to describe
+> it against.
 >
-> `diagnosis/` is described against **`ebc4059`** on `learning-os/diagnosis`,
-> stacked above this pin and **not yet integrated**. `mastery/` is integrated
-> into the branch and **imported by nothing but its own tests** — doc 07 §9.1
-> for why that is a distinct state from done.
+> **293 tests passing**, measured here:
+> `PYTHONPATH=src .venv/bin/python -m pytest tests -q` on Python 3.14 with
+> pydantic 2.13.4.
+>
+> **Integration state, checked by grep rather than assumed** (doc 07 §9.1):
+> `mastery/` is **integrated** — `runtime/loop.py:42` imports it.
+> `diagnosis/` is **built but not consumed**: `select_bottleneck` is called by
+> its own package and its tests, and by no other module.
 
 ---
 
@@ -271,11 +273,13 @@ other policy change.
 
 ## 9. `diagnosis/bottleneck.py` — choosing what to work on
 
-> Described against **`ebc4059`** on `learning-os/diagnosis`, stacked above this
-> document's pin and **not yet integrated into `learning-os/llm`**. Integration
-> has been probed and works: nine modules, **264 tests**, ruff clean,
-> `mypy --strict` clean over 36 files. Two defects found in that probe are
-> recorded in §9.8 as reported-and-open.
+> **Merged into `learning-os/llm` at `93a175c`.** It is no longer a stacked
+> branch, and `tests/test_seam.py` now covers the join.
+>
+> It is nonetheless **built, not integrated**, by the test in doc 07 §9.1:
+> `select_bottleneck` is called by its own package and its own tests, and by no
+> other module. `mastery/` crossed that line in the same window and
+> `diagnosis/` has not. §9.8 tracks what closed and what did not.
 
 The policy decides *what to do*. This decides *what to do it about*, and it runs
 first. A perfect intervention aimed at the wrong subskill is a wasted turn the
@@ -429,20 +433,38 @@ never in the person.
 
 ### 9.8 Open defects — reported, not yet fixed
 
-| # | Defect | Consequence |
+| # | Defect | State at `93a175c` |
 |---|---|---|
-| 1 | `diagnosis/__init__.py` is **0 bytes** | `from learning_os.diagnosis import select_bottleneck` raises `ImportError`; consumers must know the internal file layout. Every other module exports through its `__init__`. `bottleneck.py` does define `__all__` — the gap is only the package door. |
-| 2 | **Nothing tests the seam** | 25 tests cover `diagnosis`, 240 cover everything else, zero cover both. A Protocol drift between `Bottleneck` and `BottleneckLike` would leave both suites green. |
-| 3 | `_hypotheses(graph, ...)` never reads `graph` | Found while writing this section. Harmless today; it is the same shape as a reason code no branch emits — a parameter that looks like a dependency and is not. Either use it or drop it. |
+| 1 | `diagnosis/__init__.py` was **0 bytes**, so `from learning_os.diagnosis import select_bottleneck` raised `ImportError` | **Closed.** The `__init__` now exports (2,117 bytes). |
+| 2 | **Nothing tested the seam** — two green suites, neither able to see a `Protocol` drift between `Bottleneck` and `BottleneckLike` | **Closed.** `tests/test_seam.py`, five tests. |
+| 3 | `_hypotheses(graph, subskill, estimate)` never reads `graph` | **Open.** Verified at `93a175c`: no reference to `graph` in the body. |
 
-Defect 2 is the one to fix first. Defects of that class are invisible to both
-test suites by construction, which is the property that makes them survive.
+**Defect 2 was the one to fix first and the fix is worth reading, not just
+ticking.** `test_seam.py` does not re-test either side. It drives a real
+`Bottleneck` into the real policy and asserts the join:
+
+- a real bottleneck produces a real lesson end to end
+- the real `Bottleneck` satisfies the `Protocol` the policy declares
+- a confident diagnosis lets the policy skip the diagnostic
+- every `CognitiveOperation` has a `HypothesisKind` — the exhaustiveness
+  obligation that a dict-over-an-enum creates and that nothing else checks
+- `diagnosis` does not define a **second** failure enum
+
+That last one is the interesting test, because it guards a failure no type
+checker catches: two modules can each be internally consistent while holding
+rival vocabularies for the same thing, and whichever one the caller happens to
+import wins.
+
+**Defect 1 is worth keeping in the table now that it is closed.** Twenty-five
+passing tests sat beside a package that could not be imported, because every one
+of them reached past the door to the submodule. It is the cleanest evidence for
+the rule in doc 07 §9.1, and deleting the row would delete the evidence.
 
 ---
 
 ## 10. Choosing the mechanism — `_STRATEGIES_FOR` and proficiency
 
-> Describes **`2e0832d`**. The table was undescribed until now, which is part of
+> Describes **`93a175c`**. The table was undescribed until now, which is part of
 > why three of its orderings went unexamined for as long as they did.
 
 ### 10.1 Ordered preference, not a single answer

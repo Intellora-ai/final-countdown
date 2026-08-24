@@ -1,6 +1,38 @@
 /**
  * THE MISSING HALF: a query goes in, fetched evidence comes out.
  *
+ * NOTHING IN THE PRODUCT CALLS THIS YET. READ THIS BEFORE THE REST.
+ * ----------------------------------------------------------------
+ * `src/websearch` has zero references from anywhere outside itself — no
+ * static import, no dynamic `import()`, not even a string mention:
+ *
+ *   grep -rn "websearch" src | grep -v "^src/websearch/"   ->  0 results
+ *
+ * That is not a lazy-loading artefact. `canvas` and `practice` ARE reachable,
+ * through `React.lazy(() => import(...))` at `App.tsx:30` and `:36`, so the
+ * difference between a deferred chunk and an unreferenced one is visible in
+ * the same search. This directory is the second kind.
+ *
+ * It is an island pointing at an island: `port.ts` names
+ * `../agent/knowledge/knowledge`, and `src/agent` has zero references from
+ * outside itself either.
+ *
+ * `npm run gate:reachability` PRINTS PASS AND DOES NOT CONTRADICT THIS.
+ * It scans one declared area — `src/agent`, from the entry points
+ * `src/agent/index.ts` and `src/agent/kernel/contracts.ts` — so
+ * "15/15 source files reachable" is a statement about paths WITHIN that
+ * island, not about whether anything outside reaches it. `src/websearch` is
+ * not a declared area at all, so the gate never looks here. Read the PASS as
+ * "no orphans inside the scanned area", which is what it measures and is
+ * worth having; do not read it as "wired up".
+ *
+ * Stated here rather than in a pull request, because a gap recorded only in a
+ * thread is memory rather than mechanism, and memory is what this module has
+ * repeatedly been caught relying on. Everything below is tested, mutation-
+ * checked, and unreached. Both halves of that are true and neither cancels
+ * the other: a defect found before wiring is cheaper than one found after,
+ * and "shipped" here means "merged", not "running".
+ *
  * Everything else in this directory processes results. Nothing produced them.
  * That gap is why the system could be fully tested and still not run, and it
  * is what this file closes.

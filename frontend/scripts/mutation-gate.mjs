@@ -140,8 +140,14 @@ const MUTANTS = [
   {
     id: 'cache-read-failure-sinks-the-batch',
     file: 'src/websearch/gather.ts',
-    from: '        cached = undefined',
-    to: '        throw new Error("cache read failed")',
+    /* Anchored to the whole recovery BLOCK, not to the bare `cached = undefined`
+       inside it. That assignment is generic text whose uniqueness rested on its
+       indentation, and a stale-anchor refusal there would read as a formatting
+       problem rather than as "the cache recovery moved". `} catch {` paired with
+       the assignment is unique in this file — the fetch recovery below catches
+       `(err)` — and it names the construct the mutant is actually about. */
+    from: '      } catch {\n        cached = undefined\n      }',
+    to: '      } catch (e) {\n        throw e\n      }',
     breaks: 'a cache whose connection has dropped takes down every search instead of degrading to no-cache; the pages were reachable the whole time',
   },
   {

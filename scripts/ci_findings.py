@@ -5,15 +5,21 @@ WHY THIS EXISTS.
 
 `frontend/scripts/gh-annotate.mjs` converts tool output into
 `::error file=F,line=L,col=C` workflow commands, and everything guarding it
-measures the EMITTING side: how many commands were written to stdout. GitHub
-decides which of them LAND. It resolves `file=` against the commit being
-annotated and SILENTLY DISCARDS anything it cannot find -- a `node_modules`
-path, a path outside the checkout, a stale path after a rename.
+measures the EMITTING side: how many commands were written to stdout. Whether
+those commands produce a location a human can OPEN is a different question, and
+nothing measured it.
 
-So a run can emit forty annotations, land none, and report itself healthy,
-because the number the emitter counted went up. The failure is red with no
-location anywhere, which is the precise state gh-annotate was written to make
-impossible, entered from the side its guard does not watch.
+An annotation whose `file=` does not resolve at the commit is not discarded --
+`scripts/annotation_canary.py` tested that against GitHub on run 32696164034 and
+the API returned it. It is worse than discarded: it is counted by every guard
+upstream, listed in the checks API, and still useless, because its blob link
+404s and GitHub renders annotations inline only on files in the diff.
+
+So a run can emit forty annotations, have none of them openable, and report
+itself healthy, because the number the emitter counted went up. The failure is
+red with no location anywhere a reader looks, which is the precise state
+gh-annotate was written to make impossible, entered from the side its guard does
+not watch.
 
 This module answers three questions nothing else here can:
 
@@ -271,15 +277,31 @@ def reconcile(
         if not path:
             continue
         if not path_exists(path):
-            # THE SILENT DROP. GitHub resolved this against the commit, found
-            # nothing, and discarded it without a word. The emitter still
-            # counted it, so every guard upstream stayed satisfied.
+            # RETAINED BUT UNREACHABLE. This comment used to say "the silent
+            # drop" and assert GitHub discarded the annotation. That was wrong,
+            # and scripts/annotation_canary.py is what proved it: on run
+            # 32696164034 GitHub RETURNED an annotation whose path does not
+            # exist at the commit.
+            #
+            # The finding survives the correction because the damage is real and
+            # was measured at the same SHA:
+            #
+            #     contents/<the unresolvable path>  -> 404 Not Found
+            #     contents/<a real path>            -> 200, 8097 bytes
+            #
+            # So the annotation is reachable in the API and unreachable
+            # everywhere a human looks: its `blob_href` 404s, and GitHub renders
+            # annotations inline only on files that are part of the diff. A
+            # location nobody can open is the thing this module exists to catch,
+            # whether the platform dropped it or merely made it useless.
             problems.append(
                 Problem(
                     kind="annotation-path-not-in-tree",
                     detail=(
-                        f"{path!r} does not exist at this commit, so GitHub "
-                        f"discarded this {level} and it appears nowhere on the run"
+                        f"{path!r} does not exist at this commit. GitHub keeps "
+                        f"this {level} in the checks API, but its blob link 404s "
+                        "and it cannot render against the diff, so the failure it "
+                        "reports has no location a reader can open"
                     ),
                     where=path,
                 )

@@ -441,7 +441,7 @@ jobs:
     # because parallel workers poison every p95 they touch. At workers=1 the
     # unit-starvation argument above disappears and one-project-per-runner
     # becomes the faster shape again.
-    name: scenes ${{ matrix.shard }}/3
+    name: scenes ${{ matrix.shard }}/2
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -469,7 +469,7 @@ jobs:
         # tests across them while every shard still runs all five projects, so
         # gate_integrity check (f) reads five literal `--project=` flags here
         # exactly as before.
-        shard: [1, 2, 3]
+        shard: [1, 2]
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v5.0.0
@@ -508,7 +508,7 @@ jobs:
           --project=mobile-375
           --project=reduced-motion
           --project=keyboard
-          --shard="$SHARD/3"
+          --shard="$SHARD/2"
           --fail-on-flaky-tests
 
       # ONE DOWNLOAD INSTEAD OF A LOG CRAWL.

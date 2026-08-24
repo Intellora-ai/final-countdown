@@ -199,6 +199,30 @@ describe('conflicting sources', () => {
     expect(disagree('growth was 7 percent', 'population grew by 7 million')).toBeNull()
   })
 
+  it.each([
+    ['inflation was 6.2%', 'inflation was 4.9 percent'],
+    ['inflation was 6.2 per cent', 'inflation was 4.9%'],
+    ['inflation was 6.2 percent', 'inflation was 4.9 per cent'],
+    ['inflation was 6.2 PERCENT', 'inflation was 4.9 Per Cent'],
+  ])('treats every spelling of percent as the same unit: %s vs %s', (a, b) => {
+    /* UNIT NORMALISATION MUST BE TOTAL.
+     *
+     * "%", "percent" and "per cent" are the same unit written three ways. If
+     * any spelling normalises to a different string, `disagree` compares two
+     * quantities it thinks are in different units and returns null --- so two
+     * sources stating 6.2% and 4.9% are reported as agreeing. A conflict that
+     * silently disappears is the worst outcome this module has, because the
+     * caller then presents one number with full confidence.
+     *
+     * This is also why the normalisation is a lookup rather than chained
+     * `.replace()` calls: a string-literal `.replace()` substitutes only the
+     * FIRST occurrence, which CodeQL flags as js/incomplete-sanitization. The
+     * regex alternation happens to yield at most one occurrence today, so the
+     * old form was not a live bug --- it was a live bug waiting for the
+     * alternation to change. */
+    expect(disagree(a, b), `${a} vs ${b}`).toBeTruthy()
+  })
+
   it('does not compare different subjects', () => {
     expect(disagree('India inflation was 6.2 percent', 'Brazil rainfall was 40 percent')).toBeNull()
   })

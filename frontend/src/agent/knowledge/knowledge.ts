@@ -238,13 +238,48 @@ export function toSource(hit: RankedHit, retrievedAt: string): Source {
 /* Conflict                                                                   */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * The unit alternatives this recogniser accepts, mapped to one canonical name.
+ *
+ * A LOOKUP, NOT CHAINED `.replace()` CALLS.
+ *
+ * The previous form was `.replace('per cent', 'percent').replace('%',
+ * 'percent')`, which CodeQL flags as js/incomplete-sanitization: a
+ * string-literal `.replace()` substitutes only the FIRST occurrence. It was
+ * not a live bug --- the alternation below yields at most one unit per match,
+ * so there was never a second occurrence to miss. It was a live bug waiting
+ * for someone to widen the alternation.
+ *
+ * A map is also the honest representation. The unit is a closed set, not free
+ * text, and doing string surgery on an enum is what created the ambiguity in
+ * the first place. Adding a spelling now means adding a key, and the mapping
+ * is visible rather than implied by the order of two replace calls.
+ */
+const UNIT_ALIASES: Readonly<Record<string, string>> = {
+  '%': 'percent',
+  percent: 'percent',
+  'per cent': 'percent',
+  million: 'million',
+  billion: 'billion',
+  crore: 'crore',
+  lakh: 'lakh',
+  kg: 'kg',
+  km: 'km',
+  '°c': '°c',
+  '°f': '°f',
+}
+
 /** Numbers with their units, so "7%" and "7 million" are not compared. */
 function numbers(text: string): { value: number; unit: string }[] {
   const out: { value: number; unit: string }[] = []
   for (const m of text.matchAll(/(-?\d+(?:\.\d+)?)\s*(%|percent|per cent|million|billion|crore|lakh|kg|km|°c|°f)?/gi)) {
     const raw = m[1]
     if (raw === undefined) continue
-    out.push({ value: Number(raw), unit: (m[2] ?? '').toLowerCase().replace('per cent', 'percent').replace('%', 'percent') })
+    const written = (m[2] ?? '').toLowerCase()
+    /* An unrecognised spelling falls back to itself rather than to '' --- two
+       values sharing an unknown unit are still the same unit, and collapsing
+       them to the empty string would make them match every unitless number. */
+    out.push({ value: Number(raw), unit: written === '' ? '' : (UNIT_ALIASES[written] ?? written) })
   }
   return out
 }

@@ -3,9 +3,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } 
 import { Constellation } from './Constellation'
 import { PanZoom } from './PanZoom'
 import { PracticePanel } from './PracticePanel'
-import { SessionStub } from './SessionStub'
+import { SessionView } from './SessionView'
 import { CHAPTER_BY_ID, CHAPTER_OF_TOPIC, TOPIC_BY_ID, type TopicId } from './curriculum'
 import { buildGraph } from './layout'
+import { hydrateAndRecover } from './sessionStore'
 import { hydratePracticeStore, recentTopicsOf, usePracticeStore } from './store'
 import { fitToRect, useViewportStore, type Viewport } from './viewport'
 
@@ -40,6 +41,12 @@ export default function PracticeView() {
 
   // Saved chapters and progress arrive one frame after first paint.
   useEffect(hydratePracticeStore, [])
+
+  /* A session interrupted by a refresh comes back with it, reconciled against
+     the real clock rather than resuming a countdown that stood still. */
+  useEffect(() => {
+    hydrateAndRecover()
+  }, [])
 
   /*
    * Publish how far down the window this map starts, so its height can be the
@@ -209,7 +216,7 @@ export default function PracticeView() {
 
       <ContinuePractising />
       <PracticePanel />
-      <SessionStub />
+      <SessionView />
 
       <div className="pm-hint">
         <p>Drag to move · scroll to zoom</p>

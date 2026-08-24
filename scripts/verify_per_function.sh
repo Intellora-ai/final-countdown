@@ -67,10 +67,23 @@ printf '%s\n' "$sources" | while read -r src; do
     # portable form works on both, and this repository has already been bitten
     # once by a bash-3.2 difference -- run_gate.py's chain markers use `echo`
     # rather than an ERR trap for the same reason, measured.
-    specs=()
+    spec_paths=()
     while IFS= read -r spec; do
-        specs+=("$spec")
+        spec_paths+=("$spec")
     done < <(grep "=${src}$" "$pairs_file" | cut -d= -f1)
-    echo "── $src ← ${specs[*]}"
-    python3 "$verifier" "${specs[@]}" "$@"
+
+    # `$specs` STAYS, AND THE ECHO LINE BELOW STAYS BYTE-IDENTICAL.
+    #
+    # tests/test_within_gate_dependency.py pins this exact literal, and it is
+    # right to: `run_gate.py::unreached` parses these lines to tell "the gate
+    # covered two of four sources" from "the gate covered all four". A reworded
+    # marker does not fail, it silently stops counting -- partial coverage
+    # reported as full. CI caught the rename on run 32758778143 when this line
+    # briefly became `${specs[*]}`.
+    #
+    # So the DISPLAY string keeps its name and its spelling, while the
+    # INVOCATION uses the array. Same output, one argument per spec.
+    specs="${spec_paths[*]}"
+    echo "── $src ← $specs"
+    python3 "$verifier" "${spec_paths[@]}" "$@"
 done

@@ -40,7 +40,7 @@ import { buildAnswer, finalCheck, sufficient, type Answer } from './answer'
 import { crossCheck, type Finding } from './crosscheck'
 import type { SearchProvider } from './engine'
 import { extractClaims, rankEvidence, type Claim } from './evidence'
-import type { FetchOutcome } from './fetchPage'
+import type { FetchOptions, FetchOutcome } from './fetchPage'
 import { gather, type PageCache, type Retrieved } from './gather'
 import { interpret, type SearchRequirements } from './interpret'
 import { Latency } from './latency'
@@ -56,6 +56,14 @@ export interface AskOptions {
   provider: SearchProvider
   cache?: PageCache
   latency?: Latency
+  /**
+   * Fetch limits, forwarded to `gather` and on to `fetchPage`.
+   *
+   * The same gap existed here as in `GatherOptions`: without it, nothing a
+   * caller of `ask()` could say would bound a hung origin, because the limits
+   * stopped at a layer that had no way to express them.
+   */
+  fetch?: FetchOptions
   fetchImpl?: (url: string) => Promise<FetchOutcome>
   now?: () => number
 }
@@ -144,6 +152,7 @@ export async function ask(query: string, options: AskOptions): Promise<PipelineR
     ...(plan.maxAgeMs === undefined ? {} : { maxAgeMs: plan.maxAgeMs }),
     requireFresh: plan.requireFresh,
     concurrency: plan.concurrency,
+    ...(options.fetch ? { fetch: options.fetch } : {}),
     ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
     ...(options.now ? { now: options.now } : {}),
   }

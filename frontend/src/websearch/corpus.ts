@@ -33,7 +33,8 @@
 import type { SearchProvider } from './engine'
 import { ask } from './pipeline'
 import { Latency } from './latency'
-import { independentSources, precision, recall, coverage } from './quality'
+import { citationSupports, independentSources, precision, recall, coverage } from './quality'
+import { checkClaims, selectEvidence, type ClaimStatus } from './verify'
 import type { FetchOutcome } from './fetchPage'
 
 /* -------------------------------------------------------------------------- */
@@ -238,6 +239,24 @@ export interface CaseResult {
   precision?: number
   recall?: number
   coverage?: number
+  /**
+   * What the claim check decided. The brief's four words, scored per case.
+   *
+   * Retrieval metrics say whether the right PAGES came back. This says whether
+   * what they SAY can be relied on, and the two come apart constantly: perfect
+   * precision with one publisher is still `single-source`.
+   */
+  status: ClaimStatus
+  /**
+   * Whether the span chosen for display is actually supported by the page it
+   * names. The brief's "citation precision".
+   *
+   * Not "is there a citation" — a citation is the easiest thing here to fake.
+   * `citationSupports` compares the figures and the words of the claim against
+   * the source text, and it can come out FALSE; that is what makes it a
+   * measure rather than a formality.
+   */
+  citationSupported: boolean
   /** Refinement rounds this case needed. 0 means the first pass covered it. */
   rounds: number
   /** True when EVERY contributing source was read live during the run. §32. */
@@ -348,6 +367,19 @@ export async function runCase(
     succeeded.some((r) => r.text.toLowerCase().includes(aspect.replace(/-/g, ' '))),
   )
 
+  /*
+   * THE VERDICT, SCORED. `crosscheck.ts` and `verify.ts` decide it in the
+   * product; this runs the same functions over the same pages, so the number
+   * describes the shipped decision rather than a re-implementation of it.
+   */
+  const check = checkClaims(result.retrieved, testCase.query)
+  const chosen = selectEvidence(result.retrieved, testCase.query)
+  const citedPage = chosen
+    ? result.retrieved.find((r) => r.finalUrl === chosen.sourceUrl || r.hit.url === chosen.sourceUrl)
+    : undefined
+  const citationSupported =
+    chosen !== null && citedPage !== undefined && citationSupports(chosen.text, citedPage.text)
+
   const p = precision(judged)
   const r = recall(found, testCase.relevantTotal)
   const c = coverage(aspectsCovered, testCase.aspectsRequired)
@@ -358,6 +390,8 @@ export async function runCase(
     ...(p === undefined ? {} : { precision: p }),
     ...(r === undefined ? {} : { recall: r }),
     ...(c === undefined ? {} : { coverage: c }),
+    status: check.status,
+    citationSupported,
     rounds: result.rounds,
     freshLive: result.freshness.live,
     independentSources: independentSources(

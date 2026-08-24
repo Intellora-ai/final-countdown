@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { CORPUS, runCorpus, type BenchmarkCase, type QueryCategory } from './corpus'
 import { fixtureProvider } from './engine'
+import { citationSupports } from './quality'
 import type { FetchOutcome } from './fetchPage'
 
 const served = (body: string, url: string): FetchOutcome => ({
@@ -331,5 +332,96 @@ describe('the benchmark runs the pipeline the product runs', () => {
       cases: [CORPUS[0] as BenchmarkCase],
     })
     expect(report.cases[0]?.freshLive).toBe(true)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Verdicts and citation support — the numbers the brief actually asked for    */
+/* -------------------------------------------------------------------------- */
+
+describe('the benchmark grades the verdict, not only the retrieval', () => {
+  it('two independent domains agreeing scores as supported', async () => {
+    const report = await runCorpus({
+      provider: fixtureProvider({
+        'india gdp growth 2025': [
+          { url: 'https://mospi.gov.in/gdp-2025', title: 'a', snippet: '' },
+          { url: 'https://rbi.org.in/rates', title: 'b', snippet: '' },
+        ],
+      }),
+      fetchImpl: async (url: string) =>
+        served('The ministry reported the growth rate for 2025 was 6.1 percent.', url),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+    expect(report.cases[0]?.status).toBe('supported')
+  })
+
+  it('one domain scores as single-source, never supported', async () => {
+    const report = await runCorpus({
+      provider: fixtureProvider({
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'a', snippet: '' }],
+      }),
+      fetchImpl: async (url: string) =>
+        served('The ministry reported the growth rate for 2025 was 6.1 percent.', url),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+    expect(report.cases[0]?.status).toBe('single-source')
+  })
+
+  it('nothing retrieved scores as unknown', async () => {
+    const report = await runCorpus({
+      provider: fixtureProvider({}),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+    expect(report.cases[0]?.status).toBe('unknown')
+  })
+
+  it('the quoted span is checked against the page it claims to come from', async () => {
+    /* This is the brief's "citation precision": not whether a citation EXISTS,
+       but whether the source it names actually says the thing. A citation that
+       is merely present is the easiest thing in this system to fake. */
+    const report = await runCorpus({
+      provider: fixtureProvider({
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'a', snippet: '' }],
+      }),
+      fetchImpl: async (url: string) =>
+        served('The ministry reported the growth rate for 2025 was 6.1 percent.', url),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+    expect(report.cases[0]?.citationSupported).toBe(true)
+  })
+
+  it('a case with no evidence is NOT counted as a supported citation', async () => {
+    /* The half that makes the metric mean something. A measure that only ever
+       comes out true is satisfied by `return true`. */
+    const report = await runCorpus({
+      provider: fixtureProvider({}),
+      cases: [CORPUS[0] as BenchmarkCase],
+    })
+    expect(report.cases[0]?.citationSupported).toBe(false)
+  })
+})
+
+describe('citationSupports can come out FALSE, which is what makes it a measure', () => {
+  it('refuses a claim the page does not make', () => {
+    expect(citationSupports('the sky is green', 'The sky is blue and very large.')).toBe(false)
+  })
+
+  it('refuses a claim whose FIGURE was changed', () => {
+    /* Words alone would accept this. The number is the whole claim. */
+    expect(
+      citationSupports(
+        'The growth rate for 2025 was 9.9 percent.',
+        'The ministry reported the growth rate for 2025 was 6.1 percent.',
+      ),
+    ).toBe(false)
+  })
+
+  it('accepts a claim the page does make', () => {
+    expect(
+      citationSupports(
+        'The growth rate for 2025 was 6.1 percent.',
+        'The ministry reported the growth rate for 2025 was 6.1 percent.',
+      ),
+    ).toBe(true)
   })
 })

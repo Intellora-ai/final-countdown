@@ -2,6 +2,8 @@ import type { Plugin } from 'vite'
 
 import type { SearchProvider } from './src/websearch/engine'
 import { ask } from './src/websearch/pipeline'
+import { MemoryCache, type PageCache } from './src/websearch/gather'
+import { Latency, type Summary } from './src/websearch/latency'
 import type { Freshness } from './src/websearch/provenance'
 import type { FetchOutcome } from './src/websearch/fetchPage'
 import type { SearchHit } from './src/websearch/port'
@@ -110,6 +112,15 @@ export interface SearchReplyBody {
   readonly freshness?: Freshness
   /** Refinement rounds run. 0 means the first pass covered the question. */
   readonly rounds?: number
+  /**
+   * Where the time went, per stage, with p50/p95/p99.
+   *
+   * "It felt slow" is not a measurement. Without stages nobody can tell a slow
+   * PROVIDER from a slow FETCH, and those have completely different fixes. A
+   * stage that never ran is ABSENT rather than zero: nought milliseconds and
+   * "never happened" are different facts.
+   */
+  readonly timings?: Summary['stages']
 }
 
 export interface SearchReply {
@@ -125,6 +136,16 @@ export type FetchJson = (
 export interface SearchDeps {
   /** Injected so tests never read the real environment. */
   readonly env?: Record<string, string | undefined>
+  /**
+   * Pages already read, so the same one is not paid for twice.
+   *
+   * NO DEFAULT ON PURPOSE. The dev-server middleware supplies the long-lived
+   * one; a caller that supplies none caches nothing. A module-level default
+   * would silently share state between every test in this file, and a page
+   * cached by one test being served to another is the kind of flake that gets
+   * blamed on the test runner for a week.
+   */
+  readonly cache?: PageCache
   readonly fetchJson?: FetchJson
   readonly fetchImpl?: (url: string) => Promise<FetchOutcome>
   readonly now?: () => number
@@ -394,8 +415,11 @@ export async function searchTheOpenWeb(
    * queries before any refinement.
    */
   const tally: ProviderTally = { calls: 0, failures: 0 }
+  const latency = new Latency()
   const result = await ask(query, {
     provider: providerFor(endpoint, secret, deps.fetchJson ?? defaultFetchJson(), tally),
+    latency,
+    ...(deps.cache ? { cache: deps.cache } : {}),
     ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
     ...(deps.now ? { now: deps.now } : {}),
   })
@@ -429,7 +453,13 @@ export async function searchTheOpenWeb(
 
   return reply(
     200,
-    { pages, engineFailed: false, freshness: result.freshness, rounds: result.rounds },
+    {
+      pages,
+      engineFailed: false,
+      freshness: result.freshness,
+      rounds: result.rounds,
+      timings: latency.summary().stages,
+    },
     secret,
   )
 }
@@ -442,6 +472,17 @@ export async function searchTheOpenWeb(
  * a build behave one way locally and another way deployed. Plainly absent in
  * both is the honest failure.
  */
+/**
+ * One cache for the life of the dev server.
+ *
+ * Module-level so a second learner asking the same question pays nothing, and
+ * created HERE rather than defaulted inside `searchTheOpenWeb`, so tests get
+ * isolation for free. `provenance.freshnessOf` already reports a cached page
+ * as not-live, which is what keeps this from trading a correctness property
+ * for latency.
+ */
+const CACHE = new MemoryCache()
+
 export function searchPlugin(): Plugin {
   return {
     name: 'learning-os-web-search',
@@ -472,7 +513,7 @@ export function searchPlugin(): Plugin {
 
         request.on('end', () => {
           if (aborted) return
-          void searchTheOpenWeb(Buffer.concat(chunks).toString('utf8')).then((out) => {
+          void searchTheOpenWeb(Buffer.concat(chunks).toString('utf8'), { cache: CACHE }).then((out) => {
             response.statusCode = out.status
             response.setHeader('content-type', 'application/json')
             response.end(out.body)

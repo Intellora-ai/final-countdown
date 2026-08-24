@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { searchTheOpenWeb, ENDPOINT, API_KEY_ENV, ENDPOINT_ENV } from './vite-plugin-search'
 import type { FetchOutcome } from './src/websearch/fetchPage'
+import { MemoryCache } from './src/websearch/gather'
 
 /**
  * The route that lets the canvas search the OPEN WEB rather than one site.
@@ -80,6 +81,7 @@ function parse(body: string): {
   engineError?: string
   freshness?: { live: boolean; usableSources: number; origins: string[] }
   rounds?: number
+  timings?: Record<string, { count: number; p50?: number }>
 } {
   return JSON.parse(body)
 }
@@ -563,5 +565,96 @@ describe('the route runs the planned pipeline, not a single query', () => {
     const out = parse(reply.body)
     expect(out.engineFailed).toBe(false)
     expect(out.pages).toHaveLength(1)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Where the time went, and not paying for the same page twice                */
+/* -------------------------------------------------------------------------- */
+
+describe('the route reports where the time went', () => {
+  it('returns per-stage timings, so a slow answer can be explained', async () => {
+    /* `ask()` has accepted a `Latency` since it was written and nothing ever
+       passed one, so every question was untimed. "It felt slow" is not a
+       measurement, and without stages nobody can tell a slow PROVIDER from a
+       slow FETCH — which have completely different fixes. */
+    const reply = await searchTheOpenWeb(JSON.stringify({ query: 'gravity' }), {
+      env: env(),
+      fetchJson: async () => braveBody([{ title: 'G', url: 'https://a.test/g' }]),
+      fetchImpl: pagesFrom({ 'https://a.test/g': 'Gravity is a force between masses.' }),
+    })
+    const timings = parse(reply.body).timings
+    expect(timings).toBeDefined()
+    expect(Object.keys(timings ?? {})).toContain('engine')
+  })
+
+  it('a timing carries a count, so an absent stage stays absent', async () => {
+    /* A stage that never ran must not appear with a zero. Zero milliseconds and
+       "never happened" are different facts. */
+    const reply = await searchTheOpenWeb(JSON.stringify({ query: 'gravity' }), {
+      env: env(),
+      fetchJson: async () => braveBody([{ title: 'G', url: 'https://a.test/g' }]),
+      fetchImpl: pagesFrom({ 'https://a.test/g': 'Gravity is a force between masses.' }),
+    })
+    const timings = parse(reply.body).timings ?? {}
+    expect(timings['engine']?.count).toBeGreaterThan(0)
+  })
+})
+
+describe('a page already read is not paid for twice', () => {
+  it('a repeated question does not refetch the same page', async () => {
+    const cache = new MemoryCache()
+    let fetches = 0
+    const deps = {
+      env: env(),
+      cache,
+      fetchJson: async () => braveBody([{ title: 'G', url: 'https://a.test/g' }]),
+      fetchImpl: async (url: string) => {
+        fetches += 1
+        return page(url, 'Gravity is a force between masses.')
+      },
+    }
+    await searchTheOpenWeb(JSON.stringify({ query: 'gravity' }), deps)
+    const afterFirst = fetches
+    expect(afterFirst).toBeGreaterThan(0)
+
+    await searchTheOpenWeb(JSON.stringify({ query: 'gravity' }), deps)
+    expect(fetches).toBe(afterFirst)
+  })
+
+  it('and the second answer does NOT claim to have been read just now', async () => {
+    /* The half that makes a cache safe rather than merely fast. A cache that
+       speeds up an answer and lets it keep calling itself live has traded a
+       correctness property for latency without telling anyone. */
+    const cache = new MemoryCache()
+    const deps = {
+      env: env(),
+      cache,
+      fetchJson: async () => braveBody([{ title: 'G', url: 'https://a.test/g' }]),
+      fetchImpl: async (url: string) => page(url, 'Gravity is a force between masses.'),
+    }
+    const first = await searchTheOpenWeb(JSON.stringify({ query: 'gravity' }), deps)
+    expect(parse(first.body).freshness?.live).toBe(true)
+
+    const second = await searchTheOpenWeb(JSON.stringify({ query: 'gravity' }), deps)
+    expect(parse(second.body).freshness?.live).toBe(false)
+  })
+
+  it('with no cache supplied, nothing is remembered between questions', async () => {
+    /* The pair. A caching test that only ever proves a hit would pass against a
+       route that returned a constant. */
+    let fetches = 0
+    const deps = {
+      env: env(),
+      fetchJson: async () => braveBody([{ title: 'G', url: 'https://a.test/g' }]),
+      fetchImpl: async (url: string) => {
+        fetches += 1
+        return page(url, 'Gravity is a force between masses.')
+      },
+    }
+    await searchTheOpenWeb(JSON.stringify({ query: 'gravity' }), deps)
+    const afterFirst = fetches
+    await searchTheOpenWeb(JSON.stringify({ query: 'gravity' }), deps)
+    expect(fetches).toBeGreaterThan(afterFirst)
   })
 })

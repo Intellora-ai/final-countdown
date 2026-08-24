@@ -253,7 +253,44 @@ const MUTANTS = [
     to: '  if (false) {',
     breaks: 'invariant 5 stops being graded: a fact carried only by a page that tried to instruct us is scored as supported evidence',
   },
-  /* THE HONESTY LAYER. `shapeInvariants.ts` is the only thing standing between
+
+  /* §32 PROVENANCE. Every mutant here is a way to call stale data fresh while
+     still producing a confident, well-formed answer. */
+  {
+    id: 'a-majority-of-live-sources-is-called-live',
+    file: 'src/websearch/provenance.ts',
+    from: `    live: usable.every((p) => originOf(p, now) === 'live'),`,
+    to: `    live: usable.filter((p) => originOf(p, now) === 'live').length * 2 > usable.length,`,
+    breaks: 'nine live pages and one week-old cache entry is reported as a live answer, so the label describes most of the evidence and is wrong about the rest — invariant 2 exactly',
+  },
+  {
+    id: 'an-answer-built-on-nothing-reports-itself-live',
+    file: 'src/websearch/provenance.ts',
+    from: '    return { live: false, origins: [], usableSources: 0 }',
+    to: '    return { live: true, origins: [], usableSources: 0 }',
+    breaks: 'no usable sources at all yields the strongest possible claim from the weakest possible evidence, which is what [].every() does by default',
+  },
+  {
+    id: 'the-newest-source-hides-the-oldest',
+    file: 'src/websearch/provenance.ts',
+    from: '{ oldestAgeMs: Math.max(...ages) }',
+    to: '{ oldestAgeMs: Math.min(...ages) }',
+    breaks: 'one fresh page hides a week-old one sitting beside it, so the reported age is about the best source rather than the worst',
+  },
+  {
+    id: 'a-failed-fetch-counts-as-a-live-source',
+    file: 'src/websearch/provenance.ts',
+    from: '  const usable = pages.filter((p) => p.ok)',
+    to: '  const usable = pages',
+    breaks: 'a search where every fetch died except one cached page reports itself live, because the dead ones carry fromCache:false',
+  },
+  {
+    id: 'precomputed-is-folded-into-cache',
+    file: 'src/websearch/provenance.ts',
+    from: `  if (page.precomputed) return 'precomputed'`,
+    to: '  if (false) return \'precomputed\'',
+    breaks: 'a speculatively prepared entry becomes indistinguishable from one fetched for a real earlier question, which is the distinction §32 asks for by name',
+  },  /* THE HONESTY LAYER. `shapeInvariants.ts` is the only thing standing between
    * a dishonest dataset and a picture that looks fine. Every mutant here is a
    * way for a representation to stop being able to refuse. */
   {

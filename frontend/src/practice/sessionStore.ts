@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { generateSet, type SetMetrics } from './engine/pipeline';
+import { recordRun, type RunRecord } from './engine/telemetry';
 import type { TopicProfile } from './engine/plan';
 import type { QuestionProvider } from './engine/provider';
 import {
@@ -39,15 +40,18 @@ import {
  * object the map re-reads on every hover, and would persist a running countdown
  * into `localStorage` where a stale one would be restored as if still live.
  *
- * WHAT IS PERSISTED, AND WHAT DELIBERATELY IS NOT
- * -----------------------------------------------
- * Persisted: the fingerprints of questions this learner has been served, and
- * the per-question record of what they did. Those are the inputs to every
- * future session being better than this one.
+ * WHAT IS PERSISTED
+ * -----------------
+ * The fingerprints of questions this learner has been served, the per-question
+ * record of what they did, one health record per generation, and the live
+ * session itself.
  *
- * Not persisted: the session itself. A half-finished session restored from
- * storage days later would resume a timer that has "run" for three days, and
- * the honest thing to do with an abandoned session is to have it end.
+ * The session was deliberately left out at first, on the grounds that restoring
+ * one resumes a countdown that stood still while the tab was closed. That was
+ * the right worry and the wrong fix: it punishes an accidental refresh, which
+ * is the case the product cares about. `recover()` applies the elapsed
+ * wall-clock instead, so a refresh costs nothing and closing the tab for an
+ * hour ends a thirty-minute session.
  */
 
 export type RunStatus = 'idle' | 'generating' | 'ready' | 'failed';
@@ -81,6 +85,14 @@ export interface SessionRunState {
   seenFingerprints: string[];
   /** Persisted. Per-question evidence from finished sessions. */
   history: SessionResult[];
+  /**
+   * Persisted. One record per generation attempt, success or refusal.
+   *
+   * Kept because a single run's metrics diagnose almost nothing: a duplicate
+   * rate of 20% is unremarkable once and an emergency as a trend, and a p99
+   * near the budget is invisible in an average. `healthOf()` reads these.
+   */
+  runs: RunRecord[];
 
   start(input: StartInput): Promise<void>;
   answer(questionId: string, option: OptionKey, nowMs: number): void;
@@ -126,6 +138,7 @@ export const useSessionStore = create<SessionRunState>()(
       revealed: {},
       seenFingerprints: [],
       history: [],
+      runs: [],
 
       async start(input) {
         set({ status: 'generating', session: null, error: null, metrics: null, revealed: {} });
@@ -142,7 +155,21 @@ export const useSessionStore = create<SessionRunState>()(
         });
 
         if (!outcome.ok) {
-          set({ status: 'failed', error: outcome.error, metrics: outcome.metrics });
+          set({
+            status: 'failed',
+            error: outcome.error,
+            metrics: outcome.metrics,
+            runs: [
+              ...recordRun(get().runs, {
+                at: now(),
+                topicId: input.profile.topicId,
+                requested: input.count,
+                delivered: outcome.error.obtained,
+                failure: outcome.error.failure,
+                metrics: outcome.metrics,
+              }),
+            ],
+          });
           return;
         }
 
@@ -176,6 +203,16 @@ export const useSessionStore = create<SessionRunState>()(
             get().seenFingerprints,
             outcome.questions.map((question) => question.fingerprint),
           ),
+          runs: [
+            ...recordRun(get().runs, {
+              at: now(),
+              topicId: input.profile.topicId,
+              requested: input.count,
+              delivered: outcome.questions.length,
+              failure: null,
+              metrics: outcome.metrics,
+            }),
+          ],
         });
       },
 
@@ -266,7 +303,7 @@ export const useSessionStore = create<SessionRunState>()(
       },
 
       clearHistory() {
-        set({ seenFingerprints: [], history: [] });
+        set({ seenFingerprints: [], history: [], runs: [] });
       },
     }),
     {
@@ -291,6 +328,7 @@ export const useSessionStore = create<SessionRunState>()(
       partialize: (state) => ({
         seenFingerprints: state.seenFingerprints,
         history: state.history,
+        runs: state.runs,
         session: state.session && !isTerminal(state.session.status) ? state.session : null,
       }),
     },

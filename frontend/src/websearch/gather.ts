@@ -137,6 +137,11 @@ export interface GatherOptions {
 
 const DEFAULT_CONCURRENCY = 4
 
+/** Host for §31 accounting. An unparseable URL is its own bucket, never a shared blank. */
+const hostOf = (url: string): string => {
+  try { return new URL(url).hostname.toLowerCase() } catch { return `unparseable:${url}` }
+}
+
 const emptyResult = (hit: SearchHit, failure: FetchFailure, detail: string): Retrieved => ({
   hit,
   ok: false,
@@ -249,6 +254,10 @@ export async function gather(
       }
 
       latency?.record('live', elapsed)
+      /* §31 — the same measurement, keyed by host. Recorded here because this
+         is where a real request was actually made; anywhere later and a cache
+         hit would be counted as a request that never left the process. */
+      latency?.request(hostOf(url), elapsed)
       const stored: CachedPage = {
         body: outcome.page.body,
         contentType: outcome.page.contentType,

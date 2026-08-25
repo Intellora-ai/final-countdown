@@ -29,12 +29,16 @@
  *     not an oversight.
  */
 
+import { instructionFor, type Strategy } from './teaching.ts'
+
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 const MODEL = 'claude-opus-5'
 const ANTHROPIC_VERSION = '2023-06-01'
 const MAX_TOKENS = 16000
 
 export interface LessonBrief {
+  /** How to teach it. Decided by the server's policy, never by the browser. */
+  readonly strategy?: Strategy
   readonly concept?: string
   readonly subject?: string
   readonly question?: string
@@ -130,7 +134,13 @@ function briefFor(brief: LessonBrief): string {
     return `A student asked: ${brief.question}\n\nAnswer it directly and plainly.`
   }
   const subject = brief.subject ? ` (${brief.subject})` : ''
-  return `Teach this one concept${subject}: ${brief.concept}\n\nAssume nothing beyond it has been taught yet.`
+  /* The strategy arrives as an INSTRUCTION, never as its own name. "Use the
+   * strategy worked_example" tells a model nothing it can act on, and a brief
+   * the model cannot act on is a strategy that was decided and then thrown
+   * away. */
+  const how =
+    brief.strategy === undefined ? '' : `\n\nTeach it this way: ${instructionFor(brief.strategy)}`
+  return `Teach this one concept${subject}: ${brief.concept}\n\nAssume nothing beyond it has been taught yet.${how}`
 }
 
 /** Extracts the first text block, or explains precisely what was missing. */

@@ -1,88 +1,150 @@
 // @vitest-environment jsdom
-/* The screen Start opens.
+/* The teaching screen, fed by the server.
  *
- * WHAT THIS SCREEN IS AND IS NOT, in this phase
- *   Phase 3's job is that Start carries the concept id somewhere real. The
- *   LESSON is Phase 4's job: `TeachView` takes a validated `Lesson`, and the
- *   only thing that can produce one is `/api/lesson`, which nothing calls yet.
+ * WHAT MUST BE TRUE
+ *   1. Opening a concept asks the server to teach THAT concept, and reports
+ *      what it knows about the student so the server can pick a strategy.
+ *   2. A lesson that comes back is taught -- rendered by the canvas, which
+ *      re-validates it before a student sees a word of it.
+ *   3. When the server cannot be reached, a STORED lesson is used only if it
+ *      is for the same concept, and the student is told it is stored.
+ *   4. When there is no stored lesson either, the screen says why. It never
+ *      teaches a different topic and never renders an empty frame.
  *
- *   So this screen names the concept it was opened for and says plainly that
- *   the lesson is not connected. That is a deliberate, honest state, and it is
- *   the reason there is a test for it: Goal 2 forbids rendering a broken
- *   frame, and a blank page with a concept id in the URL is a broken frame.
- *
- *   The check below is what stops this quietly becoming permanent. It asserts
- *   the screen says WHICH concept and says it is not connected -- so when
- *   Phase 4 lands, this test fails and has to be rewritten to the real thing.
+ * WHY 3 IS THE ONE THAT MATTERS
+ *   Teaching gas pressure to a student who opened photosynthesis is worse than
+ *   teaching nothing: they would mark photosynthesis done afterwards, and
+ *   Almanac would never show it again.
  */
 
 import '@testing-library/jest-dom/vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { LearnView } from './LearnView'
+import { gasPressure } from '../lessons/gasPressure'
+import type { AlmanacClient } from '../../almanac/client'
+import type { SubjectLike } from '../../almanac/resolve'
 
 afterEach(cleanup)
 
-function open(conceptId: string) {
+const SUBJECTS: SubjectLike[] = [
+  {
+    id: 'science', name: 'Science',
+    chapters: [{ id: 'ch', name: 'Matter', concepts: [{ id: 'gas-pressure', name: 'Pressure of a gas' }] }],
+  },
+]
+
+function teacher(result: unknown): AlmanacClient {
+  return { lesson: vi.fn().mockResolvedValue(result), day: vi.fn(), markDone: vi.fn() } as unknown as AlmanacClient
+}
+
+function open(conceptId: string, almanac: AlmanacClient, state?: Record<string, unknown>) {
   return render(
-    <MemoryRouter initialEntries={[`/learn/${conceptId}`]}>
+    <MemoryRouter initialEntries={[{ pathname: `/learn/${conceptId}`, state }]}>
       <Routes>
-        <Route path="/learn/:conceptId" element={<LearnView subjects={[]} />} />
+        <Route path="/learn/:conceptId" element={<LearnView subjects={SUBJECTS} almanac={almanac} />} />
       </Routes>
     </MemoryRouter>,
   )
 }
 
-describe('the screen Start opens', () => {
-  it('names the concept it was opened for', async () => {
-    open('c-photosynthesis')
-    expect(await screen.findByText(/c-photosynthesis/)).toBeInTheDocument()
+describe('asking the server to teach this concept', () => {
+  it('asks for the concept by NAME, with its subject', async () => {
+    /* The model teaches "Pressure of a gas", not "gas-pressure". Sending the
+     * id would ask it to teach a database key. */
+    const almanac = teacher({ ok: true, lesson: gasPressure, strategy: 'worked_example' })
+    open('gas-pressure', almanac)
+
+    await waitFor(() => expect(almanac.lesson).toHaveBeenCalled())
+    /* Length asserted before indexing: under this directory's stricter
+     * typecheck `calls[0]` is possibly undefined, and reading it optionally
+     * would let a NO-CALL satisfy the check silently. */
+    const calls = vi.mocked(almanac.lesson).mock.calls
+    expect(calls).toHaveLength(1)
+    expect(calls[0]![0]).toMatchObject({ concept: 'Pressure of a gas', subject: 'Science' })
   })
 
-  it('says the lesson is not connected yet, rather than showing an empty frame', async () => {
-    open('c-photosynthesis')
-    expect(await screen.findByRole('status')).toHaveTextContent(/not connected yet/i)
+  it('reports that the concept is backlog, so the server can teach it differently', async () => {
+    const almanac = teacher({ ok: true, lesson: gasPressure })
+    open('gas-pressure', almanac, { carriedFrom: '2026-08-24' })
+
+    await waitFor(() => expect(almanac.lesson).toHaveBeenCalled())
+    const calls = vi.mocked(almanac.lesson).mock.calls
+    expect(calls).toHaveLength(1)
+    expect(calls[0]![0]).toMatchObject({ carriedFrom: '2026-08-24' })
+  })
+})
+
+describe('teaching the lesson that came back', () => {
+  it('renders the lesson through the canvas', async () => {
+    const almanac = teacher({ ok: true, lesson: gasPressure, strategy: 'analogy' })
+    open('gas-pressure', almanac)
+
+    expect(await screen.findByText(gasPressure.question)).toBeInTheDocument()
   })
 
-  it('uses the concept\'s real name when the curriculum has one', async () => {
+  it('no longer shows the "not connected yet" placeholder', async () => {
+    /* Phase 3 shipped that message deliberately so Phase 4 could not land
+     * without removing it. This is the check that retires it. */
+    const almanac = teacher({ ok: true, lesson: gasPressure })
+    open('gas-pressure', almanac)
+
+    await screen.findByText(gasPressure.question)
+    expect(screen.queryByText(/not connected yet/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('when the server cannot be reached', () => {
+  it('teaches the STORED lesson when it is for the same concept, and says it is stored', async () => {
+    const almanac = teacher({ ok: false, reason: 'the planner could not be reached' })
+    open('gas-pressure', almanac)
+
+    expect(await screen.findByText(gasPressure.question)).toBeInTheDocument()
+    /* Queried by its words, not by role: the canvas mounts its own live region
+     * for announcements, so `role="status"` is ambiguous once a lesson is on
+     * screen. The wording is what the student actually reads. */
+    expect(await screen.findByText(/stored lesson for this/i)).toBeInTheDocument()
+  })
+
+  it('teaches NOTHING when the stored lesson is for a different concept', async () => {
+    /* The whole point. There is no stored lesson for photosynthesis, and gas
+     * pressure is not an acceptable substitute for it. */
+    const almanac = teacher({ ok: false, reason: 'the planner could not be reached' })
     render(
-      <MemoryRouter initialEntries={['/learn/c1']}>
+      <MemoryRouter initialEntries={['/learn/photosynthesis']}>
         <Routes>
           <Route
             path="/learn/:conceptId"
-            element={
-              <LearnView
-                subjects={[{ id: 's', name: 'Science', chapters: [{ id: 'ch', name: 'Light', concepts: [{ id: 'c1', name: 'Reflection' }] }] }]}
-              />
-            }
+            element={<LearnView subjects={[{ id: 's', name: 'Science', chapters: [{ id: 'c', name: 'Ch', concepts: [{ id: 'photosynthesis', name: 'Photosynthesis' }] }] }]} almanac={almanac} />}
           />
         </Routes>
       </MemoryRouter>,
     )
-    expect(await screen.findByText('Reflection')).toBeInTheDocument()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not be reached/i)
+    expect(screen.queryByText(gasPressure.question)).not.toBeInTheDocument()
   })
 
-  it('offers a way back, so the student is not stranded', async () => {
-    open('c1')
-    expect(await screen.findByRole('link', { name: /today/i })).toHaveAttribute('href', '/today')
-  })
-})
-
-describe('mounted the way the router mounts it, with no props', () => {
-  it('still renders, and still names the concept it was opened for', async () => {
-    /* App.tsx renders `<LearnView />`. If the no-prop path threw or rendered
-     * nothing, Start would land on a blank page and the only test above would
-     * still pass, because every one of them passes `subjects` explicitly. */
+  it('names the concept it could not teach, so the student is not left guessing', async () => {
+    const almanac = teacher({ ok: false, reason: 'the model could not be reached' })
     render(
-      <MemoryRouter initialEntries={['/learn/c-unknown-here']}>
+      <MemoryRouter initialEntries={['/learn/photosynthesis']}>
         <Routes>
-          <Route path="/learn/:conceptId" element={<LearnView />} />
+          <Route path="/learn/:conceptId" element={<LearnView subjects={[]} almanac={almanac} />} />
         </Routes>
       </MemoryRouter>,
     )
-    expect(await screen.findByText(/c-unknown-here/)).toBeInTheDocument()
-    expect(await screen.findByRole('status')).toHaveTextContent(/not connected yet/i)
+    expect(await screen.findByText(/photosynthesis/)).toBeInTheDocument()
+  })
+})
+
+describe('while it is being written', () => {
+  it('says the lesson is being prepared rather than showing an empty page', async () => {
+    const almanac = { lesson: vi.fn(() => new Promise(() => {})), day: vi.fn(), markDone: vi.fn() } as unknown as AlmanacClient
+    open('gas-pressure', almanac)
+
+    expect(await screen.findByRole('status')).toHaveTextContent(/writing|preparing/i)
   })
 })

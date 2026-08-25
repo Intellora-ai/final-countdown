@@ -40,11 +40,27 @@ export interface DayRequest {
 }
 
 export type DayResult = { ok: true; day: DayPlan } | { ok: false; reason: string }
+
+/** What the browser knows about this student and this concept. The server
+ *  turns it into a teaching strategy; the browser never picks one. */
+export interface LessonRequest {
+  readonly concept: string
+  readonly subject?: string
+  /** How many times this concept has been opened, including this one. */
+  readonly attempts?: number
+  /** Set when it was carried over from an earlier day unfinished. */
+  readonly carriedFrom?: string
+}
+
+export type LessonResult =
+  | { ok: true; lesson: unknown; strategy?: string }
+  | { ok: false; reason: string }
 export type DoneResult = { ok: true } | { ok: false; reason: string }
 
 export interface AlmanacClient {
   day(request: DayRequest): Promise<DayResult>
   markDone(studentId: string, conceptId: string): Promise<DoneResult>
+  lesson(request: LessonRequest): Promise<LessonResult>
 }
 
 /** Only what this file uses, so a test double is a couple of lines rather than
@@ -146,11 +162,55 @@ export function createAlmanacClient(options: { fetchImpl?: FetchLike; baseUrl?: 
       return { ok: true, day }
     },
 
+    async lesson(request) {
+      /* Only the four fields the server reads. Notably NOT `strategy`: the
+       * teaching decision is the server's, and forwarding a field the caller
+       * set would let a page choose "transfer_challenge" for a student meeting
+       * a topic for the first time. */
+      const sent = await post('/api/lesson', {
+        concept: request.concept,
+        ...(request.subject === undefined ? {} : { subject: request.subject }),
+        ...(request.attempts === undefined ? {} : { attempts: request.attempts }),
+        ...(request.carriedFrom === undefined ? {} : { carriedFrom: request.carriedFrom }),
+      })
+      if (!sent.ok) return sent
+
+      const body = sent.body as Record<string, unknown> | null
+      const lesson = body?.['lesson']
+      if (!isLessonShaped(lesson)) {
+        return { ok: false, reason: 'the server returned something that is not a lesson' }
+      }
+      const strategy = body?.['strategy']
+      return {
+        ok: true,
+        lesson,
+        ...(typeof strategy === 'string' ? { strategy } : {}),
+      }
+    },
+
     async markDone(studentId, conceptId) {
       const sent = await post('/api/done', { studentId, conceptId })
       return sent.ok ? { ok: true } : { ok: false, reason: sent.reason }
     },
   }
+}
+
+/**
+ * A 200 is not a promise that the body is a lesson.
+ *
+ * Only the shape the canvas needs to render at all is checked here; the canvas
+ * re-validates in full before teaching from it. The point of this check is
+ * that `undefined.blocks` never reaches a student as a crash.
+ */
+function isLessonShaped(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null) return false
+  const lesson = value as Record<string, unknown>
+  return (
+    typeof lesson['id'] === 'string' &&
+    typeof lesson['question'] === 'string' &&
+    Array.isArray(lesson['blocks']) &&
+    lesson['blocks'].length > 0
+  )
 }
 
 /** What `dayRequestFor` needs from a student record. Structural on purpose, so

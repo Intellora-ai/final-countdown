@@ -26,7 +26,7 @@ import '@testing-library/jest-dom/vitest'
  * project and adding one is a tripwire in CLAUDE.md. The existing DOM tests
  * here use `fireEvent` for the same reason. */
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { TodayView, localDate } from './TodayView'
@@ -114,7 +114,12 @@ afterEach(cleanup)
 
 function ConceptProbe() {
   const { conceptId } = useParams()
-  return <div data-testid="teaching-screen">teaching: {conceptId}</div>
+  const { state } = useLocation()
+  return (
+    <div data-testid="teaching-screen" data-carried={(state as { carriedFrom?: string })?.carriedFrom ?? ''}>
+      teaching: {conceptId}
+    </div>
+  )
 }
 
 function renderToday(almanac: AlmanacClient) {
@@ -234,6 +239,31 @@ describe('backlog', () => {
 })
 
 describe('Start', () => {
+  it('carries the backlog date, so the server can teach it differently', async () => {
+    /* A carried-over concept comes back because it was NOT finished. Teaching
+     * it the same way again is precisely what already did not work, so the
+     * server needs to know -- and only this screen knows it. */
+    const items = realItems()
+    renderToday(fakeAlmanac(dayOf([{ ...items[0], carriedFrom: '2026-08-24' }])))
+
+    const rows = await screen.findAllByTestId('day-row')
+    await act(async () => {
+      fireEvent.click(within(rows[0]).getByRole('button', { name: /^start$/i }))
+    })
+
+    expect(await screen.findByTestId('teaching-screen')).toHaveAttribute('data-carried', '2026-08-24')
+  })
+
+  it('carries no backlog date for work set today', async () => {
+    const items = realItems()
+    renderToday(fakeAlmanac(dayOf(items)))
+    const rows = await screen.findAllByTestId('day-row')
+    await act(async () => {
+      fireEvent.click(within(rows[0]).getByRole('button', { name: /^start$/i }))
+    })
+    expect(await screen.findByTestId('teaching-screen')).toHaveAttribute('data-carried', '')
+  })
+
   it('opens the teaching screen for that concept', async () => {
     const items = realItems()
     renderToday(fakeAlmanac(dayOf(items)))

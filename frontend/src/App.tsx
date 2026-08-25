@@ -5,7 +5,6 @@ import CURRICULUM from './data/curriculum'
 import { Sidebar } from './components/Sidebar'
 import { SetupFlow } from './components/SetupFlow'
 import { TodayView } from './components/TodayView'
-import { LearnView } from './canvas/learn/LearnView'
 import { ChapterView } from './components/ChapterView'
 import { Placeholder } from './components/Placeholder'
 
@@ -35,6 +34,16 @@ const CanvasRoute = React.lazy(() => import('./canvas/CanvasRoute'))
  * pay for either. Nothing outside `src/practice/` imports it, and it imports
  * nothing from the canvas or the dashboard. */
 const PracticeView = React.lazy(() => import('./practice/PracticeView'))
+
+/* The teaching screen is LAZY for the same reason the practice view is: it
+ * pulls in the whole canvas renderer, and a learner sitting on /today should
+ * not download it to look at a list.
+ *
+ * Imported eagerly, it took the initial bundle from 70 KB to 186 KB and the
+ * budget gate refused the change -- correctly. */
+const LearnView = React.lazy(() =>
+  import('./canvas/learn/LearnView').then((m) => ({ default: m.LearnView })),
+)
 
 function SceneFallback() {
   return (
@@ -115,7 +124,14 @@ export default function App() {
               <Route path="/" element={<Navigate to="/today" replace />} />
               <Route path="/today" element={<TodayView />} />
 
-              <Route path="/learn/:conceptId" element={<LearnView cls={st?.cls ?? null} />} />
+              <Route
+              path="/learn/:conceptId"
+              element={
+                <React.Suspense fallback={<SceneFallback />}>
+                  <LearnView cls={st?.cls ?? null} />
+                </React.Suspense>
+              }
+            />
               <Route path="/chapter/:subjectId/:chapterId" element={<ChapterView />} />
               <Route
                 path="/practice"

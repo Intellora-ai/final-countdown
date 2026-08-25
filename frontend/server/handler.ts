@@ -25,6 +25,7 @@
  */
 
 import { validateLesson } from '../src/canvas/spec/validate.ts'
+import { chooseStrategy, type Strategy } from './teaching.ts'
 import { injectionSignals, stripInvisible } from '../src/websearch/guard.ts'
 import { citationSupports } from '../src/websearch/quality.ts'
 import { subjectsFor, SUPPORTED_CLASSES, type SchoolClass } from './almanac/curriculum.ts'
@@ -34,6 +35,8 @@ export interface LessonRequest {
   readonly concept?: string
   readonly subject?: string
   readonly question?: string
+  /** How to teach it. Chosen here, never accepted from the request. */
+  readonly strategy?: Strategy
 }
 
 export interface ModelPort {
@@ -141,6 +144,11 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
 
   /** Ask the model, then put its answer through the browser's own gate. */
   async function lessonFrom(request: LessonRequest): Promise<ServerResponse> {
+    /* Reported on EVERY outcome, including failure. A decision nobody can
+     * observe is a decision nobody can debug, and this repo has already
+     * shipped a trace that claimed capabilities were used when they had done
+     * nothing at all. */
+    const decided = request.strategy === undefined ? {} : { strategy: request.strategy }
     let produced: unknown
     try {
       produced = await options.model.lesson(request)
@@ -148,12 +156,13 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       /* The upstream message is deliberately dropped rather than forwarded: it
        * routinely contains the credential that was rejected. The failure is
        * reported; its text is not. */
-      return reply(502, { error: 'the model could not be reached' })
+      return reply(502, { ...decided, error: 'the model could not be reached' })
     }
 
     const result = validateLesson(produced)
     if (!result.ok) {
       return reply(502, {
+        ...decided,
         error: 'the model returned a lesson that failed validation',
         issues: result.issues.map((issue) => ({
           path: issue.path,
@@ -161,7 +170,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         })),
       })
     }
-    return reply(200, { lesson: result.lesson })
+    return reply(200, { ...decided, lesson: result.lesson })
   }
 
   return async function handle(req: ServerRequest): Promise<ServerResponse> {
@@ -184,9 +193,20 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       if (!nonEmptyString(body['concept'])) {
         return reply(400, { error: 'concept is required' })
       }
+      /* The teaching decision is made HERE, from what the browser reports
+       * about the student. `body['strategy']` is deliberately not read: a page
+       * must not be able to pick "transfer_challenge" for a student meeting a
+       * topic for the first time. Every history field is untrusted input and
+       * is passed through as-is for the policy to sanitise -- it returns a
+       * strategy from the vocabulary for any input at all. */
       return lessonFrom({
         concept: body['concept'],
         subject: nonEmptyString(body['subject']) ? body['subject'] : undefined,
+        strategy: chooseStrategy({
+          attempts: typeof body['attempts'] === 'number' ? body['attempts'] : 0,
+          carriedFrom: nonEmptyString(body['carriedFrom']) ? body['carriedFrom'] : undefined,
+          diagnosis: typeof body['diagnosis'] === 'string' ? body['diagnosis'] : undefined,
+        }),
       })
     }
 

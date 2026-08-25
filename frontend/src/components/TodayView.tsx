@@ -193,7 +193,20 @@ export function TodayView({
             </div>
           </div>
           <div className="td-min">{row.item.minutes} min</div>
-          <Button size="md" onClick={() => nav(`/learn/${row.item.conceptId}`)}>Start</Button>
+          <Button
+            size="md"
+            onClick={() =>
+              /* `carriedFrom` travels with the navigation because the teaching
+               * screen cannot work it out on its own, and the server teaches a
+               * carried-over concept differently -- it comes back because it
+               * was not finished, so repeating it is what already failed. */
+              nav(`/learn/${row.item.conceptId}`, {
+                state: row.backlog ? { carriedFrom: row.item.carriedFrom } : {},
+              })
+            }
+          >
+            Start
+          </Button>
           <Button
             size="md"
             variant="secondary"

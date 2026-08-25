@@ -1,42 +1,48 @@
 import React from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { loadPlannedSubjects } from '../../almanac/curriculum'
+import { createAlmanacClient, type AlmanacClient } from '../../almanac/client'
+import { storedLessonFor } from '../../almanac/lesson'
+import { validateLesson } from '../spec/validate'
+import type { Lesson } from '../spec/spec'
+import { TeachView } from '../teach/TeachView'
 import type { SubjectLike } from '../../almanac/resolve'
 
 /**
- * The screen `Start` opens, for one concept.
+ * The screen `Start` opens: one concept, taught.
  *
- * PHASE 3 SCOPE, STATED RATHER THAN IMPLIED. Start now carries the concept id
- * to a real route. The LESSON is Phase 4: `TeachView` requires a validated
- * `Lesson`, and the only thing that can produce one is `/api/lesson`, which
- * nothing calls yet.
+ * The lesson is written by the model, on the server, for THIS student. The
+ * server chooses the teaching strategy from what the browser reports -- how
+ * many times this concept has been opened, and whether it was carried over
+ * unfinished -- and the browser never picks one itself.
  *
- * So this screen names the concept and says the lesson is not connected. That
- * is a deliberate state, not an oversight -- Goal 2 forbids a broken frame,
- * and a blank page with an id in the URL is a broken frame. Its test asserts
- * the "not connected" wording precisely so that Phase 4 cannot land without
- * this being rewritten.
+ * THE FALLBACK RULE, and it is the important one:
+ *   A stored lesson is used ONLY when it is for the same concept. Teaching gas
+ *   pressure to a student who opened photosynthesis is worse than teaching
+ *   nothing: they would mark photosynthesis done afterwards and Almanac would
+ *   never show it again. Three lessons are stored. Everything else gets an
+ *   honest failure that names the concept.
+ *
+ * `cls` is passed IN rather than read from the dashboard store: a canvas
+ * screen reaching into the dashboard's data layer drags it under this
+ * directory's stricter typecheck, and the project's scope rules forbid the
+ * coupling in the other direction too.
  */
-/* `cls` is passed IN rather than read from the dashboard store.
- *
- * The first version imported `data/store` directly, and that dragged the whole
- * dashboard store under `tsconfig.canvas.json`, which is stricter than the one
- * it had been checked by. Five pre-existing `possibly undefined` errors in
- * files this change never touched appeared at once -- proved with `git stash`
- * that they were absent at HEAD.
- *
- * Loosening the canvas config to accept them would have been the wrong repair.
- * The real fault is a canvas screen reaching into the dashboard's data layer,
- * which the project's own scope rules forbid in the other direction too. */
 export function LearnView({
   subjects,
   cls = null,
-}: { subjects?: readonly SubjectLike[]; cls?: string | null } = {}) {
+  almanac,
+}: {
+  subjects?: readonly SubjectLike[]
+  cls?: string | null
+  almanac?: AlmanacClient
+} = {}) {
   const { conceptId = '' } = useParams()
+  const location = useLocation()
+  const passed = (location.state ?? {}) as { carriedFrom?: string; attempts?: number }
 
-  /* Loaded here rather than passed down from the router, so mounting this
-   * screen stays one line in App.tsx. The prop overrides it, which is how the
-   * tests drive the naming without booting a student. */
+  const client = React.useMemo(() => almanac ?? createAlmanacClient(), [almanac])
+
   const [loaded, setLoaded] = React.useState<readonly SubjectLike[]>([])
   React.useEffect(() => {
     if (subjects !== undefined) return
@@ -61,26 +67,84 @@ export function LearnView({
     return null
   }, [available, conceptId])
 
+  type State =
+    | { phase: 'writing' }
+    | { phase: 'taught'; lesson: Lesson; stored: boolean; strategy?: string }
+    | { phase: 'failed'; reason: string }
+
+  const [state, setState] = React.useState<State>({ phase: 'writing' })
+
+  React.useEffect(() => {
+    if (conceptId === '') return
+    /* Wait for the name before asking. The model teaches "Pressure of a gas";
+     * sending the id would ask it to teach a database key. */
+    if (named === null && available.length > 0) {
+      setState({ phase: 'failed', reason: `This device does not know a concept called ${conceptId}.` })
+      return
+    }
+    if (named === null && subjects === undefined) return
+
+    let live = true
+    void client
+      .lesson({
+        concept: named?.concept ?? conceptId,
+        ...(named?.subject === undefined ? {} : { subject: named.subject }),
+        ...(passed.attempts === undefined ? {} : { attempts: passed.attempts }),
+        ...(passed.carriedFrom === undefined ? {} : { carriedFrom: passed.carriedFrom }),
+      })
+      .then((result) => {
+        if (!live) return
+        if (result.ok) {
+          const checked = validateLesson(result.lesson)
+          if (checked.ok) {
+            setState({ phase: 'taught', lesson: checked.lesson, stored: false, ...(result.strategy === undefined ? {} : { strategy: result.strategy }) })
+            return
+          }
+          /* A lesson that fails the canvas gate is not shown. The server
+           * validates too; this is the second of the two checks the project
+           * keeps on purpose, because a lesson can arrive from a source that
+           * never met the first one. */
+          setState({ phase: 'failed', reason: 'The lesson that came back could not be trusted, so it was not shown.' })
+          return
+        }
+
+        /* Same concept only. A near match is still the wrong topic. */
+        const stored = storedLessonFor(conceptId)
+        if (stored !== null) {
+          setState({ phase: 'taught', lesson: stored, stored: true })
+          return
+        }
+        setState({ phase: 'failed', reason: result.reason })
+      })
+    return () => {
+      live = false
+    }
+  }, [client, conceptId, named, available.length, subjects, passed.attempts, passed.carriedFrom])
+
+  if (state.phase === 'taught') {
+    return (
+      <div data-shell="pad">
+        {state.stored && (
+          <p className="td-sub" role="status" style={{ color: 'var(--warning)' }}>
+            The server could not be reached, so this is the stored lesson for this
+            concept. It is the right topic, but it is not written for you.
+          </p>
+        )}
+        <TeachView lesson={state.lesson} mode="2d" />
+      </div>
+    )
+  }
+
   return (
     <div className="td-wrap" data-shell="pad">
-      {/* No inline sizes. `mono-crumb` and `td-sub` already carry their own
-        * type scale, and Law 4 refuses an arbitrary letter-spacing or font
-        * size written at the call site -- correctly: a size chosen here is a
-        * size the design system does not know about. */}
       <p className="mono-crumb">{named ? `${named.subject} · ${named.chapter}` : 'Concept'}</p>
       <h1 className="td-h1">{named ? named.concept : conceptId}</h1>
-      {/* The id is shown UNDER the name, and only when there is a name to be
-        * under. Printing it twice when the curriculum has no name for it says
-        * the same thing to the student in two places and reads as a fault. */}
-      {named && (
-        <p className="td-sub" style={{ fontFamily: 'var(--font-mono)' }}>{conceptId}</p>
-      )}
 
-      <p className="td-sub" role="status" style={{ color: 'var(--warning)' }}>
-        The teaching screen is not connected yet. This concept was carried here
-        correctly; the lesson itself arrives when the canvas is wired to the
-        planner.
-      </p>
+      {state.phase === 'writing' ? (
+        <p className="td-sub" role="status">Writing this lesson for you…</p>
+      ) : (
+        <p className="td-sub" role="alert" style={{ color: 'var(--destructive)' }}>{state.reason}</p>
+      )}
 
       <p className="td-sub">
         <Link to="/today">Back to today</Link>

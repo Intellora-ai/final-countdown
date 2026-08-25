@@ -376,10 +376,6 @@ function remember(existing: readonly string[], added: readonly string[]): string
   );
 }
 
-export function hydrateSessionStore(): void {
-  void useSessionStore.persist?.rehydrate();
-}
-
 /* -------------------------------------------------------------------------- */
 /* Selectors                                                                  */
 /* -------------------------------------------------------------------------- */

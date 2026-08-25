@@ -24,6 +24,32 @@ export default defineConfig({
    * to a browser, and a browser may not read a page that did not opt into CORS
    * — and it is absent from `vite build` on purpose. See
    * `vite-plugin-search.ts`. */
+
+  /* AND THE PLANNER, WHICH IS A SEPARATE PROCESS.
+   *
+   * The browser posts to /api/day and /api/lesson. Vite serves the app on one
+   * port and the planner listens on another, so in development every one of
+   * those requests 404'd against Vite itself -- the dashboard reported "the
+   * planner answered 404" honestly, and nobody could run the product end to end
+   * on their own machine. Found by the deep-qa harness, which counted 180
+   * console errors from this one cause.
+   *
+   * ROUTED ONE PATH AT A TIME, NOT AS `/api`. A blanket `/api` proxy would
+   * swallow `/api/doubt` and `/api/search` above, which are handled HERE by
+   * plugins and are not the planner's at all. Two owners of one prefix is a
+   * collision that only shows up as a confusing 404 in somebody's dev session.
+   *
+   * `changeOrigin` is off deliberately: the planner is same-machine and binds
+   * to loopback, and rewriting the Host header would hide which origin a
+   * request really came from. */
+  server: {
+    proxy: Object.fromEntries(
+      ['/api/day', '/api/done', '/api/lesson', '/api/ask', '/api/health'].map((route) => [
+        route,
+        { target: 'http://127.0.0.1:8787', changeOrigin: false },
+      ]),
+    ),
+  },
   plugins: [react(), enginePlugin(), searchPlugin()],
 
   /* ONE REACT, ONE THREE — enforced, not assumed.
@@ -105,6 +131,11 @@ export default defineConfig({
        * request a traceback. Infrastructure that can fail and has no test is
        * infrastructure nobody finds out about until a learner does. */
       '*.test.ts',
+      /* AND A FIFTH: `server/`, deliberately separate from `src/`. It never
+       * ships to the browser because it holds the API key. Its tests run here
+       * so the one command that proves the frontend also proves the thing
+       * standing between the browser and the model. */
+      'server/**/*.test.ts',
     ],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
 

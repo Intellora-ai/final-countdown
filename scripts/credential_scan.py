@@ -138,6 +138,38 @@ _TOKEN_RUN: Final = re.compile(r"[A-Za-z0-9_\-]{32,}")
 # statement about what the value provably IS rather than a prefix anyone can
 # type to opt out of scanning.
 _SRI_DIGEST_BYTES: Final = {"sha256": 32, "sha384": 48, "sha512": 64}
+
+# Descriptive names are not credentials, and the rule above cannot tell the
+# difference on its own. `Computer_Applications_SecP1X_2026-27` is 37
+# characters, mixes all three alphabets, and is an official CBSE syllabus file
+# name; so is every researchgate figure slug this repository's curriculum data
+# quotes. The generic rule fired on 33 of them at once. That is the failure the
+# `sk-` pattern already argues about in its own comment -- a scanner that fires
+# on ordinary English is a scanner somebody switches off, and a switched-off
+# scanner catches nothing.
+#
+# WHAT ACTUALLY SEPARATES THE TWO, AND WHY IT IS A PROPERTY AND NOT A GUESS.
+# A descriptive name is words and numbers joined by delimiters, so every piece
+# between delimiters is short. A credential is an unbroken random run at
+# credential length; putting a hyphen next to one does not shorten the run. So
+# the run is exempt only when EVERY delimiter-separated segment falls under the
+# credential floor, and the floor reused here is the same 16 the `sk-` payload
+# already uses rather than a new number chosen to fit today's failures.
+#
+# This is deliberately not an opt-out anyone can type. Bolting `release-notes-`
+# onto a real 32-character token leaves the token itself as one segment, over
+# the floor, and still a finding -- pinned by
+# `test_a_delimited_run_hiding_a_full_length_secret_still_fails`.
+_SEGMENT_DELIMITERS: Final = ("_", "-")
+_CREDENTIAL_SEGMENT_FLOOR: Final = 16
+
+
+def _is_delimited_description(run: str) -> bool:
+    """True when no delimiter-separated segment reaches credential length."""
+    segments = [run]
+    for delimiter in _SEGMENT_DELIMITERS:
+        segments = [piece for s in segments for piece in s.split(delimiter)]
+    return all(len(piece) < _CREDENTIAL_SEGMENT_FLOOR for piece in segments)
 _SRI: Final = re.compile(r"\b(sha256|sha384|sha512)-([A-Za-z0-9+/]+=*)")
 
 _INDEX_SIGNATURE: Final = b"DIRC"
@@ -216,6 +248,8 @@ def scan_text(text: str, path: str) -> list[Finding]:
         if not _mixed_alphabet(run):
             continue
         if any(start <= m.start() and m.end() <= end for start, end in integrity):
+            continue
+        if _is_delimited_description(run):
             continue
         findings.append(
             Finding("high-entropy-token", path, line_of(m.start()), len(run))

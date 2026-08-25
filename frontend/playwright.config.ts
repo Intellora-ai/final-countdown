@@ -163,12 +163,39 @@ export default defineConfig({
     },
   ],
 
-  webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 5183 --strictPort',
-    url: 'http://127.0.0.1:5183',
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-    stdout: 'ignore',
-    stderr: 'pipe',
-  },
+  /*
+   * TWO SERVERS, because the product is two servers.
+   *
+   * The browser posts to /api, Vite proxies it to the planner, and the planner
+   * is a separate process. Running only Vite meant every browser test drove a
+   * dashboard whose planner was unreachable -- the deep-qa harness counted 180
+   * console errors from that one cause, and every "the app works" claim was
+   * made against half of it.
+   *
+   * The key is deliberately not a real one. Nothing these tests do reaches the
+   * model: the day and done routes are pure planner, and a lesson request
+   * fails at the network rather than spending anything. A real key here would
+   * be a real key in CI.
+   */
+  webServer: [
+    {
+      command: 'npm run server:build && ANTHROPIC_API_KEY=CANARY-e2e-must-not-leak PORT=8787 node dist-server/index.js',
+      /* The one route that answers a GET. Every other route mutates or costs
+         money, so none of them can be polled -- which is why this endpoint
+         exists at all. */
+      url: 'http://127.0.0.1:8787/api/health',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      stdout: 'ignore',
+      stderr: 'pipe',
+    },
+    {
+      command: 'npm run dev -- --host 127.0.0.1 --port 5183 --strictPort',
+      url: 'http://127.0.0.1:5183',
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+      stdout: 'ignore',
+      stderr: 'pipe',
+    },
+  ],
 })

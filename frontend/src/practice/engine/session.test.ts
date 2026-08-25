@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { fileURLToPath } from 'node:url'
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -368,7 +369,14 @@ describe('the result', () => {
  * So `remainingFor` keeps that and delegates the arithmetic.
  */
 describe('the countdown is computed once', () => {
-  const DIR = new URL('.', import.meta.url).pathname;
+  /* `fileURLToPath`, NOT `.pathname`.
+   *
+   * A file URL percent-encodes, so on a checkout whose path contains a space
+   * `.pathname` yields `/Users/.../final%20countdown/...` and every read of it
+   * fails with ENOENT. The test then reports the product as broken when the
+   * only broken thing is the path it built. This repository is checked out at
+   * such a path today, which is how it was found. */
+  const DIR = fileURLToPath(new URL('.', import.meta.url));
   const PRACTICE = join(DIR, '..');
 
   it('subtracts from timerDurationMs in engine/session.ts and nowhere else', () => {

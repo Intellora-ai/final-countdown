@@ -6,3 +6,4 @@ ci-findings.json
 # Breadcrumb written by scripts/mutation-gate.mjs while a source file holds
 # mutated bytes. Present only during a run, or after one was SIGKILLed.
 scripts/.mutation-gate.lock
+dist-server/

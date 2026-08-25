@@ -4,6 +4,7 @@
  * talks to ONE adapter — swap LocalAdapter for Firebase/Supabase, keep the UI.
  * WEAKNESS IS NOT STORED: raw signals are; "weak" is a policy hook. */
 import CURRICULUM from './curriculum'
+import { plannedSubjects } from '../almanac/plannedCurriculum'
 import type { Adapter, DB, Student, ProgressRecord, ConceptState, Chapter, Concept, Subject, TodayPlan, PlanItem, PlanDraft, ActivityEvent } from '../types'
 
 const KEY = 'learning-os/v2'
@@ -44,7 +45,7 @@ export class LocalAdapter implements Adapter {
 /* ---------------- derivation: today's plan (verbatim logic) --------------- */
 function planFor(store: Store, student: Student | null): TodayPlan {
   if (!student) return { items: [], allocated: 0, capacity: 0, reserve: 10, usable: 0 }
-  const subs = CURRICULUM.subjectsFor(student.cls, student.stream)
+  const subs = plannedSubjects(student.cls)
     .filter((s) => student.subjects.indexOf(s.id) >= 0)
   const cap0 = student.minutes || 0
   if (!subs.length) return { items: [], allocated: 0, capacity: cap0, reserve: 10, usable: Math.max(0, cap0 - 10) }
@@ -370,7 +371,7 @@ export class Store {
     const out: Rollups = { chapters: {}, subjects: {} }
     if (s && s.cls) {
       const prog = this.db!.progress[this.currentId!] || {}
-      CURRICULUM.subjectsFor(s.cls, s.stream).forEach((sb) => {
+      plannedSubjects(s.cls).forEach((sb) => {
         let sDone = 0, sTot = 0
         sb.chapters.forEach((ch) => {
           const m = prog[ch.id] || {}
@@ -418,7 +419,7 @@ function seed(): DB {
     db.activity[p.id] = []
     if (!p.depth) return
     // fill forward through the graph so prerequisites always hold
-    CURRICULUM.subjectsFor(p.cls, null).filter((s) => p.subjects.indexOf(s.id) >= 0).forEach((sb) => {
+    plannedSubjects(p.cls).filter((s) => p.subjects.indexOf(s.id) >= 0).forEach((sb) => {
       let quota = Math.round(sb.chapters.reduce((n, c) => n + c.concepts.length, 0) * p.depth)
       sb.chapters.forEach((ch) => {
         db.progress[p.id][ch.id] = db.progress[p.id][ch.id] || {}

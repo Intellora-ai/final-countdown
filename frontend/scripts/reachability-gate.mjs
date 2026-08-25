@@ -113,6 +113,19 @@ export const MANIFEST = [
       'src/websearch/webSearchClient.ts',
     ],
   },
+  {
+    name: 'server',
+    root: 'server',
+    /* A FIFTH AREA, and deliberately outside `src/`. It holds the API key and
+       never ships to the browser -- the secret-exposure gate refuses any
+       `src/` -> `server/` import outright.
+
+       `node.d.ts` is NOT an entry: this gate collects `.ts`/`.tsx` only, so an
+       ambient declaration is not part of an area at all, and naming one asks
+       the gate to find a file it never collected. */
+    shipsToBrowser: false,
+    entries: ['server/index.ts'],
+  },
 ]
 
 /* -------------------------------------------------------------------------- */
@@ -661,8 +674,68 @@ export function analyze(area) {
   return { area: area.name, files, reached: [...reached].sort(), orphans, deadExports, warnings }
 }
 
+/**
+ * Every named import taken from any file, by any non-test file in ANY area.
+ *
+ * `analyze` looks at one area at a time, so an importer in a different area is
+ * invisible to it. `server/handler.ts` imports `citationSupports` from
+ * `src/websearch`, and the gate went on calling that export DEAD while a
+ * shipping file used it on every request. An importer the gate cannot see is
+ * indistinguishable from no importer at all, which is the single distinction
+ * this gate exists to make.
+ */
+function takenAcrossAreas(manifest) {
+  const taken = new Map()
+  const starred = new Set()
+
+  for (const area of manifest) {
+    let files
+    try {
+      files = walk(resolve(ROOT, area.root)).map((f) => relative(ROOT, f))
+    } catch {
+      /* An area whose directory is absent contributes no importers. Reported
+       * by `analyze` as an area with no files, not silently swallowed here. */
+      continue
+    }
+    for (const file of files) {
+      if (isTestFile(file)) continue
+      let source
+      try {
+        source = readFileSync(resolve(ROOT, file), 'utf8')
+      } catch {
+        continue
+      }
+      for (const imp of importsOf(source)) {
+        const target = resolveSpec(file, imp.spec)
+        if (target === null || target === undefined) continue
+        if (imp.star) starred.add(target)
+        const set = taken.get(target) ?? new Set()
+        for (const name of imp.names) set.add(name)
+        taken.set(target, set)
+      }
+    }
+  }
+  return { taken, starred }
+}
+
 export function runAll(manifest = MANIFEST) {
-  return manifest.map(analyze)
+  const results = manifest.map(analyze)
+
+  /* CROSS-AREA IMPORTERS, and without this the gate lies.
+     `analyze` looks at ONE area at a time, so an importer living in another
+     area is invisible to it -- `server/handler.ts` imports `citationSupports`
+     from `src/websearch`, and the gate called that export DEAD while a shipping
+     file used it on every request. An importer the gate cannot see is
+     indistinguishable from no importer, which is the one distinction this whole
+     file exists to make. */
+  const { taken, starred } = takenAcrossAreas(manifest)
+
+  return results.map((result) => ({
+    ...result,
+    deadExports: result.deadExports.filter(
+      (d) => !starred.has(d.file) && !(taken.get(d.file)?.has(d.name) ?? false),
+    ),
+  }))
 }
 
 /* -------------------------------------------------------------------------- */
@@ -721,6 +794,16 @@ export function analyzeProductReachability(
      correct: the question cannot be answered for it, and refusing to answer
      beats answering wrongly. */
   for (const area of manifest) {
+    /* AN AREA THAT DOES NOT SHIP TO A BROWSER IS NOT SKIPPED TO KEEP THE GATE
+       QUIET --- the question is meaningless for it.
+       `server/` holds the API key and is deliberately never imported by
+       `main.tsx`; "does the browser reach the server" has no true answer, and
+       inventing one either way is worse than declining. Its INTERNAL orphan
+       check still runs in `analyze()`, so nothing about it goes unmeasured.
+       The flag is opt-OUT: an area that forgets to declare itself is still
+       asked the question, so silence is never the default. */
+    if (area.shipsToBrowser === false) continue
+
     for (const e of area.entries) {
       if (!sources.includes(e)) {
         throw new Error(
@@ -757,6 +840,11 @@ export function analyzeProductReachability(
 
   const findings = []
   for (const area of manifest) {
+    /* Same reason as the validation loop above: an area that does not ship to a
+       browser cannot be UNREACHED by one. Reporting it would be a finding
+       nobody can act on, and a gate that cries wolf gets switched off. */
+    if (area.shipsToBrowser === false) continue
+
     const unreachable = area.entries.filter((e) => !reached.has(e))
     if (unreachable.length > 0) findings.push({ area: area.name, unreachable })
   }

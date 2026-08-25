@@ -1,0 +1,600 @@
+                   ACCOUNTANCY (Subject Code 055)
+                        ClassXI-XII
+                       Class XI-XII (2025-26)
+                                    (2026-27)
+Rationale
+
+The course in accountancy is introduced at plus two stage of senior second of school education,
+as the formal commerce education is provided after ten years of schooling. With the fast
+changing economic scenario, accounting as a source of financial information has carved out a
+place for itself at the senior secondary stage. Its syllabus content provide students a firm
+foundation in basic accounting concepts and methodology and also acquaint them with the
+changes taking place in the preparation and presentation of financial statements in accordance
+to the applicable accounting standards and the Companies Act 2013.
+
+The course in accounting put emphasis on developing basic understanding about accounting as
+an information system. The emphasis in Class XI is placed on basic concepts and process of
+accounting leading to the preparation of accounts for a sole proprietorship firm. The students
+are also familiarized with basic calculations of Goods and Services Tax (GST) in recording the
+business transactions. The accounting treatment of GST is confined to the syllabus of class XI.
+
+The increased role of ICT in all walks of life cannot be overemphasized and is becoming an
+integral part of business operations. The learners of accounting are introduced to Computerized
+Accounting System at class XI and XII. Computerized Accounting System is a compulsory
+component which is to be studied by all students of commerce in class XI; whereas in class XII
+it is offered as an optional subject to Company Accounts and Analysis of Financial Statements.
+This course is developed to impart skills for designing need based accounting database for
+maintaining book of accounts.
+
+The complete course of Accountancy at the senior secondary stage introduces the learners to
+the world of business and emphasize on strengthening the fundamentals of the subject.
+
+Objectives:
+   1. To familiarize students with new and emerging areas in the preparation and presentation
+       of financial statements.
+   2. To acquaint students with basic accounting concepts and accounting standards.
+   3. To develop the skills of designing need based accounting database.
+   4. To appreciate the role of ICT in business operations.
+   5. To develop an understanding about recording of business transactions and preparation
+       of financial statements.
+   6. To enable students with accounting for Not-for-Profit organizations, accounting for
+       Partnership Firms and company accounts.
+                                   Accountancy (Subject Code 055)
+                                            Class-XI  (2026-27)
+                                             Class-XI (2025-26)
+Theory: 80 Marks                                                                                           3 Hours
+Project: 20 Marks
+Units                                                                                      Marks
+Part A: Financial Accounting-1
+           Unit-1: Theoretical Framework                                                   12
+           Unit-2: Accounting Process                                                      44
+Part B: Financial Accounting-II
+           Unit-3: Financial Statements of Sole Proprietorship                             24
+
+Part C: Project Work                                                                       20
+
+
+PART A: FINANCIAL ACCOUNTING - I
+
+Unit-1: Theoretical Frame Work
+Units/Topics                                            Learning Outcomes
+Introduction to Accounting                              After going through this Unit, the students will be
+    •   Accounting- concept, meaning, as a source       able to:
+        of information, objectives, advantages and          •      describe the meaning, significance,
+        limitations, types of accounting information;              objectives, advantages and limitations of
+        users of accounting information and their                  accounting in the modem economic
+        needs. Qualitative Characteristics of                      environment with varied types of business
+        Accounting Information. Role of Accounting in              and non-business economic entities.
+        Business.                                           •      identify / recognise the individual(s) and
+    •   Basic Accounting Terms- Entity, Business                   entities that use accounting information for
+        Transaction, Capital, Drawings. Liabilities                serving their needs of decision making.
+        (Non Current and Current). Assets (Non              •      explain the various terms used in accounting
+        Current, Current); Expenditure (Capital and                and differentiate between different related
+        Revenue), Expense, Revenue, Income,                        terms like current and non-current, capital
+        Profit, Gain, Loss, Purchase, Sales, Goods,                and revenue.
+        Stock, Debtor, Creditor, Voucher, Discount          •      give examples of terms like business
+        (Trade discount and Cash Discount)                         transaction, liabilities, assets, expenditure
+                                                                   and purchases.
+Theory Base of Accounting                                   •      explain that sales/purchases include both
+    •   Fundamental accounting assumptions:                        cash and credit sales/purchases relating to
+        GAAP: Concept                                              the accounting year.
+    •   Basic Accounting Concept : Business Entity,         •      differentiate among income, profits and gains.
+        Money Measurement, Going Concern,
+       Accounting Period, Cost Concept, Dual              •      state the meaning of fundamental accounting
+       Aspect, Revenue Recognition, Matching, Full               assumptions and their relevance in
+       Disclosure, Consistency, Conservatism,                    accounting.
+   •   Materiality and Objectivity                        •      describe the meaning of accounting
+   •   System of Accounting. Basis of Accounting:                assumptions and the situation in which an
+       cash basis and accrual basis                              assumption is applied during the accounting
+   •   Accounting Standards: Applicability of                    process.
+       Accounting Standards (AS) and Indian               •      explain the meaning, applicability, objectives,
+       Accounting Standards (IndAS)                              advantages and limitations of accounting
+   •   Goods and Services Tax (GST):                             standards.
+       Characteristics and Advantages.                    •      appreciate that various accounting standards
+                                                                 developed nationally and globally are in
+                                                                 practice for bringing parity in the accounting
+                                                                 treatment of different items.
+                                                          •      acknowledge the fact that recording of
+                                                                 accounting transactions follows double entry
+                                                                 system.
+                                                          •      explain the bases of recording accounting
+                                                                 transaction and to appreciate that accrual
+                                                                 basis is a better basis for depicting the
+                                                                 correct financial position of an enterprise.
+                                                          •      Explain the meaning, advantages and
+                                                                 characteristic of GST.
+
+
+Unit-2: Accounting Process
+
+Units/Topics                                          Learning Outcomes
+Recording of Business Transactions                    After going through this Unit, the students will be
+   •   Voucher and Transactions: Source               able to:
+       documents and Vouchers, Preparation of             •      explain the concept of accounting equation
+       Vouchers, Accounting Equation Approach:                   and appreciate that every transaction affects
+       Meaning and Analysis, Rules of Debit and                  either both the sides of the equation or a
+       Credit.                                                   positive effect on one item and a negative
+   •   Recording of Transactions: Books of Original              effect on another item on the same side of
+       Entry- Journal                                            accounting equation.
+   •   Special Purpose books:                             •      explain the effect of a transaction (increase or
+   •   Cash Book: Simple, cash book with bank                    decrease) on the assets, liabilities, capital,
+       column and petty cashbook                                 revenue and expenses.
+   •   Purchases book                                     •      appreciate that on the basis of source
+    •    Sales book                                       documents, accounting vouchers are
+    •    Purchases return book                            prepared for recording transaction in the
+    •    Sales return book                                books of accounts.
+
+    •    Journal proper                               •   develop the understanding of recording of
+Note: Including trade discount, freight and cartage       transactions in journal and the skill of
+expenses for simple GST calculation.                      calculating GST.
+    •    Ledger: Format, Posting from journal and     •   explain the purpose of maintaining a Cash
+         subsidiary books, Balancing of accounts          Book and develop the skill of preparing the
+                                                          format of different types of cash books and
+Bank Reconciliation Statement:                            the method of recording cash transactions in
+    •    Need and preparation, Bank Reconciliation        Cash book.
+         Statement                                    •   describe the method of recording
+Depreciation, Provisions and Reserves                     transactions other than cash transactions as
+    •    Depreciation: Meaning, Features, Need,           per their nature in different subsidiary books .
+         Causes, factors                              •   appreciate that at times bank balance as
+    •    Other similar terms: Depletion and               indicated by cash book is different from the
+         Amortisation                                     bank balance as shown by the pass book /
+    •    Methods of Depreciation:                         bank statement and to reconcile both the
+         i. Straight Line Method (SLM)                    balances, bank reconciliation statement is
+         ii. Written Down Value Method (WDV)              prepared.
+Note: Excluding change of method
+                                                      •   develop understanding of preparing bank
+    •    Difference between SLM and WDV;                  reconciliation statement.
+         Advantages of SLM and WDV
+                                                      •   appreciate that for ascertaining the position of
+    •    Method of recoding depreciation                  individual accounts, transactions are posted
+          i. Charging to asset account
+                                                          from subsidiary books and journal proper into
+          ii. Creating provision for
+                                                          the concerned accounts in the ledger and
+          depreciation/accumulated depreciation
+                                                          develop the skill of ledger posting.
+          account
+                                                      •   explain the necessity of providing
+    •    Treatment of disposal of asset
+                                                          depreciation and develop the skill of using
+    •    Provisions, Reserves, Difference Between
+                                                          different methods for computing depreciation.
+         Provisions and Reserves.
+                                                      •   understand the accounting treatment of
+    •    Types of Reserves:
+                                                          providing depreciation directly to the
+         i. Revenue reserve
+         ii. Capital reserve                              concerned asset account or by creating
+         iii. General reserve                             provision for depreciation account.
+         iv. Specific reserve
+         v. Secret Reserve                            •   appreciate the method of asset disposal
+    •    Difference between capital and revenue           through the concerned asset account or by
+         reserve                                          preparing asset disposal account.
+                                                      •   appreciate the need for creating reserves and
+Trial balance and Rectification of Errors                 also making provisions for events which may
+    •    Trial balance: objectives, meaning and                     belong to the current year but may happen in
+         preparation                                                next year.
+(Scope: Trial balance with balance method only)              •      appreciate the difference between reserve
+    •    Errors: classification-errors of omission,                 and reserve fund.
+         commission, principles, and compensating;           •      state the need and objectives of preparing
+         their effect on Trial Balance.                             trial balance and develop the skill of
+    •    Detection and rectification of errors;                     preparing trial balance.
+        (i)   Errors which do not affect trial balance       •      appreciate that errors may be committed
+        (ii) Errors which affect trial balance                      during the process of accounting.
+    •     preparation of suspense account.                   •      understand the meaning of different types of
+                                                                    errors and their effect on trial balance.
+                                                             •      develop the skill of identification and location
+                                                                    of errors and their rectification and
+                                                                    preparation of suspense account.
+
+
+Part B: Financial Accounting - II
+Unit 3: Financial Statements of Sole Proprietorship
+
+Units/Topics                                             Learning Outcomes
+Financial Statements                                     After going through this Unit, the students will be
+Meaning, objectives and importance; Revenue and          able to:
+Capital Receipts; Revenue and Capital Expenditure;           •      state the meaning of financial statements the
+Deferred Revenue expenditure. Opening journal                •      purpose of preparing financial statements.
+entry. Trading and Profit and Loss Account: Gross            •      state the meaning of gross profit, operating
+Profit, Operating profit and Net profit. Preparation.               profit and net profit and develop the skill of
+                                                                    preparing trading and profit and loss account.
+Balance Sheet: need, grouping and marshalling of             •      explain the need for preparing balance sheet.
+assets and liabilities. Preparation. Adjustments in          •      understand the technique of grouping and
+preparation of financial statements with respect to                 marshalling of assets and liabilities.
+closing stock, outstanding expenses, prepaid                 •      appreciate that there may be certain items
+expenses, accrued income, income received in                        other than those shown in trial balance which
+advance, depreciation, bad debts, provision for                     may need adjustments while preparing
+doubtful debts, provision for discount on debtors,                  financial statements.
+Abnormal loss, Goods taken for personal use/staff            •      develop the understanding and skill to do
+welfare, interest on capital and managers                           adjustments for items and their presentation
+commission. Preparation of Trading and Profit and                   in financial statements like depreciation,
+Loss account and Balance Sheet of a sole                            closing stock, provisions, abnormal loss etc.
+proprietorship with adjustments.
+                                                             •      develop the skill of preparation of trading and
+                                                                    profit and loss account and balance sheet.
+Incomplete Records
+Features, reasons and limitations.
+Ascertainment of Profit/Loss by Statement of Affairs
+method. (excluding conversion method)
+
+
+Part C: Project Work (Any One)
+1. Collection of source documents, preparation of vouchers, recording of transactions with the help of vouchers.
+2. Preparation of Bank Reconciliation Statement with the given cash book and the pass book with twenty to
+twenty-five transactions.
+3. Comprehensive project of any sole proprietorship business. This may state with journal entries and their
+ledgering, preparation of Trial balance. Trading and Profit and Loss Account and Balance Sheet. Expenses,
+incomes and profit (loss), assets and liabilities are to be depicted using pie chart / bar diagram. This may
+include simple GST related transactions.
+                                              PROJECT WORK
+
+It is suggested to undertake this project after completing the unit on preparation of financial statements. The
+student(s) will be allowed to select any business of their choice or develop the transaction of imaginary
+business. The project is to run through the chapters and make the project an interesting process. The amounts
+should emerge as more realistic and closer to reality.
+
+
+Specific Guidelines for Teachers
+Give a list of options to the students to select a business form. You can add to the given list:
+1. A beauty parlour                10. Men's wear                      19. A coffee shop
+2. Men's saloon                    11. Ladies wear                     20. A music shop
+3. A tailoring shop                12. Kiddies wear                    21. A juice shop
+4. A canteen                       13. A Saree shop                    22. A school canteen
+5. A cake shop                     14. Artificial jewellery shop       23. An ice cream parlour
+6. A confectionery shop            15. A small restaurant              24. A sandwich shop
+7. A chocolate shop                16. A sweet shop                    25. A flower shop
+8. A dry cleaner                   17. A grocery shop
+9. A stationery shop               18. A shoe shop
+
+After selection, advise the student(s) to visit a shop in the locality (this will help them to settle on a realistic
+amounts different items. The student(s) would be able to see the things as they need to invest in furniture,
+decor, lights, machines, computers etc.
+
+
+A suggested list of different item is given below.
+1. Rent                                              19. Wages and Salary
+2. Advance rent [approximately three months]         20. Newspaper and magazines
+3. Electricity deposit                               21. Petty expenses
+4. Electricity bill                                  22. Tea expenses
+5. Electricity fitting                               23. Packaging expenses
+6. Water bill                                        24. Transport
+7. Water connection security deposit                 25. Delivery cycle or a vehicle purchased
+8. Water fittings                                    26. Registration
+9. Telephone bill                                    27. Insurance
+10. Telephone security deposit                       28. Auditors fee
+11. Telephone instrument                             29. Repairs & Maintenance
+12. Furniture                                        30. Depreciations
+13. Computers                                        31. Air conditioners
+14. Internet connection                              32. Fans and lights
+15. Stationery                                       33. Interior decorations
+16. Advertisements                                   34. Refrigerators
+17. Glow sign                                        35. Purchase and sales
+18. Rates and Taxes
+
+At this stage, performas of bulk of originality and ledger may be provided to the students and they may be
+asked to complete the same.
+
+In the next step the students are expected to prepare the trial balance and the financial statements.
+                                      Suggested Question Paper Design
+                                       Accountancy (Subject Code 055)
+                                             Class XI (2025-26)
+Theory: 80 Marks                                Class XI (2026-2027)                                       3 hrs.
+Project: 20 Marks
+
+S
+N                                   Typology of Questions                                       Marks   Percentage
+1
+     Remembering and Understanding:
+     Exhibit memory of previously learned material by recalling facts, terms, basic concepts,
+     and answers.
+                                                                                                 32        40%
+     Demonstrate understanding of facts and ideas by organizing, comparing, translating,
+     interpreting, giving descriptions, and stating main ideas
+
+3    Applying: Solve problems to new situations by applying acquired knowledge, facts,
+     techniques and rules in a different way.                                                    24        30%
+
+4
+     Analysing, Evaluating and Creating:
+     Examine and break information into parts by identifying motives or causes. Make
+     inferences and find evidence to support generalizations.
+     Present and defend opinions by making judgments about information, validity of ideas, or
+                                                                                                 24        30%
+     quality of work based on a set of criteria.
+     Compile information together in a different way by combining elements in a new pattern
+     or proposing alternative solutions.
+
+
+     TOTAL                                                                                       80       100%
+                                Accountancy (Subject Code 055)
+                                             Class-XII (2025-26)
+                                             Class-XII (2026-27)
+
+Theory: 80 Marks                                                           3 Hours
+Project: 20 Marks
+
+
+Units                                                              Marks
+
+Part A   Accounting for Partnership Firms and Companies
+
+         Unit 1. Accounting for Partnership Firms                  36
+         Unit 2. Accounting for Companies                          24
+                                                                   60
+Part B   Financial Statement Analysis
+         Unit 3. Analysis of Financial Statements                  12
+         Unit 4. Cash Flow Statement                               8
+                                                                   20
+Part C   Project Work                                              20
+         Project work will include:
+
+         Project File              12 Marks
+
+         Viva Voce                 8 Marks
+
+                                                Or
+Part B   Computerized Accounting
+
+         Unit 4. Computerized Accounting                           20
+Part C   Practical Work                                            20
+         Practical work will include:
+
+         Practical File 12 Marks
+
+         Viva Voce 8 Marks
+Part A: Accounting for Partnership Firms and Companies
+Unit 1: Accounting for Partnership Firms
+Units/Topics                                              Learning Outcomes
+    •   Partnership: features, Partnership Deed.          After going through this Unit, the students will be
+    •   Provisions of the Indian Partnership Act 1932     able to:
+        in the absence of partnership deed.                   •      state the meaning of partnership, partnership
+    •   Fixed v/s fluctuating capital accounts.                      firm and partnership deed.
+        Preparation of Profit and Loss Appropriation          •      describe the characteristic features of
+        account- division of profit among partners,                  partnership and the contents of partnership
+        guarantee of profits.                                        deed.
+    •   Past adjustments (relating to interest on             •      discuss the significance of provision of
+        capital, interest on drawing, salary and profit              Partnership Act in the absence of partnership
+        sharing ratio).                                              deed.
+    •   Goodwill: meaning, nature, factors affecting          •      differentiate between fixed and fluctuating
+        and methods of valuation - average profit,                   capital, outline the process and develop the
+        super profit and capitalization.                             understanding and skill of preparation of
+                                                                     Profit and Loss Appropriation Account.
+Note: Interest on partner's loan is to be treated as a        •      develop the understanding and skill of
+charge against profits.                                              preparation profit and loss appropriation
+Goodwill: meaning, factors affecting, need for                       account involving guarantee of profits.
+valuation, methods for calculation (average profits,          •      develop the understanding and skill of
+super profits and capitalization), adjusted through                  making past adjustments.
+partners capital/ current account.                            •      state the meaning, nature and factors
+                                                                     affecting goodwill
+Accounting for Partnership firms - Reconstitution             •      develop the understanding and skill of
+and Dissolution.                                                     valuation of goodwill using different methods.
+    •   Change in the Profit Sharing Ratio among              •      state the meaning of sacrificing ratio, gaining
+        the existing partners - sacrificing ratio,                   ratio and the change in profit sharing ratio
+        gaining ratio, accounting for revaluation of                 among existing partners.
+        assets and reassessment of liabilities and            •      develop the understanding of accounting
+        treatment of reserves, accumulated profits                   treatment of revaluation assets and
+        and losses. Preparation of revaluation                       reassessment of liabilities and treatment of
+        account and balance sheet.                                   reserves and accumulated profits by
+    •   Admission of a partner - effect of admission                 preparing revaluation account and balance
+        of a partner on change in the profit sharing                 sheet.
+        ratio, treatment of goodwill (as per AS 26),          •      explain the effect of change in profit sharing
+        treatment for revaluation of assets and re-                  ratio on admission of a new partner.
+        assessment of liabilities, treatment of               •      develop the understanding and skill of
+        reserves, accumulated profits and losses,
+         adjustment of capital accounts and                               treatment of goodwill as per AS-26, treatment
+         preparation of capital, current account and                      of revaluation of assets and re-assessment of
+         balance sheet.                                                   liabilities, treatment of reserves and
+    •    Retirement and death of a partner: effect of                     accumulated profits, adjustment of capital
+         retirement / death of a partner on change in                     accounts and preparation of capital, current
+         profit sharing ratio, treatment of goodwill (as                  account and balance sheet of the new firm.
+         per AS 26), treatment for revaluation of                  •      explain the effect of retirement / death of a
+         assets and reassessment of liabilities,                          partner on change in profit sharing ratio.
+         adjustment of accumulated profits, losses                 •      develop the understanding of accounting
+         and reserves, adjustment of capital accounts                     treatment of goodwill, revaluation of assets
+         and preparation of capital, current account                      and re-assessment of liabilities and
+         and balance sheet. Preparation of loan                           adjustment of accumulated profits, losses
+         account of the retiring partner.                                 and reserves on retirement / death of a
+    •    Calculation of deceased partner’s share of                       partner and capital adjustment.
+         profit till the date of death. Preparation of             •      develop the skill of calculation of deceased
+         deceased partner’s capital account and his                       partner's share till the time of his death and
+         executor’s account.                                              prepare deceased partner's and executor's
+    •    Dissolution of a partnership firm: meaning                       account.
+         of dissolution of partnership and partnership             •      discuss the preparation of the capital
+         firm, types of dissolution of a firm. Settlement                 accounts of the remaining partners and the
+         of accounts - preparation of realization                         balance sheet of the firm after retirement /
+         account, and other related accounts: capital                     death of a partner.
+         accounts of partners and cash/bank a/c                    •      understand the situations under which a
+         (excluding piecemeal distribution, sale to a                     partnership firm can be dissolved.
+         company and insolvency of partner(s)).                    •      develop the understanding of preparation of
+Note:                                                                     realisation account and other related
+(i) If the realized value of tangible assets is not given it              accounts.
+should be considered as realized at book value itself.
+(ii) If the realized value of intangible assets is not
+given it should be considered as nil (zero value).
+(ii) In case, the realization expenses are borne by a
+partner, clear indication should be given regarding the
+payment thereof.
+
+Unit-3 Accounting for Companies
+
+Units/Topics                                                   Learning Outcomes
+Accounting for Share Capital                                   After going through this Unit, the students will be
+    •    Features and types of companies.                      able to:
+    •    Share and share capital: nature and types.                •      state the meaning of share and share capital
+      •   Accounting for share capital: issue and                      and differentiate between equity shares and
+          allotment of equity and preferences shares.                  preference shares and different types of
+          Public subscription of shares - over                         share capital.
+          subscription and under subscription of                •      understand the meaning of private placement
+          shares; issue at par and at premium, calls in                of shares and Employee Stock Option Plan.
+          advance and arrears (excluding interest),             •      explain the accounting treatment of share
+          issue of shares for consideration other than                 capital transactions regarding issue of
+          cash.                                                        shares.
+      •   Concept of Private Placement and Employee             •      develop the understanding of accounting
+          Stock Option Plan (ESOP), Sweat Equity.                      treatment of forfeiture and re-issue of
+      •   Accounting treatment of forfeiture and re-                   forfeited shares.
+          issue of shares.                                      •      describe the presentation of share capital in
+      •   Disclosure of share capital in the Balance                   the balance sheet of the company as per
+          Sheet of a company.                                          schedule III part I of the Companies Act
+                                                                       2013.
+Accounting for Debentures                                       •      explain the accounting treatment of different
+      •   Debentures: Meaning, types, Issue of                         categories of transactions related to issue of
+          debentures at par, at a premium and at a                     debentures.
+          discount. Issue of debentures for                     •      develop the understanding and skill of writing
+          consideration other than cash; Issue of                      of discount / loss on issue of debentures.
+          debentures with terms of redemption;                  •      understand the concept of collateral security
+          debentures as collateral security-concept,                   and its presentation in balance sheet.
+          interest on debentures (concept of TDS is             •      develop the skill of calculating interest on
+          excluded). Writing off discount / loss on issue              debentures and its accounting treatment.
+          of debentures.                                        •      state the meaning of redemption of
+Note: Discount or loss on issue of debentures to be                    debentures.
+written off in the year debentures are allotted from
+Security Premium Reserve (if it exists) and then from
+Statement of Profit and Loss as Financial Cost (AS
+16)
+
+
+
+Part B: Financial Statement Analysis
+
+Unit 4: Analysis of Financial Statements
+Units/Topics                                                Learning Outcomes
+Financial statements of a Company:                          After going through this Unit, the students will be
+Meaning, Nature, Uses and importance of financial           able to:
+Statement.                                                      •      develop the understanding of major headings
+Statement of Profit and Loss and Balance Sheet in                      and sub-headings (as per Schedule III to the
+prescribed form with major headings and sub                          Companies Act, 2013) of balance sheet as
+headings (as per Schedule III to the Companies Act,                  per the prescribed norms / formats.
+2013)                                                           •    state the meaning, objectives and limitations
+                                                                     of financial statement analysis.
+Note: Exceptional items, extraordinary items and                •    discuss the meaning of different tools of
+profit (loss) from discontinued operations are                       'financial statements analysis'.
+excluded.                                                       •    develop the skill of preparation of preparation
+    •    Financial Statement Analysis: Meaning,                      of comparative and common size statement,
+         Significance Objectives, importance and                     understand their uses and difference
+         limitations.                                                between the two.
+    •    Tools for Financial Statement Analysis:                •    state the meaning, objectives and
+         Comparative statements, common size                         significance of different types of ratios.
+         statements, Ratio analysis, Cash flow                  •    develop the understanding of computation of
+         analysis.                                                   current ratio and quick ratio.
+    •    Accounting Ratios: Meaning, Objectives,                •    develop the skill of computation of debt equity
+         Advantages, classification and computation.                 ratio, total asset to debt ratio, proprietary ratio
+    •    Liquidity Ratios: Current ratio and Quick                   and interest coverage ratio.
+         ratio.                                                 •    develop the skill of computation of inventory
+    •    Solvency Ratios: Debt to Equity Ratio, Total                turnover ratio, trade receivables and trade
+         Asset to Debt Ratio, Proprietary Ratio and                  payables ratio and working capital turnover
+         Interest Coverage Ratio. Debt to Capital                    ratio and others.
+         Employed Ratio.                                        •    develop the skill of computation of gross
+    •    Activity Ratios: Inventory Turnover Ratio,                  profit ratio, operating ratio, operating profit
+         Trade Receivables Turnover Ratio, Trade                     ratio, net profit ratio and return on investment.
+         Payables Turnover Ratio, Fixed Asset
+         Turnover Ratio, Net Asset Turnover Ratio
+         and Working Capital Turnover Ratio.
+    •    Profitability Ratios: Gross Profit Ratio,
+         Operating Ratio, Operating Profit Ratio, Net
+         Profit Ratio and Return on Investment.
+
+Note: Net Profit Ratio is to be calculated on the basis of profit before and after tax.
+
+Unit 5: Cash Flow Statement
+
+Units/Topics                                                Learning Outcomes
+    •    Meaning, objectives Benefits, Cash and Cash        After going through this Unit, the students will
+         Equivalents, Classification of Activities and      be able to:
+         preparation (as per AS 3 (Revised) (Indirect           •    state the meaning and objectives of cash flow
+         Method only)                                                statement.
+                                                             •    develop the understanding of preparation of
+Note:                                                             Cash Flow Statement using indirect method
+(i) Adjustments relating to depreciation and                      as per AS 3 with given adjustments.
+amortization, profit or loss on sale of assets including
+investments, dividend (both final and interim) and tax.
+(ii) Bank overdraft and cash credit to be treated as
+short term borrowings.
+(iii) Current Investments to be taken as Marketable
+securities unless otherwise specified.
+
+
+
+Note: Previous years’ Proposed Dividend to be given effect, as prescribed in AS-4, Events occurring after the
+Balance Sheet date. Current years’ Proposed Dividend will be accounted for in the next year after it is declared
+by the shareholders.
+Project Work
+
+One specific project based on financial statement analysis of a company covering any two aspects from the
+following:
+
+    1.   Comparative and common size financial statements
+    2.   Accounting Ratios
+    3.   Segment Reports
+    4.   Cash Flow Statements
+
+
+
+                                                       OR
+
+Part B: Computerised Accounting
+
+Unit 4: Computerised Accounting
+
+Overview of Computerised Accounting System
+    •    Introduction: Application in Accounting.
+    •    Features of Computerised Accounting System.
+    •    Structure of CAS.
+    •    Software Packages: Generic; Specific; Tailored.
+
+Accounting Application of Electronic Spreadsheet.
+    •    Concept of electronic spreadsheet.
+    •    Features offered by electronic spreadsheet.
+    •    Application in generating accounting information - bank reconciliation statement; asset accounting;
+         loan repayment of loan schedule, ratio analysis
+    •    Data representation- graphs, charts and diagrams.
+
+Using Computerized Accounting System.
+    •    Steps in installation of CAS, codification and Hierarchy of account heads, creation of accounts.
+    •    Data: Entry, validation and verification.
+    •    Adjusting entries, preparation of balance sheet, profit and loss account with closing entries and
+         opening entries.
+    •    Need and security features of the system.
+
+Part C: Practical Work
+
+Prescribed Books:
+Financial Accounting -I                              Class XI                  NCERT Publication
+Accountancy -II                                      Class XI                  NCERT Publication
+Accountancy -I                                       Class XII                 NCERT Publication
+Accountancy -II                                      Class XII                 NCERT Publication
+Accountancy – Computerised Accounting System         Class XII                 NCERT Publication
+                                      Suggested Question Paper Design
+                                       Accountancy (Subject Code 055)
+                                             ClassXII
+                                           Class   XII(2026-27)
+                                                       (2025-26)
+Theory: 80 Marks                                                                                           3 hrs.
+Project: 20 Marks
+
+
+S
+N                                   Typology of Questions                                       Marks   Percentage
+1    Remembering and Understanding:
+     Exhibit memory of previously learned material by recalling facts, terms, basic concepts,
+     and answers.
+                                                                                                 32        40%
+     Demonstrate understanding of facts and ideas by organizing, comparing, translating,
+     interpreting, giving descriptions, and stating main ideas
+
+3    Applying: Solve problems to new situations by applying acquired knowledge, facts,
+     techniques and rules in a different way.                                                    24        30%
+
+4
+     Analysing, Evaluating and Creating:
+     Examine and break information into parts by identifying motives or causes. Make
+     inferences and find evidence to support generalizations.
+     Present and defend opinions by making judgments about information, validity of ideas, or
+                                                                                                 24        30%
+     quality of work based on a set of criteria.
+     Compile information together in a different way by combining elements in a new pattern
+     or proposing alternative solutions.
+
+
+     TOTAL                                                                                       80       100%
+

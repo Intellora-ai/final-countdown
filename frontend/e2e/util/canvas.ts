@@ -92,23 +92,42 @@ const MAX_BEATS = 24
  * every census would run on a shorter page, and a slower machine would score
  * better.
  */
-export async function revealAll(page: Page): Promise<number> {
-  const go = page.getByRole('button', { name: 'Continue', exact: true })
-  const blocks = bodyBlocks(page)
+/** The one box a learner types into. It both answers the beat's question and
+ *  asks one of their own; the TEXT decides which. */
+export function answerBox(page: Page) {
+  return page.getByRole('textbox', { name: 'Answer the question, or ask one of your own' })
+}
 
-  let presses = 0
-  while (presses < MAX_BEATS) {
-    if ((await go.count()) === 0) break
+/**
+ * Answer the beat's closing question, which is how the lesson advances.
+ *
+ * THERE IS NO CONTINUE BUTTON. A beat already ends with a question, and a
+ * button beside it asked the learner to answer and then separately confirm
+ * that they had answered. The text below is a plain statement on purpose: a
+ * question would be answered where they stand and would NOT advance.
+ */
+export async function answerBeat(page: Page): Promise<void> {
+  await answerBox(page).fill('the earlier part explains this one')
+  await page.getByRole('button', { name: 'Send', exact: true }).click()
+}
+
+export async function revealAll(page: Page): Promise<number> {
+  const blocks = bodyBlocks(page)
+  const end = page.locator('.lc-teach__more[data-end="true"]')
+
+  let answers = 0
+  while (answers < MAX_BEATS) {
+    if ((await end.count()) > 0) break
     const before = await blocks.count()
-    await go.click()
+    await answerBeat(page)
     await expect
       .poll(() => blocks.count(), { timeout: 10_000 })
       .toBeGreaterThan(before)
-    presses += 1
+    answers += 1
   }
 
-  expect(presses, 'the lesson reached its last beat').toBeLessThan(MAX_BEATS)
-  return presses
+  expect(answers, 'the lesson reached its last beat').toBeLessThan(MAX_BEATS)
+  return answers
 }
 
 /**

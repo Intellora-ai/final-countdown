@@ -164,9 +164,9 @@ describe('ranking what to practise next', () => {
 
 describe('feeding the next set', () => {
   const concepts: Concept[] = [
-    { id: 'solid', name: 'Solid', numeric: true, prerequisites: [], commonMisconception: null },
-    { id: 'weak', name: 'Weak', numeric: true, prerequisites: [], commonMisconception: null },
-    { id: 'unseen', name: 'Unseen', numeric: true, prerequisites: [], commonMisconception: null },
+    { id: 'solid', name: 'Solid', topicId: 't', numeric: true, prerequisites: [], commonMisconception: null },
+    { id: 'weak', name: 'Weak', topicId: 't', numeric: true, prerequisites: [], commonMisconception: null },
+    { id: 'unseen', name: 'Unseen', topicId: 't', numeric: true, prerequisites: [], commonMisconception: null },
   ];
 
   it('puts what the learner is getting wrong at the front', () => {

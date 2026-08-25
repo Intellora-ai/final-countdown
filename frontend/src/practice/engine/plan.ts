@@ -34,6 +34,17 @@ import {
 export interface Concept {
   readonly id: string;
   readonly name: string;
+  /**
+   * The topic this concept belongs to, and therefore the topic a question
+   * built from it tests.
+   *
+   * Carried per concept rather than taken from the profile because a CHAPTER
+   * scope draws concepts from several topics at once. Reading the topic off the
+   * profile stamped one chapter id onto every question in such a set, so
+   * `topicId` named the scope instead of the topic and the boundary check
+   * compared a chapter to itself. See `topic-isolation.test.ts`.
+   */
+  readonly topicId: string;
   /** Whether this concept supports questions with arithmetic in them. */
   readonly numeric: boolean;
   readonly prerequisites: readonly string[];
@@ -320,8 +331,8 @@ export function buildPlan(profile: TopicProfile, count: QuestionCount): readonly
     if (usedStructures.size >= REASONING_STRUCTURES.length) usedStructures.clear();
 
     specs.push({
-      specId: `${profile.topicId}-${index}`,
-      topicId: profile.topicId,
+      specId: `${concept.topicId}-${index}`,
+      topicId: concept.topicId,
       chapterId: profile.chapterId,
       conceptId: concept.id,
       conceptName: concept.name,

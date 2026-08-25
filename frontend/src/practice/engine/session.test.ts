@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { asChapterId, asTopicId } from './ids';
+import { asChapterId, asTopicId, asSubjectId } from './ids';
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path';
 
@@ -47,6 +47,10 @@ function question(index: number, correct: OptionKey = 'A'): VerifiedQuestion {
     questionId: `q${index}`,
     sessionId: 's1',
     topicId: asTopicId('t1'),
+    chapterId: asChapterId('ch'),
+    subjectId: asSubjectId('subject'),
+    misconceptionTested: null,
+    generationVersion: '1.0',
     conceptId: `c${index}`,
     questionType: 'standard',
     difficulty: 'medium',

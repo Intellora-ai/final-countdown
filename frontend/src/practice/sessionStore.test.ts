@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { asChapterId, asTopicId } from './engine/ids';
+import { asChapterId, asSubjectId, asTopicId } from './engine/ids';
 
 import { fixtureProvider } from './engine/provider';
 import type { TopicProfile } from './engine/plan';
@@ -22,6 +22,7 @@ import {
 const PROFILE: TopicProfile = {
   topicId: asTopicId('rotational-motion'),
   chapterId: asChapterId('mechanics'),
+  subjectId: asSubjectId('subject'),
   quantitative: 0.8,
   concepts: [
     { id: 'moment-of-inertia', name: 'Moment of inertia', topicId: asTopicId('rotational-motion'), numeric: true, prerequisites: ['mass'], commonMisconception: 'treats it as mass' },

@@ -123,6 +123,18 @@ REQUIRED = (
     # recurring price is near zero -- a re-invocation returns "already loaded
     # above" -- so the cost is one preamble per session, paid once.
     "fullrun",
+    # `tokenlock` compiles a verbose instruction set into a smaller one that
+    # provably behaves the same: invariants extracted and locked, repeated rules
+    # canonicalised into named primitives, monolith split into a core plus
+    # modules the router reaches only when needed, and every compression made to
+    # survive a regression and adversarial suite against the original as oracle.
+    #
+    # It is on a turn gate rather than a session one for the same reason as the
+    # rest: a method nothing forces is a method that gets skipped on the turn it
+    # was needed. Its own core is deliberately small -- 8.5 KB, with four
+    # reference files read only at the stage that needs them -- so the recurring
+    # price is one preamble per session and near zero per re-invocation.
+    "tokenlock",
 )
 
 # "turn"    --- every skill in REQUIRED must be re-invoked for EVERY prompt.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { asChapterId, asTopicId } from './ids';
+import { asChapterId, asSubjectId, asTopicId } from './ids';
 
 import { DEFAULT_BUDGET_MS, generateSet } from './pipeline';
 import { fixtureProvider } from './provider';
@@ -18,6 +18,7 @@ import { QUESTION_TYPES, type QuestionCount } from './types';
 const PROFILE: TopicProfile = {
   topicId: asTopicId('rotational-motion'),
   chapterId: asChapterId('mechanics'),
+  subjectId: asSubjectId('subject'),
   quantitative: 0.8,
   concepts: [
     { id: 'moment-of-inertia', name: 'Moment of inertia', topicId: asTopicId('rotational-motion'), numeric: true, prerequisites: ['mass'], commonMisconception: 'treats it as mass' },

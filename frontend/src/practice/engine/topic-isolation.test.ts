@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { asChapterId, asTopicId } from './ids';
+import { asChapterId, asSubjectId, asTopicId } from './ids';
 
 import { buildPlan, type Concept, type TopicProfile } from './plan';
 import { QUESTION_COUNTS, type QuestionCount } from './types';
@@ -59,6 +59,7 @@ function chapterScope(): TopicProfile {
   return {
     topicId: asTopicId('functions'),
     chapterId: asChapterId('functions'),
+    subjectId: asSubjectId('subject'),
     quantitative: 0.5,
     concepts: [
       concept('functions--domain-and-range'),
@@ -73,6 +74,7 @@ function topicScope(topicId: string, chapterId: string): TopicProfile {
   return {
     topicId: asTopicId(topicId),
     chapterId: asChapterId(chapterId),
+    subjectId: asSubjectId('subject'),
     quantitative: 0.5,
     concepts: [concept(`${topicId}--a`), concept(`${topicId}--b`), concept(`${topicId}--c`)],
   };
@@ -169,6 +171,7 @@ describe('a prerequisite is not a target topic', () => {
     const profile: TopicProfile = {
       topicId: asTopicId('functions--quadratic-graphs'),
       chapterId: asChapterId('functions'),
+      subjectId: asSubjectId('subject'),
       quantitative: 0.8,
       concepts: [
         concept('functions--quadratic-graphs--vertex', {

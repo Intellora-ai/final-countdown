@@ -42,6 +42,9 @@ import { fileURLToPath } from 'node:url'
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 
+import { settle } from './util/canvas'
+import { applyProjectMedia } from './util/media'
+
 const HERE = dirname(fileURLToPath(import.meta.url))
 const BASELINE = resolve(HERE, '../../ci/baselines/a11y.json')
 
@@ -118,7 +121,14 @@ async function focused(page: Page): Promise<string> {
  * is also what keeps this off the law gate's list of timing races.
  */
 async function canvasReady(page: Page): Promise<void> {
-  await page.getByRole('group', { name: 'Lesson' }).waitFor({ state: 'visible' })
+  /* `settle`, not a bespoke wait. The first version of this function waited for
+     the Lesson toggle, which sits OUTSIDE both Suspense boundaries -- so it was
+     satisfied before a single lazy chunk had landed, and axe scanned a page
+     whose figures had not arrived. Every assertion here counts violations, so
+     an unfinished page scores BETTER: a slower runner would have produced a
+     cleaner baseline. `settle` waits for no mounted fallback, real content in
+     every block, fonts loaded, and two frames that agree. */
+  await settle(page)
 }
 
 const collected: Baseline = {}
@@ -127,9 +137,10 @@ test.describe('accessibility across a journey', () => {
   for (const route of ROUTES) {
     test(`${route.name} stays within the baseline through load, keyboard and mobile`, async ({
       page,
-    }) => {
+    }, testInfo) => {
       /* STATE 1 -- loaded. */
-      await page.goto(route.path)
+      await applyProjectMedia(page, testInfo)
+    await page.goto(route.path)
       await page.waitForLoadState('networkidle')
       if (route.name === 'canvas') await canvasReady(page)
       const onLoad = await scan(page)
@@ -164,11 +175,12 @@ test.describe('accessibility across a journey', () => {
       ).toEqual([])
     })
 
-    test(`${route.name} moves keyboard focus off the body`, async ({ page }) => {
+    test(`${route.name} moves keyboard focus off the body`, async ({ page }, testInfo) => {
       /* A separate question axe does not answer: can a keyboard user get INTO
          the page at all? A route where Tab never leaves `body` is unusable
          without a mouse and reports zero axe violations while doing it. */
-      await page.goto(route.path)
+      await applyProjectMedia(page, testInfo)
+    await page.goto(route.path)
       await page.waitForLoadState('networkidle')
       if (route.name === 'canvas') await canvasReady(page)
 
@@ -186,7 +198,7 @@ test.describe('accessibility across a journey', () => {
     })
   }
 
-  test('the baseline records nothing that is already fixed', async ({ page }) => {
+  test('the baseline records nothing that is already fixed', async ({ page }, testInfo) => {
     /* Staleness, and it decays in the direction that matters. A register that
        only grows re-permits a violation the moment it returns, because the
        entry nobody deleted is still sitting there.
@@ -198,7 +210,8 @@ test.describe('accessibility across a journey', () => {
     const baseline = readBaseline()
     const stale: string[] = []
     for (const route of ROUTES) {
-      await page.goto(route.path)
+      await applyProjectMedia(page, testInfo)
+    await page.goto(route.path)
       await page.waitForLoadState('networkidle')
       if (route.name === 'canvas') await canvasReady(page)
       const found = new Set(await scan(page))

@@ -40,6 +40,8 @@
 
 import { expect, test, type Page } from '@playwright/test'
 
+import { LESSONS as CANVAS_LESSONS, open, settle, teach, type LessonLabel } from './util/canvas'
+
 /* HASH URLS, and this was a real defect before it was a detail.
    The app uses a hash router, so `/canvas` serves index.html and the router
    falls back to `#/today`. The first version of these specs used path URLs and
@@ -47,25 +49,41 @@ import { expect, test, type Page } from '@playwright/test'
    one page three times and called it three routes. Measured by probe:
    `page.goto('/canvas')` ended at `http://127.0.0.1:5183/canvas#/today`. */
 /** The three acceptance lessons with genuinely different dominant forms. */
-/**
- * Wait until the route has actually RENDERED, not merely finished loading.
+/*
+ * NAVIGATION IS NOT REIMPLEMENTED HERE, AND THAT IS THE FIX FOR A REAL DEFECT.
  *
- * `CanvasRoute` is `React.lazy`, so `networkidle` fires while the Suspense
- * fallback is still on screen. The first version of this file scanned that
- * fallback and reported a clean canvas -- a measurement of a spinner.
+ * The first version of this file wrote its own `goto` + `waitForLoadState` +
+ * "wait for the Lesson toggle" helper. That reimplementation is what made the
+ * `gas` baseline unreproducible, and the cause was measured rather than
+ * guessed: `matchMedia('(prefers-reduced-motion: reduce)').matches` was FALSE
+ * inside the `reduced-motion` project, on CI and again locally.
  *
- * Waiting on the CONDITION (the lesson toggle exists) rather than on a duration
- * is also what keeps this off the law gate's list of timing races.
+ * Playwright 1.62.1 does not apply a project's `use.reducedMotion` to the page
+ * fixture -- already found, already root-caused, already fixed in
+ * `util/media.ts`, and applied by `util/canvas.ts`'s `open`. Writing a second
+ * navigation path silently opted out of that fix, so the simulation kept
+ * animating and two captures of the same commit differed by ~14,000 pixels.
+ *
+ * The lesson is not "remember to call the helper". A fix that every new spec
+ * must remember to opt into is a fix with an expiry date. It is that rebuilding
+ * something that already works loses whatever that thing had learned -- here,
+ * one line, which happened to be the whole accessibility dimension this project
+ * exists to cover.
+ *
+ * `settle` matters for the same reason: it waits for lazy chunks, fonts and two
+ * agreeing frames, so a screenshot cannot capture a half-arrived page.
  */
-async function canvasReady(page: Page): Promise<void> {
-  await page.getByRole('group', { name: 'Lesson' }).waitFor({ state: 'visible' })
-}
-
-const LESSONS: readonly { label: string; slug: string }[] = [
+const LESSONS: readonly { label: LessonLabel; slug: string }[] = [
   { label: 'Physics', slug: 'gas' },
   { label: 'Civics', slug: 'bill' },
   { label: 'Machine learning', slug: 'ml' },
 ]
+
+/* The labels must be the ones the shared helper knows, or `teach` would click
+   a button that does not exist and fail as a timeout rather than as a typo. */
+if (LESSONS.length !== CANVAS_LESSONS.length) {
+  throw new Error('visual.spec lesson list drifted from util/canvas LESSONS')
+}
 
 /**
  * How much difference is a difference.
@@ -79,23 +97,9 @@ const MAX_DIFF_RATIO = 0.002
 
 test.describe('the acceptance lessons render without regressing', () => {
   for (const lesson of LESSONS) {
-    test(`${lesson.slug} matches its baseline`, async ({ page }) => {
-      await page.goto('/#/canvas')
-      await page.waitForLoadState('networkidle')
-      await canvasReady(page)
-
-      /* Selected by its accessible name, not a class or an nth-child. A
-         selector tied to structure breaks on every refactor and teaches people
-         to regenerate baselines without looking, which is the failure mode this
-         whole file is trying to avoid. */
-      const button = page.getByRole('button', { name: lesson.label, exact: true })
-      await expect(button).toBeVisible()
-      await button.click()
-
-      /* The button reports its own state, so this waits on the CONDITION rather
-         than on a duration. */
-      await expect(button).toHaveAttribute('aria-pressed', 'true')
-      await page.waitForLoadState('networkidle')
+    test(`${lesson.slug} matches its baseline`, async ({ page }, testInfo) => {
+      await open(page, testInfo)
+      await teach(page, lesson.label)
 
       await expect(page).toHaveScreenshot(`${lesson.slug}.png`, {
         fullPage: true,
@@ -107,25 +111,23 @@ test.describe('the acceptance lessons render without regressing', () => {
     })
   }
 
-  test('selecting a lesson actually changes what is rendered', async ({ page }) => {
+  test('selecting a lesson actually changes what is rendered', async ({ page }, testInfo) => {
     /*
      * The PAIR, and without it the whole file is satisfied by three identical
      * screenshots of whatever loaded first. A baseline suite that captured the
      * same page three times would pass forever while proving nothing about the
      * two lessons it never displayed.
      */
-    await page.goto('/#/canvas')
-    await page.waitForLoadState('networkidle')
-    await canvasReady(page)
+    await open(page, testInfo)
 
     const first = page.getByRole('button', { name: 'Physics', exact: true })
     const second = page.getByRole('button', { name: 'Civics', exact: true })
 
-    await first.click()
+    await teach(page, 'Physics')
     await expect(first).toHaveAttribute('aria-pressed', 'true')
     const physics = await page.locator('main').innerText()
 
-    await second.click()
+    await teach(page, 'Civics')
     await expect(second).toHaveAttribute('aria-pressed', 'true')
     await expect(first).toHaveAttribute('aria-pressed', 'false')
     const civics = await page.locator('main').innerText()
@@ -135,5 +137,121 @@ test.describe('the acceptance lessons render without regressing', () => {
       'Both lessons rendered identical text, so the screenshots above are ' +
         'three captures of one page.',
     ).not.toBe(physics)
+  })
+})
+
+/**
+ * P12-T5 — under reduced motion the simulation must HOLD STILL.
+ *
+ * WHY THIS EXISTS, MEASURED RATHER THAN SUPPOSED
+ * ----------------------------------------------
+ * The first CI run of the baselines above failed on `gas` and only on `gas`:
+ * two captures of the SAME commit on the SAME runner differed by ~14,000
+ * pixels, a ratio of 0.01 -- five times `MAX_DIFF_RATIO`. `bill` and `ml` wrote
+ * their images on the first attempt and never disagreed.
+ *
+ * The differing pixels were confined to a single rectangle, x 106..694 by
+ * y 375..821, and every pixel outside it was identical. That rectangle is the
+ * simulation surface.
+ *
+ * Two hypotheses were tested and one was refuted by measurement:
+ *
+ *   REFUTED  the lazy 3D scene had not finished loading, so one attempt caught
+ *            the Suspense fallback. Both crops are fully rendered scenes --
+ *            161 and 163 unique grey levels, means 30.0 and 30.2, standard
+ *            deviations 27.0 and 27.1. A caption on a flat panel does not look
+ *            like that.
+ *   STANDS   the scene is still animating despite `prefers-reduced-motion`.
+ *
+ * SO THIS IS NOT A TEST PROBLEM
+ * -----------------------------
+ * `usePrefersReducedMotion` gates both surfaces and `reducedMotion: 'reduce'`
+ * is set on this project, so a reader who asked the system to stop moving
+ * things is being ignored. That is an accessibility defect that happens to
+ * surface as a flaky screenshot. Committing a `gas` baseline without fixing it
+ * would bake a permanently red gate into the pipeline and teach the next person
+ * to regenerate baselines without looking -- the exact failure `visual-review.md`
+ * is written to prevent.
+ *
+ * WAITING ON FRAMES, NOT ON THE CLOCK
+ * -----------------------------------
+ * The gap between the two captures is a number of ANIMATION FRAMES. A frame is
+ * the unit the thing under test actually advances in, and it is why this file
+ * carries no `waitForTimeout`: a duration would be a race dressed up as a
+ * measurement.
+ */
+async function passFrames(page: Page, count: number): Promise<void> {
+  for (let i = 0; i < count; i += 1) {
+    await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => r())))
+  }
+}
+
+/** The drawn surface of the gas lesson, whichever renderer produced it. */
+function surfaceOf(page: Page) {
+  return page.locator('main canvas, main svg[role="img"]').first()
+}
+
+
+
+test.describe('reduced motion holds the simulation still', () => {
+  test('the gas surface is identical across frames', async ({ page }, testInfo) => {
+    await open(page, testInfo)
+    await teach(page, 'Physics')
+    const surface = surfaceOf(page)
+    await expect(surface).toBeVisible()
+
+    /* Asserted BEFORE the pixels, because "the picture moved" has two causes
+       that look identical from a screenshot: a loop that ignores `still`, and
+       a `still` that never became true. This says which. */
+    const media = await page.evaluate(
+      () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    )
+    expect(media, 'The project sets reducedMotion: reduce but the page disagrees.').toBe(true)
+    await expect(surface).toHaveAttribute('data-still', 'true')
+
+    const before = await surface.screenshot()
+    await passFrames(page, 30)
+    const after = await surface.screenshot()
+
+    expect(
+      after.equals(before),
+      'The simulation surface changed across 30 animation frames while ' +
+        'prefers-reduced-motion is set. A reader who asked the system to stop ' +
+        'moving things is being ignored, and every screenshot baseline of this ' +
+        'lesson is unreproducible.',
+    ).toBe(true)
+  })
+
+  test('and it DOES move when motion is allowed', async ({ browser, baseURL }) => {
+    /*
+     * The PAIR. "Identical across frames" is satisfied completely by a surface
+     * that renders nothing, by a locator that matches an empty element, and by
+     * a screenshot helper that returns the same buffer twice. Without this half
+     * the test above proves only that something did not change, which is also
+     * what a broken measurement looks like.
+     */
+    const context = await browser.newContext({ reducedMotion: 'no-preference', baseURL })
+    const page = await context.newPage()
+    try {
+      await page.emulateMedia({ reducedMotion: 'no-preference' })
+      await page.goto('/#/canvas')
+      await settle(page)
+      await page.getByRole('button', { name: 'Physics', exact: true }).click()
+      await settle(page)
+      const surface = surfaceOf(page)
+      await expect(surface).toBeVisible()
+
+      const before = await surface.screenshot()
+      await passFrames(page, 30)
+      const after = await surface.screenshot()
+
+      expect(
+        after.equals(before),
+        'The surface did not change over 30 frames with motion allowed, so ' +
+          'the stillness test above is measuring nothing.',
+      ).toBe(false)
+    } finally {
+      await context.close()
+    }
   })
 })

@@ -616,6 +616,67 @@ jobs:
           path: frontend/ci-findings.json
           if-no-files-found: error
 
+  # ---------------------------------------------------------------------------
+  # VISUAL REGRESSION — its own job, and one project.
+  #
+  # NOT folded into `frontend-scenes`. That job runs five Playwright projects
+  # and shards across two runners; a screenshot suite there would capture five
+  # baselines per lesson, four of which nobody asked for, and shard them
+  # unpredictably across machines.
+  #
+  # `reduced-motion` only, because animation is the single largest source of
+  # screenshot flake and that project settles the page by construction rather
+  # than by a timeout somebody tuned.
+  #
+  # THE UPLOAD IS PART OF THE FEATURE, NOT DEBUGGING SCAFFOLD.
+  # docs/visual-review.md requires that a changed image is looked at by a human
+  # before any baseline moves. That is impossible without the diff, so the
+  # artefact carrying it is uploaded on failure. A gate whose evidence cannot be
+  # retrieved is a gate whose verdict has to be taken on trust.
+  # ---------------------------------------------------------------------------
+  frontend-visual:
+    name: visual
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install chromium
+
+      # Playwright REFUSES to create a missing baseline under CI and fails
+      # instead. That is the behaviour this job depends on: a first run that
+      # silently wrote its own expected images and went green would be the
+      # vacuous pass this repository keeps finding elsewhere.
+      - name: Visual regression
+        run: >-
+          npx playwright test -c playwright.config.ts
+          e2e/visual.spec.ts
+          --project=reduced-motion
+          --fail-on-flaky-tests
+
+      - name: Upload the diff so a human can review it
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: learning-canvas-frontend-visual-diff
+          path: frontend/test-results/
+          if-no-files-found: error
+
   # THE RUN'S SINGLE VERDICT.
   #
   # Splitting one job into three split the verdict with it: three jobs can fail

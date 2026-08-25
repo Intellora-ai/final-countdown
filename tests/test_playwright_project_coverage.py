@@ -95,11 +95,26 @@ def workflow(sandbox: Path) -> Path:
     return sandbox / FRONTEND_WF
 
 
-def edit_workflow(sandbox: Path, old: str, new: str, *, why: str) -> None:
+def edit_workflow(
+    sandbox: Path, old: str, new: str, *, why: str, every: bool = False
+) -> None:
+    """Sabotage the workflow copy, once by default.
+
+    `every=True` exists because check (f) asks "does CI exercise this viewport",
+    deliberately without caring which job does it. Once a SECOND job passes
+    `--project=`, a saboteur that removes the first occurrence no longer removes
+    the coverage: the project is still run, the gate correctly stays quiet, and
+    the test fails while reporting the gate as broken.
+
+    That happened when `frontend-visual` was added with
+    `--project=reduced-motion`. The gate was right and the saboteur was
+    incomplete. The default stays at one replacement, because every other
+    caller here is simulating a single-site edit.
+    """
     path = workflow(sandbox)
     text = path.read_text(encoding="utf-8")
     assert old in text, f"stale saboteur: {why}"
-    path.write_text(text.replace(old, new, 1), encoding="utf-8")
+    path.write_text(text.replace(old, new, -1 if every else 1), encoding="utf-8")
 
 
 def narrow_the_check(sandbox: Path) -> None:
@@ -192,6 +207,11 @@ def test_matrix_that_lists_projects_without_running_them_is_caught(
             f"          --project={name}\n",
             "",
             why=f"browser step no longer passes --project={name}",
+            # EVERY occurrence. `reduced-motion` is passed by two jobs now --
+            # the scene guards and frontend-visual -- and removing only the
+            # first leaves the project genuinely still covered, so the gate is
+            # correct to stay quiet and this test would blame it for that.
+            every=True,
         )
     assert kept == ALL_PROJECTS[0]
     result = integrity(sandbox)

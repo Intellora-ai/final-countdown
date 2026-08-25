@@ -645,8 +645,17 @@ artifact = ""
 
 "integration.yml::contract" = "DEBT. It regenerates the Pact consumer contract and fails if the committed pacts/ file differs. Without it a developer can change what the canvas needs, forget to commit the regenerated contract, and the provider goes on verifying needs the consumer no longer has -- both suites green while the two sides drift apart, which is the exact failure Pact was added to prevent. It runs, it reports, it blocks nothing, for the same ruleset reason as its sibling job above."
 
-"learning-canvas-frontend.yml::a11y" = "DEBT. axe-core over three routes at three states each -- loaded, after keyboard traversal, and at phone width -- failing on any violation outside ci/baselines/a11y.json. It is the first accessibility check this repository has ever had; CLAUDE.md recorded its absence honestly for months. It runs inside the existing scenes job, so it reports with them and blocks exactly as much as they do, which today is nothing until the owner adds the context to ruleset 20990225. Stated plainly: axe detects roughly a third of real accessibility problems, so green means no automatically-detectable violation outside the baseline, never that a route is accessible."
+# NOTE: the accessibility spec is NOT a job. It runs inside frontend-scenes,
+# so it is covered by that job's classification and must not be declared
+# here -- an advisory key naming a job that does not exist is a claim
+# gate_integrity cannot check, which is the shape this file exists to
+# refuse. Kept as a comment because the reasoning is worth reading.
+#   axe-core over three routes at three states each (loaded, after keyboard
+#   traversal, at phone width), failing on any violation outside
+#   ci/baselines/a11y.json. axe detects roughly a third of real
+#   accessibility problems, so green means no automatically-detectable
+#   violation outside the baseline, never that a route is accessible.
 
-"learning-canvas-frontend.yml::visual" = "DEBT, and PARTIAL. toHaveScreenshot baselines for three acceptance lessons. The spec and its pairing test are complete and the discipline is written down in docs/visual-review.md, but the baselines themselves are platform-specific and must come from a Linux CI run: a macOS capture can never match, and .gitignore refuses one so it cannot be committed by accident. Until those baselines land, this job fails on missing snapshots -- which is the correct behaviour and is why Playwright is not allowed to create them in CI."
+"learning-canvas-frontend.yml::frontend-visual" = "DEBT, and PARTIAL. toHaveScreenshot baselines for three acceptance lessons. The spec and its pairing test are complete and the discipline is written down in docs/visual-review.md, but the baselines themselves are platform-specific and must come from a Linux CI run: a macOS capture can never match, and .gitignore refuses one so it cannot be committed by accident. Until those baselines land, this job fails on missing snapshots -- which is the correct behaviour and is why Playwright is not allowed to create them in CI."
 
 "nightly.yml::fuzzing" = "DELIBERATE. It runs on a schedule, not on a pull request, so it cannot be a required check by construction -- there is no commit for it to gate. The same suite runs on every pull request at 30 generated examples per operation; this runs it at 500. That difference is not cosmetic: 30 examples pass while 1500 found a real schema defect, so the nightly profile finds things the blocking profile cannot afford to look for. A failure here is a finding to act on, not a merge to stop."

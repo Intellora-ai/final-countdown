@@ -139,6 +139,19 @@ unmeasured = [
   # all, so its 482 tests run unmeasured. Adding a floor here needs its own
   # measurement first, for the same reason as `scripts`.
   { path = "learning-os/src", why = "no coverage configuration exists in learning-os/pyproject.toml yet" },
+
+  # Alembic's environment and its migration scripts. This IS production code --
+  # it is what changes a real database -- so it is `unmeasured` rather than
+  # `excluded`, which would claim it is not production at all.
+  #
+  # No floor, and line coverage is the wrong instrument here. A migration runs
+  # once, forward, against a specific starting schema; "which lines executed"
+  # says nothing about whether the resulting schema is correct. What does say
+  # so is `.github/workflows/integration.yml`, which applies every migration to
+  # an empty database on each run, and the database suite, which then asserts
+  # the constraints those migrations created actually refuse bad rows.
+  { path = "learning-os/alembic", why = "migration runner; exercised by integration.yml applying it to an empty database, not by line coverage" },
+  { path = "learning-os/alembic/versions", why = "migration scripts; correctness is the resulting schema, which tests/db asserts, not which lines ran" },
 ]
 
 excluded = [
@@ -530,6 +543,40 @@ role = "supplementary"
 must_contain = ["scripts/merge_evidence_gate.py"]
 evidence = "reports/merge-evidence.json"
 artifact = "reports-merge-evidence"
+
+# ---------------------------------------------------------------------------
+# INTEGRATION — the database suite. Advisory only because it cannot yet block.
+#
+# `gate_integrity` refused this job the moment it appeared, and the refusal was
+# exactly right: "job 'integration.yml::integration' runs, reports a verdict,
+# and cannot block a merge -- it is not a required check and it is not declared
+# advisory, so a red result there stops nothing."
+#
+# That is the failure this whole programme exists to remove, so it is recorded
+# here rather than worked around. The job proves things nothing else does: that
+# every migration applies to an empty database, that the constraints those
+# migrations create actually refuse bad rows, and that the seeded dataset is
+# byte-identical across runs.
+#
+# `mandatory = false` is sequencing, not timidity. Promoting it to an 18th
+# required context is an edit to live ruleset 20990225, which only the
+# repository owner can make. Declaring it advisory keeps `required_checks` at 17
+# so `scripts/check_ruleset.py` proves the same equality it proved before, and
+# `gate_integrity` applies no per-gate structural checks to it (it filters on
+# mandatory).
+#
+# UNTIL THAT RULESET EDIT HAPPENS, A RED HERE STOPS NOTHING. Anyone reading a
+# green pull request should know that this particular green was not required.
+# ---------------------------------------------------------------------------
+
+[gates.integration]
+workflow = "integration.yml"
+job = "integration"
+mandatory = false
+role = "supplementary"
+must_contain = ["scripts/db_suite_floor.py"]
+evidence = "the database suite, run against a PostgreSQL service container"
+artifact = ""
 
 # ---------------------------------------------------------------------------
 # DEEP VERIFICATION — supplementary, label-gated, and deliberately not required.

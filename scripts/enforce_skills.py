@@ -123,6 +123,14 @@ REQUIRED = (
     # recurring price is near zero -- a re-invocation returns "already loaded
     # above" -- so the cost is one preamble per session, paid once.
     "fullrun",
+    # `tokenlock` was named by the reminder hook and NOT by this gate, so it was
+    # injected into every prompt while nothing ever checked it had been invoked
+    # -- the exact half-wired state the drift test was written to catch, caught
+    # on 2026-08-25 by that test rather than by anyone reading either file.
+    # Added HERE rather than removed THERE because the owner's settings.json
+    # names seven, and a gate that enforces six of the seven it advertises is
+    # the weaker of the two ways to make the lists agree.
+    "tokenlock",
 )
 
 # "turn"    --- every skill in REQUIRED must be re-invoked for EVERY prompt.

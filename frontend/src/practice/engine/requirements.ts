@@ -1,4 +1,4 @@
-import { nearestTopic, type TopicCentroid } from './drift';
+import { driftsFrom, nearestTopic, type TopicCentroid } from './drift';
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -112,18 +112,41 @@ export function scopeViolations(
    */
   if (!centroids.some((centroid) => centroid.topicId === scope.topicId)) return [];
 
-  const allowed = new Set([scope.topicId, ...scope.allowedTopicIds]);
-  const requirements = requirementsOf(questionText, solutionText, centroids);
+  const allowed = [scope.topicId, ...scope.allowedTopicIds];
+
+  /*
+   * DRIFT IS DECIDED BY `driftsFrom`, NOT BY A SECOND COPY OF THE RULE.
+   *
+   * This function was written with "nearest is not in the allowed set", which
+   * is the rule `driftsFrom` STARTED with and had already replaced. The copy
+   * kept the bug the original lost, and the two gates then disagreed about the
+   * same question. Measured on the real Class 10 curriculum:
+   *
+   *     Topic     Relationship between zeros and coefficients   scores 0.657
+   *     Winner    Zeros of a polynomial                         scores 0.784
+   *     Same chapter? yes      Ambiguous? yes
+   *     driftsFrom    false    scopeViolations   question-out-of-scope
+   *
+   * A question about the relationship between zeros and coefficients losing
+   * narrowly to "Zeros of a polynomial" is not evidence it belongs elsewhere.
+   * They are siblings in one chapter, and a near-tie between siblings is what
+   * a CORRECT question looks like.
+   *
+   * `driftsFrom` already knows all of that: it compares against the requested
+   * topic's own score and treats a near-tie as unjudged. Calling it means there
+   * is one rule, and a fix to it reaches both callers.
+   *
+   * IN SCOPE means not drifting from ANY permitted topic. A scope naming a
+   * prerequisite permits a question that sits with the prerequisite, so the
+   * question only violates when it drifts from every one of them.
+   */
+  const belongs = (text: string): boolean =>
+    text.trim().length === 0 || allowed.some((topicId) => !driftsFrom(text, topicId, centroids));
 
   const out: ScopeViolation[] = [];
 
-  if (requirements.fromQuestion !== null && !allowed.has(requirements.fromQuestion)) {
-    out.push('question-out-of-scope');
-  }
-
-  if (requirements.fromSolution !== null && !allowed.has(requirements.fromSolution)) {
-    out.push('solution-out-of-scope');
-  }
+  if (!belongs(questionText)) out.push('question-out-of-scope');
+  if (!belongs(solutionText)) out.push('solution-out-of-scope');
 
   return out;
 }

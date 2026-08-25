@@ -140,17 +140,31 @@ function words(text: string): string[] {
 /**
  * One centroid per TOPIC, not per chapter.
  *
- * A topic borrows its chapter's words at a discount. A heading alone is three
- * or four words and loses to any longer one on sheer surface area; the chapter
- * is what tells you that "zeros" belongs with "polynomial" even when the topic
- * heading says only "zeros".
+ * A topic borrows its chapter's words and its SIBLINGS' words at a discount.
  *
- * SIBLING TOPICS WERE INCLUDED AT 0.25 AND HAVE BEEN REMOVED. Mutation testing
- * said they were dead, and measuring on the real Class 10 curriculum agreed
- * exactly: self-identification was 250/251 with them and 250/251 without. They
- * changed nothing, so they were complexity that read like a design decision.
- * Recorded rather than silently deleted, so the next person to reach for the
- * idea knows it was tried and measured.
+ * SIBLINGS WERE REMOVED ONCE AND ARE BACK. THE REASON IS THE POINT.
+ *
+ * They were dropped because they changed nothing: measured on the real Class 10
+ * curriculum, self-identification was 250/251 with them and 250/251 without.
+ * That measurement fed every topic its OWN HEADING and asked which topic it
+ * matched -- and a heading already contains its own words, so it needs no help.
+ *
+ * It was the wrong measurement for this gate. What the gate actually scores is
+ * a QUESTION against a topic, and there the gap is enormous:
+ *
+ *     Coordinate Geometry                          question scored 0.000
+ *     Situational problems based on quadratic eqs   question scored 0.000
+ *
+ * A heading names a field; a question is an instance of it. "Coordinate
+ * Geometry" and "the points (1,3),(4,6),(7,9) lie on a line, find the slope"
+ * share not one word. The siblings are exactly the missing vocabulary -- the
+ * same chapter holds "The line passes through the coordinate point", which is
+ * where "line" and "point" live.
+ *
+ * I measured the easy thing and concluded about the hard one. The weight is
+ * still a discount, because a topic must not be swallowed by its neighbours:
+ * that is what tells two siblings apart, and telling them apart is half of
+ * what this gate is for.
  */
 export function buildCentroids(curriculum: readonly Subject[]): TopicCentroid[] {
   const documents: { topicId: string; counts: Map<string, number> }[] = [];
@@ -323,6 +337,23 @@ export function driftsFrom(
   const near = nearestTopic(text, centroids);
   if (near === null) return false;
   if (near.topicId === topicId) return false;
+
+  /*
+   * A NEAR-TIE IS NOT EVIDENCE, AND THIS LINE WAS LOST IN A REWRITE.
+   *
+   * `ambiguous` was computed on every call and read by NOTHING -- a rewrite of
+   * this function dropped the check while leaving the field in place, and a
+   * field nobody reads looks exactly like a field that is working. It was found
+   * by grep after a real generation run pointed at the symptom:
+   *
+   *     Algebraic conditions for number of solutions
+   *       mine 0.217  winner "Chemical equation" 0.308  ambiguous  -> DRIFT
+   *
+   * 0.217 against 0.308 is a coin toss reported as a verdict, and a wrong
+   * verdict here refuses a correct question. Sibling topics inside one chapter
+   * tie constantly, which is what a correct question looks like, not a defect.
+   */
+  if (near.ambiguous) return false;
 
   /*
    * MEASURED AGAINST THE REQUESTED TOPIC, NOT AGAINST THE WINNER.

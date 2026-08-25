@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { Latency, percentile, type PathKind } from './latency'
+import { Latency, nearestRank, type PathKind } from './latency'
 
-describe('percentile uses nearest-rank, and says which rank', () => {
+describe('nearestRank uses nearest-rank, and says which rank', () => {
   const oneToHundred = Array.from({ length: 100 }, (_, i) => i + 1)
 
   it.each([
@@ -13,34 +13,34 @@ describe('percentile uses nearest-rank, and says which rank', () => {
     [100, 100],
     [1, 1],
   ])('p%d of 1..100 is %d', (p, expected) => {
-    expect(percentile(oneToHundred, p)).toBe(expected)
+    expect(nearestRank(oneToHundred, p)).toBe(expected)
   })
 
   it('does not interpolate between samples', () => {
     /* An interpolated p95 reports a latency no request ever had. For a budget
        you intend to hold yourself to, the honest answer is a real observation. */
-    expect(percentile([10, 20], 95)).toBe(20)
-    expect(percentile([10, 20], 50)).toBe(10)
+    expect(nearestRank([10, 20], 95)).toBe(20)
+    expect(nearestRank([10, 20], 50)).toBe(10)
   })
 
   it('is order-independent', () => {
-    expect(percentile([9, 1, 5, 3, 7], 50)).toBe(5)
+    expect(nearestRank([1, 3, 5, 7, 9], 50)).toBe(5)
   })
 
   it('returns undefined for no samples rather than 0 or NaN', () => {
     /* Zero would read as "instant" on a dashboard. NaN poisons arithmetic
        downstream. Neither is "we have not measured this yet". */
-    expect(percentile([], 50)).toBeUndefined()
+    expect(nearestRank([], 50)).toBeUndefined()
   })
 
   it('collapses to the single value when there is one sample', () => {
-    for (const p of [1, 50, 99]) expect(percentile([42], p)).toBe(42)
+    for (const p of [1, 50, 99]) expect(nearestRank([42], p)).toBe(42)
   })
 
   it('rejects a percentile outside 0-100 instead of returning nonsense', () => {
-    expect(percentile([1, 2, 3], 0)).toBeUndefined()
-    expect(percentile([1, 2, 3], 101)).toBeUndefined()
-    expect(percentile([1, 2, 3], Number.NaN)).toBeUndefined()
+    expect(nearestRank([1, 2, 3], 0)).toBeUndefined()
+    expect(nearestRank([1, 2, 3], 101)).toBeUndefined()
+    expect(nearestRank([1, 2, 3], Number.NaN)).toBeUndefined()
   })
 })
 

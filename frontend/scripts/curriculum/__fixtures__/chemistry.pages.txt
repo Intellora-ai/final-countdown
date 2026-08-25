@@ -1,0 +1,663 @@
+                                  CHEMISTRY
+                              SUBJECT CODE: 043
+                             CLASSES XI-XII (2026-27)
+
+Rationale
+The second phase of Secondary stage is the most crucial stage of school education
+because at this juncture specialised discipline based, content oriented courses are
+introduced. Students reach this stage after 10 years of general education and opt for
+Chemistry with a purpose of pursuing their career in basic sciences or professional
+courses like medicine, engineering, technology and to study courses in applied areas
+of science and technology at tertiary level. Therefore, there is a need to provide the
+learners with sufficient conceptual background of Chemistry, which will make them
+competent to meet the challenges of academic and professional courses after this
+stage.
+The new and updated curriculum is based on a disciplinary approach with rigour and
+depth ensuring that the syllabus is not heavy and at the same time it is comparable to
+that at the international level. The pedagogy of Chemistry has undergone tremendous
+changes in recent times. To keep pace with the developments in Chemistry, many
+new areas like green chemistry, material science, biomolecules, and industrial
+chemistry deserve to be an integral part of the chemistry syllabus at this stage. In
+addition, the nomenclature of elements and compounds; symbols, and units of
+physical quantities, recommended by scientific bodies like IUPAC and CGPM also
+need to be incorporated in the updated syllabus. The proposed syllabus takes due
+care to address these issues.
+Objectives
+The curriculum of Chemistry at the second phase of Secondary stage has been
+designed to:
+● equip the learners with tools to understand the working of Chemistry rather than
+   mere facts of it;
+● develop the necessary conceptual foundations of chemistry and ability to apply
+   them to real life situations;
+● enable the learners to represent chemical phenomena at macroscopic, molecular,
+   and symbolic levels;
+● make the learners identify patterns and form connections that underlie various
+   chemical phenomena;
+● prepare the learners to contribute to frontier research areas related to climate
+   change, environmental issues, materials science, biology and medicine etc.:
+● inculcate problem solving skills in the learners and integrate life skills and values
+   in the context of chemistry; and
+● apprise learners of the interface of chemistry with other disciplines of science such
+   as physics, biology, geology, engineering etc.
+
+
+
+
+                                          1
+                          COURSE STRUCTURE
+                                  CLASS XI
+                                  THEORY
+Time: 3 Hours                                                         Total Marks: 70
+
+ S. No     UNIT                                                            Marks
+
+1          Some Basic Concepts of Chemistry                                  7
+2          Structure of Atom                                                 9
+3          Classification of Elements and Periodicity in Properties          6
+4          Chemical Bonding and Molecular Structure                          7
+5          Chemical Thermodynamics                                           9
+6          Equilibrium                                                       7
+7          Redox Reactions                                                  4
+8          Organic Chemistry: Some basic Principles and                     11
+           Techniques
+9          Hydrocarbons                                                     10
+           TOTAL                                                            70
+
+Unit 1: Some Basic Concepts of Chemistry
+Importance of Chemistry, Nature of Matter, Properties of Matter and their
+Measurement, Uncertainty in Measurement, Laws of Chemical Combination, Dalton's
+Atomic Theory, Atomic and Molecular Masses, Mole Concept and Molar Masses,
+Percentage Composition, Stoichiometry and Stoichiometric Calculations.
+
+Unit 2: Structure of Atom
+Discovery of Sub-atomic Particles, Atomic Models, Developments Leading to the
+Bohr’s Model of Atom, Bohr’s Model for Hydrogen Atom, Towards Quantum
+Mechanical Model of the Atom, Quantum Mechanical Model of Atom.
+
+Unit 3: Classification of Elements and Periodicity in Properties
+Why we Need to Classify Elements? Genesis of Periodic Classification, Modern
+Periodic Law and the Present Form of Periodic Table, Nomenclature of Elements with
+Atomic Number > 100, Electronic Configuration of Elements and the Periodic Table,
+Electronic Configuration of Elements and Types of Elements: s-, p-, d-, f- Blocks,
+Periodic Trends in Properties of Elements.
+
+Unit 4: Chemical Bonding and Molecular Structure
+Kossel-Lewis Approach to Chemical Bonding, Ionic or Electrovalent Bond, Bond
+Parameters, The Valence Shell Electron Pair Repulsion (VSEPR) Theory, Valence
+Bond Theory, Hybridisation, Molecular Orbital Theory, Bonding in Some Homonuclear
+Diatomic Molecules, Hydrogen Bonding.
+
+
+
+
+                                         2
+Unit 5: Thermodynamics
+Thermodynamic Terms, Applications, Measurement of ∆U and ∆H: Calorimetry,
+Enthalpy Change, and ∆H of a Reaction – Reaction Enthalpy, Enthalpies for Different
+Types of Reactions, Spontaneity, Gibbs Energy Change and Equilibrium.
+
+Unit 6: Equilibrium
+Equilibrium in Physical Processes, Equilibrium in Chemical Processes – Dynamic
+Equilibrium, Law of Chemical Equilibrium and Equilibrium Constant, Homogeneous
+Equilibria, Heterogeneous Equilibria, Applications of Equilibrium Constants,
+Relationship between Equilibrium Constant K, Reaction Quotient Q and Gibbs Energy
+G, Factors Affecting Equilibria, Ionic Equilibrium in Solution, Acids, Bases and Salts,
+Ionization of Acids and Bases, Buffer Solutions, Solubility Equilibria of Sparingly
+Soluble Salts.
+
+Unit 7: Redox Reactions
+Classical Idea of Redox Reactions – Oxidation and Reduction Reactions, Redox
+Reactions in Terms of Electron Transfer Reactions, Oxidation Number, Redox
+Reactions and Electrode Processes.
+
+
+Unit 8: Organic Chemistry – Some Basic Principles and Techniques
+General Introduction, Tetravalence of Carbon: Shapes of Organic Compounds,
+Structural Representations of Organic Compounds, Classification of Organic
+Compounds, Nomenclature of Organic Compounds, Isomerism, Fundamental
+Concepts in Organic Reaction Mechanism, Methods of Purification of Organic
+Compounds, Qualitative Analysis of Organic Compounds, Quantitative Analysis
+
+Unit 9: Hydrocarbons
+Classification, Alkanes, Alkenes, Alkynes, Aromatic Hydrocarbon, Carcinogenic and
+Toxicity.
+
+ Note: The following topics are included in the syllabus but will be assessed only
+ formatively to reinforce understanding without adding to summative assessments.
+ This reduces academic stress while ensuring meaningful learning. Schools can
+ integrate these with existing chapters as they align well. Relevant NCERT textual
+ material is enclosed for reference.
+
+    1. s & p Block Elements
+       Electronic configuration, atomic & Ionic radii, Ionization Enthalpy,
+       Hydration Enthalpy and general trends in physical and chemical
+       properties of s and p block elements across the periods and down the groups;
+       unique behavior of the first element in each group.
+    2. The Gaseous State
+       Qualitative treatment of Gas laws, Ideal gas equation and deviations from it.
+
+
+
+
+                                          3
+                                       PRACTICAL
+
+ Evaluation Scheme for Examination                                             Marks
+  Volumetric Analysis                                                          08
+  Salt Analysis                                                                08
+  Content Based Experiment                                                     06
+  Project Work                                                                 04
+  Class record and viva                                                        04
+ Total                                                                         30
+
+PRACTICAL SYLLABUS
+
+Micro-chemical methods are available for several of the practical experiments,
+wherever possible such techniques should be used.
+
+A. Basic Laboratory Techniques
+    1. Cutting glass tube and glass rod
+    2. Bending a glass tube
+    3. Drawing out a glass jet
+    4. Boring a cork
+
+B.Characterization and Purification of Chemical Substances
+   1. Determination of melting point of an organic compound.
+   2. Determination of boiling point of an organic compound.
+   3. Crystallization of impure sample of any one of the following: Alum, Copper
+      Sulphate, Benzoic Acid.
+
+
+C.Experiments based on pH
+   1. Any one of the following experiments:
+            Determination of pH of some solutions obtained from fruit juices,
+             solution of known and varied concentrations of acids, bases and
+             salts using pH paper or universal indicator.
+            Comparing the pH of solutions of strong and weak acids of same
+             concentration.
+            Study the pH change in the titration of a strong base using a universal
+             indicator.
+   2. Study the pH change by common-ion in case of weak acids and weak bases.
+
+
+
+
+                                             4
+D.Chemical Equilibrium
+   Any one of the following experiments:
+          Study the shift in equilibrium between ferric ions and thiocyanate ions by
+           increasing/decreasing the concentration of either of the ions.
+          Study the shift in equilibrium between [Co(H2O)6]2+ and chloride ions by
+           changing the concentration of either of the ions.
+
+
+E. Quantitative Estimation
+   1. Using a mechanical balance/electronic balance.
+   2. Preparation of standard solution of Oxalic acid.
+   3. Determination of strength of a given solution of Sodium hydroxide by titrating it
+      against standard solution of Oxalic acid.
+   4. Preparation of standard solution of Sodium carbonate.
+   5. Determination of strength of a given solution of hydrochloric acid by titrating it
+      against standard Sodium Carbonate solution.
+
+
+F. Qualitative Analysis
+    1. Determination of one anion and one cation in a given salt
+  Cations: 𝑷𝒃𝟐+ ,𝑪𝒖𝟐+ , 𝑨𝒍𝟑+ , 𝑭𝒆𝟑+ ,𝑴𝒏𝟐+ , 𝑵𝒊𝟐+ , 𝒁𝒏𝟐+ , 𝑪𝒐𝟐+ , 𝑪𝒂𝟐+ , 𝑺𝒓𝟐+ , 𝑩𝒂𝟐+ , 𝑴𝒈𝟐+ ,
+  𝑵𝑯+𝟒
+  Anions: 𝑪𝑶𝟐−
+            𝟑 ,𝐒
+                 𝟐−
+                    , 𝐒𝐎𝟐−    −     −     −    − −     𝟐−    𝟑−
+                        𝟑 , 𝑵𝑶𝟑 , 𝑵𝑶𝟐 , 𝐂𝐥 , 𝐁𝐫 , 𝐈 ,𝑺𝑶𝟒 , 𝑷𝑶𝟒 , 𝐂𝐇𝟑 𝐂𝐎𝐎
+                                                                         −
+
+  (Note: Insoluble salts excluded)
+   2. Detection of -Nitrogen, Sulphur, Chlorine in organic compounds.
+
+PROJECTS
+Scientific investigations involving laboratory testing and collecting information from
+other sources.
+A few suggested Projects
+   a) Checking the bacterial contamination in drinking water by testing sulphide ion
+   b) Study of the methods of purification of water
+   c) Testing the hardness, presence of Iron, Fluoride, Chloride, etc., depending
+      upon the regional variation in drinking water and study of causes of presence
+      of these ions above permissible limit (if any).
+   d) Investigation of the foaming capacity of different washing soaps and the effect
+      of addition of Sodium carbonate on it
+   e) Study the acidity of different samples of tea leaves.
+   f) Determination of the rate of evaporation of different liquids
+   g) Study the effect of acids and bases on the tensile strength of fibers.
+   h) Study of acidity of fruit and vegetable juices.
+
+                                             5
+Note: Any other investigatory project, which involves about 10 periods of work, can
+be chosen with the approval of the teacher.
+
+
+Practical Examination for Visually Challenged Students Class XI
+
+Note: Same Evaluation scheme and general guidelines for visually challenged
+students as given for Class XII may be followed.
+List of apparatus for identification for assessment in practicals (All experiments)
+         Beaker, tripod stand, wire gauze, glass rod, funnel, filter paper, Bunsen
+         burner, test tube, test tube stands, dropper, test tube holder, ignition tube,
+         china dish, tongs, standard flask, pipette, burette, conical flask, clamp stand,
+         dropper, wash bottle
+           •   Odor detection in qualitative analysis.
+           •   Procedure/Setup of the apparatus.
+
+List of Experiments
+   A. Characterization and Purification of Chemical Substances
+       Crystallization of an impure sample of any one of the following:
+       copper sulphate, benzoic acid.
+
+   B. Experiments based on pH
+   1. Determination of pH of some solutions obtained from fruit juices, solutions of
+      known and varied concentrations of acids, bases and salts using pH paper.
+   2. Comparing the pH of solutions of strong and weak acids of same concentration.
+
+   C. Chemical Equilibrium
+   1. Study the shift in equilibrium between ferric ions and thiocyanate ions by
+      increasing/decreasing the concentration of either ions.
+   2. Study the shift in equilibrium between [Co(H2O)6]2+ and chloride ions by
+      changing the concentration of either of the ions.
+
+   D. Quantitative estimation
+   1. Preparation of standard solution of oxalic acid.
+   2. Determination of molarity of a given solution of sodium hydroxide by titrating it
+      against standard solution of oxalic acid.
+
+   E. Qualitative Analysis
+   1. Determination of one anion and one cation in a given salt
+      Cations - 𝑵𝑯+𝟒
+       Anions: 𝑪𝑶𝟐−
+                 𝟑 ,𝐒
+                      𝟐−
+                         , 𝐒𝐎𝟐−      −
+                             𝟑 , , 𝐂𝐥 , 𝐂𝐇𝟑 𝐂𝐎𝐎
+                                                −
+
+       (Note: insoluble salts excluded)
+   2. Detection of Nitrogen in the given organic compound.
+   3. Detection of Halogen in the given organic compound.
+
+                                           6
+Note: The above practical may be carried out in an experiential manner rather than
+recording observations.
+
+Prescribed Books:
+   1. Chemistry Part – I, Class-XI, Published by NCERT.
+   2. Chemistry Part – II, Class-XI, Published by NCERT.
+   3. Manual of Microscale Chemistry laboratory kit, Published by NCERT
+
+
+Links for NCERT textbooks:
+   1. https://ncert.nic.in/textbook.php?kech1=0-6
+   2. https://ncert.nic.in/textbook.php?kech2=0-3
+   3. https://ncert.nic.in/division/dek/pdf/Manual_01.pdf
+
+
+
+
+                                        7
+                            COURSE STRUCTURE
+                                 CLASS XII
+                                     THEORY
+Time: 3 Hours                                                      Total Marks: 70
+
+
+      S. No.    Title                                                     Marks
+ 1               Solutions                                                 7
+ 2               Electrochemistry                                          9
+ 3               Chemical Kinetics                                         7
+ 4               d -and f -Block Elements                                   7
+ 5               Coordination Compounds                                     7
+ 6               Haloalkanes and Haloarenes                                 6
+ 7               Alcohols, Phenols and Ethers                               6
+ 8               Aldehydes, Ketones and Carboxylic Acids                    8
+ 9               Amines                                                     6
+ 10              Biomolecules                                               7
+                Total                                                       70
+
+
+Unit 1: Solutions
+Types of Solutions, Expression of Concentration of Solutions, Solubility, Vapour
+Pressure of Liquid Solutions, Ideal and Non –Ideal Solutions, Colligative Properties
+and Determination of Molar Mass, Abnormal Molecular Masses.
+
+Unit 2: Electrochemistry
+Electrochemical Cells, Galvanic Cells, Nernst Equation, Conductance of Electrolytic
+solutions, Electrolytic Cells and Electrolysis, Batteries, Fuel Cells, Corrosion.
+
+Unit 3: Chemical Kinetics
+Rate of a Chemical reaction, factors influencing rate of reaction, integrated rate
+equations, Temperature Dependence of the rate of a reaction, Collision theory of
+Chemical Reactions
+Unit 4: d and f Block Elements
+Position in the Periodic Table, Electronic configuration of the d-Block Elements,
+General properties of the Transition Elements (d-Block), Some Important
+Compounds of Transition Elements, The Lanthanoids, The Actinoids, Some
+Applications of d- and f- Block Elements.
+Unit 5: Coordination Compounds
+Werner’s Theory of Coordination Compound, Definition of Some important terms
+pertaining to Coordination Compounds, Nomenclature of Coordination Compounds.
+Isomerism in Coordination Compounds, Bonding in coordination compounds,
+Bonding in Metal Carbonyls, Importance and Applications of Coordination
+Compounds.
+
+
+                                         8
+Unit 6: Haloalkanes and Haloarenes
+Classification, Nomenclature, Nature of C–X bond, Methods of Preparation of
+Haloalkanes, Preparation of Haloarenes, Physical Properties, Chemical Reactions,
+Polyhalogen Compounds.
+Unit 7: Alcohols, Phenols and Ethers
+Classification, Nomenclature, Structures of Functional Groups, Alcohols and
+Phenols, Some commercially Important Alcohols, Ethers.
+Unit 8: Aldehydes, Ketones and Carboxylic Acids
+Nomenclature and Structure of Carbonyl Group, Preparation of Aldehydes and
+Ketones, Physical Properties and Chemical Reactions, Uses of Aldehydes and
+Ketones
+
+Nomenclature Structure of Carboxyl Group, Methods of Preparation of Carboxylic
+Acids, Physical Properties and Chemical Reactions, Uses of Carboxylic Acids.
+
+Unit 9: Amines
+Structure of Amines, Classification, Nomenclature, Preparation of Amines, Physical
+Properties, Chemical Reactions, Methods of Preparation of Diazonium Salts,
+Physical Propeties, Chemical Reactions, Chemical Reactions Importance of
+Diazonium Salts in Synthesis of Aromatic Compounds.
+
+Unit 10: Biomolecules
+
+Carbohydrates. Proteins, Enzymes, Vitamins Nucleic Acids, Hormones
+ Note: The following topics are included in the syllabus but will be assessed only
+ formatively to reinforce understanding without adding to summative assessments.
+ This reduces academic stress while ensuring meaningful learning. Schools can
+ integrate these with existing chapters as they align well. Relevant NCERT textual
+ material is enclosed for reference.
+     1. Surface Chemistry - Adsorption - physisorption and chemisorption, factors
+        affecting adsorption of gases on solids, colloidal state distinction between true
+        solutions, colloids and suspension; lyophilic, lyophobic properties of colloids;
+        coagulation, emulsion - types of emulsions.
+     2. General Principles and Processes of Isolation of Elements - Principles and
+        methods of extraction - concentration, oxidation, reduction - electrolytic method
+        and refining
+     3. Polymers – Polymerisation, Homopolymers and copolymer with few examples
+     4. Chemistry in Everyday life - Chemicals in medicines - analgesics,
+        tranquilizers antiseptics, disinfectants, antimicrobials, antifertility drugs,
+        antibiotics, antacids, antihistamines. Chemicals in food - preservatives, artificial
+        sweetening agents, antioxidants.
+
+
+
+
+                                            9
+                                   PRACTICAL
+
+ Evaluation Scheme for Examination                                           Marks
+  Volumetric Analysis                                                        08
+  Salt Analysis                                                              08
+  Content Based Experiment                                                   06
+  Project Work                                                               04
+  Class record and viva                                                      04
+ Total                                                                       30
+
+PRACTICAL SYLLABUS
+
+Micro-chemical methods are available for several of the practical experiments,
+wherever possible such techniques should be used.
+
+A. Surface Chemistry
+   1. Preparation of one lyophilic and one lyophobic sol
+             Lyophilic sol - starch, egg albumin and gum
+             Lyophobic sol – aluminum hydroxide, ferric hydroxide, arsenous
+             sulphide.
+   2. Dialysis of sol-prepared in (a) above.
+   3. Study of the role of emulsifying agents in stabilizing the emulsion of different
+      oils.
+
+B. Chemical Kinetics
+   1. Effect of concentration and temperature on the rate of reaction between Sodium
+      Thiosulphate and Hydrochloric acid.
+   2. Study of reaction rates of any one of the following:
+         Reaction of Iodide ion with Hydrogen Peroxide at room temperature using
+          different concentration of Iodide ions.
+         Reaction between Potassium Iodate, (KIO3) and Sodium Sulphate:
+          (Na2SO3) using starch solution as indicator (clock reaction).
+C. Thermochemistry
+      Any one of the following experiments
+         Enthalpy of dissolution of Copper Sulphate or Potassium Nitrate.
+         Enthalpy of neutralization of strong acid (HCI) and strong base (NaOH).
+         Determination of enthalpy change during interaction (Hydrogen bond
+          formation) between Acetone and Chloroform.
+
+
+                                          10
+D. Electrochemistry
+Variation of cell potential in Zn/Zn2+|| Cu2+/Cu with change in concentration of
+electrolytes (CuSO4 or ZnSO4) at room temperature.
+
+E. Chromatography
+   1. Separation of pigments from extracts of leaves and flowers by paper
+      chromatography and determination of Rf values.
+   2. Separation of constituents present in an inorganic mixture containing two
+      cations only (constituents having large difference in Rf values to be provided).
+
+F. Preparation of Inorganic Compounds
+   1. Preparation of double salt of Ferrous Ammonium Sulphate or Potash Alum.
+   2. Preparation of Potassium Ferric Oxalate.
+
+G. Preparation of Organic Compounds
+  Preparation of any one of the following compounds
+   1. Acetanilide
+   2. Di –benzal acetone
+   3. p-Nitroacetanilide
+   4. Aniline yellow or 2 - Naphthol Aniline dye.
+
+H. Tests for the functional groups present in organic compounds
+Unsaturation, alcoholic, phenolic, aldehydic, ketonic, carboxylic and amino (Primary)
+groups.
+
+I. Characteristic tests of carbohydrates, fats and proteins in pure samples and
+   their detection in given foodstuffs.
+
+
+J. Determination of concentration/ molarity of KMnO4 solution by titrating it
+   against a standard solution of:
+   1. Oxalic acid,
+   2. Ferrous Ammonium Sulphate
+   (Students will be required to prepare standard solutions by weighing themselves).
+
+K. Qualitative analysis
+  Determination of one anion and one cation in a given salt
+  Cations: 𝑷𝒃𝟐+ ,𝑪𝒖𝟐+ , 𝑨𝒍𝟑+ , 𝑭𝒆𝟑+ ,𝑴𝒏𝟐+ , 𝑵𝒊𝟐+ 𝒁𝒏𝟐+ 𝑪𝒐𝟐+ 𝑪𝒂𝟐+ 𝑺𝒓𝟐+ 𝑩𝒂𝟐+ 𝑴𝒈𝟐+ ,
+  𝑵𝑯+𝟒
+  Anions: 𝑪𝑶𝟐−
+            𝟑 ,𝐒
+                 𝟐−
+                    , 𝐒𝐎𝟐−    −     −     −    − −     𝟐−    𝟑−         −
+                        𝟑 , 𝑵𝑶𝟑 , 𝑵𝑶𝟐 , 𝐂𝐥 , 𝐁𝐫 , 𝐈 ,𝑺𝑶𝟒 , 𝑷𝑶𝟒 , 𝐂𝐇𝟑 𝐂𝐎𝐎 , C2O4
+                                                                               2-
+
+  (Note: Insoluble salts excluded)
+
+                                         11
+PROJECTS
+Scientific investigations involving laboratory testing and collecting information from
+other sources.
+A few suggested Projects
+   a) Study of the presence of oxalate ions in guava fruit at different stages of
+      ripening.
+   b) Study of quantity of casein present in different samples of milk.
+   c) Preparation of soybean milk and its comparison with the natural milk with
+      respect to curd formation, effect of temperature, etc.
+   d) Study of the effect of Potassium Bisulphate as food preservative under various
+      conditions (temperature, concentration, time, etc.)
+   e) Study of digestion of starch by salivary amylase and effect of pH and
+      temperature on it.
+   f) Comparative study of the rate of fermentation of following materials: wheat
+      flour, gram flour, potato juice, carrot juice, etc.
+   g) Extraction of essential oils present in Saunf (aniseed), Ajwain (carom), Illaichi
+      (cardamom).
+   h) Study of common food adulterants in fat, oil, butter, sugar, turmeric power, chili
+      powder and pepper.
+      Note: Any other investigatory project, which involves about 10 periods of work,
+      can be chosen with the approval of the teacher.
+
+
+Practical Examination for Visually Challenged Learners Classes XI and XII
+
+
+      Evaluation Scheme                                        Marks
+      Identification/Familiarity with the apparatus                5
+
+      Written test (based on given/prescribed practical’s)        10
+
+      Practical Record                                             5
+      Viva                                                        10
+      Total                                                       30
+
+
+
+
+                                           12
+General Guidelines
+   The practical examination will be of two-hour duration.
+   A separate list of ten experiments is included here.
+   The written examination in practicals for these students will be conducted at the
+     time of practical examination of all other students.
+   The written test will be of 30 minutes’ duration.
+   The question paper given to the students should be legibly typed. It should
+     contain a total of 15 practical skill based very short answer type questions. A
+     student would be required to answer any 10 questions.
+   A writer may be allowed to such students as per CBSE examination rules.
+   All questions included in the question papers should be related to the listed
+     practicals
+   Every question should require about two minutes to be answered.
+   These students are also required to maintain a practical file. A student is
+     expected to record at least five of the listed experiments as per the specific
+     instructions for each subject. These practicals should be duly checked and
+     signed by the internal examiner.
+   The format of writing any experiment in the practical file should include aim,
+     apparatus required, simple theory, procedure, related practical skills,
+     precautions etc.
+   Questions may be generated jointly by the external/internal examiners and
+     used for assessment.
+   The viva questions may include questions based on basic
+     theory/principle/concept, apparatus/materials/ chemicals required, procedure,
+     precautions, sources of error etc.
+
+List of apparatus for identification/familiarity for assessment in practical (All
+experiments)
+
+Beaker, glass rod, tripod stand, wire gauze, Bunsen burner, Whatman filter paper, gas
+jar, capillary tube, pestle and mortar, test tubes, tongs, test tube holder, test tube
+stand, burette, pipette, conical flask, standard flask, clamp stand, funnel, filter paper.
+
+Hands-on Assessment
+   Identification/familiarity with the apparatus
+   Odour detection in qualitative analysis
+
+List of Experiments
+
+The experiments have been divided into two sections: Section A and Section B.
+The experiments mentioned in Section B are mandatory.
+
+
+
+
+                                            13
+SECTION A
+
+   A. Surface Chemistry
+   1. Preparation of one lyophilic and one lyophobic sol
+     i. Lyophilic sol - starch, egg albumin and gum
+    ii. Lyophobic sol – Ferric hydroxide
+
+   B. Chromatography
+      Separation of pigments from extracts of leaves and flowers by paper
+      chromatography and determination of Rf values (distance values may be
+      provided).
+
+   C. Tests for the functional groups present in organic compounds
+   1. Alcoholic and Carboxylic groups
+   2. Aldehyde and Kenotic groups
+
+   D. Characteristic tests of carbohydrates and proteins in the given foodstuffs.
+
+   E. Preparation of Inorganic Compounds- Potash Alum
+
+SECTION B (Mandatory)
+
+   F. Quantitative analysis
+   1. (a) Preparation of a given volume of the standard solution of Oxalic acid.
+      (b) Determination of molarity of KMnO4 solution by titrating it against a standard
+      solution of Oxalic acid.
+   2. The above exercise [F 1 (a) and (b)] to be conducted using Ferrous ammonium
+      sulphate (Mohr's salt)
+   G. Qualitative Analysis
+      Determination of one anion and one cation in a given salt
+      Cation - 𝑵𝑯+𝟒
+      Anions: 𝑪𝑶𝟐−
+                𝟑 ,𝐒
+                     𝟐−
+                        , 𝐒𝐎𝟐−      −
+                            𝟑 , , 𝐂𝐥 , 𝐂𝐇𝟑 𝐂𝐎𝐎
+                                               −
+
+      (Note: insoluble salts excluded)
+Note: The above practical may be carried out in an experiential manner rather
+than recording observations.
+
+Prescribed Books:
+   1. Chemistry Part – I, Class-XII, Published by NCERT.
+   2. Chemistry Part – II, Class-XII, Published by NCERT.
+   3. Manual of Microscale Chemistry Laboratory Kit, Published by NCERT.
+
+                                           14
+Links for NCERT textbooks:
+      1. https://ncert.nic.in/textbook.php?lech1=0-5
+      2. https://ncert.nic.in/textbook.php?lech2=0-5
+      3. https://ncert.nic.in/division/dek/pdf/Manual_01.pdf
+
+
+                    QUESTION PAPER DESIGN CLASSES XI & XII
+
+
+ S. No      Domains                                                    Total    %
+                                                                       Marks
+  1         Remembering and Understanding:                             28       40
+            Exhibit memory of previously learned material by
+            recalling facts, terms, basic concepts and answers.
+            Demonstrate understanding of facts and ideas by
+            organizing, comparing, translating, interpreting, giving
+            descriptions and stating main ideas.
+  2         Applying:                                                  21       30
+            Solve problems to new situations by applying acquired
+            knowledge, facts, techniques and rules in a different
+            way.
+  3         Analysing, Evaluating and Creating:                        21       30
+            Examine and break information into parts by
+            identifying motives or causes. Make inferences and
+            find evidence to support generalizations. Present and
+            defend opinions by making judgments about
+            information, validity of ideas or quality of work based
+            on a set of criteria.
+            Compile information together in a different way by
+            combining elements in a new pattern or proposing
+            alternative solutions.
+
+1. No chapter wise weightage is provided, however, care to be taken to cover all the
+   chapters.
+2. Suitable internal variations may be made for generating various templates.
+3. There will be no overall choice in the question paper.
+4. However, 33% internal choices will be given in all the sections.
+
+
+
+
+                                            15
+

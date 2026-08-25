@@ -1031,3 +1031,96 @@
   color: var(--pm-ink);
   line-height: 1.6;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Commit, then see — and the four ways to ask for the next one                */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * CONFIRM. Present only while a choice is pending, so its arrival is the signal
+ * that something is selected. Full width to match the option stack above it:
+ * the eye should read it as the bottom of that group, not as a separate control.
+ */
+.pm-q-confirm {
+  display: block;
+  width: 100%;
+  margin-top: var(--pm-s4);
+  padding: var(--pm-s3) var(--pm-s4);
+  border: 1px solid var(--pm-accent);
+  border-radius: var(--pm-radius-md);
+  background: var(--pm-accent);
+  color: var(--pm-void);
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  /* The glow, from the token layer. Never a literal colour here — Law 4. */
+  box-shadow: 0 0 0 1px var(--pm-accent-glow), 0 12px 32px -12px var(--pm-accent-glow);
+  transition:
+    box-shadow 180ms var(--pm-ease),
+    transform 90ms var(--pm-ease);
+}
+
+.pm-q-confirm:hover {
+  box-shadow: 0 0 0 1px var(--pm-accent-glow), 0 16px 40px -10px var(--pm-accent-glow);
+}
+
+.pm-q-confirm:active {
+  transform: translateY(1px);
+}
+
+.pm-q-confirm:focus-visible {
+  outline: 2px solid var(--pm-accent-soft);
+  outline-offset: 3px;
+}
+
+/*
+ * THE FOUR STEERS. A row, right-aligned, quiet until touched — they are an
+ * offer, not the main action. The main action is Next question, and these must
+ * not compete with it.
+ */
+.pm-q-steer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--pm-s3);
+  margin-top: var(--pm-s4);
+}
+
+.pm-q-steer-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--pm-s1);
+  padding: var(--pm-s2) var(--pm-s3);
+  border: 1px solid transparent;
+  border-radius: var(--pm-radius-md);
+  background: transparent;
+  color: var(--pm-ink-muted);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition:
+    color 120ms var(--pm-ease),
+    border-color 120ms var(--pm-ease);
+}
+
+.pm-q-steer-glyph {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.pm-q-steer-button:hover {
+  color: var(--pm-ink);
+  border-color: var(--pm-line);
+}
+
+.pm-q-steer-button[aria-pressed='true'] {
+  color: var(--pm-accent);
+  border-color: var(--pm-accent);
+}
+
+.pm-q-steer-button:focus-visible {
+  outline: 2px solid var(--pm-accent-soft);
+  outline-offset: 2px;
+}

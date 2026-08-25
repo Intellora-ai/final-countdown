@@ -1,0 +1,184 @@
+{
+  "note": "P11-T2. A golden dataset for practice-question generation. Fixtures, never live calls: every entry here is a recorded response, so the gate costs nothing and returns the same verdict every run. The hard cases are the ones a schema check alone waves through.",
+  "cases": [
+    {
+      "id": "clean",
+      "why": "The control. Without a case that must be ACCEPTED, every threshold below is satisfied by a validator that rejects everything. Its source states the figures 300 and 600 on purpose: citationSupports requires EVERY figure in a claim to appear in the cited text, and the first version of this fixture claimed support from a source that named neither number. The metric was right and the fixture was wrong.",
+      "accept": true,
+      "supported": true,
+      "source": "At constant volume the pressure of an ideal gas is proportional to its absolute temperature. Heating a sealed rigid flask from 300 K to 600 K therefore doubles the pressure.",
+      "response": {
+        "questionText": "A sealed rigid flask of gas is heated from 300 K to 600 K. What happens to the pressure?",
+        "options": [
+          {
+            "key": "A",
+            "text": "It halves",
+            "rationale": "Inverts the proportionality."
+          },
+          {
+            "key": "B",
+            "text": "It doubles",
+            "rationale": "Pressure is proportional to absolute temperature at fixed volume."
+          },
+          {
+            "key": "C",
+            "text": "It is unchanged",
+            "rationale": "Confuses fixed volume with fixed pressure."
+          },
+          {
+            "key": "D",
+            "text": "It quadruples",
+            "rationale": "Squares the temperature ratio instead of using it directly."
+          }
+        ],
+        "correctOption": "B",
+        "fullSolution": "At constant volume the pressure is proportional to the absolute temperature, so doubling 300 K to 600 K doubles the pressure.",
+        "computation": null
+      }
+    },
+    {
+      "id": "duplicate-option-key",
+      "why": "Four options, so a length check passes. Two of them are keyed A, so option D is unreachable and a learner who picks the right letter can be marked wrong.",
+      "accept": false,
+      "source": "",
+      "response": {
+        "questionText": "Which SI unit measures pressure?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Pascal",
+            "rationale": "Correct: newtons per square metre."
+          },
+          {
+            "key": "B",
+            "text": "Newton",
+            "rationale": "A force, not a pressure."
+          },
+          {
+            "key": "C",
+            "text": "Joule",
+            "rationale": "An energy."
+          },
+          {
+            "key": "A",
+            "text": "Watt",
+            "rationale": "A power."
+          }
+        ],
+        "correctOption": "A",
+        "fullSolution": "The pascal is the SI unit of pressure.",
+        "computation": null
+      }
+    },
+    {
+      "id": "correct-option-absent",
+      "why": "Every field present and correctly typed, and the named answer is a letter no option carries. The question is unanswerable and looks perfect to a schema.",
+      "accept": false,
+      "source": "",
+      "response": {
+        "questionText": "Which process describes a gas expanding with no heat exchange?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Isothermal",
+            "rationale": "Constant temperature, heat is exchanged."
+          },
+          {
+            "key": "B",
+            "text": "Isobaric",
+            "rationale": "Constant pressure."
+          },
+          {
+            "key": "C",
+            "text": "Adiabatic",
+            "rationale": "No heat crosses the boundary."
+          },
+          {
+            "key": "D",
+            "text": "Isochoric",
+            "rationale": "Constant volume, so no expansion."
+          }
+        ],
+        "correctOption": "E",
+        "fullSolution": "An adiabatic process exchanges no heat with its surroundings.",
+        "computation": null
+      }
+    },
+    {
+      "id": "blank-rationale",
+      "why": "A distractor with no rationale teaches nothing, which is the only reason the product asks for one. A non-empty-string check would miss it; the field is present and is a string.",
+      "accept": false,
+      "source": "",
+      "response": {
+        "questionText": "Which quantity stays constant in an isothermal process?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Temperature",
+            "rationale": "Correct, by definition."
+          },
+          {
+            "key": "B",
+            "text": "Pressure",
+            "rationale": ""
+          },
+          {
+            "key": "C",
+            "text": "Volume",
+            "rationale": "Constant only in an isochoric process."
+          },
+          {
+            "key": "D",
+            "text": "Entropy",
+            "rationale": "Not held constant here."
+          }
+        ],
+        "correctOption": "A",
+        "fullSolution": "An isothermal process holds the temperature constant.",
+        "computation": null
+      }
+    },
+    {
+      "id": "prose-not-json",
+      "why": "A model that answers in prose instead of the requested schema. Nothing downstream can read it, and a parser that threw here would take the whole run down instead of scoring it.",
+      "accept": false,
+      "source": "",
+      "response": "Sure! Here is a question about gas pressure: what happens when you heat a gas?"
+    },
+    {
+      "id": "unsupported-solution",
+      "why": "Structurally perfect and factually adrift from its own cited source. This is the case the deterministic checks cannot catch alone, and it is why citationSupports is part of the score rather than the structure check.",
+      "accept": true,
+      "supported": false,
+      "source": "The boiling point of water at sea level is 100 degrees Celsius.",
+      "response": {
+        "questionText": "At sea level, at what temperature does water boil?",
+        "options": [
+          {
+            "key": "A",
+            "text": "50 degrees Celsius",
+            "rationale": "Far below the observed boiling point."
+          },
+          {
+            "key": "B",
+            "text": "100 degrees Celsius",
+            "rationale": "The sea-level boiling point."
+          },
+          {
+            "key": "C",
+            "text": "150 degrees Celsius",
+            "rationale": "Requires raised pressure."
+          },
+          {
+            "key": "D",
+            "text": "200 degrees Celsius",
+            "rationale": "Far above the observed boiling point."
+          }
+        ],
+        "correctOption": "B",
+        "fullSolution": "Mercury freezes at negative thirty-nine degrees and tin melts at two hundred and thirty-two degrees.",
+        "computation": null
+      }
+    }
+  ]
+}

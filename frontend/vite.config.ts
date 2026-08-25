@@ -136,6 +136,22 @@ export default defineConfig({
        * so the one command that proves the frontend also proves the thing
        * standing between the browser and the model. */
       'server/**/*.test.ts',
+      /* AND A SIXTH: `evals/`, the offline evaluation of the four live model
+       * call sites.
+       *
+       * It is an area rather than a folder under `src/` for one structural
+       * reason: the reachability gate walks `src/` and fails any non-test file
+       * no shipped entry point can reach. Validators exist to judge model
+       * output in CI and are reached by nothing the product loads, so living
+       * under `src/` would make them permanent orphans and the honest fix would
+       * be an exemption -- a rule a file can never satisfy.
+       *
+       * Being outside `src/` is exactly how `e2e/` ended up typechecked by
+       * NOTHING, so this area is declared in three places on purpose: here, in
+       * `eslint.config.js` plus the `lint` script, and in `tsconfig.evals.json`
+       * wired into `typecheck`. A directory added to one of the three and not
+       * the others is silently skipped with no error. */
+      'evals/**/*.test.ts',
     ],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
 

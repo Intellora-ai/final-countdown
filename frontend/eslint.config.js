@@ -200,4 +200,21 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     },
   },
+  {
+    /*
+     * `evals/` — the offline evaluation of the model call sites.
+     *
+     * Outside `src/`, so it is covered by nothing unless it is named in three
+     * separate places: here, the `lint` script, and `tsconfig.evals.json`. Flat
+     * config lints ONLY paths with a matching `files:` entry, so adding the
+     * directory to the script alone would exit 0 having read nothing --- the
+     * same silent skip that let `src/api` and `src/tutor` ship unlinted.
+     */
+    files: ['evals/**/*.ts'],
+    extends: [...tseslint.configs.recommended],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
 )

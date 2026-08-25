@@ -74,3 +74,56 @@ jobs:
         run: python3 -m pytest tests/api -q
         env:
           PYTHONPATH: src
+
+  llm-eval:
+    name: llm-eval
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+
+    # P11-T6. The evaluation of the four live model call sites.
+    #
+    # WHY THIS IS THE OFFLINE SUITE AND NOT A LIVE ONE.
+    #
+    # Every input is a recorded fixture, so this costs nothing and returns the
+    # same verdict every run. `practice.eval.test.ts` replaces `fetch` with a
+    # throwing stub for the duration of the suite, so an edit that reaches for a
+    # real provider fails here rather than quietly adding a bill. A comment
+    # saying "runs offline" is a promise; the stub is the guard.
+    #
+    # A run against the real Anthropic and Gemini APIs is deliberately NOT built.
+    # It needs credentials this repository does not hold and it spends money on
+    # every execution, and neither is a decision a build step should take on its
+    # own. This job is the seam it would land in: add the provider step here,
+    # behind the secrets, and the scoring and baselines above already exist.
+    #
+    # WHY IT RUNS NIGHTLY AT ALL, GIVEN THE PULL-REQUEST SUITE RUNS IT TOO.
+    #
+    # Not for a different verdict --- for the same verdict on a schedule. The
+    # fixtures, the baseline and the metrics it borrows from `src/websearch` all
+    # live in files that other work edits. A gate that is only ever exercised by
+    # the pull request that changes it can rot for a month without anyone
+    # finding out, and a scheduled failure is how that gets noticed on the day
+    # rather than at the next release.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # Typecheck first, and `evals/` is one of the four projects it covers.
+      # `e2e/` is covered by none of them, and an undeclared identifier there
+      # once reached CI as a ReferenceError after typecheck had passed cleanly.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Offline model evaluation
+        run: npx vitest run evals/ --reporter=basic

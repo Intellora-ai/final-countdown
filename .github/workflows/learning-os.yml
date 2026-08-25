@@ -18,11 +18,15 @@ on:
       # gate itself triggers nothing, and a broken gate would sit undetected
       # until the next unrelated learning-os change happened to run it.
       - "scripts/openapi_drift.py"
+      # Same reasoning: this job is the only one that runs the learning-os
+      # property gate, so a change to the gate must trigger it.
+      - "scripts/property_gate.py"
   pull_request:
     paths:
       - "learning-os/**"
       - ".github/workflows/learning-os.yml"
       - "scripts/openapi_drift.py"
+      - "scripts/property_gate.py"
 
 # Supersede only within the same pull request, matching the convention the other
 # workflows in this repository already follow: a newer commit on the SAME PR
@@ -126,6 +130,15 @@ jobs:
         # container and fails if the suite has shrunk. Excluding them here means
         # this job never silently loses them: it never had them.
         run: pytest tests -q --ignore=tests/db
+        env:
+          PYTHONPATH: src
+
+      # Same reasoning as the root suite's property gate: a line count says
+      # nothing about whether the generated tests ran. This suite's floor covers
+      # the review-scheduling properties, which are the ones a calendar bug
+      # would silently remove.
+      - name: Property tests actually executed
+        run: python3 ../scripts/property_gate.py --suite learning-os --root ..
         env:
           PYTHONPATH: src
 

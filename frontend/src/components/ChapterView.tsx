@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { plannedSubjects } from '../almanac/plannedCurriculum'
 import { useParams } from 'react-router-dom'
 import CURRICULUM from '../data/curriculum'
 import { store } from '../data/store'
@@ -11,7 +12,7 @@ const NODEW = 176, CARDW = 244, CARDH = 62, CHROME = 36
 export function ChapterView() {
   const { subjectId, chapterId } = useParams()
   const st = store.student()!
-  const subjects = CURRICULUM.subjectsFor(st.cls, st.stream).filter((s) => st.subjects.indexOf(s.id) >= 0)
+  const subjects = plannedSubjects(st.cls).filter((s) => st.subjects.indexOf(s.id) >= 0)
   const sub = subjects.find((s) => s.id === subjectId)
   const ch: Chapter | null = sub ? (sub.chapters.find((c) => c.id === chapterId) || sub.chapters[0]) : null
 

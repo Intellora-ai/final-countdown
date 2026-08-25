@@ -1,4 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs';
+import { asChapterId, asTopicId } from './ids';
+import { fileURLToPath } from 'node:url'
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -18,8 +20,8 @@ import type { QuestionSpec } from './types';
 
 const SPEC: QuestionSpec = {
   specId: 'rotational-motion-0',
-  topicId: 'rotational-motion',
-  chapterId: 'mechanics',
+  topicId: asTopicId('rotational-motion'),
+  chapterId: asChapterId('mechanics'),
   conceptId: 'moment-of-inertia',
   conceptName: 'moment of inertia',
   questionType: 'standard',
@@ -277,7 +279,14 @@ describe('malformed responses fail at the provider', () => {
  * fifth "would change what 'exactly one correct' means".
  */
 describe('the option-key predicate is declared once', () => {
-  const DIR = new URL('.', import.meta.url).pathname;
+  /* `fileURLToPath`, NOT `.pathname`.
+   *
+   * A file URL percent-encodes, so on a checkout whose path contains a space
+   * `.pathname` yields `/Users/.../final%20countdown/...` and every read of it
+   * fails with ENOENT. The test then reports the product as broken when the
+   * only broken thing is the path it built. This repository is checked out at
+   * such a path today, which is how it was found. */
+  const DIR = fileURLToPath(new URL('.', import.meta.url));
 
   it('tests membership of OPTION_KEYS in types.ts and nowhere else in engine/', () => {
     const offenders: string[] = [];

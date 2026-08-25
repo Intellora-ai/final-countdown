@@ -34,6 +34,8 @@
  * reasoning    multi-step inference where each step depends on the last
  * application  the concept embedded in a situation that must first be modelled
  */
+import type { ChapterId, TopicId } from './ids';
+
 export const QUESTION_TYPES = ['standard', 'conceptual', 'reasoning', 'application'] as const;
 export type QuestionType = (typeof QUESTION_TYPES)[number];
 
@@ -149,8 +151,8 @@ export interface EngineError {
  */
 export interface QuestionSpec {
   readonly specId: string;
-  readonly topicId: string;
-  readonly chapterId: string;
+  readonly topicId: TopicId;
+  readonly chapterId: ChapterId;
   /** The specific idea under test. Narrower than the topic. */
   readonly conceptId: string;
   /**

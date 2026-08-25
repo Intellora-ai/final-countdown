@@ -1,11 +1,43 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import CURRICULUM from '../data/curriculum'
+import { loadPlannedSubjects } from '../almanac/curriculum'
 import { store } from '../data/store'
 import { Button } from '../ui/Button'
 import { pretty, iso, TEAL } from '../lib/format'
 
 type Phase = 'intro' | 'ask' | 'confirm'
+
+/** One choosable subject: the id Almanac plans with, and a name a person reads. */
+export interface SelectableSubject {
+  readonly id: string
+  readonly name: string
+  /** Shown beside the name so a student can see how big a subject is before
+   *  taking it on. */
+  readonly chapters: number
+}
+
+/**
+ * The subjects this screen may offer for a class.
+ *
+ * READ FROM THE PLANNER'S OWN CURRICULUM, and that is the fix. This screen used
+ * to list `mathematics physics chemistry biology` for class 9 out of the older
+ * hand-written module. CBSE class 9 has no separate physics subject -- it has
+ * `science` -- so a student who chose "physics" chose something the planner had
+ * never heard of. `/api/day` filters to subjects it knows, so their day was
+ * built from whatever overlapped, and nothing said why.
+ *
+ * Exported so a test can assert every offered option is plannable without
+ * driving the whole wizard.
+ */
+export async function selectableSubjects(cls: string | null): Promise<SelectableSubject[]> {
+  const subjects = await loadPlannedSubjects(cls)
+  return subjects.map((subject) => ({
+    id: subject.id,
+    name: subject.name,
+    chapters: subject.chapters.length,
+  }))
+}
 
 export function SetupFlow() {
   const nav = useNavigate()
@@ -18,7 +50,18 @@ export function SetupFlow() {
   const [minutes, setMinutes] = useState<number | null>(st?.minutes ?? null)
   const [deadlines, setDeadlines] = useState<Record<string, string>>({ ...(st?.deadlines ?? {}) })
 
-  const avail = cls ? CURRICULUM.subjectsFor(cls, stream) : []
+  /* Loaded rather than computed: the generated curriculum is one lazy chunk per
+     class, so setup pays for the class the student picked and nothing else. */
+  const [avail, setAvail] = useState<SelectableSubject[]>([])
+  useEffect(() => {
+    let live = true
+    void selectableSubjects(cls).then((found) => {
+      if (live) setAvail(found)
+    })
+    return () => {
+      live = false
+    }
+  }, [cls])
   const chosen = avail.filter((s) => subjects.indexOf(s.id) >= 0)
   const steps: string[] = ['class']
   if (cls && CURRICULUM.needsStream(cls)) steps.push('stream')
@@ -44,7 +87,7 @@ export function SetupFlow() {
     ready = !!stream
   } else if (cur === 'subjects') {
     title = 'Which subjects do you want to learn?'; help = 'Choose as many as you like. At least one is required.'
-    options = avail.map((sub) => ({ label: sub.name, meta: sub.chapters.length + ' chapters', single: false,
+    options = avail.map((sub) => ({ label: sub.name, meta: sub.chapters + ' chapters', single: false,
       sel: subjects.indexOf(sub.id) >= 0,
       on: () => setSubjects(subjects.indexOf(sub.id) >= 0 ? subjects.filter((x) => x !== sub.id) : [...subjects, sub.id]) }))
     ready = subjects.length > 0

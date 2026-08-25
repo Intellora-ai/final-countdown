@@ -1,4 +1,6 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { asChapterId, asTopicId } from './ids';
+import { fileURLToPath } from 'node:url'
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -44,7 +46,7 @@ function question(index: number, correct: OptionKey = 'A'): VerifiedQuestion {
   return {
     questionId: `q${index}`,
     sessionId: 's1',
-    topicId: 't1',
+    topicId: asTopicId('t1'),
     conceptId: `c${index}`,
     questionType: 'standard',
     difficulty: 'medium',
@@ -70,8 +72,8 @@ function newSession(overrides: Partial<Parameters<typeof createSession>[0]> = {}
   const created = createSession({
     sessionId: 's1',
     userId: 'u1',
-    topicId: 't1',
-    chapterId: 'ch1',
+    topicId: asTopicId('t1'),
+    chapterId: asChapterId('ch1'),
     questions: FIVE,
     timerEnabled: false,
     timerMinutes: 10,
@@ -94,8 +96,8 @@ describe('creating a session', () => {
     const created = createSession({
       sessionId: 's1',
       userId: 'u1',
-      topicId: 't1',
-      chapterId: 'ch1',
+      topicId: asTopicId('t1'),
+      chapterId: asChapterId('ch1'),
       questions: [question(1), question(2), question(3)],
       timerEnabled: false,
       timerMinutes: 10,
@@ -109,8 +111,8 @@ describe('creating a session', () => {
     const created = createSession({
       sessionId: 's1',
       userId: 'u1',
-      topicId: 't1',
-      chapterId: 'ch1',
+      topicId: asTopicId('t1'),
+      chapterId: asChapterId('ch1'),
       questions: sixteen,
       timerEnabled: false,
       timerMinutes: 10,
@@ -124,8 +126,8 @@ describe('creating a session', () => {
       const created = createSession({
         sessionId: 's1',
         userId: 'u1',
-        topicId: 't1',
-        chapterId: 'ch1',
+        topicId: asTopicId('t1'),
+        chapterId: asChapterId('ch1'),
         questions: FIVE,
         timerEnabled: true,
         timerMinutes: minutes,
@@ -146,12 +148,12 @@ describe('creating a session', () => {
   });
 
   it('refuses a question that is not from the session topic', () => {
-    const foreign = { ...question(6), topicId: 'somewhere-else' };
+    const foreign = { ...question(6), topicId: asTopicId('somewhere-else') };
     const created = createSession({
       sessionId: 's1',
       userId: 'u1',
-      topicId: 't1',
-      chapterId: 'ch1',
+      topicId: asTopicId('t1'),
+      chapterId: asChapterId('ch1'),
       questions: [...FIVE.slice(0, 4), foreign],
       timerEnabled: false,
       timerMinutes: 10,
@@ -368,7 +370,14 @@ describe('the result', () => {
  * So `remainingFor` keeps that and delegates the arithmetic.
  */
 describe('the countdown is computed once', () => {
-  const DIR = new URL('.', import.meta.url).pathname;
+  /* `fileURLToPath`, NOT `.pathname`.
+   *
+   * A file URL percent-encodes, so on a checkout whose path contains a space
+   * `.pathname` yields `/Users/.../final%20countdown/...` and every read of it
+   * fails with ENOENT. The test then reports the product as broken when the
+   * only broken thing is the path it built. This repository is checked out at
+   * such a path today, which is how it was found. */
+  const DIR = fileURLToPath(new URL('.', import.meta.url));
   const PRACTICE = join(DIR, '..');
 
   it('subtracts from timerDurationMs in engine/session.ts and nowhere else', () => {

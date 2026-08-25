@@ -1,0 +1,17 @@
+{
+  /*
+   * THE SERVER IS CHECKED SEPARATELY, AND IT HAS TO BE.
+   *
+   * `tsconfig.json` includes only `src`, so before this file existed
+   * `npm run typecheck` reported success without ever looking at server/ — a
+   * check pointed away from the code it was supposed to cover.
+   *
+   * It cannot simply be added to that project either: the server needs the
+   * ambient Node declarations in `server/node.d.ts`, and `src/websearch`
+   * declares `node:http` too. Two `declare module` blocks for the same module
+   * in one project is a duplicate-identifier error, so they stay in separate
+   * projects.
+   */
+  "extends": "./tsconfig.json",
+  "include": ["server"]
+}

@@ -893,3 +893,69 @@ describe('the summary ratio measures the area, not the whole walk', () => {
     expect(text).toContain('[ratio] 1/2 source files reachable from entry points')
   })
 })
+
+describe('an importer in another area is still an importer', () => {
+  /* `server/handler.ts` imports `citationSupports` from `src/websearch`. The
+   * gate analysed each area on its own, so that import was invisible and the
+   * export went on being reported DEAD while a shipping file used it on every
+   * request. An importer the gate cannot see is indistinguishable from no
+   * importer at all — which is the one thing this gate exists to tell apart. */
+
+  const AREAS = [
+    { name: 'lib', root: '.reachability-fixture/lib', entries: ['.reachability-fixture/lib/index.ts'] },
+    { name: 'app', root: '.reachability-fixture/app', entries: ['.reachability-fixture/app/index.ts'] },
+  ]
+
+  /* `used` is deliberately NOT re-exported by lib/index.ts. Its ONLY importer
+   * is in the other area, which is the whole point — an earlier version of this
+   * test re-exported it and passed without ever exercising the cross-area path. */
+  const FILES = {
+    'lib/index.ts': "export { surface } from './util.ts'\n",
+    'lib/util.ts': [
+      'export function surface() { return 0 }',
+      'export function used() { return 1 }',
+      'export function unused() { return 2 }',
+      '',
+    ].join('\n'),
+    'app/index.ts': "import { used } from '../lib/util.ts'\nconsole.log(used())\n",
+  }
+
+  it('does not report an export dead when another area imports it', () => {
+    fixture(FILES)
+    const dead = runAll(AREAS).flatMap((r) => r.deadExports.map((d) => d.name))
+    expect(dead).not.toContain('used')
+  })
+
+  it('still reports an export nothing anywhere imports', () => {
+    fixture(FILES)
+    const dead = runAll(AREAS).flatMap((r) => r.deadExports.map((d) => d.name))
+    expect(dead).toContain('unused')
+  })
+})
+
+describe('an area that does not ship to a browser', () => {
+  it('is not asked whether the browser reaches it', () => {
+    /* `server/` holds the API key and is deliberately never imported by
+     * `main.tsx` -- the secret-exposure gate refuses that import outright. So
+     * "does the product reach it" has no true answer, and refusing to ask beats
+     * answering wrongly in either direction.
+     *
+     * Its INTERNAL orphan check still runs in `analyze()`. Nothing about it
+     * goes unmeasured; only this one question is declined. */
+    const manifest = [
+      { name: 'backend', root: 'server', shipsToBrowser: false, entries: ['server/index.ts'] },
+    ]
+    expect(() => analyzeProductReachability(manifest)).not.toThrow()
+    expect(analyzeProductReachability(manifest)).toEqual([])
+  })
+
+  it('STILL asks an area that has not declared itself', () => {
+    /* Opt-OUT, not opt-in. An area that forgets to say what it is gets the
+     * question anyway, so silence is never the default and a real island cannot
+     * hide behind a missing field. */
+    const manifest = [
+      { name: 'nowhere', root: 'src/nowhere', entries: ['src/nowhere/index.ts'] },
+    ]
+    expect(() => analyzeProductReachability(manifest)).toThrow(/does not exist|outside/)
+  })
+})

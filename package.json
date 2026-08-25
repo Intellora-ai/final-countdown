@@ -11,8 +11,8 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
-    "test:canvas": "playwright test -c frontend/playwright.config.ts",
-    "test:canvas:headed": "playwright test -c frontend/playwright.config.ts --headed"
+    "test:canvas": "cd frontend && npx playwright test",
+    "test:canvas:headed": "cd frontend && npx playwright test --headed"
   },
   "repository": {
     "type": "git",

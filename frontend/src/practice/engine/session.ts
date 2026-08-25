@@ -1,4 +1,5 @@
 import { TIMER_MAX_MINUTES, TIMER_MIN_MINUTES } from '../store';
+import type { ChapterId, TopicId } from './ids';
 import {
   isQuestionCount,
   isTerminal,
@@ -41,8 +42,8 @@ import {
 export interface PracticeSession {
   readonly sessionId: string;
   readonly userId: string;
-  readonly topicId: string;
-  readonly chapterId: string;
+  readonly topicId: TopicId;
+  readonly chapterId: ChapterId;
   readonly questions: readonly VerifiedQuestion[];
   readonly status: SessionStatus;
   readonly currentIndex: number;
@@ -62,8 +63,8 @@ export interface PracticeSession {
 export interface CreateSessionInput {
   readonly sessionId: string;
   readonly userId: string;
-  readonly topicId: string;
-  readonly chapterId: string;
+  readonly topicId: TopicId;
+  readonly chapterId: ChapterId;
   readonly questions: readonly VerifiedQuestion[];
   readonly timerEnabled: boolean;
   readonly timerMinutes: number;

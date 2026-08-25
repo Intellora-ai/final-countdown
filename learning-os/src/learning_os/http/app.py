@@ -46,6 +46,7 @@ from learning_os.http.models import (
     ConceptPage,
     ConceptSummary,
     DatabaseStatus,
+    ErrorDetail,
     Health,
     LearnerCreate,
     LearnerCreated,
@@ -107,6 +108,39 @@ def _get_learners(request: Request) -> Learners:
 # caller mistake and was entirely ours.
 GraphDep = Annotated[KnowledgeGraph, Depends(_get_graph)]
 LearnersDep = Annotated[Learners, Depends(_get_learners)]
+
+#: Declared on every route that can answer 404, so the published document
+#: describes the response instead of leaving consumers to discover it.
+#:
+#: An undeclared status code is not a smaller problem than a wrong one. A client
+#: generated from this document would have no branch for it at all, and
+#: Schemathesis validates only what is declared -- so an undeclared 404 is a
+#: response nothing checks.
+NOT_FOUND: dict[int | str, dict[str, object]] = {
+    404: {"model": ErrorDetail, "description": "The named resource does not exist."}
+}
+
+#: Declared on every route that accepts a JSON body.
+#:
+#: Starlette answers 400 when a body cannot be DECODED -- bytes that are not
+#: valid UTF-8 -- which is a different failure from a body that decodes and is
+#: not valid JSON (422, raised by FastAPI's own validation). Both are real, they
+#: arrive under different codes, and the document described neither.
+#:
+#: Found by Schemathesis, not by hand:
+#:
+#:     Undocumented HTTP status code
+#:     Received: 400   Documented: 201, 404, 409, 422
+#:
+#: An undocumented status code is a response no generated client has a branch
+#: for, and one no contract test can check -- Schemathesis validates what is
+#: declared, so an undeclared code is a response nothing verifies.
+MALFORMED_BODY: dict[int | str, dict[str, object]] = {
+    400: {
+        "model": ErrorDetail,
+        "description": "The request body could not be decoded.",
+    }
+}
 
 
 def build_app(
@@ -183,7 +217,10 @@ def build_app(
         )
 
     @app.post(
-        "/learners", response_model=LearnerCreated, status_code=status.HTTP_201_CREATED
+        "/learners",
+        response_model=LearnerCreated,
+        status_code=status.HTTP_201_CREATED,
+        responses=MALFORMED_BODY,
     )
     def create_learner(body: LearnerCreate, learners: LearnersDep) -> LearnerCreated:
         record = learners.create(cohort=body.cohort, stream=body.stream)
@@ -194,7 +231,9 @@ def build_app(
             stream=record.stream,
         )
 
-    @app.get("/learners/{learner_id}", response_model=LearnerCreated)
+    @app.get(
+        "/learners/{learner_id}", response_model=LearnerCreated, responses=NOT_FOUND
+    )
     def get_learner(learner_id: str, learners: LearnersDep) -> LearnerCreated:
         record = learners.get(learner_id)
         if record is None:
@@ -206,7 +245,11 @@ def build_app(
             stream=record.stream,
         )
 
-    @app.get("/learners/{learner_id}/mastery", response_model=MasteryReport)
+    @app.get(
+        "/learners/{learner_id}/mastery",
+        response_model=MasteryReport,
+        responses=NOT_FOUND,
+    )
     def mastery(learner_id: str, learners: LearnersDep) -> MasteryReport:
         try:
             beliefs = learners.beliefs(learner_id)
@@ -229,6 +272,7 @@ def build_app(
         "/learners/{learner_id}/attempts",
         response_model=AttemptRecorded,
         status_code=status.HTTP_201_CREATED,
+        responses={**NOT_FOUND, **MALFORMED_BODY},
     )
     def record_attempt(
         learner_id: str,
@@ -244,8 +288,19 @@ def build_app(
         ],
     ) -> AttemptRecorded:
         if graph.subskill(body.skill_id) is None:
+            # 404, NOT 422, AND THE REASON IS TWO SEPARATE FINDINGS.
+            #
+            # Schemathesis rejected the old 422 twice over: the body violated
+            # FastAPI's published array schema for that code, AND it flagged
+            # `RejectedPositiveData` -- the request was schema-compliant, since
+            # the document says `skill_id` is any string of 1..120 characters,
+            # so a 422 claimed the CALLER was malformed when the caller was not.
+            #
+            # 404 is both true and expressible: the referenced skill does not
+            # exist, no edit to the request can make it exist, and a schema
+            # cannot enumerate which ids are real.
             raise HTTPException(
-                status_code=422,
+                status_code=404,
                 detail=f"no subskill {body.skill_id!r} in knowledge {graph.version!r}",
             )
         evidence = Evidence(
@@ -287,7 +342,9 @@ def build_app(
             replayed=record.replayed,
         )
 
-    @app.get("/learners/{learner_id}/next", response_model=NextAction)
+    @app.get(
+        "/learners/{learner_id}/next", response_model=NextAction, responses=NOT_FOUND
+    )
     def next_action(
         learner_id: str,
         learners: LearnersDep,
@@ -338,16 +395,28 @@ def build_app(
         )
 
     @app.post(
-        "/lessons", response_model=LessonEmitted, status_code=status.HTTP_201_CREATED
+        "/lessons",
+        response_model=LessonEmitted,
+        status_code=status.HTTP_201_CREATED,
+        responses={
+            **NOT_FOUND,
+            **MALFORMED_BODY,
+            409: {
+                "model": ErrorDetail,
+                "description": "The skill exists but no lesson could be emitted.",
+            },
+        },
     )
     def lessons(body: LessonRequest, graph: GraphDep) -> LessonEmitted:
         if graph.subskill(body.skill_id) is None:
+            # Same finding as the attempts route. See the note there.
             raise HTTPException(
-                status_code=422,
+                status_code=404,
                 detail=f"no subskill {body.skill_id!r} in knowledge {graph.version!r}",
             )
-        if not body.question.strip():
-            raise HTTPException(status_code=422, detail="question must not be blank")
+        # The blank-question check moved into LessonRequest as a field
+        # validator, so FastAPI raises its own 422 in its own published shape
+        # and names the field. A route handler inventing a 422 was the bug.
 
         contract = InstructionContract(
             target_skill=body.skill_id,
@@ -364,7 +433,10 @@ def build_app(
             # fixture check says so.
             lesson = emit(contract, FakeLLMClient().generate(contract))
         except EmitError as error:
-            raise HTTPException(status_code=422, detail=str(error)) from None
+            # 409: the request was well formed and the engine could not build a
+            # lesson from it. Not 422 (the caller is not malformed) and not 404
+            # (the skill exists). Declared below so the document says so.
+            raise HTTPException(status_code=409, detail=str(error)) from None
 
         return LessonEmitted(
             lesson_id=lesson.id,

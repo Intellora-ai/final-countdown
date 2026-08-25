@@ -40,6 +40,36 @@ class _Strict(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
+class ErrorDetail(_Strict):
+    """The shape of every error this API raises deliberately.
+
+    WHY THIS EXISTS, AND WHAT IT COST TO LEARN.
+
+    FastAPI reserves 422 for its own request-validation failures and publishes a
+    fixed schema for it: `{"detail": [ValidationError, ...]}` -- an ARRAY. Domain
+    refusals raised as `HTTPException(422, detail="no subskill 'x'")` produce
+    `{"detail": "a string"}` under that same status code.
+
+    Both look fine. Both carry `detail`. And the second one violates the schema
+    the API publishes for 422, which means any consumer generating a client from
+    the document gets a type error on a response the server considers normal.
+
+    Schemathesis found it on the first run, from generated input:
+
+        "no subskill '000...' in knowledge 'python_recursion_v1'"
+        is not of type "array"
+
+    Every hand-written test in tests/http and tests/api passed straight through
+    it, because they asserted the status code and the PRESENCE of `detail`,
+    never its type. That is the difference a generator makes.
+
+    So deliberate refusals now use their own status codes with this model
+    declared, and 422 is left to FastAPI alone.
+    """
+
+    detail: str
+
+
 #: How the service describes its own database.
 #:
 #: Three values rather than a bool, because "no database is configured" and "a
@@ -175,7 +205,28 @@ class NextAction(_Strict):
 
 class LessonRequest(_Strict):
     skill_id: str = Field(min_length=1, max_length=120)
-    question: str = Field(min_length=1, max_length=200)
+
+    #: `pattern=r"\S"` -- at least one non-whitespace character.
+    #:
+    #: A PATTERN RATHER THAN A VALIDATOR, AND THE DIFFERENCE IS THE SCHEMA.
+    #:
+    #: This was first a `field_validator` raising "question must not be blank".
+    #: Functionally identical, and Schemathesis rejected it at 1500 examples:
+    #:
+    #:     RejectedPositiveData: API rejected schema-compliant request
+    #:     curl -d '{"skill_id": "\r", "question": "\r"}' .../lessons
+    #:     [422] {"msg": "Value error, question must not be blank"}
+    #:
+    #: The check was right and the SCHEMA was lying. `minLength: 1` promises
+    #: that any one-character string is acceptable, so "\r" is a request the
+    #: published contract invites a caller to make -- and then the API refuses
+    #: it. A validator enforces a rule the document does not state; a pattern
+    #: puts the same rule INTO the document, where a generated client and a
+    #: human reading it both see it.
+    #:
+    #: JSON Schema `pattern` is unanchored, so `\S` reads as "contains a
+    #: non-whitespace character", which is exactly the rule.
+    question: str = Field(min_length=1, max_length=200, pattern=r"\S")
 
 
 class LessonEmitted(_Strict):

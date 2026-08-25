@@ -380,3 +380,63 @@ describe('a heading that stops mid-reach', () => {
     }
   });
 });
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * A REGRESSION THIS FILE'S OWN EARLIER FIX INTRODUCED.
+ *
+ * `SOLUTIONS` is a real chemistry unit and the bare-label rule was deleting it,
+ * because the rule allowed any trailing letters and "solution" is on the label
+ * list. The fix required the designator to be a SEPARATE token: `Part A` and
+ * `Unit 1` still match, `Solutions` does not.
+ *
+ * Requiring a SPACE was too narrow. Counted across class 9-12 after that fix,
+ * the biggest chapters with no practisable classification were:
+ *
+ *     Chapter-1   29 topics      Unit-1      38 topics
+ *     Chapter-8   25 topics      Sub-Topic   36 topics
+ *     Chapter-13  22 topics
+ *
+ * A hyphen is a separator exactly as a space is. The rule was written from a
+ * corpus that happened to use spaces, and the moment a different extractor used
+ * hyphens the whole class walked through -- roughly 150 topics filed under
+ * headings that name nothing.
+ *
+ * The separator is now "a space OR a hyphen", which keeps the `Solutions` fix
+ * intact: that word still has no separator at all.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+describe('a label with a hyphen is still a label', () => {
+  it('rejects the hyphenated forms the extractor actually produced', () => {
+    for (const name of ['Chapter-1', 'Unit-1', 'Chapter-13', 'Sub-Topic', 'Part-A', 'Unit-IV']) {
+      expect(reasonsUnusable(name), name).toContain('bare-label');
+    }
+  });
+
+  it('still rejects the spaced forms, which is why the rule exists', () => {
+    for (const name of ['Part A', 'Unit 1', 'Chapter 13', 'Example 1']) {
+      expect(reasonsUnusable(name), name).toContain('bare-label');
+    }
+  });
+
+  it('still keeps SOLUTIONS, which is what the previous fix was for', () => {
+    /*
+     * THE PAIR THAT MATTERS MOST HERE. Widening the separator must not undo
+     * the fix that made the separator necessary. `Solutions` has no separator,
+     * so it is not a label however many separators are allowed.
+     */
+    expect(reasonsUnusable('SOLUTIONS')).toEqual([]);
+    expect(reasonsUnusable('Solutions')).toEqual([]);
+  });
+
+  it('does not reject a real hyphenated topic name', () => {
+    /*
+     * The other pair. A hyphen is ordinary punctuation in a heading, and a rule
+     * that treated every hyphenated phrase as a label would delete a great many
+     * genuine topics.
+     */
+    for (const name of ['Half-life of a radioactive sample', 'p-Block elements', 'Sub-atomic particles']) {
+      expect(reasonsUnusable(name), name).toEqual([]);
+    }
+  });
+});

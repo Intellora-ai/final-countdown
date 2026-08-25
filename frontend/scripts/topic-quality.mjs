@@ -68,7 +68,7 @@ const IMPERATIVE =
  * A LIST, deliberately and explicitly -- see the `bare-label` rule.
  */
 const LABEL_WORDS =
-  'part|unit|section|theory|chapter|paper|example|hint|proof|statement|conclusion|syllabus|day|class|note|remark|solution|answer|question|exercise|activity|summary|introduction'
+  'part|unit|section|theory|chapter|paper|example|hint|proof|statement|conclusion|syllabus|day|class|note|remark|solution|answer|question|exercise|activity|summary|introduction|topic|sub-topic|subtopic'
 
 /**
  * The word alone, or carrying a bare designator: "Part A", "Example 14",
@@ -91,7 +91,20 @@ const LABEL_WORDS =
  * `Part A`, `Unit 1`, `Day 6` and a bare `Theory` still match. `Solutions`
  * does not, because it is one word and that word is not on the list.
  */
-const LABEL_ALONE = new RegExp(`^(?:${LABEL_WORDS})(?:\\s+[a-z0-9ivxlc-]+)?$`, 'i')
+/*
+ * A HYPHEN IS A SEPARATOR EXACTLY AS A SPACE IS.
+ *
+ * Requiring a space was too narrow, and the cost was counted: across class
+ * 9-12 the biggest chapters with no practisable classification were
+ * `Chapter-1` (29 topics), `Unit-1` (38), `Sub-Topic` (36), `Chapter-8` (25)
+ * and `Chapter-13` (22). The rule was written from a corpus that happened to
+ * use spaces, so the moment a different extractor used hyphens the whole class
+ * walked through -- roughly 150 topics filed under headings that name nothing.
+ *
+ * The `Solutions` fix is untouched by this. That word has NO separator at all,
+ * so widening which characters count as one cannot bring it back.
+ */
+const LABEL_ALONE = new RegExp(`^(?:${LABEL_WORDS})(?:[\\s-]+[a-z0-9ivxlc]+)?$`, 'i')
 const LABEL_NUMBERED = LABEL_ALONE
 
 const RULES = [

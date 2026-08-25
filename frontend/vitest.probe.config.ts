@@ -16,7 +16,16 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     include: ['src/**/*.probe.ts'],
-    testTimeout: 900_000,
-    hookTimeout: 900_000,
+    /*
+     * An hour, and the number is measured rather than generous.
+     *
+     * 900_000 was chosen before retries existed and the run then took 1800s --
+     * the probe was killed mid-flight and produced NO number at all, which is
+     * strictly worse than a slow one. Twelve topics, up to three attempts each,
+     * at roughly 30 seconds per call, is 18 minutes of model time before any
+     * of it is slow.
+     */
+    testTimeout: 3_600_000,
+    hookTimeout: 3_600_000,
   },
 });

@@ -72,12 +72,26 @@ describe('model-written questions against the gates', () => {
       let verdict = 'PASS';
       let detail = '';
       try {
-        const candidate = await provider.generate(spec, 0, new AbortController().signal);
-        const checked = verify({
-          candidate,
-          sessionId: 'probe',
-          expectedTopicId: topic.id,
-        });
+        /*
+         * RETRIES, BECAUSE A REAL SESSION RETRIES.
+         *
+         * The first version of this probe generated ONCE and reported the
+         * result as the product's behaviour. It is not: `generateSet` retries
+         * each question up to `DEFAULT_RETRIES` times, and a model that
+         * duplicates two options or declares an unresolvable computation
+         * usually does not do it twice. Measuring one shot and calling it the
+         * pass rate understates the product by whatever the retry recovers,
+         * and that gap was never measured -- it was assumed to be zero.
+         *
+         * Three attempts is what a student's session actually gets.
+         */
+        let candidate = await provider.generate(spec, 0, new AbortController().signal);
+        let checked = verify({ candidate, sessionId: 'probe', expectedTopicId: topic.id });
+
+        for (let attempt = 1; attempt <= 2 && !checked.ok; attempt += 1) {
+          candidate = await provider.generate(spec, attempt, new AbortController().signal);
+          checked = verify({ candidate, sessionId: 'probe', expectedTopicId: topic.id });
+        }
 
         if (!checked.ok) {
           verdict = `verify:${checked.failures.map((f) => f.check).join('+')}`;

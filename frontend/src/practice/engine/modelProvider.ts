@@ -140,6 +140,18 @@ export const SYSTEM = [
   '- The solution explains the reasoning. Never "Option C is correct".',
   '- If the question involves arithmetic, declare it in `computation` so it can',
   '  be recomputed. Steps reference earlier inputs or earlier step names only.',
+  '',
+  'Three mistakes that get questions rejected. Each has happened:',
+  '',
+  '- `expected` is the answer to the question you asked, not a number that',
+  '  merely appears in it. A garden of area 150 whose WIDTH is asked for has',
+  '  expected = the width. One of your four options must equal it exactly.',
+  '- Every `left` and `right` in a step must name an input you declared or an',
+  '  earlier step. A name that appears nowhere makes the whole question',
+  '  unusable.',
+  '- Before you return, compare your four options. If any two are equal, or',
+  '  algebraically equal, replace one. Two right answers is a broken question,',
+  '  and it is the failure a reader is least likely to notice.',
 ].join('\n');
 
 export function briefFor(spec: QuestionSpec, attempt: number): string {

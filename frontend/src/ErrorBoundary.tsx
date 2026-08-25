@@ -16,10 +16,11 @@ import React from 'react'
  * can fail for the same reason, and a boundary that throws while handling a
  * throw is worse than no boundary at all — React unmounts everything and the
  * user is back to the blank page, now with two errors instead of one. So this
- * renders plain elements with inline styles and no imports beyond React. The
- * CSS variables are the ones the shell already sets in `App.tsx`; if the
- * stylesheet itself is what failed they resolve to nothing and the text falls
- * back to the browser default, which is still readable. That is the point.
+ * renders plain elements with inline styles and no imports beyond React. It
+ * carries `className="dark"` itself because `styles/tokens/colors.css` remaps
+ * the palette under `.dark` and `App.tsx` is what normally supplies it; this
+ * boundary mounts outside App, so when App is the thing that died the class
+ * dies with it.
  *
  * IT REPORTS, IT DOES NOT SWALLOW.
  * The error is re-logged in `componentDidCatch`. A boundary that shows a
@@ -28,14 +29,45 @@ import React from 'react'
  * the handling — `getDerivedStateFromError` changes control flow by moving
  * the component into its error state. The log is the evidence trail beside
  * it, which is why this is not a catch-and-continue.
+ *
+ * WHY THERE IS A SECOND BUTTON, AND WHY IT IS DESTRUCTIVE ON PURPOSE.
+ * Measured in a browser on 2026-08-25. Putting this into localStorage:
+ *
+ *     localStorage['learning-os/v2'] = '{"students":"not-an-array","v":2}'
+ *
+ * makes the application throw on load, because `data/store.ts:29` reads saved
+ * state with `JSON.parse(raw) as DB` — a TypeScript cast, erased at runtime,
+ * checking nothing. The boundary catches it, so the page is no longer blank.
+ * But the poisoned value survives, so reload re-reads it: loaded three times
+ * in a row the result was crash, crash, crash. Reload alone is therefore not
+ * an escape, it is a loop, and the user's only way out was devtools.
+ *
+ * Clearing is the escape. It is offered as a SEPARATE, explicitly-labelled
+ * action rather than folded into the reload, because most errors are not
+ * caused by saved state and silently erasing a learner's progress to recover
+ * from a transient fault would be its own defect.
  */
+
+/** The narrow slice of Storage this needs. Injectable so a test can watch it. */
+type ClearableStorage = Pick<Storage, 'clear'>
 
 export interface ErrorBoundaryProps {
   readonly children: React.ReactNode
+  /**
+   * Defaults to `window.localStorage`. Pass `null` to state that there is no
+   * storage, which hides the reset control. Present for tests: this project's
+   * jsdom environment provides no localStorage at all (probed, not assumed —
+   * `typeof window.localStorage` is `undefined` there), so the real effect
+   * cannot be observed in a unit test and is proven in a browser instead.
+   */
+  readonly storage?: ClearableStorage | null
+  /** Defaults to a real page reload. Injectable because jsdom has no navigation. */
+  readonly reload?: () => void
 }
 
 interface ErrorBoundaryState {
   readonly error: unknown
+  readonly resetFailed: boolean
 }
 
 /** Everything a thrown value might be, rendered as something a person can read. */
@@ -49,10 +81,26 @@ function describe(error: unknown): string {
   return String(error)
 }
 
-export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  override state: ErrorBoundaryState = { error: null }
+/**
+ * `window.localStorage`, when there is one.
+ *
+ * Reading it can THROW rather than return undefined — a browser with site data
+ * blocked raises SecurityError on access, not on use. Both outcomes mean the
+ * same thing here, so both become `null`, which is a value the caller handles
+ * rather than an error nobody catches.
+ */
+function defaultStorage(): ClearableStorage | null {
+  try {
+    return typeof window !== 'undefined' && window.localStorage ? window.localStorage : null
+  } catch {
+    return null
+  }
+}
 
-  static getDerivedStateFromError(error: unknown): ErrorBoundaryState {
+export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  override state: ErrorBoundaryState = { error: null, resetFailed: false }
+
+  static getDerivedStateFromError(error: unknown): Partial<ErrorBoundaryState> {
     return { error }
   }
 
@@ -60,19 +108,45 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     console.error('[error-boundary] the application stopped rendering:', error, info.componentStack)
   }
 
+  /** `undefined` means "not specified, use the real thing"; `null` means "there is none". */
+  private resolveStorage(): ClearableStorage | null {
+    return this.props.storage !== undefined ? this.props.storage : defaultStorage()
+  }
+
+  private reload = (): void => {
+    if (this.props.reload) {
+      this.props.reload()
+      return
+    }
+    window.location.reload()
+  }
+
+  private reset = (): void => {
+    const storage = this.resolveStorage()
+    if (!storage) return
+
+    try {
+      storage.clear()
+    } catch (err) {
+      /* NOT a swallow: this changes control flow (no reload happens) and tells
+       * both the user and the console. Reloading anyway would drop the user
+       * back into the identical crash while implying the reset had worked. */
+      console.error('[error-boundary] could not clear the saved data:', err)
+      this.setState({ resetFailed: true })
+      return
+    }
+    this.reload()
+  }
+
   override render(): React.ReactNode {
-    const { error } = this.state
+    const { error, resetFailed } = this.state
     if (error === null) return this.props.children
+
+    const storage = this.resolveStorage()
 
     return (
       <div
         role="alert"
-        /* `.dark` is where `styles/tokens/colors.css` remaps the semantic
-         * aliases, and `App.tsx` is what normally supplies it. This boundary
-         * mounts OUTSIDE App by design, so without repeating the class the
-         * recovery screen falls back to the light palette and renders as a
-         * white page inside a dark product. Measured in a browser on
-         * 2026-08-25: readable, but visibly not the same application. */
         className="dark"
         style={{
           minHeight: '100vh',
@@ -100,9 +174,29 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
           >
             {describe(error)}
           </pre>
-          <button type="button" onClick={() => window.location.reload()}>
-            Reload the page
-          </button>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button type="button" onClick={this.reload}>
+              Reload the page
+            </button>
+            {/* Absent, not disabled, when there is nothing to clear. A control
+              * that cannot act promises an escape that will not arrive. */}
+            {storage !== null && (
+              <button type="button" onClick={this.reset}>
+                Reset saved data and reload
+              </button>
+            )}
+          </div>
+          {storage !== null && !resetFailed && (
+            <p style={{ marginTop: '0.75rem', opacity: 0.7 }}>
+              Reset if reloading keeps landing here. It erases saved progress on this device.
+            </p>
+          )}
+          {resetFailed && (
+            <p style={{ marginTop: '0.75rem' }}>
+              Could not clear the saved data — this browser refused. Clearing site data for this
+              page in browser settings will do the same thing.
+            </p>
+          )}
         </div>
       </div>
     )

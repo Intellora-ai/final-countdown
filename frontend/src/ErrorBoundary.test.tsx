@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ErrorBoundary } from './ErrorBoundary'
@@ -25,13 +25,23 @@ import { ErrorBoundary } from './ErrorBoundary'
  * TEXT, the thrown detail is shown so the failure stays diagnosable, and the
  * children are GONE. The last part is what separates a boundary that replaced
  * the broken tree from one that merely appended a message beside it.
+ *
+ * WHY STORAGE AND NAVIGATION ARE INJECTED, AND WHAT THAT COSTS.
+ * Probed in this exact environment, not assumed:
+ *
+ *     URL: http://localhost:3000/
+ *     localStorage type: undefined
+ *     reload descriptor: {"writable":false,"enumerable":true,"configurable":false}
+ *
+ * jsdom here provides NO localStorage at all and a `reload` that cannot be
+ * redefined. So a unit test cannot observe either real effect, and pretending
+ * otherwise would be a test of the stub. The component takes both as optional
+ * props defaulting to the real browser objects, and these tests pass a real
+ * Map-backed fake — the assertions below are on that object genuinely being
+ * emptied, not on a spy having been called. The REAL localStorage effect is
+ * proven separately in a browser, which is the only place it can be.
  */
 
-/* React logs the caught error to console.error itself, and the boundary logs
- * it again on purpose. Neither is noise to be silenced globally: the tests
- * that care assert on the call, and the rest would drown the reporter without
- * this. Restored after every test so a leak cannot hide a real console error
- * in a later file. */
 let consoleError: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
@@ -40,11 +50,18 @@ beforeEach(() => {
 
 afterEach(() => {
   consoleError.mockRestore()
+  vi.restoreAllMocks()
   cleanup()
 })
 
 function Boom({ thrown }: { readonly thrown: unknown }): React.ReactElement {
   throw thrown
+}
+
+/** A real object with real state, so "was it emptied" is a fact, not a spy. */
+function fakeStorage(initial: Record<string, string> = {}) {
+  const map = new Map(Object.entries(initial))
+  return { map, api: { clear: () => map.clear() } }
 }
 
 const BANNER = 'Something went wrong'
@@ -81,7 +98,7 @@ describe('the error boundary, which is the only thing standing between a render 
     )
 
     /* A way out that does not require retyping the URL. */
-    expect(screen.getByRole('button', { name: /reload/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^reload the page$/i })).toBeInTheDocument()
 
     /* And the broken tree is GONE, not merely decorated. */
     expect(screen.queryByText(CHILD)).toBeNull()
@@ -152,5 +169,157 @@ describe('the error boundary, which is the only thing standing between a render 
       return line.includes('[error-boundary]') && line.includes('the cause worth keeping')
     })
     expect(reportedByTheBoundary).toBe(true)
+  })
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * ESCAPING A CRASH THAT THE SAVED DATA ITSELF CAUSES.
+   *
+   * Measured in a browser on 2026-08-25. Writing this into localStorage:
+   *
+   *     localStorage['learning-os/v2'] = '{"students":"not-an-array","v":2}'
+   *
+   * makes the application throw on load. `data/store.ts:29` reads it with
+   * `JSON.parse(raw) as DB` — a TypeScript cast, which is erased at runtime
+   * and checks nothing — so wrong-typed data enters the app as if it were
+   * valid. The boundary catches the throw, so the page is no longer blank.
+   *
+   * But the value SURVIVES, so reloading re-reads the same poison. Loaded
+   * three times in a row the result was crash, crash, crash, with "Reload the
+   * page" as the only control. That is a permanent lockout: the user cannot
+   * get out from inside the application at all, and their only escape is
+   * devtools.
+   *
+   * A recovery screen whose only action leads straight back to the same crash
+   * is not a recovery screen. These tests are for the way out.
+   * ───────────────────────────────────────────────────────────────────────── */
+  describe('when the saved data is what crashed the application', () => {
+    it('offers a way out that is not the reload which caused the crash', () => {
+      const { api } = fakeStorage({ 'learning-os/v2': 'poison' })
+      render(
+        <ErrorBoundary storage={api} reload={vi.fn()}>
+          <Boom thrown={new Error('poisoned by saved state')} />
+        </ErrorBoundary>,
+      )
+
+      expect(screen.getByRole('button', { name: /reset saved data/i })).toBeInTheDocument()
+    })
+
+    it('actually empties the saved data, rather than only saying so', () => {
+      const { map, api } = fakeStorage({
+        'learning-os/v2': '{"students":"not-an-array","v":2}',
+        'practice-run': 'anything',
+      })
+      const reload = vi.fn()
+
+      render(
+        <ErrorBoundary storage={api} reload={reload}>
+          <Boom thrown={new Error('poisoned by saved state')} />
+        </ErrorBoundary>,
+      )
+      fireEvent.click(screen.getByRole('button', { name: /reset saved data/i }))
+
+      /* The real effect on a real object. A button that claims to clear and
+       * does not is exactly the lie this suite exists to catch. */
+      expect(map.size).toBe(0)
+      expect(reload).toHaveBeenCalledTimes(1)
+    })
+
+    it('leaves the saved data alone when the plain reload is chosen', () => {
+      const { map, api } = fakeStorage({ 'learning-os/v2': 'precious' })
+      const reload = vi.fn()
+
+      render(
+        <ErrorBoundary storage={api} reload={reload}>
+          <Boom thrown={new Error('something unrelated to storage')} />
+        </ErrorBoundary>,
+      )
+      fireEvent.click(screen.getByRole('button', { name: /^reload the page$/i }))
+
+      /* The pair. Without this, "reset clears storage" is satisfied by a
+       * boundary that clears on EVERY button, which would destroy the progress
+       * of every user who hit an unrelated transient error. */
+      expect(map.get('learning-os/v2')).toBe('precious')
+      expect(map.size).toBe(1)
+      expect(reload).toHaveBeenCalledTimes(1)
+    })
+
+    it('says so and does NOT reload when the browser refuses to clear', () => {
+      /* Safari in private mode, and any browser with site data blocked, throw
+       * from localStorage. Reloading anyway would drop the user straight back
+       * into the same crash while implying the reset had worked. */
+      const reload = vi.fn()
+      const refusing = {
+        clear: () => {
+          throw new DOMException('denied', 'SecurityError')
+        },
+      }
+
+      render(
+        <ErrorBoundary storage={refusing} reload={reload}>
+          <Boom thrown={new Error('poisoned by saved state')} />
+        </ErrorBoundary>,
+      )
+      fireEvent.click(screen.getByRole('button', { name: /reset saved data/i }))
+
+      expect(screen.getByRole('alert')).toHaveTextContent(/could not clear/i)
+      expect(reload).not.toHaveBeenCalled()
+
+      const reported = consoleError.mock.calls.some((call) =>
+        call.map(String).join(' ').includes('[error-boundary]'),
+      )
+      expect(reported).toBe(true)
+    })
+
+    it('offers no reset at all when there is no storage to reset', () => {
+      /* Not hypothetical: this very test environment has no localStorage, and
+       * a button that cannot do anything is worse than an absent one — it
+       * promises an escape that will not arrive.
+       *
+       * THIS TEST WAS STRENGTHENED BECAUSE A MUTANT SURVIVED IT.
+       * Mutation run 2026-08-25, mutant M13 "change `storage !== undefined` to
+       * `storage != null`, so an explicit null falls back to real storage",
+       * SURVIVED. It survived because jsdom here has no localStorage either
+       * way, so both behaviours looked identical and the assertion was
+       * measuring the ENVIRONMENT rather than the component. Installing a real
+       * window.localStorage first makes the two outcomes differ: under M13 the
+       * fallback finds it and renders the button. Re-running M13 against the
+       * version below kills it. */
+      const present = fakeStorage({ 'learning-os/v2': 'something' })
+      Object.defineProperty(window, 'localStorage', {
+        configurable: true,
+        value: present.api,
+      })
+
+      render(
+        <ErrorBoundary storage={null} reload={vi.fn()}>
+          <Boom thrown={new Error('anything')} />
+        </ErrorBoundary>,
+      )
+
+      expect(screen.getByRole('alert')).toHaveTextContent(BANNER)
+      /* `null` means "there is none", and it must WIN over the ambient
+       * localStorage that does exist in this test. */
+      expect(screen.queryByRole('button', { name: /reset saved data/i })).toBeNull()
+    })
+
+    it('finds real storage on its own when the prop is left off entirely', () => {
+      /* The pair for the test above. Without this, "explicit null hides the
+       * button" is satisfied by a component that never renders the button at
+       * all — which is exactly mutant M9, and which would leave every real
+       * user locked out again. */
+      const present = fakeStorage({ 'learning-os/v2': 'poison' })
+      Object.defineProperty(window, 'localStorage', {
+        configurable: true,
+        value: present.api,
+      })
+
+      render(
+        <ErrorBoundary reload={vi.fn()}>
+          <Boom thrown={new Error('anything')} />
+        </ErrorBoundary>,
+      )
+
+      expect(screen.getByRole('button', { name: /reset saved data/i })).toBeInTheDocument()
+    })
   })
 })

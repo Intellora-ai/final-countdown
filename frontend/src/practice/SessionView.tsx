@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { asChapterId, asTopicId } from './engine/ids'
+import { asChapterId, asSubjectId, asTopicId } from './engine/ids'
 
 import {
   CHAPTER_BY_ID,
   CHAPTER_OF_TOPIC,
+  SUBJECT_OF_CHAPTER,
   TOPIC_BY_ID,
   topicsOfChapter,
   type TopicConcept,
@@ -475,6 +476,9 @@ function profileFor(selection: ReturnType<typeof usePracticeStore.getState>['lau
     return {
       topicId: asTopicId(topic.id),
       chapterId: asChapterId(CHAPTER_OF_TOPIC.get(selection.id) ?? 'unknown'),
+      subjectId: asSubjectId(
+        SUBJECT_OF_CHAPTER.get(CHAPTER_OF_TOPIC.get(selection.id) ?? '') ?? 'unknown',
+      ),
       quantitative: quantitativeOf(topic),
       concepts: conceptsOf(topic),
     }
@@ -494,6 +498,7 @@ function profileFor(selection: ReturnType<typeof usePracticeStore.getState>['lau
   return {
     topicId: asTopicId(chapter.id),
     chapterId: asChapterId(chapter.id),
+    subjectId: asSubjectId(SUBJECT_OF_CHAPTER.get(chapter.id) ?? 'unknown'),
     quantitative: average(topics.map(quantitativeOf)),
     concepts: topics.map((topic) => ({
       id: topic.id,

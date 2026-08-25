@@ -1,4 +1,5 @@
 import { assessDifficulty, bandDistance } from './difficulty';
+import { GENERATION_VERSION } from './types';
 import { fingerprintOf } from './fingerprint';
 import {
   OPTION_KEYS,
@@ -78,6 +79,10 @@ export function verify(input: VerifyInput): VerificationOutcome {
       questionId: candidate.candidateId,
       sessionId,
       topicId: candidate.spec.topicId,
+      chapterId: candidate.spec.chapterId,
+      subjectId: candidate.spec.subjectId,
+      misconceptionTested: candidate.spec.misconceptionTested,
+      generationVersion: GENERATION_VERSION,
       conceptId: candidate.spec.conceptId,
       questionType: candidate.spec.questionType,
       /* The MEASURED band, never the requested one. */

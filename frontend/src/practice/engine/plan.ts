@@ -1,5 +1,5 @@
 import { predictBand } from './difficulty';
-import type { ChapterId, TopicId } from './ids';
+import type { ChapterId, SubjectId, TopicId } from './ids';
 import {
   REASONING_STRUCTURES,
   type Difficulty,
@@ -56,6 +56,7 @@ export interface Concept {
 export interface TopicProfile {
   readonly topicId: TopicId;
   readonly chapterId: ChapterId;
+  readonly subjectId: SubjectId;
   readonly concepts: readonly Concept[];
   /**
    * 0 = purely qualitative, 1 = purely computational. Drives the mix.
@@ -335,6 +336,7 @@ export function buildPlan(profile: TopicProfile, count: QuestionCount): readonly
       specId: `${concept.topicId}-${index}`,
       topicId: concept.topicId,
       chapterId: profile.chapterId,
+      subjectId: profile.subjectId,
       conceptId: concept.id,
       conceptName: concept.name,
       questionType,

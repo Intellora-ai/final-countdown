@@ -849,3 +849,47 @@ describe('importsOf: clause bounding without semicolons', () => {
     }
   })
 })
+
+describe('the summary ratio measures the area, not the whole walk', () => {
+  const AREA = resolve(ROOT, '.ratio-area')
+  const OUTSIDE = resolve(ROOT, '.ratio-outside')
+
+  afterEach(() => {
+    rmSync(AREA, { recursive: true, force: true })
+    rmSync(OUTSIDE, { recursive: true, force: true })
+  })
+
+  function twoDirs(areaFiles, outsideFiles) {
+    rmSync(AREA, { recursive: true, force: true })
+    rmSync(OUTSIDE, { recursive: true, force: true })
+    for (const [dir, files] of [[AREA, areaFiles], [OUTSIDE, outsideFiles]]) {
+      for (const [path, source] of Object.entries(files)) {
+        const full = join(dir, path)
+        mkdirSync(resolve(full, '..'), { recursive: true })
+        writeFileSync(full, source)
+      }
+    }
+    return { name: 'ratio', root: '.ratio-area', entries: ['.ratio-area/entry.ts'] }
+  }
+
+  it("does not count a file from another area as one of this area's own", () => {
+    const area = twoDirs(
+      { 'entry.ts': "import { h } from '../.ratio-outside/helper'\nexport const a = h\n" },
+      { 'helper.ts': 'export const h = 1\n' },
+    )
+    const { text } = report([analyze(area)])
+    expect(text).toContain('[ratio] 1/1 source files reachable from entry points')
+  })
+
+  it('drops the numerator when a file in the area is unreachable, so the ratio can still say something is wrong', () => {
+    const area = twoDirs(
+      {
+        'entry.ts': "import { h } from '../.ratio-outside/helper'\nexport const a = h\n",
+        'orphan.ts': 'export const stranded = 2\n',
+      },
+      { 'helper.ts': 'export const h = 1\n' },
+    )
+    const { text } = report([analyze(area)])
+    expect(text).toContain('[ratio] 1/2 source files reachable from entry points')
+  })
+})

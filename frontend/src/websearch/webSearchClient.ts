@@ -6,6 +6,7 @@ import {
   type SearchResult,
 } from '../canvas/teach/webResolver'
 import type { Retrieved } from './gather'
+import { MAX_ORIGINS } from './provenance'
 import { interpret } from './interpret'
 import { rankHits } from './select'
 import { checkClaims, selectEvidence, type ClaimCheck } from './verify'
@@ -153,11 +154,9 @@ function toRetrieved(page: RoutePage, retrievedAt: string): Retrieved {
  * is not evidence of freshness in either direction, and `live` is carried
  * separately anyway.
  */
-const ORIGINS: readonly Origin[] = ['live', 'recent-cache', 'precomputed']
-
 function originsFrom(value: unknown): readonly Origin[] {
   if (!Array.isArray(value)) return []
-  return value.filter((v): v is Origin => ORIGINS.includes(v as Origin))
+  return value.filter((v): v is Origin => MAX_ORIGINS.includes(v as Origin))
 }
 
 function failure(why: string): SearchResult {

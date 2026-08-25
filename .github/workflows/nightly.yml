@@ -1,0 +1,76 @@
+name: nightly
+
+# The deeper generated sweep. Same suites, far more examples.
+#
+# WHY A SEPARATE SCHEDULE AND NOT JUST A BIGGER NUMBER ON EVERY PULL REQUEST.
+#
+# `tests/api/test_schemathesis.py` runs 30 examples per operation on every pull
+# request, which is enough to catch a route that answers 5xx or returns a shape
+# its schema does not describe -- both of which it did catch, on its first run.
+# Raising that to 500 would find rarer inputs and add minutes to the critical
+# path of every change, most of which touch neither the API nor its schema.
+#
+# So: a fast profile where speed is the constraint, a thorough one where it is
+# not. The number is the only difference. There is no separate suite to keep in
+# step, because a nightly suite that diverges from the pull-request suite is two
+# things to maintain and one of them is never read.
+on:
+  schedule:
+    # 03:00 UTC. Off the working day for this repository, and after the daily
+    # dependency bots have opened whatever they are going to open.
+    - cron: "0 3 * * *"
+  # Manual runs, so a change to this file can be tested without waiting a day
+  # and without committing a temporary schedule.
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-${{ github.workflow }}-${{ github.ref }}
+  # NEVER cancelled. Unlike a pull request, there is no newer commit that
+  # obsoletes this result -- each night is its own measurement.
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  fuzzing:
+    name: fuzzing
+    runs-on: ubuntu-latest
+    # The fast profile takes well under a minute. Sixteen times the examples
+    # should not approach this, and the ceiling exists to stop a pathological
+    # generation holding a runner rather than to bound normal work.
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: learning-os
+
+    env:
+      PYTHONHASHSEED: "0"
+      # Read by tests/api/test_schemathesis.py. Absent on pull requests, so the
+      # fast default applies there and nothing has to be remembered.
+      SCHEMATHESIS_MAX_EXAMPLES: "500"
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: learning-os/requirements-learning-os.lock
+
+      - name: Install
+        run: pip install --quiet --require-hashes -r requirements-learning-os.lock
+
+      # The committed document is what the generator reads. A stale one would
+      # make this entire run exercise an API that no longer exists, so it is
+      # checked before anything is generated rather than after.
+      - name: The committed schema matches the code
+        run: python3 ../scripts/openapi_drift.py --root ..
+        env:
+          PYTHONPATH: src
+
+      - name: Generated API sweep
+        run: python3 -m pytest tests/api -q
+        env:
+          PYTHONPATH: src

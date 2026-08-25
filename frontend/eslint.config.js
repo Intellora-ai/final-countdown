@@ -102,4 +102,50 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     },
   },
+
+  /* src/tutor is the fourth directory to arrive unlinted for the SAME reason,
+   * and the comment above this one had already named that reason.
+   *
+   * It ships. `App.tsx` routes `/quick-question` to `TutorView`, and that view
+   * is what makes the whole of `src/agent` reachable from the product. It was
+   * absent from both the `files:` list here and the `npm run lint` argument
+   * list, so `npx eslint src/tutor` printed "ignored because no matching
+   * configuration was supplied" and EXITED 0 --- the silent-exemption failure
+   * this repository has now had four times, and the one the note above warns
+   * about in writing.
+   *
+   * `canvas/design-value` IS applied here, and that is the one place this block
+   * differs from the two above it. The reason those exempt it does not hold:
+   * `src/agent` and `src/websearch` never render, so the rule has no true
+   * positive available in either and could only ever produce noise. `src/tutor`
+   * renders --- it is a React view with its own stylesheet --- so Law 4 applies
+   * to it exactly as it applies to the canvas.
+   *
+   * Measured before enabling, not assumed: with the plugin declared in this
+   * same object, `npx eslint src/tutor` reports zero findings. So it costs
+   * nothing today and refuses the first raw hex or px literal somebody adds
+   * tomorrow, which is the cheaper end of that trade by a wide margin.
+   *
+   * (The first version of this comment claimed the rule found nothing and
+   * therefore did not belong. The claim was written before the command ran, and
+   * the run that followed disagreed with the conclusion drawn from it.)
+   *
+   * KNOWN LIMIT, NOT CLOSED HERE: ESLint does not lint standalone `.css`, so
+   * `tutor.css` is unchecked by this or any other rule. CLAUDE.md records that
+   * separately.
+   *
+   * `no-explicit-any` is an ERROR. This directory is new, so there is no
+   * pre-existing `any` for the rule to be buried under, and it sits directly on
+   * the boundary where a model response becomes rendered output.
+   */
+  {
+    files: ['src/tutor/**/*.{ts,tsx}'],
+    extends: [...tseslint.configs.recommended],
+    plugins: { canvas: { rules: { 'design-value': designValue } } },
+    rules: {
+      'canvas/design-value': 'error',
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
 )

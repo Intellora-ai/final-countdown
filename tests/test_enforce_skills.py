@@ -405,3 +405,56 @@ def test_installed_copy_matches_this_one():
         f"repo copy, so this suite passing says nothing about what actually "
         f"runs. Re-copy: cp '{HOOK}' '{installed}'"
     )
+
+
+def test_reminder_hook_names_exactly_the_skills_the_gate_requires() -> None:
+    """
+    `force-skills.py` prints the reminder. `enforce_skills.py` refuses the turn.
+    They carry two separate lists of the same set, and NOTHING compared them.
+
+    THIS DRIFTED THREE TIMES, and the third time is why this test exists.
+
+    The failure is asymmetric and both directions are bad:
+
+      gate requires X, reminder omits X   -> the turn is BLOCKED with no warning
+                                             anywhere that X was needed. Observed
+                                             twice in one session.
+      reminder names Y, gate ignores Y    -> a skill is loaded on every prompt
+                                             for no reason, paying its preamble
+                                             forever.
+
+    The comment above `REQUIRED_SKILLS` already says "change both or neither".
+    A comment is a request. It was read, and the lists drifted anyway, because
+    a request cannot fail a build.
+
+    Reads the INSTALLED reminder because that is the copy that runs; there is
+    no repo copy of it. Skipped when absent, for the same reason the digest
+    test skips: a fresh clone on a machine that never installed the hooks is
+    not a broken repository.
+    """
+    import importlib.util
+    import os
+
+    import pytest
+
+    reminder = Path(os.path.expanduser("~/.claude/hooks/force-skills.py"))
+    if not reminder.exists():
+        pytest.skip("reminder hook not installed on this machine")
+
+    spec = importlib.util.spec_from_file_location("force_skills", reminder)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    # The reminder writes them slash-prefixed; the gate does not.
+    reminded = {s.lstrip("/") for s in module.REQUIRED_SKILLS}
+    gated = set(REQUIRED)
+
+    assert reminded == gated, (
+        f"the two skill lists have drifted.\n"
+        f"  gate requires, reminder omits: {sorted(gated - reminded)}\n"
+        f"      -> turns get BLOCKED with nothing having asked for these\n"
+        f"  reminder names, gate ignores:  {sorted(reminded - gated)}\n"
+        f"      -> loaded every prompt for no reason\n"
+        f"Fix BOTH: REQUIRED in {HOOK} and REQUIRED_SKILLS in {reminder}"
+    )

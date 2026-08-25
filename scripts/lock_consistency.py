@@ -48,15 +48,69 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+import tomllib
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, cast
 
-# manifest -> lock. Both relative to --root. A pair whose manifest is absent is
-# skipped; a pair whose LOCK is absent is a finding, because a manifest with no
-# lock is the state this gate exists to refuse.
-PAIRS: tuple[tuple[str, str], ...] = (
-    ("requirements.txt", "requirements.lock"),
-    ("learning-os/requirements-learning-os.txt",
-     "learning-os/requirements-learning-os.lock"),
+@dataclass(frozen=True, slots=True)
+class Pair:
+    """One manifest and the lock generated from it.
+
+    `manifest` may be a requirements file or a `pyproject.toml`. learning-os
+    uses the latter, and pointing at a `.txt` that never existed is exactly the
+    defect this class was introduced to end.
+    """
+
+    manifest: str
+    lock: str
+    #: Optional-dependency groups whose packages MUST appear in the lock.
+    #: pyproject manifests only; a requirements file has no groups.
+    required_extras: tuple[str, ...] = ()
+    #: Groups whose packages must be ABSENT from the lock. An absence is a real
+    #: guarantee and the easiest kind to lose without anybody noticing.
+    forbidden_extras: tuple[str, ...] = ()
+
+
+# ABSENCE RULES, AND WHY THEY ARE NOT SYMMETRIC.
+#
+#   both absent   -> skip. That project is not in this tree at all, which is
+#                    the normal case for a fixture and for `--root /tmp/...`.
+#   lock absent   -> finding. A manifest with no lock is the state this gate
+#                    exists to refuse.
+#   manifest absent, lock PRESENT -> finding. NEW, and the reason this file
+#                    changed: the entry below used to name
+#                    `learning-os/requirements-learning-os.txt`, which has
+#                    never existed in this repository. The pair was therefore
+#                    skipped on every run since it was written, while the gate
+#                    printed "every manifest agrees with its lock". A 469-line
+#                    lock that installs an entire CI job was compared to
+#                    nothing, and no check anywhere said so.
+PAIRS: tuple[Pair, ...] = (
+    Pair("requirements.txt", "requirements.lock"),
+    # The dependency-audit toolchain, kept out of the main lock on purpose: it
+    # pulls 27 packages, 16 of them new, and expanding the hash-pinned trusted
+    # computing base by sixteen so one job can run one check is the trade this
+    # repository already refused when it removed `mutmut`.
+    Pair("requirements-audit.txt", "requirements-audit.lock"),
+    # learning-os declares its dependencies in pyproject.toml, not a .txt.
+    #
+    # `live` is FORBIDDEN from the lock, and that is the point rather than a
+    # detail. learning-os/pyproject.toml explains why the provider SDKs are an
+    # optional extra: "CI installs requirements-learning-os.lock and nothing
+    # else, and this is not in it. That is what makes the offline guarantee
+    # structural" -- the job cannot reach a provider because the SDK is not
+    # present, rather than because every test remembered to use the fake.
+    #
+    # A guarantee held up by an absence is the easiest kind to lose silently.
+    # Adding `anthropic` to that lock would end it and every test would still
+    # pass, so the absence is now asserted.
+    Pair(
+        "learning-os/pyproject.toml",
+        "learning-os/requirements-learning-os.lock",
+        required_extras=("dev",),
+        forbidden_extras=("live",),
+    ),
 )
 
 # Locks with no manifest of their own. Only rule (2) applies to these.
@@ -89,6 +143,63 @@ def manifest_names(text: str) -> set[str]:
     return out
 
 
+def _child(node: object, key: str) -> object:
+    """One step down a TOML table, or None. Narrowing helper for pyright."""
+    if isinstance(node, dict):
+        return cast("dict[str, Any]", node).get(key)
+    return None
+
+
+def _requirement_names(items: object) -> set[str]:
+    """PEP 508 requirement strings -> normalised distribution names."""
+    out: set[str] = set()
+    if not isinstance(items, list):
+        return out
+    for item in cast("list[object]", items):
+        if not isinstance(item, str):
+            continue
+        match = _REQUIREMENT.match(item)
+        if match:
+            out.add(normalise(match.group(1)))
+    return out
+
+
+def pyproject_names(
+    text: str, extras: tuple[str, ...], *, include_base: bool = True
+) -> set[str]:
+    """Names from `[project].dependencies` plus the named optional groups.
+
+    `include_base=False` returns ONLY the named groups. The forbidden-group
+    check needs that, and the first version of it did not have it: it asked for
+    the `live` group, got the base dependencies folded in, and reported
+    `pydantic` -- a required dependency -- as a package the lock must not
+    contain. Caught by the test that runs this gate against the real
+    repository, which is the one fixture that cannot be shaped to agree.
+
+    learning-os declares its dependencies here rather than in a requirements
+    file, so a gate that only knew how to read `name>=1.0` lines could not
+    check it at all -- and, pointed at a `.txt` that did not exist, silently
+    checked nothing instead of saying so.
+    """
+    parsed: object = tomllib.loads(text)
+    project = _child(parsed, "project")
+    names: set[str] = (
+        _requirement_names(_child(project, "dependencies")) if include_base else set()
+    )
+    optional = _child(project, "optional-dependencies")
+    for extra in extras:
+        names |= _requirement_names(_child(optional, extra))
+    return names
+
+
+def manifest_requirements(path: Path, extras: tuple[str, ...]) -> set[str]:
+    """Direct requirement names, whichever manifest format this is."""
+    text = path.read_text(encoding="utf-8")
+    if path.suffix == ".toml":
+        return pyproject_names(text, extras)
+    return manifest_names(text)
+
+
 def lock_entries(text: str) -> dict[str, bool]:
     """{normalised name: carries at least one sha256 hash}.
 
@@ -117,27 +228,59 @@ def check(root: Path) -> list[str]:
     """Every problem found, as printable lines. Empty means consistent."""
     problems: list[str] = []
 
-    for manifest_rel, lock_rel in PAIRS:
-        manifest_path = root / manifest_rel
-        lock_path = root / lock_rel
-        if not manifest_path.is_file():
+    for pair in PAIRS:
+        manifest_path = root / pair.manifest
+        lock_path = root / pair.lock
+        manifest_here = manifest_path.is_file()
+        lock_here = lock_path.is_file()
+
+        if not manifest_here and not lock_here:
+            # Neither half is in this tree, so this project is not part of it.
             continue
-        if not lock_path.is_file():
+
+        if not lock_here:
             problems.append(
-                f"{manifest_rel} exists but {lock_rel} does not; CI installs "
+                f"{pair.manifest} exists but {pair.lock} does not; CI installs "
                 f"the lock, so every requirement here would be absent"
             )
             continue
 
-        wanted = manifest_names(manifest_path.read_text(encoding="utf-8"))
+        if not manifest_here:
+            problems.append(
+                f"{pair.manifest}: declared as the manifest for {pair.lock}, "
+                f"and that lock exists, but this file does not. The pair is "
+                f"skipped, so that lock is compared to nothing while this gate "
+                f"still reports success. Point the pair at the real manifest, "
+                f"or remove the pair."
+            )
+            continue
+
+        wanted = manifest_requirements(manifest_path, pair.required_extras)
         entries = lock_entries(lock_path.read_text(encoding="utf-8"))
         for name in sorted(wanted - set(entries)):
             problems.append(
-                f"{name}: named in {manifest_rel} but absent from {lock_rel}. "
+                f"{name}: named in {pair.manifest} but absent from {pair.lock}. "
                 f"CI installs the lock, so it would not be installed at all. "
                 f"Regenerate the lock (see its header) and commit both."
             )
-        problems.extend(_unhashed(entries, lock_rel))
+
+        forbidden: set[str] = set()
+        if pair.forbidden_extras and manifest_path.suffix == ".toml":
+            forbidden = pyproject_names(
+                manifest_path.read_text(encoding="utf-8"),
+                pair.forbidden_extras,
+                include_base=False,
+            )
+        for name in sorted(forbidden & set(entries)):
+            problems.append(
+                f"{name}: declared in an optional group this lock must NOT "
+                f"contain, and it is in {pair.lock}. That lock is what CI "
+                f"installs, and the group is optional precisely so the job "
+                f"cannot reach a live provider. Adding it here ends that "
+                f"guarantee without failing a single test."
+            )
+
+        problems.extend(_unhashed(entries, pair.lock))
 
     for lock_rel in HASH_ONLY:
         lock_path = root / lock_rel

@@ -497,6 +497,7 @@ function profileFor(selection: ReturnType<typeof usePracticeStore.getState>['lau
     concepts: topics.map((topic) => ({
       id: topic.id,
       name: topic.name,
+      topicId: topic.id,
       numeric: (topic.concepts ?? []).some((concept) => concept.numeric),
       prerequisites: [],
       commonMisconception: null,
@@ -515,13 +516,21 @@ function conceptsOf(topic: { id: string; name: string; concepts?: readonly Topic
   const declared = topic.concepts ?? []
   if (declared.length === 0) {
     return [
-      { id: topic.id, name: topic.name, numeric: true, prerequisites: [], commonMisconception: null },
+      {
+        id: topic.id,
+        name: topic.name,
+        topicId: topic.id,
+        numeric: true,
+        prerequisites: [],
+        commonMisconception: null,
+      },
     ]
   }
 
   return declared.map((concept) => ({
     id: concept.id,
     name: concept.name,
+    topicId: topic.id,
     numeric: concept.numeric,
     prerequisites: concept.prerequisites ?? [],
     commonMisconception: concept.misconception ?? null,

@@ -115,15 +115,17 @@ jobs:
         run: |
           python3 scripts/run_gate.py --name preflight -- bash -c '
             set -e
-            echo "== preflight gate 1/5: trusted computing base" >&2
+            echo "== preflight gate 1/6: trusted computing base" >&2
             python3 scripts/tcb_gate.py --base "origin/$BASE_REF"
-            echo "== preflight gate 2/5: ruleset alignment" >&2
+            echo "== preflight gate 2/6: ruleset alignment" >&2
             python3 scripts/check_ruleset.py
-            echo "== preflight gate 3/5: requirement and assumption registries" >&2
+            echo "== preflight gate 3/6: requirement and assumption registries" >&2
             python3 scripts/registry_gate.py
-            echo "== preflight gate 4/5: dependency lock consistency" >&2
+            echo "== preflight gate 4/6: dependency lock consistency" >&2
             python3 scripts/lock_consistency.py
-            echo "== preflight gate 5/5: gate integrity" >&2
+            echo "== preflight gate 5/6: coverage scope" >&2
+            python3 scripts/coverage_scope_gate.py
+            echo "== preflight gate 6/6: gate integrity" >&2
             python3 scripts/gate_integrity.py
           '
       # The per-verification reasoning below is unchanged. Each of these ran as
@@ -432,8 +434,33 @@ jobs:
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
-      - name: Types
-        run: python3 scripts/run_gate.py --name pyright -- pyright
+      # TWO CHECKS, ONE CONTEXT --- the shape `preflight` (six tools) and
+      # `bandit` (five) already use here. A separate `ruff` job was built first
+      # and withdrawn: `full` must wait for every job in this workflow
+      # (tests/test_blocker_report.py:414), but aggregate_gates.py derives its
+      # EXPECTED set from MANDATORY gates only, so a non-mandatory job's report
+      # lands in `unexpected` and blocks the finalizer. Making it mandatory
+      # instead needs `ruff` added to live ruleset 20990225, which is the
+      # repository owner's change to make.
+      #
+      # Folding it in here is not a workaround, it is the stronger outcome:
+      # ruff BLOCKS from the first run rather than sitting advisory until
+      # somebody remembers to promote it.
+      #
+      # The `echo`s are load-bearing. run_gate.py reads `== gate N/M ==` from
+      # stderr to attribute a failure to the check that produced it and to
+      # record the later ones as never having run --- "could not check" is not
+      # "checked and fine". Same construction as the bandit gate.
+      - name: Types and lint
+        run: |
+          python3 scripts/run_gate.py --name pyright -- bash -c '
+            set -e
+            echo "== pyright gate 1/2: types" >&2
+            pyright
+            echo "== pyright gate 2/2: lint" >&2
+            python3 scripts/ruff_gate.py src scripts tests
+            ruff check src scripts tests --output-format=concise
+          '
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -477,6 +504,19 @@ jobs:
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
+      # THE AUDIT TOOLCHAIN LIVES IN ITS OWN LOCK, INSTALLED ONLY HERE.
+      #
+      # pip-audit pulls 27 packages, 16 of them not already in
+      # requirements.lock. Putting them in the main lock would grow the
+      # hash-pinned trusted computing base by sixteen so that one job can run
+      # one check -- the trade this repository refused when it removed
+      # `mutmut`. requirements-preflight.lock set the precedent.
+      #
+      # Installing both into one environment is safe here and that was measured
+      # rather than hoped: the two locks share twelve packages and pin the same
+      # version for every one of them, and a clean 3.12 environment takes both
+      # with --require-hashes and still runs pyright afterwards.
+      - run: pip install --quiet --require-hashes -r requirements-audit.lock
       # ONE GATE STEP, BECAUSE ONE GATE OWNS ONE REPORT.
       #
       # This job used to run four verification commands and wrap only the
@@ -616,14 +656,16 @@ jobs:
         run: |
           python3 scripts/run_gate.py --name bandit -- bash -c '
             set -e
-            echo "== bandit gate 1/4: security gate" >&2
+            echo "== bandit gate 1/5: security gate" >&2
             python3 scripts/security_gate.py src scripts
-            echo "== bandit gate 2/4: SARIF suppression" >&2
+            echo "== bandit gate 2/5: SARIF suppression" >&2
             python3 scripts/sarif_suppress.py --sarif bandit.sarif src scripts
-            echo "== bandit gate 3/4: shell analysis" >&2
+            echo "== bandit gate 3/5: shell analysis" >&2
             shellcheck -f gcc scripts/*.sh
-            echo "== bandit gate 4/4: credential scan" >&2
+            echo "== bandit gate 4/5: credential scan" >&2
             python3 scripts/credential_scan.py
+            echo "== bandit gate 5/5: dependency vulnerabilities" >&2
+            pip-audit --no-deps -r requirements.lock -r requirements-preflight.lock -r requirements-audit.lock -r learning-os/requirements-learning-os.lock
           '
       - name: Upload to code scanning
         if: always()

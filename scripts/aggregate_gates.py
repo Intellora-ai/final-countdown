@@ -555,7 +555,7 @@ def main() -> int:
     print(f"  evidence root: {root}  ({len(discover(root))} report file(s))")
     print(f"  expected {len(expected)} gate(s), admissible reports {len(found)}")
     print(
-        f"  job conclusions: "
+        "  job conclusions: "
         + (
             f"{len(conclusions)} consulted"
             if conclusions

@@ -13,10 +13,16 @@ on:
     paths:
       - "learning-os/**"
       - ".github/workflows/learning-os.yml"
+      # The drift gate lives in scripts/ because that is where gates live, but
+      # this is the only job that can run it. Without this line a change to the
+      # gate itself triggers nothing, and a broken gate would sit undetected
+      # until the next unrelated learning-os change happened to run it.
+      - "scripts/openapi_drift.py"
   pull_request:
     paths:
       - "learning-os/**"
       - ".github/workflows/learning-os.yml"
+      - "scripts/openapi_drift.py"
 
 # Supersede only within the same pull request, matching the convention the other
 # workflows in this repository already follow: a newer commit on the SAME PR
@@ -106,7 +112,35 @@ jobs:
           PYTHONPATH: src
 
       - name: Tests
-        run: pytest tests -q
+        # `tests/db` is EXCLUDED, and the exclusion is the honest half of a
+        # decision made in tests/db/conftest.py.
+        #
+        # Those tests need a real PostgreSQL, which this job does not have. The
+        # obvious alternative -- have them switch themselves off when no
+        # database is configured -- was written first and refused by this
+        # repository's own gate, correctly: a test that has been switched off
+        # and a test that passed are indistinguishable in a summary line.
+        #
+        # So they are a separate suite in a separate job.
+        # `.github/workflows/integration.yml` runs them against a service
+        # container and fails if the suite has shrunk. Excluding them here means
+        # this job never silently loses them: it never had them.
+        run: pytest tests -q --ignore=tests/db
+        env:
+          PYTHONPATH: src
+
+      # THE SCHEMA GATE RUNS HERE, AND ONLY HERE.
+      #
+      # `scripts/openapi_drift.py` imports the app, which needs fastapi. fastapi
+      # is in this job's lock and deliberately not in the root one, so a root
+      # gate job invoking this script would fail on import and read as a broken
+      # gate rather than a missing dependency.
+      #
+      # `--root ..` because this job's working directory is `learning-os/` and
+      # the committed document is addressed from the repository root, the same
+      # way every other path in this repository is.
+      - name: OpenAPI schema matches the code
+        run: python3 ../scripts/openapi_drift.py --root ..
         env:
           PYTHONPATH: src
 

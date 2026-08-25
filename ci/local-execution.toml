@@ -55,7 +55,7 @@ command = [
   "--",
   "bash",
   "-c",
-  "set -e\necho '== preflight gate 1/4: trusted computing base' >&2\npython3 scripts/tcb_gate.py --base origin/main\necho '== preflight gate 2/4: ruleset alignment' >&2\npython3 scripts/check_ruleset.py\necho '== preflight gate 3/4: requirement and assumption registries' >&2\npython3 scripts/registry_gate.py\necho '== preflight gate 4/4: gate integrity' >&2\npython3 scripts/gate_integrity.py\n",
+  "set -e\necho '== preflight gate 1/6: trusted computing base' >&2\npython3 scripts/tcb_gate.py --base origin/main\necho '== preflight gate 2/6: ruleset alignment' >&2\npython3 scripts/check_ruleset.py\necho '== preflight gate 3/6: requirement and assumption registries' >&2\npython3 scripts/registry_gate.py\necho '== preflight gate 4/6: dependency lock consistency' >&2\npython3 scripts/lock_consistency.py\necho '== preflight gate 5/6: coverage scope' >&2\npython3 scripts/coverage_scope_gate.py\necho '== preflight gate 6/6: gate integrity' >&2\npython3 scripts/gate_integrity.py",
 ]
 timeout_seconds = 300
 evidence = "preflight.json"

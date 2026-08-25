@@ -1,3 +1,6 @@
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -340,5 +343,48 @@ describe('the result', () => {
     const result = resultOf(session);
     expect(result.attempts.map((a) => a.questionId)).toEqual(['q3', 'q1']);
     expect(result.attempts.map((a) => a.selectedOption)).toEqual(['A', 'B']);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+
+/*
+ * ONE COUNTDOWN, NOT TWO THAT AGREE TODAY.
+ *
+ * Time remaining was computed in two places. `remainingMs` here, and
+ * `remainingFor` in `sessionStore.ts` — the one the screen actually calls at
+ * `SessionView.tsx:287`. The live one also inlined the body of `elapsedMs`
+ * rather than calling it, so the elapsed calculation existed twice as well:
+ *
+ *     elapsedMs      Math.max(0, highWaterMs - startedAtMs)
+ *     remainingFor   Math.max(0, timerDurationMs - (highWaterMs - startedAtMs))
+ *
+ * Two copies of a clock is the worst kind to have two of. They agree until one
+ * is corrected — a pause, a recovery, a change to what "elapsed" counts — and
+ * then the screen and the engine disagree about how long a learner has left,
+ * with no test failing, because each was tested against itself.
+ *
+ * The only real difference was null-tolerance: the screen may hold no session.
+ * So `remainingFor` keeps that and delegates the arithmetic.
+ */
+describe('the countdown is computed once', () => {
+  const DIR = new URL('.', import.meta.url).pathname;
+  const PRACTICE = join(DIR, '..');
+
+  it('subtracts from timerDurationMs in engine/session.ts and nowhere else', () => {
+    const offenders: string[] = [];
+    const walk = (dir: string, prefix: string): void => {
+      for (const name of readdirSync(dir).sort()) {
+        const full = join(dir, name);
+        const rel = prefix ? `${prefix}/${name}` : name;
+        if (statSync(full).isDirectory()) {
+          walk(full, rel);
+        } else if (/\.tsx?$/.test(name) && !/\.(test|spec)\.tsx?$/.test(name)) {
+          if (/timerDurationMs\s*-/.test(readFileSync(full, 'utf8'))) offenders.push(rel);
+        }
+      }
+    };
+    walk(PRACTICE, '');
+    expect(offenders).toEqual(['engine/session.ts']);
   });
 });

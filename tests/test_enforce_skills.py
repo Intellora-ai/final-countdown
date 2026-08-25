@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, cast
 
@@ -526,7 +527,7 @@ def _skill_naming_hooks(hooks_dir: Path) -> "list[Path]":
     """
     if not hooks_dir.is_dir():
         return []
-    carriers = []
+    carriers: list[Path] = []
     for path in sorted(hooks_dir.glob("*.py")):
         if _is_not_a_consumer(path):
             continue
@@ -538,7 +539,7 @@ def _skill_naming_hooks(hooks_dir: Path) -> "list[Path]":
     return carriers
 
 
-def _drift_report(hooks_dir: Path):
+def _drift_report(hooks_dir: Path) -> "dict[str, set[str]] | str":
     """`{filename: skills it names}` for every hook that disagrees with the gate.
 
     Empty dict means every carrier agrees. `DISCOVERY_BROKEN` means the
@@ -589,6 +590,7 @@ def test_every_installed_hook_naming_skills_names_exactly_the_gates_list() -> No
         "carrying a skill list. That is what a broken discovery pattern looks "
         "like, and it would make this check pass on any amount of drift."
     )
+    assert isinstance(report, dict)
     assert report == {}, (
         "an installed hook disagrees with the gate about which skills are required.\n"
         + "".join(
@@ -603,7 +605,12 @@ def test_every_installed_hook_naming_skills_names_exactly_the_gates_list() -> No
     )
 
 
-def _plant(dirpath: Path, filename: str, skills, commented=()) -> Path:
+def _plant(
+    dirpath: Path,
+    filename: str,
+    skills: "set[str] | list[str]",
+    commented: "Sequence[str]" = (),
+) -> Path:
     """Write a hook-shaped file declaring `skills`, and mentioning `commented`
     only inside a comment."""
     dirpath.mkdir(parents=True, exist_ok=True)
@@ -615,7 +622,7 @@ def _plant(dirpath: Path, filename: str, skills, commented=()) -> Path:
     return path
 
 
-def test_law_reports_an_invented_hook_that_omits_a_required_skill(tmp_path) -> None:
+def test_law_reports_an_invented_hook_that_omits_a_required_skill(tmp_path: Path) -> None:
     """
     The proof that this is a LAW and not a list: the planted filename appears
     in NO source anywhere -- not the gate, not the reminder, not this test's
@@ -632,13 +639,14 @@ def test_law_reports_an_invented_hook_that_omits_a_required_skill(tmp_path) -> N
     report = _drift_report(tmp_path)
 
     assert report != DISCOVERY_BROKEN, "discovery failed to see a plain skill list"
+    assert isinstance(report, dict)
     assert list(report) == ["zz-marmalade-sentinel.py"], (
         f"an invented hook carrying the list was not reported as drifted: {report}"
     )
     assert sorted(set(REQUIRED) - report["zz-marmalade-sentinel.py"]) == [missing]
 
 
-def test_law_does_not_cry_wolf_on_a_hook_that_agrees(tmp_path) -> None:
+def test_law_does_not_cry_wolf_on_a_hook_that_agrees(tmp_path: Path) -> None:
     """
     The false-positive half, and it is load bearing: a check that fails on
     correct input gets switched off, and then it enforces nothing at all.
@@ -647,7 +655,7 @@ def test_law_does_not_cry_wolf_on_a_hook_that_agrees(tmp_path) -> None:
     assert _drift_report(tmp_path) == {}, "a hook that agrees was reported as drifted"
 
 
-def test_law_reports_an_extra_skill_the_gate_does_not_require(tmp_path) -> None:
+def test_law_reports_an_extra_skill_the_gate_does_not_require(tmp_path: Path) -> None:
     """The other drift direction. A hook naming a skill the gate ignores loads
     it on every prompt forever, paying its preamble for nothing."""
     _plant(tmp_path, "zz-marmalade-sentinel.py", set(REQUIRED) | {"caveman"})
@@ -663,7 +671,7 @@ def test_law_reports_an_extra_skill_the_gate_does_not_require(tmp_path) -> None:
     )
 
 
-def test_law_treats_a_commented_out_skill_as_absent(tmp_path) -> None:
+def test_law_treats_a_commented_out_skill_as_absent(tmp_path: Path) -> None:
     """
     A hook that drops a skill from its real list but leaves it in a comment is
     the most natural way for drift to hide: the file still contains the word.
@@ -676,13 +684,14 @@ def test_law_treats_a_commented_out_skill_as_absent(tmp_path) -> None:
            commented=[missing])
 
     report = _drift_report(tmp_path)
+    assert isinstance(report, dict)
     assert list(report) == ["zz-marmalade-sentinel.py"], (
         f"a skill left only in a comment was counted as still declared: {report}"
     )
     assert missing not in report["zz-marmalade-sentinel.py"]
 
 
-def test_law_distinguishes_no_hooks_from_broken_discovery(tmp_path) -> None:
+def test_law_distinguishes_no_hooks_from_broken_discovery(tmp_path: Path) -> None:
     """
     An empty result has two causes that look identical and mean opposite
     things: nothing is installed (fine), or the discovery pattern stopped
@@ -704,7 +713,7 @@ def test_law_distinguishes_no_hooks_from_broken_discovery(tmp_path) -> None:
     )
 
 
-def test_law_ignores_a_test_file_that_names_skills(tmp_path) -> None:
+def test_law_ignores_a_test_file_that_names_skills(tmp_path: Path) -> None:
     """
     A test file in the hooks directory names skills in order to ASSERT about
     them. Judging it as a declaration reports drift that does not exist, and a
@@ -718,7 +727,7 @@ def test_law_ignores_a_test_file_that_names_skills(tmp_path) -> None:
     )
 
 
-def test_law_does_not_call_a_gate_only_directory_broken(tmp_path) -> None:
+def test_law_does_not_call_a_gate_only_directory_broken(tmp_path: Path) -> None:
     """
     The gate DEFINES the list, so it is never a consumer of it. A machine that
     has installed the gate and nothing else is perfectly healthy.

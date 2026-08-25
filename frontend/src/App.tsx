@@ -45,6 +45,12 @@ const LearnView = React.lazy(() =>
   import('./canvas/learn/LearnView').then((m) => ({ default: m.LearnView })),
 )
 
+/* Ask-anything shares the teaching screen's machinery, so it shares its chunk
+ * boundary too: a learner on /today pays for neither. */
+const AskView = React.lazy(() =>
+  import('./canvas/learn/AskView').then((m) => ({ default: m.AskView })),
+)
+
 function SceneFallback() {
   return (
     <div style={{
@@ -141,7 +147,14 @@ export default function App() {
                   </React.Suspense>
                 }
               />
-              <Route path="/quick-question" element={<Placeholder kind="quick-question" />} />
+              <Route
+                path="/quick-question"
+                element={
+                  <React.Suspense fallback={<SceneFallback />}>
+                    <AskView />
+                  </React.Suspense>
+                }
+              />
               <Route path="/misconception" element={<Placeholder kind="misconception" />} />
               {/* The blackboard's two routes are gone with the blackboard itself
                 * (see docs/migrations/step-0-blackboard-deletion.md). The

@@ -68,6 +68,9 @@ export interface AlmanacClient {
   markDone(studentId: string, conceptId: string): Promise<DoneResult>
   lesson(request: LessonRequest): Promise<LessonResult>
   ask(question: string): Promise<AskResult>
+  /** The same free question, answered as a full lesson rather than as prose,
+   *  so the ask-anything screen teaches exactly like the concept screen. */
+  lessonForQuestion(question: string): Promise<LessonResult>
 }
 
 /** Only what this file uses, so a test double is a couple of lines rather than
@@ -209,6 +212,16 @@ export function createAlmanacClient(options: { fetchImpl?: FetchLike; baseUrl?: 
       const text = proseFrom(lesson)
       if (text === '') return { ok: false, reason: 'the answer came back empty' }
       return { ok: true, text }
+    },
+
+    async lessonForQuestion(question) {
+      const sent = await post('/api/ask', { question })
+      if (!sent.ok) return sent
+      const lesson = (sent.body as Record<string, unknown> | null)?.['lesson']
+      if (!isLessonShaped(lesson)) {
+        return { ok: false, reason: 'the server returned something that is not a lesson' }
+      }
+      return { ok: true, lesson }
     },
 
     async markDone(studentId, conceptId) {

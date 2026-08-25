@@ -23,7 +23,10 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { LESSON_SCHEMA, ALLOWED_BLOCK_KINDS } from './model.ts'
+/* Imported from `prompt.ts`, which is where the schema now lives: there are two
+ * providers, and a lesson written by one must be the same KIND of thing as a
+ * lesson written by the other. */
+import { LESSON_SCHEMA, ALLOWED_BLOCK_KINDS } from './prompt.ts'
 import { validateLesson } from '../src/canvas/spec/validate.ts'
 
 const lessonWith = (block: Record<string, unknown>) => ({

@@ -18,6 +18,8 @@
  */
 
 import { createServer as createNodeServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
+import { chooseProvider } from './provider.ts'
+import { createOllamaModel, DEFAULT_OLLAMA_ENDPOINT } from './ollama.ts'
 import type { Readable } from 'node:stream'
 
 import { createHandler, type ModelPort, type SearchPort } from './handler.ts'
@@ -137,11 +139,23 @@ export function createServer(options: ServerOptions): Server {
 /* ---------------------------------------------------------------- CLI ---- */
 
 function main(): void {
-  const apiKey = process.env['ANTHROPIC_API_KEY'] ?? ''
   const host = process.env['HOST'] ?? DEFAULT_HOST
   const port = Number.parseInt(process.env['PORT'] ?? String(DEFAULT_PORT), 10)
 
-  const model = createModel({ apiKey })
+  /* Explicit, never clever. `OLLAMA_MODEL` picks the local model; a key picks
+     Anthropic; neither refuses to start. A silent fallback would teach a
+     student with a 3B model on a laptop while everyone believed the key was
+     working. */
+  const provider = chooseProvider(process.env as Record<string, string | undefined>)
+  const model =
+    provider.kind === 'ollama'
+      ? createOllamaModel({ model: provider.model, ...(provider.endpoint === undefined ? {} : { endpoint: provider.endpoint }) })
+      : createModel({ apiKey: provider.apiKey })
+
+  /* Only a real credential is worth scrubbing from responses. There is none in
+     local mode, and listing an empty string would make `scrub` match
+     everywhere. */
+  const secrets = provider.kind === 'anthropic' ? [provider.apiKey] : []
   const search: SearchPort = {
     /* Wired in Phase 4. Until then the route answers honestly rather than
      * pretending to have searched. */
@@ -154,12 +168,21 @@ function main(): void {
   const ledgerPath = process.env['ALMANAC_LEDGER'] ?? 'data/almanac-ledger.json'
   const almanac = createLedger(fileStore(ledgerPath))
 
-  const server = createServer({ model, search, almanac, secrets: [apiKey] })
+  const server = createServer({ model, search, almanac, secrets })
   server.listen(port, host, () => {
     console.log(`almanac server listening on http://${host}:${port}`)
     console.log(`  ledger: ${ledgerPath}`)
+    console.log(
+      provider.kind === 'ollama'
+        ? `  model:  ${provider.model} via ollama at ${provider.endpoint ?? DEFAULT_OLLAMA_ENDPOINT}`
+        : '  model:  anthropic',
+    )
     if (host !== DEFAULT_HOST) {
-      console.log(`WARNING: bound to ${host}, not loopback. This process holds an API key.`)
+      console.log(
+        provider.kind === 'anthropic'
+          ? `WARNING: bound to ${host}, not loopback. This process holds an API key.`
+          : `WARNING: bound to ${host}, not loopback.`,
+      )
     }
   })
 }

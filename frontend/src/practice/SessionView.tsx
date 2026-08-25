@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, type KeyboardEvent as ReactKeyboardEvent, useState } from 'react'
+import { STEERS, type Steer } from './engine/steer'
 import { asChapterId, asSubjectId, asTopicId } from './engine/ids'
 
 import {
@@ -45,6 +46,25 @@ function chooseProvider() {
     return modelProvider({ endpoint: import.meta.env['VITE_PRACTICE_ENDPOINT'] });
   }
   return fixtureProvider();
+}
+
+/** The words on the four corner controls, and the marks beside them. */
+const STEER_LABEL: Record<Steer, string> = {
+  'more-like-this': 'More like this',
+  different: 'Different',
+  harder: 'Harder',
+  easier: 'Easier',
+}
+
+/*
+ * `aria-hidden`, because a screen reader announcing "clockwise open circle
+ * arrow" adds nothing the label has not already said.
+ */
+const STEER_GLYPH: Record<Steer, string> = {
+  'more-like-this': '\u21bb',
+  different: '\u2260',
+  harder: '\u2191',
+  easier: '\u2193',
 }
 
 /** Everything the browser will hand focus to inside the card. */
@@ -341,6 +361,26 @@ function Question() {
     [session, question, revealedMap],
   )
 
+  /*
+   * The option the student has touched but not committed.
+   *
+   * Selecting used to reveal instantly, which left no moment where a learner had
+   * decided and not yet been graded -- and that moment is the one where a
+   * mis-click can still be taken back. Keyed by question id so moving on clears
+   * it without a second effect to forget.
+   */
+  const [pending, setPendingRaw] = useState<{ id: string; key: OptionKey } | null>(null)
+  /*
+   * What the student asked for next. Recorded rather than acted on immediately:
+   * the request belongs to the NEXT generation, and firing it here would throw
+   * away the solution they are still reading.
+   */
+  const [steerChoice, setSteer] = useState<Steer | null>(null)
+  const pendingKey = pending && question && pending.id === question.questionId ? pending.key : null
+  const setPending = (key: OptionKey) => {
+    if (question) setPendingRaw({ id: question.questionId, key })
+  }
+
   if (!question || !session) return null
 
   const chosen = session.attempts.find((a) => a.questionId === question.questionId)
@@ -352,7 +392,7 @@ function Question() {
 
       <ul className="pm-q-options">
         {question.options.map((option) => {
-          const isChosen = chosen?.selectedOption === option.key
+          const isChosen = revealed ? chosen?.selectedOption === option.key : pendingKey === option.key
           const isAnswer = revealed?.correctOption === option.key
 
           return (
@@ -363,9 +403,16 @@ function Question() {
                 /* The state is on the element, not in a colour. A learner using
                    a screen reader gets the same information a sighted one does. */
                 aria-pressed={isChosen}
+                /*
+                 * SPELLED OUT because the two spans below concatenate to
+                 * "A25 units" with no separator, which a screen reader reads as
+                 * "A twenty-five units". The visual layout supplies the gap; the
+                 * accessible name has to supply its own.
+                 */
+                aria-label={`${option.key} — ${option.text}`}
                 data-state={revealed ? (isAnswer ? 'correct' : isChosen ? 'wrong' : 'idle') : 'idle'}
                 disabled={revealed !== null}
-                onClick={() => answer(question.questionId, option.key as OptionKey, Date.now())}
+                onClick={() => setPending(option.key as OptionKey)}
               >
                 <span className="pm-q-key">{option.key}</span>
                 <span className="pm-q-option-text">{option.text}</span>
@@ -374,6 +421,16 @@ function Question() {
           )
         })}
       </ul>
+
+      {pendingKey !== null && revealed === null ? (
+        <button
+          type="button"
+          className="pm-q-confirm"
+          onClick={() => answer(question.questionId, pendingKey, Date.now())}
+        >
+          Confirm
+        </button>
+      ) : null}
 
       {revealed ? (
         <div className="pm-q-solution">
@@ -395,6 +452,32 @@ function Question() {
           >
             {atLast ? 'Finish' : 'Next question'}
           </button>
+
+          {/*
+            * THE FOUR STEERS, offered only after the answer is out.
+            *
+            * Before the student has seen how they did there is nothing to steer
+            * FROM, and offering it would let them skip a question by asking for
+            * a different one. `engine/steer.ts` decides what each asks for and
+            * never leaves the topic; this is only the surface.
+            */}
+          <div className="pm-q-steer" role="group" aria-label="Ask for another question like this">
+            {STEERS.map((each) => (
+              <button
+                key={each}
+                type="button"
+                className="pm-q-steer-button"
+                data-steer={each}
+                onClick={() => setSteer(each)}
+                aria-pressed={steerChoice === each}
+              >
+                <span aria-hidden="true" className="pm-q-steer-glyph">
+                  {STEER_GLYPH[each]}
+                </span>
+                {STEER_LABEL[each]}
+              </button>
+            ))}
+          </div>
         </div>
       ) : null}
     </div>

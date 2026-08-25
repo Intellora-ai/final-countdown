@@ -33,12 +33,25 @@
 /**
  * Words that begin a continuation rather than a heading.
  *
- * A heading names a thing. These start halfway through a sentence, which is what
- * a chopped paragraph looks like: "for example", "we observe that", "the best
- * approximations to be discovered over human history".
+ * A heading names a thing. These start halfway through a sentence, which is
+ * what a chopped paragraph looks like: "for example", "we observe that", "the
+ * best approximations to be discovered over human history".
+ *
+ * SPLIT IN TWO, BECAUSE CASE IS THE ONLY THING THAT SEPARATES THEM.
+ *
+ * `The universal law of gravitation` is a real unit in both the JEE and the
+ * NEET syllabus, and one list deleted it along with 30 more like it -- plus
+ * `The Solid State` and `The Living World` in the school syllabus. A determiner
+ * opens an enormous number of genuine headings.
+ *
+ * It also opens a chopped sentence, and there the determiner is LOWER-CASE,
+ * because the words that carried the capital were on the line above. That is
+ * structural rather than another list entry. A connective is different again:
+ * no heading has ever begun `And ...`, so those match in either case.
  */
-const CONTINUATION =
-  '(?:for|in|with|including|and|or|but|of|as|at|by|from|the|a|an|its|their|which|where|when|that|this|these|those|such|we|you|us|let|it|he|she|they|e\\.g|i\\.e|etc)'
+const DETERMINER = '(?:the|a|an|its|their|which|where|when|that|this|these|those|such|it|he|she|they)'
+
+const CONNECTIVE = '(?:for|in|with|including|and|or|but|of|as|at|by|from|we|you|us|let|e\\.g\\.?|i\\.e\\.?|etc)'
 
 /**
  * Bare imperatives — an instruction to a teacher or a student, not a scope.
@@ -49,6 +62,37 @@ const CONTINUATION =
  */
 const IMPERATIVE =
   '(?:match|divide|create|draw|write|explain|list|state|discuss|prepare|collect|observe|note|find|solve|show|prove|calculate|identify|describe|define|name|give|make|complete|fill|choose|answer|read|study|visit|conduct|perform|record|compare|classify)'
+
+/*
+ * Words a syllabus uses to label the parts of a document or a worked example.
+ * A LIST, deliberately and explicitly -- see the `bare-label` rule.
+ */
+const LABEL_WORDS =
+  'part|unit|section|theory|chapter|paper|example|hint|proof|statement|conclusion|syllabus|day|class|note|remark|solution|answer|question|exercise|activity|summary|introduction'
+
+/**
+ * The word alone, or carrying a bare designator: "Part A", "Example 14",
+ * "Class X", "Unit 1", "Day 6".
+ *
+ * ONE rule for both shapes. An earlier split into "alone" and "numbered" was
+ * stricter than the rule it replaced and silently stopped catching "Part A",
+ * because a single letter is neither a digit nor a roman numeral. Caught by an
+ * existing test going red, which is the only reason it is not in the product.
+ */
+/*
+ * The designator is a SEPARATE token, and that separator is load-bearing.
+ *
+ * `Solutions` is a chemistry unit in both the JEE and the NEET syllabus, and an
+ * earlier version of this rule deleted it: `solution` is on the list above
+ * because a worked example ends with the word, trailing letters were allowed,
+ * so the plural matched the singular label. One real unit lost per exam,
+ * silently, and indistinguishable from a unit that was never published.
+ *
+ * `Part A`, `Unit 1`, `Day 6` and a bare `Theory` still match. `Solutions`
+ * does not, because it is one word and that word is not on the list.
+ */
+const LABEL_ALONE = new RegExp(`^(?:${LABEL_WORDS})(?:\\s+[a-z0-9ivxlc-]+)?$`, 'i')
+const LABEL_NUMBERED = LABEL_ALONE
 
 const RULES = [
   /* Nothing can be named in two characters. */
@@ -63,21 +107,69 @@ const RULES = [
   /* A heading that runs past fourteen words stopped being a heading. */
   ['too-long', (t) => t.split(/\s+/).length > 14],
 
-  ['continuation', (t) => new RegExp(`^${CONTINUATION}\\s`, 'i').test(t)],
+  [
+    'continuation',
+    (t) =>
+      new RegExp(`^${CONNECTIVE}\\s`, 'i').test(t) || new RegExp(`^${DETERMINER}\\s`).test(t),
+  ],
 
   ['instruction', (t) => new RegExp(`^${IMPERATIVE}\\s`, 'i').test(t)],
 
-  /* "Part A", "Unit 1" — a divider in the document, carrying no subject matter. */
-  ['bare-label', (t) => /^(?:part|unit|section|theory|chapter|paper)\s*[a-z0-9-]*$/i.test(t)],
+  /*
+   * A DIVIDER IN THE DOCUMENT, carrying no subject matter.
+   *
+   * Two shapes and one list, and the list is named as a list rather than
+   * dressed up as a rule:
+   *
+   *   shape  a structural word plus a bare number or numeral
+   *          "Example 14" · "Unit 1" · "Class X" · "Day 6"
+   *   shape  that same word standing alone
+   *   list   the words themselves
+   *
+   * The list is unavoidable here and the honest thing is to say so. "Hint",
+   * "Proof" and "Statement" are perfectly ordinary English nouns; nothing about
+   * their SHAPE separates them from "Force" or "Ratio". What separates them is
+   * that a syllabus uses them to label parts of a worked example rather than to
+   * name subject matter, and that is knowledge, not structure.
+   *
+   * Found in a screenshot: 24 of 84 chapters on the class-10 map read
+   * "Example 1", "Hint", "Statement", "Proof".
+   */
+  ['bare-label', (t) => LABEL_ALONE.test(t) || LABEL_NUMBERED.test(t)],
 
   /* Two bare numbers at the end is the marks column of a syllabus table. */
   ['marks-row', (t) => /\b\d+\s+\d+\s*$/.test(t)],
 ]
 
-/** Every reason this string cannot be a practice topic. Empty means it can. */
-export function reasonsUnusable(name) {
+/**
+ * Two rules are PROXIES tuned to one document style, and only one style.
+ *
+ * Measured over every topic string in `src/data/exams/*.ts`, `too-long` and
+ * `instruction` scored 0 true positives and 123 false positives -- 57 on JEE,
+ * 66 on NEET, 6 on CLAT. An exam board publishes a topic as a dense comma list
+ * that runs past fourteen words, and CLAT publishes SKILLS, which are
+ * imperative sentences on purpose because CLAT states outright that it tests
+ * aptitude rather than a syllabus.
+ *
+ * Both rules keep earning their place on school syllabus, where every real
+ * concept name is short and a long one means the extractor ran two lines
+ * together. So the caller says which kind of document it is grading. This is a
+ * real distinction between two document styles, not a carve-out for the input
+ * that broke -- every rule that catches actual wreckage still fires in both.
+ */
+const SYLLABUS_ONLY = new Set(['too-long', 'instruction'])
+
+/**
+ * Every reason this string cannot be a practice topic. Empty means it can.
+ *
+ * `style` defaults to `syllabus` so an un-styled call keeps every rule. A
+ * default of `exam` would silently drop two rules for every existing caller.
+ */
+export function reasonsUnusable(name, style = 'syllabus') {
   const text = String(name ?? '').trim()
-  return RULES.filter(([, test]) => test(text)).map(([reason]) => reason)
+  return RULES.filter(
+    ([reason, test]) => !(style === 'exam' && SYLLABUS_ONLY.has(reason)) && test(text),
+  ).map(([reason]) => reason)
 }
 
 /**
@@ -86,8 +178,8 @@ export function reasonsUnusable(name) {
  * Derived rather than reimplemented: two functions that could disagree about
  * the same fact is the drift this repository keeps paying for.
  */
-export function isPractisable(name) {
-  return reasonsUnusable(name).length === 0
+export function isPractisable(name, style = 'syllabus') {
+  return reasonsUnusable(name, style).length === 0
 }
 
 /** A subject below this is broken as a whole, however the individual calls landed. */

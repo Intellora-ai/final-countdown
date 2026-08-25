@@ -1,11 +1,17 @@
 import {
   useCallback,
+  useEffect,
   useId,
   useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
+
+import type { Subject } from './curriculum'
+import { useExamChoice } from './examChoice'
+import { useMapClass } from './mapClass'
+import { practiceCurriculumFor } from './mapSource'
 
 import { type ChapterId, type TopicId } from './curriculum'
 import {
@@ -49,7 +55,35 @@ import { chapterCoverageOf, isChapterOpen, usePracticeStore } from './store'
  */
 
 export function Constellation() {
-  const graph = useMemo(() => buildGraph(), [])
+  /*
+   * The curriculum the student's CLASS actually studies, not the class-12
+   * commerce seed the map used to draw for everyone. `mapSource` loads the
+   * official CBSE data lazily -- one class file is 240-560 KB and a student has
+   * exactly one class -- and filters out the topics nobody could practise.
+   *
+   * The seed still renders while that promise is in flight, so the map is never
+   * blank; `source` on the result says which one is on screen.
+   */
+  const [curriculum, setCurriculum] = useState<readonly Subject[] | null>(null)
+  const cls = useMapClass()
+  /*
+   * The entrance exam is drawn ALONGSIDE the class, not instead of it. A
+   * student sits both, and Class 11 Physics and JEE Physics are overlapping but
+   * different scopes.
+   */
+  const [exam] = useExamChoice()
+
+  useEffect(() => {
+    let live = true
+    void practiceCurriculumFor(cls, exam).then((result) => {
+      if (live) setCurriculum(result.subjects)
+    })
+    return () => {
+      live = false
+    }
+  }, [cls, exam])
+
+  const graph = useMemo(() => buildGraph(curriculum ?? undefined), [curriculum])
   const dots = useMemo(() => nebulaFor(graph.subjects), [graph.subjects])
 
   return (

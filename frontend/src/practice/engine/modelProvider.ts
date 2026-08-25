@@ -116,7 +116,14 @@ export function modelProvider(options: ModelProviderOptions = {}): QuestionProvi
 /* The brief                                                                  */
 /* -------------------------------------------------------------------------- */
 
-const SYSTEM = [
+/*
+ * EXPORTED SO THE OLLAMA PROVIDER SHARES IT RATHER THAN COPYING IT.
+ *
+ * Two prompts for one job drift apart, and then a question that passes on one
+ * model fails on another for a reason nobody can see in the diff. The transport
+ * differs between providers; the instructions must not.
+ */
+export const SYSTEM = [
   'You write single-answer multiple-choice questions for exam practice.',
   '',
   'Every question you return is independently verified before a student sees it.',
@@ -135,7 +142,7 @@ const SYSTEM = [
   '  be recomputed. Steps reference earlier inputs or earlier step names only.',
 ].join('\n');
 
-function briefFor(spec: QuestionSpec, attempt: number): string {
+export function briefFor(spec: QuestionSpec, attempt: number): string {
   const lines = [
     `Topic: ${spec.topicId}`,
     `Concept: ${spec.conceptName}`,
@@ -165,7 +172,7 @@ function briefFor(spec: QuestionSpec, attempt: number): string {
   return lines.join('\n');
 }
 
-const SCHEMA = {
+export const SCHEMA = {
   type: 'object',
   additionalProperties: false,
   required: ['questionText', 'options', 'correctOption', 'fullSolution'],

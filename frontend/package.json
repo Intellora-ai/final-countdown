@@ -21,7 +21,8 @@
     "gate:secrets": "node scripts/secret-exposure-gate.mjs",
     "server:build": "vite build --config vite.server.config.ts",
     "exams:build": "node scripts/curriculum/build-exams.mjs",
-    "gate:eval": "vitest run src/websearch/evalGate.test.ts"
+    "gate:eval": "vitest run src/websearch/evalGate.test.ts",
+    "probe:ollama": "vitest run --config vitest.probe.config.ts"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",

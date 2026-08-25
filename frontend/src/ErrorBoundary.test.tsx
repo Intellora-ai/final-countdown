@@ -270,6 +270,69 @@ describe('the error boundary, which is the only thing standing between a render 
       expect(reported).toBe(true)
     })
 
+    /* ───────────────────────────────────────────────────────────────────────
+     * A DROPPED CONNECTION IS NOT A REASON TO ERASE ANYONE'S PROGRESS.
+     *
+     * Found by the offline engine on 2026-08-25, and it was a defect in THIS
+     * component rather than one it caught. Three of this app's routes are
+     * `React.lazy`, so opening one with the network down fails to fetch the
+     * chunk and React throws. Captured verbatim from a real browser with the
+     * context set offline:
+     *
+     *   TypeError: Failed to fetch dynamically imported module:
+     *     http://localhost:5174/src/tutor/TutorView.tsx
+     *
+     * The boundary caught it — but then offered "Reset saved data and reload"
+     * to a student whose only problem was a tunnel or a lift. One tap and
+     * every lesson they had finished is gone, for a fault that had nothing to
+     * do with their data. The screen was correct about the crash and
+     * catastrophic about the remedy.
+     * ─────────────────────────────────────────────────────────────────────── */
+    it.each([
+      ['Chromium', 'Failed to fetch dynamically imported module: /src/tutor/TutorView.tsx'],
+      ['Firefox', 'error loading dynamically imported module: /src/tutor/TutorView.tsx'],
+      ['WebKit', 'Importing a module script failed.'],
+    ])('offers no data reset for a failed chunk load (%s wording)', (_engine, message) => {
+      const { api } = fakeStorage({ 'learning-os/v2': 'precious' })
+
+      render(
+        <ErrorBoundary storage={api} reload={vi.fn()}>
+          <Boom thrown={new TypeError(message)} />
+        </ErrorBoundary>,
+      )
+
+      /* The destructive button must be absent, not merely de-emphasised. */
+      expect(screen.queryByRole('button', { name: /reset saved data/i })).toBeNull()
+      expect(screen.getByRole('button', { name: /reload the page/i })).toBeInTheDocument()
+    })
+
+    it('names the connection as the cause when a chunk fails to load', () => {
+      render(
+        <ErrorBoundary storage={fakeStorage().api} reload={vi.fn()}>
+          <Boom thrown={new TypeError('Failed to fetch dynamically imported module: /x.js')} />
+        </ErrorBoundary>,
+      )
+
+      /* "Something went wrong" is true and useless here. A student who is
+       * offline can act on being told they are offline. */
+      expect(screen.getByRole('alert')).toHaveTextContent(/connection/i)
+    })
+
+    it('still offers the reset for an error that is NOT a chunk load', () => {
+      /* The pair. Without this, "hide reset for network errors" is satisfied
+       * by hiding it always — which is mutant M9 again, and which puts every
+       * user back in the permanent lockout this whole section exists to end. */
+      const { api } = fakeStorage({ 'learning-os/v2': 'poison' })
+
+      render(
+        <ErrorBoundary storage={api} reload={vi.fn()}>
+          <Boom thrown={new TypeError('Cannot read properties of undefined (reading map)')} />
+        </ErrorBoundary>,
+      )
+
+      expect(screen.getByRole('button', { name: /reset saved data/i })).toBeInTheDocument()
+    })
+
     it('offers no reset at all when there is no storage to reset', () => {
       /* Not hypothetical: this very test environment has no localStorage, and
        * a button that cannot do anything is worse than an absent one — it

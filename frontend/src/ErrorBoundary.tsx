@@ -82,6 +82,32 @@ function describe(error: unknown): string {
 }
 
 /**
+ * Whether this is a lazy chunk that failed to arrive, rather than a fault in
+ * the application's own state.
+ *
+ * Three of this app's routes are `React.lazy` (App.tsx:63), so opening one
+ * with the network down throws. Captured from real browsers, because the three
+ * engines word it three different ways and matching only one would leave the
+ * other two treated as data corruption:
+ *
+ *   Chromium  TypeError: Failed to fetch dynamically imported module: …
+ *   Firefox   error loading dynamically imported module: …
+ *   WebKit    Importing a module script failed.
+ *
+ * `ChunkLoadError` and "Loading chunk N failed" are the bundler-side wordings
+ * for the same event and are matched for the same reason.
+ *
+ * This distinction is not cosmetic. It decides whether a student is offered a
+ * button that erases everything they have done.
+ */
+function isChunkLoadFailure(error: unknown): boolean {
+  const text = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+  return /dynamically imported module|Importing a module script failed|ChunkLoadError|Loading chunk \S+ failed/i.test(
+    text,
+  )
+}
+
+/**
  * `window.localStorage`, when there is one.
  *
  * Reading it can THROW rather than return undefined — a browser with site data
@@ -142,7 +168,13 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     const { error, resetFailed } = this.state
     if (error === null) return this.props.children
 
-    const storage = this.resolveStorage()
+    /* A dropped connection is not a reason to erase anyone's progress. When
+     * the only thing that failed was fetching a chunk, the saved data is
+     * irrelevant, so the destructive control is not offered at all — absent
+     * rather than de-emphasised, because a student in a tunnel who taps it
+     * loses every lesson they have finished for a fault that was never theirs. */
+    const transient = isChunkLoadFailure(error)
+    const storage = transient ? null : this.resolveStorage()
 
     return (
       <div
@@ -160,7 +192,9 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
         <div style={{ maxWidth: '40rem', textAlign: 'left' }}>
           <h1 style={{ fontSize: '1.5rem', marginBottom: '0.75rem' }}>Something went wrong</h1>
           <p style={{ marginBottom: '1rem' }}>
-            This screen stopped working. Your saved progress has not been touched.
+            {transient
+              ? 'This part of the app could not be downloaded. Check your connection and try again — your saved progress is safe.'
+              : 'This screen stopped working. Your saved progress has not been touched.'}
           </p>
           {/* The detail stays on screen, not only in a console nobody has open.
             * `pre` because a stack-shaped message is unreadable reflowed. */}

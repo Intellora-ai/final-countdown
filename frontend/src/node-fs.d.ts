@@ -1,6 +1,16 @@
 /**
- * The slice of `node:fs`, `node:path` and `node:url` that `island.test.ts` uses,
- * declared rather than installed.
+ * The slice of `node:fs`, `node:path` and `node:url` that this package's
+ * file-reading tests use, declared rather than installed.
+ *
+ * MOVED UP FROM `src/websearch/` and that move is the point. An ambient
+ * declaration is global to the PROGRAM that includes it, and
+ * `tsconfig.canvas.json` narrows `include` to `src/canvas`, so a declaration
+ * living under `src/websearch` was invisible to every canvas file. The symptom
+ * was `Cannot find module 'node:fs'` in a canvas test that reads a stylesheet
+ * off disk -- a file that clearly exists, in a project that clearly compiles.
+ *
+ * `src/vite-env.d.ts` is named explicitly in that config for exactly this
+ * reason; this file is at the same level so it needs no second exception.
  *
  * Same reasoning as `node-http.d.ts`, and the same constraint: `@types/node` is
  * not a dependency of this package and adding one was not approved. It is also

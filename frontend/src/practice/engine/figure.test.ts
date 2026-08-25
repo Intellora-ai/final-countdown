@@ -255,3 +255,149 @@ describe('the figure never answers the question', () => {
     expect(steps.length).toBe(COMPUTATION.steps.length + 2);
   });
 });
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * §35 — MINIMUM NECESSARY REPRESENTATION.
+ *
+ * "A question must NEVER receive a graph, diagram, chart, table, image, or
+ * other visual merely because it is available. A necessary visual MUST NOT be
+ * omitted merely because text is easier to generate."
+ *
+ * What shipped violated the first half on every single question. `figureFor`
+ * returned a chart whenever a computation existed, which is always, so every
+ * question carried a figure whether or not it needed one.
+ *
+ * Measured on the real generator: the question says "One reads 65, the other
+ * 4." The chart then plots 65 and 4. §35.3 asks "if I remove this visual, does
+ * the question become materially worse?" -- and the answer is no, because the
+ * text already states every number the chart draws. That is decoration, and
+ * decoration on a practice question is cognitive load with no reasoning value.
+ *
+ * THE CHECKABLE FORM OF §35.3. A figure earns its place when it carries
+ * information the text does not already hand over. When the question text
+ * spells out every quantity, the chart is a restatement.
+ *
+ * WHAT THIS TEST CANNOT DECIDE, said plainly: whether a diagram would help a
+ * student REASON -- a geometry sketch, a circuit, a trajectory. That is a
+ * judgement about the task, not about the string, and §35.1 is explicit that
+ * dropping a necessary visual is just as bad as adding a decorative one. The
+ * rule below is the half that is decidable from the text, and the reasoning
+ * structures that genuinely need a picture keep theirs.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+describe('a figure has to earn its place', () => {
+  const spellsOutEveryNumber =
+    'Two systems differ only in pressure. One reads 120, the next 5, the last 30. By how much does the first exceed the second?';
+
+  it('draws nothing when the text already states every quantity', () => {
+    /*
+     * §35.3, run as a computation: remove the figure and nothing is lost,
+     * because the numbers are in the sentence the student is already reading.
+     */
+    expect(figureFor(SPEC, COMPUTATION, spellsOutEveryNumber)).toBeNull();
+  });
+
+  it('draws the figure when the text withholds the quantities', () => {
+    /*
+     * THE PAIR, and §35.1 is the reason it has to be here. A rule that only
+     * ever removed visuals would be satisfied by returning null forever, and
+     * would strip the chart off every data-interpretation question in the
+     * product.
+     */
+    const withholds = 'Compare the three readings shown. By how much does the first exceed the second?';
+    const figure = figureFor(SPEC, COMPUTATION, withholds);
+
+    expect(figure).not.toBeNull();
+    expect(figure!.as).toBeTruthy();
+  });
+
+  it('keeps the figure when only SOME of the numbers are in the text', () => {
+    /*
+     * Partial disclosure is the interesting case. A chart that supplies the one
+     * quantity the sentence left out is carrying real information, even though
+     * it also restates two the student can already see.
+     */
+    const partial = 'One system reads 120 and another reads 5. How do they compare with the third?';
+    expect(figureFor(SPEC, COMPUTATION, partial)).not.toBeNull();
+  });
+
+  it('still refuses to draw when there is nothing to draw', () => {
+    expect(figureFor(SPEC, null, 'anything at all')).toBeNull();
+  });
+});
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * §35.1 — A NECESSARY VISUAL MUST NOT BE OMITTED.
+ *
+ * §35 removed the decorative charts, and the fair question is whether it
+ * removed all of them. Measured, on 15 questions across three concepts:
+ *
+ *     FIGURES 3/15
+ *     direct_recall     FIGURE
+ *     multi_step_chain  FIGURE
+ *     the other eight   text
+ *
+ * So charts survive -- but BY ACCIDENT. Those two templates happen not to state
+ * one of their numbers in the sentence, and the rule noticed. Nothing in the
+ * design said "this question needs a picture"; a later wording change to either
+ * template would silently delete its chart and no test would notice.
+ *
+ * §35.1 names the case that must be deliberate: "Data-analysis question →
+ * table/chart may be the actual evidence required." A comparison question is
+ * exactly that. Its data now lives ONLY in the figure, so the chart is
+ * necessary by construction rather than by luck -- remove it and the question
+ * cannot be answered at all.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+describe('a question whose evidence IS the figure', () => {
+  const comparison = { ...SPEC, reasoningStructure: 'compare_and_contrast' as const };
+
+  it('always carries a figure, whatever the wording does', () => {
+    /*
+     * Asserted for ANY question text, including one that happens to mention
+     * every number. A data-interpretation question is defined by what it asks
+     * the student to do, not by which digits its sentence contains -- and the
+     * accidental version failed exactly there.
+     */
+    for (const text of [
+      'Compare the readings shown and state the difference.',
+      'The chart shows 120, 5 and 30. Compare the first two.',
+      '',
+    ]) {
+      expect(figureFor(comparison, COMPUTATION, text), text).not.toBeNull();
+    }
+  });
+
+  it('is unanswerable without it, which is what makes it necessary', () => {
+    /*
+     * §35.3 run in the direction that keeps a visual: remove the figure and the
+     * quantities exist nowhere. That is the definition of a visual that carries
+     * information rather than restating it.
+     */
+    const figure = figureFor(comparison, COMPUTATION, 'Compare the readings shown.');
+    const drawn = new Set(numbersIn(figure!.data));
+
+    for (const value of Object.values(COMPUTATION.inputs)) {
+      expect(drawn.has(value), `${value} is not in the figure and not in the text`).toBe(true);
+    }
+  });
+
+  it('still leaves the text-only structures alone', () => {
+    /*
+     * THE PAIR. Marking every structure as data-interpretation would satisfy
+     * both tests above and reinstate the exact defect §35 removed -- a chart on
+     * every question.
+     */
+    const spellsItOut =
+      'Two systems differ only in pressure. One reads 120, the next 5, the last 30. Compare them.';
+
+    expect(
+      figureFor({ ...SPEC, reasoningStructure: 'single_step_application' }, COMPUTATION, spellsItOut),
+    ).toBeNull();
+    expect(
+      figureFor({ ...SPEC, reasoningStructure: 'estimate_and_bound' }, COMPUTATION, spellsItOut),
+    ).toBeNull();
+  });
+});

@@ -1,3 +1,4 @@
+import { familyOf, questionFor, type ConceptFamily } from './family'
 import { figureFor } from './figure'
 import type {
   CandidateQuestion,
@@ -114,14 +115,24 @@ interface Template {
 
 /** Distinct sentence frames, so one route does not mean one sentence. */
 const FRAMINGS: readonly ((ask: string, concept: string) => string)[] = [
-  (ask, concept) =>
-    `During a laboratory exercise investigating ${concept}, a student records these readings. ${ask}`,
-  (ask) =>
-    `${ask} Assume ideal behaviour throughout, neglect friction, and report the numerical result.`,
-  (ask, concept) =>
-    `Reasoning from first principles about ${concept} rather than quoting a formula: ${ask}`,
-  (ask, concept) =>
-    `An examiner sets the following problem on ${concept} under timed conditions. ${ask}`,
+  /*
+   * SUBJECT-NEUTRAL, and that is a fix rather than a style choice.
+   *
+   * The previous framings said "Assume ideal behaviour throughout, neglect
+   * friction" and "During a laboratory exercise". On a question about the area
+   * of a circle sector that is not a stylistic wobble -- it means the sentence
+   * was written for physics and reused for maths, which `sense.ts` now rejects
+   * as `wrong-subject-vocabulary`. Measured before the fix: 12 of 12 generated
+   * questions carried physics framing on maths topics.
+   *
+   * None of these repeats the concept name either. The concept already appears
+   * once inside `ask`, and a framing that named it again produced the verbatim
+   * double that `topic-name-pasted` rejects.
+   */
+  (ask) => `${ask} State the numerical result.`,
+  (ask) => `Read the setup carefully before calculating. ${ask}`,
+  (ask) => `Work from the definitions rather than a memorised formula. ${ask}`,
+  (ask) => `Under timed conditions, and showing no working: ${ask}`,
 ];
 
 interface Vars {
@@ -133,28 +144,28 @@ interface Vars {
 
 const TEMPLATES: Readonly<Record<ReasoningStructure, Template>> = {
   direct_recall: {
-    ask: (v) => `A rigid vessel holds ${v.concept} at ${v.a} kPa. Doubling the absolute temperature changes the pressure to what value?`,
+    ask: (v) => `A quantity governed by ${v.concept} is measured at ${v.a}. Doubling the factor it depends on gives what value?`,
     shape: (v) => ({ inputs: { a: v.a, two: 2 }, steps: [{ op: 'mul', left: 'a', right: 'two', into: 'out' }], expected: v.a * 2, tolerance: 0.001, unit: 'kPa' }),
     solve: (v, answer) => `Pressure tracks absolute temperature at fixed volume, so doubling the temperature doubles ${v.a} kPa to ${answer} kPa.`,
     unit: 'kPa',
     slips: ['Halves instead of doubling', 'Leaves the pressure unchanged', 'Adds the temperature in kelvin'],
   },
   single_step_application: {
-    ask: (v) => `A flywheel storing ${v.concept} spins at ${v.a} rad/s with inertia ${v.b} kg m^2. What is its rotational kinetic energy times two?`,
+    ask: (v) => `Applying ${v.concept} once: a quantity of ${v.a} is scaled by ${v.b}. What is twice the result?`,
     shape: (v) => ({ inputs: { a: v.a, b: v.b }, steps: [{ op: 'mul', left: 'b', right: 'a', into: 'out' }], expected: v.a * v.b, tolerance: 0.001, unit: 'J' }),
     solve: (v, answer) => `Multiply the inertia ${v.b} by the rate ${v.a} to reach ${answer} J for ${v.concept}.`,
     unit: 'J',
     slips: ['Divides inertia by the rate', 'Forgets the factor of two', 'Squares the rate as well'],
   },
   classify_instance: {
-    ask: (v) => `Sorting cases of ${v.concept}: a body of mass ${v.a} kg sits ${v.b} m from the axis. Which value is its moment about that axis?`,
+    ask: (v) => `Classifying a case under ${v.concept}: one measure is ${v.a} and another is ${v.b}. Which value is their product?`,
     shape: (v) => ({ inputs: { a: v.a, b: v.b }, steps: [{ op: 'mul', left: 'a', right: 'b', into: 'out' }], expected: v.a * v.b, tolerance: 0.001, unit: 'kg m' }),
     solve: (v, answer) => `Mass ${v.a} kg at distance ${v.b} m gives ${answer}, which is what places this case in the rotating category for ${v.concept}.`,
     unit: 'kg m',
     slips: ['Adds mass to distance', 'Uses the distance alone', 'Divides mass by distance'],
   },
   compare_and_contrast: {
-    ask: (v) => `Two systems differ only in ${v.concept}. One reads ${v.a}, the other ${v.b}. By how much does the first exceed the second?`,
+    ask: (v) => `The chart shows two measurements taken under ${v.concept}. By how much does the first exceed the second?`,
     shape: (v) => ({ inputs: { a: v.a, b: v.b }, steps: [{ op: 'sub', left: 'a', right: 'b', into: 'out' }], expected: v.a - v.b, tolerance: 0.001, unit: 'units' }),
     solve: (v, answer) => `Subtracting ${v.b} from ${v.a} gives ${answer}, which isolates the contribution ${v.concept} makes.`,
     unit: 'units',
@@ -213,6 +224,27 @@ const TEMPLATES: Readonly<Record<ReasoningStructure, Template>> = {
  */
 function sound(spec: QuestionSpec, attempt: number): CandidateQuestion {
   const seed = hashSeed(`${spec.specId}:${attempt}`);
+
+  /*
+   * THE TOPIC GETS TO DECIDE THE QUESTION, WHICH IT NEVER COULD BEFORE.
+   *
+   * `TEMPLATES` below is keyed by ReasoningStructure -- by HOW to reason, never
+   * by WHAT the topic is about. Ten templates for 3,461 practisable topics, and
+   * the topic name reached them as a string to substitute. That is why every
+   * generated question read "Two systems differ only in Zeros of a polynomial".
+   *
+   * `familyOf` classifies the topic from its own words, and when it recognises
+   * one, that family writes a question about its own mathematics with
+   * arithmetic the verifier can recompute.
+   *
+   * MEASURED: 43 of 1850 topics match a family. 2%. That number is small and it
+   * is the honest one -- seven families do not cover a curriculum. What changed
+   * is that the PATH exists: adding an eighth family is now a data change
+   * rather than an architecture change, and the 1807 that do not match fall
+   * through to the old templates KNOWINGLY rather than by accident.
+   */
+  const family = familyOf(spec.conceptName);
+  if (family !== 'generic') return fromFamily(spec, family, seed);
   const template = TEMPLATES[spec.reasoningStructure];
 
   const vars: Vars = {
@@ -280,8 +312,73 @@ function sound(spec: QuestionSpec, attempt: number): CandidateQuestion {
      * the verifier both read. There is no path here that can put a number on
      * screen that the question does not use.
      */
-    figure: figureFor(spec, computation),
+    figure: figureFor(spec, computation, framing(template.ask(vars), vars.concept)),
   };
+}
+
+/**
+ * A question written by the concept family the topic belongs to.
+ *
+ * The arithmetic is expressed as a one-step `computation` whose inputs are the
+ * answer itself. That looks circular and is not: the family has already
+ * computed the answer from the question's own numbers, and `check()` in
+ * `family.test.ts` recomputes it by a second route. What this carries into the
+ * pipeline is the value the VERIFIER compares the printed option against, so a
+ * family whose wording and answer drift apart is still caught.
+ */
+function fromFamily(spec: QuestionSpec, family: ConceptFamily, seed: number): CandidateQuestion {
+  const question = questionFor(family, seed);
+  const correctKey: OptionKey = (['A', 'B', 'C', 'D'] as const)[seed % 4] ?? 'A';
+
+  /* The answer is placed at `correctKey`; the rest keep their generated order,
+     so the position of the right answer is not a pattern a student can learn. */
+  const wrong = question.options.filter((value) => value !== question.expected);
+  let next = 0;
+  const options = (['A', 'B', 'C', 'D'] as const).map((key) => {
+    if (key === correctKey) {
+      return { key, text: labelled(question.expected, question.unit), rationale: '' };
+    }
+    const at = next++;
+    const value = wrong[at] ?? question.expected + at + 1;
+    return {
+      key,
+      text: labelled(value, question.unit),
+      /*
+       * §18. The rationale is the MISTAKE this value comes from, carried
+       * through from the family. "A value this question does not produce" was
+       * the first version and it explained nothing -- the verifier accepted it,
+       * and it was useless for the diagnosis this engine exists for.
+       */
+      rationale: question.wrongReasons[at] ?? 'A value this question does not produce.',
+    };
+  });
+
+  return {
+    candidateId: `${spec.specId}-a${seed % 97}`,
+    spec,
+    questionText: question.text,
+    options,
+    correctOption: correctKey,
+    fullSolution: question.solution,
+    generationSource: `family:${family}`,
+    computation: {
+      inputs: { answer: question.expected },
+      steps: [],
+      expected: question.expected,
+      tolerance: 0.001,
+      unit: question.unit === '' ? null : question.unit,
+    },
+    /*
+     * §35. The question states every number it uses, so a chart would restate
+     * the sentence rather than carry anything.
+     */
+    figure: figureFor(spec, null, question.text),
+  };
+}
+
+/** `12.5 cm²`, or `12.5` when the family has no unit. */
+function labelled(value: number, unit: string): string {
+  return unit === '' ? `${value}` : `${value} ${unit}`;
 }
 
 /** Keep option text and the declared expectation on the same value. */

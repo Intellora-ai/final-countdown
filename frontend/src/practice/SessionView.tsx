@@ -411,15 +411,16 @@ function Question() {
       )}
 
       <ul className="pm-q-options">
-        {question.options.map((option) => {
+        {question.options.map((option, index) => {
           const isChosen = revealed ? chosen?.selectedOption === option.key : pendingKey === option.key
           const isAnswer = revealed?.correctOption === option.key
 
           return (
-            <li key={option.key}>
+            <li key={option.key} className="pm-q-slot" data-slot={String(index)}>
               <button
                 type="button"
                 className="pm-q-option"
+                data-slot={String(index)}
                 /* The state is on the element, not in a colour. A learner using
                    a screen reader gets the same information a sighted one does. */
                 aria-pressed={isChosen}
@@ -473,33 +474,39 @@ function Question() {
             {atLast ? 'Finish' : 'Next question'}
           </button>
 
-          {/*
-            * THE FOUR STEERS, offered only after the answer is out.
-            *
-            * Before the student has seen how they did there is nothing to steer
-            * FROM, and offering it would let them skip a question by asking for
-            * a different one. `engine/steer.ts` decides what each asks for and
-            * never leaves the topic; this is only the surface.
-            */}
-          <div className="pm-q-steer" role="group" aria-label="Ask for another question like this">
-            {STEERS.map((each) => (
-              <button
-                key={each}
-                type="button"
-                className="pm-q-steer-button"
-                data-steer={each}
-                onClick={() => setSteer(each)}
-                aria-pressed={steerChoice === each}
-              >
-                <span aria-hidden="true" className="pm-q-steer-glyph">
-                  {STEER_GLYPH[each]}
-                </span>
-                {STEER_LABEL[each]}
-              </button>
-            ))}
-          </div>
         </div>
       ) : null}
+
+      {/*
+        * THE FOUR STEERS, in the corner, from the moment the question opens.
+        *
+        * They used to appear only after the answer was revealed, so that a
+        * student could not skip a hard question by asking for a different one.
+        * The reference screen places them beside Confirm while the question is
+        * still open, and that is the product decision.
+        *
+        * The cost is real and is not hidden: a student CAN now press Easier
+        * instead of thinking. `engine/steer.ts` still decides what each one
+        * asks for and §17 still holds -- no steer ever leaves the topic, so the
+        * worst case is an easier question about the right thing.
+        */}
+      <div className="pm-q-steer" role="group" aria-label="Ask for another question like this">
+        {STEERS.map((each) => (
+          <button
+            key={each}
+            type="button"
+            className="pm-q-steer-button"
+            data-steer={each}
+            onClick={() => setSteer(each)}
+            aria-pressed={steerChoice === each}
+          >
+            <span aria-hidden="true" className="pm-q-steer-glyph">
+              {STEER_GLYPH[each]}
+            </span>
+            {STEER_LABEL[each]}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { boundaryFor, deliverable, setDrawsSomething } from './wiring';
+import { admits, boundaryFor, deliverable } from './wiring';
 import { asChapterId, asSubjectId, asTopicId } from './engine/ids';
 import type { TopicProfile } from './engine/plan';
 import type { VerifiedQuestion } from './engine/types';
@@ -122,51 +122,113 @@ describe('a question only reaches the student if the boundary passes it', () => 
 });
 
 /*
- * THE BAN ON A SET THAT DRAWS NOTHING.
+ * THE BAN ON A SET THAT DRAWS NOTHING WAS REMOVED, AND ITS TESTS WITH IT.
  *
- * `engine/representation.ts` has held `setIsAllText` since it was written, with
- * ZERO non-test importers. It could not have fired even once: no question
- * carried a figure at all, so there was nothing for it to look at.
+ * `setDrawsSomething` refused any set in which no question carried a figure.
+ * §35 of the quality directive overrules it:
  *
- * Wiring it before questions had figures would have refused every session in
- * the product, which is why `engine/figure.ts` came first.
+ *   "A question must NEVER receive a graph, diagram, chart, table, image, or
+ *    other visual merely because it is available."
+ *   "Sometimes that is plain text." (§35.6)
  *
- * ONE FIGURE IS THE BAR, on purpose. Requiring one per question forces a
- * diagram onto questions that do not need one, and a decorative chart is its
- * own kind of noise.
+ * `figureFor` now omits a figure when the question text already states every
+ * quantity the chart would plot. For the current generator that is every
+ * question, so every set became all-text and every session refused with
+ * SET_DRAWS_NOTHING -- measured in a test run, not predicted.
+ *
+ * A REQUIREMENT CONFLICT RESOLVED BY THE NEWER REQUIREMENT. It is recorded here
+ * rather than quietly deleted, because a removed test and a test that was
+ * always missing look identical to whoever reads this file next. The opposite
+ * failure -- dropping a NECESSARY visual -- is §35.1 and is covered by
+ * `figure.test.ts`, which asserts the figure survives the moment the text
+ * withholds a quantity.
  */
-describe('a set of questions has to draw something', () => {
-  const withFigure = () =>
-    question({
-      figure: {
-        kind: 'figure',
-        id: 'f1',
-        emphasis: 'supporting',
-        tone: 'neutral',
-        as: 'bar',
-        data: {
-          shape: 'series',
-          series: [{ name: 's', colorIndex: 0, points: [{ x: 'a', y: 1 }] }],
-          continuousX: false,
-          stacked: false,
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE ADMISSION GATE, ON THE REAL PATH.
+ *
+ * `boundary.ts` asks three questions and every one of them reads a field WE
+ * stamped: `question.topicId === boundary.topicId`, where both sides come from
+ * the same spec. On the generation path that comparison cannot fail, and
+ * measured, 12 of 12 nonsense questions passed it.
+ *
+ * `drift.ts` reads the question TEXT and asks a different question: of all the
+ * topics in this curriculum, is the requested one really the nearest? That is
+ * the check a stamp cannot satisfy by construction.
+ *
+ * Wired here so it runs before a question reaches a student, rather than
+ * becoming the fifth engine in this directory with green tests and no callers.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+describe('a question is admitted only if it belongs', () => {
+  const CURRICULUM = [
+    {
+      id: 'mathematics',
+      name: 'Mathematics',
+      chapters: [
+        {
+          id: 'algebra',
+          number: 1,
+          name: 'Algebra',
+          topics: [
+            { id: 'functions--graphs', name: 'Quadratic equations and the discriminant' },
+            { id: 'linear', name: 'Pair of linear equations by substitution' },
+          ],
         },
-      },
-    } as unknown as Partial<VerifiedQuestion>);
+      ],
+    },
+  ] as never;
 
-  it('refuses a set where every question is text', () => {
-    expect(setDrawsSomething([question(), question(), question()])).toBe(false);
+  it('admits a question whose words match the topic it was made for', () => {
+    const question2 = question({
+      questionText: 'For which values of k does this quadratic equation have equal roots?',
+    } as Partial<VerifiedQuestion>);
+
+    expect(admits(question2, boundaryFor(PROFILE), CURRICULUM).ok).toBe(true);
   });
 
-  it('accepts a set where one question carries a figure', () => {
-    expect(setDrawsSomething([question(), withFigure(), question()])).toBe(true);
-  });
-
-  it('refuses an EMPTY set rather than passing it', () => {
+  it('refuses a question that belongs to a different topic', () => {
     /*
-     * Zero of zero questions carry a figure. Arithmetic says the ban is
-     * satisfied; usefulness says nothing was delivered. Reading it as a pass is
-     * how a generator that produced nothing reports success.
+     * THE CASE EVERY EXISTING CHECK MISSES. Same subject, same chapter,
+     * correctly stamped with the session's topic id -- and it is a
+     * linear-equations question inside a quadratics session.
      */
-    expect(setDrawsSomething([])).toBe(false);
+    const wrong = question({
+      questionText: 'Solve the pair of linear equations by substitution: 2x + y = 7, x − y = 2.',
+    } as Partial<VerifiedQuestion>);
+
+    const admission = admits(wrong, boundaryFor(PROFILE), CURRICULUM);
+    expect(admission.ok).toBe(false);
+    /* The reason names the gate that fired, so a log reader is not left guessing. */
+    expect(admission.reason).toContain('drift');
+  });
+
+  it('still refuses what the boundary already refused', () => {
+    /*
+     * THE PAIR. Adding a drift check must not replace the id checks -- a
+     * question from a genuinely different topic id has to stay refused even if
+     * its wording happens to look right.
+     */
+    const foreign = question({
+      topicId: asTopicId('somewhere-else'),
+      questionText: 'For which values of k does this quadratic equation have equal roots?',
+    } as Partial<VerifiedQuestion>);
+
+    const admission = admits(foreign, boundaryFor(PROFILE), CURRICULUM);
+    expect(admission.ok).toBe(false);
+    expect(admission.reason).toContain('boundary');
+  });
+
+  it('admits when the curriculum is unknown, rather than refusing everything', () => {
+    /*
+     * FAILS OPEN. The drift gate needs a curriculum to compare against, and a
+     * caller that has none -- a test, a seeded session, a class whose data has
+     * not loaded -- must still get questions. Refusing here would make an
+     * absent centroid indistinguishable from a bad question.
+     */
+    const any = question({ questionText: 'Anything at all, really.' } as Partial<VerifiedQuestion>);
+
+    expect(admits(any, boundaryFor(PROFILE), []).ok).toBe(true);
   });
 });

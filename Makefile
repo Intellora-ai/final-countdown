@@ -62,6 +62,28 @@ test-axle:
 	@echo "NOTE: this target calls the hosted AXLE service at https://axle.axiommath.ai"
 	@$(PY) -m pytest -m axle
 
+# THE REVIEW, RUN LOCALLY, BECAUSE THE CI REVIEWER HAS NEVER ONCE WORKED.
+#
+# Counted on 2026-08-25 over every comment the CI reviewer has posted to this
+# repository: {"total": 80, "errors": 80}. All eighty read "Claude encountered
+# an error after 0s". The job authenticates with CLAUDE_CODE_OAUTH_TOKEN, the
+# API rejects it in 69ms for $0, and `ai-review` is declared mandatory = false,
+# so nothing blocked and nobody noticed for eighty pull requests.
+#
+# This route needs no secret. It runs through the developer's own logged-in
+# Claude Code, so there is nothing in a repository setting left to expire.
+#
+# NOT A DEPENDENCY OF sandbox-fast, and that is deliberate. sandbox-fast runs in
+# CI, where no interactive login exists, so wiring the review into it would make
+# every CI run block on a reviewer that cannot possibly authenticate there.
+# This target is for the pre-push loop and for running by hand.
+#
+# Exit 1 means the push should stop. See scripts/review_gate.py for what is
+# enforced (a review RAN and was READ) and what deliberately is not (whether
+# Claude liked the code).
+review:
+	@$(PY) scripts/review_gate.py --range $(or $(RANGE),origin/main...HEAD) < /dev/null
+
 sandbox-fast:
 	@$(PY) scripts/local_gates.py --tier fast --run-id $(RUN_ID)
 

@@ -3,6 +3,29 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
+  /* THE DEV SERVER COULD NOT REACH ALMANAC AT ALL.
+   *
+   * The browser posts to /api/day and /api/lesson. Vite serves the app on one
+   * port and the planner listens on another, so in development every one of
+   * those requests 404'd against Vite itself -- the dashboard reported "the
+   * planner answered 404" honestly, and nobody could run the product end to
+   * end on their own machine.
+   *
+   * Found by the deep-qa harness, which counts console errors and saw 180 of
+   * them from this one cause. The gap was mine: a server was built in Phase 1
+   * and never connected to the thing that talks to it.
+   *
+   * `changeOrigin` is off deliberately: the planner is same-machine and binds
+   * to loopback, and rewriting the Host header would hide which origin a
+   * request really came from. */
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8787',
+        changeOrigin: false,
+      },
+    },
+  },
   plugins: [react()],
 
   /* ONE REACT, ONE THREE — enforced, not assumed.

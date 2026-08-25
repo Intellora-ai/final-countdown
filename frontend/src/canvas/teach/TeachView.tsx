@@ -486,7 +486,7 @@ function Outcome({
 }) {
   if (record.pending) {
     return (
-      <p className="lc-teach__asked" role="status">
+      <p className="lc-teach__asked" data-teach-chrome role="status">
         You asked: “{record.doubt.text}”. Working on it…
       </p>
     )
@@ -509,7 +509,10 @@ function Outcome({
   }
 
   return (
-    <div className="lc-teach__asked">
+    /* `data-teach-chrome` is not decoration: it is what the "never show a step
+       count" law scans. A new surface that the view writes and that the law
+       cannot see is a hole in the law, not a tidy-up. */
+    <div className="lc-teach__asked" data-teach-chrome>
       <p>You asked: “{record.doubt.text}”</p>
       {(record.prose ?? '').split('\n\n').map((paragraph, index) => (
         <p key={index}>{paragraph}</p>

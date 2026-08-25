@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { boundaryFor, deliverable } from './wiring'
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { generateSet, type SetMetrics } from './engine/pipeline';
@@ -170,6 +171,33 @@ export const useSessionStore = create<SessionRunState>()(
             ],
           });
           return;
+        }
+
+        /*
+         * THE LAST GATE, and it runs on the real path rather than in a test.
+         *
+         * `verify.ts` already refused a candidate whose topic id differed, but
+         * it compares topic ids and nothing else -- so a question carrying the
+         * right topic while testing somebody else's concept walked straight
+         * through. `boundary.ts` catches that and had ZERO callers until here.
+         *
+         * Refusing rather than filtering: a short set is a different product
+         * promise from the one the student was given, and §24 forbids quietly
+         * substituting one for the other.
+         */
+        const boundary = boundaryFor(input.profile)
+        const rejected = outcome.questions.find((question) => !deliverable(question, boundary))
+        if (rejected) {
+          set({
+            status: 'failed',
+            error: {
+              failure: 'INVALID_TOPIC',
+              detail: `Question ${rejected.questionId} did not pass the topic boundary for ${boundary.topicId}.`,
+              obtained: 0,
+              requested: input.count,
+            },
+          })
+          return
         }
 
         const session = createSession({

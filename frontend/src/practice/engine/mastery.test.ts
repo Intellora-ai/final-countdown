@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { asTopicId } from './ids';
 
 import { adviceFrom, orderByNeed, signalFrom, SHAKY_BELOW } from './mastery';
 import type { Concept } from './plan';
@@ -30,7 +31,7 @@ function attempt(over: Partial<QuestionAttempt> = {}): QuestionAttempt {
 function session(attempts: QuestionAttempt[]): SessionResult {
   return {
     sessionId: 's',
-    topicId: 't',
+    topicId: asTopicId('t'),
     status: 'COMPLETED',
     requested: attempts.length,
     attempts,
@@ -164,9 +165,9 @@ describe('ranking what to practise next', () => {
 
 describe('feeding the next set', () => {
   const concepts: Concept[] = [
-    { id: 'solid', name: 'Solid', topicId: 't', numeric: true, prerequisites: [], commonMisconception: null },
-    { id: 'weak', name: 'Weak', topicId: 't', numeric: true, prerequisites: [], commonMisconception: null },
-    { id: 'unseen', name: 'Unseen', topicId: 't', numeric: true, prerequisites: [], commonMisconception: null },
+    { id: 'solid', name: 'Solid', topicId: asTopicId('t'), numeric: true, prerequisites: [], commonMisconception: null },
+    { id: 'weak', name: 'Weak', topicId: asTopicId('t'), numeric: true, prerequisites: [], commonMisconception: null },
+    { id: 'unseen', name: 'Unseen', topicId: asTopicId('t'), numeric: true, prerequisites: [], commonMisconception: null },
   ];
 
   it('puts what the learner is getting wrong at the front', () => {

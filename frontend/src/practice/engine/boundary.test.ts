@@ -139,3 +139,96 @@ describe('the topic boundary validator', () => {
     expect(refused).toBe(500);
   });
 });
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * §1 / §2 — THE SCOPE HAS TO CARRY DEPENDENCIES, OR THE GATE CANNOT USE THEM.
+ *
+ * `TopicBoundary` carried a topic, a chapter and a concept list. The directive
+ * asks for allowed DEPENDENCIES too, and the reason is the one it calls
+ * extremely important:
+ *
+ *     "if question.answer depends on out_of_scope_knowledge beyond permitted
+ *      dependencies: reject()"
+ *
+ * A question about quadratics may legitimately assume basic algebra. It may not
+ * assume differentiation. Without a permitted-dependency list the boundary can
+ * only say "this topic and nothing else", which refuses every question that
+ * builds on anything -- and that is most of a senior syllabus.
+ *
+ * `prerequisites` already exists on the question and was checked ONE way: a
+ * prerequisite must not BE the target topic. Nobody ever asked whether the
+ * prerequisite was allowed.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+describe('a question may only assume what the scope permits', () => {
+  const scoped: TopicBoundary = {
+    topicId: asTopicId('quadratics'),
+    chapterId: asChapterId('algebra'),
+    allowedConceptIds: ['roots'],
+    allowedDependencies: ['basic-algebra'],
+  };
+
+  it('admits a question assuming a permitted dependency', () => {
+    const q = question({ topicId: asTopicId('quadratics'), conceptId: 'roots', prerequisites: ['basic-algebra'] });
+
+    expect(validateQuestionTopic(q, scoped).ok).toBe(true);
+  });
+
+  it('REFUSES a question assuming something the scope never permitted', () => {
+    /*
+     * The case the directive names: a quadratics question whose answer needs
+     * differentiation. It is stamped correctly, its concept is in scope, and it
+     * still requires knowledge this session does not have.
+     */
+    const q = question({ topicId: asTopicId('quadratics'), conceptId: 'roots', prerequisites: ['differentiation'] });
+    const result = validateQuestionTopic(q, scoped);
+
+    expect(result.ok).toBe(false);
+    expect(result.reasons).toContain('dependency-outside-scope');
+  });
+
+  it('admits a question that assumes nothing', () => {
+    expect(validateQuestionTopic(question({ topicId: asTopicId('quadratics'), conceptId: 'roots', prerequisites: [] }), scoped).ok)
+      .toBe(true);
+  });
+
+  it('treats an ABSENT dependency list as "no dependency policy", not as "none allowed"', () => {
+    /*
+     * THE COMPATIBILITY PAIR, and the reason this is not a breaking change.
+     * Every existing boundary omits the field. Reading that as "nothing is
+     * permitted" would refuse every question with any prerequisite at all --
+     * a silent, total regression dressed as a new feature.
+     */
+    const legacy: TopicBoundary = {
+      topicId: asTopicId('quadratics'),
+      chapterId: asChapterId('algebra'),
+      allowedConceptIds: ['roots'],
+    };
+
+    expect(validateQuestionTopic(question({ topicId: asTopicId('quadratics'), conceptId: 'roots', prerequisites: ['anything'] }), legacy).ok)
+      .toBe(true);
+  });
+
+  it('still refuses a prerequisite that is the target topic itself', () => {
+    /*
+     * THE PAIR. The older rule must survive the new one -- a topic listed as
+     * its own prerequisite is circular whatever the dependency policy says.
+     */
+    const q = question({ topicId: asTopicId('quadratics'), conceptId: 'roots', prerequisites: ['quadratics'] });
+    const result = validateQuestionTopic(q, scoped);
+
+    /*
+     * EXACTLY ONE REASON, and the exactness is the assertion. A mutant proved
+     * `toContain` was not enough: removing the clause that excludes the target
+     * topic from the dependency check changed nothing, because the circular
+     * prerequisite then reported BOTH `prerequisite-is-target` and
+     * `dependency-outside-scope` and `toContain` was satisfied by either.
+     *
+     * One defect, one reason. Two reasons for one fault sends whoever reads the
+     * log looking for a second problem that does not exist -- and a topic is
+     * never a foreign dependency of itself, it is a circular one.
+     */
+    expect(result.reasons).toEqual(['prerequisite-is-target']);
+  });
+});

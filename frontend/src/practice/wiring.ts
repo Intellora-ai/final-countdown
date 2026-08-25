@@ -1,6 +1,7 @@
 import type { Subject } from './curriculum'
 import { validateQuestionTopic, type TopicBoundary } from './engine/boundary'
 import { buildCentroids, driftsFrom, nearestTopic, scoreFor } from './engine/drift'
+import { requirementsOf, scopeViolations, type QuestionRequirements } from './engine/requirements'
 import type { TopicProfile } from './engine/plan'
 import type { VerifiedQuestion } from './engine/types'
 
@@ -131,15 +132,82 @@ export function admits(
   if (curriculum.length === 0) return { ok: true, reason: '' };
 
   const centroids = buildCentroids(curriculum);
-  if (!driftsFrom(question.questionText, boundary.topicId, centroids)) {
-    return { ok: true, reason: '' };
+
+  if (driftsFrom(question.questionText, boundary.topicId, centroids)) {
+    const near = nearestTopic(question.questionText, centroids);
+    const mine = scoreFor(question.questionText, boundary.topicId, centroids);
+
+    return {
+      ok: false,
+      reason: `drift: this topic scored ${mine.toFixed(3)}, ${near?.topicId ?? 'another topic'} scored ${(near?.score ?? 0).toFixed(3)}`,
+    };
   }
 
-  const near = nearestTopic(question.questionText, centroids);
-  const mine = scoreFor(question.questionText, boundary.topicId, centroids);
+  /*
+   * THE SOLUTION HAS TO BE ADMISSIBLE TOO, and nothing checked it before.
+   *
+   * A question can sit perfectly inside its topic while the only route to the
+   * answer lives outside it:
+   *
+   *     Session:   Quadratic equations
+   *     Question:  "Find the maximum value of y = -x² + 6x - 5."
+   *     Solution:  "Differentiate: dy/dx = -2x + 6..."
+   *
+   * The question is a quadratic and the SOLUTION is calculus. A student who has
+   * not met differentiation cannot answer it. Every gate above admits it,
+   * because every gate above reads the QUESTION -- `fullSolution` had exactly
+   * two readers in this engine and both check its length.
+   *
+   * The scope here is the session topic ALONE. A caller wanting the
+   * prerequisite-aware mode passes the extra topics to `scopeViolations`
+   * directly: widening a scope is a decision, and it is one this wire
+   * deliberately does not make on anybody's behalf.
+   */
+  const violations = scopeViolations(
+    question.questionText,
+    question.fullSolution,
+    { topicId: boundary.topicId, allowedTopicIds: [] },
+    centroids,
+  );
 
-  return {
-    ok: false,
-    reason: `drift: this topic scored ${mine.toFixed(3)}, ${near?.topicId ?? 'another topic'} scored ${(near?.score ?? 0).toFixed(3)}`,
-  };
+  if (violations.includes('solution-out-of-scope')) {
+    const near = nearestTopic(question.fullSolution, centroids);
+    return {
+      ok: false,
+      reason: `solution out of scope: solving it needs ${near?.topicId ?? 'another topic'}, which this session does not allow`,
+    };
+  }
+
+  return { ok: true, reason: '' };
+}
+
+/**
+ * WHAT THIS QUESTION REQUIRES, READ OUT OF ITS OWN TEXT.
+ *
+ * The directive asks for questions that carry their own requirements rather
+ * than being trusted because of where somebody filed them. That was declined
+ * once, and the reason was good: a field nothing reads is how this repository
+ * ended up with four engines that had green tests and no callers.
+ *
+ * It has a consumer now. `admits` already computes exactly this to decide
+ * admission; this hands the same answer to a caller, so a refusal can be
+ * explained and a question can be described by what it NEEDS.
+ *
+ * DERIVED, NEVER DECLARED, and that is the whole design. A stored field would
+ * be a second source of truth for the same fact — and this file already carries
+ * the scar from one of those: `question.topicId === boundary.topicId` compares
+ * our stamp to our stamp and cannot fail. Reading the text answers `derivatives`
+ * for a calculus question stamped `quadratics`, which is the fact a caller
+ * actually needs.
+ *
+ * `null` for a half that cannot be placed. Unknown is a real answer, and naming
+ * the least-bad topic would invent a requirement.
+ */
+export function requirementsFor(
+  question: VerifiedQuestion,
+  curriculum: readonly Subject[],
+): QuestionRequirements {
+  if (curriculum.length === 0) return { fromQuestion: null, fromSolution: null }
+
+  return requirementsOf(question.questionText, question.fullSolution, buildCentroids(curriculum))
 }

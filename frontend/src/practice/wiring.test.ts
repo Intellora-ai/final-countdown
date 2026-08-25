@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { admits, boundaryFor, deliverable } from './wiring';
+import { admits, boundaryFor, deliverable, requirementsFor } from './wiring';
 import { asChapterId, asSubjectId, asTopicId } from './engine/ids';
 import type { TopicProfile } from './engine/plan';
 import type { VerifiedQuestion } from './engine/types';
@@ -230,5 +230,188 @@ describe('a question is admitted only if it belongs', () => {
     const any = question({ questionText: 'Anything at all, really.' } as Partial<VerifiedQuestion>);
 
     expect(admits(any, boundaryFor(PROFILE), []).ok).toBe(true);
+  });
+});
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE SOLUTION HAS TO BE ADMISSIBLE TOO.
+ *
+ * `admits` checked the question three ways and never opened the solution. A
+ * question can sit perfectly inside its topic while the only route to the
+ * answer lives outside it, and that question passes every other gate here.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+describe('a question is refused when its SOLUTION leaves the topic', () => {
+  const CURRICULUM = [
+    {
+      id: 'mathematics',
+      name: 'Mathematics',
+      chapters: [
+        {
+          id: 'algebra',
+          number: 1,
+          name: 'Algebra',
+          topics: [
+            {
+              id: 'functions--graphs',
+              name: 'Quadratic equations',
+              concepts: [{ id: 'q', name: 'Completing the square', numeric: true }],
+            },
+          ],
+        },
+        {
+          id: 'calculus',
+          number: 2,
+          name: 'Differential calculus',
+          topics: [
+            {
+              id: 'derivatives',
+              name: 'Differentiation of a function',
+              concepts: [{ id: 'd', name: 'Derivative and stationary points', numeric: true }],
+            },
+          ],
+        },
+      ],
+    },
+  ] as never;
+
+  it('refuses a quadratics question solved by differentiation', () => {
+    const calculus = question({
+      questionText: 'Find the maximum value of y = -x squared + 6x - 5.',
+      fullSolution: 'Differentiate to get the derivative, then find the stationary point.',
+    } as Partial<VerifiedQuestion>);
+
+    const admission = admits(calculus, boundaryFor(PROFILE), CURRICULUM);
+
+    expect(admission.ok).toBe(false);
+    /* The reason names the SOLUTION, so a log reader is not sent to the question. */
+    expect(admission.reason).toContain('solution');
+  });
+
+  it('admits the same question solved inside the topic', () => {
+    /*
+     * THE PAIR, and it is the whole point. Identical question, different route.
+     * A gate that refused both would be refusing the question, not the
+     * solution, and would have no business reading `fullSolution` at all.
+     */
+    const inScope = question({
+      questionText: 'Find the maximum value of y = -x squared + 6x - 5.',
+      fullSolution: 'Complete the square to write it as -(x - 3) squared + 4, so the maximum is 4.',
+    } as Partial<VerifiedQuestion>);
+
+    expect(admits(inScope, boundaryFor(PROFILE), CURRICULUM).ok).toBe(true);
+  });
+
+  it('admits a solution it cannot place, rather than refusing it', () => {
+    const unreadable = question({
+      questionText: 'Solve the quadratic equation and state its roots.',
+      fullSolution: 'zzz qqq wwww.',
+    } as Partial<VerifiedQuestion>);
+
+    expect(admits(unreadable, boundaryFor(PROFILE), CURRICULUM).ok).toBe(true);
+  });
+});
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * §3 — THE QUESTION DESCRIBES ITSELF, AND SOMETHING READS IT.
+ *
+ * The directive asks for questions carrying `required_topics` rather than
+ * trusting where somebody filed them. That was declined once, on the grounds
+ * that a field nothing reads is how this repository ended up with four engines
+ * that had green tests and no callers -- adding one would have been adding the
+ * disease.
+ *
+ * It has a consumer now. `admits` already computes what the question and its
+ * solution require in order to decide admission; `requirementsFor` returns that
+ * same answer to a caller, so a refusal can be explained and a question can be
+ * filed by what it NEEDS rather than by where it was put.
+ *
+ * DERIVED, NEVER DECLARED. The requirement is read out of the question's own
+ * text every time it is asked for. A stored field would be a second source of
+ * truth for the same fact, and this file already carries the scar from one of
+ * those: `question.topicId === boundary.topicId` compares our stamp to our
+ * stamp and cannot fail.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+describe('a question can say what it requires', () => {
+  const CURRICULUM = [
+    {
+      id: 'mathematics',
+      name: 'Mathematics',
+      chapters: [
+        {
+          id: 'algebra',
+          number: 1,
+          name: 'Algebra',
+          topics: [
+            {
+              id: 'functions--graphs',
+              name: 'Quadratic equations',
+              concepts: [{ id: 'q', name: 'Completing the square', numeric: true }],
+            },
+          ],
+        },
+        {
+          id: 'calculus',
+          number: 2,
+          name: 'Differential calculus',
+          topics: [
+            {
+              id: 'derivatives',
+              name: 'Differentiation of a function',
+              concepts: [{ id: 'd', name: 'Derivative and stationary points', numeric: true }],
+            },
+          ],
+        },
+      ],
+    },
+  ] as never;
+
+  it('names the topic the question needs and the topic the SOLUTION needs', () => {
+    const calculus = question({
+      questionText: 'Find the maximum value of y = -x squared + 6x - 5.',
+      fullSolution: 'Differentiate to get the derivative, then find the stationary point of the function.',
+    } as Partial<VerifiedQuestion>);
+
+    expect(requirementsFor(calculus, CURRICULUM)).toEqual({
+      fromQuestion: 'functions--graphs',
+      fromSolution: 'derivatives',
+    });
+  });
+
+  it('is derived from the text, not from the stamp on the question', () => {
+    /*
+     * THE ASSERTION THAT MAKES THIS WORTH HAVING. The question is stamped
+     * `functions--graphs` and its words are calculus. A field copied from the
+     * stamp would answer `functions--graphs` and be useless; reading the text
+     * answers `derivatives`, which is the fact a caller needs.
+     */
+    const mislabelled = question({
+      questionText: 'Differentiate the function and find its stationary points.',
+      fullSolution: 'The derivative is zero at the stationary point of the function.',
+    } as Partial<VerifiedQuestion>);
+
+    expect(mislabelled.topicId).toBe('functions--graphs');
+    expect(requirementsFor(mislabelled, CURRICULUM).fromQuestion).toBe('derivatives');
+  });
+
+  it('answers null for a half it cannot place, rather than guessing', () => {
+    const unreadable = question({
+      questionText: 'zzz qqq',
+      fullSolution: 'wwww vvvv',
+    } as Partial<VerifiedQuestion>);
+
+    expect(requirementsFor(unreadable, CURRICULUM)).toEqual({
+      fromQuestion: null,
+      fromSolution: null,
+    });
+  });
+
+  it('answers null for everything when there is no curriculum to compare against', () => {
+    const any = question({} as Partial<VerifiedQuestion>);
+
+    expect(requirementsFor(any, [])).toEqual({ fromQuestion: null, fromSolution: null });
   });
 });

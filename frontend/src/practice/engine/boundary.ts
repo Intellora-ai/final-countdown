@@ -12,12 +12,27 @@ export interface TopicBoundary {
   readonly chapterId: ChapterId;
   /** The concepts this topic owns. A question may test one of these, and nothing else. */
   readonly allowedConceptIds: readonly string[];
+  /**
+   * Knowledge a question is permitted to ASSUME but not to test.
+   *
+   * §2 of the quality directive, and the clause it calls extremely important:
+   * "if question.answer depends on out_of_scope_knowledge beyond permitted
+   * dependencies: reject()". A quadratics question may legitimately assume
+   * basic algebra; it may not assume differentiation.
+   *
+   * OPTIONAL, AND ITS ABSENCE MEANS "NO DEPENDENCY POLICY" -- never "nothing is
+   * allowed". Every boundary written before this field omits it, and reading
+   * that as an empty allow-list would refuse every question with any
+   * prerequisite at all: a silent, total regression dressed as a new feature.
+   */
+  readonly allowedDependencies?: readonly string[];
 }
 
 export type BoundaryFailure =
   | 'topic-mismatch'
   | 'concept-outside-topic'
-  | 'prerequisite-is-target';
+  | 'prerequisite-is-target'
+  | 'dependency-outside-scope';
 
 export interface BoundaryResult {
   readonly ok: boolean;
@@ -65,6 +80,29 @@ export function validateQuestionTopic(
    */
   if (question.prerequisites.includes(boundary.topicId)) {
     reasons.push('prerequisite-is-target');
+  }
+
+  /*
+   * §2 — A QUESTION MAY ONLY ASSUME WHAT THE SCOPE PERMITS.
+   *
+   * `prerequisites` has been on the question since it was written and was
+   * checked exactly ONE way above: a prerequisite must not BE the target topic.
+   * Nobody ever asked whether the prerequisite was ALLOWED.
+   *
+   * So a quadratics question whose answer needs differentiation passed: stamped
+   * correctly, concept in scope, prerequisite not circular. The student cannot
+   * answer it, and every gate said yes.
+   *
+   * The guard on `undefined` is what makes this safe to add: an absent list is
+   * a scope with no dependency policy, not a scope that permits nothing.
+   */
+  if (boundary.allowedDependencies !== undefined) {
+    const permitted = new Set(boundary.allowedDependencies);
+    const assumesSomethingForeign = question.prerequisites.some(
+      (prerequisite) => prerequisite !== boundary.topicId && !permitted.has(prerequisite),
+    );
+
+    if (assumesSomethingForeign) reasons.push('dependency-outside-scope');
   }
 
   return { ok: reasons.length === 0, reasons };

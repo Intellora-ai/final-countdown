@@ -42,7 +42,8 @@
  * saying `false` would be an unsupported claim in the other direction.
  */
 
-import { percentile, type Latency } from './latency'
+/* See bench.ts: one definition, one name. */
+import { nearestRank as percentile, type Latency } from './latency'
 
 /* -------------------------------------------------------------------------- */
 /* §30 — hops                                                                 */

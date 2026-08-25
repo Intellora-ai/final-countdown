@@ -1,4 +1,5 @@
 import React from 'react'
+import { plannedSubjects } from '../almanac/plannedCurriculum'
 import { useNavigate, useLocation } from 'react-router-dom'
 import CURRICULUM from '../data/curriculum'
 import { store } from '../data/store'
@@ -13,7 +14,7 @@ export function Sidebar(props: {
   const loc = useLocation()
   const st = store.student()
   if (!st) return null
-  const chosen = CURRICULUM.subjectsFor(st.cls, st.stream).filter((s) => st.subjects.indexOf(s.id) >= 0)
+  const chosen = plannedSubjects(st.cls).filter((s) => st.subjects.indexOf(s.id) >= 0)
   const roll = store.rollups()
   const plan = store.plan()
   const isToday = loc.pathname === '/today' || loc.pathname === '/'

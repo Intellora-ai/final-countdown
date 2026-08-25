@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
@@ -184,7 +185,21 @@ describe('it is total and deterministic', () => {
  * plain import is available and no boundary justifies a second copy.
  */
 describe('the origin list is declared once', () => {
-  const DIR = new URL('.', import.meta.url).pathname
+  /* `fileURLToPath`, NOT `.pathname`.
+
+   *
+
+   * A file URL percent-encodes, so on a checkout whose path contains a space
+
+   * `.pathname` yields `/Users/.../final%20countdown/...` and every read of it
+
+   * fails with ENOENT -- the test then reports the product as broken when the
+
+   * only broken thing is the path it built. This repository is checked out at
+
+   * exactly such a path. */
+
+  const DIR = fileURLToPath(new URL('.', import.meta.url))
 
   /** Files that build a runtime array literal out of origin strings. */
   function declaringFiles(): string[] {

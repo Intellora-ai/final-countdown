@@ -1,0 +1,263 @@
+{
+  "sources": {
+    "maths-ix": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart1/Maths_SecP1IX_2026-27.pdf",
+      "file": "maths-ix.pdf",
+      "sha256": "932ea66d6fbfcefce8182f28ab921c886187f5dea674321088b5c7230bbe6c32",
+      "bytes": 572533,
+      "fetchedAt": "2026-08-24T19:26:14.894Z"
+    },
+    "maths-x": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart1/Maths_SecP1X_2026-27.pdf",
+      "file": "maths-x.pdf",
+      "sha256": "d773e7c12b99e0bd498067e2b8268c76d0496bf9cad1c9e41c8652ab68b412a5",
+      "bytes": 270782,
+      "fetchedAt": "2026-08-24T19:26:15.031Z"
+    },
+    "maths-advanced": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart1/MathsAd_SecP1_2026-27.pdf",
+      "file": "maths-advanced.pdf",
+      "sha256": "24cb27010ff2c13832c58b3aaf4213537148a7396812982e34cb752e0a718cb4",
+      "bytes": 7486797,
+      "fetchedAt": "2026-08-24T19:26:17.960Z"
+    },
+    "science-ix-x": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart1/ScienceSt_SecP1_2026-27.pdf",
+      "file": "science-ix-x.pdf",
+      "sha256": "ab19589aede5ad8b0b2f87964914c1a55a987f39032903871baa973c02ed6e24",
+      "bytes": 378470,
+      "fetchedAt": "2026-08-24T19:26:18.111Z"
+    },
+    "science-x": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart1/Science_SecP1_2026-27.pdf",
+      "file": "science-x.pdf",
+      "sha256": "1bec4a9e44452b22c9d422d8cb528b4de30598f56c243461845165771df7bc37",
+      "bytes": 279280,
+      "fetchedAt": "2026-08-24T19:26:18.207Z"
+    },
+    "science-advanced": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart1/ScienceAd_SecP1_2026-27.pdf",
+      "file": "science-advanced.pdf",
+      "sha256": "2f78065cf205139edc9423d4374848c0da999d89fb0f6798261b7c4b43ff8c3f",
+      "bytes": 2584087,
+      "fetchedAt": "2026-08-24T19:26:19.097Z"
+    },
+    "social-science-ix": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart1/SocialScience_SecP1IX_2026-27.pdf",
+      "file": "social-science-ix.pdf",
+      "sha256": "c81d9237b8e74d462e57776e162d534ff04feff27ed72eb236621361a9061735",
+      "bytes": 332616,
+      "fetchedAt": "2026-08-24T19:26:19.234Z"
+    },
+    "social-science-x": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart1/SocialScience_SecP1X_2026-27.pdf",
+      "file": "social-science-x.pdf",
+      "sha256": "99d21fd5e2fdddb990797eec5450c31098438c6a7ecc4406fce401e5e88083eb",
+      "bytes": 524927,
+      "fetchedAt": "2026-08-24T19:26:19.412Z"
+    },
+    "english-ix": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart1/English_LL_SecP1IX_2026-27.pdf",
+      "file": "english-ix.pdf",
+      "sha256": "bc533abf3af07ceae60ad94790f975ac6458b4d86554cb311f37ad3463e9aa18",
+      "bytes": 851449,
+      "fetchedAt": "2026-08-24T19:26:19.690Z"
+    },
+    "english-x": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart1/English_LL_SecP1_2026-27.pdf",
+      "file": "english-x.pdf",
+      "sha256": "f07f6460813354f37a0291c2982bdd4694044dc6b0b877a0cdc2d3a753287758",
+      "bytes": 815903,
+      "fetchedAt": "2026-08-24T19:26:19.995Z"
+    },
+    "computer-applications-ix": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart1/Computer_Applications_SecP1IX_2026-27.pdf",
+      "file": "computer-applications-ix.pdf",
+      "sha256": "0d9f887a6b3a39ca838a2a9636c62663d5d48decc83dd96ea0280d3d1414ed8b",
+      "bytes": 237602,
+      "fetchedAt": "2026-08-24T19:26:20.102Z"
+    },
+    "computer-applications-x": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart1/Computer_Applications_SecP1X_2026-27.pdf",
+      "file": "computer-applications-x.pdf",
+      "sha256": "ed542a2163192409a54477f79544d3831c0928b9ecf169d4dec4c3b9a2026ae9",
+      "bytes": 86621,
+      "fetchedAt": "2026-08-24T19:26:20.266Z"
+    },
+    "elements-of-business-ix": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart1/Elements_of_Business_SecP1IX_2026-27.pdf",
+      "file": "elements-of-business-ix.pdf",
+      "sha256": "22d880bf8bac6210742c0da83171600c84a2363cbfcef59c26d3a62054753f33",
+      "bytes": 126249,
+      "fetchedAt": "2026-08-24T19:26:20.317Z"
+    },
+    "elements-of-business-x": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart1/Elements_of_Business_SecP1X_2026-27.pdf",
+      "file": "elements-of-business-x.pdf",
+      "sha256": "d01e13cddbf83c071a8d3905fa072e4b6c732025fd0f7483d499e44270356fa8",
+      "bytes": 117607,
+      "fetchedAt": "2026-08-24T19:26:20.405Z"
+    },
+    "elements-of-accountancy-ix": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart1/Elements_of_BK_Acc_SecP1IX_2026-27.pdf",
+      "file": "elements-of-accountancy-ix.pdf",
+      "sha256": "7f3e506bb84dbb4fa0fa0d26a31ace47f35cf168cabed5a568f61542e57ed2f5",
+      "bytes": 120197,
+      "fetchedAt": "2026-08-24T19:26:20.473Z"
+    },
+    "elements-of-accountancy-x": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart1/Elements_of_BK_Acc_SecP1X_2026-27.pdf",
+      "file": "elements-of-accountancy-x.pdf",
+      "sha256": "40f9c142d1809f4b042b2452d16e4a8fb82ff4455f8859991943a93e6e405197",
+      "bytes": 119794,
+      "fetchedAt": "2026-08-24T19:26:20.535Z"
+    },
+    "physics": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Physics_SecP2_2026-27.pdf",
+      "file": "physics.pdf",
+      "sha256": "9e32271cf5a86caa605cffe2a4b5e19710abc3d3a8715ef725ba78cd94caf1f7",
+      "bytes": 345709,
+      "fetchedAt": "2026-08-24T19:26:20.682Z"
+    },
+    "chemistry": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf",
+      "file": "chemistry.pdf",
+      "sha256": "5610f09d357d3ccc9a7b39fc29cb7b1f4530847753783b16c72fff691acd2418",
+      "bytes": 639598,
+      "fetchedAt": "2026-08-24T19:26:20.919Z"
+    },
+    "biology": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Biology_SecP2_2026-27.pdf",
+      "file": "biology.pdf",
+      "sha256": "3a5767515b41b12b9356151e759beba48bb15a1b711b96c321fa273a7fa7a6ee",
+      "bytes": 414058,
+      "fetchedAt": "2026-08-24T19:26:21.092Z"
+    },
+    "biotechnology": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/BioTechnology_SecP2_2026-27.pdf",
+      "file": "biotechnology.pdf",
+      "sha256": "77073224da65acbe0f8d4f5d51bd4b28d440c93017ad5c9ce435f718dcb1ff0e",
+      "bytes": 531480,
+      "fetchedAt": "2026-08-24T19:26:21.325Z"
+    },
+    "maths-senior": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Maths_SecP2_2026-27.pdf",
+      "file": "maths-senior.pdf",
+      "sha256": "5bf4105d4076189fe00b879fd6d41ffadec87a894a078a7fb912b2f219769572",
+      "bytes": 452732,
+      "fetchedAt": "2026-08-24T19:26:21.520Z"
+    },
+    "applied-maths": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Applied_Mathematics_SecP2_2026-27.pdf",
+      "file": "applied-maths.pdf",
+      "sha256": "3125b1b6b00d8081bff34a1276d5f5203daa719af961d943380b4b0cb9d35a70",
+      "bytes": 703048,
+      "fetchedAt": "2026-08-24T19:26:21.814Z"
+    },
+    "accountancy": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Accountancy_SecP2_2026-27.pdf",
+      "file": "accountancy.pdf",
+      "sha256": "4a87dbd15758e42c2aa454d83708299a04b6fc12896392b13d12b9ae857ecc27",
+      "bytes": 206804,
+      "fetchedAt": "2026-08-24T19:26:21.899Z"
+    },
+    "business-studies": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/BusinessStudies_SecP2_2026-27.pdf",
+      "file": "business-studies.pdf",
+      "sha256": "94230c4d0627fc919ca96dd02dd1df1f21a065dd1f04455df364df7350fa8cb2",
+      "bytes": 311404,
+      "fetchedAt": "2026-08-24T19:26:22.009Z"
+    },
+    "economics": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Economics_SecP2_2026-27.pdf",
+      "file": "economics.pdf",
+      "sha256": "927800c6e72b377509533fbe281fb1aa72383e20a3ab5b7b480bd976330b49fa",
+      "bytes": 226045,
+      "fetchedAt": "2026-08-24T19:26:22.109Z"
+    },
+    "history": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/History_SecP2_2026-27.pdf",
+      "file": "history.pdf",
+      "sha256": "7c0c1280f90db4cf7f38824723ddda852c250bcbb5a458a20c2977c4381e53c4",
+      "bytes": 706235,
+      "fetchedAt": "2026-08-24T19:26:22.382Z"
+    },
+    "geography": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Geography_SecP2_2026-27.pdf",
+      "file": "geography.pdf",
+      "sha256": "00e85430d75f8063902943817a57c9f22f037efb1d188b26d342b88550f8b90b",
+      "bytes": 448847,
+      "fetchedAt": "2026-08-24T19:26:22.535Z"
+    },
+    "political-science": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/PoliticalScience_SecP2_2026-27.pdf",
+      "file": "political-science.pdf",
+      "sha256": "0914d089d6cd78cf56eec27fff9d42400706d8edf04163a9106b242df9e617e8",
+      "bytes": 603854,
+      "fetchedAt": "2026-08-24T19:26:22.760Z"
+    },
+    "sociology": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Sociology_SecP2_2026-27.pdf",
+      "file": "sociology.pdf",
+      "sha256": "8b6ba4e2bd232445be46fb01a64030a6d1b7af3d0cd066fefca73a0850a10684",
+      "bytes": 219657,
+      "fetchedAt": "2026-08-24T19:26:22.850Z"
+    },
+    "psychology": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Psychology_SecP2_2026-27.pdf",
+      "file": "psychology.pdf",
+      "sha256": "98f63864c0e161fc5d31347764e1edf591de7ae2028a9351c5519fb3429d216a",
+      "bytes": 470069,
+      "fetchedAt": "2026-08-24T19:26:23.052Z"
+    },
+    "legal-studies": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/LegalStudies_SecP2_2026-27.pdf",
+      "file": "legal-studies.pdf",
+      "sha256": "d1f7836c059406e66d6b092cffddb5120adb27a826be7b6413936fc330dd7348",
+      "bytes": 366677,
+      "fetchedAt": "2026-08-24T19:26:23.204Z"
+    },
+    "computer-science": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Computer_Science_SecP2_2026-27.pdf",
+      "file": "computer-science.pdf",
+      "sha256": "a46821a87292e5feb296a1ffdb5163f413258d1cb378b871c745539e34f96e82",
+      "bytes": 627936,
+      "fetchedAt": "2026-08-24T19:26:23.448Z"
+    },
+    "informatics-practices": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Informatics_Practices_SecP2_2026-27.pdf",
+      "file": "informatics-practices.pdf",
+      "sha256": "05747d6271e50d1221f312c710a3175e967f6d2d0f29a0f2cbc992f8267f8d34",
+      "bytes": 798881,
+      "fetchedAt": "2026-08-24T19:26:23.762Z"
+    },
+    "english-core": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/English_core_SecP2_2026-27.pdf",
+      "file": "english-core.pdf",
+      "sha256": "d2af35ab80de3dc6f1f62f3cd2b58f9cc95a39ca1d47abc45412a1034459092c",
+      "bytes": 849440,
+      "fetchedAt": "2026-08-24T19:26:24.070Z"
+    },
+    "entrepreneurship": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Enterprenuership_SecP2_2026-27.pdf",
+      "file": "entrepreneurship.pdf",
+      "sha256": "243ac18d676d6f1912d5b8417a883106535652047652b33e0b66e04d2ffac8c0",
+      "bytes": 268405,
+      "fetchedAt": "2026-08-24T19:26:24.173Z"
+    },
+    "physical-education": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/PhysicalEducation_SecP2_2026-27.pdf",
+      "file": "physical-education.pdf",
+      "sha256": "5a063f5bdc3a92d60a4a86e83c985ffafc7d716359ab511cb2f09a0275c02c7a",
+      "bytes": 411653,
+      "fetchedAt": "2026-08-24T19:26:24.331Z"
+    },
+    "home-science": {
+      "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Home_Science_SecP2_2026-27.pdf",
+      "file": "home-science.pdf",
+      "sha256": "a8bb5904a25b50a3a4b145cca47f74fa9a6f9e4cf66d39a5fec09e50e1358fdb",
+      "bytes": 320263,
+      "fetchedAt": "2026-08-24T19:26:24.556Z"
+    }
+  }
+}

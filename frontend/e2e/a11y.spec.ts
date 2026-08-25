@@ -120,6 +120,58 @@ async function focused(page: Page): Promise<string> {
  * Waiting on the CONDITION (the lesson toggle exists) rather than on a duration
  * is also what keeps this off the law gate's list of timing races.
  */
+/**
+ * Wait until the ROUTE has finished rendering, not merely finished loading.
+ *
+ * MEASURED FLAKE, NOT A PRECAUTION.
+ * `today: color-contrast` was reported by axe on some runs and not others, on
+ * the same commit and the same machine. Rate before this wait, running the
+ * staleness check six times under `reduced-motion`: 2 passed, 4 failed. The two
+ * outcomes look like a project difference if you sample each project once,
+ * which is exactly the wrong conclusion this measurement prevented.
+ *
+ * The cause is that `networkidle` says the requests stopped, not that the page
+ * finished. The dashboard shell already publishes the real signal --
+ * `App.tsx` sets `data-curriculum="loading"` and flips it to `"ready"` -- and
+ * every assertion in this file counts violations, so a page scanned early
+ * simply reports a DIFFERENT number rather than an obviously broken one.
+ *
+ * A condition, never a duration: waiting on a number here would be the same
+ * race with a stopwatch attached.
+ */
+async function shellReady(page: Page): Promise<void> {
+  /* 1. The shell says the curriculum arrived. */
+  await page.locator('[data-curriculum="ready"]').waitFor({ state: 'attached', timeout: 30_000 })
+
+  /* 2. Nothing is still announcing that it is loading. A skeleton and its real
+        content do not have the same colours, and axe scores whichever it finds. */
+  await page.waitForFunction(
+    () =>
+      ![...document.querySelectorAll('[role="status"], .lc-caption')].some((el) =>
+        /^Loading\b/.test((el.textContent ?? '').trim()),
+      ),
+    undefined,
+    { timeout: 30_000 },
+  )
+
+  /* 3. Fonts, because font metrics decide what overlaps what. */
+  await page.evaluate(() => document.fonts.ready.then(() => undefined))
+
+  /* 4. Two consecutive frames agree about the layout. Cheaper and more honest
+        than a sleep, and it cannot pass on a blank page because (1) and (2)
+        already demanded content. */
+  await page.waitForFunction(
+    () =>
+      new Promise<boolean>((resolve) => {
+        const measure = () => document.body.getBoundingClientRect().height
+        const first = measure()
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve(measure() === first)))
+      }),
+    undefined,
+    { timeout: 30_000 },
+  )
+}
+
 async function canvasReady(page: Page): Promise<void> {
   /* `settle`, not a bespoke wait. The first version of this function waited for
      the Lesson toggle, which sits OUTSIDE both Suspense boundaries -- so it was
@@ -143,6 +195,7 @@ test.describe('accessibility across a journey', () => {
     await page.goto(route.path)
       await page.waitForLoadState('networkidle')
       if (route.name === 'canvas') await canvasReady(page)
+      else await shellReady(page)
       const onLoad = await scan(page)
 
       /* STATE 2 -- after a keyboard user has moved through it. Disabled
@@ -183,6 +236,7 @@ test.describe('accessibility across a journey', () => {
     await page.goto(route.path)
       await page.waitForLoadState('networkidle')
       if (route.name === 'canvas') await canvasReady(page)
+      else await shellReady(page)
 
       const start = await focused(page)
       expect(start).toBe('body')
@@ -214,6 +268,7 @@ test.describe('accessibility across a journey', () => {
     await page.goto(route.path)
       await page.waitForLoadState('networkidle')
       if (route.name === 'canvas') await canvasReady(page)
+      else await shellReady(page)
       const found = new Set(await scan(page))
       for (const id of baseline[route.name] ?? []) {
         if (!found.has(id)) stale.push(`${route.name}: ${id}`)

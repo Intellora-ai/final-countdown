@@ -70,6 +70,7 @@ describe('model-written questions against the gates', () => {
       if (!spec) continue;
 
       let verdict = 'PASS';
+      let detail = '';
       try {
         const candidate = await provider.generate(spec, 0, new AbortController().signal);
         const checked = verify({
@@ -80,6 +81,7 @@ describe('model-written questions against the gates', () => {
 
         if (!checked.ok) {
           verdict = `verify:${checked.failures.map((f) => f.check).join('+')}`;
+          detail = checked.failures.map((f) => f.detail).join(' | ');
         } else if (driftsFrom(candidate.questionText, topic.id, centroids)) {
           verdict = 'drift';
         } else {
@@ -93,7 +95,7 @@ describe('model-written questions against the gates', () => {
         }
 
         lines.push(`${verdict === 'PASS' ? 'PASS ' : 'FAIL '} ${topic.name.slice(0, 44)}
-      ${candidate.questionText.slice(0, 110)}${verdict === 'PASS' ? '' : `\n      -> ${verdict}`}`);
+      ${candidate.questionText.slice(0, 110)}${verdict === 'PASS' ? '' : `\n      -> ${verdict}\n      -> ${detail.slice(0, 190)}`}`);
       } catch (error) {
         verdict = `error:${error instanceof Error ? error.message.slice(0, 60) : 'unknown'}`;
         lines.push(`FAIL  ${topic.name.slice(0, 44)}\n      -> ${verdict}`);

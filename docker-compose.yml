@@ -1,0 +1,56 @@
+# PostgreSQL for local development and for running tests/db by hand.
+#
+# CI DOES NOT USE THIS FILE.
+#
+# `.github/workflows/integration.yml` declares PostgreSQL as a GitHub service
+# container instead, which is faster: the runner image already has the layers,
+# so nothing is pulled per job. Two definitions of one dependency can drift, so
+# the version is pinned identically in both and the reason is written in both.
+#
+# This file exists for the case CI cannot cover -- somebody running
+# `pytest tests/db` on a laptop that has no PostgreSQL installed.
+#
+#   docker compose up -d postgres
+#   export LEARNING_OS_TEST_DATABASE_URL='postgresql+psycopg://learning:learning@localhost:5433/postgres'
+#   cd learning-os && python3 -m pytest tests/db
+
+services:
+  postgres:
+    # PINNED TO A MINOR VERSION, not `:16` and certainly not `:latest`.
+    # A floating tag means the same commit runs against different database
+    # versions on different days, which makes a green result unrepeatable and
+    # therefore not evidence. Same reasoning as the SHA-pinned actions.
+    image: postgres:16.10-alpine
+
+    environment:
+      POSTGRES_USER: learning
+      # A DEVELOPMENT PASSWORD FOR A THROWAWAY CONTAINER, and it is committed on
+      # purpose. It grants access to nothing but a local scratch database that
+      # `tests/db` creates and drops. Writing it here rather than in a `.env`
+      # keeps it obvious that it is not a secret; a placeholder that looked like
+      # a secret would invite somebody to replace it with a real one.
+      POSTGRES_PASSWORD: learning
+      POSTGRES_DB: postgres
+
+    ports:
+      # 5433, not 5432. A developer with PostgreSQL already running locally --
+      # which is the common case -- would otherwise get a port clash, or worse,
+      # silently connect to their own server and let a test suite that creates
+      # and drops databases loose on it.
+      - "5433:5432"
+
+    # No named volume. This database is meant to be disposable, and a volume
+    # that survives `docker compose down` is how a "fresh" database quietly
+    # keeps yesterday's rows and yesterday's migration state.
+    tmpfs:
+      - /var/lib/postgresql/data
+
+    healthcheck:
+      # `docker compose up -d` returns as soon as the container STARTS, which is
+      # several seconds before PostgreSQL accepts connections. Without a
+      # healthcheck the first test run after a cold start fails on connection
+      # refused, and that reads as a broken test rather than as a race.
+      test: ["CMD-SHELL", "pg_isready -U learning -d postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 15

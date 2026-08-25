@@ -177,3 +177,317 @@ describe('the subject audit', () => {
     expect(report.ok).toBe(false)
   })
 })
+
+/*
+ * ────────────────────────────────────────────────────────────────────────────
+ * WHAT POINTING THIS FILTER AT A DOCUMENT ITS AUTHOR NEVER SAW REVEALED.
+ *
+ * Every rule here was written against CBSE school-syllabus PDFs and measured
+ * against them. Run unchanged over the entrance-exam PDFs, it rejected:
+ *
+ *     jee-main-2026    64 of 160 topics   40%    57 of them for `too-long`
+ *     neet-ug-2026     79 of 468 topics   17%    66 of them for `too-long`
+ *     clat-2027        10 of  19 skills   53%     6 of them for `instruction`
+ *
+ * Command: reasonsUnusable() over every topic string in src/data/exams/*.ts.
+ *
+ * Those are not junk. An exam board publishes a topic as a dense comma list --
+ * "Matrices, algebra of matrices, type of matrices, determinants..." is one
+ * real, practisable JEE topic that happens to run past fourteen words. And
+ * CLAT publishes SKILLS, which are imperative sentences by design, because
+ * CLAT states outright that it tests aptitude rather than a syllabus.
+ *
+ * `too-long` and `instruction` are PROXIES for "this is a fragment", and both
+ * are tuned to one document style. Measured on the exam corpus they scored
+ * 0 true positives and 123 false positives. They stay for school syllabus,
+ * where they earn their place; the caller states which style it is grading.
+ * That is a real distinction between two kinds of document, not a carve-out
+ * for the input that broke.
+ *
+ * `marks-row`, `continuation`, `bare-label`, `too-short`, `enumerated` and
+ * `prose` are unchanged and apply to both.
+ * ────────────────────────────────────────────────────────────────────────────
+ */
+describe('grading a document the rules were not written for', () => {
+  const JEE_TOPIC =
+    'Matrices, algebra of matrices, type of matrices, determinants and matrices of order two and three, evaluation of determinants, area of triangles using determinants';
+  const CLAT_SKILL = 'Draw inferences and conclusions based on the passage';
+
+  it('lets a dense comma-list from an exam PDF through', () => {
+    expect(reasonsUnusable(JEE_TOPIC, 'exam')).toEqual([]);
+    /*
+     * The PAIR. The same string is still too long for a school CONCEPT name,
+     * where every real entry is short and a long one means the extractor ran
+     * two lines together. A rule asserted only to pass is satisfied by
+     * returning nothing at all.
+     */
+    expect(reasonsUnusable(JEE_TOPIC, 'syllabus')).toEqual(['too-long']);
+  });
+
+  it('lets a CLAT skill through, which is an imperative on purpose', () => {
+    expect(reasonsUnusable(CLAT_SKILL, 'exam')).toEqual([]);
+    expect(reasonsUnusable(CLAT_SKILL, 'syllabus')).toEqual(['instruction']);
+  });
+
+  it('defaults to school syllabus, so an un-styled call loses nothing', () => {
+    /*
+     * If the parameter defaulted to `exam`, every existing caller would
+     * silently lose two rules and this entire file would keep passing.
+     */
+    expect(reasonsUnusable(JEE_TOPIC)).toEqual(['too-long']);
+    expect(reasonsUnusable(CLAT_SKILL)).toEqual(['instruction']);
+  });
+
+  it('still fires the rules that catch actual wreckage, in BOTH styles', () => {
+    for (const style of ['syllabus', 'exam']) {
+      expect(reasonsUnusable('Part A', style), style).toEqual(['bare-label']);
+      expect(reasonsUnusable('Example 1', style), style).toEqual(['bare-label']);
+      expect(
+        reasonsUnusable('Statistical Tools and Interpretation 25 40', style).length,
+        style,
+      ).toBeGreaterThan(0);
+      expect(reasonsUnusable('and the learners are expected to', style).length, style).toBeGreaterThan(0);
+      expect(reasonsUnusable('of', style), style).toContain('too-short');
+    }
+  });
+});
+
+/*
+ * `Solutions` is a chemistry unit in BOTH the JEE and the NEET syllabus, and
+ * this filter deleted it. `solution` is on the bare-label list because a worked
+ * example ends with that word, and the rule allowed any trailing letters, so
+ * the plural matched the singular label. One real unit lost per exam, silently,
+ * indistinguishable from a unit that was never published.
+ *
+ * A label is now either the bare word, or the word followed by a SEPARATE
+ * token -- `Part A`, `Unit 1`. `Solutions` is one word and is not on the list.
+ */
+describe('a label word that is also a real topic', () => {
+  it('keeps the chemistry unit named Solutions', () => {
+    expect(reasonsUnusable('SOLUTIONS')).toEqual([]);
+    expect(reasonsUnusable('Solutions')).toEqual([]);
+  });
+
+  it('still catches the singular label it was written for', () => {
+    /* The PAIR. Without this, deleting the whole rule would pass the test above. */
+    expect(reasonsUnusable('Solution')).toEqual(['bare-label']);
+    expect(reasonsUnusable('Solution 3')).toEqual(['bare-label']);
+  });
+});
+
+/*
+ * `The universal law of gravitation` is a real unit in the JEE syllabus, a real
+ * unit in the NEET syllabus, and this filter deleted all 31 topics like it.
+ *
+ * `the` sits on the continuation list because a chopped paragraph reads
+ * "the best approximations to be discovered over human history". True -- and a
+ * determiner is also how an enormous number of genuine headings begin: `The
+ * Solid State`, `The Living World`, `The p-Block Elements`.
+ *
+ * CASE IS WHAT SEPARATES THEM, and it is structural rather than a list. A
+ * heading is capitalised. A sentence chopped in half is not, because the words
+ * before it carried the capital. So a determiner opens a continuation only when
+ * it is lower-case; a connective -- `and`, `for`, `including`, `e.g.` -- opens
+ * one either way, because no heading has ever begun `And ...`.
+ */
+describe('a determiner starts plenty of real headings', () => {
+  it('keeps a capitalised heading that begins with a determiner', () => {
+    for (const name of [
+      'The universal law of gravitation',
+      'The Solid State',
+      'These are the p-Block Elements',
+      'A note on notation',
+      'Its structure and bonding',
+    ]) {
+      expect(reasonsUnusable(name), name).toEqual([]);
+    }
+  });
+
+  it('still catches the lower-case chopped sentence it was written for', () => {
+    /* The PAIR. Deleting the determiners from the list entirely would pass the
+     * test above and fail every one of these. */
+    for (const name of [
+      'the best approximations to be discovered over human history',
+      'this is continued from the previous line',
+      'their relationship to one another',
+      'which is why the value changes',
+    ]) {
+      expect(reasonsUnusable(name), name).toContain('continuation');
+    }
+  });
+
+  it('catches a connective whatever its case, because no heading starts that way', () => {
+    for (const name of [
+      'And the resulting equation',
+      'and the resulting equation',
+      'For example, a simple pendulum',
+      'Including the effects of friction',
+      'e.g. a simple pendulum',
+    ]) {
+      expect(reasonsUnusable(name), name).toContain('continuation');
+    }
+  });
+});
+
+/*
+ * `Proofs of irrationality of` — read off the practice screen, mid-session.
+ *
+ * The extractor cut the line before "√2, √3 and √5". The filter passed it: it
+ * is five words, capitalised, starts with a noun, and has no full stop. Every
+ * structural rule here says "heading".
+ *
+ * What gives it away is the END. A heading names a thing, so it ends on the
+ * thing it names. A phrase ending in a preposition or a conjunction is still
+ * reaching for its object, and the object is on the line that was cut off.
+ * That is the same shape as `continuation`, read from the other end -- and it
+ * is a shape, not a list of known-bad titles.
+ */
+describe('a heading that stops mid-reach', () => {
+  it('rejects a phrase that ends on a preposition', () => {
+    for (const name of [
+      'Proofs of irrationality of',
+      'The relationship between',
+      'Applications in',
+      'Comparison with',
+      'Motion of a body under',
+    ]) {
+      expect(reasonsUnusable(name), name).toContain('cut-off');
+    }
+  });
+
+  it('keeps a heading that ends on the thing it names', () => {
+    /*
+     * The PAIR, and it matters more than usual here: these all CONTAIN the same
+     * words in the middle. A rule that searched anywhere in the string instead
+     * of at the end would delete every one of them.
+     */
+    for (const name of [
+      'Proofs of irrationality of root 2',
+      'The relationship between pressure and volume',
+      'Applications in daily life',
+      'Comparison with the ideal gas law',
+      'Motion of a body under gravity',
+    ]) {
+      expect(reasonsUnusable(name), name).toEqual([]);
+    }
+  });
+
+  it('does not fire on a word that merely ends in those letters', () => {
+    /* `proof` ends in "of". Anchoring to the letters and not the WORD would
+     * delete a great many real headings and look like a mystery. */
+    for (const name of ['A formal proof', 'Angle of incidence', 'Work done on a gas']) {
+      expect(reasonsUnusable(name), name).toEqual([]);
+    }
+  });
+});
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * A REGRESSION THIS FILE'S OWN EARLIER FIX INTRODUCED.
+ *
+ * `SOLUTIONS` is a real chemistry unit and the bare-label rule was deleting it,
+ * because the rule allowed any trailing letters and "solution" is on the label
+ * list. The fix required the designator to be a SEPARATE token: `Part A` and
+ * `Unit 1` still match, `Solutions` does not.
+ *
+ * Requiring a SPACE was too narrow. Counted across class 9-12 after that fix,
+ * the biggest chapters with no practisable classification were:
+ *
+ *     Chapter-1   29 topics      Unit-1      38 topics
+ *     Chapter-8   25 topics      Sub-Topic   36 topics
+ *     Chapter-13  22 topics
+ *
+ * A hyphen is a separator exactly as a space is. The rule was written from a
+ * corpus that happened to use spaces, and the moment a different extractor used
+ * hyphens the whole class walked through -- roughly 150 topics filed under
+ * headings that name nothing.
+ *
+ * The separator is now "a space OR a hyphen", which keeps the `Solutions` fix
+ * intact: that word still has no separator at all.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+describe('a label with a hyphen is still a label', () => {
+  it('rejects the hyphenated forms the extractor actually produced', () => {
+    for (const name of ['Chapter-1', 'Unit-1', 'Chapter-13', 'Sub-Topic', 'Part-A', 'Unit-IV']) {
+      expect(reasonsUnusable(name), name).toContain('bare-label');
+    }
+  });
+
+  it('still rejects the spaced forms, which is why the rule exists', () => {
+    for (const name of ['Part A', 'Unit 1', 'Chapter 13', 'Example 1']) {
+      expect(reasonsUnusable(name), name).toContain('bare-label');
+    }
+  });
+
+  it('still keeps SOLUTIONS, which is what the previous fix was for', () => {
+    /*
+     * THE PAIR THAT MATTERS MOST HERE. Widening the separator must not undo
+     * the fix that made the separator necessary. `Solutions` has no separator,
+     * so it is not a label however many separators are allowed.
+     */
+    expect(reasonsUnusable('SOLUTIONS')).toEqual([]);
+    expect(reasonsUnusable('Solutions')).toEqual([]);
+  });
+
+  it('does not reject a real hyphenated topic name', () => {
+    /*
+     * The other pair. A hyphen is ordinary punctuation in a heading, and a rule
+     * that treated every hyphenated phrase as a label would delete a great many
+     * genuine topics.
+     */
+    for (const name of ['Half-life of a radioactive sample', 'p-Block elements', 'Sub-atomic particles']) {
+      expect(reasonsUnusable(name), name).toEqual([]);
+    }
+  });
+});
+
+/*
+ * `● If there were no friction` — found by the drift gate, not by reading a
+ * diff. A statistics question scored nearest to that topic, which is how a
+ * topic that names nothing announces itself: it attracts anything.
+ *
+ * Two things are wrong with it and only one was already covered. It opens with
+ * a BULLET CHARACTER, which no heading does -- a heading that still carries its
+ * list marker was lifted out of a list, and the words after the marker are a
+ * list item rather than a title. `If` then makes it a conditional clause, which
+ * is a sentence fragment by construction: a heading names a thing, and "if X"
+ * names nothing until the other half arrives.
+ */
+describe('a heading that is still wearing its bullet', () => {
+  it('rejects a line that opens with a list marker', () => {
+    for (const name of [
+      '● If there were no friction',
+      '• Types of chemical reactions',
+      '- Newtons second law',
+      '· Sum of the angles',
+      '*  Area of a triangle',
+    ]) {
+      expect(reasonsUnusable(name), name).toContain('list-marker');
+    }
+  });
+
+  it('keeps a heading that merely contains punctuation', () => {
+    /*
+     * THE PAIR. A rule that rejected every bullet-like character anywhere would
+     * delete real headings -- a hyphen inside a word, a middle dot in a
+     * chemical name -- and the marker only means anything at the START.
+     */
+    for (const name of [
+      'Half-life of a radioactive sample',
+      'p-Block elements',
+      'Sum of the angles of a triangle',
+    ]) {
+      expect(reasonsUnusable(name), name).toEqual([]);
+    }
+  });
+
+  it('rejects a conditional clause used as a heading', () => {
+    /*
+     * "If there were no friction" is half a sentence. A heading names a thing;
+     * a conditional names nothing until its consequence arrives, and the
+     * consequence was on the line the extractor did not take.
+     */
+    expect(reasonsUnusable('If there were no friction')).toContain('continuation');
+    expect(reasonsUnusable('When a body is at rest')).toContain('continuation');
+  });
+});

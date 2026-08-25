@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { asChapterId, asTopicId } from './engine/ids'
+import { chapterById, chapterOfTopic, hasTopic, subjectOfChapter, topicById, topicsOfChapter } from './registry'
+import { Suspense } from 'react'
+import { FigureView } from '../canvas/render/FigureView'
+import { useEffect, useMemo, useRef, type KeyboardEvent as ReactKeyboardEvent, useState } from 'react'
+import { STEERS, type Steer } from './engine/steer'
+import { asChapterId, asSubjectId, asTopicId } from './engine/ids'
 
 import {
-  CHAPTER_BY_ID,
-  CHAPTER_OF_TOPIC,
-  TOPIC_BY_ID,
-  topicsOfChapter,
   type TopicConcept,
 } from './curriculum'
 import { adviceFrom, orderByNeed, signalFrom } from './engine/mastery'
@@ -44,6 +44,25 @@ function chooseProvider() {
     return modelProvider({ endpoint: import.meta.env['VITE_PRACTICE_ENDPOINT'] });
   }
   return fixtureProvider();
+}
+
+/** The words on the four corner controls, and the marks beside them. */
+const STEER_LABEL: Record<Steer, string> = {
+  'more-like-this': 'More like this',
+  different: 'Different',
+  harder: 'Harder',
+  easier: 'Easier',
+}
+
+/*
+ * `aria-hidden`, because a screen reader announcing "clockwise open circle
+ * arrow" adds nothing the label has not already said.
+ */
+const STEER_GLYPH: Record<Steer, string> = {
+  'more-like-this': '\u21bb',
+  different: '\u2260',
+  harder: '\u2191',
+  easier: '\u2193',
 }
 
 /** Everything the browser will hand focus to inside the card. */
@@ -224,7 +243,7 @@ export function SessionView() {
     const result = useSessionStore.getState().history[0]
     if (result && result.answeredCount > 0) {
       const topicId = result.topicId
-      if (TOPIC_BY_ID.has(topicId)) {
+      if (hasTopic(topicId)) {
         recordPractice(topicId, result.answeredCount, result.correctCount)
       }
     }
@@ -237,8 +256,8 @@ export function SessionView() {
 
   const scope =
     launchedFrom.kind === 'chapter'
-      ? (CHAPTER_BY_ID.get(launchedFrom.id)?.name ?? 'this chapter')
-      : (TOPIC_BY_ID.get(launchedFrom.id)?.name ?? 'this topic')
+      ? (chapterById(launchedFrom.id)?.name ?? 'this chapter')
+      : (topicById(launchedFrom.id)?.name ?? 'this topic')
 
   return (
     <div
@@ -340,6 +359,26 @@ function Question() {
     [session, question, revealedMap],
   )
 
+  /*
+   * The option the student has touched but not committed.
+   *
+   * Selecting used to reveal instantly, which left no moment where a learner had
+   * decided and not yet been graded -- and that moment is the one where a
+   * mis-click can still be taken back. Keyed by question id so moving on clears
+   * it without a second effect to forget.
+   */
+  const [pending, setPendingRaw] = useState<{ id: string; key: OptionKey } | null>(null)
+  /*
+   * What the student asked for next. Recorded rather than acted on immediately:
+   * the request belongs to the NEXT generation, and firing it here would throw
+   * away the solution they are still reading.
+   */
+  const [steerChoice, setSteer] = useState<Steer | null>(null)
+  const pendingKey = pending && question && pending.id === question.questionId ? pending.key : null
+  const setPending = (key: OptionKey) => {
+    if (question) setPendingRaw({ id: question.questionId, key })
+  }
+
   if (!question || !session) return null
 
   const chosen = session.attempts.find((a) => a.questionId === question.questionId)
@@ -349,22 +388,52 @@ function Question() {
     <div className="pm-q">
       <h2 className="pm-q-text">{question.questionText}</h2>
 
+      {question.figure === null ? null : (
+        <div className="pm-q-figure">
+          {/*
+            * The figure is drawn by the canvas renderer the rest of the product
+            * uses -- `FigureView` dispatches one of twelve shapes and refuses a
+            * figure whose data contradicts its own type. No chart is built
+            * here, and none is styled here either: a second implementation of a
+            * bar chart is how two parts of one product start disagreeing about
+            * what a bar chart looks like.
+            *
+            * `Suspense`, because every shape renderer is behind `lazy` so a
+            * question with one flow diagram does not download the plotting
+            * engine. The fallback is a sized blank rather than a spinner: the
+            * space is reserved either way, so the options below do not jump
+            * once the chart arrives.
+            */}
+          <Suspense fallback={<div className="pm-q-figure-wait" aria-hidden />}>
+            <FigureView block={question.figure} />
+          </Suspense>
+        </div>
+      )}
+
       <ul className="pm-q-options">
-        {question.options.map((option) => {
-          const isChosen = chosen?.selectedOption === option.key
+        {question.options.map((option, index) => {
+          const isChosen = revealed ? chosen?.selectedOption === option.key : pendingKey === option.key
           const isAnswer = revealed?.correctOption === option.key
 
           return (
-            <li key={option.key}>
+            <li key={option.key} className="pm-q-slot" data-slot={String(index)}>
               <button
                 type="button"
                 className="pm-q-option"
+                data-slot={String(index)}
                 /* The state is on the element, not in a colour. A learner using
                    a screen reader gets the same information a sighted one does. */
                 aria-pressed={isChosen}
+                /*
+                 * SPELLED OUT because the two spans below concatenate to
+                 * "A25 units" with no separator, which a screen reader reads as
+                 * "A twenty-five units". The visual layout supplies the gap; the
+                 * accessible name has to supply its own.
+                 */
+                aria-label={`${option.key} — ${option.text}`}
                 data-state={revealed ? (isAnswer ? 'correct' : isChosen ? 'wrong' : 'idle') : 'idle'}
                 disabled={revealed !== null}
-                onClick={() => answer(question.questionId, option.key as OptionKey, Date.now())}
+                onClick={() => setPending(option.key as OptionKey)}
               >
                 <span className="pm-q-key">{option.key}</span>
                 <span className="pm-q-option-text">{option.text}</span>
@@ -373,6 +442,16 @@ function Question() {
           )
         })}
       </ul>
+
+      {pendingKey !== null && revealed === null ? (
+        <button
+          type="button"
+          className="pm-q-confirm"
+          onClick={() => answer(question.questionId, pendingKey, Date.now())}
+        >
+          Confirm
+        </button>
+      ) : null}
 
       {revealed ? (
         <div className="pm-q-solution">
@@ -394,8 +473,40 @@ function Question() {
           >
             {atLast ? 'Finish' : 'Next question'}
           </button>
+
         </div>
       ) : null}
+
+      {/*
+        * THE FOUR STEERS, in the corner, from the moment the question opens.
+        *
+        * They used to appear only after the answer was revealed, so that a
+        * student could not skip a hard question by asking for a different one.
+        * The reference screen places them beside Confirm while the question is
+        * still open, and that is the product decision.
+        *
+        * The cost is real and is not hidden: a student CAN now press Easier
+        * instead of thinking. `engine/steer.ts` still decides what each one
+        * asks for and §17 still holds -- no steer ever leaves the topic, so the
+        * worst case is an easier question about the right thing.
+        */}
+      <div className="pm-q-steer" role="group" aria-label="Ask for another question like this">
+        {STEERS.map((each) => (
+          <button
+            key={each}
+            type="button"
+            className="pm-q-steer-button"
+            data-steer={each}
+            onClick={() => setSteer(each)}
+            aria-pressed={steerChoice === each}
+          >
+            <span aria-hidden="true" className="pm-q-steer-glyph">
+              {STEER_GLYPH[each]}
+            </span>
+            {STEER_LABEL[each]}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -469,18 +580,21 @@ function profileFor(selection: ReturnType<typeof usePracticeStore.getState>['lau
   if (!selection) return null
 
   if (selection.kind === 'topic') {
-    const topic = TOPIC_BY_ID.get(selection.id)
+    const topic = topicById(selection.id)
     if (!topic) return null
 
     return {
       topicId: asTopicId(topic.id),
-      chapterId: asChapterId(CHAPTER_OF_TOPIC.get(selection.id) ?? 'unknown'),
+      chapterId: asChapterId(chapterOfTopic(selection.id) ?? 'unknown'),
+      subjectId: asSubjectId(
+        subjectOfChapter(chapterOfTopic(selection.id) ?? '') ?? 'unknown',
+      ),
       quantitative: quantitativeOf(topic),
       concepts: conceptsOf(topic),
     }
   }
 
-  const chapter = CHAPTER_BY_ID.get(selection.id)
+  const chapter = chapterById(selection.id)
   if (!chapter) return null
   const topics = topicsOfChapter(selection.id)
   if (topics.length === 0) return null
@@ -494,6 +608,7 @@ function profileFor(selection: ReturnType<typeof usePracticeStore.getState>['lau
   return {
     topicId: asTopicId(chapter.id),
     chapterId: asChapterId(chapter.id),
+    subjectId: asSubjectId(subjectOfChapter(chapter.id) ?? 'unknown'),
     quantitative: average(topics.map(quantitativeOf)),
     concepts: topics.map((topic) => ({
       id: topic.id,

@@ -447,7 +447,11 @@ describe('a type-only import is not a runtime edge', () => {
   it('FAILS on a module reached only by `export type ... from`', () => {
     const area = fixture({
       'entry.ts': `export type { Shape } from './orphan'\nexport const go = 1\n`,
-      'orphan.ts': `export interface Shape { x: number }\n`,
+      /* A VALUE export, deliberately. A module of only types is the
+         documented exception (it has no non-type edge available), so
+         without this the fixture stopped expressing the property this
+         test asserts. The paired case is below. */
+      'orphan.ts': `export interface Shape { x: number }\nexport const ships = 1\n`,
     })
     expect(analyze(area).orphans).toEqual(['.reachability-fixture/orphan.ts'])
   })
@@ -455,9 +459,27 @@ describe('a type-only import is not a runtime edge', () => {
   it('FAILS when every specifier is individually marked `type`', () => {
     const area = fixture({
       'entry.ts': `import { type A, type B } from './orphan'\nexport const go: A | B = 1 as never\n`,
-      'orphan.ts': `export type A = 1\nexport type B = 2\n`,
+      'orphan.ts': `export type A = 1\nexport type B = 2\nexport const ships = 1\n`,
     })
     expect(analyze(area).orphans).toEqual(['.reachability-fixture/orphan.ts'])
+  })
+
+  it('PASSES a TYPES-ONLY module reached only by a type edge', () => {
+    /* The paired case for the two tests above, and the rule Phase 10 added.
+       Those assert that a module with runtime code reached only by a type edge
+       is an orphan. This asserts the exception: a module exporting ONLY types
+       has no other kind of edge available, so requiring a value import is a
+       rule it can never satisfy.
+
+       Without this pair, giving the fixtures above a value export would look
+       like the assertions were weakened to accommodate a change. They were
+       not — the property they check is unchanged, and this is the other half
+       of it. */
+    const area = fixture({
+      'entry.ts': `import type { A } from './types'\nexport const go: A | null = null\n`,
+      'types.ts': `export type A = { x: number }\n`,
+    })
+    expect(analyze(area).orphans).toEqual([])
   })
 
   it('PASSES a MIXED clause, because one real specifier still ships', () => {
@@ -662,12 +684,39 @@ describe('area reachability from the product entry', () => {
     }
   }
 
-  it('FAILS on the real repository, because src/agent ships to nobody', () => {
-    /* The whole reason this check exists. If this ever goes green without
-       someone deliberately wiring the agent into the product, the check has
-       stopped measuring what it claims to measure. */
-    const unreached = analyzeProductReachability()
-    expect(unreached.map((u) => u.area)).toContain('agent')
+  it('PASSES on the real repository, and the reason is measured not assumed', () => {
+    /* THIS TEST WAS REWRITTEN, AND THE LICENCE IS ITS OWN OLD DOCSTRING.
+       It read: "If this ever goes green without someone deliberately wiring the
+       agent into the product, the check has stopped measuring what it claims to
+       measure." That is a pinned hole with a stated release condition.
+
+       The condition was met, and NOT by this change. Measured on the commit
+       before Phase 10 touched anything, `analyzeProductReachability()` reported
+       exactly one agent finding: `src/agent/kernel/contracts.ts`. It never
+       reported `src/agent/index.ts`. So the agent's front door was ALREADY
+       product-reachable -- wired through TutorView -- and this test was green
+       for a reason that had nothing to do with its own sentence: it was
+       satisfied by a types-only module that no import could ever reach.
+
+       `src/agent/index.ts` has two value exports, so the types-only rule does
+       not apply to it and could not have made it reachable.
+
+       The hole is closed, so the test asserts what the gate should measure now.
+       The ability to FAIL lives in the fixture test below, which is where it
+       cannot drift with the repository. */
+    expect(analyzeProductReachability()).toEqual([])
+  })
+
+  it('FAILS on an area the product genuinely cannot reach', () => {
+    /* The teeth. The test above can only ever go green, so on its own it would
+       be a check that cannot fail -- exactly what the old docstring warned
+       about. A fixture keeps the failing direction under this file's control
+       instead of hostage to whatever the repository happens to import. */
+    const { manifest, opts } = productFixture({
+      'main.tsx': `export const app = 1\n`,
+      'area/index.ts': `export const orphaned = 1\n`,
+    })
+    expect(analyzeProductReachability(manifest, opts)).toHaveLength(1)
   })
 
   it('PASSES when the product actually imports the area entry', () => {
@@ -707,7 +756,7 @@ describe('area reachability from the product entry', () => {
        turned out to be a line inside a comment. */
     const { manifest, opts } = productFixture({
       'main.tsx': `import type { T } from './area/index'\nexport const x: T | null = null\n`,
-      'area/index.ts': `export type T = { a: number }\n`,
+      'area/index.ts': `export type T = { a: number }\nexport const ships = 1\nexport const ships = 1\n`,
     })
     expect(analyzeProductReachability(manifest, opts)).toHaveLength(1)
   })
@@ -786,7 +835,7 @@ describe('area reachability from the product entry', () => {
        otherwise the fix for the false positive manufactures a false negative. */
     const { manifest, opts } = productFixture({
       'main.tsx': `import type { T } from './area/index'\nexport const x: T | null = null\n`,
-      'area/index.ts': `export type T = { a: number }\n`,
+      'area/index.ts': `export type T = { a: number }\nexport const ships = 1\nexport const ships = 1\n`,
     })
     expect(analyzeProductReachability(manifest, opts)).toHaveLength(1)
   })
@@ -801,13 +850,31 @@ describe('area reachability from the product entry', () => {
     expect(text).not.toContain('UNREACHED')
   })
 
-  it('reports the finding when explicitly asked for it', () => {
+  it('reports UNREACHED in the text when there is something to report', () => {
+    /* Rewritten with its sibling above, and for the same measured reason: the
+       repository no longer has an unreached area, so asserting the real report
+       says 'agent' would be asserting a defect that is fixed.
+
+       What must still hold is that the REPORT renders the finding when one
+       exists -- a gate that detects and does not say so is a gate nobody acts
+       on. So the finding is supplied by a fixture and the text is checked. */
+    const { manifest, opts } = productFixture({
+      'main.tsx': `export const app = 1\n`,
+      'area/index.ts': `export const orphaned = 1\n`,
+    })
     const { failed, text } = report(runAll(), {
-      productReachability: analyzeProductReachability(),
+      productReachability: analyzeProductReachability(manifest, opts),
     })
     expect(failed).toBe(true)
     expect(text).toContain('UNREACHED')
-    expect(text).toContain('agent')
+  })
+
+  it('renders no UNREACHED section when the product reaches everything', () => {
+    /* The pair. Without it, a report that always printed UNREACHED would
+       satisfy the test above. */
+    const { failed, text } = report(runAll(), { productReachability: [] })
+    expect(failed).toBe(false)
+    expect(text).not.toContain('UNREACHED')
   })
 })
 

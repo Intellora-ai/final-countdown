@@ -48,7 +48,11 @@ function official(): OfficialSubject[] {
       chapters: [
         {
           id: 'theory',
-          name: 'Theory',
+          /* A REAL chapter name. The original said "Theory", which the chapter
+             filter now (correctly) rejects -- that would have made this test
+             about chapter filtering instead of topic filtering. The assertions
+             below are unchanged. */
+          name: 'Index numbers and inflation',
           concepts: [
             { id: 'theory--a', name: 'Part A', minutes: 10, deps: [] },
             { id: 'theory--b', name: 'the learners are expected to acquire skills', minutes: 10, deps: [] },
@@ -122,5 +126,61 @@ describe('adapting the official curriculum for practice', () => {
     );
     expect(kept).toEqual(['circles', 'ellipse', 'parabola', 'Index numbers']);
     expect(kept).not.toContain('Part A');
+  });
+});
+
+describe('a chapter name is held to the same bar as a topic name', () => {
+  it('drops a chapter called "Example 14", however good its topics look', () => {
+    /*
+     * FOUND IN A SCREENSHOT, not in a diff. The topic filter was working -- 523
+     * topics, all clean -- while 24 of 84 CHAPTERS on screen were called
+     * "Example 1", "Hint", "Statement", "Proof".
+     *
+     * The filter graded concepts and never looked at the chapter it hung them
+     * under, so a real topic could sit inside a heading scraped out of a worked
+     * example. A student browsing the map reads chapter names first, so this was
+     * the more visible half of the defect and the half nothing checked.
+     */
+    const withJunkChapter: OfficialSubject[] = [
+      {
+        id: 'maths',
+        name: 'Mathematics',
+        chapters: [
+          {
+            id: 'ex14',
+            name: 'Example 14',
+            concepts: [{ id: 'ex14--roots', name: 'Roots of a quadratic', minutes: 20, deps: [] }],
+          },
+          {
+            id: 'quad',
+            name: 'Quadratic equations',
+            concepts: [{ id: 'quad--roots', name: 'Roots of a quadratic', minutes: 20, deps: [] }],
+          },
+        ],
+      },
+    ];
+
+    const [subject] = toPracticeCurriculum(withJunkChapter);
+    expect(subject!.chapters.map((c) => c.name)).toEqual(['Quadratic equations']);
+  });
+
+  it('renumbers what survives, so the student never sees a gap', () => {
+    /*
+     * Dropping chapter 1 must not leave the map starting at "Chapter 2". The
+     * number is what the student matches against their own syllabus, and a hole
+     * in it reads as missing content rather than as filtered content.
+     */
+    const [subject] = toPracticeCurriculum([
+      {
+        id: 's',
+        name: 'S',
+        chapters: [
+          { id: 'a', name: 'Hint', concepts: [{ id: 'a--x', name: 'Real topic', minutes: 1, deps: [] }] },
+          { id: 'b', name: 'Real chapter', concepts: [{ id: 'b--x', name: 'Real topic', minutes: 1, deps: [] }] },
+        ],
+      },
+    ]);
+    expect(subject!.chapters).toHaveLength(1);
+    expect(subject!.chapters[0]!.number).toBe(1);
   });
 });

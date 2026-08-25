@@ -1,11 +1,12 @@
+import { hasChapter, topicsOfChapter } from './registry'
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import {
-  CHAPTER_BY_ID,
+  
   type ChapterId,
   type TopicId,
-  topicsOfChapter,
+  
 } from "./curriculum";
 
 /**
@@ -191,7 +192,7 @@ export const usePracticeStore = create<PracticeState>()(
       },
 
       toggleChapterPinned(id) {
-        if (!CHAPTER_BY_ID.has(id)) return;
+        if (!hasChapter(id)) return;
         const pinned = get().pinnedChapterIds;
         set({
           pinnedChapterIds: pinned.includes(id)
@@ -201,7 +202,7 @@ export const usePracticeStore = create<PracticeState>()(
       },
 
       pinChapter(id) {
-        if (!CHAPTER_BY_ID.has(id)) return;
+        if (!hasChapter(id)) return;
         const pinned = get().pinnedChapterIds;
         if (pinned.includes(id)) return;
         set({ pinnedChapterIds: [...pinned, id] });
@@ -222,7 +223,7 @@ export const usePracticeStore = create<PracticeState>()(
        * AND closes. Every other click means "show me this": it opens AND selects.
        */
       activateChapter(id) {
-        if (!CHAPTER_BY_ID.has(id)) return;
+        if (!hasChapter(id)) return;
         const { pinnedChapterIds, selection } = get();
         const showing = selection?.kind === "chapter" && selection.id === id;
         const pinned = pinnedChapterIds.includes(id);

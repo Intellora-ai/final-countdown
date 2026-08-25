@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { asChapterId, asTopicId } from './ids';
+import { asChapterId, asSubjectId, asTopicId } from './ids';
 
 import { evaluate, parseNumeric, verify } from './verify';
 import type { CandidateQuestion, NumericComputation, QuestionSpec } from './types';
@@ -17,6 +17,7 @@ const SPEC: QuestionSpec = {
   specId: 'spec-1',
   topicId: asTopicId('t1'),
   chapterId: asChapterId('ch1'),
+    subjectId: asSubjectId('subject'),
   conceptId: 'ideal-gas-pressure',
   conceptName: 'ideal gas pressure',
   questionType: 'standard',
@@ -58,6 +59,7 @@ function candidate(overrides: Partial<CandidateQuestion> = {}): CandidateQuestio
     fullSolution: SOLUTION,
     generationSource: 'fixture-v1',
     computation: null,
+    figure: null,
     ...overrides,
   };
 }

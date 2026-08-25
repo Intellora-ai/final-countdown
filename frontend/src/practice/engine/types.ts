@@ -1,3 +1,4 @@
+import type { FigureBlock } from '../../canvas/spec/figure';
 /**
  * The practice session domain.
  *
@@ -34,7 +35,15 @@
  * reasoning    multi-step inference where each step depends on the last
  * application  the concept embedded in a situation that must first be modelled
  */
-import type { ChapterId, TopicId } from './ids';
+import type { ChapterId, SubjectId, TopicId } from './ids';
+
+/**
+ * Bumped when a change alters what the generator produces.
+ *
+ * Stamped on every verified question so a batch made under a flawed version can
+ * be found and re-made. A number nobody can filter on is not provenance.
+ */
+export const GENERATION_VERSION = '1.0';
 
 export const QUESTION_TYPES = ['standard', 'conceptual', 'reasoning', 'application'] as const;
 export type QuestionType = (typeof QUESTION_TYPES)[number];
@@ -123,6 +132,12 @@ export const ENGINE_FAILURES = [
   'QUESTION_GENERATION_FAILED',
   'VERIFICATION_FAILED',
   'INSUFFICIENT_VALID_CANDIDATES',
+  /**
+   * Every question in the set was text. §6 -- a set that draws nothing is not
+   * the product that was promised, and delivering it anyway would make the ban
+   * in `representation.ts` decorative.
+   */
+  'SET_DRAWS_NOTHING',
   'TIMEOUT',
 ] as const;
 export type EngineFailure = (typeof ENGINE_FAILURES)[number];
@@ -153,6 +168,7 @@ export interface QuestionSpec {
   readonly specId: string;
   readonly topicId: TopicId;
   readonly chapterId: ChapterId;
+  readonly subjectId: SubjectId;
   /** The specific idea under test. Narrower than the topic. */
   readonly conceptId: string;
   /**
@@ -229,6 +245,14 @@ export interface CandidateQuestion {
    * these rather than believing the stated answer.
    */
   readonly computation: NumericComputation | null;
+  /**
+   * The picture this question draws, or `null` for a text-only one.
+   *
+   * `representation.ts` bans an all-text SET while permitting a single
+   * text-only question, so `null` is a legal value here and an illegal one for
+   * every question in a set at once.
+   */
+  readonly figure: FigureBlock | null;
 }
 
 /**
@@ -268,6 +292,21 @@ export interface VerifiedQuestion {
   readonly questionId: string;
   readonly sessionId: string;
   readonly topicId: string;
+  /**
+   * §19. Carried through from the spec rather than looked up later.
+   *
+   * The spec knew all of this; delivery threw it away one step before the only
+   * place it is read. `misconceptionTested` is the input to targeted practice --
+   * a student who keeps picking the "confuses range with y-intercepts" distractor
+   * can only be given more of those if the DELIVERED question remembers which
+   * misconception it tested. `generationVersion` is what makes a bad batch
+   * recallable: without it, "every question made on Tuesday shares a flaw" is a
+   * sentence nobody can act on.
+   */
+  readonly chapterId: string;
+  readonly subjectId: string;
+  readonly misconceptionTested: string | null;
+  readonly generationVersion: string;
   readonly conceptId: string;
   readonly questionType: QuestionType;
   /** Measured from structure, which may differ from the spec's target. */
@@ -280,6 +319,14 @@ export interface VerifiedQuestion {
   readonly prerequisites: readonly string[];
   readonly generationSource: string;
   readonly verificationStatus: 'PASSED';
+  /**
+   * Carried through from the candidate rather than rebuilt.
+   *
+   * Rebuilding it at delivery would let the figure a student sees drift from
+   * the one the verifier approved, which is the same class of defect as
+   * re-deriving the answer: two sources for one fact.
+   */
+  readonly figure: FigureBlock | null;
   readonly similarityStatus: SimilarityStatus;
   /** 0..1. How well it met its own spec, not how hard it is. */
   readonly qualityScore: number;
@@ -299,6 +346,17 @@ export interface DeliverableQuestion {
   readonly options: readonly { readonly key: OptionKey; readonly text: string }[];
   readonly questionType: QuestionType;
   readonly difficulty: Difficulty;
+  /**
+   * The picture, which is part of the question rather than an extra.
+   *
+   * This is the only field on this allowlist built from anything other than
+   * plain text, so it is the only one that could smuggle something out. It
+   * cannot: `figure.ts` builds it from `computation.inputs` alone -- never
+   * `expected`, and never the operation names, which were a real leak caught
+   * before it shipped. Those two rules are asserted over every reasoning
+   * structure in `figure.test.ts`.
+   */
+  readonly figure: FigureBlock | null;
 }
 
 /** Strip a verified question down to what a screen may hold. */
@@ -309,6 +367,7 @@ export function forDelivery(question: VerifiedQuestion): DeliverableQuestion {
     options: question.options.map((option) => ({ key: option.key, text: option.text })),
     questionType: question.questionType,
     difficulty: question.difficulty,
+    figure: question.figure,
   };
 }
 

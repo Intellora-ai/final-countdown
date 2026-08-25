@@ -123,13 +123,24 @@ REQUIRED = (
     # recurring price is near zero -- a re-invocation returns "already loaded
     # above" -- so the cost is one preamble per session, paid once.
     "fullrun",
-    # `tokenlock` was named by the reminder hook and NOT by this gate, so it was
-    # injected into every prompt while nothing ever checked it had been invoked
-    # -- the exact half-wired state the drift test was written to catch, caught
-    # on 2026-08-25 by that test rather than by anyone reading either file.
-    # Added HERE rather than removed THERE because the owner's settings.json
-    # names seven, and a gate that enforces six of the seven it advertises is
-    # the weaker of the two ways to make the lists agree.
+    # `tokenlock` compiles a verbose instruction set into a smaller one that
+    # provably behaves the same: invariants extracted and locked, repeated rules
+    # canonicalised into named primitives, monolith split into a core plus
+    # modules the router reaches only when needed, and every compression made to
+    # survive a regression and adversarial suite against the original as oracle.
+    #
+    # It is on a turn gate rather than a session one for the same reason as the
+    # rest: a method nothing forces is a method that gets skipped on the turn it
+    # was needed. Its own core is deliberately small -- 8.5 KB, with four
+    # reference files read only at the stage that needs them -- so the recurring
+    # price is one preamble per session and near zero per re-invocation.
+    #
+    # HOW IT GOT HERE, from the other side of an add/add conflict: it was named
+    # by the reminder hook and NOT by this gate, so it was injected into every
+    # prompt while nothing checked it had been invoked. The drift test caught
+    # that on 2026-08-25 -- not a reader of either file. Two branches then fixed
+    # it independently and collided here, which is itself the argument for the
+    # test: the lists disagree quietly and only a check notices.
     "tokenlock",
 )
 

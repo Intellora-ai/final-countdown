@@ -1,5 +1,5 @@
 import { predictBand } from './difficulty';
-import type { ChapterId, TopicId } from './ids';
+import type { ChapterId, SubjectId, TopicId } from './ids';
 import {
   REASONING_STRUCTURES,
   type Difficulty,
@@ -56,6 +56,7 @@ export interface Concept {
 export interface TopicProfile {
   readonly topicId: TopicId;
   readonly chapterId: ChapterId;
+  readonly subjectId: SubjectId;
   readonly concepts: readonly Concept[];
   /**
    * 0 = purely qualitative, 1 = purely computational. Drives the mix.
@@ -265,6 +266,26 @@ function structureFor(
     STRUCTURES_BY_TYPE[type].filter((s) => inRange(s) && agrees(s) && unused(s)),
     REASONING_STRUCTURES.filter((s) => inRange(s) && agrees(s) && unused(s)),
     REASONING_STRUCTURES.filter((s) => inRange(s) && unused(s)),
+
+    /*
+     * UNIQUENESS OUTRANKS THE DIFFICULTY BAND, and this tier is where that is
+     * decided. It was not here, and the consequence was measured in a browser:
+     * ten questions on a one-concept topic produced
+     *
+     *     "Only 9 of 10 questions passed verification and deduplication"
+     *
+     * and the student got NOTHING. For the tenth slot no unused structure sat
+     * in the target band, so the search fell through to a tier that permits
+     * repeats -- and a repeated (concept, route) pair is the same question
+     * twice, which the deduplicator throws away, which refuses the whole set.
+     *
+     * The trade was backwards. A question one band off target is still a real
+     * question a student can answer; a duplicate costs the entire session. So
+     * an unused route is taken even when its band is wrong, and only after
+     * every route is spent does a repeat become allowable.
+     */
+    REASONING_STRUCTURES.filter(unused),
+
     STRUCTURES_BY_TYPE[type].filter(inRange),
     STRUCTURES_BY_TYPE[type],
   ];
@@ -309,7 +330,25 @@ export function buildPlan(profile: TopicProfile, count: QuestionCount): readonly
   const taken = new Set<string>();
   const usedStructures = new Set<ReasoningStructure>();
 
-  for (let index = 0; index < count; index += 1) {
+  /*
+   * §24 -- REPORT INSUFFICIENT CAPACITY, NEVER BORROW.
+   *
+   * A topic offers `concepts x routes` genuinely different questions and not
+   * one more. Fifteen questions on a one-concept topic is impossible before
+   * anything is generated.
+   *
+   * The old behaviour planned fifteen anyway. The generator built them, the
+   * deduplicator deleted the five repeats, and the session was refused with
+   * "only 10 of 15 passed verification and deduplication" -- a message that
+   * blames generation for a shortfall the PLAN created. Measured in a browser
+   * on a real Class 10 topic, where ten questions failed and five worked.
+   *
+   * Stopping here makes the shortfall visible at the only place that can
+   * explain it. The caller sees a short plan and can say so honestly.
+   */
+  const capacity = Math.min(count, profile.concepts.length * REASONING_STRUCTURES.length);
+
+  for (let index = 0; index < capacity; index += 1) {
     const concept = profile.concepts[index % profile.concepts.length];
     if (!concept) continue;
 
@@ -335,6 +374,7 @@ export function buildPlan(profile: TopicProfile, count: QuestionCount): readonly
       specId: `${concept.topicId}-${index}`,
       topicId: concept.topicId,
       chapterId: profile.chapterId,
+      subjectId: profile.subjectId,
       conceptId: concept.id,
       conceptName: concept.name,
       questionType,

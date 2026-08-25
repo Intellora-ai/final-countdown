@@ -11,7 +11,7 @@
     "test": "vitest",
     "test:mutation": "node scripts/mutation-gate.mjs",
     "budget": "node scripts/canvas-bundle-budget.mjs",
-    "gate:reachability": "node scripts/reachability-gate.mjs",
+    "gate:reachability": "node scripts/reachability-gate.mjs --product",
     "lint": "eslint src/canvas src/practice src/agent src/websearch src/tutor src/almanac src/api --max-warnings 0",
     "curriculum:fetch": "node scripts/curriculum/fetch.mjs",
     "curriculum:verify": "node scripts/curriculum/fetch.mjs --verify",
@@ -39,6 +39,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.11.2",
     "@pact-foundation/pact": "17.1.2",
     "@playwright/test": "^1.62.1",
     "@testing-library/jest-dom": "^7.0.1",
@@ -50,6 +51,7 @@
     "@typescript-eslint/rule-tester": "^8.67.0",
     "@vitejs/plugin-react": "^4.3.1",
     "eslint": "^10.9.0",
+    "fast-check": "4.4.0",
     "jsdom": "^30.0.1",
     "typescript": "^5.5.4",
     "typescript-eslint": "^8.67.0",

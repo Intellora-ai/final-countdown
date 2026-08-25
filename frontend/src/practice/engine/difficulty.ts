@@ -222,17 +222,6 @@ function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-/**
- * Does the measured band match what the spec asked for?
- *
- * Used to score how well a candidate met its brief. A mismatch is not fatal on
- * its own — one question landing a band away is normal — but a set full of them
- * means the generator is not steering on difficulty at all.
- */
-export function matchesTarget(assessed: Difficulty, target: Difficulty): boolean {
-  return assessed === target;
-}
-
 /** How far apart two bands are: 0 same, 1 adjacent, 2 opposite ends. */
 export function bandDistance(a: Difficulty, b: Difficulty): number {
   const order: Difficulty[] = ['easy', 'medium', 'hard'];

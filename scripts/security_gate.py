@@ -147,6 +147,18 @@ ELIGIBLE = {
     # the same run that deleted them.
     ("B404", "scripts/local_gates.py"),
     ("B603", "scripts/local_gates.py"),
+    # db_suite_floor.py runs pytest's collector to count the database suite. It
+    # cannot import pytest and count in-process: collection imports
+    # tests/db/conftest.py, which raises when no database is configured, so an
+    # in-process count would fail on exactly the machines this gate has to work
+    # on. A child process isolates that.
+    #
+    # argv[0] is sys.executable, the argv is a list literal, no shell, and a
+    # timeout is passed. As with every entry here, this line is a claim
+    # check_subprocess_safety re-proves from the AST on each run rather than a
+    # suppression that gets remembered.
+    ("B404", "scripts/db_suite_floor.py"),
+    ("B603", "scripts/db_suite_floor.py"),
     # build_bundle.py calls git three times -- cat-file to prove the SHA names a
     # real commit, show to read that commit's timestamp, and archive to produce
     # the source snapshot. All three go through one helper whose argv[0] is bound

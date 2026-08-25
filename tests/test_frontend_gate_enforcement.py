@@ -174,6 +174,86 @@ def test_b_gate_that_never_exits_non_zero_is_caught(sandbox: Path) -> None:
     assert "the verification gate does not fail" in result.stdout
 
 
+# --- (b2) the gate must EXECUTE an exit, not merely contain the text ---------
+#
+# `gate_integrity.py` states the rule in its own header, at line 10:
+#
+#     "Containment is not execution. All of these contain it and none of
+#      them run it"
+#
+# and then checks this clause with `if "exit 1" not in gate_run`. The header is
+# right and the code beside it does the thing the header forbids. Every shape
+# below leaves the substring in place and removes the exit, so the gate reports
+# a healthy step while the job can no longer fail.
+#
+# test_b above is the other half of the pair: it deletes the exit outright.
+# Deletion was the only sabotage anyone tried, and substring matching survives
+# deletion, which is why this hole stayed open.
+
+
+@pytest.mark.parametrize(
+    ("replacement", "shape"),
+    [
+        ('          echo "would exit 1"', "quoted inside an echo"),
+        ("          # exit 1 used to be here", "left behind in a comment"),
+        (
+            "          echo exit 1 >> $GITHUB_STEP_SUMMARY",
+            "written into the job summary",
+        ),
+    ],
+)
+def test_b2_an_exit_that_never_executes_is_caught(
+    sandbox: Path, replacement: str, shape: str
+) -> None:
+    edit_workflow(
+        sandbox,
+        "          exit 1",
+        replacement,
+        why="the gate step no longer contains `exit 1`",
+    )
+    result = integrity(sandbox)
+    assert result.returncode != 0, (
+        f"the gate accepted an exit {shape}. The text is present and the step "
+        f"cannot fail.\n{result.stdout[-2000:]}"
+    )
+    assert "the verification gate does not fail" in result.stdout
+
+
+# --- (b3) the PAIR: a real exit in a real shape must still pass --------------
+
+
+@pytest.mark.parametrize(
+    "replacement",
+    [
+        "          if [ 1 = 1 ]; then exit 1; fi",
+        "          test -s missing.txt || exit 1",
+        "          [ 1 = 1 ] && exit 1",
+    ],
+)
+def test_b3_a_real_exit_in_an_ordinary_shell_shape_still_passes(
+    sandbox: Path, replacement: str
+) -> None:
+    """Without this, `return BLOCK` satisfies every test above.
+
+    A gate that answers "does not fail" for a genuine `exit 1` wrapped in a
+    conditional is worse than the substring check it replaced: the substring
+    version at least never cried wolf, and a gate that cries wolf gets
+    switched off, taking the eight real checks with it.
+    """
+    edit_workflow(
+        sandbox,
+        "          exit 1",
+        replacement,
+        why="the gate step no longer contains `exit 1`",
+    )
+    result = integrity(sandbox)
+    assert result.returncode == 0, (
+        "the gate rejected a REAL exit. This is a false positive, and a gate "
+        f"that cries wolf gets uninstalled.\n{result.stdout[-3000:]}"
+    )
+    assert passed_count(result) > 0
+
+
 # --- (c) an id'd step dropped from the condition -----------------------------
 
 

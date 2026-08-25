@@ -41,19 +41,28 @@ import type { Retrieved } from './gather'
 
 /* -------------------------------------------------------------------------- */
 
-export type Origin =
-  /** Fetched during this search. */
-  | 'live'
-  /** Served from cache — fetched earlier, for a real earlier question. */
-  | 'recent-cache'
-  /** Prepared speculatively, and possibly never asked for before. */
-  | 'precomputed'
+/**
+ * The declared set. THE list, not a copy of one.
+ *
+ * Exported so a test asserts against the real values rather than a list it
+ * also wrote, and imported by `webSearchClient.ts` to filter untrusted input —
+ * which is what makes this the single runtime source of truth rather than one
+ * of two lists that happen to agree.
+ *
+ * `live` — fetched during this search.
+ * `recent-cache` — fetched earlier, for a real earlier question.
+ * `precomputed` — prepared speculatively, possibly never asked for before.
+ */
+export const MAX_ORIGINS = ['live', 'recent-cache', 'precomputed'] as const
 
 /**
- * The declared set, exported so a test asserts against the real values rather
- * than a list it also wrote.
+ * DERIVED from the value above rather than written alongside it.
+ *
+ * Declaring the union separately meant a fourth origin could be added to one
+ * and not the other, and both halves would still typecheck. Deriving makes
+ * that unrepresentable: there is one place to edit, and the type follows.
  */
-export const MAX_ORIGINS: readonly Origin[] = ['live', 'precomputed', 'recent-cache']
+export type Origin = (typeof MAX_ORIGINS)[number]
 
 export interface Freshness {
   /**

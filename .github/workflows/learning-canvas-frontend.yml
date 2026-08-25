@@ -210,6 +210,26 @@ jobs:
       #
       # It runs before Build because it needs no build output, and its outcome
       # is read by the Verification gate below like every other step here.
+      # `--product` IS NOW ARMED, and this is the decision the gate's own
+      # comment said belonged to the repository owner rather than to the file.
+      #
+      # It reported three UNREACHED findings before Phase 10 and now reports
+      # none, but NOT because the check was loosened. Two of the three were
+      # artefacts of type erasure: `agent/kernel/contracts.ts` and
+      # `websearch/port.ts` export only types, so no import could ever reach
+      # them and the workaround was to declare them MANIFEST entries -- an
+      # exemption with paperwork for a rule they could never satisfy. The gate
+      # now follows a type-only edge into a types-only module, and both are
+      # genuinely live.
+      #
+      # The third, `websearch/bench.ts`, is a benchmark harness. It is declared
+      # a TOOL entry with a written reason, so the area walk still measures its
+      # internals while the meaningless "does the browser reach it" question is
+      # not asked.
+      #
+      # Proven not to be a switch-off: a types-only module nothing imports is
+      # still reported ORPHAN, and the fixture tests keep the failing direction
+      # under the suite's control rather than the repository's.
       - name: Reachability
         id: reachability
         continue-on-error: true

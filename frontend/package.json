@@ -11,7 +11,7 @@
     "test": "vitest",
     "test:mutation": "node scripts/mutation-gate.mjs",
     "budget": "node scripts/canvas-bundle-budget.mjs",
-    "gate:reachability": "node scripts/reachability-gate.mjs",
+    "gate:reachability": "node scripts/reachability-gate.mjs --product",
     "lint": "eslint src/canvas src/practice src/agent src/websearch src/tutor src/almanac src/api --max-warnings 0",
     "curriculum:fetch": "node scripts/curriculum/fetch.mjs",
     "curriculum:verify": "node scripts/curriculum/fetch.mjs --verify",

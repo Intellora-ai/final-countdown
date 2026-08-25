@@ -192,17 +192,25 @@ class TestCountingWhatTheReviewerSaid:
 from review_gate import gate  # noqa: E402
 
 
-def _fake_reviewer(tmp_path: Path, stdout: str, exit_code: int = 0) -> list[str]:
-    """A stand-in reviewer, so the gate's own logic is what is under test."""
+def _fake_reviewer(tmp_path: Path, stdout: str, exit_code: int = 0) -> str:
+    """A stand-in reviewer, so the gate's own logic is what is under test.
+
+    Returns a PROGRAM PATH rather than an argv list. The gate resolves argv[0]
+    through shutil.which at its own call site -- required by
+    scripts/security_gate.py, which only grants a B603 exception when argv[0]
+    is a name bound solely from shutil.which and a timeout is set. An absolute
+    path to an executable file resolves through which unchanged, so a fake
+    reviewer still works.
+    """
     script = tmp_path / "fake_reviewer.sh"
     script.write_text(f"#!/usr/bin/env bash\ncat <<'OUT'\n{stdout}\nOUT\nexit {exit_code}\n")
     script.chmod(0o755)
-    return [str(script)]
+    return str(script)
 
 
 class TestTheGateEndToEnd:
     def test_a_clean_review_allows_the_push(self, tmp_path: Path) -> None:
-        d, _ = gate(cmd=_fake_reviewer(tmp_path, "No issues found."), ack=None, skip=None)
+        d, _ = gate(program=_fake_reviewer(tmp_path, "No issues found."), ack=None, skip=None)
 
         assert d.blocked is False
 
@@ -214,14 +222,14 @@ class TestTheGateEndToEnd:
         proceed is a gate that gets deleted.
         """
         dead = _fake_reviewer(tmp_path, "Failed to authenticate: OAuth session expired")
-        d, _ = gate(cmd=dead, ack=None, skip=None)
+        d, _ = gate(program=dead, ack=None, skip=None)
 
         assert d.blocked is True
         assert "/login" in d.reason
 
     def test_an_acknowledgement_still_cannot_excuse_a_dead_reviewer(self, tmp_path: Path) -> None:
         dead = _fake_reviewer(tmp_path, "Failed to authenticate: OAuth session expired")
-        d, _ = gate(cmd=dead, ack="I read it, honest", skip=None)
+        d, _ = gate(program=dead, ack="I read it, honest", skip=None)
 
         assert d.blocked is True
 
@@ -238,7 +246,7 @@ class TestTheGateEndToEnd:
         strictly worse.
         """
         dead = _fake_reviewer(tmp_path, "Failed to authenticate: OAuth session expired")
-        d, record = gate(cmd=dead, ack=None, skip="login expired, issue #93")
+        d, record = gate(program=dead, ack=None, skip="login expired, issue #93")
 
         assert d.blocked is False
         assert "login expired, issue #93" in d.reason
@@ -248,13 +256,13 @@ class TestTheGateEndToEnd:
     @pytest.mark.parametrize("blank", ["", "   "])
     def test_a_blank_skip_is_not_a_skip(self, tmp_path: Path, blank: str) -> None:
         dead = _fake_reviewer(tmp_path, "Failed to authenticate: OAuth session expired")
-        d, _ = gate(cmd=dead, ack=None, skip=blank)
+        d, _ = gate(program=dead, ack=None, skip=blank)
 
         assert d.blocked is True
 
     def test_findings_block_and_the_output_is_kept_for_reading(self, tmp_path: Path) -> None:
         out = "\N{LARGE RED CIRCLE} Important: unscoped query at db.py:41"
-        d, record = gate(cmd=_fake_reviewer(tmp_path, out), ack=None, skip=None)
+        d, record = gate(program=_fake_reviewer(tmp_path, out), ack=None, skip=None)
 
         assert d.blocked is True
         # "Needs to be read" means the text survives the run, not just a count.
@@ -277,7 +285,7 @@ class TestTheGateEndToEnd:
         was written to end. Unknown must cost a human read.
         """
         vague = _fake_reviewer(tmp_path, "I had a look at the diff and have some thoughts.")
-        d, record = gate(cmd=vague, ack=None, skip=None)
+        d, record = gate(program=vague, ack=None, skip=None)
 
         assert record["ran"] is True
         assert record["important"] is None
@@ -286,6 +294,21 @@ class TestTheGateEndToEnd:
     def test_an_unreadable_verdict_can_still_be_answered(self, tmp_path: Path) -> None:
         """Blocking on unknown must not be a dead end, or it gets deleted."""
         vague = _fake_reviewer(tmp_path, "I had a look at the diff and have some thoughts.")
-        d, _ = gate(cmd=vague, ack="read it, nothing actionable", skip=None)
+        d, _ = gate(program=vague, ack="read it, nothing actionable", skip=None)
 
         assert d.blocked is False
+
+    def test_a_reviewer_that_is_not_installed_blocks(self, tmp_path: Path) -> None:
+        """`shutil.which` returning None is a review that did not run.
+
+        Required by scripts/security_gate.py, which grants a B603 exception
+        only when argv[0] is resolved through shutil.which -- so "not on PATH"
+        became a real branch, and a real branch needs a real test. Treating a
+        missing reviewer as anything but "did not run" would be the silent pass
+        again, wearing a third hat.
+        """
+        d, record = gate(program=str(tmp_path / "definitely-not-installed"), ack=None, skip=None)
+
+        assert d.blocked is True
+        assert record["ran"] is False
+        assert "not run" in d.reason.lower()

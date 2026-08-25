@@ -129,6 +129,18 @@ ELIGIBLE = {
     ("B603", "scripts/tcb_gate.py"),
     ("B404", "scripts/ci_metrics.py"),
     ("B603", "scripts/ci_metrics.py"),
+    # review_gate.py runs the code reviewer as a subprocess -- that IS the
+    # gate, so the call cannot be designed away. It was rewritten to earn this
+    # entry rather than to be excused by it: argv[0] is bound exactly once from
+    # shutil.which(program) so PATH cannot decide which binary reviews the
+    # code, argv is a list literal, shell is never set, and a timeout stops a
+    # hung reviewer holding a push open forever. Listing it buys nothing on its
+    # own, the same as every entry above -- check_subprocess_safety re-derives
+    # the pattern from this file's AST on every run, so deleting the
+    # shutil.which guard or the timeout turns the exception back into a
+    # finding.
+    ("B404", "scripts/review_gate.py"),
+    ("B603", "scripts/review_gate.py"),
     # merge_evidence_gate.py shells out to `gh` three times: the API
     # reader, the job-log reader, and the pull request body reader. Being
     # listed here buys it nothing on its own -- check_subprocess_safety

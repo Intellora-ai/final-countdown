@@ -86,12 +86,11 @@ def decide(*, review_ran: bool, important: int, ack: str | None) -> Decision:
     if important <= 0:
         return Decision(blocked=False, reason="review ran and raised nothing important.")
 
-    acknowledged = ack is not None and ack.strip() != ""
-    if acknowledged:
-        assert ack is not None  # narrowed by `acknowledged`
+    answered = ack.strip() if ack is not None else ""
+    if answered:
         return Decision(
             blocked=False,
-            reason=f"{important} important finding(s), acknowledged: {ack.strip()}",
+            reason=f"{important} important finding(s), acknowledged: {answered}",
         )
 
     return Decision(
@@ -107,6 +106,9 @@ def decide(*, review_ran: bool, important: int, ack: str | None) -> Decision:
 # --------------------------------------------------------------------------
 # Reading the reviewer's output
 # --------------------------------------------------------------------------
+
+#: A reviewer that never returns must not hold a push open forever.
+REVIEW_TIMEOUT_SECONDS = 900
 
 #: Severity markers the reviewer uses for a finding that should block a merge.
 IMPORTANT_MARKERS = ("\N{LARGE RED CIRCLE}", "[important]", "severity: important")
@@ -152,7 +154,9 @@ def classify(output: str, exit_code: int) -> tuple[bool, int | None]:
     return (True, None)
 
 
-def gate(*, cmd: list[str], ack: str | None, skip: str | None) -> tuple[Decision, ReviewRecord]:
+def gate(
+    *, program: str, args: list[str] | None = None, ack: str | None, skip: str | None
+) -> tuple[Decision, ReviewRecord]:
     """Run the reviewer, decide, and hand back the record worth keeping.
 
     THE SKIP IS LOUD, WHICH IS WHY IT IS NOT THE HOLE COMING BACK.
@@ -162,17 +166,53 @@ def gate(*, cmd: list[str], ack: str | None, skip: str | None) -> tuple[Decision
     that. It exists so nobody reaches for `git push --no-verify`, which would
     skip the sandbox checks as well and is strictly worse.
     """
+    import shutil
     import subprocess
 
-    skipped = skip is not None and skip.strip() != ""
-    if skipped:
-        assert skip is not None
+    reason_to_skip = skip.strip() if skip is not None else ""
+    if reason_to_skip:
         return (
-            Decision(blocked=False, reason=f"review SKIPPED on purpose: {skip.strip()}"),
-            ReviewRecord(skipped=True, reason=skip.strip(), output="", important=None, ran=False),
+            Decision(blocked=False, reason=f"review SKIPPED on purpose: {reason_to_skip}"),
+            ReviewRecord(skipped=True, reason=reason_to_skip, output="", important=None, ran=False),
         )
 
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    # argv[0] is resolved here and bound exactly once, so PATH cannot decide
+    # which binary reviews the code, and a hung reviewer cannot hold a push
+    # open forever. scripts/security_gate.py grants its B404/B603 exception on
+    # precisely this shape: shell=False, argv a list literal, argv[0] from
+    # shutil.which, timeout set.
+    exe = shutil.which(program)
+    if exe is None:
+        return (
+            Decision(
+                blocked=True,
+                reason=(
+                    f"the review did not run: {program!r} is not on PATH, so "
+                    "nothing was checked."
+                ),
+            ),
+            ReviewRecord(skipped=False, reason="", output="", important=None, ran=False),
+        )
+
+    try:
+        proc = subprocess.run(
+            [exe, *(args or [])],
+            capture_output=True,
+            text=True,
+            timeout=REVIEW_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        return (
+            Decision(
+                blocked=True,
+                reason=(
+                    f"the review did not run: it exceeded {REVIEW_TIMEOUT_SECONDS}s "
+                    "and was stopped, so nothing was checked."
+                ),
+            ),
+            ReviewRecord(skipped=False, reason="", output="", important=None, ran=False),
+        )
+
     output = (proc.stdout or "") + (proc.stderr or "")
     ran, important = classify(output, proc.returncode)
 
@@ -217,9 +257,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--evidence-root", default=".evidence/review")
     args = parser.parse_args(argv)
 
-    cmd = ["claude", "-p", f"/code-review {args.range}"]
     decision, record = gate(
-        cmd=cmd,
+        program="claude",
+        args=["-p", f"/code-review {args.range}"],
         ack=os.environ.get("REVIEW_ACK"),
         skip=os.environ.get("REVIEW_SKIP"),
     )

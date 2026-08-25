@@ -49,7 +49,9 @@ def canvas_prose_max() -> int:
 
 def test_python_cap_equals_the_canvas_cap() -> None:
     expected = canvas_prose_max()
-    assert MAX_PROSE == expected, (
+    # Ruff SIM300: the constant goes on the right. `MAX_PROSE` is the imported
+    # constant, so the measured value leads.
+    assert expected == MAX_PROSE, (
         f"the prose cap has drifted across the language boundary.\n"
         f"  emit.py MAX_PROSE : {MAX_PROSE}\n"
         f"  canvas PROSE_MAX  : {expected}\n"

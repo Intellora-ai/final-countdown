@@ -73,8 +73,27 @@ export interface ModelOptions {
   readonly fetchImpl?: FetchLike
 }
 
+/**
+ * The block kinds a model may produce.
+ *
+ * The canvas renders eight. This offers five, and the two it leaves out of the
+ * teaching-useful ones are left out on purpose:
+ *
+ *   chart, flow, simulation  carry data a model would have to INVENT -- series
+ *                            values, node graphs, physical parameters -- and an
+ *                            invented number drawn as an axis is a lie a
+ *                            student has no way to detect.
+ *
+ *   metric, equation, table  are shapes a model can fill correctly from the
+ *                            topic alone. Without them every live lesson was
+ *                            paragraphs on every subject: a quadratic formula
+ *                            written out in a sentence, a three-way comparison
+ *                            as three paragraphs.
+ */
+export const ALLOWED_BLOCK_KINDS = ['prose', 'callout', 'metric', 'equation', 'table'] as const
+
 /** The subset of LessonSpec a model is allowed to produce. */
-const LESSON_SCHEMA = {
+export const LESSON_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   required: ['id', 'question', 'blocks'],
@@ -92,11 +111,51 @@ const LESSON_SCHEMA = {
         required: ['id', 'kind', 'body'],
         properties: {
           id: { type: 'string', pattern: '^[a-z0-9][a-z0-9-]*$', maxLength: 64 },
-          kind: { type: 'string', enum: ['prose', 'callout'] },
+          kind: { type: 'string', enum: [...ALLOWED_BLOCK_KINDS] },
           title: { type: 'string', maxLength: 120 },
           emphasis: { type: 'string', enum: ['primary', 'supporting', 'aside'] },
           tone: { type: 'string', enum: ['neutral', 'insight', 'warning', 'result'] },
+
+          /* prose and callout */
           body: { type: 'string', minLength: 1, maxLength: 2000 },
+
+          /* metric — one measured number, said once and clearly */
+          value: { type: ['number', 'string'] },
+          unit: { type: 'string', minLength: 1, maxLength: 120 },
+          delta: { type: 'number' },
+          deltaMeaning: { type: 'string', enum: ['up-is-good', 'up-is-bad', 'neutral'] },
+
+          /* equation — LaTeX, with the TERMS to draw the eye to. `highlight`
+             names substrings, never glyph positions: a position is a place on
+             a screen, and the model is not allowed to know about places. */
+          latex: { type: 'string', minLength: 1, maxLength: 600 },
+          highlight: {
+            type: 'array', maxItems: 6,
+            items: { type: 'string', minLength: 1, maxLength: 40 },
+          },
+
+          /* table — no alignment field, deliberately. The renderer aligns by
+             COLUMN TYPE, and letting the author align a column is how a schema
+             starts carrying layout one field at a time. */
+          columns: {
+            type: 'array', minItems: 1, maxItems: 8,
+            items: {
+              type: 'object', additionalProperties: false,
+              required: ['key', 'label'],
+              properties: {
+                key: { type: 'string', pattern: '^[a-z0-9][a-z0-9-]*$', maxLength: 64 },
+                label: { type: 'string', minLength: 1, maxLength: 120 },
+                type: { type: 'string', enum: ['text', 'number', 'percent', 'currency'] },
+              },
+            },
+          },
+          rows: {
+            type: 'array', minItems: 1, maxItems: 200,
+            items: { type: 'object' },
+          },
+
+          /* shared by metric, equation and table */
+          caption: { type: 'string', minLength: 1, maxLength: 120 },
         },
       },
     },
@@ -127,6 +186,17 @@ const SYSTEM = [
   'Use emphasis to say what matters most and tone to say what kind of point it',
   'is. Keep each block to one idea. Never number the parts of the lesson and',
   'never say how many there are.',
+  '',
+  'Choose the block kind that MATCHES THE IDEA, not the one that is easiest:',
+  '  prose     running explanation, and what to use when unsure',
+  '  callout   one short point that must not be missed',
+  '  metric    a single measured number that carries the idea',
+  '  equation  mathematics, as LaTeX. Never write a formula out in a sentence',
+  '            when it is the thing being taught.',
+  '  table     two or more things compared on the same criteria',
+  '',
+  'A comparison written as three paragraphs is harder to read than a table with',
+  'three rows, and a formula spelled out in words is harder than the formula.',
 ].join('\n')
 
 function briefFor(brief: LessonBrief): string {

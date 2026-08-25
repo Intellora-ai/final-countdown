@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { asChapterId, asTopicId } from './engine/ids'
 
 import {
   CHAPTER_BY_ID,
@@ -472,8 +473,8 @@ function profileFor(selection: ReturnType<typeof usePracticeStore.getState>['lau
     if (!topic) return null
 
     return {
-      topicId: topic.id,
-      chapterId: CHAPTER_OF_TOPIC.get(selection.id) ?? 'unknown',
+      topicId: asTopicId(topic.id),
+      chapterId: asChapterId(CHAPTER_OF_TOPIC.get(selection.id) ?? 'unknown'),
       quantitative: quantitativeOf(topic),
       concepts: conceptsOf(topic),
     }
@@ -491,13 +492,13 @@ function profileFor(selection: ReturnType<typeof usePracticeStore.getState>['lau
    * would touch each one at most once and teach nothing about any of them.
    */
   return {
-    topicId: chapter.id,
-    chapterId: chapter.id,
+    topicId: asTopicId(chapter.id),
+    chapterId: asChapterId(chapter.id),
     quantitative: average(topics.map(quantitativeOf)),
     concepts: topics.map((topic) => ({
       id: topic.id,
       name: topic.name,
-      topicId: topic.id,
+      topicId: asTopicId(topic.id),
       numeric: (topic.concepts ?? []).some((concept) => concept.numeric),
       prerequisites: [],
       commonMisconception: null,
@@ -519,7 +520,7 @@ function conceptsOf(topic: { id: string; name: string; concepts?: readonly Topic
       {
         id: topic.id,
         name: topic.name,
-        topicId: topic.id,
+        topicId: asTopicId(topic.id),
         numeric: true,
         prerequisites: [],
         commonMisconception: null,
@@ -530,7 +531,7 @@ function conceptsOf(topic: { id: string; name: string; concepts?: readonly Topic
   return declared.map((concept) => ({
     id: concept.id,
     name: concept.name,
-    topicId: topic.id,
+    topicId: asTopicId(topic.id),
     numeric: concept.numeric,
     prerequisites: concept.prerequisites ?? [],
     commonMisconception: concept.misconception ?? null,

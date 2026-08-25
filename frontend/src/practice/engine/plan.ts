@@ -1,4 +1,5 @@
 import { predictBand } from './difficulty';
+import type { ChapterId, TopicId } from './ids';
 import {
   REASONING_STRUCTURES,
   type Difficulty,
@@ -44,7 +45,7 @@ export interface Concept {
    * `topicId` named the scope instead of the topic and the boundary check
    * compared a chapter to itself. See `topic-isolation.test.ts`.
    */
-  readonly topicId: string;
+  readonly topicId: TopicId;
   /** Whether this concept supports questions with arithmetic in them. */
   readonly numeric: boolean;
   readonly prerequisites: readonly string[];
@@ -53,8 +54,8 @@ export interface Concept {
 }
 
 export interface TopicProfile {
-  readonly topicId: string;
-  readonly chapterId: string;
+  readonly topicId: TopicId;
+  readonly chapterId: ChapterId;
   readonly concepts: readonly Concept[];
   /**
    * 0 = purely qualitative, 1 = purely computational. Drives the mix.

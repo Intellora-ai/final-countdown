@@ -359,3 +359,68 @@ describe("a topic's own concepts are part of its vocabulary", () => {
       .toBeGreaterThan(0);
   });
 });
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * "SQUARED" AND "SQUARE" ARE THE SAME WORD.
+ *
+ * Found while building the solution-scope gate: "Find the maximum value of
+ * y = -x squared + 6x - 5" scored NOTHING against a topic called "Quadratic
+ * equations" whose concept list contains "Completing the square". The only
+ * shared idea is spelled `squared` in one place and `square` in the other, and
+ * an exact-match bag of words treats those as unrelated.
+ *
+ * A syllabus heading is written in the infinitive and a question is written in
+ * the past tense, so this is not an edge case -- it is the normal relationship
+ * between the two texts this gate compares.
+ *
+ * THE STEMMER IS DELIBERATELY CRUDE: plural `s`, `es`, `ed`, `ing`, and `ies`
+ * to `y`. It is not linguistics. Anything cleverer earns its keep only if a
+ * measurement says so, and the measurement here is the self-identification rate
+ * over the real curriculum, which must not fall.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+describe('a word and its inflections are the same word', () => {
+  const INFLECTED = [
+    {
+      id: 'mathematics',
+      name: 'Mathematics',
+      chapters: [
+        {
+          id: 'algebra',
+          number: 1,
+          name: 'Algebra',
+          topics: [
+            {
+              id: 'quadratics',
+              name: 'Quadratic equations',
+              concepts: [{ id: 'q', name: 'Completing the square', numeric: true }],
+            },
+            { id: 'circles', name: 'Circle geometry' },
+          ],
+        },
+      ],
+    },
+  ] as never;
+
+  it('matches a past tense against an infinitive', () => {
+    const centroids = buildCentroids(INFLECTED);
+    expect(scoreFor('the maximum of x squared plus six x', 'quadratics', centroids)).toBeGreaterThan(
+      0,
+    );
+  });
+
+  it('matches a plural against a singular', () => {
+    const centroids = buildCentroids(INFLECTED);
+    expect(scoreFor('the equation of a circle', 'circles', centroids)).toBeGreaterThan(0);
+  });
+
+  it('does not collapse two genuinely different words', () => {
+    /*
+     * THE PAIR. A stemmer aggressive enough to make everything match makes
+     * nothing distinguishable, and the gate then agrees with every topic.
+     */
+    const centroids = buildCentroids(INFLECTED);
+    expect(scoreFor('circle geometry', 'quadratics', centroids)).toBe(0);
+  });
+});

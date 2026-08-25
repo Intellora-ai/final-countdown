@@ -145,23 +145,23 @@ interface Vars {
 const TEMPLATES: Readonly<Record<ReasoningStructure, Template>> = {
   direct_recall: {
     ask: (v) => `A quantity governed by ${v.concept} is measured at ${v.a}. Doubling the factor it depends on gives what value?`,
-    shape: (v) => ({ inputs: { a: v.a, two: 2 }, steps: [{ op: 'mul', left: 'a', right: 'two', into: 'out' }], expected: v.a * 2, tolerance: 0.001, unit: 'kPa' }),
-    solve: (v, answer) => `Pressure tracks absolute temperature at fixed volume, so doubling the temperature doubles ${v.a} kPa to ${answer} kPa.`,
-    unit: 'kPa',
+    shape: (v) => ({ inputs: { a: v.a, two: 2 }, steps: [{ op: 'mul', left: 'a', right: 'two', into: 'out' }], expected: v.a * 2, tolerance: 0.001, unit: 'units' }),
+    solve: (v, answer) => `The quantity is proportional to the factor it depends on, so doubling that factor takes ${v.a} to ${answer} for ${v.concept}.`,
+    unit: 'units',
     slips: ['Halves instead of doubling', 'Leaves the pressure unchanged', 'Adds the temperature in kelvin'],
   },
   single_step_application: {
     ask: (v) => `Applying ${v.concept} once: a quantity of ${v.a} is scaled by ${v.b}. What is twice the result?`,
-    shape: (v) => ({ inputs: { a: v.a, b: v.b }, steps: [{ op: 'mul', left: 'b', right: 'a', into: 'out' }], expected: v.a * v.b, tolerance: 0.001, unit: 'J' }),
-    solve: (v, answer) => `Multiply the inertia ${v.b} by the rate ${v.a} to reach ${answer} J for ${v.concept}.`,
-    unit: 'J',
-    slips: ['Divides inertia by the rate', 'Forgets the factor of two', 'Squares the rate as well'],
+    shape: (v) => ({ inputs: { a: v.a, b: v.b }, steps: [{ op: 'mul', left: 'b', right: 'a', into: 'out' }], expected: v.a * v.b, tolerance: 0.001, unit: 'units' }),
+    solve: (v, answer) => `Scaling ${v.a} by ${v.b} and doubling the result reaches ${answer} for ${v.concept}.`,
+    unit: 'units',
+    slips: ['Divides by the factor instead of multiplying', 'Forgets the factor of two', 'Squares the factor as well'],
   },
   classify_instance: {
     ask: (v) => `Classifying a case under ${v.concept}: one measure is ${v.a} and another is ${v.b}. Which value is their product?`,
-    shape: (v) => ({ inputs: { a: v.a, b: v.b }, steps: [{ op: 'mul', left: 'a', right: 'b', into: 'out' }], expected: v.a * v.b, tolerance: 0.001, unit: 'kg m' }),
-    solve: (v, answer) => `Mass ${v.a} kg at distance ${v.b} m gives ${answer}, which is what places this case in the rotating category for ${v.concept}.`,
-    unit: 'kg m',
+    shape: (v) => ({ inputs: { a: v.a, b: v.b }, steps: [{ op: 'mul', left: 'a', right: 'b', into: 'out' }], expected: v.a * v.b, tolerance: 0.001, unit: 'units' }),
+    solve: (v, answer) => `The two measures ${v.a} and ${v.b} multiply to ${answer}, which is what places this case for ${v.concept}.`,
+    unit: 'units',
     slips: ['Adds mass to distance', 'Uses the distance alone', 'Divides mass by distance'],
   },
   compare_and_contrast: {

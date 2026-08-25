@@ -87,11 +87,54 @@ const STOP = new Set([
   'what', 'which', 'how', 'find', 'value', 'values', 'given', 'two', 'one', 'three',
 ]);
 
+/**
+ * Crude stemming, so an inflection is not a different word.
+ *
+ * Found while building the solution-scope gate: "the maximum of x SQUARED"
+ * scored nothing against a topic whose concept is "Completing the SQUARE". The
+ * only shared idea, spelled two ways, and an exact-match bag of words called
+ * them unrelated.
+ *
+ * That is not an edge case. A syllabus heading is written in the infinitive and
+ * a question is written in the past tense, so it is the NORMAL relationship
+ * between the two texts this gate compares.
+ *
+ * DELIBERATELY CRUDE, and it is not linguistics. Anything cleverer has to earn
+ * its keep against the self-identification rate over the real curriculum, which
+ * this must not lower. Guarded on length, because stripping from a short word
+ * turns distinct ideas into the same stub.
+ */
+function stem(word: string): string {
+  const trimmed = trimSuffix(word);
+  /*
+   * A TRAILING `e` IS DROPPED LAST, and that line is why this works at all.
+   *
+   * "squared" loses `ed` and becomes `squar`; "square" is untouched and stays
+   * `square`. Two spellings of one idea, still unequal -- which is exactly the
+   * failure this stemmer was added to fix, surviving the fix.
+   *
+   * Dropping the final `e` from both lands them on `squar`. Same for
+   * `circle`/`circles` -> `circl`. The stem is not a word and does not need to
+   * be; it only needs to be the SAME for words that mean the same thing.
+   */
+  return trimmed.length > 4 && trimmed.endsWith('e') ? trimmed.slice(0, -1) : trimmed;
+}
+
+function trimSuffix(word: string): string {
+  if (word.length > 4 && word.endsWith('ies')) return `${word.slice(0, -3)}y`;
+  if (word.length > 5 && word.endsWith('ing')) return word.slice(0, -3);
+  if (word.length > 4 && word.endsWith('ed')) return word.slice(0, -2);
+  if (word.length > 4 && word.endsWith('es')) return word.slice(0, -2);
+  if (word.length > 3 && word.endsWith('s') && !word.endsWith('ss')) return word.slice(0, -1);
+  return word;
+}
+
 function words(text: string): string[] {
   return String(text ?? '')
     .toLowerCase()
     .split(/[^a-z]+/)
-    .filter((word) => word.length > 2 && !STOP.has(word));
+    .filter((word) => word.length > 2 && !STOP.has(word))
+    .map(stem);
 }
 
 /**

@@ -139,6 +139,19 @@ unmeasured = [
   # all, so its 482 tests run unmeasured. Adding a floor here needs its own
   # measurement first, for the same reason as `scripts`.
   { path = "learning-os/src", why = "no coverage configuration exists in learning-os/pyproject.toml yet" },
+
+  # Alembic's environment and its migration scripts. This IS production code --
+  # it is what changes a real database -- so it is `unmeasured` rather than
+  # `excluded`, which would claim it is not production at all.
+  #
+  # No floor, and line coverage is the wrong instrument here. A migration runs
+  # once, forward, against a specific starting schema; "which lines executed"
+  # says nothing about whether the resulting schema is correct. What does say
+  # so is `.github/workflows/integration.yml`, which applies every migration to
+  # an empty database on each run, and the database suite, which then asserts
+  # the constraints those migrations created actually refuse bad rows.
+  { path = "learning-os/alembic", why = "migration runner; exercised by integration.yml applying it to an empty database, not by line coverage" },
+  { path = "learning-os/alembic/versions", why = "migration scripts; correctness is the resulting schema, which tests/db asserts, not which lines ran" },
 ]
 
 excluded = [
@@ -531,6 +544,7 @@ must_contain = ["scripts/merge_evidence_gate.py"]
 evidence = "reports/merge-evidence.json"
 artifact = "reports-merge-evidence"
 
+
 # ---------------------------------------------------------------------------
 # DEEP VERIFICATION — supplementary, label-gated, and deliberately not required.
 #
@@ -626,3 +640,5 @@ artifact = ""
 "learning-os.yml::deployed-layout" = "DELIBERATE for now. Same draft subsystem as above."
 
 "verify.yml::merge-evidence" = "DEBT. It checks the PR's measured claims against the run's evidence, which is exactly the kind of thing that should be able to fail a merge. It runs `if: always()` after `full` on pull_request only and is not a required check."
+
+"integration.yml::integration" = "DEBT. It is the only job that proves the migrations apply to an empty database, that the CHECK and UNIQUE constraints actually refuse bad rows, and that the seeded dataset is byte-identical across runs. Nothing else can prove any of that, because no other job has a PostgreSQL. It runs, it reports, it blocks nothing. Making it block is an edit to live ruleset 20990225, which only the repository owner can make -- until then a red database suite stops no merge, and a green pull request should not be read as one this job approved."

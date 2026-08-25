@@ -276,6 +276,13 @@ function Schematic2D({ temperatureK, volumeL, moles, still }: GasSceneProps) {
     <svg
       viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
       role="img"
+      /* Observable on purpose. "Is the render loop running" was otherwise
+         unanswerable from outside, and the first attempt to diagnose a moving
+         still frame had to guess between two equally plausible causes: the
+         loop ignoring `still`, or `still` never becoming true. One attribute
+         settles it, and a feature nobody can observe is indistinguishable from
+         one that never ran. */
+      data-still={still ? 'true' : 'false'}
       aria-label={describe(temperatureK, volumeL, moles)}
       style={{ display: 'block', width: '100%', aspectRatio: '16 / 10' }}
     >

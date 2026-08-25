@@ -205,6 +205,15 @@ test.describe('reduced motion holds the simulation still', () => {
     const surface = surfaceOf(page)
     await expect(surface).toBeVisible()
 
+    /* Asserted BEFORE the pixels, because "the picture moved" has two causes
+       that look identical from a screenshot: a loop that ignores `still`, and
+       a `still` that never became true. This says which. */
+    const media = await page.evaluate(
+      () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    )
+    expect(media, 'The project sets reducedMotion: reduce but the page disagrees.').toBe(true)
+    await expect(surface).toHaveAttribute('data-still', 'true')
+
     const before = await surface.screenshot()
     await passFrames(page, 30)
     const after = await surface.screenshot()

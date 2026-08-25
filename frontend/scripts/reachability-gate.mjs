@@ -78,7 +78,7 @@ export const MANIFEST = [
        `contracts.ts` is listed because a type-only module is legitimately
        imported for its types by files outside the area, and because its
        exports are the shared vocabulary rather than callable behaviour. */
-    entries: ['src/agent/index.ts', 'src/agent/kernel/contracts.ts'],
+    entries: ['src/agent/index.ts'],
   },
   {
     name: 'websearch',
@@ -106,11 +106,22 @@ export const MANIFEST = [
        `evalReport.evaluate()` is called by `formatReport`, and `MAX_ORIGINS`
        is imported by `webSearchClient.ts` instead of being shadowed by a
        private copy of the same list. */
-    entries: [
-      'src/websearch/index.ts',
-      'src/websearch/port.ts',
-      'src/websearch/bench.ts',
-      'src/websearch/webSearchClient.ts',
+    entries: ['src/websearch/index.ts', 'src/websearch/webSearchClient.ts'],
+    /* `bench.ts` is the offline benchmark's surface. It is a real public
+       surface of this area, so the AREA walk must start there or its internals
+       read as orphans — but it is a TOOL, and "does the browser reach the
+       benchmark harness" has no true answer. Asking it produced a permanent
+       UNREACHED finding nobody could act on, and a gate that cries wolf gets
+       switched off.
+
+       Same reasoning as `shipsToBrowser: false` on the server area, applied per
+       file instead of per area. The reason is required, so an entry cannot be
+       parked here silently. */
+    toolEntries: [
+      {
+        path: 'src/websearch/bench.ts',
+        why: 'offline benchmark harness; deliberately not imported by main.tsx',
+      },
     ],
   },
   {
@@ -585,6 +596,18 @@ export function resolveSpec(fromFile, spec) {
  *             orphans: string[], deadExports: {file: string, name: string}[],
  *             warnings: string[] }}
  */
+/**
+ * Every path an AREA walk starts from: declared entries plus tool entries.
+ *
+ * A tool entry is a real public surface of the area — the area walk must begin
+ * there or the tool's internals report as orphans — but it is exempt from the
+ * PRODUCT question, because "does the browser reach the benchmark harness" has
+ * no true answer.
+ */
+export function areaEntries(area) {
+  return [...area.entries, ...(area.toolEntries ?? []).map((t) => t.path)]
+}
+
 export function analyze(area) {
   const root = resolve(ROOT, area.root)
   const files = walk(root)
@@ -621,8 +644,8 @@ export function analyze(area) {
 
   /* 1. Orphan modules --- breadth-first from the declared entries. */
   const reached = new Set()
-  const queue = [...area.entries]
-  for (const e of area.entries) {
+  const queue = [...areaEntries(area)]
+  for (const e of areaEntries(area)) {
     if (!sources.includes(e)) {
       throw new Error(`entry point does not exist or is a test file: ${e}`)
     }
@@ -632,12 +655,25 @@ export function analyze(area) {
     if (reached.has(f)) continue
     reached.add(f)
     for (const imp of edges.get(f) ?? []) {
-      /* TYPE-ONLY EDGES ARE NOT TRAVERSED. tsc erases them, so a module
-         reachable only through `import type` contributes nothing to the
-         bundle and is exactly as absent as one nobody imports at all. This
-         line is the difference between measuring reachability and measuring
-         "mentioned in something that looks like an import". */
-      if (imp.typeOnly) continue
+      /* TYPE-ONLY EDGES ARE NOT TRAVERSED, WITH ONE EXCEPTION. tsc erases
+         them, so a module reachable only through `import type` contributes
+         nothing to the bundle and is exactly as absent as one nobody imports
+         at all. That line is the difference between measuring reachability and
+         measuring "mentioned in something that looks like an import".
+
+         The exception is a module that exports ONLY types. It has no other
+         kind of edge available, so requiring a value import is a rule it can
+         never satisfy — and the old workaround was to declare such modules
+         MANIFEST entries, which exempted them from the question instead of
+         answering it.
+
+         THE SAME EXCEPTION LIVES IN `analyzeProductReachability`, and it has
+         to live in both. Fixing only the product walk made `port.ts` reachable
+         from the product and an ORPHAN inside its own area — one blindness in
+         two places, and half a fix reads as a new bug. */
+      if (imp.typeOnly && !isTypesOnlyModule(readFileSync(resolve(ROOT, imp.target), 'utf8'))) {
+        continue
+      }
       if (!reached.has(imp.target)) queue.push(imp.target)
     }
   }
@@ -663,7 +699,7 @@ export function analyze(area) {
     /* An entry point's exports ARE the public surface, so they are seeds
        rather than candidates --- but everything they reach inside the file
        still has to be reached, so the same propagation runs. */
-    const seed = area.entries.includes(f)
+    const seed = areaEntries(area).includes(f)
       ? new Set(exportsOf(read.get(f)))
       : (taken.get(f) ?? new Set())
     for (const name of unreachableExports(read.get(f), seed)) {
@@ -804,7 +840,7 @@ export function analyzeProductReachability(
        asked the question, so silence is never the default. */
     if (area.shipsToBrowser === false) continue
 
-    for (const e of area.entries) {
+    for (const e of areaEntries(area)) {
       if (!sources.includes(e)) {
         throw new Error(
           `area entry does not exist, is a test file, or is outside ${root}: ` +
@@ -833,7 +869,18 @@ export function analyzeProductReachability(
     if (reached.has(f)) continue
     reached.add(f)
     for (const imp of edges.get(f) ?? []) {
-      if (imp.typeOnly) continue
+      /* THE THIRD ANSWER. A type-only edge normally stops the walk, because
+         tsc erases it and the target ships nothing. But a module that exports
+         ONLY types has no other kind of edge available to it: requiring a value
+         import is a rule it can never satisfy, and the previous workaround was
+         to declare such modules MANIFEST entries and exempt them.
+
+         So the edge is followed when — and only when — the target is
+         types-only. A target with even one value export is still stopped here,
+         which is what keeps a genuine orphan reportable. */
+      if (imp.typeOnly && !isTypesOnlyModule(readFileSync(resolve(ROOT, imp.target), 'utf8'))) {
+        continue
+      }
       if (!reached.has(imp.target)) queue.push(imp.target)
     }
   }
@@ -845,10 +892,73 @@ export function analyzeProductReachability(
        nobody can act on, and a gate that cries wolf gets switched off. */
     if (area.shipsToBrowser === false) continue
 
+    /* `area.entries`, NOT `areaEntries(area)`. Tool entries are deliberately
+       excluded here and nowhere else: the area walk starts from them, so their
+       internals are still measured, but the PRODUCT question is meaningless for
+       a benchmark harness and asking it produced a finding nobody could act
+       on. */
     const unreachable = area.entries.filter((e) => !reached.has(e))
     if (unreachable.length > 0) findings.push({ area: area.name, unreachable })
   }
   return findings
+}
+
+/* -------------------------------------------------------------------------- */
+/* Types-only modules                                                         */
+/* -------------------------------------------------------------------------- */
+
+/* A VALUE export ships runtime code. `enum` is here on purpose: TypeScript
+   compiles a non-const enum into an object, so it is a value however much it
+   reads like a type. */
+const VALUE_EXPORT_RE =
+  /^export\s+(?:declare\s+)?(?:async\s+)?(?:abstract\s+)?(?:function\*?|const|let|var|class|enum)\s/gm
+const DEFAULT_VALUE_EXPORT_RE = /^export\s+default\s/gm
+/* `export { a }` and `export { a } from './x'` — a VALUE re-export unless the
+   whole clause is `export type { ... }`. Every barrel file in the repository is
+   this shape, and reading one as types-only would exempt all of them. */
+const BRACE_EXPORT_RE = /^export\s+(type\s+)?\{/gm
+const TYPE_EXPORT_RE = /^export\s+(?:type|interface)\s/gm
+
+/**
+ * Does this module export types and NOTHING that survives compilation?
+ *
+ * WHY THE GATE NEEDS TO ASK.
+ *
+ * TypeScript erases `import type`, so `analyzeProductReachability` skips
+ * type-only edges: a module reached only that way ships nothing. That is right
+ * for a module with runtime code and IMPOSSIBLE for a module with none.
+ *
+ * `src/agent/kernel/contracts.ts` has 31 type exports and 0 value exports.
+ * No arrangement of imports can make it product-reachable, because every
+ * legitimate import of it is a type import. It was declared a MANIFEST entry to
+ * keep the gate quiet — an exemption with paperwork, for a rule the file could
+ * never satisfy.
+ *
+ * Deliberately narrow: ONE value export and the answer is false. Such a module
+ * can be reached normally, and letting it through this door would hide exactly
+ * the orphan this file exists to find.
+ *
+ * @returns {boolean} true when there is at least one type export and no value
+ *          export.
+ */
+export function isTypesOnlyModule(src) {
+  /* Comments and strings blanked first, so the word `export` inside either
+     cannot vote. Both helpers already exist for the import scanner. */
+  const clean = blankStrings(blankComments(src))
+
+  const braces = [...clean.matchAll(BRACE_EXPORT_RE)]
+  const valueBraces = braces.filter((m) => m[1] === undefined).length
+  const typeBraces = braces.length - valueBraces
+
+  const values =
+    [...clean.matchAll(VALUE_EXPORT_RE)].length +
+    [...clean.matchAll(DEFAULT_VALUE_EXPORT_RE)].length +
+    valueBraces
+  const types = [...clean.matchAll(TYPE_EXPORT_RE)].length + typeBraces
+
+  /* A module with no exports at all is EMPTY, not types-only. Calling it
+     types-only would make every stub file permanently live. */
+  return types > 0 && values === 0
 }
 
 /* -------------------------------------------------------------------------- */

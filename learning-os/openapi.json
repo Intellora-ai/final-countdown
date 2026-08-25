@@ -158,6 +158,21 @@
         "title": "ConceptSummary",
         "type": "object"
       },
+      "ErrorDetail": {
+        "additionalProperties": false,
+        "description": "The shape of every error this API raises deliberately.\n\nWHY THIS EXISTS, AND WHAT IT COST TO LEARN.\n\nFastAPI reserves 422 for its own request-validation failures and publishes a\nfixed schema for it: `{\"detail\": [ValidationError, ...]}` -- an ARRAY. Domain\nrefusals raised as `HTTPException(422, detail=\"no subskill 'x'\")` produce\n`{\"detail\": \"a string\"}` under that same status code.\n\nBoth look fine. Both carry `detail`. And the second one violates the schema\nthe API publishes for 422, which means any consumer generating a client from\nthe document gets a type error on a response the server considers normal.\n\nSchemathesis found it on the first run, from generated input:\n\n    \"no subskill '000...' in knowledge 'python_recursion_v1'\"\n    is not of type \"array\"\n\nEvery hand-written test in tests/http and tests/api passed straight through\nit, because they asserted the status code and the PRESENCE of `detail`,\nnever its type. That is the difference a generator makes.\n\nSo deliberate refusals now use their own status codes with this model\ndeclared, and 422 is left to FastAPI alone.",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorDetail",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -330,6 +345,7 @@
           "question": {
             "maxLength": 200,
             "minLength": 1,
+            "pattern": "\\S",
             "title": "Question",
             "type": "string"
           },
@@ -630,6 +646,16 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            },
+            "description": "The request body could not be decoded."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -668,6 +694,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            },
+            "description": "The named resource does not exist."
           },
           "422": {
             "content": {
@@ -729,6 +765,26 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            },
+            "description": "The request body could not be decoded."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            },
+            "description": "The named resource does not exist."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -767,6 +823,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            },
+            "description": "The named resource does not exist."
           },
           "422": {
             "content": {
@@ -824,6 +890,16 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            },
+            "description": "The named resource does not exist."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -861,6 +937,36 @@
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            },
+            "description": "The request body could not be decoded."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            },
+            "description": "The named resource does not exist."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            },
+            "description": "The skill exists but no lesson could be emitted."
           },
           "422": {
             "content": {

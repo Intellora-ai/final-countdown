@@ -1,6 +1,6 @@
 import type { QuestionProvider } from './provider';
 import {
-  OPTION_KEYS,
+  isOptionKey,
   type CandidateQuestion,
   type NumericComputation,
   type NumericStep,
@@ -352,10 +352,13 @@ function requireString(record: Record<string, unknown>, key: string): string {
 }
 
 function requireOptionKey(value: unknown): OptionKey {
-  if (typeof value !== 'string' || !(OPTION_KEYS as readonly string[]).includes(value)) {
+  /* `isOptionKey` is the declared guard and it NARROWS, which is what removes
+     the `as OptionKey` this function used to need. Re-writing its body here
+     bought a cast and a second copy of the rule; importing it costs neither. */
+  if (typeof value !== 'string' || !isOptionKey(value)) {
     throw new Error(`model returned an option key that is not A-D: ${String(value)}`);
   }
-  return value as OptionKey;
+  return value;
 }
 
 async function safeText(response: Response): Promise<string> {

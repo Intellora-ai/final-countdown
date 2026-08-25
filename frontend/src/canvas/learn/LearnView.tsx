@@ -8,6 +8,7 @@ import { validateLesson } from '../spec/validate'
 import type { Lesson } from '../spec/spec'
 import { TeachView } from '../teach/TeachView'
 import type { SubjectLike } from '../../almanac/resolve'
+import { conceptHeading } from './conceptHeading'
 
 /**
  * The screen `Start` opens: one concept, taught.
@@ -183,7 +184,7 @@ export function LearnView({
   return (
     <div className="td-wrap" data-shell="pad">
       <p className="mono-crumb">{named ? `${named.subject} · ${named.chapter}` : 'Concept'}</p>
-      <h1 className="td-h1">{named ? named.concept : conceptId}</h1>
+      <h1 className="td-h1">{conceptHeading(named ? named.concept : '', conceptId)}</h1>
 
       {state.phase === 'writing' ? (
         <p className="td-sub" role="status">Writing this lesson for you…</p>

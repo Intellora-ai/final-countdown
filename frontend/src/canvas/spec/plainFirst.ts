@@ -138,13 +138,16 @@ const findAbstract = (text: string): string | null => {
    * nominalisation sitting anywhere else in the sentence is left alone, which
    * is what keeps this from refusing ordinary English.
    */
-  const asSubject = /^\s*([A-Za-z]{7,})\s+(?:is|are|means)\b/.exec(text)
-  if (asSubject && NOMINAL_SUFFIXES.some((s) => asSubject[1].toLowerCase().endsWith(s)))
-    return asSubject[1]
+  /* Bound to a const before use. A capture group is `string | undefined` to
+     TypeScript even when the pattern guarantees it, and indexing the match
+     inside the callback loses the narrowing. */
+  const subject = /^\s*([A-Za-z]{7,})\s+(?:is|are|means)\b/.exec(text)?.[1]
+  if (subject && NOMINAL_SUFFIXES.some((s) => subject.toLowerCase().endsWith(s)))
+    return subject
 
-  const asTarget = /\bthe\s+([A-Za-z]{7,})\s+of\b/i.exec(text)
-  if (asTarget && NOMINAL_SUFFIXES.some((s) => asTarget[1].toLowerCase().endsWith(s)))
-    return asTarget[1]
+  const target = /\bthe\s+([A-Za-z]{7,})\s+of\b/i.exec(text)?.[1]
+  if (target && NOMINAL_SUFFIXES.some((s) => target.toLowerCase().endsWith(s)))
+    return target
 
   return null
 }

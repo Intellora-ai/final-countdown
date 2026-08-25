@@ -37,9 +37,26 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { checkPlainFirst, codesOf } from './plainFirst'
+import { checkPlainFirst, codesOf, type PlainViolation } from './plainFirst'
 
 const block = (body: string, kind = 'prose') => ({ id: 'b1', kind, body })
+
+/**
+ * The first violation, or a failure saying so.
+ *
+ * `found[0]` is `PlainViolation | undefined` under strict TypeScript, and the
+ * compiler is right: an empty array is a real possibility and the interesting
+ * one. Optional chaining would silence it by turning a missing violation into
+ * `undefined === expected`, which passes for the wrong reason. Throwing keeps
+ * the assertion strong: no violation is a test failure with a readable message,
+ * not a quiet pass.
+ */
+const first = (found: readonly PlainViolation[]): PlainViolation => {
+  const hit = found[0]
+  if (hit === undefined) throw new Error('expected at least one violation, got none')
+  return hit
+}
+
 
 const lesson = (body: string, question = 'How much pizza is gone?') => ({
   id: 'l1',
@@ -51,7 +68,7 @@ describe('the opening block', () => {
   it('refuses a metaphor doing the defining', () => {
     const found = checkPlainFirst(lesson('It is not a division sum waiting to happen.'))
     expect(codesOf(found)).toContain('METAPHOR_DEFINITION')
-    expect(found[0].evidence).toBe('waiting to')
+    expect(first(found).evidence).toBe('waiting to')
   })
 
   it('accepts the same idea said directly', () => {
@@ -61,7 +78,7 @@ describe('the opening block', () => {
   it('refuses a thing named where an action belongs', () => {
     const found = checkPlainFirst(lesson('It is a count of parts you already made.'))
     expect(codesOf(found)).toContain('ABSTRACT_NOUN')
-    expect(found[0].evidence.toLowerCase()).toContain('a count of')
+    expect(first(found).evidence.toLowerCase()).toContain('a count of')
   })
 
   it('accepts the rewrite the learner can act on', () => {
@@ -91,7 +108,7 @@ describe('the opening block', () => {
   it('refuses a nouned verb as the subject even with no "the ... of" phrase', () => {
     const found = checkPlainFirst(lesson('Multiplication is adding the same number again.'))
     expect(codesOf(found)).toContain('ABSTRACT_NOUN')
-    expect(found[0].evidence).toBe('Multiplication')
+    expect(first(found).evidence).toBe('Multiplication')
   })
 
   it('accepts a long ordinary subject that merely looks similar', () => {
@@ -168,13 +185,13 @@ describe('shape variance — the anti-generic check', () => {
 describe('every violation can be acted on', () => {
   it('carries the offending text and the move that fixes it', () => {
     const found = checkPlainFirst(lesson('It is a count of parts you already made.'))
-    expect(found[0].evidence).not.toBe('')
-    expect(found[0].fix).not.toBe('')
+    expect(first(found).evidence).not.toBe('')
+    expect(first(found).fix).not.toBe('')
   })
 
   it('reports the block it came from', () => {
     const found = checkPlainFirst(lesson('It is a count of parts you already made.'))
-    expect(found[0].path).toBe('blocks[0].body')
+    expect(first(found).path).toBe('blocks[0].body')
   })
 })
 

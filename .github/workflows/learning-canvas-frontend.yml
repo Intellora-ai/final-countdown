@@ -585,6 +585,7 @@ jobs:
           npx playwright test -c playwright.config.ts
           e2e/scene-regressions.spec.ts e2e/composed-renderer.spec.ts
           e2e/token-invariance.spec.ts
+          e2e/a11y.spec.ts
           --project=desktop-1440
           --project=square-900
           --project=mobile-375

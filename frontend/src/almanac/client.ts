@@ -50,17 +50,24 @@ export interface LessonRequest {
   readonly attempts?: number
   /** Set when it was carried over from an earlier day unfinished. */
   readonly carriedFrom?: string
+  /** A named failure, when the screen has watched one happen. */
+  readonly diagnosis?: string
 }
 
 export type LessonResult =
   | { ok: true; lesson: unknown; strategy?: string }
   | { ok: false; reason: string }
+
+/** A free question, answered as prose. Shaped for the teaching screen's
+ *  escalation path, which must never end in a refusal. */
+export type AskResult = { ok: true; text: string } | { ok: false; reason: string }
 export type DoneResult = { ok: true } | { ok: false; reason: string }
 
 export interface AlmanacClient {
   day(request: DayRequest): Promise<DayResult>
   markDone(studentId: string, conceptId: string): Promise<DoneResult>
   lesson(request: LessonRequest): Promise<LessonResult>
+  ask(question: string): Promise<AskResult>
 }
 
 /** Only what this file uses, so a test double is a couple of lines rather than
@@ -172,6 +179,7 @@ export function createAlmanacClient(options: { fetchImpl?: FetchLike; baseUrl?: 
         ...(request.subject === undefined ? {} : { subject: request.subject }),
         ...(request.attempts === undefined ? {} : { attempts: request.attempts }),
         ...(request.carriedFrom === undefined ? {} : { carriedFrom: request.carriedFrom }),
+        ...(request.diagnosis === undefined ? {} : { diagnosis: request.diagnosis }),
       })
       if (!sent.ok) return sent
 
@@ -186,6 +194,21 @@ export function createAlmanacClient(options: { fetchImpl?: FetchLike; baseUrl?: 
         lesson,
         ...(typeof strategy === 'string' ? { strategy } : {}),
       }
+    },
+
+    async ask(question) {
+      const sent = await post('/api/ask', { question })
+      if (!sent.ok) return sent
+
+      /* The route answers with a LessonSpec, because everything this server
+       * produces goes through the same gate. The teaching screen wants prose,
+       * so the blocks' text is joined -- and an answer with no readable text is
+       * a failure, not an empty answer. A blank reply to a confused learner is
+       * a refusal wearing better manners. */
+      const lesson = (sent.body as Record<string, unknown> | null)?.['lesson']
+      const text = proseFrom(lesson)
+      if (text === '') return { ok: false, reason: 'the answer came back empty' }
+      return { ok: true, text }
     },
 
     async markDone(studentId, conceptId) {
@@ -211,6 +234,22 @@ function isLessonShaped(value: unknown): boolean {
     Array.isArray(lesson['blocks']) &&
     lesson['blocks'].length > 0
   )
+}
+
+/** The readable text of a lesson-shaped answer, in block order. */
+function proseFrom(value: unknown): string {
+  if (typeof value !== 'object' || value === null) return ''
+  const blocks = (value as Record<string, unknown>)['blocks']
+  if (!Array.isArray(blocks)) return ''
+  return blocks
+    .map((block) =>
+      typeof block === 'object' && block !== null && typeof (block as Record<string, unknown>)['body'] === 'string'
+        ? String((block as Record<string, unknown>)['body'])
+        : '',
+    )
+    .filter((text) => text.trim() !== '')
+    .join('\n\n')
+    .trim()
 }
 
 /** What `dayRequestFor` needs from a student record. Structural on purpose, so

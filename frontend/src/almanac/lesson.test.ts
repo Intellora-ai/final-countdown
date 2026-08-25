@@ -132,3 +132,53 @@ describe('the stored lessons are valid, not merely present', () => {
     }
   })
 })
+
+describe('asking a free question', () => {
+  const okReply = (body: unknown) => ({ ok: true, status: 200, json: async () => body })
+
+  it('posts the question to the ask route', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(okReply({ lesson: LESSON }))
+    await createAlmanacClient({ fetchImpl }).ask('how tall is everest?')
+
+    const [url, init] = fetchImpl.mock.calls[0]
+    expect(url).toBe('/api/ask')
+    expect(JSON.parse(init.body)).toEqual({ question: 'how tall is everest?' })
+  })
+
+  it('returns the readable text of the answer, in block order', async () => {
+    /* The route answers with a LessonSpec because everything this server makes
+     * goes through the same gate. The teaching screen wants prose. */
+    const two = {
+      ...LESSON,
+      blocks: [
+        { id: 'a', kind: 'prose', body: 'It is 8,849 metres.' },
+        { id: 'b', kind: 'prose', body: 'That is measured to the snow cap.' },
+      ],
+    }
+    const client = createAlmanacClient({ fetchImpl: vi.fn().mockResolvedValue(okReply({ lesson: two })) })
+
+    expect(await client.ask('how tall?')).toEqual({
+      ok: true, text: 'It is 8,849 metres.\n\nThat is measured to the snow cap.',
+    })
+  })
+
+  it('calls an answer with no readable text a FAILURE, not an empty answer', async () => {
+    /* A blank reply to a confused learner is a refusal wearing better manners.
+     * Reported as a failure, the screen says so instead of showing nothing. */
+    for (const lesson of [
+      { ...LESSON, blocks: [] },
+      { ...LESSON, blocks: [{ id: 'a', kind: 'prose', body: '   ' }] },
+      { ...LESSON, blocks: [{ id: 'a', kind: 'prose' }] },
+      null,
+    ]) {
+      const client = createAlmanacClient({ fetchImpl: vi.fn().mockResolvedValue(okReply({ lesson })) })
+      const result = await client.ask('q')
+      expect(result.ok, JSON.stringify(lesson)).toBe(false)
+    }
+  })
+
+  it('reports an unreachable server rather than throwing into the lesson', async () => {
+    const client = createAlmanacClient({ fetchImpl: vi.fn().mockRejectedValue(new Error('offline')) })
+    expect(await client.ask('q')).toEqual({ ok: false, reason: 'the planner could not be reached' })
+  })
+})

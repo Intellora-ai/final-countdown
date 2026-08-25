@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from 'react-router-dom'
 import { loadPlannedSubjects } from '../../almanac/curriculum'
 import { createAlmanacClient, type AlmanacClient } from '../../almanac/client'
 import { storedLessonFor } from '../../almanac/lesson'
+import { recordAttempt } from '../../almanac/attempts'
 import { validateLesson } from '../spec/validate'
 import type { Lesson } from '../spec/spec'
 import { TeachView } from '../teach/TeachView'
@@ -74,6 +75,32 @@ export function LearnView({
 
   const [state, setState] = React.useState<State>({ phase: 'writing' })
 
+  /* Depth is ADDED, never substituted.
+   *
+   * When the learner's own turns show a gap, a second lesson is asked for with
+   * `cognitive_overload` -- which the server's policy turns into decomposition
+   * -- and it is rendered BELOW the first. Replacing the lesson would take away
+   * the part they had already got through, which is the opposite of help, and
+   * the brief is explicit that the whole concept is covered first. */
+  const [deeper, setDeeper] = React.useState<Lesson | null>(null)
+  const deepening = React.useRef(false)
+
+  const goDeeper = React.useCallback(() => {
+    if (deepening.current) return
+    deepening.current = true
+    void client
+      .lesson({
+        concept: named?.concept ?? conceptId,
+        ...(named?.subject === undefined ? {} : { subject: named.subject }),
+        diagnosis: 'cognitive_overload',
+      })
+      .then((result) => {
+        if (!result.ok) return
+        const checked = validateLesson(result.lesson)
+        if (checked.ok) setDeeper(checked.lesson)
+      })
+  }, [client, conceptId, named])
+
   React.useEffect(() => {
     if (conceptId === '') return
     /* Wait for the name before asking. The model teaches "Pressure of a gas";
@@ -85,11 +112,17 @@ export function LearnView({
     if (named === null && subjects === undefined) return
 
     let live = true
+    /* Counted HERE, once, as the concept is opened. The server's policy
+       escalates on this number -- worked example, then a different
+       representation, then an analogy -- so without a count that survives
+       leaving the page every visit would be the first visit and the teaching
+       would never change. */
+    const attempts = recordAttempt(conceptId)
     void client
       .lesson({
         concept: named?.concept ?? conceptId,
         ...(named?.subject === undefined ? {} : { subject: named.subject }),
-        ...(passed.attempts === undefined ? {} : { attempts: passed.attempts }),
+        attempts,
         ...(passed.carriedFrom === undefined ? {} : { carriedFrom: passed.carriedFrom }),
       })
       .then((result) => {
@@ -130,7 +163,19 @@ export function LearnView({
             concept. It is the right topic, but it is not written for you.
           </p>
         )}
-        <TeachView lesson={state.lesson} mode="2d" />
+        <TeachView
+          lesson={state.lesson}
+          mode="2d"
+          ask={(question) => client.ask(question)}
+          onStruggling={goDeeper}
+        />
+
+        {deeper !== null && (
+          <section aria-label="A slower way through this">
+            <h2 className="td-h1">Let us go through that more slowly</h2>
+            <TeachView lesson={deeper} mode="2d" ask={(question) => client.ask(question)} />
+          </section>
+        )}
       </div>
     )
   }

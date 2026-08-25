@@ -18,7 +18,7 @@
  */
 
 import '@testing-library/jest-dom/vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -146,5 +146,104 @@ describe('while it is being written', () => {
     open('gas-pressure', almanac)
 
     expect(await screen.findByRole('status')).toHaveTextContent(/writing|preparing/i)
+  })
+})
+
+describe('depth is added, never substituted', () => {
+  it('asks for a slower lesson when the learner is struggling, and keeps the first', async () => {
+    /* THE RULE FROM THE BRIEF: the whole concept is covered first, and depth
+     * ADDS. Replacing the lesson would take away the part they had already got
+     * through, which is the opposite of help. */
+    const second = { ...gasPressure, id: 'gas-pressure-slower', question: 'Slower: why does pressure rise?' }
+    const lesson = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, lesson: gasPressure })
+      .mockResolvedValueOnce({ ok: true, lesson: second })
+    const almanac = { lesson, ask: vi.fn(), day: vi.fn(), markDone: vi.fn() } as unknown as AlmanacClient
+
+    render(
+      <MemoryRouter initialEntries={['/learn/gas-pressure']}>
+        <Routes>
+          <Route path="/learn/:conceptId" element={<LearnView subjects={SUBJECTS} almanac={almanac} />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByText(gasPressure.question)
+
+    /* Struggle: three questions on the first beat. */
+    const field = screen.getByLabelText('Answer the question, or ask one of your own')
+    for (const text of ['what?', 'i dont get it', 'explain again']) {
+      await act(async () => {
+        fireEvent.change(field, { target: { value: text } })
+        fireEvent.submit(field.closest('form') as HTMLFormElement)
+      })
+    }
+
+    expect(await screen.findByText(second.question)).toBeInTheDocument()
+    /* Both are on screen. The first was not taken away. */
+    expect(screen.queryByText(gasPressure.question)).toBeInTheDocument()
+
+    const asked = lesson.mock.calls[1]![0] as { diagnosis?: string }
+    expect(asked.diagnosis).toBe('cognitive_overload')
+  })
+
+  it('asks for the slower lesson only ONCE, however long the struggle lasts', async () => {
+    /* Deepening again on every subsequent turn is how "adaptive" becomes
+     * "unreadable". */
+    const lesson = vi.fn().mockResolvedValue({ ok: true, lesson: gasPressure })
+    const almanac = { lesson, ask: vi.fn(), day: vi.fn(), markDone: vi.fn() } as unknown as AlmanacClient
+
+    render(
+      <MemoryRouter initialEntries={['/learn/gas-pressure']}>
+        <Routes>
+          <Route path="/learn/:conceptId" element={<LearnView subjects={SUBJECTS} almanac={almanac} />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByText(gasPressure.question)
+
+    const field = screen.getByLabelText('Answer the question, or ask one of your own')
+    for (const text of ['what?', 'why?', 'how?', 'when?', 'which?', 'who?']) {
+      await act(async () => {
+        fireEvent.change(field, { target: { value: text } })
+        fireEvent.submit(field.closest('form') as HTMLFormElement)
+      })
+    }
+
+    expect(lesson.mock.calls.length, 'the lesson was re-requested on every turn').toBe(2)
+  })
+})
+
+describe('the teaching changes across visits', () => {
+  it('reports a rising attempt count, so the server can escalate', async () => {
+    /* Without this the policy would look adaptive in its own tests and be
+     * completely fixed in front of a student: every visit would be visit one. */
+    /* jsdom in this project provides no `localStorage`, so one is installed
+     * for this check. That is not a workaround around the feature -- it is the
+     * only way to exercise the REAL default path, which is the path a browser
+     * takes. Without it the count silently stays at 1 and the escalation would
+     * be untested in exactly the place it matters. */
+    const data: Record<string, string> = {}
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (k: string) => data[k] ?? null,
+        setItem: (k: string, v: string) => { data[k] = v },
+        removeItem: (k: string) => { delete data[k] },
+      },
+    })
+
+    const almanac = teacher({ ok: true, lesson: gasPressure })
+    const { unmount } = open('gas-pressure', almanac)
+    await waitFor(() => expect(almanac.lesson).toHaveBeenCalled())
+    unmount()
+
+    open('gas-pressure', almanac)
+    await waitFor(() => expect(vi.mocked(almanac.lesson).mock.calls.length).toBe(2))
+
+    const first = vi.mocked(almanac.lesson).mock.calls[0]![0] as { attempts?: number }
+    const second = vi.mocked(almanac.lesson).mock.calls[1]![0] as { attempts?: number }
+    expect(first.attempts).toBe(1)
+    expect(second.attempts).toBe(2)
   })
 })

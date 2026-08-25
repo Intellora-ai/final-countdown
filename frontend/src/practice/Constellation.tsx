@@ -9,6 +9,7 @@ import {
 } from 'react'
 
 import type { Subject } from './curriculum'
+import { useExamChoice } from './examChoice'
 import { useMapClass } from './mapClass'
 import { practiceCurriculumFor } from './mapSource'
 
@@ -65,16 +66,22 @@ export function Constellation() {
    */
   const [curriculum, setCurriculum] = useState<readonly Subject[] | null>(null)
   const cls = useMapClass()
+  /*
+   * The entrance exam is drawn ALONGSIDE the class, not instead of it. A
+   * student sits both, and Class 11 Physics and JEE Physics are overlapping but
+   * different scopes.
+   */
+  const [exam] = useExamChoice()
 
   useEffect(() => {
     let live = true
-    void practiceCurriculumFor(cls).then((result) => {
+    void practiceCurriculumFor(cls, exam).then((result) => {
       if (live) setCurriculum(result.subjects)
     })
     return () => {
       live = false
     }
-  }, [cls])
+  }, [cls, exam])
 
   const graph = useMemo(() => buildGraph(curriculum ?? undefined), [curriculum])
   const dots = useMemo(() => nebulaFor(graph.subjects), [graph.subjects])

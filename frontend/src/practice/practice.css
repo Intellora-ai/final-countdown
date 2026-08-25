@@ -1124,3 +1124,59 @@
   outline: 2px solid var(--pm-accent-soft);
   outline-offset: 2px;
 }
+
+/* --------------------------------------------------------------------------
+   The entrance exam strip.
+
+   Four exams, one choice. Bottom-left, opposite the pan/zoom hint, so it never
+   covers the centre of the map where the subjects sit.
+
+   EVERY VALUE IS AN EXISTING --pm-* TOKEN, and that sentence is here because
+   the first draft of this block invented fourteen token names that do not
+   exist in this stylesheet. Every property fell back to its initial value and
+   the control rendered as unstyled text. Nothing warned: an undefined custom
+   property is not an error, it is silence. The recipe below is the one
+   .pm-q-steer-button already uses.
+   -------------------------------------------------------------------------- */
+.pm-exams {
+  position: absolute;
+  left: var(--pm-s5);
+  bottom: var(--pm-s5);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pm-s2);
+  z-index: 3;
+}
+
+.pm-exam {
+  padding: var(--pm-s2) var(--pm-s3);
+  border: 1px solid var(--pm-line);
+  border-radius: var(--pm-radius-md);
+  background: var(--pm-panel);
+  color: var(--pm-ink-muted);
+  font: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    color 120ms var(--pm-ease),
+    border-color 120ms var(--pm-ease),
+    background 120ms var(--pm-ease);
+}
+
+.pm-exam:hover {
+  color: var(--pm-ink);
+  border-color: var(--pm-line-strong);
+}
+
+.pm-exam:focus-visible {
+  outline: 2px solid var(--pm-accent-soft);
+  outline-offset: 2px;
+}
+
+.pm-exam[aria-checked='true'] {
+  color: var(--pm-accent);
+  border-color: var(--pm-accent);
+  background: var(--pm-panel-hover);
+}

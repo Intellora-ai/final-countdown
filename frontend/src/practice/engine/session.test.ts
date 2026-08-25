@@ -62,6 +62,7 @@ function question(index: number, correct: OptionKey = 'A'): VerifiedQuestion {
     prerequisites: [],
     generationSource: 'fixture',
     verificationStatus: 'PASSED',
+    figure: null,
     similarityStatus: 'UNIQUE',
     qualityScore: 0.9,
     fingerprint: `fp${index}`,

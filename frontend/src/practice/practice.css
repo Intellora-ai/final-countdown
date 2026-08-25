@@ -1180,3 +1180,27 @@
   border-color: var(--pm-accent);
   background: var(--pm-panel-hover);
 }
+
+/* --------------------------------------------------------------------------
+   The figure a question draws.
+
+   Sits between the question and its options, because it is part of the
+   question: a student reads the ask, looks at the picture, then chooses.
+
+   The height is RESERVED whether or not the chart has loaded. Every shape
+   renderer is behind `lazy`, so without a reserved box the options jump down
+   the moment the chunk arrives -- under a finger that is already moving.
+   -------------------------------------------------------------------------- */
+.pm-q-figure {
+  margin: var(--pm-s4) 0;
+  padding: var(--pm-s3);
+  border: 1px solid var(--pm-line);
+  border-radius: var(--pm-radius-lg);
+  background: var(--pm-void-lift);
+  min-height: 180px;
+  overflow-x: auto;
+}
+
+.pm-q-figure-wait {
+  min-height: 156px;
+}

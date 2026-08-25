@@ -1,3 +1,4 @@
+import { figureFor } from './figure'
 import type { QuestionProvider } from './provider';
 import {
   isOptionKey,
@@ -256,6 +257,8 @@ export function toCandidate(
     };
   });
 
+  const computation = parseComputation(parsed['computation']);
+
   return {
     candidateId: `${spec.specId}-a${attempt}`,
     spec,
@@ -264,7 +267,14 @@ export function toCandidate(
     correctOption,
     fullSolution,
     generationSource: model,
-    computation: parseComputation(parsed['computation']),
+    computation,
+    /*
+     * BUILT HERE, NOT ASKED OF THE MODEL. LAW 1 -- the model never draws. It
+     * returns the question and the arithmetic; the figure is derived from that
+     * arithmetic, so a model cannot put a quantity on screen that its own
+     * question does not use, however it was prompted.
+     */
+    figure: figureFor(spec, computation),
   };
 }
 

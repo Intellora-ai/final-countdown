@@ -59,6 +59,7 @@ function candidate(overrides: Partial<CandidateQuestion> = {}): CandidateQuestio
     fullSolution: SOLUTION,
     generationSource: 'fixture-v1',
     computation: null,
+    figure: null,
     ...overrides,
   };
 }

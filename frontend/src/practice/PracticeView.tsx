@@ -1,3 +1,4 @@
+import { chapterById, chapterOfTopic, topicById } from './registry'
 import { EXAM_CHOICES, useExamChoice } from './examChoice'
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 
@@ -5,7 +6,7 @@ import { Constellation } from './Constellation'
 import { PanZoom } from './PanZoom'
 import { PracticePanel } from './PracticePanel'
 import { SessionView } from './SessionView'
-import { CHAPTER_BY_ID, CHAPTER_OF_TOPIC, TOPIC_BY_ID, type TopicId } from './curriculum'
+import { type TopicId } from './curriculum'
 import { buildGraph } from './layout'
 import { hydrateAndRecover } from './sessionStore'
 import { hydratePracticeStore, recentTopicsOf, usePracticeStore } from './store'
@@ -284,7 +285,7 @@ function ContinuePractising() {
                 className="pm-continue-item"
                 onClick={() => {
                   select({ kind: 'topic', id })
-                  const chapterId = CHAPTER_OF_TOPIC.get(id)
+                  const chapterId = chapterOfTopic(id)
                   if (chapterId) pinChapter(chapterId)
                 }}
               >
@@ -299,7 +300,7 @@ function ContinuePractising() {
 }
 
 function labelForTopic(id: TopicId): string {
-  return TOPIC_BY_ID.get(id)?.name ?? CHAPTER_BY_ID.get(id)?.name ?? id
+  return topicById(id)?.name ?? chapterById(id)?.name ?? id
 }
 
 /* -------------------------------------------------------------------------- */

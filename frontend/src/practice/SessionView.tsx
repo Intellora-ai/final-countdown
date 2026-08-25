@@ -1,13 +1,11 @@
+import { chapterById, chapterOfTopic, hasTopic, subjectOfChapter, topicById, topicsOfChapter } from './registry'
+import { Suspense } from 'react'
+import { FigureView } from '../canvas/render/FigureView'
 import { useEffect, useMemo, useRef, type KeyboardEvent as ReactKeyboardEvent, useState } from 'react'
 import { STEERS, type Steer } from './engine/steer'
 import { asChapterId, asSubjectId, asTopicId } from './engine/ids'
 
 import {
-  CHAPTER_BY_ID,
-  CHAPTER_OF_TOPIC,
-  SUBJECT_OF_CHAPTER,
-  TOPIC_BY_ID,
-  topicsOfChapter,
   type TopicConcept,
 } from './curriculum'
 import { adviceFrom, orderByNeed, signalFrom } from './engine/mastery'
@@ -245,7 +243,7 @@ export function SessionView() {
     const result = useSessionStore.getState().history[0]
     if (result && result.answeredCount > 0) {
       const topicId = result.topicId
-      if (TOPIC_BY_ID.has(topicId)) {
+      if (hasTopic(topicId)) {
         recordPractice(topicId, result.answeredCount, result.correctCount)
       }
     }
@@ -258,8 +256,8 @@ export function SessionView() {
 
   const scope =
     launchedFrom.kind === 'chapter'
-      ? (CHAPTER_BY_ID.get(launchedFrom.id)?.name ?? 'this chapter')
-      : (TOPIC_BY_ID.get(launchedFrom.id)?.name ?? 'this topic')
+      ? (chapterById(launchedFrom.id)?.name ?? 'this chapter')
+      : (topicById(launchedFrom.id)?.name ?? 'this topic')
 
   return (
     <div
@@ -389,6 +387,28 @@ function Question() {
   return (
     <div className="pm-q">
       <h2 className="pm-q-text">{question.questionText}</h2>
+
+      {question.figure === null ? null : (
+        <div className="pm-q-figure">
+          {/*
+            * The figure is drawn by the canvas renderer the rest of the product
+            * uses -- `FigureView` dispatches one of twelve shapes and refuses a
+            * figure whose data contradicts its own type. No chart is built
+            * here, and none is styled here either: a second implementation of a
+            * bar chart is how two parts of one product start disagreeing about
+            * what a bar chart looks like.
+            *
+            * `Suspense`, because every shape renderer is behind `lazy` so a
+            * question with one flow diagram does not download the plotting
+            * engine. The fallback is a sized blank rather than a spinner: the
+            * space is reserved either way, so the options below do not jump
+            * once the chart arrives.
+            */}
+          <Suspense fallback={<div className="pm-q-figure-wait" aria-hidden />}>
+            <FigureView block={question.figure} />
+          </Suspense>
+        </div>
+      )}
 
       <ul className="pm-q-options">
         {question.options.map((option) => {
@@ -553,21 +573,21 @@ function profileFor(selection: ReturnType<typeof usePracticeStore.getState>['lau
   if (!selection) return null
 
   if (selection.kind === 'topic') {
-    const topic = TOPIC_BY_ID.get(selection.id)
+    const topic = topicById(selection.id)
     if (!topic) return null
 
     return {
       topicId: asTopicId(topic.id),
-      chapterId: asChapterId(CHAPTER_OF_TOPIC.get(selection.id) ?? 'unknown'),
+      chapterId: asChapterId(chapterOfTopic(selection.id) ?? 'unknown'),
       subjectId: asSubjectId(
-        SUBJECT_OF_CHAPTER.get(CHAPTER_OF_TOPIC.get(selection.id) ?? '') ?? 'unknown',
+        subjectOfChapter(chapterOfTopic(selection.id) ?? '') ?? 'unknown',
       ),
       quantitative: quantitativeOf(topic),
       concepts: conceptsOf(topic),
     }
   }
 
-  const chapter = CHAPTER_BY_ID.get(selection.id)
+  const chapter = chapterById(selection.id)
   if (!chapter) return null
   const topics = topicsOfChapter(selection.id)
   if (topics.length === 0) return null
@@ -581,7 +601,7 @@ function profileFor(selection: ReturnType<typeof usePracticeStore.getState>['lau
   return {
     topicId: asTopicId(chapter.id),
     chapterId: asChapterId(chapter.id),
-    subjectId: asSubjectId(SUBJECT_OF_CHAPTER.get(chapter.id) ?? 'unknown'),
+    subjectId: asSubjectId(subjectOfChapter(chapter.id) ?? 'unknown'),
     quantitative: average(topics.map(quantitativeOf)),
     concepts: topics.map((topic) => ({
       id: topic.id,

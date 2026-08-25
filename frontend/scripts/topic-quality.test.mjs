@@ -328,3 +328,55 @@ describe('a determiner starts plenty of real headings', () => {
     }
   });
 });
+
+/*
+ * `Proofs of irrationality of` — read off the practice screen, mid-session.
+ *
+ * The extractor cut the line before "√2, √3 and √5". The filter passed it: it
+ * is five words, capitalised, starts with a noun, and has no full stop. Every
+ * structural rule here says "heading".
+ *
+ * What gives it away is the END. A heading names a thing, so it ends on the
+ * thing it names. A phrase ending in a preposition or a conjunction is still
+ * reaching for its object, and the object is on the line that was cut off.
+ * That is the same shape as `continuation`, read from the other end -- and it
+ * is a shape, not a list of known-bad titles.
+ */
+describe('a heading that stops mid-reach', () => {
+  it('rejects a phrase that ends on a preposition', () => {
+    for (const name of [
+      'Proofs of irrationality of',
+      'The relationship between',
+      'Applications in',
+      'Comparison with',
+      'Motion of a body under',
+    ]) {
+      expect(reasonsUnusable(name), name).toContain('cut-off');
+    }
+  });
+
+  it('keeps a heading that ends on the thing it names', () => {
+    /*
+     * The PAIR, and it matters more than usual here: these all CONTAIN the same
+     * words in the middle. A rule that searched anywhere in the string instead
+     * of at the end would delete every one of them.
+     */
+    for (const name of [
+      'Proofs of irrationality of root 2',
+      'The relationship between pressure and volume',
+      'Applications in daily life',
+      'Comparison with the ideal gas law',
+      'Motion of a body under gravity',
+    ]) {
+      expect(reasonsUnusable(name), name).toEqual([]);
+    }
+  });
+
+  it('does not fire on a word that merely ends in those letters', () => {
+    /* `proof` ends in "of". Anchoring to the letters and not the WORD would
+     * delete a great many real headings and look like a mystery. */
+    for (const name of ['A formal proof', 'Angle of incidence', 'Work done on a gas']) {
+      expect(reasonsUnusable(name), name).toEqual([]);
+    }
+  });
+});

@@ -12,7 +12,7 @@
     "test:mutation": "node scripts/mutation-gate.mjs",
     "budget": "node scripts/canvas-bundle-budget.mjs",
     "gate:reachability": "node scripts/reachability-gate.mjs",
-    "lint": "eslint src/canvas src/practice src/agent src/websearch src/tutor src/almanac --max-warnings 0",
+    "lint": "eslint src/canvas src/practice src/agent src/websearch src/tutor src/almanac src/api --max-warnings 0",
     "curriculum:fetch": "node scripts/curriculum/fetch.mjs",
     "curriculum:verify": "node scripts/curriculum/fetch.mjs --verify",
     "curriculum:extract": "node scripts/curriculum/extract-all.mjs",
@@ -21,7 +21,8 @@
     "gate:secrets": "node scripts/secret-exposure-gate.mjs",
     "server:build": "vite build --config vite.server.config.ts",
     "exams:build": "node scripts/curriculum/build-exams.mjs",
-    "gate:eval": "vitest run src/websearch/evalGate.test.ts"  },
+    "gate:eval": "vitest run src/websearch/evalGate.test.ts"
+  },
   "dependencies": {
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
@@ -38,6 +39,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@pact-foundation/pact": "17.1.2",
     "@playwright/test": "^1.62.1",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",

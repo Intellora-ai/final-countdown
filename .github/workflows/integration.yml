@@ -1,0 +1,121 @@
+name: integration
+
+# The database suite. Separate from `learning-os` on purpose.
+#
+# `tests/db` needs a real PostgreSQL and the `learning-os` job has none. The
+# alternative -- one suite that switches half of itself off when no database is
+# configured -- was written first and refused by this repository's own gate,
+# correctly: a test that has been switched off and a test that passed are
+# indistinguishable in a summary line.
+#
+# So there are two suites and two jobs, each with the dependencies it actually
+# needs. `learning-os` runs `pytest tests --ignore=tests/db`; this runs
+# `pytest tests/db` against a service container.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "learning-os/**"
+      - ".github/workflows/integration.yml"
+      - "docker-compose.yml"
+  pull_request:
+    paths:
+      - "learning-os/**"
+      - ".github/workflows/integration.yml"
+      - "docker-compose.yml"
+
+concurrency:
+  group: integration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: learning-os
+
+    services:
+      postgres:
+        # A SERVICE CONTAINER RATHER THAN docker-compose.yml.
+        #
+        # The runner image already holds these layers, so nothing is pulled per
+        # job. `docker-compose.yml` exists for laptops without PostgreSQL
+        # installed, and the version is pinned identically in both files -- two
+        # definitions of one dependency drift unless somebody keeps them equal
+        # deliberately.
+        #
+        # Pinned to a MINOR version. A floating `:16` means the same commit runs
+        # against different database versions on different days, which makes a
+        # green result unrepeatable and therefore not evidence.
+        image: postgres:16.10-alpine
+        env:
+          POSTGRES_USER: learning
+          POSTGRES_PASSWORD: learning
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        # Without this the job races the database: the container is "started"
+        # several seconds before PostgreSQL accepts connections, and the first
+        # test fails on connection refused. That reads as a broken suite rather
+        # than as a race, which is the worst kind of red.
+        options: >-
+          --health-cmd "pg_isready -U learning -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PYTHONHASHSEED: "0"
+      # The MAINTENANCE database. `tests/db` creates a scratch database per
+      # session from here and drops it afterwards, so nothing this suite does
+      # touches a database anybody else is using.
+      LEARNING_OS_TEST_DATABASE_URL: postgresql+psycopg://learning:learning@localhost:5432/postgres
+
+    steps:
+      # Pinned to commit SHAs, not tags, and matching the SHAs the rest of this
+      # repository already uses. A tag is a mutable ref the upstream owner can
+      # move, so `@v4` means the same commit can run different CI on different
+      # days. Enforced by tests/test_supply_chain.py.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: learning-os/requirements-learning-os.lock
+
+      - name: Install
+        run: pip install --quiet --require-hashes -r requirements-learning-os.lock
+
+      # Migrations run as their own step rather than only inside the fixture, so
+      # "the migration applies to an empty database" is a fact this job proves
+      # even if every test were deleted.
+      - name: Migrations apply to an empty database
+        run: python3 -m alembic upgrade head
+        env:
+          PYTHONPATH: src
+          LEARNING_OS_DATABASE_URL: postgresql+psycopg://learning:learning@localhost:5432/postgres
+
+      - name: Database tests
+        # pytest exits 5 when it collects NOTHING, so a suite that vanished
+        # fails this step rather than reporting success over an empty run. That
+        # is the failure this repository has already shipped once.
+        run: python3 -m pytest tests/db -q
+        env:
+          PYTHONPATH: src
+
+      # A collected count is not the same as an executed count, and neither is
+      # the same as "enough". This step names a floor: if the database suite
+      # ever shrinks below it, somebody deleted coverage and the job says so.
+      - name: The database suite is not vacuous
+        run: python3 scripts/db_suite_floor.py
+        working-directory: .
+        env:
+          PYTHONPATH: learning-os/src
+          LEARNING_OS_TEST_DATABASE_URL: postgresql+psycopg://learning:learning@localhost:5432/postgres

@@ -1,0 +1,8 @@
+{
+  "note": "P11-T5. Floors for the offline practice-question evaluation. A floor, never a target: the gate fails when a score drops below it and says nothing when one rises. Raising a number here is a deliberate act that must come with the run that earned it.",
+  "practice": {
+    "structuralPrecision": 1,
+    "citationPrecision": 1,
+    "cases": 6
+  }
+}

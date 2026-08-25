@@ -1,0 +1,23 @@
+{
+  /*
+   * THE THIRD OF THREE PLACES `evals/` IS DECLARED, AND THE REASON ALL THREE EXIST.
+   *
+   * `tsconfig.json` includes only `src`, so a directory outside it is checked by
+   * nothing unless it says so here. That is not hypothetical: `e2e/` sits outside
+   * `src` and is typechecked by NOTHING, and an undeclared `testInfo` reached CI
+   * as a ReferenceError that failed eight browser tests after `npm run typecheck`
+   * had passed cleanly over it.
+   *
+   * So `evals/` is wired into vitest (vite.config.ts), eslint (eslint.config.js
+   * plus the `lint` script) and typecheck (here). A directory added to one and
+   * not the others is silently skipped with no error, which is exactly how
+   * `src/api` once shipped unlinted.
+   *
+   * No `types: ["node"]`: nothing under `evals/` touches a Node builtin. The
+   * fixtures arrive through `resolveJsonModule`, not `fs`, which keeps this
+   * project buildable without adding a dependency.
+   */
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true },
+  "include": ["evals"]
+}

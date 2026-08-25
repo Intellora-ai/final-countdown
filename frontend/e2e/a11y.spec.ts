@@ -43,6 +43,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 
 import { settle } from './util/canvas'
+import { permittedFor, type Baseline } from './util/baseline'
 import { applyProjectMedia } from './util/media'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -79,8 +80,6 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 
 /** How many tab presses count as "traversed". */
 const TAB_DEPTH = 12
-
-type Baseline = Record<string, string[]>
 
 function readBaseline(): Baseline {
   try {
@@ -162,7 +161,7 @@ test.describe('accessibility across a journey', () => {
 
       if (UPDATING) return
 
-      const permitted = new Set(readBaseline()[route.name] ?? [])
+      const permitted = new Set(permittedFor(readBaseline(), route.name, testInfo.project.name))
       const added = found.filter((id) => !permitted.has(id))
 
       expect(
@@ -215,7 +214,13 @@ test.describe('accessibility across a journey', () => {
       await page.waitForLoadState('networkidle')
       if (route.name === 'canvas') await canvasReady(page)
       const found = new Set(await scan(page))
-      for (const id of baseline[route.name] ?? []) {
+      /*
+       * PER PROJECT, because the finding is. A violation that only exists while
+       * an animation is running is genuinely absent under
+       * `prefers-reduced-motion`, and reading one flat list made the staleness
+       * check report it stale there while four other projects still saw it.
+       */
+      for (const id of permittedFor(baseline, route.name, testInfo.project.name)) {
         if (!found.has(id)) stale.push(`${route.name}: ${id}`)
       }
     }

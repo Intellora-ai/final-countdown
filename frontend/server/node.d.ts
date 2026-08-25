@@ -124,6 +124,10 @@ declare module 'node:url' {
 
 declare module 'node:path' {
   export function join(...parts: string[]): string
+  /* Used to create the ledger's directory on first write. Declared here rather
+   * than pulled in with @types/node for the same reason as everything else in
+   * this file: these are the calls actually made. */
+  export function dirname(path: string): string
 }
 
 /* The file surface the ledger and its tests use. Same reasoning as above:

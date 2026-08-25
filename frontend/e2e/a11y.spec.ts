@@ -137,7 +137,7 @@ test.describe('accessibility across a journey', () => {
   for (const route of ROUTES) {
     test(`${route.name} stays within the baseline through load, keyboard and mobile`, async ({
       page,
-    }) => {
+    }, testInfo) => {
       /* STATE 1 -- loaded. */
       await applyProjectMedia(page, testInfo)
     await page.goto(route.path)

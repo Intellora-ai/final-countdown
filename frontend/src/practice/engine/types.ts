@@ -253,7 +253,6 @@ export interface NumericStep {
   readonly into: string;
 }
 
-export type VerificationStatus = 'PASSED' | 'FAILED';
 export type SimilarityStatus = 'UNIQUE' | 'NEAR_DUPLICATE' | 'DUPLICATE';
 
 /**

@@ -585,8 +585,6 @@ export const SUBJECT_OF_CHAPTER: ReadonlyMap<ChapterId, SubjectId> = new Map(
   ),
 );
 
-export const ALL_TOPIC_IDS: readonly TopicId[] = [...TOPIC_BY_ID.keys()];
-
 /** Every topic in a chapter, or an empty list for an id nobody knows. */
 export function topicsOfChapter(chapterId: ChapterId): readonly Topic[] {
   return CHAPTER_BY_ID.get(chapterId)?.topics ?? [];

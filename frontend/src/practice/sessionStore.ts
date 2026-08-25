@@ -12,8 +12,7 @@ import {
   resultOf,
   submit as submitSession,
   syncClock,
-  type PracticeSession,
-} from './engine/session';
+  type PracticeSession, remainingMs } from './engine/session';
 import {
   forDelivery,
   isTerminal,
@@ -376,10 +375,6 @@ function remember(existing: readonly string[], added: readonly string[]): string
   );
 }
 
-export function hydrateSessionStore(): void {
-  void useSessionStore.persist?.rehydrate();
-}
-
 /* -------------------------------------------------------------------------- */
 /* Selectors                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -432,6 +427,10 @@ export function progressOf(session: PracticeSession | null): { current: number; 
 
 /** Milliseconds left, or null when this session has no countdown. */
 export function remainingFor(session: PracticeSession | null): number | null {
-  if (!session || !session.timerEnabled) return null;
-  return Math.max(0, session.timerDurationMs - (session.highWaterMs - session.startedAtMs));
+  /* Null-tolerance is the ONLY thing this adds: a screen may hold no session,
+     the engine never does. The arithmetic belongs to `remainingMs`, which is
+     also the only place that knows `elapsedMs` — inlining
+     `highWaterMs - startedAtMs` here made a second copy of the clock, and two
+     clocks agree right up until one of them is corrected. */
+  return session ? remainingMs(session) : null;
 }

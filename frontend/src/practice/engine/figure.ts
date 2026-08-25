@@ -46,6 +46,19 @@ const FORM: Readonly<Record<ReasoningStructure, string>> = {
   diagnose_error: 'flowchart',
 };
 
+/**
+ * Reasoning structures whose evidence IS the picture.
+ *
+ * §35.1: "Data-analysis question → table/chart may be the actual evidence
+ * required." A comparison question asks the student to read quantities off a
+ * chart and relate them; remove the chart and there is nothing to compare.
+ *
+ * DELIBERATELY SHORT. Every entry here is a question type that is unanswerable
+ * without its figure, and adding one that merely LOOKS better with a chart puts
+ * back the decoration §35 exists to remove.
+ */
+const EVIDENCE_IS_THE_FIGURE: ReadonlySet<string> = new Set(['compare_and_contrast']);
+
 export function figureFor(
   spec: QuestionSpec,
   computation: NumericComputation | null,
@@ -82,9 +95,37 @@ export function figureFor(
    * That is a judgement about the task, not about the string. This rule covers
    * the half that is decidable from the text.
    */
-  const values = Object.values(computation.inputs);
-  const allStated = values.length > 0 && values.every((value) => mentions(questionText, value));
-  if (allStated) return null;
+  /*
+   * §35.1 FIRST, because it is the half that gets forgotten: "A necessary
+   * visual MUST NOT be omitted merely because text is easier to generate."
+   *
+   * Some reasoning structures ARE data interpretation -- the chart is the
+   * evidence the question is built on, not a restatement of it. For those the
+   * figure is kept whatever the sentence happens to say.
+   *
+   * DECLARED, NOT INFERRED FROM THE WORDING. Measured before this existed:
+   * 3 of 15 questions carried a figure, and both survivors were accidents --
+   * two templates happened not to state one of their numbers, and the rule
+   * noticed. A later wording change to either would have deleted its chart
+   * with nothing to catch it.
+   */
+  if (EVIDENCE_IS_THE_FIGURE.has(spec.reasoningStructure)) {
+    /* fall through to build it */
+  } else {
+    /*
+     * §35.3 for everything else -- if removing the visual does not make the
+     * question worse, remove it. When the sentence already spells out every
+     * quantity the chart would plot, the student is reading those numbers
+     * anyway and the chart is decoration. Measured on the real generator: the
+     * text said "One reads 65, the other 4" and the chart drew 65 and 4.
+     *
+     * A figure is KEPT the moment the text withholds even one quantity,
+     * because then the chart is the only place that number exists.
+     */
+    const values = Object.values(computation.inputs);
+    const allStated = values.length > 0 && values.every((value) => mentions(questionText, value));
+    if (allStated) return null;
+  }
 
   const id = `fig-${spec.specId}`;
   const as = FORM[spec.reasoningStructure];

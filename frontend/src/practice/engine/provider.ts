@@ -164,7 +164,7 @@ const TEMPLATES: Readonly<Record<ReasoningStructure, Template>> = {
     slips: ['Adds mass to distance', 'Uses the distance alone', 'Divides mass by distance'],
   },
   compare_and_contrast: {
-    ask: (v) => `Two systems differ only in ${v.concept}. One reads ${v.a}, the other ${v.b}. By how much does the first exceed the second?`,
+    ask: (v) => `The chart shows two measurements taken under ${v.concept}. By how much does the first exceed the second?`,
     shape: (v) => ({ inputs: { a: v.a, b: v.b }, steps: [{ op: 'sub', left: 'a', right: 'b', into: 'out' }], expected: v.a - v.b, tolerance: 0.001, unit: 'units' }),
     solve: (v, answer) => `Subtracting ${v.b} from ${v.a} gives ${answer}, which isolates the contribution ${v.concept} makes.`,
     unit: 'units',

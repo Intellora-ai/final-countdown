@@ -326,3 +326,78 @@ describe('a figure has to earn its place', () => {
     expect(figureFor(SPEC, null, 'anything at all')).toBeNull();
   });
 });
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * §35.1 — A NECESSARY VISUAL MUST NOT BE OMITTED.
+ *
+ * §35 removed the decorative charts, and the fair question is whether it
+ * removed all of them. Measured, on 15 questions across three concepts:
+ *
+ *     FIGURES 3/15
+ *     direct_recall     FIGURE
+ *     multi_step_chain  FIGURE
+ *     the other eight   text
+ *
+ * So charts survive -- but BY ACCIDENT. Those two templates happen not to state
+ * one of their numbers in the sentence, and the rule noticed. Nothing in the
+ * design said "this question needs a picture"; a later wording change to either
+ * template would silently delete its chart and no test would notice.
+ *
+ * §35.1 names the case that must be deliberate: "Data-analysis question →
+ * table/chart may be the actual evidence required." A comparison question is
+ * exactly that. Its data now lives ONLY in the figure, so the chart is
+ * necessary by construction rather than by luck -- remove it and the question
+ * cannot be answered at all.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+describe('a question whose evidence IS the figure', () => {
+  const comparison = { ...SPEC, reasoningStructure: 'compare_and_contrast' as const };
+
+  it('always carries a figure, whatever the wording does', () => {
+    /*
+     * Asserted for ANY question text, including one that happens to mention
+     * every number. A data-interpretation question is defined by what it asks
+     * the student to do, not by which digits its sentence contains -- and the
+     * accidental version failed exactly there.
+     */
+    for (const text of [
+      'Compare the readings shown and state the difference.',
+      'The chart shows 120, 5 and 30. Compare the first two.',
+      '',
+    ]) {
+      expect(figureFor(comparison, COMPUTATION, text), text).not.toBeNull();
+    }
+  });
+
+  it('is unanswerable without it, which is what makes it necessary', () => {
+    /*
+     * §35.3 run in the direction that keeps a visual: remove the figure and the
+     * quantities exist nowhere. That is the definition of a visual that carries
+     * information rather than restating it.
+     */
+    const figure = figureFor(comparison, COMPUTATION, 'Compare the readings shown.');
+    const drawn = new Set(numbersIn(figure!.data));
+
+    for (const value of Object.values(COMPUTATION.inputs)) {
+      expect(drawn.has(value), `${value} is not in the figure and not in the text`).toBe(true);
+    }
+  });
+
+  it('still leaves the text-only structures alone', () => {
+    /*
+     * THE PAIR. Marking every structure as data-interpretation would satisfy
+     * both tests above and reinstate the exact defect §35 removed -- a chart on
+     * every question.
+     */
+    const spellsItOut =
+      'Two systems differ only in pressure. One reads 120, the next 5, the last 30. Compare them.';
+
+    expect(
+      figureFor({ ...SPEC, reasoningStructure: 'single_step_application' }, COMPUTATION, spellsItOut),
+    ).toBeNull();
+    expect(
+      figureFor({ ...SPEC, reasoningStructure: 'estimate_and_bound' }, COMPUTATION, spellsItOut),
+    ).toBeNull();
+  });
+});

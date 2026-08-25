@@ -18,11 +18,18 @@ on:
       - "learning-os/**"
       - ".github/workflows/integration.yml"
       - "docker-compose.yml"
+      # The contract job regenerates pacts/ from the frontend consumer suite,
+      # so a change to either side has to trigger this workflow or the drift
+      # check never runs on the change that caused the drift.
+      - "pacts/**"
+      - "frontend/src/api/**"
   pull_request:
     paths:
       - "learning-os/**"
       - ".github/workflows/integration.yml"
       - "docker-compose.yml"
+      - "pacts/**"
+      - "frontend/src/api/**"
 
 concurrency:
   group: integration-${{ github.workflow }}-${{ github.ref }}
@@ -119,3 +126,54 @@ jobs:
         env:
           PYTHONPATH: learning-os/src
           LEARNING_OS_TEST_DATABASE_URL: postgresql+psycopg://learning:learning@localhost:5432/postgres
+
+  # ---------------------------------------------------------------------------
+  # THE COMMITTED CONTRACT MUST BE THE ONE THE CONSUMER ACTUALLY GENERATES.
+  #
+  # `pacts/learning-canvas-learning-os.json` is committed, and the provider
+  # verification in the learning-os job reads it. Nothing so far checks that the
+  # committed file is what the frontend consumer suite produces TODAY.
+  #
+  # Without this job the failure is silent and complete: a developer changes what
+  # the canvas needs, forgets to commit the regenerated contract, and the
+  # provider goes on verifying a contract describing needs the consumer no longer
+  # has. Both suites stay green while the two sides drift apart -- which is the
+  # exact failure Pact was added to prevent.
+  #
+  # Same reasoning as scripts/openapi_drift.py, and the same shape: regenerate,
+  # then compare against what is committed.
+  # ---------------------------------------------------------------------------
+  contract:
+    name: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+        working-directory: frontend
+
+      - name: Regenerate the consumer contract
+        run: npx vitest run src/api/client.pact.test.ts
+        working-directory: frontend
+
+      - name: The committed contract matches what the consumer generates
+        # `git diff --exit-code` is the whole check. A regenerated file identical
+        # to the committed one leaves the tree clean; any difference fails here
+        # and prints it, rather than being discovered when the canvas breaks.
+        run: |
+          if ! git diff --exit-code -- pacts/; then
+            echo "::error::pacts/ is stale. The consumer suite generates a different contract than the one committed."
+            echo "Regenerate and commit it with:"
+            echo "  cd frontend && npx vitest run src/api/client.pact.test.ts"
+            exit 1
+          fi
+          echo "the committed contract matches the consumer suite"

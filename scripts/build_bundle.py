@@ -240,7 +240,7 @@ def main() -> int:
         return 2
 
     print("[BUNDLE]")
-    print(f"ARTIFACT_TYPE      verification bundle (NOT deployable)")
+    print("ARTIFACT_TYPE      verification bundle (NOT deployable)")
     print(f"BUNDLE_NAME        {manifest['bundle_name']}")
     print(f"BUNDLE_SHA256      {manifest['bundle_sha256']}")
     print(f"BUNDLE_BYTES       {manifest['bundle_bytes']}")

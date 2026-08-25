@@ -165,7 +165,7 @@ def main() -> int:
     run_details = cast("dict[str, Any]", predicate["runDetails"])
 
     print("[PROVENANCE]")
-    print(f"FORMAT             SLSA v1 in-toto Statement JSON")
+    print("FORMAT             SLSA v1 in-toto Statement JSON")
     print(f"SUBJECT_NAME       {manifest['bundle_name']}")
     print(f"SUBJECT_SHA256     {manifest['bundle_sha256']}")
     print(f"SOURCE_SHA         {source_sha}")

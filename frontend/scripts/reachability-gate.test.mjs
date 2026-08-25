@@ -174,6 +174,78 @@ export function used() { return 2 }
     expect(dead).toEqual(['helper', 'stranded'])
   })
 
+  /* `export default` was invisible to this gate.
+
+     DECL_RE requires a declaration keyword straight after `export`, and
+     `default` is not one of them, so `export default function x() {}` produced
+     no symbol at all -- not a live one, not a dead one. A genuinely dead
+     default export was planted in a reachable file and the gate answered
+     `orphans: [] dead: [] warnings: []` and PASS. Seven shipping files in
+     src/ use `export default`, so this was not a corner.
+
+     The import side already speaks the right vocabulary: `parseClause` records
+     a default import under the name `default`. Only the export side was
+     missing, which is why the two never met. */
+
+  it('calls a DEAD default export dead', () => {
+    const area = fixture({
+      'entry.ts': `import { used } from './m'\nexport const go = used\n`,
+      'm.ts': `export function used() { return 2 }
+export default function nobodyImportsThis() { return 1 }
+`,
+    })
+    const dead = analyze(area).deadExports.map((d) => d.name)
+    expect(dead).toEqual(['default'])
+  })
+
+  it('calls a default export LIVE when another module imports it', () => {
+    /* The PAIR. Without it, reporting every default export as dead would
+       satisfy the test above, and seven real files would light up red. */
+    const area = fixture({
+      'entry.ts': `import thing from './m'\nexport const go = thing\n`,
+      'm.ts': `export default function whateverItIsCalled() { return 1 }\n`,
+    })
+    expect(analyze(area).deadExports).toEqual([])
+  })
+
+  it('does not treat the declared name of a default export as importable', () => {
+    /* A default export is imported under whatever name the importer chooses,
+       so its declared name is NOT an export anyone can ask for. Marking
+       `whateverItIsCalled` as an exported name would report it dead on every
+       file that uses `export default`, which is the cry-wolf direction. */
+    const area = fixture({
+      'entry.ts': `import thing from './m'\nexport const go = thing\n`,
+      'm.ts': `export default function whateverItIsCalled() { return 1 }\n`,
+    })
+    const dead = analyze(area).deadExports.map((d) => d.name)
+    expect(dead).not.toContain('whateverItIsCalled')
+  })
+
+  it('calls a default export dead even when a live comment says the word "default"', () => {
+    /* CAUGHT BY THE TWO-WAY PROOF, NOT BY THE FIXTURES.
+
+       Naming the symbol `default` made it collide with an ordinary English
+       word. Propagation resurrects a symbol whose name matches `\bname\b`
+       anywhere in a live symbol's span, so one live function whose COMMENT
+       read "falls to the `conversation` default" was enough to mark the
+       default export live. The unit fixtures passed and the same plant in
+       `src/agent/communicate/communicate.ts` still sailed through the real
+       gate.
+
+       `default` is not an identifier anyone can write to reach that export --
+       an importer binds it to a name of their own choosing. So it can be
+       SEEDED by a real default import and must never be reached by text. */
+    const area = fixture({
+      'entry.ts': `import { used } from './m'\nexport const go = used\n`,
+      'm.ts': `/* falls back to the conversation default when nothing matches */
+export function used() { return 2 }
+export default function nobodyImportsThis() { return 1 }
+`,
+    })
+    const dead = analyze(area).deadExports.map((d) => d.name)
+    expect(dead).toEqual(['default'])
+  })
+
   it('treats a star import as consuming everything', () => {
     const area = fixture({
       'entry.ts': `import * as m from './m'\nexport const go = m\n`,
@@ -736,5 +808,88 @@ describe('area reachability from the product entry', () => {
     expect(failed).toBe(true)
     expect(text).toContain('UNREACHED')
     expect(text).toContain('agent')
+  })
+})
+
+describe('importsOf: clause bounding without semicolons', () => {
+  it('does not swallow an interface body into a later re-export', () => {
+    const src = [
+      'export interface Config {',
+      '  a: string',
+      '}',
+      "export { thing } from './mod'",
+    ].join('\n')
+    const found = importsOf(src)
+    const mod = found.find((f) => f.spec === './mod')
+    expect(mod).toBeDefined()
+    expect(mod.names).toEqual(['thing'])
+  })
+
+  it('still parses a multi-line import clause, which is what [^;] was protecting', () => {
+    const src = ['import {', '  a,', '  b,', "} from './x'"].join('\n')
+    const found = importsOf(src)
+    expect(found.find((f) => f.spec === './x').names).toEqual(['a', 'b'])
+  })
+
+  /* The minimal cut is TWO conditions, not three. A brace block only makes the
+     corruption obvious; without one the clause still runs away and quietly adds
+     a phantom `default` import, which is the more dangerous shape because it
+     looks like a legitimate parse. Found by testing the "safe" cases rather
+     than trusting that they were safe. */
+  it('does not invent a default import from a preceding export statement', () => {
+    const src = ['export const n = 1', "export { t } from './m'"].join('\n')
+    expect(importsOf(src).find((f) => f.spec === './m').names).toEqual(['t'])
+  })
+
+  it('parses cleanly when either condition of the cut is absent', () => {
+    const withSemis = ['export interface C {', '  a: string;', '};', "export { t } from './m'"].join('\n')
+    const notExportKw = ['const x = {', '  a: 1', '}', "export { t } from './m'"].join('\n')
+    for (const src of [withSemis, notExportKw]) {
+      expect(importsOf(src).find((f) => f.spec === './m').names).toEqual(['t'])
+    }
+  })
+})
+
+describe('the summary ratio measures the area, not the whole walk', () => {
+  const AREA = resolve(ROOT, '.ratio-area')
+  const OUTSIDE = resolve(ROOT, '.ratio-outside')
+
+  afterEach(() => {
+    rmSync(AREA, { recursive: true, force: true })
+    rmSync(OUTSIDE, { recursive: true, force: true })
+  })
+
+  function twoDirs(areaFiles, outsideFiles) {
+    rmSync(AREA, { recursive: true, force: true })
+    rmSync(OUTSIDE, { recursive: true, force: true })
+    for (const [dir, files] of [[AREA, areaFiles], [OUTSIDE, outsideFiles]]) {
+      for (const [path, source] of Object.entries(files)) {
+        const full = join(dir, path)
+        mkdirSync(resolve(full, '..'), { recursive: true })
+        writeFileSync(full, source)
+      }
+    }
+    return { name: 'ratio', root: '.ratio-area', entries: ['.ratio-area/entry.ts'] }
+  }
+
+  it("does not count a file from another area as one of this area's own", () => {
+    const area = twoDirs(
+      { 'entry.ts': "import { h } from '../.ratio-outside/helper'\nexport const a = h\n" },
+      { 'helper.ts': 'export const h = 1\n' },
+    )
+    const { text } = report([analyze(area)])
+    expect(text).toContain('[ratio] 1/1 source files reachable from entry points')
+  })
+
+  it('drops the numerator when a file in the area is unreachable, so the ratio can still say something is wrong', () => {
+    const area = twoDirs(
+      {
+        'entry.ts': "import { h } from '../.ratio-outside/helper'\nexport const a = h\n",
+        'orphan.ts': 'export const stranded = 2\n',
+      },
+      { 'helper.ts': 'export const h = 1\n' },
+    )
+    const { text } = report([analyze(area)])
+    expect(text).toContain('[ratio] 1/2 source files reachable from entry points')
   })
 })

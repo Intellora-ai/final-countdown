@@ -1,3 +1,6 @@
+import { readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import { MAX_ORIGINS, freshnessOf, originOf } from './provenance'
@@ -155,4 +158,53 @@ describe('it is total and deterministic', () => {
     ], now)
     expect(f.origins).toEqual([...new Set(f.origins)].sort())
   })
+})
+
+/* -------------------------------------------------------------------------- */
+
+/*
+ * ONE LIST, NOT TWO THAT HAPPEN TO MATCH.
+ *
+ * `MAX_ORIGINS` exists so a test asserts against the real declared values
+ * rather than a list it also wrote. That reasoning only holds while there IS
+ * one declaration. `webSearchClient.ts` kept its own `const ORIGINS` and used
+ * it to filter untrusted input at runtime, so the value this module exported
+ * for exactly that purpose was imported by nothing that ships — which is also
+ * why the reachability gate reported `MAX_ORIGINS` as a dead export.
+ *
+ * Two copies that agree today are not a contract; they are a coincidence with
+ * a maintenance schedule. Adding a fourth origin to one of them typechecks on
+ * both sides and silently stops matching, and the symptom would surface far
+ * from the edit, as an origin quietly dropped from a search result.
+ *
+ * The copy in `canvas/teach/webResolver.ts` is deliberately NOT covered here.
+ * It sits on the far side of a module boundary and re-declares the union on
+ * purpose so a rename cannot pass silently; `webResolver.test.ts` is what pins
+ * that one. This test is about duplication INSIDE `src/websearch`, where a
+ * plain import is available and no boundary justifies a second copy.
+ */
+describe('the origin list is declared once', () => {
+  const DIR = new URL('.', import.meta.url).pathname
+
+  /** Files that build a runtime array literal out of origin strings. */
+  function declaringFiles(): string[] {
+    const found: string[] = []
+    for (const name of readdirSync(DIR).sort()) {
+      if (!name.endsWith('.ts') || /\.(test|spec)\.ts$/.test(name)) continue
+      const source = readFileSync(join(DIR, name), 'utf8')
+      /* An ARRAY of origin strings, which is a runtime list. A union type
+         (`| 'live'`) and a single returned literal are not, and must not be
+         counted — otherwise `originOf`'s own `return ... ? 'recent-cache' :
+         'live'` would read as a declaration and the test would be unfixable. */
+      if (/\[\s*'(?:live|recent-cache|precomputed)'(?:\s*,\s*'(?:live|recent-cache|precomputed)')+\s*,?\s*\]/.test(source)) {
+        found.push(name)
+      }
+    }
+    return found
+  }
+
+  it('is built as a runtime array in provenance.ts and nowhere else in this directory', () => {
+    expect(declaringFiles()).toEqual(['provenance.ts'])
+  })
+
 })

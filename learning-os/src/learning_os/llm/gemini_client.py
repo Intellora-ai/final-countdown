@@ -59,7 +59,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 from learning_os.llm.anthropic_client import BUILDABLE, SYSTEM, build_prompt
 from learning_os.llm.client import GEMINI_API_KEY_ENV, GeneratedContent, LLMUnavailable
@@ -293,39 +293,88 @@ class GeminiClient:
         # once a socket is opened.
         client = genai.Client(api_key=key)
 
-        try:
-            response = client.models.generate_content(
-                model=self.model,
-                contents=build_prompt(contract),
-                config={
-                    "system_instruction": SYSTEM,
-                    "max_output_tokens": self.max_tokens,
-                    # Both are required together: the schema without the mime
-                    # type is ignored, which is the silent version of no schema
-                    # at all.
-                    "response_mime_type": "application/json",
-                    "response_json_schema": RESPONSE_SCHEMA,
-                },
-            )
-        except Exception as error:
-            # Deliberately broad. The SDK raises its own exception hierarchy and
-            # this layer's contract is "any provider problem is LLMUnavailable";
-            # letting one vendor's class escape would make the runtime's retry
-            # decision depend on which vendor is configured.
-            raise LLMUnavailable(f"the model could not be reached: {error}") from error
+        return _content_of(_send(client, self.model, contract, self.max_tokens))
 
-        blocked = _refusal_reason(response)
-        if blocked is not None:
-            # A safety decline is not an outage and not a bad contract. Naming it
-            # separately keeps it out of the "retry the same thing" path, where
-            # it would loop against a decision that will not change.
-            raise LLMUnavailable(f"the model declined to generate for this contract: {blocked}")
 
-        text = getattr(response, "text", None)
-        if not isinstance(text, str) or not text.strip():
-            raise LLMUnavailable("the model returned no text")
+class _Models(Protocol):
+    """The single SDK method this module calls."""
 
-        return parse_blocks(text)
+    def generate_content(self, **kwargs: object) -> object: ...
+
+
+class _GenAIClient(Protocol):
+    """The shape `genai.Client` presents to this module, and nothing more.
+
+    Declared here rather than importing the SDK's own types because the SDK is
+    an OPTIONAL dependency -- CI installs only the hash-locked base set. A real
+    import would make this module unimportable exactly where it is most
+    important that it stay importable: on a machine with no key and no SDK.
+
+    Narrow on purpose. `_send` is the only place that talks to the vendor, so
+    the vendor's surface is described in one place and in one line.
+    """
+
+    @property
+    def models(self) -> _Models: ...
+
+
+def _send(
+    client: _GenAIClient, model: str, contract: InstructionContract, max_tokens: int
+) -> object:
+    """Make the request. Any provider problem arrives as `LLMUnavailable`.
+
+    Split out of `generate()` so the failure path is reachable from a test. It
+    takes the client rather than building one, which means a stub whose
+    `models.generate_content` raises exercises the wrap with no SDK, no key and
+    no network.
+    """
+    try:
+        return client.models.generate_content(
+            model=model,
+            contents=build_prompt(contract),
+            config={
+                "system_instruction": SYSTEM,
+                "max_output_tokens": max_tokens,
+                # Both are required together: the schema without the mime
+                # type is ignored, which is the silent version of no schema
+                # at all.
+                "response_mime_type": "application/json",
+                "response_json_schema": RESPONSE_SCHEMA,
+            },
+        )
+    except Exception as error:
+        # Deliberately broad. The SDK raises its own exception hierarchy and
+        # this layer's contract is "any provider problem is LLMUnavailable";
+        # letting one vendor's class escape would make the runtime's retry
+        # decision depend on which vendor is configured.
+        raise LLMUnavailable(f"the model could not be reached: {error}") from error
+
+
+def _content_of(response: object) -> GeneratedContent:
+    """Interpret a provider response, or say why it is unusable.
+
+    Split out for the same reason as `_send`: these three outcomes sit
+    downstream of the SDK call, so nothing could reach them while they lived
+    inline. `_refusal_reason` already promised in its own docstring to work
+    without the SDK installed; that was true of the helper and false of the
+    branch that called it.
+
+    THE ORDER IS LOAD-BEARING. A refusal always arrives with empty text, so
+    reading the text first would report every safety decline as an outage --
+    and the runtime retries outages, forever, against a decision that will not
+    change.
+    """
+    blocked = _refusal_reason(response)
+    if blocked is not None:
+        # A safety decline is not an outage and not a bad contract. Naming it
+        # separately keeps it out of the "retry the same thing" path.
+        raise LLMUnavailable(f"the model declined to generate for this contract: {blocked}")
+
+    text = getattr(response, "text", None)
+    if not isinstance(text, str) or not text.strip():
+        raise LLMUnavailable("the model returned no text")
+
+    return parse_blocks(text)
 
 
 def _refusal_reason(response: object) -> str | None:

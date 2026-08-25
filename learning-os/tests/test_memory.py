@@ -250,3 +250,41 @@ def test_an_empty_memory_answers_everything_safely() -> None:
     assert m.attempt_count(SKILL) == 0
     assert m.relevant(SKILL) == ()
     assert m.is_repeat(SKILL, mechanism="anything") is False
+
+
+def test_relevant_survives_the_outcome_the_live_loop_actually_writes() -> None:
+    """`relevant()` crashed on every store the running product produces.
+
+    Its rank table listed FAILURE, PARTIAL and SUCCESS and omitted DELIVERED,
+    so `rank[attempt.outcome]` raised KeyError. `runtime/loop.py` writes
+    DELIVERED on the SUCCESS path -- it is the outcome for content that reached
+    the learner -- which means the table covered every outcome except the one
+    normal operation generates.
+
+    The rank is 3, after SUCCESS, and that follows from the file's own two
+    statements rather than from convenience. `relevant()` orders by how much an
+    attempt CONSTRAINS the next decision, and `store.py` says DELIVERED is
+    "deliberately in NEITHER set" because content reaching the learner "is not
+    evidence the teaching worked". Something that is not evidence constrains
+    least, so it sorts last.
+    """
+    store = MemoryStore()
+    delivered = _attempt(Outcome.DELIVERED)
+    store.record_attempt(delivered)
+
+    assert store.relevant(SKILL) == (delivered,)
+
+
+def test_relevant_ranks_delivered_below_success() -> None:
+    """Ordering is the point, not merely not-crashing.
+
+    A test that only asserted "no KeyError" would pass against
+    `rank = {..., Outcome.DELIVERED: 0}`, which would put unproven deliveries
+    ahead of real failures and quietly invert the whole ordering.
+    """
+    store = MemoryStore()
+    for outcome in (Outcome.DELIVERED, Outcome.SUCCESS, Outcome.PARTIAL, Outcome.FAILURE):
+        store.record_attempt(_attempt(outcome))
+
+    got = [a.outcome for a in store.relevant(SKILL)]
+    assert got == [Outcome.FAILURE, Outcome.PARTIAL, Outcome.SUCCESS, Outcome.DELIVERED]

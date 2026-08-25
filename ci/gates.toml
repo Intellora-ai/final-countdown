@@ -16,11 +16,29 @@
 # A check GitHub requires with no gate hangs every merge. Evidence for a gate
 # nobody declared is evidence for nothing.
 #
-# EVERY MANDATORY GATE IS A JOB IN verify.yml. That is not a style choice:
-# separate workflows are separate runs with separate filesystems, so a
-# finalizer in workflow C cannot see evidence produced in workflows A and B.
-# One workflow gives the finalizer `needs:` and `download-artifact` over the
-# same run, which is the only construction where the aggregate is real.
+# EVERY MANDATORY *REPORT-PRODUCING* GATE IS A JOB IN verify.yml. The
+# qualifier is not pedantry -- the sentence used to read "every mandatory gate"
+# and that was false in this same file. Four of the seventeen required contexts
+# are declared below and live somewhere else:
+#
+#   codeql-python, codeql-actions   codeql.yml   need `security-events: write`
+#   CodeQL                          (no job)     posted by GHAS app 57789
+#   e2e                             e2e.yml      needs a browser binary
+#
+# THE SPLIT IS THE EVIDENCE MODEL, NOT A FILING PREFERENCE. Separate workflows
+# are separate runs with separate filesystems, so a finalizer in workflow C
+# cannot see evidence produced in workflows A and B. One workflow gives the
+# finalizer `needs:` and `download-artifact` over the same run, which is the
+# only construction where the aggregate is real. So anything that must land in
+# reports/<gate>.json and be counted by aggregate_gates.py has to be a job in
+# verify.yml. The four above produce no such report -- their evidence is the
+# code-scanning database or an exit code -- which is exactly why `role` is
+# `scanner` or `code-scanning` for them, and why the finalizer is told not to
+# expect an artifact from them.
+#
+# A comment in a trusted path that describes a stronger invariant than the one
+# in force is the failure this repository exists to catch. It was doing it to
+# itself.
 
 [ruleset]
 id = 20990225
@@ -77,6 +95,66 @@ required_fields = [
 run_identity = { commit = "GITHUB_SHA", run_id = "GITHUB_RUN_ID", run_attempt = "GITHUB_RUN_ATTEMPT", workflow = "GITHUB_WORKFLOW" }
 
 # ---------------------------------------------------------------------------
+# COVERAGE SCOPE — what the coverage number is a number ABOUT.
+#
+# The `coverage` gate below pins `--cov-fail-under=95` and nothing pins its
+# SCOPE. Measured 2026-08-25: `pyproject.toml` sets `source = ["src"]`, and
+# `src/` is five files totalling 38 lines, while `scripts/` holds 19,499 and
+# `learning-os/src/` holds 7,992. So a required check reporting 95% was
+# reporting it about 0.05% of the production code, and every check stayed green
+# while the repository grew.
+#
+# That is scope drift, the same shape `check_ruleset.py` catches between this
+# file and the live ruleset. `scripts/coverage_scope_gate.py` reads the three
+# lists below and refuses any directory holding Python that appears in none of
+# them, so a new package is a visible diff here or a red check.
+#
+#   measured    a coverage scope measures it            -> `scope` required
+#   unmeasured  production code with no floor YET       -> `why` required
+#   excluded    not production code at all              -> `why` required
+#
+# `unmeasured` is deliberate. `scripts/` genuinely has no floor today; calling
+# it `excluded` would be false and omitting it is the drift being fixed. A gap
+# with a written reason is one a reader can act on. The `why` is the whole
+# difference, which is why a row without one is refused.
+# ---------------------------------------------------------------------------
+[coverage]
+measured = [
+  # The four arithmetic functions carrying Lean specifications. 95% is enforced
+  # by the `coverage` gate's own `--cov-fail-under=95`; this row records WHICH
+  # directory that number is about.
+  { path = "src", scope = "src", floor = 95 },
+]
+
+unmeasured = [
+  # 19,499 lines of gate machinery. Measured by hand at 57% on 2026-08-25 with
+  # subprocess coverage armed (see tests/coverage-subprocess.cfg); before that
+  # hook existed the same command reported 45.80%, because 34 test files drive
+  # these scripts through `subprocess.run` and coverage could not see inside a
+  # child process. No floor is declared yet: a floor set before the measurement
+  # was trustworthy would have pinned an artefact.
+  { path = "scripts", why = "no floor yet; 57% measured 2026-08-25, pending a per-area floor" },
+
+  # 7,992 lines. `learning-os/pyproject.toml` has no [tool.coverage] section at
+  # all, so its 482 tests run unmeasured. Adding a floor here needs its own
+  # measurement first, for the same reason as `scripts`.
+  { path = "learning-os/src", why = "no coverage configuration exists in learning-os/pyproject.toml yet" },
+]
+
+excluded = [
+  # Test code is not production code. `tests/generated` is covered by this row
+  # through longest-prefix ownership rather than needing one of its own.
+  { path = "tests", why = "test code, not production code" },
+  { path = "learning-os/tests", why = "test code, not production code" },
+
+  # A catalogue of pinned third-party versions used to measure the ecosystem,
+  # not code this product runs. `codeql.yml:122-131` already excludes it from
+  # scanning for the same reason.
+  { path = "technology-universe/registry", why = "version-measurement catalogue, not shipped code" },
+  { path = "technology-universe/runtimes", why = "version-measurement catalogue, not shipped code" },
+]
+
+# ---------------------------------------------------------------------------
 # PREFLIGHT — the guard on the guard. Mandatory, because an integrity failure
 # that does not block a merge is a diagnostic, not a gate.
 # ---------------------------------------------------------------------------
@@ -98,9 +176,29 @@ role = "integrity"
 # entirely: all four scripts would still be "contained" and would still run,
 # but a failure in any of the first three would again leave no report at all
 # and no detail of what drifted.
+# `lock_consistency.py` is pinned here for the same reason every other name in
+# this list is: a step nobody declares is a step that can be deleted without
+# anything going red. requirements.txt is INTENT and requirements.lock is what
+# CI installs, and until this ran nothing compared them -- a dependency added to
+# the manifest without regenerating the lock was simply absent at install time,
+# and every gate that did not import it stayed green. Dependabot's pip ecosystem
+# edits the manifest and cannot write the lock, so the tool most likely to open
+# that gap is the one that cannot close it.
+#
+# It runs BEFORE gate_integrity.py and after the other three, for the reason
+# stated on the workflow step: gate_integrity is what writes
+# reports/preflight.json, so anything that must be able to fail without leaving
+# a PASS report behind has to precede it.
+# `coverage_scope_gate.py` is pinned for the reason every other name here is:
+# a step nobody declares is a step that can be deleted with nothing going red.
+# It is the guard on the defect described in the [coverage] section above --
+# a required check reporting 95% of 38 lines while 70,400 lines of production
+# code sat outside its scope, green the whole time.
 must_contain = ["run_gate.py --name preflight -- bash -c",
                 "scripts/gate_integrity.py", "scripts/tcb_gate.py",
-                "scripts/check_ruleset.py", "scripts/registry_gate.py"]
+                "scripts/check_ruleset.py", "scripts/registry_gate.py",
+                "scripts/lock_consistency.py",
+                "scripts/coverage_scope_gate.py"]
 evidence = "reports/preflight.json"
 artifact = "reports-preflight"
 
@@ -171,7 +269,20 @@ workflow = "verify.yml"
 job = "coverage"
 mandatory = true
 role = "gate"
-must_contain = ["--cov-fail-under=95"]
+# THE SCOPE IS PINNED HERE, NOT ONLY THE THRESHOLD, AND THAT IS THE FIX FOR
+# THE DEFECT THIS GATE ITSELF HAD.
+#
+# This line used to read `must_contain = ["--cov-fail-under=95"]`. It pinned
+# the NUMBER and said nothing about what the number was about, so
+# gate_integrity.py verified that "95" appeared in the command and never asked
+# "95% of what?". `--cov=src` is now pinned too, so silently re-pointing the
+# measurement at something else fails preflight.
+#
+# Pinning cannot catch the other half -- code growing OUTSIDE the scope while
+# the scope stays still, which is what actually happened. That is what
+# scripts/coverage_scope_gate.py and the [coverage] section exist for. Both are
+# needed: this pin stops the scope moving, the gate stops the code escaping it.
+must_contain = ["--cov=src", "--cov-fail-under=95"]
 evidence = "reports/coverage.json"
 artifact = "reports-coverage"
 
@@ -182,7 +293,23 @@ mandatory = true
 role = "gate"
 # The full command, not the bare word: "pyright" alone also matches an
 # artifact name and any comment that mentions the tool.
-must_contain = ["run_gate.py --name pyright -- pyright"]
+# TWO TOOLS, PINNED SEPARATELY. The context name stays `pyright` because it is
+# a required status check in live ruleset 20990225 and renaming one makes it
+# permanently pending -- the same reason the `mutmut` gate keeps its name while
+# running scripts/mutation_gate.py.
+#
+# ruff joined this gate rather than getting its own job because `full` must wait
+# for every job in verify.yml while aggregate_gates.py expects reports only from
+# MANDATORY gates, so a non-mandatory job's evidence is `unexpected` and blocks
+# the finalizer. Here it blocks on its own merits from the first run.
+#
+# The scope is pinned, not just the tool: `ruff check` alone would still pass
+# while measuring one directory, which is precisely the defect the coverage gate
+# carried for its whole existence.
+must_contain = ["run_gate.py --name pyright -- bash -c",
+                "pyright",
+                "scripts/ruff_gate.py src scripts tests",
+                "ruff check src scripts tests"]
 evidence = "reports/pyright.json"
 artifact = "reports-pyright"
 
@@ -201,7 +328,20 @@ role = "gate"
 # the finalizer would notice, one job too late.
 must_contain = ["run_gate.py --name bandit -- bash -c",
                 "scripts/security_gate.py", "scripts/sarif_suppress.py",
-                "shellcheck", "scripts/credential_scan.py"]
+                "shellcheck", "scripts/credential_scan.py",
+                # ONE TOKEN CARRYING THE WHOLE COMMAND, not the tool name and
+                # its flags separately. gate_integrity's `executes()` asks
+                # whether a token is RUN, not whether it appears -- so a bare
+                # `-r requirements.lock` can never match, because a flag
+                # fragment is not a command. Measured: three separate tokens
+                # produced "invokes -r requirements.lock: FAIL 0 step(s)" while
+                # the workflow plainly contained the text.
+                #
+                # Pinning the whole line also pins the SCOPE. `pip-audit` alone
+                # would still pass while auditing one lock and ignoring three,
+                # and this repository has already had one gate whose threshold
+                # was pinned and whose scope was not.
+                "pip-audit --no-deps -r requirements.lock -r requirements-preflight.lock -r requirements-audit.lock -r learning-os/requirements-learning-os.lock"]
 evidence = "reports/bandit.json"
 artifact = "reports-bandit"
 
@@ -443,3 +583,46 @@ must_contain = [
 ]
 evidence = "GitHub Actions artifact sandbox-verification-bundle-<source-sha>"
 artifact = ""
+
+# ==========================================================================
+# [advisory] --- jobs that run, report a verdict, and cannot block a merge.
+#
+# Check 9b in scripts/gate_integrity.py walks disk -> manifest and refuses any
+# job that is neither a required check nor listed here with a reason. Check 9
+# walks manifest -> manifest ("the manifest agrees with itself"), so before 9b
+# existed a job in neither side was invisible rather than failing: fourteen of
+# them ran for months while the gate printed `17 required, 17 mandatory: PASS`.
+#
+# This is an ALLOWLIST. A job nobody has classified is refused, so the next
+# workflow anyone adds must be either required or written off on purpose.
+#
+# THE REASON IS THE POINT. An exemption nobody has to justify is an exemption
+# everybody takes. Two kinds of entry live here and they are not the same
+# thing, so each says which it is:
+#   DELIBERATE --- it should not block, and here is why.
+#   DEBT       --- it SHOULD block and does not yet. That is a defect with a
+#                  reason recorded, not a decision that has been made.
+# ==========================================================================
+[advisory]
+
+"ai-review.yml::ai-review" = "DELIBERATE. Review commentary, not a verdict. It also cannot pass today -- the credential is dead and 0 of 36 reviews have run (issue #93) -- so requiring it would block every merge in the repository."
+
+"annotation-canary.yml::emit" = "DELIBERATE. A canary. It runs on schedule and push as well as pull_request, and exists to notice annotation rendering breaking, not to judge a change."
+"annotation-canary.yml::verify" = "DELIBERATE. The other half of the canary above."
+
+"ci-findings.yml::reconcile" = "DELIBERATE. Triggered by workflow_run, so it starts only after another workflow has finished. A required check cannot be satisfied by a job that runs after the run it reports on."
+
+"deep-verify.yml::gate" = "DELIBERATE. Deep verification is also workflow_dispatch and is heavier than a per-PR gate. verify.yml carries the blocking checks."
+"deep-verify.yml::deep-verify" = "DELIBERATE. The lane behind the gate above."
+
+"codeql.yml::codeql-javascript-typescript" = "DEBT. codeql-python and codeql-actions ARE required and this one is not, which is an inconsistency rather than a decision. The aggregate `CodeQL` context is required, so JavaScript findings are not wholly unguarded, but the per-language job should match its two siblings."
+
+"learning-canvas-frontend.yml::frontend" = "DEBT. This is the P0 that check 9b was written to expose. The mutation gate, the reachability gate, the bundle budget and the lint over four directories all run in this job and none of them can fail a merge."
+"learning-canvas-frontend.yml::frontend-mutation" = "DEBT. The mutation gate. It runs, it reports, it blocks nothing."
+"learning-canvas-frontend.yml::frontend-scenes" = "DEBT. Roughly 290 browser tests across sharded matrix jobs. They run, they report, they block nothing."
+"learning-canvas-frontend.yml::frontend-verdict" = "DEBT. The job that aggregates the three above into one verdict, which is the context that would be required once the ruleset is updated."
+
+"learning-os.yml::learning-os" = "DELIBERATE for now. learning-os v1 is an unmerged draft (PR #48, marked DRAFT -- do not merge). Requiring a draft subsystem would block unrelated work."
+"learning-os.yml::deployed-layout" = "DELIBERATE for now. Same draft subsystem as above."
+
+"verify.yml::merge-evidence" = "DEBT. It checks the PR's measured claims against the run's evidence, which is exactly the kind of thing that should be able to fail a merge. It runs `if: always()` after `full` on pull_request only and is not a required check."

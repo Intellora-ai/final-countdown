@@ -174,6 +174,86 @@ def test_b_gate_that_never_exits_non_zero_is_caught(sandbox: Path) -> None:
     assert "the verification gate does not fail" in result.stdout
 
 
+# --- (b2) the gate must EXECUTE an exit, not merely contain the text ---------
+#
+# `gate_integrity.py` states the rule in its own header, at line 10:
+#
+#     "Containment is not execution. All of these contain it and none of
+#      them run it"
+#
+# and then checks this clause with `if "exit 1" not in gate_run`. The header is
+# right and the code beside it does the thing the header forbids. Every shape
+# below leaves the substring in place and removes the exit, so the gate reports
+# a healthy step while the job can no longer fail.
+#
+# test_b above is the other half of the pair: it deletes the exit outright.
+# Deletion was the only sabotage anyone tried, and substring matching survives
+# deletion, which is why this hole stayed open.
+
+
+@pytest.mark.parametrize(
+    ("replacement", "shape"),
+    [
+        ('          echo "would exit 1"', "quoted inside an echo"),
+        ("          # exit 1 used to be here", "left behind in a comment"),
+        (
+            "          echo exit 1 >> $GITHUB_STEP_SUMMARY",
+            "written into the job summary",
+        ),
+    ],
+)
+def test_b2_an_exit_that_never_executes_is_caught(
+    sandbox: Path, replacement: str, shape: str
+) -> None:
+    edit_workflow(
+        sandbox,
+        "          exit 1",
+        replacement,
+        why="the gate step no longer contains `exit 1`",
+    )
+    result = integrity(sandbox)
+    assert result.returncode != 0, (
+        f"the gate accepted an exit {shape}. The text is present and the step "
+        f"cannot fail.\n{result.stdout[-2000:]}"
+    )
+    assert "the verification gate does not fail" in result.stdout
+
+
+# --- (b3) the PAIR: a real exit in a real shape must still pass --------------
+
+
+@pytest.mark.parametrize(
+    "replacement",
+    [
+        "          if [ 1 = 1 ]; then exit 1; fi",
+        "          test -s missing.txt || exit 1",
+        "          [ 1 = 1 ] && exit 1",
+    ],
+)
+def test_b3_a_real_exit_in_an_ordinary_shell_shape_still_passes(
+    sandbox: Path, replacement: str
+) -> None:
+    """Without this, `return BLOCK` satisfies every test above.
+
+    A gate that answers "does not fail" for a genuine `exit 1` wrapped in a
+    conditional is worse than the substring check it replaced: the substring
+    version at least never cried wolf, and a gate that cries wolf gets
+    switched off, taking the eight real checks with it.
+    """
+    edit_workflow(
+        sandbox,
+        "          exit 1",
+        replacement,
+        why="the gate step no longer contains `exit 1`",
+    )
+    result = integrity(sandbox)
+    assert result.returncode == 0, (
+        "the gate rejected a REAL exit. This is a false positive, and a gate "
+        f"that cries wolf gets uninstalled.\n{result.stdout[-3000:]}"
+    )
+    assert passed_count(result) > 0
+
+
 # --- (c) an id'd step dropped from the condition -----------------------------
 
 
@@ -244,40 +324,45 @@ def test_e_piping_without_pipefail_is_caught(sandbox: Path) -> None:
     assert "pipes without pipefail" in result.stdout
 
 
-# --- the residual bypass, documented rather than closed ----------------------
+# --- the residual bypass, now closed -----------------------------------------
 
 
-def test_a_dangling_gate_clause_is_not_detected_by_anything(sandbox: Path) -> None:
-    """A KNOWN HOLE, LARGER THAN THE ONE IT WAS WRITTEN FOR. Pinned, not blessed.
+def test_a_real_check_renamed_to_Annotate_with_its_id_dropped_is_caught(
+    sandbox: Path,
+) -> None:
+    """THE HOLE THIS TEST ONCE PINNED IS CLOSED. Rewritten on that instruction.
 
-    Clause (d) permits an id-less `continue-on-error` step whose name starts
-    with `Annotate`, on the reasoning that annotators only report. The control
-    is a STRING, not a semantic property, and that is documented intent at
-    `scripts/gate_integrity.py:677`.
+    It used to assert `returncode == 0` — that nothing detected a real check
+    renamed to `Annotate ...` with its id dropped — and it ended: "IF THIS TEST
+    FAILS, THAT IS GOOD NEWS -- someone added that check. Update this test to
+    describe the new rule rather than restoring the hole." This is that update.
+    The sabotage is unchanged; only the expected verdict moved, from silence to
+    a finding.
 
-    Following that thread turned up a second gap that is worse. Rename a real
-    check to `Annotate ...` and drop its id, and the result is:
+    WHAT THE HOLE WAS. Two clauses were blind at once:
 
-        gate_integrity -> exit 0, passed=92, failed=0, PASS
-        gate condition -> still names steps.lint.outcome, 3 occurrences
+      * (d) permitted any id-less `continue-on-error` step whose NAME began
+        `Annotate`. The control was a string, so the identical command passed
+        or failed on what someone had called the step — and the gate's own
+        remediation text recommended the rename.
+      * (c) walked the STEPS asking whether each id'd step appeared in the
+        condition, and never walked the CONDITION asking whether each id it
+        names still resolves. So a clause could point at a step that was gone.
 
-    Clause (d) is silent because of the name. Clause (c) is silent for a
-    different reason: it walks STEPS and asks whether each id'd step appears in
-    the condition. It never walks the CONDITION and asks whether each id it
-    names still exists. So the gate keeps a clause pointing at a step that is
-    gone, GitHub evaluates the missing outcome as empty, `'' == 'failure'` is
-    false forever, and Lint can fail with the job green.
+    Together: `gate_integrity -> PASS` while `steps.lint.outcome` still appeared
+    three times in a condition naming a step that no longer existed, and Lint
+    could fail with the job green.
 
-    That is precisely the failure `check_frontend` exists to prevent, reached
-    through a rename, and the whole verification system reports PASS.
+    WHAT CLOSES IT NOW. Clause (d) asks two things instead of one — an annotator
+    must be NAMED `Annotate ` (with the separator, so `Annotated` no longer
+    slips through) AND must CONSUME an artifact an enforced step wrote. The
+    renamed Lint step writes `-o "$RUNNER_TEMP/eslint.json"` and reads nothing,
+    so it is not an annotator whatever it is called. Clause (c) gained its
+    mirror: every id the condition names must resolve to a real step.
 
-    NOT FIXED HERE ON PURPOSE. The instruction covering this work was to
-    document the residual bypass, not to redesign it. The missing check is the
-    reverse direction of clause (c): every id named in the gate condition must
-    resolve to a step that exists.
-
-    IF THIS TEST FAILS, THAT IS GOOD NEWS -- someone added that check. Update
-    this test to describe the new rule rather than restoring the hole.
+    Either half alone would catch this sabotage. Both are asserted, because a
+    single-cause test goes quiet the moment one cause is refactored away — and
+    the point of this test is the OUTCOME, not the route to it.
     """
     edit_workflow(
         sandbox,
@@ -292,15 +377,15 @@ def test_a_dangling_gate_clause_is_not_detected_by_anything(sandbox: Path) -> No
     )
     assert still_referenced > 0, "the saboteur removed the clause too; it should not"
 
-    assert result.returncode == 0, (
-        "something now rejects a real check renamed to 'Annotate ...' with its "
-        "id dropped. The hole this test documents has been closed — update the "
-        f"test to describe the new rule.\n{result.stdout[-1500:]}"
+    assert result.returncode != 0, (
+        "a real check renamed to 'Annotate ...' with its id dropped was "
+        "accepted. It can never fail the job, and the gate condition still "
+        f"names a step that no longer exists.\n{result.stdout[-2000:]}"
     )
-    assert "failed=0" in result.stdout, (
-        "the gate reported findings on this sabotage; the hole is narrower than "
-        f"documented.\n{result.stdout[-1500:]}"
+    assert "failed=0" not in result.stdout, (
+        f"the gate exited non-zero but reported no findings.\n{result.stdout[-2000:]}"
     )
+    assert "lint" in result.stdout
 
 
 def test_the_name_prefix_is_the_load_bearing_part_of_that_bypass(

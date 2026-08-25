@@ -362,6 +362,92 @@ def test_no_table_and_no_claims_passes_silently() -> None:
     assert reasons == []
 
 
+# ==========================================================================
+# A FAILED LOOKUP IS NOT AN EMPTY PULL REQUEST.
+#
+# `fetch_pr_body` ended `return out.stdout if out.returncode == 0 else ""`.
+# An empty body parses to zero rows and zero claims, which is exactly what a
+# pull request that measured nothing looks like -- so `gh` failing for any
+# reason (an expired token, a rate limit, a network blip, a renamed flag)
+# switched the entire claim-checking half of this gate off and reported clean.
+#
+# The test directly above, `test_no_table_and_no_claims_passes_silently`, is
+# the legitimate version of that state and must keep passing. The difference
+# is not the body -- both are empty -- it is whether anyone actually looked.
+#
+# The machinery for the honest answer was already in this file: `_gh` raises
+# `EvidenceError("INFRASTRUCTURE_BLOCK", ...)` and `main` already catches it
+# and fails the gate. `fetch_pr_body` simply never used it.
+# ==========================================================================
+
+
+class _Result:
+    def __init__(self, returncode: int, stdout: str = "", stderr: str = "") -> None:
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+def _stub_gh(monkeypatch: pytest.MonkeyPatch, result: _Result) -> None:
+    """Pin `gh` to a fixed outcome, without a network or a token.
+
+    Written as annotated functions rather than lambdas because this repository
+    type-checks under strict pyright, where `lambda *a, **k:` is a partially
+    unknown signature.
+    """
+
+    def which(_name: str) -> str:
+        return "/usr/bin/gh"
+
+    def run(*_args: object, **_kwargs: object) -> _Result:
+        return result
+
+    monkeypatch.setattr(meg.shutil, "which", which)
+    monkeypatch.setattr(meg.subprocess, "run", run)
+
+
+def test_a_failed_pr_body_lookup_raises_instead_of_returning_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _stub_gh(monkeypatch, _Result(1, "", "gh: HTTP 401: Bad credentials"))
+    with pytest.raises(meg.EvidenceError) as caught:
+        meg.fetch_pr_body("122")
+    assert caught.value.state == "INFRASTRUCTURE_BLOCK"
+
+
+def test_the_refusal_carries_what_github_actually_said(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A gate that refuses without saying why sends the reader to the logs of a
+    job whose logs are the thing that failed."""
+    _stub_gh(monkeypatch, _Result(1, "", "gh: HTTP 403: rate limit exceeded"))
+    with pytest.raises(meg.EvidenceError) as caught:
+        meg.fetch_pr_body("122")
+    assert "rate limit exceeded" in caught.value.detail
+
+
+def test_a_successful_pr_body_lookup_returns_the_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The PAIR. Without it, `raise` on every call satisfies the tests above
+    and the gate can never read a pull request at all."""
+    _stub_gh(monkeypatch, _Result(0, "## Evidence\nreal body\n"))
+    assert meg.fetch_pr_body("122") == "## Evidence\nreal body\n"
+
+
+def test_an_empty_body_from_a_SUCCESSFUL_lookup_is_still_allowed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The distinction this whole change rests on.
+
+    A pull request really can have an empty body. That is a measurement, not a
+    failure, and it must stay a pass -- otherwise the fix trades a silent hole
+    for a gate that blocks every description-less PR.
+    """
+    _stub_gh(monkeypatch, _Result(0, ""))
+    assert meg.fetch_pr_body("122") == ""
+
+
 BODIES = sorted((REPO / "tests" / "fixtures" / "pr_bodies").glob("pr-*.md"))
 
 

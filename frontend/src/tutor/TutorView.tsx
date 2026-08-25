@@ -20,6 +20,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createAgent, httpModel, type Agent, type AskResult } from '../agent'
+import { researchPort, searchPort } from '../websearch'
 import './tutor.css'
 
 /** One exchange, kept with the evidence that produced it. */
@@ -57,6 +58,24 @@ export default function TutorView(): JSX.Element {
   const endRef = useRef<HTMLDivElement>(null)
 
   const endpoint = readEnv('VITE_TUTOR_ENDPOINT')
+  const searchEndpoint = readEnv('VITE_SEARCH_ENDPOINT')
+  const deepSearch = readEnv('VITE_SEARCH_DEPTH') === 'research'
+
+  /* THE SEARCH DOORWAY. One import, one type, and the app knows nothing about
+     what is behind it --- not the engine, not the fetcher, not the extractor.
+     `researchPort` reads the pages it finds and hands back text that has been
+     through the injection guard; `searchPort` is the engine alone. Both are a
+     `SearchPort`, so `createAgent` cannot tell which it received. */
+  const build = useMemo(
+    () => {
+      const cfg = {
+        endpoint: searchEndpoint,
+        apiKey: readEnv('VITE_SEARCH_KEY') || undefined,
+      }
+      return deepSearch ? researchPort(cfg) : searchPort(cfg)
+    },
+    [searchEndpoint, deepSearch],
+  )
 
   /* One agent for the life of the view. Rebuilding it per turn would discard
      the conversation, the working memory and the teaching position — which is
@@ -69,8 +88,15 @@ export default function TutorView(): JSX.Element {
           model: readEnv('VITE_TUTOR_MODEL') || undefined,
           apiKey: readEnv('VITE_TUTOR_KEY') || undefined,
         }),
+        /* SPREAD, NOT `search: maybeNull`. `AgentOptions.search` is optional,
+           and an EXPLICIT `undefined` is not the same as absent to the agent:
+           absent means the capability is reported UNMET ("I cannot look things
+           up"), which is the honest state when no engine is configured. The
+           websearch doorway returns `null` for exactly this reason, so the
+           distinction has to survive the last three lines that carry it. */
+        ...(build ? { search: build } : {}),
       }),
-    [endpoint],
+    [endpoint, build],
   )
 
   useEffect(() => {

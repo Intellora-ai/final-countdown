@@ -115,13 +115,17 @@ jobs:
         run: |
           python3 scripts/run_gate.py --name preflight -- bash -c '
             set -e
-            echo "== preflight gate 1/4: trusted computing base" >&2
+            echo "== preflight gate 1/6: trusted computing base" >&2
             python3 scripts/tcb_gate.py --base "origin/$BASE_REF"
-            echo "== preflight gate 2/4: ruleset alignment" >&2
+            echo "== preflight gate 2/6: ruleset alignment" >&2
             python3 scripts/check_ruleset.py
-            echo "== preflight gate 3/4: requirement and assumption registries" >&2
+            echo "== preflight gate 3/6: requirement and assumption registries" >&2
             python3 scripts/registry_gate.py
-            echo "== preflight gate 4/4: gate integrity" >&2
+            echo "== preflight gate 4/6: dependency lock consistency" >&2
+            python3 scripts/lock_consistency.py
+            echo "== preflight gate 5/6: coverage scope" >&2
+            python3 scripts/coverage_scope_gate.py
+            echo "== preflight gate 6/6: gate integrity" >&2
             python3 scripts/gate_integrity.py
           '
       # The per-verification reasoning below is unchanged. Each of these ran as
@@ -193,7 +197,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-preflight
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -246,7 +252,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-axle-verify
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -266,7 +274,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-spec-strength
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -286,7 +296,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-spec-composition
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -306,7 +318,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-vacuity-check
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -326,7 +340,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-counterexample-search
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -348,7 +364,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-honest-report
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -383,6 +401,7 @@ jobs:
           path: |
             reports/
             test-results/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -415,14 +434,41 @@ jobs:
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
-      - name: Types
-        run: python3 scripts/run_gate.py --name pyright -- pyright
+      # TWO CHECKS, ONE CONTEXT --- the shape `preflight` (six tools) and
+      # `bandit` (five) already use here. A separate `ruff` job was built first
+      # and withdrawn: `full` must wait for every job in this workflow
+      # (tests/test_blocker_report.py:414), but aggregate_gates.py derives its
+      # EXPECTED set from MANDATORY gates only, so a non-mandatory job's report
+      # lands in `unexpected` and blocks the finalizer. Making it mandatory
+      # instead needs `ruff` added to live ruleset 20990225, which is the
+      # repository owner's change to make.
+      #
+      # Folding it in here is not a workaround, it is the stronger outcome:
+      # ruff BLOCKS from the first run rather than sitting advisory until
+      # somebody remembers to promote it.
+      #
+      # The `echo`s are load-bearing. run_gate.py reads `== gate N/M ==` from
+      # stderr to attribute a failure to the check that produced it and to
+      # record the later ones as never having run --- "could not check" is not
+      # "checked and fine". Same construction as the bandit gate.
+      - name: Types and lint
+        run: |
+          python3 scripts/run_gate.py --name pyright -- bash -c '
+            set -e
+            echo "== pyright gate 1/2: types" >&2
+            pyright
+            echo "== pyright gate 2/2: lint" >&2
+            python3 scripts/ruff_gate.py src scripts tests
+            ruff check src scripts tests --output-format=concise
+          '
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-pyright
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -458,6 +504,19 @@ jobs:
         with: {python-version: '3.12', cache: pip,
                cache-dependency-path: requirements.lock}
       - run: pip install --quiet --require-hashes -r requirements.lock
+      # THE AUDIT TOOLCHAIN LIVES IN ITS OWN LOCK, INSTALLED ONLY HERE.
+      #
+      # pip-audit pulls 27 packages, 16 of them not already in
+      # requirements.lock. Putting them in the main lock would grow the
+      # hash-pinned trusted computing base by sixteen so that one job can run
+      # one check -- the trade this repository refused when it removed
+      # `mutmut`. requirements-preflight.lock set the precedent.
+      #
+      # Installing both into one environment is safe here and that was measured
+      # rather than hoped: the two locks share twelve packages and pin the same
+      # version for every one of them, and a clean 3.12 environment takes both
+      # with --require-hashes and still runs pyright afterwards.
+      - run: pip install --quiet --require-hashes -r requirements-audit.lock
       # ONE GATE STEP, BECAUSE ONE GATE OWNS ONE REPORT.
       #
       # This job used to run four verification commands and wrap only the
@@ -597,14 +656,16 @@ jobs:
         run: |
           python3 scripts/run_gate.py --name bandit -- bash -c '
             set -e
-            echo "== bandit gate 1/4: security gate" >&2
+            echo "== bandit gate 1/5: security gate" >&2
             python3 scripts/security_gate.py src scripts
-            echo "== bandit gate 2/4: SARIF suppression" >&2
+            echo "== bandit gate 2/5: SARIF suppression" >&2
             python3 scripts/sarif_suppress.py --sarif bandit.sarif src scripts
-            echo "== bandit gate 3/4: shell analysis" >&2
+            echo "== bandit gate 3/5: shell analysis" >&2
             shellcheck -f gcc scripts/*.sh
-            echo "== bandit gate 4/4: credential scan" >&2
+            echo "== bandit gate 4/5: credential scan" >&2
             python3 scripts/credential_scan.py
+            echo "== bandit gate 5/5: dependency vulnerabilities" >&2
+            pip-audit --no-deps -r requirements.lock -r requirements-preflight.lock -r requirements-audit.lock -r learning-os/requirements-learning-os.lock
           '
       - name: Upload to code scanning
         if: always()
@@ -617,7 +678,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-bandit
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -639,7 +702,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-mutmut
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -694,7 +759,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-correspondence
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -722,6 +789,13 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # `actions: read` ONLY here, and only to read this run's own job list. Not
+    # granted workflow-wide: the twelve gate jobs have no business reading the
+    # Actions API, and a permission is easiest to reason about where it is
+    # smallest.
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
@@ -733,14 +807,76 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: evidence
+
+      # WHAT GITHUB SAYS THE JOBS ACTUALLY DID, as opposed to what their
+      # reports claim.
+      #
+      # gate.py writes reports/<gate>.json in Gate.__exit__ and every upload
+      # step carries `if: always()`. A job cancelled AFTER that write uploads
+      # an artifact saying PASS, and until now the finalizer certified it. The
+      # window is small -- the gate step is the last substantive step in every
+      # gate job -- but a cancelled required check certified as passing is the
+      # exact failure this repository exists to prevent.
+      #
+      # `skipped` matters more than it looks: GitHub counts a skipped job as
+      # SATISFYING its required status check, so a gate conditioned into
+      # skipping is green in the ruleset and visible only here.
+      #
+      # FAIL-CLOSED. This step used to carry `continue-on-error: true`, argued
+      # for on the grounds that `aggregate_gates.py` treats an unusable file as
+      # "no opinion" and falls back to the reports, so a transient API failure
+      # could not fail the finalizer.
+      #
+      # That argument is correct about the PARSER and incomplete about the
+      # SYSTEM, and `job_conclusions()`'s own docstring names the gap: a gate
+      # writes a PASS report, uploads it under `if: always()`, is then
+      # CANCELLED, and the jobs API is unreachable when the finalizer looks.
+      # The report says PASS, nothing contradicts it, and `full` certifies a run
+      # in which a required gate was cut short. Reports alone cannot see that,
+      # because the evidence they are reading is exactly the evidence that lies.
+      #
+      # So the refusal moves to the only place that cannot be talked out of it:
+      # if the fetch fails, the step fails, the job fails, and the required
+      # `full` context goes red. "Could not verify" is not "verified".
+      #
+      # THE COST IS REAL AND IS ACCEPTED. An Actions API outage now turns `full`
+      # red rather than quietly degrading. That is the direction this repository
+      # chooses everywhere else — preflight already treats an unreadable live
+      # ruleset as blocking rather than as agreement.
+      #
+      # `aggregate_gates.py` IS NOT CHANGED, and neither are the tests pinning
+      # its fallback. That contract is right at its layer: a parser must not be
+      # able to fail a build by choking on input. This is a different layer.
+      #
+      # `--paginate` with `--jq '.jobs[]'` STREAMS objects and `jq -s` slurps
+      # them into one array. Writing `--paginate > file` directly would
+      # concatenate one JSON object per page — `{...}{...}` — and `json.load`
+      # reads the first and silently ignores the rest, so the finalizer would
+      # report on page one while looking exactly as green. Not reachable at 14
+      # jobs; guaranteed the day it is not.
+      - name: Record this run's job conclusions
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/jobs?per_page=100" \
+            --paginate --jq '.jobs[]' | jq -s '{jobs: .}' > job-conclusions.json
+          python3 -c "import json;d=json.load(open('job-conclusions.json'));print('jobs read:', len(d.get('jobs', [])))"
+
       - name: Gate manifest
-        run: python3 scripts/aggregate_gates.py --evidence-root evidence
+        run: |
+          python3 scripts/aggregate_gates.py --evidence-root evidence \
+            --job-conclusions job-conclusions.json
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-full
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 30
           if-no-files-found: error
 
@@ -826,6 +962,21 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-merge-evidence
-          path: reports/
+          path: |
+            reports/
+            diagnostics/
           retention-days: 14
-          if-no-files-found: warn
+          # `error`, not `warn`. Every other evidence upload in this workflow
+          # already uses `error`, and the reasoning is the same one ci/gates.toml
+          # gives for all of them: an absent artifact reduced to a grey
+          # annotation is the "absence looks like health" failure the evidence
+          # model exists to close. Under `warn` this job could go green having
+          # produced no dossier at all, which is indistinguishable from a
+          # dossier that found nothing wrong.
+          #
+          # Changed BEFORE the job is promoted rather than as part of promoting
+          # it. While `merge-evidence` is advisory this is not a merge
+          # vulnerability, which is exactly why it is the right moment: the
+          # blast radius of getting it wrong is a red advisory check, not a
+          # blocked repository.
+          if-no-files-found: error

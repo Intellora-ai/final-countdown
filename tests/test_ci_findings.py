@@ -30,7 +30,7 @@ import pytest
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
 
-from ci_findings import (
+from ci_findings import (  # noqa: E402 - the sys.path insert above must run first
     Finding,
     Problem,
     parse_log,
@@ -105,7 +105,7 @@ def test_to_jsonl_is_one_object_per_line_and_parses() -> None:
     import json
 
     text = to_jsonl(parse_log(LOG))
-    lines = [l for l in text.splitlines() if l.strip()]
+    lines = [ln for ln in text.splitlines() if ln.strip()]
     assert len(lines) == len(parse_log(LOG))
     for line in lines:
         json.loads(line)  # raises if this is not machine-readable
@@ -192,6 +192,66 @@ def test_reconcile_is_silent_on_a_healthy_failed_run() -> None:
     ]
     problems = reconcile(
         FAILED_JOB, annotations=annotations, path_exists=lambda p: True
+    )
+    assert problems == [], problems
+
+
+LOCATED_ANNOTATION = [
+    {
+        "path": "frontend/src/canvas/layout/layout.ts",
+        "start_line": 88,
+        "annotation_level": "failure",
+        "message": "AssertionError: overlapping blocks",
+    }
+]
+
+
+def test_reconcile_refuses_to_certify_when_annotation_data_was_not_fetched() -> None:
+    """AN API ERROR IS NOT AN EMPTY RESULT, AND THE DIFFERENCE IS THE WHOLE POINT.
+
+    `ci-findings.yml` fetched each job's annotations with
+
+        gh api ".../check-runs/$id/annotations" > one.json 2>/dev/null \\
+            || echo '[]' > one.json
+
+    so an auth failure, a rate limit, a timeout or a 5xx all arrived here as
+    zero annotations -- indistinguishable from a job that genuinely produced
+    none. Every located failure then reconciled cleanly and this module printed
+
+        ci-findings: PASS -- every failure on this run has a resolvable location.
+
+    which is a statement about data it never received. That sentence is the
+    output a human reads to decide whether a red run is diagnosable, and it was
+    capable of being confidently wrong in the one direction that matters.
+
+    So the caller now records which check-runs it could NOT read, and an
+    unreadable one is a problem in its own right. The annotation below is
+    perfectly good: without the fetch failure this input is the healthy case
+    asserted directly above, so nothing here can pass by accident.
+    """
+    problems = reconcile(
+        FAILED_JOB,
+        annotations=LOCATED_ANNOTATION,
+        path_exists=lambda p: True,
+        fetch_failures=["4242"],
+    )
+    assert any(p.kind == "annotation-data-unavailable" for p in problems), problems
+    assert any("4242" in p.detail or "4242" in p.where for p in problems), problems
+
+
+def test_reconcile_stays_silent_when_every_fetch_succeeded() -> None:
+    """THE PAIR. Without this, `return [Problem(...)]` satisfies the test above.
+
+    Same job, same annotation, empty failure list -- the only difference is the
+    thing under test. A checker that fires on a clean fetch would turn every
+    green run into a diagnosis nobody needs, and would be switched off within a
+    week.
+    """
+    problems = reconcile(
+        FAILED_JOB,
+        annotations=LOCATED_ANNOTATION,
+        path_exists=lambda p: True,
+        fetch_failures=[],
     )
     assert problems == [], problems
 

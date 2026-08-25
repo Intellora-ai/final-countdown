@@ -5,6 +5,152 @@ gets compacted; these files do not.
 
 ---
 
+## How to talk to Tanveer — read this first
+
+Tanveer asked for this rule on 2026-08-24:
+
+> **Use simple language. Explain technical things in plain words.**
+
+This is an accessibility requirement, not a style preference. It applies to
+EVERY reply, every session, forever.
+
+### Writing rules
+
+- Short sentences. One idea each. One concept at a time.
+- Plain words: "broken", not "defective". "Check", not "validate".
+- Explain a technical word the first time you use it, in brackets, like:
+  "CI (the robot on GitHub that checks your code)".
+- Answer first. Details after.
+- Use short lists and small tables. Walls of text are hard to scan.
+- Use numbered steps when the order matters.
+- **Bold** the part that matters most.
+- Keep facts, actions, warnings and decisions in separate blocks. Do not mix
+  them into one paragraph.
+- Say plainly what is happening now, what happens next, what is finished, and
+  what is blocked and why.
+- Do not repeat one idea in different words.
+
+Say: "This file checks whether…" · "This command does…" · "The error means…" ·
+"The problem is…" · "The fix is…" · "Run this next…" · "This is complete
+because…"
+
+Never say: "Obviously…" · "Simply…" · "As you know…" · "Just do…" · "This is
+trivial…" · "You should already understand…" · "It goes without saying…"
+
+**Do not talk down to him.** He runs this repo, directs several AI sessions at
+once, and catches real mistakes in their work — including mine. Simple is not
+the same as dumb. He works across Python, AI and LLMs, OCR, CI/CD, GitHub
+Actions, Lean, Rust, APIs, databases and security tools. **Simplify the
+explanation, never the technical quality of the work.** He also asks for the
+"HONEST ANSWER" and means it: never soften bad news, just say it plainly.
+
+If a hook turns on "caveman mode" (dropping words, using fragments), **this rule
+wins**. Fragments are harder to read, not easier. Write full simple sentences.
+
+### How to run a task
+
+1. State the objective.
+2. List the smallest actions needed.
+3. Do one group of related actions at a time.
+4. Show the result.
+5. Name any error straight away, in plain words.
+6. State the next action.
+7. Mark a step complete only after you have verified it.
+
+Mark every step **not started**, **in progress**, **blocked**, or **complete**.
+
+Do not put ten unrelated decisions in front of him at once. When several choices
+are valid: explain them briefly, recommend one, say why it is recommended. Do not
+make him compare options that do not matter.
+
+### How to end a substantial task
+
+End with these four headings, in this order:
+
+- **Completed** — what was built, what was tested, what passed, which files.
+- **Problems** — what failed, what the error means, what you did about it.
+- **Next step** — the single most important next action.
+- **Status** — complete, in progress, blocked, or awaiting approval.
+
+This does not replace the STEP COMPLETE stop protocol further down. When a reply
+finishes a numbered step, use the stop protocol. Use these four headings for
+everything else.
+
+### Scope — chat only
+
+These rules govern replies to Tanveer in chat. Commit messages, PR bodies, issue
+text and code comments stay technical and complete — they are written for the
+repo and for other engineers.
+
+**Personal details about Tanveer never go into anything published.** That means
+commit messages, PR bodies, issues, GitHub annotations, CI logs, generated
+reports, application logs and shared artifacts. This repository is public. Those
+details live only in local instruction files that are never pushed.
+
+**Their absence from this file is deliberate. Do not add them back.** A future
+session may notice the rules here have no stated reason and want to supply one.
+Do not. The reason is recorded privately, off this repository, and this file
+carries the rules alone on purpose.
+
+---
+
+## How work gets built — read before writing a single line
+
+Tanveer's rule, 2026-08-24, verbatim:
+
+> **"DEFINE REQUIREMENTS + WHAT MUST BE TRUE TO GET DESIRED OUTCOME THEN BUILD
+> AROUND THAT, DO NOT MAKE TESTS WEAK, EASY. BUILD TESTS THAT FULFILL DESIRED
+> OUTCOME, ONLY THEN WRITE CODE. CODE WRITTEN SHOULD BE CHANGED AND BETTER BUT
+> TESTS ONLY CHANGE IF MUTANTS SHOW A REAL EVIDENCE ERROR"**
+
+And, from the same day:
+
+> **"EVERY BUG, ERROR, MUST BECOME A PERMANENT FIX AND NOT JUST SURFACE LEVEL FIX"**
+
+> **"ALL BUGS MUST BE FOUND VIA GITHUB, I DON'T CONSIDER LOCAL TESTS A TEST"**
+
+**The order. Never skipped, never reordered:**
+
+1. **Write down the requirement** and what must be TRUE for the desired outcome.
+   Aim at the requirement, never at what the code currently happens to do.
+2. **Write the hardest test you can** against that outcome. Ugliest realistic
+   input, not the happy path. Assume the code is trying to sneak past you.
+3. **Run it and WATCH IT FAIL.** A real assertion failure. An import error or a
+   collection error is a weak red and does not count as having seen it fail.
+4. **Now write or fix the CODE.**
+5. Re-run. It must pass for the right reason.
+
+**The code is what changes. The test is not.** If a test fails, the code is
+wrong until proven otherwise. The ONLY licence to change an existing test is a
+**surviving mutant** — mutation testing producing real evidence that the test
+itself cannot fail. Not "the test looks too strict". Not "the test is old".
+
+One narrow exception, and it must be stated out loud when used: a test that
+deliberately PINNED a known hole, and whose own docstring instructs the next
+person to update it once the hole is closed. Closing the hole and rewriting
+that test is finishing the job. Weakening any other test to go green is not.
+
+**Test in PAIRS.** Every check needs an input that must FAIL and one that must
+PASS. A check asserted only to fail is satisfied by `return false`, exactly as
+one asserted only to pass is satisfied by `return true`. Both are vacuous.
+
+**Assert the harness is not vacuous.** The clean baseline must exit 0 AND report
+a non-zero passed count. A suite that collected nothing looks identical to a
+suite that looked hard and found nothing.
+
+**A suite that passes on the first implementation is a smell.** Say so plainly
+rather than reporting it as success.
+
+**Permanent, not surface.** Every fix ships with the thing that stops the class
+recurring: the root cause, a test that fails without the fix, every other copy
+of the same bug, and — where one exists — the gate that let it through. A
+comment or a promise is not a fix.
+
+**GitHub is the only real test.** Local green is a hint. The required contexts
+on GitHub are the proof. Never report work as done on local results alone.
+
+---
+
 ## The central principle
 
 > The design system is constant.
@@ -165,6 +311,77 @@ validator        WHETHER IT SHIPS
 
 ---
 
+## LAW 5 — requirements first, then the hardest test, then the code
+
+> **DEFINE REQUIREMENTS + WHAT MUST BE TRUE TO GET THE DESIRED OUTCOME, THEN
+> BUILD AROUND THAT. DO NOT MAKE TESTS WEAK, EASY. BUILD TESTS THAT FULFILL THE
+> DESIRED OUTCOME, ONLY THEN WRITE CODE. CODE SHOULD BE CHANGED AND MADE BETTER,
+> BUT TESTS ONLY CHANGE IF MUTANTS SHOW A REAL EVIDENCE ERROR.**
+
+Stated by the user, four times, escalating. It is not advice.
+
+**The loop, in order, every time:**
+
+1. Write down the requirement and **what must be true** for the outcome. Aim the
+   test at *that*, never at the implementation.
+2. Write the test **as hard as the outcome demands** — ugliest realistic input,
+   generated over a space rather than a hand-picked list. Assume whoever wrote
+   the code is trying to sneak past.
+3. Run it. **Watch the CODE fail.** A `Cannot find module` or a collection error
+   is a weak red and does **not** count as having watched a test fail.
+4. Fix the **CODE**.
+5. Re-run. It must pass for the right reason.
+
+**NEVER edit a test to make it pass.** If a test fails, the code is wrong until
+proven otherwise. The ONLY licence to change an existing test is a **surviving
+mutant** — mutation testing producing real evidence that the test cannot fail.
+
+| Not a reason to touch a test | The only reason |
+|---|---|
+| "the assertion is too strict" | a mutant survived |
+| "the code is fine, the test is wrong" | a mutant survived |
+| "it's flaky" (unproven) | a mutant survived |
+| "just to get CI green" | a mutant survived |
+
+**A suite that passes on the first implementation is a smell.** Say so plainly
+rather than reporting it as success, then attack it with mutants — that is the
+only way to learn whether the tests were hard or merely lucky.
+
+**Strengthening a test after the fact is NOT this loop.** Widening a test once
+the code already passes proves nothing new, however much harder the test got.
+Name it honestly instead of presenting it as a fix.
+
+**Test in PAIRS.** Every check needs an input that must FAIL and one that must
+PASS. A check asserted only to pass is satisfied by `return true`; one asserted
+only to fail is satisfied by `return false`. Both are vacuous.
+
+**Local green is a hint, not proof.** The user's words: *"I DON'T CONSIDER LOCAL
+TESTS A TEST."* The required contexts on GitHub are the evidence.
+
+---
+
+## Every bug becomes a permanent fix
+
+> **EVERY BUG, ERROR, MUST BECOME A PERMANENT FIX AND NOT JUST A SURFACE LEVEL
+> FIX. ENFORCED — NEVER OVERRIDDEN.**
+
+A fix is finished only when all four hold:
+
+1. **Root cause named** — not the symptom, not the file where it surfaced.
+2. **Fixed at the source** — not at the call site, not by catching it further
+   out. If the same defect could reach a second caller, the fix is in the wrong
+   place. Fix every copy of the shape; a defect written twice was a copy-paste.
+3. **A guard that fails if it returns** — a test, a lint rule, a gate, a mutant,
+   verified by running it against the broken code.
+4. **If a check let it through, fix the check too.** A bug CI passed is two
+   bugs: the code, and the gate that said PASS.
+
+Banned as "fixes": `continue-on-error`, `|| true`, swallowing an exception,
+widening a threshold, deleting an assertion, `eslint-disable`, "quick fix for
+now". Anything that makes the RED go away without changing what was WRONG.
+
+---
+
 ## Destructive-migration warning — Step 0 only
 
 **This project contains exactly one approved destructive migration: the Step 0
@@ -257,7 +474,11 @@ it. Check `package.json` rather than this list; the list is a summary and can
 rot, the manifest cannot.
 
 Note what `lint` actually covers today: `eslint src/canvas src/practice
-src/agent`. Flat config only lints a path with a matching `files:` block, so
+src/agent src/websearch`. That fourth path was missing from this line for as
+long as `src/websearch` has existed, which is this section's own warning
+arriving on schedule: the list said less than the manifest, a session read it,
+and the gap sat there. Flat config only lints a path with a matching `files:`
+block, so
 adding a directory to that script alone changes nothing — `eslint.config.js`
 needs the block too, or the target is silently skipped with no error.
 
@@ -278,7 +499,7 @@ Also true today, and not to be papered over:
 
 | Concern | Mechanism |
 |---|---|
-| Goal 1 invariance | `token-invariance.spec.ts` — render N lessons, extract computed CSS per block kind, assert every style-token property is identical. Geometry (width, height, item count) is **excluded**. |
+| Goal 1 invariance | `frontend/e2e/token-invariance.spec.ts` — renders all three lessons, reads computed CSS per **(block kind, emphasis)** and asserts every style-token property is identical across lessons. Geometry is **excluded**: width, height, margin, position, grid placement. Runs on all five viewport projects. |
 | Law 4 | `design-value` ESLint AST rule with a structural allowlist |
 | Token coverage | every computed colour / spacing / font-size in the DOM traces to `tokens.ts` |
 | Chart ticks | property test — 20 random ranges per chart type, monotonic and evenly spaced |

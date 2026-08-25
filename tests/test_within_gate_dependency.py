@@ -179,9 +179,13 @@ def test_the_chain_marker_the_step_detector_keys_on_is_still_printed() -> None:
         encoding="utf-8"
     )
 
+    # FIRST AND LAST of each chain, so a check appended or removed in the
+    # middle cannot go unnoticed. The bandit chain grew from four to five when
+    # pip-audit joined it, which is why these read 1/5 and 5/5 -- the markers
+    # moved because the chain really did, not because the guard was relaxed.
     for marker in (
-        "== bandit gate 1/4:",
-        "== bandit gate 4/4:",
+        "== bandit gate 1/5:",
+        "== bandit gate 5/5:",
         "== correspondence gate 1/2:",
         "== correspondence gate 2/2:",
     ):

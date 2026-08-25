@@ -196,7 +196,7 @@ def test_attack_deleted_gate_invocation_is_caught(sandbox: Path) -> None:
     wf = sandbox / VERIFY
     text = wf.read_text()
     sabotaged = "\n".join(
-        l for l in text.splitlines() if "scripts/axle_gate.py" not in l
+        ln for ln in text.splitlines() if "scripts/axle_gate.py" not in ln
     )
     assert sabotaged != text, "sabotage did not modify the workflow"
     wf.write_text(sabotaged)
@@ -237,7 +237,7 @@ def test_attack_continue_on_error_is_caught(sandbox: Path) -> None:
 def test_attack_failure_suppression_is_caught(sandbox: Path) -> None:
     wf = sandbox / VERIFY
     text = wf.read_text()
-    line = next(l for l in text.splitlines() if "check_vacuity.py" in l)
+    line = next(ln for ln in text.splitlines() if "check_vacuity.py" in ln)
     wf.write_text(text.replace(line, line + " || true"))
     result = integrity(sandbox)
     assert result.returncode != 0, "`|| true` on a gate command was NOT detected"
@@ -994,9 +994,9 @@ def test_attack_gate_step_conditioned_away_is_caught(sandbox: Path) -> None:
     # anchoring on a mention would sabotage nothing and the attack would look
     # defeated when it had never been mounted.
     line = next(
-        l
-        for l in text.splitlines()
-        if l.lstrip().startswith("- name:") and "verify all proofs with AXLE" in l
+        ln
+        for ln in text.splitlines()
+        if ln.lstrip().startswith("- name:") and "verify all proofs with AXLE" in ln
     )
     # `+ 2` because the `- ` of the list item occupies two columns: a sibling
     # key of `name:` sits two further in. At the dash's own indent the file
@@ -1021,6 +1021,55 @@ def test_attack_undeclared_job_condition_is_caught(sandbox: Path) -> None:
     result = integrity(sandbox)
     assert result.returncode != 0, "an undeclared job condition was NOT detected"
     assert "runs conditionally" in result.stdout
+
+
+def test_attack_deleting_the_finalizers_declared_condition_is_caught(
+        sandbox: Path) -> None:
+    """The mirror image of the test above, and the one that was missing.
+
+    `ci/gates.toml` declares `job_if = "always()"` for `full` and states the
+    consequence of losing it: "a failing gate skips this job, the required
+    `full` context never reports, and the PR hangs pending instead of failing."
+    The checker only ever compared a condition that WAS there against the
+    declared one -- an absent condition took the `job_if is None` branch and
+    passed. Measured on the real tree before the fix, with this one line
+    deleted and nothing else changed:
+
+        $ python3 scripts/gate_integrity.py ; echo $?
+        0
+
+    So the deletion the manifest warns about was the deletion the guard did
+    not check for. A skipped required check is strictly worse than a failing
+    one: a failure is red and actionable, a permanently pending context is a
+    merge that never resolves and no annotation anywhere saying why.
+    """
+    wf = sandbox / VERIFY
+    text = wf.read_text()
+    # Anchored on the last line of the finalizer's `needs:` list, not on the
+    # condition alone. Every gate's `- name: Upload evidence` step also carries
+    # `if: always()`, at eight spaces, and an eight-space line CONTAINS the
+    # four-space one as a substring -- so replacing the bare condition deletes
+    # half the indentation of a step near the top of the file instead. The
+    # first draft of this test did exactly that: the checker went red, but for
+    # broken YAML rather than for the missing finalizer condition, which would
+    # have made this test pass while proving nothing.
+    finalizer = "      - correspondence\n    if: always()\n"
+    assert finalizer in text, "the finalizer condition or needs list moved"
+    wf.write_text(text.replace(finalizer, "      - correspondence\n", 1))
+    result = integrity(sandbox)
+    assert result.returncode != 0, (
+        "deleting `if: always()` from the finalizer was NOT detected")
+    assert "lost its declared condition" in result.stdout
+    assert "hangs pending" in result.stdout, (
+        "the report must say what breaks, not just that something did")
+
+
+def test_a_declared_condition_that_is_present_and_correct_still_passes(
+        sandbox: Path) -> None:
+    """The control. The fix must not have been bought by rejecting the real
+    workflow, which carries exactly the condition the manifest declares."""
+    assert integrity(sandbox).returncode == 0, (
+        "the unmodified workflow was rejected by its own integrity checker")
 
 
 # --------------------------------------------------------------------------
@@ -1116,11 +1165,184 @@ def test_attack_mandatory_gate_absent_from_required_checks_is_caught(
 ) -> None:
     toml = sandbox / "ci" / "gates.toml"
     text = toml.read_text()
-    line = next(l for l in text.splitlines() if '"mutmut"' in l and "required" not in l)
+    line = next(ln for ln in text.splitlines() if '"mutmut"' in ln and "required" not in ln)
     toml.write_text(text.replace(line, '  "bandit",'))
     result = integrity(sandbox)
     assert result.returncode != 0, "a gate that blocks nothing was not detected"
     assert "mandatory but not required" in result.stdout
+
+
+# ==========================================================================
+# The missing DIRECTION.
+#
+# Check 9 is titled "the manifest agrees with itself", and that is exactly
+# what it does: it compares `ruleset.required_checks` against the gates the
+# same file declares mandatory. Both sides are read from ci/gates.toml, so a
+# job that exists ON DISK and appears in neither side is invisible to it.
+#
+# Measured 2026-08-25: 14 jobs run, report a verdict, and cannot block a
+# merge. Four of them are the entire learning-canvas-frontend workflow -- the
+# mutation gate, the reachability gate, the bundle budget, the lint over four
+# directories and roughly 290 browser tests. `verify.yml::merge-evidence` is
+# in that list too, inside the workflow that is otherwise fully required.
+#
+# gate_integrity printed `required_checks == mandatory gates: PASS  17
+# required, 17 mandatory` the whole time, and it was telling the truth about
+# the only question it asked.
+#
+# So the walk now runs the other way as well: disk -> manifest. Every job on
+# disk must be a required check, or be listed as advisory WITH A REASON. An
+# unlisted job fails the gate, which makes this an allowlist -- a job nobody
+# has classified is refused rather than assumed harmless.
+# ==========================================================================
+
+
+ADVISORY_WF = ".github/workflows/zz-planted-advisory.yml"
+PLANTED_JOB = "planted-job"
+
+
+def plant_workflow(sandbox: Path) -> None:
+    (sandbox / ADVISORY_WF).write_text(
+        "name: Planted\n"
+        "on: [pull_request]\n"
+        "jobs:\n"
+        f"  {PLANTED_JOB}:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: echo verdict\n",
+        encoding="utf-8",
+    )
+
+
+def test_attack_a_job_that_can_never_block_a_merge_is_caught(sandbox: Path) -> None:
+    """The finding check 9 structurally cannot make."""
+    plant_workflow(sandbox)
+    result = integrity(sandbox)
+    assert result.returncode != 0, (
+        "a job that runs, reports a verdict and blocks nothing was not "
+        f"detected.\n{result.stdout[-2500:]}"
+    )
+    assert PLANTED_JOB in result.stdout
+    # ADDED AFTER A SURVIVING MUTANT (`g.check(..., not unclassified)` forced
+    # to `True`). The exit code came from the `g.fail` calls, so asserting only
+    # on returncode left the PRINTED summary free to say PASS while findings
+    # existed. That is the same shape as the audit's cause B: a line that
+    # states a verdict nothing re-measures. A reader scanning the gate output
+    # would have seen PASS.
+    assert "every job is required or declared advisory: FAIL" in result.stdout, (
+        "the summary line reported PASS while unclassified jobs were being "
+        f"reported as findings.\n{result.stdout[-2500:]}"
+    )
+
+
+def declare_advisory(sandbox: Path, reason: str) -> None:
+    """Add the planted job to the manifest's EXISTING `[advisory]` table.
+
+    Appending a second `[advisory]` header instead is a TOML duplicate-table
+    error, and that mattered: written that way, the blank-reason test below
+    passed because the manifest failed to PARSE, not because a blank reason
+    was rejected. It would have gone on passing if the rule were deleted.
+    """
+    toml = sandbox / "ci" / "gates.toml"
+    text = toml.read_text(encoding="utf-8")
+    assert "\n[advisory]\n" in text, "the manifest has no [advisory] table to extend"
+    toml.write_text(
+        text.replace(
+            "\n[advisory]\n",
+            f'\n[advisory]\n"zz-planted-advisory.yml::{PLANTED_JOB}" = "{reason}"\n',
+            1,
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_an_advisory_job_declared_with_a_reason_is_allowed(sandbox: Path) -> None:
+    """The PAIR. Without it, failing on every non-required job satisfies the
+    test above, and 14 real jobs light up red with no way to say "deliberate"."""
+    plant_workflow(sandbox)
+    declare_advisory(sandbox, "planted by a test")
+    result = integrity(sandbox)
+    assert result.returncode == 0, (
+        "a job explicitly declared advisory, with a reason, was still "
+        f"refused.\n{result.stdout[-2500:]}"
+    )
+
+
+def test_an_advisory_entry_with_no_reason_is_refused(sandbox: Path) -> None:
+    """An exemption nobody has to justify is an exemption everybody takes.
+
+    The reason is the whole value of the list: it is what a reader sees when
+    they ask "why does this run if it cannot fail anything".
+    """
+    plant_workflow(sandbox)
+    declare_advisory(sandbox, "   ")
+    result = integrity(sandbox)
+    assert result.returncode != 0, (
+        "a blank reason was accepted as a justification.\n"
+        f"{result.stdout[-2500:]}"
+    )
+    assert PLANTED_JOB in result.stdout
+
+
+@pytest.mark.parametrize(
+    ("job_id", "job_name", "required_ctx"),
+    [
+        ("planted-by-id", None, "planted-by-id"),
+        ("planted-by-name", "Planted Display Name", "Planted Display Name"),
+    ],
+)
+def test_a_required_job_is_matched_by_id_and_by_display_name(
+    sandbox: Path, job_id: str, job_name: str | None, required_ctx: str
+) -> None:
+    """ADDED AFTER A SURVIVING MUTANT (`or job_id in required` deleted).
+
+    GitHub reports a job's check context as its `name:` when it has one and
+    its id otherwise, so the lookup has to try both. Every required job in
+    this repository happens to declare no `name:`, so id and context are the
+    same string and deleting either half of the lookup changed nothing any
+    test noticed. Both shapes are pinned here instead of relying on that
+    coincidence holding.
+    """
+    name_line = f"    name: {job_name}\n" if job_name else ""
+    (sandbox / ADVISORY_WF).write_text(
+        "name: Planted\non: [pull_request]\njobs:\n"
+        f"  {job_id}:\n{name_line}"
+        "    runs-on: ubuntu-latest\n    steps:\n      - run: echo verdict\n",
+        encoding="utf-8",
+    )
+    toml = sandbox / "ci" / "gates.toml"
+    text = toml.read_text(encoding="utf-8")
+    toml.write_text(
+        text.replace(
+            'required_checks = [', f'required_checks = [\n  "{required_ctx}",', 1
+        ),
+        encoding="utf-8",
+    )
+    result = integrity(sandbox)
+    # Assert on 9b's OWN finding, not on the job name appearing anywhere.
+    # Adding a required check with no matching gate also trips check 9
+    # ("ruleset requires X but no gate declares it"), which prints the same
+    # string for an unrelated reason -- a looser assertion passes and fails
+    # for reasons that have nothing to do with what is being tested.
+    verdict = f"job 'zz-planted-advisory.yml::{job_id}' runs"
+    assert verdict not in result.stdout, (
+        "a job that IS a required check was reported as unable to block a "
+        f"merge.\n{result.stdout[-2500:]}"
+    )
+
+
+def test_the_real_repository_has_every_job_classified(sandbox: Path) -> None:
+    """The clean tree must pass, or the three tests above prove nothing.
+
+    This is the check that would have caught the original finding: it fails
+    the moment a workflow gains a job that nobody has either required or
+    consciously written off.
+    """
+    result = integrity(sandbox)
+    assert result.returncode == 0, (
+        "the real repository has a job that is neither required nor declared "
+        f"advisory.\n{result.stdout[-3000:]}"
+    )
 
 
 def test_preflight_is_itself_mandatory(sandbox: Path) -> None:
@@ -1188,7 +1410,7 @@ def test_attack_codeql_analyze_step_removed_is_caught(sandbox: Path) -> None:
     wf = sandbox / CODEQL
     text = wf.read_text()
     wf.write_text(
-        "\n".join(l for l in text.splitlines() if "codeql-action/analyze@" not in l)
+        "\n".join(ln for ln in text.splitlines() if "codeql-action/analyze@" not in ln)
     )
     result = integrity(sandbox)
     assert result.returncode != 0, "removing the analyze step was not caught"
@@ -1198,7 +1420,7 @@ def test_attack_codeql_analyze_step_removed_is_caught(sandbox: Path) -> None:
 def test_attack_codeql_step_conditioned_away_is_caught(sandbox: Path) -> None:
     wf = sandbox / CODEQL
     text = wf.read_text()
-    line = next(l for l in text.splitlines() if "codeql-action/analyze@" in l)
+    line = next(ln for ln in text.splitlines() if "codeql-action/analyze@" in ln)
     indent = " " * (len(line) - len(line.lstrip()))
     wf.write_text(text.replace(line, f"{line}\n{indent}if: false", 1))
     result = integrity(sandbox)
@@ -1923,6 +2145,58 @@ def test_every_eligible_file_still_verifies() -> None:
             continue
         ok, evidence = check_subprocess_safety(str(path))
         assert ok, f"{rel} lost its verified exception: {evidence}"
+
+
+# --------------------------------------------------------------------------
+# Attack 30 — the browser gate passing with zero tests
+#
+# ci/gates.toml pins the workflow STEP (`npm run test:e2e`); it does not pin
+# what that npm script expands to. Measured against a config whose testDir is
+# an empty directory:
+#
+#     $ playwright test -c pw-zero-probe.config.ts
+#     Error: No tests found
+#     exit 1
+#
+# So an empty suite already fails closed, and the hole reported as "testDir is
+# unguarded" is not one. One flag defeats it. `--pass-with-no-tests` is a real
+# option -- it appears in `playwright test --help` as "Makes test run succeed
+# even if no tests were [found]" -- and adding it to package.json leaves the
+# pinned string `npm run test:e2e` untouched, so gate_integrity and preflight
+# both stay green while the browser gate becomes an unconditional PASS.
+#
+# Two assertions, both cents: no zero-test escape in the script, and the
+# directory the config names actually holds a spec. The second is redundant
+# with Playwright's exit code today; it is here so the property is owned by
+# this repository rather than inherited from a tool the manifest never pins.
+# --------------------------------------------------------------------------
+
+_ZERO_TEST_ESCAPES = ("--pass-with-no-tests", "--passWithNoTests")
+
+
+def test_the_e2e_npm_script_carries_no_zero_test_escape() -> None:
+    package = json.loads((REPO / "package.json").read_text(encoding="utf-8"))
+    script = package["scripts"]["test:e2e"]
+    for flag in _ZERO_TEST_ESCAPES:
+        assert flag not in script, (
+            f"package.json test:e2e is {script!r}. {flag} makes an empty suite "
+            "exit 0, so the e2e gate would report PASS having run no browser "
+            "at all, and every string ci/gates.toml pins would still match")
+
+
+def test_the_directory_the_playwright_config_names_holds_a_spec() -> None:
+    config = (REPO / "playwright.config.ts").read_text(encoding="utf-8")
+    declared = re.search(r"testDir:\s*['\"]([^'\"]+)['\"]", config)
+    assert declared, "playwright.config.ts declares no testDir to check"
+    rel = declared.group(1)
+    test_dir = REPO / rel
+    assert test_dir.is_dir(), (
+        f"playwright.config.ts points testDir at {rel}, which does not exist")
+    specs = sorted(test_dir.glob("*.spec.ts")) + sorted(test_dir.glob("*.spec.js"))
+    assert specs, (
+        f"{rel} holds no *.spec.ts or *.spec.js. The browser gate would run "
+        "zero tests; it exits 1 on that today, but nothing in this repository "
+        "says so")
 
 
 # --------------------------------------------------------------------------

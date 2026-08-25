@@ -52,7 +52,21 @@ def collected(root: Path) -> int:
     coverage still exist", not "does it pass". Those are different questions and
     the run answers the second one already.
     """
-    result = subprocess.run(  # noqa: S603 - fixed argv, no shell, no user input
+    # THE FOUR CONDITIONS scripts/security_gate.py RE-DERIVES FROM THIS AST.
+    #
+    # 1. shell is never passed, so it defaults to False. A shell would make the
+    #    argv a string the shell re-parses.
+    # 2. argv is a list literal. Nothing is joined or interpolated into it.
+    # 3. argv[0] is `sys.executable` -- the interpreter already running -- not a
+    #    bare name like "pytest", which would let PATH decide what executes.
+    # 4. a timeout is passed. Without it a hung collection holds a CI runner
+    #    until the job's own ceiling, and the failure reads as a slow gate
+    #    rather than as a hang.
+    #
+    # Being listed in security_gate.py's table buys nothing on its own: the gate
+    # re-checks all four every run, so deleting the timeout below stops the
+    # entry covering this file in the same run that deleted it.
+    result = subprocess.run(
         [
             sys.executable,
             "-m",
@@ -66,6 +80,7 @@ def collected(root: Path) -> int:
         capture_output=True,
         text=True,
         check=False,
+        timeout=300,
     )
 
     # Exit 5 is "collected nothing". Reported here rather than left to the

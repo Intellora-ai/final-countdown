@@ -1,0 +1,880 @@
+{
+  "components": {
+    "schemas": {
+      "AttemptCreate": {
+        "additionalProperties": false,
+        "description": "What a caller reports about one observation.\n\n`correct` is a bool and `observed_performance` is not exposed. The engine\ntakes a float, but a caller that can send 0.73 is a caller inventing partial\ncredit the marking scheme never defined. The mapping from bool to float is\nthe API's decision and is stated in one place, in `app.py`.",
+        "properties": {
+          "context_novelty": {
+            "default": 0.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Context Novelty",
+            "type": "number"
+          },
+          "correct": {
+            "title": "Correct",
+            "type": "boolean"
+          },
+          "representation": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Representation",
+            "type": "string"
+          },
+          "response_time_ms": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Response Time Ms",
+            "type": "integer"
+          },
+          "skill_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Skill Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "skill_id",
+          "correct",
+          "representation"
+        ],
+        "title": "AttemptCreate",
+        "type": "object"
+      },
+      "AttemptRecorded": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt_id": {
+            "title": "Attempt Id",
+            "type": "string"
+          },
+          "correct": {
+            "title": "Correct",
+            "type": "boolean"
+          },
+          "learner_id": {
+            "title": "Learner Id",
+            "type": "string"
+          },
+          "recorded_at": {
+            "format": "date-time",
+            "title": "Recorded At",
+            "type": "string"
+          },
+          "replayed": {
+            "title": "Replayed",
+            "type": "boolean"
+          },
+          "skill_id": {
+            "title": "Skill Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "attempt_id",
+          "learner_id",
+          "skill_id",
+          "correct",
+          "recorded_at",
+          "replayed"
+        ],
+        "title": "AttemptRecorded",
+        "type": "object"
+      },
+      "ConceptPage": {
+        "additionalProperties": false,
+        "description": "A window over the catalogue, plus the size of the whole.\n\n`total` counts the COLLECTION, not the page. Returning the page length is\nthe pagination bug that leaves a caller unable to tell there is more, and it\npasses every test that only ever reads one page.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "minimum": 0.0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "ConceptPage",
+        "type": "object"
+      },
+      "ConceptSummary": {
+        "additionalProperties": false,
+        "description": "A concept as a caller sees it.\n\nDeliberately NOT the engine's `Concept`. That model carries\n`forbidden_simplifications` and full misconception records -- teaching\nmaterial, not catalogue material. A caller listing concepts wants to know\nwhat exists and how big it is.",
+        "properties": {
+          "concept_id": {
+            "title": "Concept Id",
+            "type": "string"
+          },
+          "definition": {
+            "title": "Definition",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "prerequisites": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Prerequisites",
+            "type": "array"
+          },
+          "subskill_count": {
+            "minimum": 1.0,
+            "title": "Subskill Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "concept_id",
+          "name",
+          "definition",
+          "subskill_count"
+        ],
+        "title": "ConceptSummary",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Health": {
+        "additionalProperties": false,
+        "properties": {
+          "database": {
+            "enum": [
+              "up",
+              "down",
+              "not_configured"
+            ],
+            "title": "Database",
+            "type": "string"
+          },
+          "knowledge_version": {
+            "title": "Knowledge Version",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "database",
+          "knowledge_version"
+        ],
+        "title": "Health",
+        "type": "object"
+      },
+      "LearnerCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "cohort": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Cohort",
+            "type": "string"
+          },
+          "stream": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stream"
+          }
+        },
+        "required": [
+          "cohort"
+        ],
+        "title": "LearnerCreate",
+        "type": "object"
+      },
+      "LearnerCreated": {
+        "additionalProperties": false,
+        "properties": {
+          "cohort": {
+            "title": "Cohort",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "learner_id": {
+            "title": "Learner Id",
+            "type": "string"
+          },
+          "stream": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stream"
+          }
+        },
+        "required": [
+          "learner_id",
+          "created_at",
+          "cohort"
+        ],
+        "title": "LearnerCreated",
+        "type": "object"
+      },
+      "LessonEmitted": {
+        "additionalProperties": false,
+        "description": "The `LessonInput` payload the canvas already accepts.\n\n`blocks` and `relations` are opaque here on purpose. Their schema is owned\nby `frontend/src/canvas/spec/validate.ts` and pinned by the committed\nfixture; restating it in Python would be a second description of one format,\nand two descriptions of one format drift.",
+        "properties": {
+          "blocks": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Blocks",
+            "type": "array"
+          },
+          "lesson_id": {
+            "title": "Lesson Id",
+            "type": "string"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "relations": {
+            "default": [],
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Relations",
+            "type": "array"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "target_skill": {
+            "title": "Target Skill",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lesson_id",
+          "target_skill",
+          "question",
+          "blocks"
+        ],
+        "title": "LessonEmitted",
+        "type": "object"
+      },
+      "LessonRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "question": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "skill_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Skill Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "skill_id",
+          "question"
+        ],
+        "title": "LessonRequest",
+        "type": "object"
+      },
+      "MasteryReport": {
+        "additionalProperties": false,
+        "properties": {
+          "learner_id": {
+            "title": "Learner Id",
+            "type": "string"
+          },
+          "skills": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SkillMastery"
+            },
+            "title": "Skills",
+            "type": "array"
+          }
+        },
+        "required": [
+          "learner_id"
+        ],
+        "title": "MasteryReport",
+        "type": "object"
+      },
+      "NextAction": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "teach_by_example",
+              "repair_broken_example",
+              "transfer_challenge",
+              "diagnose",
+              "do_nothing"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "learner_id": {
+            "title": "Learner Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "skill_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skill Id"
+          }
+        },
+        "required": [
+          "learner_id",
+          "action",
+          "reason"
+        ],
+        "title": "NextAction",
+        "type": "object"
+      },
+      "SkillMastery": {
+        "additionalProperties": false,
+        "description": "One skill's estimate, without the engine's internal provenance.\n\n`evidence_ids` is not published. It is a list of internal identifiers whose\nformat the engine changes freely, and a caller that started keying off it\nwould turn an internal detail into a compatibility obligation.",
+        "properties": {
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "estimate": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Estimate",
+            "type": "number"
+          },
+          "evidence_count": {
+            "minimum": 0.0,
+            "title": "Evidence Count",
+            "type": "integer"
+          },
+          "evidence_diversity": {
+            "minimum": 0.0,
+            "title": "Evidence Diversity",
+            "type": "integer"
+          },
+          "last_updated": {
+            "format": "date-time",
+            "title": "Last Updated",
+            "type": "string"
+          },
+          "skill_id": {
+            "title": "Skill Id",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "unknown",
+              "developing",
+              "competent",
+              "mastered"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "skill_id",
+          "estimate",
+          "confidence",
+          "evidence_count",
+          "evidence_diversity",
+          "state",
+          "last_updated"
+        ],
+        "title": "SkillMastery",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "summary": "An HTTP surface over the Learning OS decision engine.",
+    "title": "learning-os",
+    "version": "python_recursion_v1"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/concepts": {
+      "get": {
+        "operationId": "concepts_concepts_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "subject",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Subject"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Concepts"
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/learners": {
+      "post": {
+        "operationId": "create_learner_learners_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LearnerCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LearnerCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Learner"
+      }
+    },
+    "/learners/{learner_id}": {
+      "get": {
+        "operationId": "get_learner_learners__learner_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "learner_id",
+            "required": true,
+            "schema": {
+              "title": "Learner Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LearnerCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Learner"
+      }
+    },
+    "/learners/{learner_id}/attempts": {
+      "post": {
+        "operationId": "record_attempt_learners__learner_id__attempts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "learner_id",
+            "required": true,
+            "schema": {
+              "title": "Learner Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttemptCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttemptRecorded"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Record Attempt"
+      }
+    },
+    "/learners/{learner_id}/mastery": {
+      "get": {
+        "operationId": "mastery_learners__learner_id__mastery_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "learner_id",
+            "required": true,
+            "schema": {
+              "title": "Learner Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MasteryReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mastery"
+      }
+    },
+    "/learners/{learner_id}/next": {
+      "get": {
+        "operationId": "next_action_learners__learner_id__next_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "learner_id",
+            "required": true,
+            "schema": {
+              "title": "Learner Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 120,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NextAction"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Next Action"
+      }
+    },
+    "/lessons": {
+      "post": {
+        "operationId": "lessons_lessons_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LessonRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonEmitted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Lessons"
+      }
+    }
+  }
+}

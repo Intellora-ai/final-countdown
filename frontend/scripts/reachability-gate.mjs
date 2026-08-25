@@ -487,6 +487,22 @@ function parseClause(clause) {
 const DECL_RE =
   /^(export\s+)?(?:declare\s+)?(?:async\s+)?(?:abstract\s+)?(?:function\*?|const|let|var|class|interface|type|enum)\s+([A-Za-z_$][\w$]*)/gm
 
+/* `export default …` — recorded under the name `default`, never under the
+   declared name.
+
+   DECL_RE cannot match this line: it wants a declaration keyword immediately
+   after `export`, and `default` is not one. So `export default function x() {}`
+   produced no symbol at all, and a dead default export was invisible to a gate
+   whose whole job is finding code nothing reaches. Seven files under src/ use
+   this form.
+
+   The name is `default` because that is what an importer actually asks for.
+   `parseClause` already records a default import that way, so both sides now
+   speak the same word and meet. Recording the DECLARED name instead would be
+   wrong in the loud direction: nobody can write `import { whateverItIsCalled }`,
+   so that name would be reported dead on every file using `export default`. */
+const DEFAULT_EXPORT_RE = /^export\s+default\s+/gm
+
 /**
  * The top-level symbols of a file, each with the source span it owns.
  *
@@ -502,6 +518,13 @@ export function symbolsOf(src) {
   const found = []
   for (const m of clean.matchAll(DECL_RE)) {
     found.push({ name: m[2], exported: Boolean(m[1]), start: m.index, end: 0, src: clean })
+  }
+  /* Added before the sort so the default export takes its span from the same
+     "runs until the next declaration" rule as everything else. That span is
+     what carries its body, so `export default function x() { helper() }`
+     still keeps `helper` alive. */
+  for (const m of clean.matchAll(DEFAULT_EXPORT_RE)) {
+    found.push({ name: 'default', exported: true, start: m.index, end: 0, src: clean })
   }
   found.sort((a, b) => a.start - b.start)
   for (let i = 0; i < found.length; i++) {

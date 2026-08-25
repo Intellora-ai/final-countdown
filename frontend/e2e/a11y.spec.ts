@@ -43,6 +43,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 
 import { settle } from './util/canvas'
+import { permittedFor, type Baseline } from './util/baseline'
 import { applyProjectMedia } from './util/media'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -80,7 +81,48 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 /** How many tab presses count as "traversed". */
 const TAB_DEPTH = 12
 
-type Baseline = Record<string, string[]>
+/**
+ * Wait until nothing on the page is still moving.
+ *
+ * THE FLAKE THIS EXISTS TO REMOVE, measured across two CI runs of the SAME
+ * project on the SAME route:
+ *
+ *     run 32892684852   [reduced-motion] today: color-contrast  ABSENT
+ *     run 32895032118   [reduced-motion] today: color-contrast  PRESENT
+ *
+ * The first failed the staleness check ("recorded and no longer occurring")
+ * and the second failed the violations check ("new violations ... arrived with
+ * a change"). Opposite failures, same code, nothing between them but timing.
+ *
+ * `networkidle` says the NETWORK is quiet. It says nothing about the page: a
+ * fade that starts on mount is still running, and an element at 40% opacity
+ * fails contrast while the same element at 100% passes. axe therefore reports
+ * a different answer depending on when it happens to look.
+ *
+ * A FIRST ATTEMPT AT THIS BUG WAS WRONG AND IS RECORDED SO IT IS NOT REPEATED:
+ * the finding looked project-specific, so the baseline gained a per-project
+ * override saying reduced-motion does not see it. The next run saw it. It was
+ * never a project fact; it was a clock.
+ *
+ * `getAnimations()` covers CSS transitions, CSS animations and Web Animations
+ * alike, which is what "still moving" actually means here. The timeout is a
+ * ceiling, not a sleep: a page that settles in 40ms waits 40ms, and one with a
+ * genuinely infinite animation gives up rather than hanging the suite.
+ */
+async function settled(page: Page): Promise<void> {
+  await page
+    .waitForFunction(
+      () => document.getAnimations().every((animation) => animation.playState !== 'running'),
+      undefined,
+      { timeout: 3000 },
+    )
+    .catch(() => {
+      /* An animation that never finishes is a real thing -- a spinner, a looping
+         background. Scanning a page mid-loop is still better than failing the
+         a11y run for a reason that has nothing to do with accessibility, and
+         the violation set is what gets asserted either way. */
+    })
+}
 
 function readBaseline(): Baseline {
   try {
@@ -94,6 +136,7 @@ function readBaseline(): Baseline {
 }
 
 async function scan(page: Page): Promise<string[]> {
+  await settled(page)
   const results = await new AxeBuilder({ page }).withTags(TAGS).analyze()
   return [...new Set(results.violations.map((v) => v.id))].sort()
 }
@@ -162,7 +205,7 @@ test.describe('accessibility across a journey', () => {
 
       if (UPDATING) return
 
-      const permitted = new Set(readBaseline()[route.name] ?? [])
+      const permitted = new Set(permittedFor(readBaseline(), route.name, testInfo.project.name))
       const added = found.filter((id) => !permitted.has(id))
 
       expect(
@@ -215,7 +258,13 @@ test.describe('accessibility across a journey', () => {
       await page.waitForLoadState('networkidle')
       if (route.name === 'canvas') await canvasReady(page)
       const found = new Set(await scan(page))
-      for (const id of baseline[route.name] ?? []) {
+      /*
+       * PER PROJECT, because the finding is. A violation that only exists while
+       * an animation is running is genuinely absent under
+       * `prefers-reduced-motion`, and reading one flat list made the staleness
+       * check report it stale there while four other projects still saw it.
+       */
+      for (const id of permittedFor(baseline, route.name, testInfo.project.name)) {
         if (!found.has(id)) stale.push(`${route.name}: ${id}`)
       }
     }

@@ -136,8 +136,21 @@ export default defineConfig({
        * so the one command that proves the frontend also proves the thing
        * standing between the browser and the model. */
       'server/**/*.test.ts',
+      /* AND A SIXTH: the PURE HELPERS under `e2e/util/`, and only those.
+       *
+       * `e2e/**` stays excluded below, because a Playwright spec started by
+       * vitest fails on the first `test.describe()` it meets. But the helpers
+       * beside those specs are ordinary functions with ordinary bugs, and one
+       * of them shipped a real defect that only GitHub caught: the a11y
+       * baseline recorded a viewport-dependent finding in a field with no
+       * viewport, and `scenes 2/2` went red on `reduced-motion` alone.
+       *
+       * A helper that decides what a gate permits deserves a test that runs in
+       * a second, not one that needs five browsers. The include is narrowed to
+       * `util/` so it can never reach a spec. */
+      'e2e/util/**/*.test.ts',
     ],
-    exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
+    exclude: ['e2e/**/*.spec.ts', 'node_modules/**', 'dist/**'],
 
     /* jsdom ONLY where a test opts in, via a per-file
      *   // @vitest-environment jsdom

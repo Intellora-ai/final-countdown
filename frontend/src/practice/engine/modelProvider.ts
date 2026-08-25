@@ -116,7 +116,14 @@ export function modelProvider(options: ModelProviderOptions = {}): QuestionProvi
 /* The brief                                                                  */
 /* -------------------------------------------------------------------------- */
 
-const SYSTEM = [
+/*
+ * EXPORTED SO THE OLLAMA PROVIDER SHARES IT RATHER THAN COPYING IT.
+ *
+ * Two prompts for one job drift apart, and then a question that passes on one
+ * model fails on another for a reason nobody can see in the diff. The transport
+ * differs between providers; the instructions must not.
+ */
+export const SYSTEM = [
   'You write single-answer multiple-choice questions for exam practice.',
   '',
   'Every question you return is independently verified before a student sees it.',
@@ -133,9 +140,21 @@ const SYSTEM = [
   '- The solution explains the reasoning. Never "Option C is correct".',
   '- If the question involves arithmetic, declare it in `computation` so it can',
   '  be recomputed. Steps reference earlier inputs or earlier step names only.',
+  '',
+  'Three mistakes that get questions rejected. Each has happened:',
+  '',
+  '- `expected` is the answer to the question you asked, not a number that',
+  '  merely appears in it. A garden of area 150 whose WIDTH is asked for has',
+  '  expected = the width. One of your four options must equal it exactly.',
+  '- Every `left` and `right` in a step must name an input you declared or an',
+  '  earlier step. A name that appears nowhere makes the whole question',
+  '  unusable.',
+  '- Before you return, compare your four options. If any two are equal, or',
+  '  algebraically equal, replace one. Two right answers is a broken question,',
+  '  and it is the failure a reader is least likely to notice.',
 ].join('\n');
 
-function briefFor(spec: QuestionSpec, attempt: number): string {
+export function briefFor(spec: QuestionSpec, attempt: number): string {
   const lines = [
     `Topic: ${spec.topicId}`,
     `Concept: ${spec.conceptName}`,
@@ -165,7 +184,7 @@ function briefFor(spec: QuestionSpec, attempt: number): string {
   return lines.join('\n');
 }
 
-const SCHEMA = {
+export const SCHEMA = {
   type: 'object',
   additionalProperties: false,
   required: ['questionText', 'options', 'correctOption', 'fullSolution'],

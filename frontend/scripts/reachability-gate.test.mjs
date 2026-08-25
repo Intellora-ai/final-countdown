@@ -738,3 +738,75 @@ describe('area reachability from the product entry', () => {
     expect(text).toContain('agent')
   })
 })
+
+/* -------------------------------------------------------------------------- */
+
+/*
+ * THE NUMBER A HUMAN READS, AND WHETHER IT CAN EVER SAY ANYTHING BAD.
+ *
+ * `report()` prints one summary line per area. It was written as
+ *
+ *     `${r.reached.length}/${sources} source files reachable`
+ *
+ * and those two numbers count DIFFERENT SETS. `reached` is every file the walk
+ * arrived at, including files in other areas; `sources` is only the non-test
+ * files under this area's own root. An area that imports anything from outside
+ * itself therefore prints a numerator larger than its denominator.
+ *
+ * Observed on a real area: `[server] 15/8 source files reachable`. Fifteen out
+ * of eight.
+ *
+ * THIS IS NOT COSMETIC, and the second test below is the reason. The ratio is
+ * the one figure a reader scans, and while the numerator counts cross-area
+ * files it can never fall below 100% for any area with an outside import. An
+ * area that genuinely had an orphan would print `14/8` and still read as fine.
+ * A number that cannot express a problem is decoration wearing the costume of
+ * a measurement.
+ *
+ * The pass/fail verdict is computed from orphans and dead exports, not from
+ * this line, so the gate's ANSWER was never wrong — only its report was. That
+ * distinction is why this is fixed in `report()` and nowhere else.
+ */
+describe('the summary ratio measures the area, not the whole walk', () => {
+  const AREA = resolve(ROOT, '.ratio-area')
+  const OUTSIDE = resolve(ROOT, '.ratio-outside')
+
+  afterEach(() => {
+    rmSync(AREA, { recursive: true, force: true })
+    rmSync(OUTSIDE, { recursive: true, force: true })
+  })
+
+  function twoDirs(areaFiles, outsideFiles) {
+    rmSync(AREA, { recursive: true, force: true })
+    rmSync(OUTSIDE, { recursive: true, force: true })
+    for (const [dir, files] of [[AREA, areaFiles], [OUTSIDE, outsideFiles]]) {
+      for (const [path, source] of Object.entries(files)) {
+        const full = join(dir, path)
+        mkdirSync(resolve(full, '..'), { recursive: true })
+        writeFileSync(full, source)
+      }
+    }
+    return { name: 'ratio', root: '.ratio-area', entries: ['.ratio-area/entry.ts'] }
+  }
+
+  it("does not count a file from another area as one of this area's own", () => {
+    const area = twoDirs(
+      { 'entry.ts': "import { h } from '../.ratio-outside/helper'\nexport const a = h\n" },
+      { 'helper.ts': 'export const h = 1\n' },
+    )
+    const { text } = report([analyze(area)])
+    expect(text).toContain('[ratio] 1/1 source files reachable from entry points')
+  })
+
+  it('drops the numerator when a file in the area is unreachable, so the ratio can still say something is wrong', () => {
+    const area = twoDirs(
+      {
+        'entry.ts': "import { h } from '../.ratio-outside/helper'\nexport const a = h\n",
+        'orphan.ts': 'export const stranded = 2\n',
+      },
+      { 'helper.ts': 'export const h = 1\n' },
+    )
+    const { text } = report([analyze(area)])
+    expect(text).toContain('[ratio] 1/2 source files reachable from entry points')
+  })
+})

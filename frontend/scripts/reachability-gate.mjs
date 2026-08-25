@@ -790,8 +790,19 @@ export function report(results, { productReachability = null } = {}) {
   let failed = false
 
   for (const r of results) {
-    const sources = r.files.filter((f) => !isTestFile(f)).length
-    lines.push(`[${r.area}] ${r.reached.length}/${sources} source files reachable from entry points`)
+    const sources = r.files.filter((f) => !isTestFile(f))
+    /* Both halves of this ratio must count the SAME SET, and they did not.
+       `reached` holds every file the walk arrived at, cross-area imports
+       included, so an area that imports anything from outside itself printed a
+       numerator bigger than its denominator --- `[server] 15/8` was real.
+
+       Worse than untidy: while the numerator carried outside files, the ratio
+       could not fall below 100% for such an area, so an area WITH an orphan
+       still read as complete. Intersecting with the area's own source files is
+       what lets the number say something is wrong. */
+    const inArea = new Set(sources)
+    const reachedHere = r.reached.filter((f) => inArea.has(f)).length
+    lines.push(`[${r.area}] ${reachedHere}/${sources.length} source files reachable from entry points`)
 
     for (const w of r.warnings) {
       failed = true

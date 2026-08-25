@@ -39,7 +39,16 @@ exclude_lines = ["pragma: no cover", "if __name__ == .__main__.:"]
 [tool.pyright]
 # tests and scripts import sibling modules from scripts/ after a sys.path
 # insert; without this pyright reports every symbol from them as unknown.
-extraPaths = ["scripts"]
+#
+# `learning-os/src` is here for the same reason, one package root over.
+# scripts/openapi_drift.py imports `learning_os.http.app` to generate the
+# schema it checks, and that package is not installed -- the learning-os job
+# puts `src` on PYTHONPATH because tests/test_supply_chain.py forbids any pip
+# install that is not `--require-hashes -r <lock>`, editable installs included.
+# Without this line pyright reported the import unresolved and then every value
+# derived from it as unknown, which is a config gap reported as four code
+# errors.
+extraPaths = ["scripts", "learning-os/src"]
 # Without venvPath/venv, pyright cannot resolve hypothesis (which ships
 # py.typed). Every unresolved import makes downstream values Unknown, which is
 # where the bulk of the strict-mode errors came from - a config gap, not code.

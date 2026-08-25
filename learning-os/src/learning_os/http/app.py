@@ -23,7 +23,7 @@ given a factory instead.
 
 from __future__ import annotations
 
-from typing import Annotated, cast
+from typing import Annotated, Any, cast
 
 from fastapi import (
     Depends,
@@ -387,6 +387,27 @@ _ABSENCE_ACTION: dict[NoBottleneck, NextActionKind] = {
     NoBottleneck.UNEVIDENCED: "diagnose",
     NoBottleneck.UNKNOWN_TARGET: "do_nothing",
 }
+
+
+def openapi_document() -> dict[str, Any]:
+    """The OpenAPI document, as plain data.
+
+    THIS EXISTS SO THE DRIFT GATE DOES NOT NEED FASTAPI'S TYPES.
+
+    `scripts/openapi_drift.py` is checked by the ROOT pyright configuration,
+    whose virtualenv installs `requirements.lock` -- which has no fastapi, and
+    should not. Calling `build_app().openapi()` from there left pyright with an
+    unresolvable return type, so `build_app` was `-> Unknown`, `.openapi()` was
+    an unknown member, and the argument to `render` was unknown: three strict
+    errors that were entirely a configuration gap.
+
+    Adding fastapi to the root lock to satisfy a type checker would expand the
+    root trusted computing base for a package no root job ever imports. Putting
+    the boundary here instead costs one function: on this side of it fastapi is
+    installed and `mypy --strict` checks the call, and what crosses is a
+    `dict[str, Any]` that needs no framework to describe.
+    """
+    return build_app().openapi()
 
 
 def _default_target(graph: KnowledgeGraph, beliefs: dict[str, Belief]) -> str:

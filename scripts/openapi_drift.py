@@ -61,12 +61,25 @@ def render(document: dict[str, Any]) -> str:
 
 
 def generated() -> str:
-    """What the code says the API is, right now."""
+    """What the code says the API is, right now.
+
+    `openapi_document()` rather than `build_app().openapi()`, and that is not
+    cosmetic. This file is checked by the ROOT pyright configuration, whose
+    virtualenv installs `requirements.lock` -- which has no fastapi and should
+    not, since no root job imports it. Reaching through the FastAPI object here
+    left pyright unable to type the return, and it reported three strict errors
+    that were a configuration gap rather than a defect.
+
+    The alternative was adding fastapi to the root lock to satisfy a type
+    checker, which would grow the root trusted computing base for a package
+    nothing at the root runs. What crosses this boundary instead is a
+    `dict[str, Any]`, which needs no framework to describe.
+    """
     # Imported inside the function so `--help` works, and so an import failure
     # names this gate rather than surfacing as a bare traceback at module load.
-    from learning_os.http.app import build_app
+    from learning_os.http.app import openapi_document
 
-    return render(build_app().openapi())
+    return render(openapi_document())
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync } from 'node:fs';
+import { asChapterId, asTopicId } from './ids';
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path';
 
@@ -19,8 +20,8 @@ import type { QuestionSpec } from './types';
 
 const SPEC: QuestionSpec = {
   specId: 'rotational-motion-0',
-  topicId: 'rotational-motion',
-  chapterId: 'mechanics',
+  topicId: asTopicId('rotational-motion'),
+  chapterId: asChapterId('mechanics'),
   conceptId: 'moment-of-inertia',
   conceptName: 'moment of inertia',
   questionType: 'standard',

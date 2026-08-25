@@ -927,7 +927,31 @@ def fetch_pr_body(pr: str) -> str:
         stdin=subprocess.DEVNULL,
         shell=False,
     )
-    return out.stdout if out.returncode == 0 else ""
+    if out.returncode != 0:
+        # A FAILED LOOKUP IS NOT AN EMPTY PULL REQUEST.
+        #
+        # This returned "" on failure. An empty body parses to zero rows and
+        # zero claims, which is precisely what a pull request that measured
+        # nothing looks like -- so `gh` failing for any reason (an expired
+        # token, a rate limit, a network blip, a renamed flag) switched the
+        # entire claim-checking half of this gate off and reported clean.
+        #
+        # Raising is not a new mechanism: `GitHubFetcher._gh` above already
+        # raises this exact error for the same class of failure, and `main`
+        # already catches `EvidenceError` and fails the gate as an
+        # infrastructure block. This one call site simply never used it.
+        #
+        # An empty body from a SUCCESSFUL call is still returned and still
+        # passes. The difference is not the body -- both are empty -- it is
+        # whether anyone actually looked.
+        detail = (out.stderr or out.stdout).strip().splitlines()
+        why = detail[-1] if detail else f"gh pr view exited {out.returncode}"
+        raise EvidenceError(
+            "INFRASTRUCTURE_BLOCK",
+            f"could not read the body of pull request {pr}: {why}",
+            "Check GitHub availability and that the token carries pull_requests:read.",
+        )
+    return out.stdout
 
 
 def main() -> int:

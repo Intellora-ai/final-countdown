@@ -1,0 +1,3407 @@
+{
+  "seed": 1,
+  "sessions": 12,
+  "steps": 60,
+  "failures": [
+    {
+      "at": 1,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/today",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq0",
+          "kind": "click",
+          "selector": "[data-dq=\"0\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "CURRICULUM",
+          "session": 0,
+          "step": 0,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 2,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/chapter/mathematics/trigonometric-identities",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq8",
+          "kind": "click",
+          "selector": "[data-dq=\"8\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "TRIGONOMETRIC IDENTITIES\n0/2",
+          "session": 0,
+          "step": 1,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 3,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/chapter/mathematics/trigonometric-identities",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq3",
+          "kind": "click",
+          "selector": "[data-dq=\"3\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "+",
+          "session": 0,
+          "step": 2,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 4,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/chapter/mathematics/trigonometric-identities",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq1",
+          "kind": "click",
+          "selector": "[data-dq=\"1\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Start concept",
+          "session": 0,
+          "step": 3,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 5,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/chapter/mathematics/trigonometric-identities",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq1",
+          "kind": "click",
+          "selector": "[data-dq=\"1\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Start concept",
+          "session": 0,
+          "step": 3,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 6,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/chapter/mathematics/trigonometric-identities",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq4",
+          "kind": "click",
+          "selector": "[data-dq=\"4\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "FIT",
+          "session": 0,
+          "step": 5,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 7,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/chapter/mathematics/trigonometric-identities",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq5",
+          "kind": "click",
+          "selector": "[data-dq=\"5\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Proof and applications of the identity sin2 A + cos2 A = 1, ",
+          "session": 0,
+          "step": 6,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 8,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/chapter/mathematics/trigonometric-identities",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq0",
+          "kind": "click",
+          "selector": "[data-dq=\"0\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "CURRICULUM",
+          "session": 0,
+          "step": 7,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 10,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/chapter/mathematics/trigonometric-identities",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq1",
+          "kind": "click",
+          "selector": "[data-dq=\"1\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Start concept",
+          "session": 0,
+          "step": 3,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 12,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/today",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq5",
+          "kind": "click",
+          "selector": "[data-dq=\"5\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "IR\nIshan Rao\nClass 10 · 0 done",
+          "session": 0,
+          "step": 11,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 13,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/today",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq0",
+          "kind": "click",
+          "selector": "[data-dq=\"0\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "CURRICULUM",
+          "session": 0,
+          "step": 12,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 14,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq7",
+          "kind": "click",
+          "selector": "[data-dq=\"7\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Edit plan",
+          "session": 0,
+          "step": 13,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 15,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq0",
+          "kind": "click",
+          "selector": "[data-dq=\"0\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "CURRICULUM",
+          "session": 0,
+          "step": 7,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 16,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq0",
+          "kind": "click",
+          "selector": "[data-dq=\"0\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "CURRICULUM",
+          "session": 0,
+          "step": 7,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 17,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq2",
+          "kind": "click",
+          "selector": "[data-dq=\"2\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Class 11",
+          "session": 0,
+          "step": 16,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 18,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq0",
+          "kind": "click",
+          "selector": "[data-dq=\"0\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Class 9",
+          "session": 0,
+          "step": 14,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 19,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq2",
+          "kind": "click",
+          "selector": "[data-dq=\"2\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Class 11",
+          "session": 0,
+          "step": 16,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 20,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq2",
+          "kind": "click",
+          "selector": "[data-dq=\"2\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Class 11",
+          "session": 0,
+          "step": 18,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 21,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq0",
+          "kind": "click",
+          "selector": "[data-dq=\"0\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Class 9",
+          "session": 0,
+          "step": 14,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 22,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq0",
+          "kind": "click",
+          "selector": "[data-dq=\"0\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Class 9",
+          "session": 0,
+          "step": 20,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 23,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq1",
+          "kind": "click",
+          "selector": "[data-dq=\"1\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Class 10",
+          "session": 0,
+          "step": 22,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 24,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq0",
+          "kind": "click",
+          "selector": "[data-dq=\"0\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Class 9",
+          "session": 0,
+          "step": 14,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 25,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq3",
+          "kind": "click",
+          "selector": "[data-dq=\"3\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Class 12",
+          "session": 0,
+          "step": 24,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 26,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq2",
+          "kind": "click",
+          "selector": "[data-dq=\"2\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Class 11",
+          "session": 0,
+          "step": 16,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 27,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq0",
+          "kind": "click",
+          "selector": "[data-dq=\"0\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Class 9",
+          "session": 0,
+          "step": 14,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 28,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/today",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq5",
+          "kind": "click",
+          "selector": "[data-dq=\"5\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Back",
+          "session": 0,
+          "step": 27,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 29,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/misconception",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq1",
+          "kind": "click",
+          "selector": "[data-dq=\"1\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Start",
+          "session": 0,
+          "step": 28,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 30,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/misconception",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq0",
+          "kind": "click",
+          "selector": "[data-dq=\"0\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "CURRICULUM",
+          "session": 0,
+          "step": 7,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 31,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/today",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq4",
+          "kind": "click",
+          "selector": "[data-dq=\"4\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "AM\nArya Menon\nClass 10 · 0 done",
+          "session": 0,
+          "step": 30,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 32,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/today",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq0",
+          "kind": "click",
+          "selector": "[data-dq=\"0\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "CURRICULUM",
+          "session": 0,
+          "step": 7,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 33,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/quick-question",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq3",
+          "kind": "click",
+          "selector": "[data-dq=\"3\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Class 12",
+          "session": 0,
+          "step": 24,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 34,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/quick-question",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq0",
+          "kind": "click",
+          "selector": "[data-dq=\"0\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "CURRICULUM",
+          "session": 0,
+          "step": 29,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 35,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq6",
+          "kind": "click",
+          "selector": "[data-dq=\"6\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Nl\nNew learner\nNo plan yet",
+          "session": 0,
+          "step": 34,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 36,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq0",
+          "kind": "click",
+          "selector": "[data-dq=\"0\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Class 9",
+          "session": 0,
+          "step": 14,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 37,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq5",
+          "kind": "click",
+          "selector": "[data-dq=\"5\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Back",
+          "session": 0,
+          "step": 27,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 38,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq0",
+          "kind": "click",
+          "selector": "[data-dq=\"0\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "CURRICULUM",
+          "session": 0,
+          "step": 31,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 39,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq5",
+          "kind": "click",
+          "selector": "[data-dq=\"5\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Back",
+          "session": 0,
+          "step": 36,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 40,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq0",
+          "kind": "click",
+          "selector": "[data-dq=\"0\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "CURRICULUM",
+          "session": 0,
+          "step": 29,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 41,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq1",
+          "kind": "click",
+          "selector": "[data-dq=\"1\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Class 10",
+          "session": 0,
+          "step": 40,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 42,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq4",
+          "kind": "click",
+          "selector": "[data-dq=\"4\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Continue",
+          "session": 0,
+          "step": 41,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 43,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq4",
+          "kind": "click",
+          "selector": "[data-dq=\"4\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Continue",
+          "session": 0,
+          "step": 41,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 44,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq1",
+          "kind": "click",
+          "selector": "[data-dq=\"1\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Mathematics at Advanced Level\n30 chapters",
+          "session": 0,
+          "step": 43,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 45,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq1",
+          "kind": "click",
+          "selector": "[data-dq=\"1\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Class 10",
+          "session": 0,
+          "step": 22,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 46,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq4",
+          "kind": "click",
+          "selector": "[data-dq=\"4\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Social Science\n18 chapters",
+          "session": 0,
+          "step": 45,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 47,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq4",
+          "kind": "click",
+          "selector": "[data-dq=\"4\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Continue",
+          "session": 0,
+          "step": 41,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 48,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq1",
+          "kind": "click",
+          "selector": "[data-dq=\"1\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Mathematics at Advanced Level\n30 chapters",
+          "session": 0,
+          "step": 43,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 49,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq8",
+          "kind": "click",
+          "selector": "[data-dq=\"8\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Elements of Book Keeping & Accountancy\n4 chapters",
+          "session": 0,
+          "step": 48,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 50,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq1",
+          "kind": "click",
+          "selector": "[data-dq=\"1\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Class 10",
+          "session": 0,
+          "step": 40,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 51,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq8",
+          "kind": "click",
+          "selector": "[data-dq=\"8\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Elements of Book Keeping & Accountancy\n4 chapters",
+          "session": 0,
+          "step": 50,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 52,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq9",
+          "kind": "click",
+          "selector": "[data-dq=\"9\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Continue",
+          "session": 0,
+          "step": 51,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 53,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq1",
+          "kind": "click",
+          "selector": "[data-dq=\"1\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Mathematics at Advanced Level\n30 chapters",
+          "session": 0,
+          "step": 49,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 54,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq5",
+          "kind": "click",
+          "selector": "[data-dq=\"5\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Back",
+          "session": 0,
+          "step": 53,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 55,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq6",
+          "kind": "click",
+          "selector": "[data-dq=\"6\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Computer Applications\n2 chapters",
+          "session": 0,
+          "step": 54,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 56,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq2",
+          "kind": "click",
+          "selector": "[data-dq=\"2\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Science\n15 chapters",
+          "session": 0,
+          "step": 55,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 57,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq3",
+          "kind": "click",
+          "selector": "[data-dq=\"3\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Science at Advanced Level\n21 chapters",
+          "session": 0,
+          "step": 56,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 58,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq5",
+          "kind": "click",
+          "selector": "[data-dq=\"5\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "English Language and Literature\n3 chapters",
+          "session": 0,
+          "step": 57,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 59,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq5",
+          "kind": "click",
+          "selector": "[data-dq=\"5\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "English Language and Literature\n3 chapters",
+          "session": 0,
+          "step": 57,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 60,
+      "session": 0,
+      "persona": "speedrunner",
+      "url": "http://127.0.0.1:5183/#/setup",
+      "violations": [
+        {
+          "law": "no-console-error",
+          "detail": "console error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "why": "console errors are the app telling you it is broken, in its own words"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq7",
+          "kind": "click",
+          "selector": "[data-dq=\"7\"]",
+          "visible": true,
+          "enabled": true,
+          "label": "Elements of Business\n2 chapters",
+          "session": 0,
+          "step": 59,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 61,
+      "session": 1,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        },
+        {
+          "law": "memory-persists",
+          "detail": "memory lost across a new session: progress 1 -> 0",
+          "why": "THE bug class that only shows up after many sessions: state quietly wiped"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 1,
+          "step": 0,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 64,
+      "session": 1,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 1,
+          "step": 4,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 113,
+      "session": 1,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 1,
+          "step": 54,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 114,
+      "session": 1,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 1,
+          "step": 54,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 115,
+      "session": 1,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 1,
+          "step": 54,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 117,
+      "session": 2,
+      "persona": "distracted",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 1,
+          "step": 54,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 141,
+      "session": 2,
+      "persona": "distracted",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 2,
+          "step": 26,
+          "persona": "distracted"
+        }
+      ]
+    },
+    {
+      "at": 142,
+      "session": 2,
+      "persona": "distracted",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 2,
+          "step": 26,
+          "persona": "distracted"
+        }
+      ]
+    },
+    {
+      "at": 148,
+      "session": 2,
+      "persona": "distracted",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 2,
+          "step": 35,
+          "persona": "distracted"
+        }
+      ]
+    },
+    {
+      "at": 150,
+      "session": 2,
+      "persona": "distracted",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 1,
+          "step": 54,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 154,
+      "session": 2,
+      "persona": "distracted",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 2,
+          "step": 35,
+          "persona": "distracted"
+        }
+      ]
+    },
+    {
+      "at": 155,
+      "session": 2,
+      "persona": "distracted",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 1,
+          "step": 54,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 156,
+      "session": 2,
+      "persona": "distracted",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 1,
+          "step": 54,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 168,
+      "session": 3,
+      "persona": "perfectionist",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        },
+        {
+          "law": "memory-persists",
+          "detail": "memory lost across a new session: progress 1 -> 0",
+          "why": "THE bug class that only shows up after many sessions: state quietly wiped"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 3,
+          "step": 0,
+          "persona": "perfectionist"
+        }
+      ]
+    },
+    {
+      "at": 177,
+      "session": 3,
+      "persona": "perfectionist",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 2,
+          "step": 38,
+          "persona": "distracted"
+        }
+      ]
+    },
+    {
+      "at": 286,
+      "session": 5,
+      "persona": "speedrunner",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        },
+        {
+          "law": "memory-persists",
+          "detail": "memory lost across a new session: progress 1 -> 0",
+          "why": "THE bug class that only shows up after many sessions: state quietly wiped"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 5,
+          "step": 0,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 346,
+      "session": 6,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 6,
+          "step": 1,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 356,
+      "session": 6,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 6,
+          "step": 12,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 359,
+      "session": 6,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 6,
+          "step": 16,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 361,
+      "session": 6,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 6,
+          "step": 12,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 363,
+      "session": 6,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 6,
+          "step": 19,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 376,
+      "session": 6,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 6,
+          "step": 36,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 397,
+      "session": 6,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 6,
+          "step": 58,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 398,
+      "session": 7,
+      "persona": "distracted",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 6,
+          "step": 58,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 401,
+      "session": 7,
+      "persona": "distracted",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 6,
+          "step": 36,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 413,
+      "session": 7,
+      "persona": "distracted",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 6,
+          "step": 58,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 418,
+      "session": 7,
+      "persona": "distracted",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 7,
+          "step": 23,
+          "persona": "distracted"
+        }
+      ]
+    },
+    {
+      "at": 419,
+      "session": 7,
+      "persona": "distracted",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 7,
+          "step": 17,
+          "persona": "distracted"
+        }
+      ]
+    },
+    {
+      "at": 426,
+      "session": 7,
+      "persona": "distracted",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 7,
+          "step": 17,
+          "persona": "distracted"
+        }
+      ]
+    },
+    {
+      "at": 427,
+      "session": 7,
+      "persona": "distracted",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 6,
+          "step": 58,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 430,
+      "session": 7,
+      "persona": "distracted",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 7,
+          "step": 33,
+          "persona": "distracted"
+        }
+      ]
+    },
+    {
+      "at": 432,
+      "session": 7,
+      "persona": "distracted",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 7,
+          "step": 23,
+          "persona": "distracted"
+        }
+      ]
+    },
+    {
+      "at": 433,
+      "session": 7,
+      "persona": "distracted",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 7,
+          "step": 33,
+          "persona": "distracted"
+        }
+      ]
+    },
+    {
+      "at": 448,
+      "session": 8,
+      "persona": "perfectionist",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        },
+        {
+          "law": "memory-persists",
+          "detail": "memory lost across a new session: progress 1 -> 0",
+          "why": "THE bug class that only shows up after many sessions: state quietly wiped"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 8,
+          "step": 0,
+          "persona": "perfectionist"
+        }
+      ]
+    },
+    {
+      "at": 487,
+      "session": 8,
+      "persona": "perfectionist",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 6,
+          "step": 58,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 506,
+      "session": 9,
+      "persona": "rageClicker",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        },
+        {
+          "law": "memory-persists",
+          "detail": "memory lost across a new session: progress 1 -> 0",
+          "why": "THE bug class that only shows up after many sessions: state quietly wiped"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 9,
+          "step": 0,
+          "persona": "rageClicker"
+        }
+      ]
+    },
+    {
+      "at": 565,
+      "session": 10,
+      "persona": "speedrunner",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        },
+        {
+          "law": "memory-persists",
+          "detail": "memory lost across a new session: progress 1 -> 0",
+          "why": "THE bug class that only shows up after many sessions: state quietly wiped"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 10,
+          "step": 0,
+          "persona": "speedrunner"
+        }
+      ]
+    },
+    {
+      "at": 625,
+      "session": 11,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 11,
+          "step": 1,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 629,
+      "session": 11,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 11,
+          "step": 1,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 630,
+      "session": 11,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 11,
+          "step": 6,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 631,
+      "session": 11,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 11,
+          "step": 6,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 636,
+      "session": 11,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 11,
+          "step": 16,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 637,
+      "session": 11,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 11,
+          "step": 16,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 644,
+      "session": 11,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 11,
+          "step": 26,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 647,
+      "session": 11,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 11,
+          "step": 16,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 648,
+      "session": 11,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 11,
+          "step": 30,
+          "persona": "wanderer"
+        }
+      ]
+    },
+    {
+      "at": 652,
+      "session": 11,
+      "persona": "wanderer",
+      "url": "about:blank",
+      "violations": [
+        {
+          "law": "not-blank",
+          "detail": "the page is blank",
+          "why": "a blank page is the most common shape of a total failure"
+        },
+        {
+          "law": "no-error-url",
+          "detail": "url is a browser error page: about:blank",
+          "why": "the browser itself gave up on the navigation"
+        },
+        {
+          "law": "has-title",
+          "detail": "the page title is empty",
+          "why": "an empty title breaks tabs, history and bookmarks, and usually means a failed route"
+        },
+        {
+          "law": "progress-monotonic",
+          "detail": "progress went backwards: 1 -> 0 (regression)",
+          "why": "work the user already did must never un-happen"
+        }
+      ],
+      "minimal": [
+        {
+          "id": "dq:back",
+          "kind": "back",
+          "selector": null,
+          "visible": true,
+          "enabled": true,
+          "label": "browser back",
+          "session": 11,
+          "step": 30,
+          "persona": "wanderer"
+        }
+      ]
+    }
+  ]
+}

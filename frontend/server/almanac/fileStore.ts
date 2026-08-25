@@ -17,7 +17,8 @@
  *     renaming means the real file is only ever a whole one.
  */
 
-import { readFile, rename, writeFile, unlink } from 'node:fs/promises'
+import { mkdir, readFile, rename, writeFile, unlink } from 'node:fs/promises'
+import { dirname } from 'node:path'
 
 import type { LedgerData, LedgerStore } from './ledger.ts'
 
@@ -57,6 +58,17 @@ export function fileStore(path: string): LedgerStore {
     },
 
     async save(data) {
+      /* CREATED ON FIRST WRITE, and this is not defensive tidiness.
+       *
+       * The server started, printed "listening", and then returned 500
+       * "internal error" to the first student who opened their day -- because
+       * `data/` did not exist relative to the working directory. "Starts fine,
+       * dies on first use" is the worst shape of failure: it looks healthy to
+       * everything that checks whether the process is up.
+       *
+       * `recursive: true` also means an existing directory is not an error, so
+       * this costs one syscall on every save and never fails for being early. */
+      await mkdir(dirname(path), { recursive: true })
       const temporary = `${path}.writing`
       try {
         await writeFile(temporary, `${JSON.stringify(data, null, 2)}\n`, 'utf8')

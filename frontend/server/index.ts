@@ -118,9 +118,17 @@ export function createServer(options: ServerOptions): Server {
 
       const response = await handle({ method, path, body: body.value, rawLength: body.bytes })
       send(res, response.status, response.body)
-    })().catch(() => {
-      /* Nothing above is expected to throw; if it does, the connection still
-       * gets an answer rather than hanging. The cause is not forwarded. */
+    })().catch((error: unknown) => {
+      /* TWO HALVES, AND BOTH ARE REQUIRED.
+       *
+       * The client learns nothing, because a stack trace is a map of the
+       * machine. The OPERATOR learns everything, because otherwise a failure
+       * cannot be diagnosed at all -- and that is not hypothetical: a missing
+       * ledger directory returned 500 "internal error" with NOTHING written
+       * anywhere, while the process went on looking perfectly healthy.
+       *
+       * Logged to stderr rather than to a response, and never through `send`. */
+      console.error('[almanac] unhandled error while serving a request:', error)
       if (!res.headersSent) send(res, 500, { error: 'internal error' })
     })
   })

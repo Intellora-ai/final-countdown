@@ -96,3 +96,32 @@ describe('a ledger on a real file', () => {
     expect(await createLedger(fileStore(path)).doneFor('stu_1')).toEqual(new Set(['m1']))
   })
 })
+
+describe('the very first write, on a machine that has never run this', () => {
+  it('creates the directory instead of failing', async () => {
+    /* THE DEFECT THIS PINS. The server starts, prints "listening", and then
+     * returns 500 "internal error" to the FIRST student who opens their day --
+     * because `data/` did not exist relative to the working directory, and
+     * nothing created it. Reproduced against the real built server before this
+     * was written.
+     *
+     * "Starts fine, dies on first use" is the worst shape of failure: it looks
+     * healthy to everything that checks whether it is up. */
+    const root = await mkdtemp(join(tmpdir(), 'almanac-first-'))
+    const path = join(root, 'nested', 'deeper', 'ledger.json')
+
+    const store = fileStore(path)
+    await store.save({ days: { s: {} }, done: {} })
+
+    expect(JSON.parse(await readFile(path, 'utf8'))).toEqual({ days: { s: {} }, done: {} })
+  })
+
+  it('still reads back what it wrote through a directory it created', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'almanac-first-'))
+    const path = join(root, 'made', 'ledger.json')
+    const store = fileStore(path)
+
+    await store.save({ days: {}, done: { s: ['c1'] } })
+    expect(await fileStore(path).load()).toEqual({ days: {}, done: { s: ['c1'] } })
+  })
+})

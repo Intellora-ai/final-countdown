@@ -78,7 +78,14 @@ export interface HandlerOptions {
 /** 256 KB is far above any real request and far below anything that hurts. */
 const DEFAULT_MAX_BODY_BYTES = 256 * 1024
 
-const ROUTES = new Set(['/api/lesson', '/api/ask', '/api/search', '/api/day', '/api/done'])
+const ROUTES = new Set(['/api/lesson', '/api/ask', '/api/search', '/api/day', '/api/done', '/api/health'])
+
+/* The one route that answers a GET.
+ *
+ * Every other route mutates or costs money, and a GET that does either is a
+ * link a browser can prefetch. This one exists so a waiting process can ask
+ * "are you there" without pretending to be a student. */
+const HEALTH = '/api/health'
 
 /**
  * A real calendar date, written the one way that sorts correctly as text.
@@ -180,6 +187,17 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     if (!ROUTES.has(req.path)) {
       return reply(404, { error: 'no such route' })
     }
+    if (req.path === HEALTH && req.method === 'GET') {
+      /* Enough to diagnose, and nothing more. A health endpoint is the most
+         public thing a server has and the most tempting place to leak from, so
+         it names CAPABILITIES and never values: no key, no path, no student. */
+      return reply(200, {
+        ok: true,
+        planner: options.almanac !== undefined,
+        model: true,
+      })
+    }
+
     if (req.method !== 'POST') {
       return reply(405, { error: 'method not allowed' })
     }

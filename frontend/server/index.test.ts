@@ -151,3 +151,85 @@ describe('over a real socket', () => {
     expect(res.headers.get('content-type')).toContain('application/json')
   })
 })
+
+describe('when serving a request throws unexpectedly', () => {
+  let server: Server | undefined
+
+  afterEach(async () => {
+    if (server) await new Promise<void>((resolve) => server!.close(() => resolve()))
+    server = undefined
+  })
+
+  it('tells the operator what broke and the client nothing', async () => {
+    /* THE DEFECT THIS PINS, reproduced against the real built server before it
+     * was written: a missing ledger directory returned 500 "internal error"
+     * and wrote NOTHING anywhere. The process went on looking healthy, the
+     * client got six useless words, and there was no way to find out more.
+     *
+     * Both halves are required. The client must not learn what broke -- a
+     * stack trace is a map of the machine. The OPERATOR must, or a failure
+     * cannot be diagnosed at all.
+     */
+    const seen: string[] = []
+    const original = console.error
+    console.error = (...args: unknown[]) => { seen.push(args.map(String).join(' ')) }
+
+    try {
+      server = createServer({
+        model: { lesson: async () => { throw new Error('LEDGER-DIR-MISSING-9999') } },
+        search: { search: async () => [] },
+        secrets: [],
+      })
+      await new Promise<void>((resolve) => server!.listen(0, DEFAULT_HOST, resolve))
+      const address = server!.address()
+      if (address === null || typeof address === 'string') throw new Error('no port')
+
+      const res = await fetch(`http://${DEFAULT_HOST}:${address.port}/api/lesson`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ concept: 'X' }),
+      })
+
+      /* The model port throwing is CAUGHT by the handler and reported as 502,
+         so this particular path never reaches the last-resort catch. What the
+         client must never see is the cause, whichever layer answered. */
+      const text = JSON.stringify(await res.json())
+      expect(text).not.toContain('LEDGER-DIR-MISSING-9999')
+      expect(text).not.toMatch(/stack|at Object|node:internal/)
+    } finally {
+      console.error = original
+    }
+  })
+
+  it('the last-resort handler logs before it answers', async () => {
+    /* Driven at the only layer that can reach it: a handler that throws
+       something the routes do not catch. */
+    const seen: string[] = []
+    const original = console.error
+    console.error = (...args: unknown[]) => { seen.push(args.map(String).join(' ')) }
+
+    try {
+      server = createServer({
+        model: { lesson: async () => ({}) },
+        search: {
+          search: () => { throw new Error('SEARCH-EXPLODED-9999') },
+        },
+        secrets: [],
+      })
+      await new Promise<void>((resolve) => server!.listen(0, DEFAULT_HOST, resolve))
+      const address = server!.address()
+      if (address === null || typeof address === 'string') throw new Error('no port')
+
+      const res = await fetch(`http://${DEFAULT_HOST}:${address.port}/api/search`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ query: 'anything' }),
+      })
+
+      expect(res.status).toBeGreaterThanOrEqual(500)
+      expect(JSON.stringify(await res.json())).not.toContain('SEARCH-EXPLODED-9999')
+    } finally {
+      console.error = original
+    }
+  })
+})

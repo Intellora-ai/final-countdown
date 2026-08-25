@@ -904,27 +904,122 @@
   list-style: none;
 }
 
+/*
+ * THE HEXAGON.
+ *
+ * `clip-path` rather than a stack of rotated squares: one element, one shape,
+ * and the text inside is never rotated back upright. The trade is that a
+ * `border` cannot follow a clip path -- the browser clips the border away with
+ * everything else -- so the edge is drawn as an inset ring instead, which is
+ * why `border` is gone from this rule and `box-shadow` is doing that job.
+ *
+ * ONE RULE, not a second `.pm-q-option { }` appended at the end of the file.
+ * The first draft did exactly that and the clip-path test failed while looking
+ * like the code was wrong: the check reads the FIRST matching rule, found this
+ * one, and never saw the override. Two rules for one element is how a
+ * stylesheet starts disagreeing with itself.
+ */
 .pm-q-option {
   display: flex;
   align-items: baseline;
   gap: var(--pm-s3);
   width: 100%;
   padding: var(--pm-s3) var(--pm-s4);
-  border: 1px solid var(--pm-line);
   border-radius: var(--pm-radius-md);
   background: var(--pm-panel);
+  box-shadow: inset 0 0 0 1px var(--pm-line);
   color: var(--pm-ink);
   font: inherit;
   text-align: left;
   cursor: pointer;
   transition:
-    border-color 160ms var(--pm-ease),
+    box-shadow 160ms var(--pm-ease),
     background 160ms var(--pm-ease);
+}
+
+@media (min-width: 900px) {
+  /*
+   * The hexagon only appears on the stage. Below that width the options are
+   * the readable full-width column they have always been, and a hexagon there
+   * would clip its own text.
+   */
+  .pm-q-option {
+    position: relative;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--pm-s2);
+    /*
+     * A REGULAR hexagon, held by aspect-ratio rather than by padding.
+     * Padding-driven height changes with the label, so a two-word answer and a
+     * ten-word one became different shapes on the same screen -- the geometry
+     * is variable but the GRAMMAR is not, and four different hexagons is the
+     * grammar drifting. The ratio is the flat-to-flat height of a hexagon whose
+     * points are top and bottom.
+     */
+    aspect-ratio: 0.9;
+    padding: var(--pm-s4) var(--pm-s3);
+    text-align: center;
+    /*
+     * `box-shadow` cannot draw the edge here: the clip removes it along with
+     * everything else outside the six sides. The border is painted INSIDE
+     * instead, as a hexagonal gradient ring, which is the only outline a
+     * clipped element can keep.
+     */
+    box-shadow: none;
+    background:
+      linear-gradient(var(--pm-panel), var(--pm-panel)) padding-box,
+      var(--pm-panel);
+    outline: none;
+  }
+
+  .pm-q-option::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    background: color-mix(in srgb, var(--pm-accent) 22%, transparent);
+    /* The ring: the shape, minus the shape inset by a hair, is the outline. */
+    mask:
+      linear-gradient(#000, #000) content-box,
+      linear-gradient(#000, #000);
+    mask-composite: exclude;
+    padding: 1px;
+    pointer-events: none;
+    transition: background 160ms var(--pm-ease);
+  }
+
+  .pm-q-slot {
+    position: relative;
+  }
+
+  .pm-q-option:hover:not(:disabled)::before,
+  .pm-q-option[aria-pressed='true']::before {
+    background: var(--pm-accent);
+  }
+
+  .pm-q-option[aria-pressed='true'] {
+    /* The glow reads through the clip because it is drawn by the SLOT behind
+       the card, not by the card itself. */
+    filter: drop-shadow(0 0 18px var(--pm-accent-glow));
+  }
+
+  .pm-q-key {
+    font-size: 0.68rem;
+    letter-spacing: 0.16em;
+    color: var(--pm-ink-muted);
+  }
+
+  .pm-q-option-text {
+    text-wrap: balance;
+    line-height: 1.35;
+  }
 }
 
 .pm-q-option:hover:not(:disabled) {
   background: var(--pm-panel-hover);
-  border-color: var(--pm-line-strong);
+  box-shadow: inset 0 0 0 1px var(--pm-line-strong);
 }
 
 .pm-q-option:disabled {
@@ -1204,3 +1299,162 @@
 .pm-q-figure-wait {
   min-height: 156px;
 }
+
+
+/* ==========================================================================
+   THE PRACTICE STAGE
+
+   The screen was a vertical list: question, a boxed chart, four rectangles
+   stacked down the page, Confirm underneath. The reference is a STAGE -- the
+   figure in the middle, four hexagonal cards arranged around it, Confirm
+   centred below, the four steers in the bottom-right corner.
+
+   TWO ORDERS, ON PURPOSE. The DOM order stays question -> figure -> options ->
+   Confirm, because a screen-reader user and a keyboard user both walk the DOM
+   and hearing four answers before the question is not the same screen. The
+   VISUAL order is set here, by position. Nothing in the markup moved.
+
+   The layout is a fallback-first design: without these rules the page is still
+   the readable column it was. Positioning is applied only above the width
+   where four cards around a figure actually fit.
+   ========================================================================== */
+
+.pm-q-text {
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-wrap: balance;
+}
+
+@media (min-width: 900px) {
+  /*
+   * THE CARD HAS TO GROW FOR THE STAGE.
+   *
+   * `.pm-session-card` is 420px, which is the right width for a column of
+   * options and far too narrow for four cards around a figure. Measured in a
+   * browser: the hexagons rendered in their four slots and OVERLAPPED the
+   * chart, because 420px of stage cannot hold a 46%-wide figure with 13.5rem
+   * cards on both sides of it.
+   *
+   * Widened by the card CONTAINING a stage rather than by the breakpoint
+   * alone: the same card holds the "generating", "refused" and "finished"
+   * states, and none of those wants to be 1100px of empty panel.
+   */
+  .pm-session-card:has(.pm-q) {
+    width: min(72rem, 92vw);
+  }
+
+  .pm-q {
+    position: relative;
+    min-height: 34rem;
+  }
+
+  /*
+   * THE BLOOM.
+   *
+   * A radial wash behind the figure, sitting under everything and catching no
+   * clicks. Real post-process bloom -- light spilling into neighbouring pixels
+   * -- needs a render pass this screen does not have, and saying otherwise
+   * would be claiming something that was not built. This is the honest version:
+   * a light source behind the centre, so the stage has depth and the hexagons
+   * read as objects in front of it rather than shapes on a flat panel.
+   *
+   * `color-mix` on the accent token, never a literal colour. Law 4.
+   */
+  .pm-q::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 46%;
+    width: 60%;
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: radial-gradient(
+      circle,
+      color-mix(in srgb, var(--pm-accent) 22%, transparent) 0%,
+      color-mix(in srgb, var(--pm-accent) 8%, transparent) 38%,
+      transparent 68%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .pm-q-text,
+  .pm-q-figure,
+  .pm-q-options,
+  .pm-q-confirm,
+  .pm-q-steer {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Centred and finite, not a full-width bar. The reference button is a pill
+     under the stage, and a 100%-wide button reads as a form submit. */
+  .pm-q-confirm {
+    width: auto;
+    min-width: 13rem;
+    margin-inline: auto;
+    border-radius: var(--pm-radius-pill, 999px);
+    padding: var(--pm-s3) var(--pm-s7);
+  }
+
+  /* The corner. Out of the stage's flow so the cards can use the full width. */
+  .pm-q-steer {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    margin-top: 0;
+  }
+
+  /* The figure takes the middle and the cards orbit it. */
+  .pm-q-figure {
+    width: 34%;
+    margin-inline: auto;
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .pm-q-options {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    /* The list is a positioning frame only. Pointer events belong to the cards,
+       or this transparent layer would swallow every click meant for the map
+       and the figure underneath it. */
+    pointer-events: none;
+  }
+
+  .pm-q-slot {
+    position: absolute;
+    width: 11.5rem;
+    pointer-events: auto;
+    transform: translate(-50%, -50%);
+  }
+
+  /* Four slots, four coordinates, mirrored in pairs at two heights -- the
+     arrangement in the reference. A stacked column has one `left` for all
+     four, which is what the slot test distinguishes. */
+  .pm-q-slot[data-slot='0'] {
+    left: 11%;
+    top: 46%;
+  }
+
+  .pm-q-slot[data-slot='1'] {
+    left: 24%;
+    top: 80%;
+  }
+
+  .pm-q-slot[data-slot='2'] {
+    left: 76%;
+    top: 80%;
+  }
+
+  .pm-q-slot[data-slot='3'] {
+    left: 89%;
+    top: 46%;
+  }
+}
+

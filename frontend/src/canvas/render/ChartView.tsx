@@ -1,3 +1,21 @@
+import '../design/canvas.css'
+
+/*
+ * THE STYLESHEET IS IMPORTED BY THE COMPONENT, NOT BY THE ROUTE.
+ *
+ * `canvas.css` used to be imported by `CanvasRoute.tsx` alone. That worked
+ * while the canvas route was the only consumer, and broke silently the moment
+ * the practice screen started rendering figures: every `lc-*` class emitted
+ * below resolved to no rule at all on `/practice`.
+ *
+ * Nothing failed. A class with no rule is not an error in CSS, in TypeScript,
+ * in the linter, or in any test -- so the markup was right, the styles were
+ * absent, and only looking at the screen would have shown it. `lc-refusal` was
+ * the worst of them: the box that says a figure contradicts its own data
+ * rendered as ordinary body text and read like part of the lesson.
+ *
+ * Enforced by `styleOwnership.test.ts`.
+ */
 import { useEffect, useRef } from 'react'
 import ReactECharts, { echarts } from './echarts'
 import type { EChartsOption } from 'echarts'

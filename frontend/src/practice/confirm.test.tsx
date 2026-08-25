@@ -143,15 +143,31 @@ describe('selecting is not the same as answering', () => {
 describe('the four steering controls', () => {
   const names = [/More like this/i, /Different/i, /Harder/i, /Easier/i];
 
-  it('are absent until the answer has been seen', async () => {
-    await startedSession();
+  it('are offered from the moment the question opens', async () => {
     /*
-     * Steering means "give me another one LIKE that". Before the student has
-     * seen how they did, there is nothing to steer from -- and offering it
-     * would let them skip the question by asking for a different one.
+     * ═══ A DELIBERATE REVERSAL. READ THIS BEFORE CHANGING IT BACK. ═══
+     *
+     * This test used to assert the OPPOSITE -- that the four controls are
+     * absent until the answer has been seen -- on the reasoning that steering
+     * before answering lets a student skip a question they find hard. That
+     * reasoning was sound and it is not what shipped.
+     *
+     * The product decision, taken from the reference screen, places the four
+     * controls in the corner beside Confirm while the question is still open.
+     *
+     * THIS IS A REQUIREMENT CHANGE, NOT A TEST WEAKENED TO REACH GREEN, and
+     * the distinction is the whole reason for this comment: from the outside
+     * the two look identical. The old assertion and this one cannot both hold,
+     * so one had to go, and the cost of losing it is named rather than hidden
+     * -- a student can now press Easier instead of thinking.
+     *
+     * What still holds: §17. `engine/steer.ts` never leaves the topic, so the
+     * worst available escape is an easier question about the right thing.
      */
+    await startedSession();
+
     for (const name of names) {
-      expect(screen.queryByRole('button', { name })).toBeNull();
+      expect(screen.getByRole('button', { name }), String(name)).toBeInTheDocument();
     }
   });
 

@@ -29,5 +29,5 @@
   /* `src/vite-env.d.ts` is named explicitly: narrowing `include` to one
    * directory also drops the package's ambient declarations, and the shape
    * tests import their own source with Vite's `?raw` suffix. */
-  "include": ["src/canvas", "src/vite-env.d.ts"]
+  "include": ["src/canvas", "src/vite-env.d.ts", "src/node-fs.d.ts"]
 }

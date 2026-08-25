@@ -93,7 +93,12 @@ def _ledger_name(suite: str) -> str:
     return f"property-execution-{suite}.json"
 
 #: Where they land.
-REPORTS = Path("reports")
+#: NOT `reports/`. That directory is the gate EVIDENCE set, and
+#: aggregate_gates.py reads every `reports/*.json` as one gate's verdict --
+#: so a ledger there was counted as a gate, two jobs each produced one, and
+#: the finalizer blocked the run with "2 conflicting reports claim this
+#: gate". A gate's INPUT does not belong in its evidence set.
+REPORTS = Path(".property-ledger")
 
 
 def read(root: Path, suite: str) -> int:

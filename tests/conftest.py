@@ -177,6 +177,19 @@ hypothesis.settings.load_profile(os.environ.get(_PROFILE_VARIABLE, "fast"))
 # `Total: 0 tests` failure wearing a different costume.
 
 #: Where the ledger lands. Gitignored, like every other file under reports/.
+#: `.property-ledger/`, NOT `reports/`.
+#:
+#: `reports/` is the GATE EVIDENCE directory: scripts/aggregate_gates.py treats
+#: every `reports/*.json` as one gate's verdict. Writing here put a file named
+#: property-execution-root.json in that set, two jobs both ran the root suite
+#: and both uploaded one, and the finalizer refused the run:
+#:
+#:   [1] property-execution-root  STATUS UNKNOWN
+#:       WHY 2 conflicting reports claim this gate
+#:
+#: This is an INPUT to a gate, not a gate's verdict. It belongs outside the
+#: evidence set, and the gate reads it from the same job that wrote it.
+#:
 #: Written by the CONTROLLER ONLY, and that is the whole correctness argument.
 #:
 #: Under `pytest -n auto` this hook fires in every xdist worker AND in the
@@ -189,7 +202,7 @@ hypothesis.settings.load_profile(os.environ.get(_PROFILE_VARIABLE, "fast"))
 #: `PYTEST_XDIST_WORKER` is set in workers and absent in the controller and in a
 #: serial run, so skipping when it is present leaves exactly one writer in both
 #: modes -- and the controller is the one that sees every test.
-_PROPERTY_LEDGER = pathlib.Path("reports") / "property-execution-root.json"
+_PROPERTY_LEDGER = pathlib.Path(".property-ledger") / "property-execution-root.json"
 
 #: Node ids of property tests whose call phase completed in this session.
 _executed_properties: set[str] = set()

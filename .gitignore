@@ -106,3 +106,8 @@ frontend/test-results/
 # destroy the evidence. Per-run output, never source. Same reasoning as
 # reports/ above.
 diagnostics/
+
+# Property-test execution ledgers. Inputs to scripts/property_gate.py,
+# deliberately outside reports/ so the gate finalizer does not read them as
+# gate verdicts.
+.property-ledger/

@@ -69,6 +69,19 @@ def _no_network(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 # Hypothesis wrapped, so a test that errored in setup never reached a generated
 # example and is not counted.
 
+#: `.property-ledger/`, NOT `reports/`.
+#:
+#: `reports/` is the GATE EVIDENCE directory: scripts/aggregate_gates.py treats
+#: every `reports/*.json` as one gate's verdict. Writing here put a file named
+#: property-execution-root.json in that set, two jobs both ran the root suite
+#: and both uploaded one, and the finalizer refused the run:
+#:
+#:   [1] property-execution-root  STATUS UNKNOWN
+#:       WHY 2 conflicting reports claim this gate
+#:
+#: This is an INPUT to a gate, not a gate's verdict. It belongs outside the
+#: evidence set, and the gate reads it from the same job that wrote it.
+#:
 #: Written by the CONTROLLER ONLY, and that is the whole correctness argument.
 #:
 #: Under `pytest -n auto` this hook fires in every xdist worker AND in the
@@ -83,7 +96,7 @@ def _no_network(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 #: modes -- and the controller is the one that sees every test.
 _PROPERTY_LEDGER = (
     pathlib.Path(__file__).resolve().parents[2]
-    / "reports"
+    / ".property-ledger"
     / "property-execution-learning-os.json"
 )
 

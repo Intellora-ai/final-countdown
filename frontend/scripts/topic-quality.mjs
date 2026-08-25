@@ -50,6 +50,25 @@ const CONTINUATION =
 const IMPERATIVE =
   '(?:match|divide|create|draw|write|explain|list|state|discuss|prepare|collect|observe|note|find|solve|show|prove|calculate|identify|describe|define|name|give|make|complete|fill|choose|answer|read|study|visit|conduct|perform|record|compare|classify)'
 
+/*
+ * Words a syllabus uses to label the parts of a document or a worked example.
+ * A LIST, deliberately and explicitly -- see the `bare-label` rule.
+ */
+const LABEL_WORDS =
+  'part|unit|section|theory|chapter|paper|example|hint|proof|statement|conclusion|syllabus|day|class|note|remark|solution|answer|question|exercise|activity|summary|introduction'
+
+/**
+ * The word alone, or carrying a bare designator: "Part A", "Example 14",
+ * "Class X", "Unit 1", "Day 6".
+ *
+ * ONE rule for both shapes. An earlier split into "alone" and "numbered" was
+ * stricter than the rule it replaced and silently stopped catching "Part A",
+ * because a single letter is neither a digit nor a roman numeral. Caught by an
+ * existing test going red, which is the only reason it is not in the product.
+ */
+const LABEL_ALONE = new RegExp(`^(?:${LABEL_WORDS})\\s*[a-z0-9ivxlc-]*$`, 'i')
+const LABEL_NUMBERED = LABEL_ALONE
+
 const RULES = [
   /* Nothing can be named in two characters. */
   ['too-short', (t) => t.length < 3],
@@ -67,8 +86,27 @@ const RULES = [
 
   ['instruction', (t) => new RegExp(`^${IMPERATIVE}\\s`, 'i').test(t)],
 
-  /* "Part A", "Unit 1" — a divider in the document, carrying no subject matter. */
-  ['bare-label', (t) => /^(?:part|unit|section|theory|chapter|paper)\s*[a-z0-9-]*$/i.test(t)],
+  /*
+   * A DIVIDER IN THE DOCUMENT, carrying no subject matter.
+   *
+   * Two shapes and one list, and the list is named as a list rather than
+   * dressed up as a rule:
+   *
+   *   shape  a structural word plus a bare number or numeral
+   *          "Example 14" · "Unit 1" · "Class X" · "Day 6"
+   *   shape  that same word standing alone
+   *   list   the words themselves
+   *
+   * The list is unavoidable here and the honest thing is to say so. "Hint",
+   * "Proof" and "Statement" are perfectly ordinary English nouns; nothing about
+   * their SHAPE separates them from "Force" or "Ratio". What separates them is
+   * that a syllabus uses them to label parts of a worked example rather than to
+   * name subject matter, and that is knowledge, not structure.
+   *
+   * Found in a screenshot: 24 of 84 chapters on the class-10 map read
+   * "Example 1", "Hint", "Statement", "Proof".
+   */
+  ['bare-label', (t) => LABEL_ALONE.test(t) || LABEL_NUMBERED.test(t)],
 
   /* Two bare numbers at the end is the marks column of a syllabus table. */
   ['marks-row', (t) => /\b\d+\s+\d+\s*$/.test(t)],

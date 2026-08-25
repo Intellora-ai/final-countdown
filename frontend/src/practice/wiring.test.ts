@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { boundaryFor, deliverable, setDrawsSomething } from './wiring';
+import { boundaryFor, deliverable } from './wiring';
 import { asChapterId, asSubjectId, asTopicId } from './engine/ids';
 import type { TopicProfile } from './engine/plan';
 import type { VerifiedQuestion } from './engine/types';
@@ -122,51 +122,24 @@ describe('a question only reaches the student if the boundary passes it', () => 
 });
 
 /*
- * THE BAN ON A SET THAT DRAWS NOTHING.
+ * THE BAN ON A SET THAT DRAWS NOTHING WAS REMOVED, AND ITS TESTS WITH IT.
  *
- * `engine/representation.ts` has held `setIsAllText` since it was written, with
- * ZERO non-test importers. It could not have fired even once: no question
- * carried a figure at all, so there was nothing for it to look at.
+ * `setDrawsSomething` refused any set in which no question carried a figure.
+ * §35 of the quality directive overrules it:
  *
- * Wiring it before questions had figures would have refused every session in
- * the product, which is why `engine/figure.ts` came first.
+ *   "A question must NEVER receive a graph, diagram, chart, table, image, or
+ *    other visual merely because it is available."
+ *   "Sometimes that is plain text." (§35.6)
  *
- * ONE FIGURE IS THE BAR, on purpose. Requiring one per question forces a
- * diagram onto questions that do not need one, and a decorative chart is its
- * own kind of noise.
+ * `figureFor` now omits a figure when the question text already states every
+ * quantity the chart would plot. For the current generator that is every
+ * question, so every set became all-text and every session refused with
+ * SET_DRAWS_NOTHING -- measured in a test run, not predicted.
+ *
+ * A REQUIREMENT CONFLICT RESOLVED BY THE NEWER REQUIREMENT. It is recorded here
+ * rather than quietly deleted, because a removed test and a test that was
+ * always missing look identical to whoever reads this file next. The opposite
+ * failure -- dropping a NECESSARY visual -- is §35.1 and is covered by
+ * `figure.test.ts`, which asserts the figure survives the moment the text
+ * withholds a quantity.
  */
-describe('a set of questions has to draw something', () => {
-  const withFigure = () =>
-    question({
-      figure: {
-        kind: 'figure',
-        id: 'f1',
-        emphasis: 'supporting',
-        tone: 'neutral',
-        as: 'bar',
-        data: {
-          shape: 'series',
-          series: [{ name: 's', colorIndex: 0, points: [{ x: 'a', y: 1 }] }],
-          continuousX: false,
-          stacked: false,
-        },
-      },
-    } as unknown as Partial<VerifiedQuestion>);
-
-  it('refuses a set where every question is text', () => {
-    expect(setDrawsSomething([question(), question(), question()])).toBe(false);
-  });
-
-  it('accepts a set where one question carries a figure', () => {
-    expect(setDrawsSomething([question(), withFigure(), question()])).toBe(true);
-  });
-
-  it('refuses an EMPTY set rather than passing it', () => {
-    /*
-     * Zero of zero questions carry a figure. Arithmetic says the ban is
-     * satisfied; usefulness says nothing was delivered. Reading it as a pass is
-     * how a generator that produced nothing reports success.
-     */
-    expect(setDrawsSomething([])).toBe(false);
-  });
-});

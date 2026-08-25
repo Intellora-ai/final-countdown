@@ -114,10 +114,33 @@ describe('reading order stays sane however the pieces are placed', () => {
             : 'option',
     );
 
+    /*
+     * The figure is OPTIONAL, and that changed under §35: a question whose text
+     * already states every quantity gets no chart, because removing a chart
+     * that restates the sentence loses nothing. So the order is asserted as a
+     * SEQUENCE with the figure allowed to be absent, rather than a fixed list
+     * with a figure always at index 1.
+     *
+     * The claim itself is unchanged and is what matters: whatever renders, the
+     * question comes first, the options come after it, and Confirm comes last.
+     */
     expect(marks[0]).toBe('question');
-    expect(marks[1]).toBe('figure');
-    expect(marks.slice(2, 6)).toEqual(['option', 'option', 'option', 'option']);
-    expect(marks[6]).toBe('confirm');
+    expect(marks.filter((mark) => mark === 'option')).toHaveLength(4);
+    expect(marks[marks.length - 1]).toBe('confirm');
+
+    const firstOption = marks.indexOf('option');
+    const figure = marks.indexOf('figure');
+    if (figure !== -1) {
+      /* Present or absent, it is never AFTER an answer. */
+      expect(figure).toBeLessThan(firstOption);
+      expect(figure).toBeGreaterThan(0);
+    }
+    expect(marks.slice(firstOption, firstOption + 4)).toEqual([
+      'option',
+      'option',
+      'option',
+      'option',
+    ]);
   });
 
   it('keeps all four cards reachable by keyboard', async () => {

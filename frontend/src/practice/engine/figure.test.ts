@@ -255,3 +255,74 @@ describe('the figure never answers the question', () => {
     expect(steps.length).toBe(COMPUTATION.steps.length + 2);
   });
 });
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * §35 — MINIMUM NECESSARY REPRESENTATION.
+ *
+ * "A question must NEVER receive a graph, diagram, chart, table, image, or
+ * other visual merely because it is available. A necessary visual MUST NOT be
+ * omitted merely because text is easier to generate."
+ *
+ * What shipped violated the first half on every single question. `figureFor`
+ * returned a chart whenever a computation existed, which is always, so every
+ * question carried a figure whether or not it needed one.
+ *
+ * Measured on the real generator: the question says "One reads 65, the other
+ * 4." The chart then plots 65 and 4. §35.3 asks "if I remove this visual, does
+ * the question become materially worse?" -- and the answer is no, because the
+ * text already states every number the chart draws. That is decoration, and
+ * decoration on a practice question is cognitive load with no reasoning value.
+ *
+ * THE CHECKABLE FORM OF §35.3. A figure earns its place when it carries
+ * information the text does not already hand over. When the question text
+ * spells out every quantity, the chart is a restatement.
+ *
+ * WHAT THIS TEST CANNOT DECIDE, said plainly: whether a diagram would help a
+ * student REASON -- a geometry sketch, a circuit, a trajectory. That is a
+ * judgement about the task, not about the string, and §35.1 is explicit that
+ * dropping a necessary visual is just as bad as adding a decorative one. The
+ * rule below is the half that is decidable from the text, and the reasoning
+ * structures that genuinely need a picture keep theirs.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+describe('a figure has to earn its place', () => {
+  const spellsOutEveryNumber =
+    'Two systems differ only in pressure. One reads 120, the next 5, the last 30. By how much does the first exceed the second?';
+
+  it('draws nothing when the text already states every quantity', () => {
+    /*
+     * §35.3, run as a computation: remove the figure and nothing is lost,
+     * because the numbers are in the sentence the student is already reading.
+     */
+    expect(figureFor(SPEC, COMPUTATION, spellsOutEveryNumber)).toBeNull();
+  });
+
+  it('draws the figure when the text withholds the quantities', () => {
+    /*
+     * THE PAIR, and §35.1 is the reason it has to be here. A rule that only
+     * ever removed visuals would be satisfied by returning null forever, and
+     * would strip the chart off every data-interpretation question in the
+     * product.
+     */
+    const withholds = 'Compare the three readings shown. By how much does the first exceed the second?';
+    const figure = figureFor(SPEC, COMPUTATION, withholds);
+
+    expect(figure).not.toBeNull();
+    expect(figure!.as).toBeTruthy();
+  });
+
+  it('keeps the figure when only SOME of the numbers are in the text', () => {
+    /*
+     * Partial disclosure is the interesting case. A chart that supplies the one
+     * quantity the sentence left out is carrying real information, even though
+     * it also restates two the student can already see.
+     */
+    const partial = 'One system reads 120 and another reads 5. How do they compare with the third?';
+    expect(figureFor(SPEC, COMPUTATION, partial)).not.toBeNull();
+  });
+
+  it('still refuses to draw when there is nothing to draw', () => {
+    expect(figureFor(SPEC, null, 'anything at all')).toBeNull();
+  });
+});

@@ -114,14 +114,24 @@ interface Template {
 
 /** Distinct sentence frames, so one route does not mean one sentence. */
 const FRAMINGS: readonly ((ask: string, concept: string) => string)[] = [
-  (ask, concept) =>
-    `During a laboratory exercise investigating ${concept}, a student records these readings. ${ask}`,
-  (ask) =>
-    `${ask} Assume ideal behaviour throughout, neglect friction, and report the numerical result.`,
-  (ask, concept) =>
-    `Reasoning from first principles about ${concept} rather than quoting a formula: ${ask}`,
-  (ask, concept) =>
-    `An examiner sets the following problem on ${concept} under timed conditions. ${ask}`,
+  /*
+   * SUBJECT-NEUTRAL, and that is a fix rather than a style choice.
+   *
+   * The previous framings said "Assume ideal behaviour throughout, neglect
+   * friction" and "During a laboratory exercise". On a question about the area
+   * of a circle sector that is not a stylistic wobble -- it means the sentence
+   * was written for physics and reused for maths, which `sense.ts` now rejects
+   * as `wrong-subject-vocabulary`. Measured before the fix: 12 of 12 generated
+   * questions carried physics framing on maths topics.
+   *
+   * None of these repeats the concept name either. The concept already appears
+   * once inside `ask`, and a framing that named it again produced the verbatim
+   * double that `topic-name-pasted` rejects.
+   */
+  (ask) => `${ask} State the numerical result.`,
+  (ask) => `Read the setup carefully before calculating. ${ask}`,
+  (ask) => `Work from the definitions rather than a memorised formula. ${ask}`,
+  (ask) => `Under timed conditions, and showing no working: ${ask}`,
 ];
 
 interface Vars {
@@ -133,21 +143,21 @@ interface Vars {
 
 const TEMPLATES: Readonly<Record<ReasoningStructure, Template>> = {
   direct_recall: {
-    ask: (v) => `A rigid vessel holds ${v.concept} at ${v.a} kPa. Doubling the absolute temperature changes the pressure to what value?`,
+    ask: (v) => `A quantity governed by ${v.concept} is measured at ${v.a}. Doubling the factor it depends on gives what value?`,
     shape: (v) => ({ inputs: { a: v.a, two: 2 }, steps: [{ op: 'mul', left: 'a', right: 'two', into: 'out' }], expected: v.a * 2, tolerance: 0.001, unit: 'kPa' }),
     solve: (v, answer) => `Pressure tracks absolute temperature at fixed volume, so doubling the temperature doubles ${v.a} kPa to ${answer} kPa.`,
     unit: 'kPa',
     slips: ['Halves instead of doubling', 'Leaves the pressure unchanged', 'Adds the temperature in kelvin'],
   },
   single_step_application: {
-    ask: (v) => `A flywheel storing ${v.concept} spins at ${v.a} rad/s with inertia ${v.b} kg m^2. What is its rotational kinetic energy times two?`,
+    ask: (v) => `Applying ${v.concept} once: a quantity of ${v.a} is scaled by ${v.b}. What is twice the result?`,
     shape: (v) => ({ inputs: { a: v.a, b: v.b }, steps: [{ op: 'mul', left: 'b', right: 'a', into: 'out' }], expected: v.a * v.b, tolerance: 0.001, unit: 'J' }),
     solve: (v, answer) => `Multiply the inertia ${v.b} by the rate ${v.a} to reach ${answer} J for ${v.concept}.`,
     unit: 'J',
     slips: ['Divides inertia by the rate', 'Forgets the factor of two', 'Squares the rate as well'],
   },
   classify_instance: {
-    ask: (v) => `Sorting cases of ${v.concept}: a body of mass ${v.a} kg sits ${v.b} m from the axis. Which value is its moment about that axis?`,
+    ask: (v) => `Classifying a case under ${v.concept}: one measure is ${v.a} and another is ${v.b}. Which value is their product?`,
     shape: (v) => ({ inputs: { a: v.a, b: v.b }, steps: [{ op: 'mul', left: 'a', right: 'b', into: 'out' }], expected: v.a * v.b, tolerance: 0.001, unit: 'kg m' }),
     solve: (v, answer) => `Mass ${v.a} kg at distance ${v.b} m gives ${answer}, which is what places this case in the rotating category for ${v.concept}.`,
     unit: 'kg m',
@@ -280,7 +290,7 @@ function sound(spec: QuestionSpec, attempt: number): CandidateQuestion {
      * the verifier both read. There is no path here that can put a number on
      * screen that the question does not use.
      */
-    figure: figureFor(spec, computation),
+    figure: figureFor(spec, computation, framing(template.ask(vars), vars.concept)),
   };
 }
 

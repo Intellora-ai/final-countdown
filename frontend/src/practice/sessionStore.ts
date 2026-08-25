@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { boundaryFor, deliverable, setDrawsSomething } from './wiring'
+import { boundaryFor, deliverable } from './wiring'
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { generateSet, type SetMetrics } from './engine/pipeline';
@@ -194,28 +194,6 @@ export const useSessionStore = create<SessionRunState>()(
               failure: 'INVALID_TOPIC',
               detail: `Question ${rejected.questionId} did not pass the topic boundary for ${boundary.topicId}.`,
               obtained: 0,
-              requested: input.count,
-            },
-          })
-          return
-        }
-
-        /*
-         * §6. A set where nothing is drawn is refused, not shipped.
-         *
-         * `setIsAllText` had lived in `representation.ts` with zero callers
-         * since it was written, so the ban had never fired once. It fires here.
-         * REFUSED rather than patched with a chart at the last moment: a figure
-         * invented at delivery would not have been through the verifier, which
-         * is the whole reason the verifier exists.
-         */
-        if (!setDrawsSomething(outcome.questions)) {
-          set({
-            status: 'failed',
-            error: {
-              failure: 'SET_DRAWS_NOTHING',
-              detail: `All ${outcome.questions.length} questions for ${input.profile.topicId} were text-only.`,
-              obtained: outcome.questions.length,
               requested: input.count,
             },
           })

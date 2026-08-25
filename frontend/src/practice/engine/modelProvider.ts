@@ -274,7 +274,7 @@ export function toCandidate(
      * arithmetic, so a model cannot put a quantity on screen that its own
      * question does not use, however it was prompted.
      */
-    figure: figureFor(spec, computation),
+    figure: figureFor(spec, computation, questionText),
   };
 }
 

@@ -148,4 +148,36 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     },
   },
+
+  /*
+   * `src/api` -- the typed client for the Learning OS HTTP API.
+   *
+   * ADDED IN TWO PLACES, WHICH IS THE ONLY WAY IT WORKS. A flat config lints
+   * only paths with a MATCHING `files:` entry, so adding the directory to the
+   * `npm run lint` argument alone changes nothing -- eslint would be handed the
+   * path, find no block for it, and lint none of it while exiting 0.
+   *
+   * `scripts/lint-coverage.test.mjs` caught this directory the moment it
+   * appeared, which is what it was built for: `src/tutor` was the fourth
+   * directory to ship unlinted, and that test exists to make a fifth
+   * impossible. This is the fifth, and it was refused.
+   *
+   * `no-explicit-any` is an ERROR. The directory is new, so there is no
+   * pre-existing `any` for the rule to be buried under, and this code sits on
+   * the boundary where an untyped JSON response becomes a typed value -- which
+   * is exactly where an `any` does the most damage and is least visible.
+   *
+   * `design-value` is NOT applied here. It forbids raw colours and spacing
+   * outside the token layer, and this directory renders nothing; including it
+   * would be a rule that can never fire, which is worse than no rule because it
+   * reads as coverage.
+   */
+  {
+    files: ['src/api/**/*.{ts,tsx}'],
+    extends: [...tseslint.configs.recommended],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
 )

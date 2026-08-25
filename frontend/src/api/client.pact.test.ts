@@ -73,7 +73,18 @@ function contract(): PactV3 {
     //
     // `new URL(relative, import.meta.url)` is ESM-native, typed in the browser
     // lib, and resolves against this file exactly as __dirname would.
-    dir: new URL('../../../pacts', import.meta.url).pathname,
+    // `decodeURIComponent`, and it is not decoration.
+    //
+    // `URL.pathname` is PERCENT-ENCODED, so a checkout under a directory whose
+    // name contains a space resolves to `.../final%20countdown/...` -- a path
+    // that does not exist. Three existing tests in src/websearch and
+    // src/practice have this bug today and fail locally for exactly that
+    // reason while passing in CI, where the runner path has no spaces.
+    //
+    // `fileURLToPath` from node:url is the canonical fix and cannot be used
+    // here: this file is type-checked by the browser tsconfig, which has no
+    // Node types. Decoding does the same job with no new dependency.
+    dir: decodeURIComponent(new URL('../../../pacts', import.meta.url).pathname),
     logLevel: 'warn',
   })
 }

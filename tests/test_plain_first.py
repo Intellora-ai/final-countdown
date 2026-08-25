@@ -28,7 +28,6 @@ must be accepted. A checker asserted only to refuse is satisfied by
 import sys
 from pathlib import Path
 
-import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -135,7 +134,9 @@ def test_plain_question_heading_is_accepted():
 
 def test_checker_refuses_at_least_one_thing_per_code():
     """Every code must be reachable. A code that can never fire is decoration."""
-    reachable = set()
+    # Annotated because pyright cannot infer the element type of an empty set,
+    # and this repository runs pyright with zero tolerance for partial types.
+    reachable: set[str] = set()
     for text, untaught in [
         ("A fraction is a part of a whole.", UNTAUGHT),
         ("It is not a division sum waiting to happen.", []),

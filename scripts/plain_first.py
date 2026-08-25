@@ -55,6 +55,7 @@ import argparse
 import json
 import re
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 # --------------------------------------------------------------------------- #
@@ -139,13 +140,13 @@ def _words(text: str) -> list[str]:
     return re.findall(r"[A-Za-z][A-Za-z'-]*", text)
 
 
-def _find_untaught(text: str, untaught) -> list[str]:
+def _find_untaught(text: str, untaught: Sequence[str]) -> list[str]:
     """Terms the learner has not met yet.
 
     Matched on the STEM, so "equations" is caught by "equation". A gate that
     only matched exact forms would pass every plural in the language.
     """
-    found = []
+    found: list[str] = []
     lowered = [w.lower() for w in _words(text)]
     for term in untaught:
         t = term.lower()
@@ -194,7 +195,7 @@ def _too_long(text: str) -> str | None:
     return None
 
 
-def check_plain_block(text: str, untaught=()) -> list[Violation]:
+def check_plain_block(text: str, untaught: Sequence[str] = ()) -> list[Violation]:
     """Refuse a plain block that the learner could not act on immediately."""
     violations: list[Violation] = []
 
@@ -240,7 +241,7 @@ def check_plain_block(text: str, untaught=()) -> list[Violation]:
     return violations
 
 
-def check_heading(text: str, untaught=()) -> list[Violation]:
+def check_heading(text: str, untaught: Sequence[str] = ()) -> list[Violation]:
     """Refuse a heading that names the term.
 
     This is the cause no prompt change can reach. The generator can obey the
@@ -262,8 +263,8 @@ def check_heading(text: str, untaught=()) -> list[Violation]:
 # --------------------------------------------------------------------------- #
 
 
-def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n")[0])
     parser.add_argument("--text", help="the plain block to check")
     parser.add_argument("--heading", help="the lesson heading to check")
     parser.add_argument(

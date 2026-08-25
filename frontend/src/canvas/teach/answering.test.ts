@@ -34,8 +34,15 @@ const LESSON = (() => {
   return checked.lesson
 })()
 
+/* A CHAIN of one, not a single resolver.
+ *
+ * Two branches built this independently -- a resolver chain that records what
+ * each rung did, and a two-step lesson-then-model escalation. The chain is the
+ * better structure and is the injection point `CanvasRoute` already depends on,
+ * so the escalation became its last rung. These checks are unchanged in what
+ * they assert; only the shape of the fast path moved. */
 const answering = (resolver: DoubtResolver, ask = vi.fn()) => ({
-  answering: createAnswering({ resolver, ask }),
+  answering: createAnswering({ resolvers: [resolver], ask }),
   ask,
 })
 

@@ -20,7 +20,8 @@
  */
 
 import type { Lesson } from '../spec/spec'
-import type { Doubt, DoubtResolver } from './contract'
+import type { AnyResolver, Doubt } from './contract'
+import { askChain } from './chain'
 
 /** The single soft line that invites the learner back. Never a reprimand, and
  *  never more than once. */
@@ -32,9 +33,13 @@ export interface Answered {
   readonly from: AnswerSource
   /** Always non-empty. A blank answer is a refusal wearing better manners. */
   readonly text: string
-  /** The lesson resolver's own answer, when the lesson supplied it. Carried
-   *  through untouched so it renders by the same machinery as the lesson. */
+  /** The chain's own answer, when a resolver supplied one. Carried through
+   *  untouched so it renders by the same machinery as the lesson. */
   readonly resolution?: unknown
+  /** WHICH resolver answered. A learner reading sentences deserves to know
+   *  whether a page, an engine or a model wrote them; this project already
+   *  labels the hand-written lesson for exactly that reason. */
+  readonly answeredBy?: string
 }
 
 /** Asks the server a free question. Kept narrow so a double is two lines. */
@@ -50,18 +55,30 @@ const UNAVAILABLE = [
   'again in a moment and I will come back to it.',
 ].join(' ')
 
-export function createAnswering(options: { resolver: DoubtResolver; ask: AskPort }) {
+export function createAnswering(options: { resolvers: readonly AnyResolver[]; ask: AskPort }) {
   return {
     async answer(doubt: Doubt, lesson: Lesson): Promise<Answered> {
-      const resolution = options.resolver.resolve(doubt, lesson) as {
-        kind?: string
-        blocks?: unknown
-        text?: string
-      }
+      /* THE CHAIN FIRST, then escalation.
+       *
+       * Two branches built this independently: a chain of resolvers that tries
+       * each in order and records what each one did, and a two-step
+       * lesson-then-model escalation. The chain is the better structure -- it
+       * tolerates a resolver that throws, keeps the evidence, and is the
+       * injection point `CanvasRoute` already depends on -- so the escalation
+       * became its LAST rung rather than a second mechanism beside it.
+       *
+       * Neither idea was discarded to settle a merge. */
+      const chained = await askChain(doubt, lesson, options.resolvers)
+      const resolution = chained.resolution as { kind?: string; text?: string }
 
-      /* The lesson answered it. No come-back line: we never left. */
+      /* Something in the chain answered it. No come-back line: we never left. */
       if (resolution.kind === 'answer') {
-        return { from: 'lesson', text: '', resolution }
+        return {
+          from: 'lesson',
+          text: '',
+          resolution,
+          ...(chained.answeredBy === null ? {} : { answeredBy: chained.answeredBy }),
+        }
       }
 
       let reply: Awaited<ReturnType<AskPort>>

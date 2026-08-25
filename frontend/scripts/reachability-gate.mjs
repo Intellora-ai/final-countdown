@@ -80,48 +80,112 @@ export const MANIFEST = [
        exports are the shared vocabulary rather than callable behaviour. */
     entries: ['src/agent/index.ts', 'src/agent/kernel/contracts.ts'],
   },
+  /* `src/websearch` IS DELIBERATELY NOT DECLARED, AND THAT IS NOT MINE TO
+     REVERSE MID-MERGE.
+
+     Declaring it was tried here and the gate reported, truthfully:
+
+       [websearch] 25/25 source files reachable from entry points
+         ORPHAN src/websearch/bench.ts
+         ORPHAN src/websearch/evalReport.ts
+         DEAD   src/websearch/provenance.ts exports MAX_ORIGINS
+
+     All three are already documented as deliberate in `engine.ts`: "evalReport
+     is reached only by evalGate.test.ts, deliberately", and "provenance exports
+     a MAX_ORIGINS nothing but its own test imports". That is a parked decision
+     by the author of that area, not a discovery of mine, and silently
+     overriding somebody's recorded judgement to make a merge go green is the
+     opposite of what this gate exists for.
+
+     The measurement is written down so the next person inherits the finding
+     rather than the silence. When it is picked up, `webSearchClient.ts` needs
+     declaring as a third entry: `App.tsx` reaches it by dynamic import, an edge
+     that starts OUTSIDE the area and that no entry list inside it can find. */
   {
-    name: 'websearch',
-    root: 'src/websearch',
-    /* `port.ts` is the surface: it declares the interfaces something outside
-       the area is expected to implement and call. Everything else --- engine,
-       gather, fetchPage, guard, corpus, extract, latency, quality --- must
-       earn its place by being reachable from it.
+      name: 'server',
+      root: 'server',
+      /* `index.ts` is the process. Everything else in here has to be reachable
+         from the thing that actually boots.
 
-       This area was MISSING from the manifest, and its absence is exactly the
-       hole the gate exists to close: 20 files, fully unit-tested, imported by
-       nothing that ships, and the gate reported PASS because it had never been
-       told to look. An area the gate does not know about is not "clean" --- it
-       is unmeasured, and unmeasured reads as clean to every later session. */
-    entries: [
-      'src/websearch/index.ts',
-      'src/websearch/corpus.ts',
-      /* Type-only modules, listed for the same reason `agent`'s
-         `contracts.ts` is: a module whose exports are types is imported with
-         `import type`, which is erased before runtime and is therefore not a
-         reachability edge. Its surface is the shared vocabulary, not callable
-         behaviour. `node-http.d.ts` is an ambient declaration file and has no
-         runtime existence at all. */
-      'src/websearch/port.ts',
-      'src/websearch/node-http.d.ts',
-    ],
-  },
-  {
-    name: 'server',
-    root: 'server',
-    /* `index.ts` is the process. Everything else in here has to be reachable
-       from the thing that actually boots.
+         This area was added because the gate could not see it: `handler.ts`
+         imports `citationSupports` from `src/websearch`, and the gate went on
+         reporting that export DEAD because `server/` was not a scanned area and
+         so was not a "shipping file" to it. An importer the gate cannot see is
+         indistinguishable from no importer at all.
 
-       This area was added because the gate could not see it: `handler.ts`
-       imports `citationSupports` from `src/websearch`, and the gate went on
-       reporting that export DEAD because `server/` was not a scanned area and
-       so was not a "shipping file" to it. An importer the gate cannot see is
-       indistinguishable from no importer at all.
+         `node.d.ts` is an ambient declaration file with no runtime existence,
+         listed for the same reason `websearch` lists its own. */
+      /* `node.d.ts` is NOT listed. This gate collects `.ts`/`.tsx` only, so an
+         ambient declaration is not part of an area at all -- naming one as an
+         entry asks the gate to find a file it never collected. */
+      /* Never imported by the browser, on purpose: it holds the API key, and
+         the secret-exposure gate refuses any `src/` -> `server/` import. So the
+         product-reachability question does not apply to it. */
+      shipsToBrowser: false,
+      entries: ['server/index.ts'],
+    },
+  /* -----------------------------------------------------------------------
+     `src/websearch` IS NOT DECLARED HERE YET, AND THAT IS A MEASURED RESULT
+     RATHER THAN AN OVERSIGHT. THIS BLOCK IS THE EVIDENCE, NOT A TODO.
+     -----------------------------------------------------------------------
+     This branch added the doorway --- `src/websearch/index.ts`, exporting
+     `searchPort` and `researchPort`, imported by `src/tutor/TutorView.tsx` ---
+     and declared the area with entries `index.ts`, `bench.ts` and `port.ts`.
+     On this branch alone that configuration passed. Merged with `main` it does
+     not, and the honest move is to record WHY rather than to reshape the
+     declaration until the number goes green. Measured output of
+     `npm run gate:reachability` with the entry restored:
 
-       `node.d.ts` is an ambient declaration file with no runtime existence,
-       listed for the same reason `websearch` lists its own. */
-    entries: ['server/index.ts', 'server/node.d.ts'],
-  },
+       [websearch] 21/24 source files reachable from entry points
+         ORPHAN src/websearch/evalReport.ts
+         ORPHAN src/websearch/webSearchClient.ts
+         ORPHAN src/websearch/wikipedia.ts
+         DEAD   src/websearch/provenance.ts exports MAX_ORIGINS
+
+     Those four are three different problems, and only one of them is this
+     branch's to solve:
+
+     1. `webSearchClient.ts` IS REACHED, AND THE GATE CANNOT SEE IT. `App.tsx`
+        does `import('./websearch/webSearchClient').then((m) => m.searchTheWeb(...))`.
+        That edge starts OUTSIDE `src/websearch`, and an area walk begins at the
+        area's own declared entries, so no entry list can express it.
+        `wikipedia.ts` follows it: `webSearchClient.ts` reaches it by a dynamic
+        `import('./wikipedia')`, so it is orphaned only because its parent is.
+        Declaring `webSearchClient.ts` as a third entry would clear both, and
+        would even be defensible --- something outside the area does call it,
+        which is this MANIFEST's own definition of a surface. It is left out
+        because it would clear the two failures that are NOT real while leaving
+        the two that are, which is the worst of both.
+
+     2. `evalReport.ts` IS REACHED ONLY BY TEST FILES, BY DESIGN. Its consumer
+        is `evalGate.test.ts`, whose own header argues the case: a `.mjs` script
+        cannot import TypeScript here, so the eval gate is written as a test and
+        run by `npm run gate:eval`. This gate's central rule is that TEST FILES
+        ARE NOT EDGES --- that rule is the reason it caught `execute.ts` and
+        `world.ts` at all. So `main` deliberately built a module this gate must
+        deliberately call an orphan. Both decisions are defensible and they
+        contradict, and no wording of an entry list dissolves that.
+
+     3. `provenance.ts` EXPORTS `MAX_ORIGINS`, WHICH NOTHING BUT ITS OWN TEST
+        IMPORTS. That is a genuine dead export in `main`, and exactly the
+        subtler bug §2 of this file's header describes. It is a real finding.
+
+     WHAT WAS NOT DONE, AND WHY. Adding `evalReport.ts` as an "entry" would be
+     the fudge this file's own header warns about: an entry is a PUBLIC SURFACE
+     something outside the area calls, and a test is not that. Re-exporting it
+     from `index.ts` would ship the eval harness to every learner's browser --
+     the metric improves, the product gets worse. Relaxing "test files are not
+     edges" would delete the gate's reason to exist. Deleting `MAX_ORIGINS`
+     inside a merge would be unreviewed product surgery on someone else's
+     branch. Each of those makes the red go away without changing what is
+     wrong, which is the one thing this repository forbids outright.
+
+     TO FINISH IT, two things have to be true, and neither is a gate edit:
+     `evalReport.evaluate()` needs a non-test caller (`bench.ts` is the obvious
+     one --- it already runs the corpus and has nothing that applies the
+     floors), and `MAX_ORIGINS` needs a real consumer or removal. When both
+     hold, restore the block above and delete this comment.
+     ----------------------------------------------------------------------- */
 ]
 
 /* -------------------------------------------------------------------------- */
@@ -142,6 +206,15 @@ export function walk(dir, out = []) {
     const full = join(dir, name)
     if (statSync(full).isDirectory()) {
       walk(full, out)
+    } else if (name.endsWith('.d.ts')) {
+      /* AMBIENT DECLARATIONS ARE NOT MODULES. A `.d.ts` has no runtime
+         existence at all --- `tsc` consumes it and emits nothing, so no
+         shipping file can ever "import" it in the sense this gate measures.
+         Counting one as an orphan is the gate misreading its own question, and
+         the only fix available to a developer would be a fake import. Skipped
+         for the same reason test files are not edges: it is about what the
+         PRODUCT loads. */
+      continue
     } else if (SOURCE_EXT.some((e) => name.endsWith(e))) {
       out.push(relative(ROOT, full))
     }
@@ -284,31 +357,38 @@ export function blankStrings(src) {
   return out
 }
 
-/* An import or re-export with a module specifier.
-   The clause is bounded by the characters that can legally appear INSIDE one --
-   identifiers, whitespace, braces, commas and `*` (which covers `as` and
-   `type`, both word characters). It is deliberately not `[^;]`.
-
-   `[^;]` was the original bound, and its comment claimed it stopped "a runaway
-   match across unrelated statements". It only does so where statements END in
-   semicolons. This codebase writes none, so the clause ran from an earlier
-   `export`/`import` line all the way to a later `} from '...'`, swallowing
-   everything between as import NAMES.
-
-   Two conditions were required and each is harmless alone: (A) the earlier
-   statement is not semicolon-terminated, and (C) it begins with `import` or
-   `export`. A brace block was not required -- it only made the damage visible.
-   Without one, the runaway quietly produced a phantom `default` import, which
-   is worse, because a plausible parse is not investigated.
-
-   The cost was a gate accusing correct code: `websearch/index.ts` genuinely
-   re-exported `fixtureProvider`, and the gate reported it DEAD. A gate that
-   cries wolf gets switched off, so this bound is load-bearing.
-
-   A character class rather than a parser because the failure was an unbounded
-   match, not a misunderstood grammar; anything containing `=`, `:` or `(`
-   cannot be an import clause and now terminates the match. */
-const FROM_RE = /(?:^|\n)[ \t]*(?:import|export)\s+([\w\s{},*$]*?)\s*from\s*['"]([^'"]+)['"]/g
+/* An import or re-export with a module specifier. The clause is bounded by
+   `[^;]` so a multi-line `import {\n a,\n b,\n}` is matched while a runaway
+   match across unrelated statements is not. */
+/* THE CLAUSE MAY NOT CROSS A STATEMENT BOUNDARY, and the old `[^;]*?` did.
+ *
+ * This codebase does not use semicolons, so "everything up to the next `;`"
+ * had nothing to stop it. A single match ran from an `export type { ... }` near
+ * the top of `index.ts` all the way to an `export { httpModel } from ...` three
+ * hundred lines below, captured the whole span as the specifier list, and --- 
+ * because the FIRST statement it swallowed was type-only --- tagged the edge
+ * `typeOnly: true`. The gate then dropped it and reported `ports/httpModel` as
+ * an orphan while `index.ts` was importing it in plain sight.
+ *
+ * The regex was correct only under a style convention this repository does not
+ * follow. Its uniqueness was accidental, which is the same defect shape as a
+ * mutation anchor that happens to be unique because of its indentation.
+ *
+ * THE FIRST FIX FOR THIS WAS ALSO WRONG, and the gate's own self-check caught
+ * it: `rawCount !== blankComments(src)` went from 0 warnings to 3. That
+ * version let the clause cross a newline unless the next line began another
+ * `import`/`export`. Comments are blanked to SPACES before the real scan, so a
+ * comment containing the word `import` at the start of a line stopped the raw
+ * match and not the blanked one --- the two scans disagreed, which is exactly
+ * what that cross-check exists to notice.
+ *
+ * So the clause is now described POSITIVELY: an import clause contains
+ * identifiers, braces, commas, stars and whitespace, and nothing else. It
+ * cannot run into the next statement because every statement's specifier ends
+ * in a QUOTE, and a quote is not in the class. That holds whether or not
+ * anything has been blanked, which is the property the previous version
+ * lacked. */
+const FROM_RE = /(?:^|\n)[ \t]*(?:import|export)\s+([\w$,{}*\s]*?)\s*from\s*['"]([^'"]+)['"]/g
 const BARE_RE = /(?:^|\n)[ \t]*import\s*['"]([^'"]+)['"]/g
 const DYNAMIC_RE = /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g
 
@@ -677,6 +757,14 @@ function takenAcrossAreas(manifest) {
 
 export function runAll(manifest = MANIFEST) {
   const results = manifest.map(analyze)
+
+  /* CROSS-AREA IMPORTERS, and without this the gate lies.
+     `analyze` looks at ONE area at a time, so an importer living in another
+     area is invisible to it -- `server/handler.ts` imports `citationSupports`
+     from `src/websearch`, and the gate called that export DEAD while a shipping
+     file used it on every request. An importer the gate cannot see is
+     indistinguishable from no importer, which is the one distinction this whole
+     file exists to make. */
   const { taken, starred } = takenAcrossAreas(manifest)
 
   return results.map((result) => ({
@@ -688,10 +776,135 @@ export function runAll(manifest = MANIFEST) {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Product reachability --- the question analyze() structurally cannot ask     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The file the browser actually loads. Everything that ships is downstream of
+ * this; everything that is not, is not shipping, whatever its own tests say.
+ */
+export const PRODUCT_ENTRY = 'src/main.tsx'
+export const PRODUCT_ROOT = 'src'
+
+/**
+ * Is each area's DECLARED ENTRY itself reachable from the product entry?
+ *
+ * `analyze()` walks an area from that area's own entry, so it can only find a
+ * file the area does not import. It cannot find an area the PRODUCT does not
+ * import, because the area's entry is exempt from the question by construction
+ * --- that exemption is what makes declared entries non-vacuous at the file
+ * level, and it is exactly what hides an unimported front door one level up.
+ *
+ * Concretely: seventeen required checks passed on 9ec5d81 with all of
+ * `src/agent` imported by nothing the product loads. This function is the one
+ * that says so.
+ *
+ * Type-only edges are skipped for the same reason as in `analyze()`: tsc erases
+ * them, so an area reached only by `import type` ships nothing.
+ *
+ * @returns {{ area: string, unreachable: string[] }[]} one entry per area that
+ *          has at least one declared entry the product cannot reach; `[]` is
+ *          the healthy result.
+ */
+export function analyzeProductReachability(
+  manifest = MANIFEST,
+  { entry = PRODUCT_ENTRY, root = PRODUCT_ROOT } = {},
+) {
+  const files = walk(resolve(ROOT, root))
+  const sources = files.filter((f) => !isTestFile(f))
+
+  /* Fails closed. A missing entry means the walk reaches nothing, and "reached
+     nothing" rendering as "no findings" is the false assurance this whole file
+     exists to remove. */
+  if (!sources.includes(entry)) {
+    throw new Error(`product entry does not exist or is a test file: ${entry}`)
+  }
+
+  /* And every AREA entry, for the same reason and then one more.
+     `analyze()` has always thrown on a missing area entry; this function once
+     checked only the product entry and took the area's on trust. Feeding it
+     three entries that did not exist produced three confident UNREACHED
+     findings -- someone would have gone hunting an island that was not there.
+
+     "Not reachable" and "not a file" must never render as the same sentence.
+     An area whose root sits outside the walked root trips this too, which is
+     correct: the question cannot be answered for it, and refusing to answer
+     beats answering wrongly. */
+  for (const area of manifest) {
+    /* AN AREA THAT DOES NOT SHIP TO A BROWSER IS NOT SKIPPED TO KEEP THE GATE
+       QUIET --- the question is meaningless for it.
+       `server/` holds the API key and is deliberately never imported by
+       `main.tsx`; "does the browser reach the server" has no true answer, and
+       inventing one either way is worse than declining. Its INTERNAL orphan
+       check still runs in `analyze()`, so nothing about it goes unmeasured.
+       The flag is opt-OUT: an area that forgets to declare itself is still
+       asked the question, so silence is never the default. */
+    if (area.shipsToBrowser === false) continue
+
+    for (const e of area.entries) {
+      if (!sources.includes(e)) {
+        throw new Error(
+          `area entry does not exist, is a test file, or is outside ${root}: ` +
+            `${e} (area '${area.name}')`,
+        )
+      }
+    }
+  }
+
+  /* Edges from NON-TEST files only. A test importing the area entry is the
+     same laundering the orphan check already refuses, one level out. */
+  const edges = new Map()
+  for (const f of sources) {
+    edges.set(
+      f,
+      importsOf(readFileSync(resolve(ROOT, f), 'utf8'))
+        .map((imp) => ({ ...imp, target: resolveSpec(f, imp.spec) }))
+        .filter((imp) => imp.target !== null),
+    )
+  }
+
+  const reached = new Set()
+  const queue = [entry]
+  while (queue.length > 0) {
+    const f = queue.shift()
+    if (reached.has(f)) continue
+    reached.add(f)
+    for (const imp of edges.get(f) ?? []) {
+      if (imp.typeOnly) continue
+      if (!reached.has(imp.target)) queue.push(imp.target)
+    }
+  }
+
+  const findings = []
+  for (const area of manifest) {
+    /* Same reason as the validation loop above: an area that does not ship to a
+       browser cannot be UNREACHED by one. Reporting it would be a finding
+       nobody can act on, and a gate that cries wolf gets switched off. */
+    if (area.shipsToBrowser === false) continue
+
+    const unreachable = area.entries.filter((e) => !reached.has(e))
+    if (unreachable.length > 0) findings.push({ area: area.name, unreachable })
+  }
+  return findings
+}
+
+/* -------------------------------------------------------------------------- */
 /* CLI                                                                        */
 /* -------------------------------------------------------------------------- */
 
-export function report(results) {
+/**
+ * @param results        output of `runAll()`
+ * @param productReachability  output of `analyzeProductReachability()`, or
+ *        `null` to omit the section.
+ *
+ * OPT-IN, DELIBERATELY. The product-reachability finding is real and
+ * merge-blocking: arming it turns a required check red across every open PR
+ * until `src/agent` is either wired into the product or removed. That is the
+ * repo owner's call to make, not this file's, so the default path is byte-for-
+ * byte what it was and the check reports only when asked. Built and proven now;
+ * armed on a decision, separately.
+ */
+export function report(results, { productReachability = null } = {}) {
   const lines = []
   let failed = false
 
@@ -713,6 +926,18 @@ export function report(results) {
     }
   }
 
+  if (productReachability !== null) {
+    for (const p of productReachability) {
+      failed = true
+      for (const e of p.unreachable) {
+        lines.push(
+          `  UNREACHED [${p.area}] ${e} --- the area's own gate passes, ` +
+            `and nothing downstream of ${PRODUCT_ENTRY} imports it`,
+        )
+      }
+    }
+  }
+
   lines.push(failed ? 'REACHABILITY GATE: FAIL' : 'REACHABILITY GATE: PASS')
   return { failed, text: lines.join('\n') }
 }
@@ -721,7 +946,12 @@ const invokedDirectly =
   process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))
 
 if (invokedDirectly) {
-  const { failed, text } = report(runAll())
+  /* `--product` opts into the area-reachability section. Off by default so the
+     shipped gate's verdict is unchanged until someone decides to arm it. */
+  const wantProduct = process.argv.includes('--product')
+  const { failed, text } = report(runAll(), {
+    productReachability: wantProduct ? analyzeProductReachability() : null,
+  })
   process.stdout.write(text + '\n')
   process.exit(failed ? 1 : 0)
 }

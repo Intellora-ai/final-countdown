@@ -27,6 +27,10 @@ import {
   type Resolution,
 } from './contract'
 import { lessonResolver } from './doubt'
+import type { AnyResolver } from './contract'
+
+/** The offline answer a learner can always be given. */
+const DEFAULT_RESOLVERS: readonly AnyResolver[] = [lessonResolver]
 
 import './teach.css'
 
@@ -68,6 +72,7 @@ export function TeachView({
   lesson,
   mode,
   ask: askPort,
+  resolvers = DEFAULT_RESOLVERS,
   onStruggling,
 }: {
   lesson: Lesson
@@ -76,6 +81,9 @@ export function TeachView({
    * default so the canvas still runs standalone -- and when it is absent the
    * learner is TOLD the outside answer is unreachable rather than refused. */
   ask?: AskPort
+  /* The resolver chain. An injection point `CanvasRoute` supplies, and the
+   * reason a web or engine resolver can be added without touching this file. */
+  resolvers?: readonly AnyResolver[]
   /* Called ONCE, the moment the learner's own turns show they are struggling.
    * Depth is added when they ask for it and automatically when their answers
    * show a gap; this is the automatic half. Nothing on screen ever says
@@ -200,7 +208,7 @@ export function TeachView({
      who has just admitted confusion is the worst possible audience for "I
      cannot answer that". */
   const answering = createAnswering({
-    resolver: lessonResolver,
+    resolvers,
     ask: askPort ?? (async () => ({ ok: false, reason: 'no question service is configured' })),
   })
 

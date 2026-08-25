@@ -12,7 +12,7 @@
     "test:mutation": "node scripts/mutation-gate.mjs",
     "budget": "node scripts/canvas-bundle-budget.mjs",
     "gate:reachability": "node scripts/reachability-gate.mjs",
-    "lint": "eslint src/canvas src/practice src/agent src/websearch src/tutor --max-warnings 0",
+    "lint": "eslint src/canvas src/practice src/agent src/websearch src/tutor src/almanac --max-warnings 0",
     "curriculum:fetch": "node scripts/curriculum/fetch.mjs",
     "curriculum:verify": "node scripts/curriculum/fetch.mjs --verify",
     "curriculum:extract": "node scripts/curriculum/extract-all.mjs",

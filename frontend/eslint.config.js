@@ -148,4 +148,24 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     },
   },
+
+  /* src/almanac was unlinted for the same reason src/websearch and src/practice
+   * were: flat config lints only paths with a MATCHING `files:` entry, so a new
+   * directory is silently exempt rather than loudly missing. Adding it to the
+   * lint SCRIPT alone changes nothing without this block.
+   *
+   * `design-value` applies because this area renders: `resolve.ts` decides the
+   * words a student reads on a row, and the backlog label is painted from the
+   * token layer. A colour written here would be a colour the design system does
+   * not know about. */
+  {
+    files: ['src/almanac/**/*.{ts,tsx}'],
+    extends: [...tseslint.configs.recommended],
+    plugins: { canvas: { rules: { 'design-value': designValue } } },
+    rules: {
+      'canvas/design-value': 'error',
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
 )

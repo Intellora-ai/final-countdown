@@ -817,3 +817,30 @@ describe('an importer in another area is still an importer', () => {
     expect(dead).toContain('unused')
   })
 })
+
+describe('an area that does not ship to a browser', () => {
+  it('is not asked whether the browser reaches it', () => {
+    /* `server/` holds the API key and is deliberately never imported by
+     * `main.tsx` -- the secret-exposure gate refuses that import outright. So
+     * "does the product reach it" has no true answer, and refusing to ask beats
+     * answering wrongly in either direction.
+     *
+     * Its INTERNAL orphan check still runs in `analyze()`. Nothing about it
+     * goes unmeasured; only this one question is declined. */
+    const manifest = [
+      { name: 'backend', root: 'server', shipsToBrowser: false, entries: ['server/index.ts'] },
+    ]
+    expect(() => analyzeProductReachability(manifest)).not.toThrow()
+    expect(analyzeProductReachability(manifest)).toEqual([])
+  })
+
+  it('STILL asks an area that has not declared itself', () => {
+    /* Opt-OUT, not opt-in. An area that forgets to say what it is gets the
+     * question anyway, so silence is never the default and a real island cannot
+     * hide behind a missing field. */
+    const manifest = [
+      { name: 'nowhere', root: 'src/nowhere', entries: ['src/nowhere/index.ts'] },
+    ]
+    expect(() => analyzeProductReachability(manifest)).toThrow(/does not exist|outside/)
+  })
+})

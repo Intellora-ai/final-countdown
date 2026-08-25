@@ -25,7 +25,10 @@ import { runCorpus, type CorpusReport, type RunOptions } from './corpus'
 import type { FetchOutcome } from './fetchPage'
 import { searchPort, type WebSearchConfig } from './index'
 import { fixtureProvider, jsonProvider } from './engine'
-import { percentile } from './latency'
+/* `nearestRank` is the surviving name. A second copy of this function shipped
+   as `percentile`; both computed the same thing, and one was deleted so a
+   measurement has one definition. */
+import { nearestRank as percentile } from './latency'
 import { citationSupports } from './quality'
 import { grade, type Expectation, type Grade } from './accuracy'
 import type { Answer } from './answer'

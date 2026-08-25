@@ -136,6 +136,21 @@ class Attempt(Base):
     difficulty: Mapped[float] = mapped_column(Float, nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
 
+    #: The sitting this attempt happened in, when it happened in one.
+    #:
+    #: NULLABLE, because an attempt can arrive outside any session -- an API
+    #: caller recording a result, a backfill, a practice widget. Making it
+    #: required would force every such caller to invent a session, and an
+    #: invented session is worse than an absent one: it looks like a real
+    #: sitting in every report that counts them.
+    #:
+    #: A CLOSED session refuses new attempts, and that rule cannot be a CHECK
+    #: constraint. A CHECK sees only the row being written; this rule depends on
+    #: another table's `closed_at`. So it is a trigger -- see migration 0002.
+    session_id: Mapped[str | None] = mapped_column(
+        ForeignKey("sessions.id", ondelete="RESTRICT"), nullable=True
+    )
+
     learner: Mapped[Learner] = relationship(back_populates="attempts")
 
 

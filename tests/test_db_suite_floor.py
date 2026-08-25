@@ -142,12 +142,23 @@ def test_the_floor_is_not_zero() -> None:
     assert GATE.FLOOR > 0
 
 
-def test_the_floor_matches_the_tests_that_exist_today() -> None:
-    """The floor must describe a real suite, not an aspiration.
+def test_the_floor_is_at_least_the_number_of_tests_that_exist_today() -> None:
+    """The floor must describe a real suite, not a number somebody guessed.
 
-    A floor set above the actual count fails every build immediately; one set
-    far below it never fires. Counting the test functions on disk keeps the
-    number honest without running pytest.
+    THE TWO UNITS ARE NOT THE SAME, AND THE FIRST VERSION OF THIS TEST MIXED
+    THEM. The gate counts what pytest COLLECTS; this counts `def test_` on disk.
+    `@pytest.mark.parametrize` turns one function into several cases, so
+
+        collected >= functions,  always
+
+    Measured here: 59 functions, 63 collected. Asserting `functions >= FLOOR`
+    compared a function count against a collected count and failed at 59 >= 63
+    on a suite that was entirely healthy.
+
+    The right direction is this one. A floor BELOW the function count is a floor
+    weaker than the suite that already exists -- it would let real coverage
+    disappear without firing. A floor set too HIGH fails the gate in CI on the
+    first run, loudly and immediately, which needs no test to catch.
     """
     db_tests_dir = REPO_ROOT / GATE.SUITE
     assert db_tests_dir.is_dir(), f"{GATE.SUITE} does not exist"
@@ -164,7 +175,8 @@ def test_the_floor_matches_the_tests_that_exist_today() -> None:
         for path in found
         for line in path.read_text(encoding="utf-8").splitlines()
     )
-    assert functions >= GATE.FLOOR, (
-        f"FLOOR is {GATE.FLOOR} but only {functions} test functions exist in "
-        f"{GATE.SUITE}. The floor would fail every build."
+    assert GATE.FLOOR >= functions, (
+        f"FLOOR is {GATE.FLOOR} but {functions} test functions exist in "
+        f"{GATE.SUITE}. A floor below the suite that already exists cannot "
+        "notice coverage disappearing."
     )

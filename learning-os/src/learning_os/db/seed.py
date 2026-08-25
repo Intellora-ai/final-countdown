@@ -168,6 +168,23 @@ def _make_attempts_and_mastery(
     skills: list[Skill],
     seed: int,
 ) -> None:
+    # MASTERY IS COMPUTED LAST, FROM THE FINAL ATTEMPT SET.
+    #
+    # It used to be computed per learner inside this loop, with `_add_ugly_rows`
+    # appending duplicate submissions afterwards. That made the seeded data
+    # satisfy I14 -- "a stored level equals the level its log implies" -- ONLY
+    # BY LUCK: the duplicates happened to be two correct answers on a skill the
+    # learner was already at 1.0 on, so the average did not move.
+    #
+    # Measured, before the fix: 0 drifted rows. Which is exactly what a latent
+    # bug looks like from the outside. Change the duplicate to an incorrect
+    # answer, or move it to any skill scored below 1.0, and the seed would have
+    # started emitting data that violated the invariant Phase 6 exists to prove.
+    #
+    # Deriving mastery from the complete log makes the invariant hold by
+    # construction rather than by coincidence.
+    outcomes: dict[tuple[str, str], list[bool]] = {}
+
     counter = 0
     for index, learner in enumerate(learners):
         profile = PROFILES[index % len(PROFILES)]
@@ -179,7 +196,6 @@ def _make_attempts_and_mastery(
         # the dataset actually contains.
         reachable = skills if index % 4 else skills[: max(1, len(skills) // 2)]
 
-        touched: dict[str, list[bool]] = {}
         for step in range(profile.attempts):
             skill = reachable[rng.randrange(len(reachable))]
             correct = rng.random() < profile.accuracy
@@ -202,11 +218,26 @@ def _make_attempts_and_mastery(
                     idempotency_key=f"seed-{learner.id}-{step}",
                 )
             )
-            touched.setdefault(skill.id, []).append(correct)
+            outcomes.setdefault((learner.id, skill.id), []).append(correct)
 
-        _make_mastery(session, learner=learner, touched=touched, index=index)
+    # Ugly rows FIRST, then mastery over everything. See the note above.
+    _add_ugly_rows(
+        session,
+        learners=learners,
+        skills=skills,
+        seed=seed,
+        counter=counter,
+        outcomes=outcomes,
+    )
 
-    _add_ugly_rows(session, learners=learners, skills=skills, seed=seed, counter=counter)
+    for index, learner in enumerate(learners):
+        touched = {
+            skill_id: values
+            for (learner_id, skill_id), values in outcomes.items()
+            if learner_id == learner.id
+        }
+        if touched:
+            _make_mastery(session, learner=learner, touched=touched, index=index)
 
 
 def _make_mastery(
@@ -242,6 +273,7 @@ def _add_ugly_rows(
     skills: list[Skill],
     seed: int,
     counter: int,
+    outcomes: dict[tuple[str, str], list[bool]],
 ) -> None:
     """Rule 4's remaining case: a duplicate submission.
 
@@ -254,7 +286,11 @@ def _add_ugly_rows(
     learner = learners[1]
     skill = skills[0]
     at = EPOCH + timedelta(days=1, hours=2)
-    for suffix in ("dup-a", "dup-b"):
+    # One correct and one INCORRECT. Two correct answers on a skill already at
+    # 1.0 move no average, which is how the ordering bug above stayed invisible.
+    # A mixed pair moves the level for any prior state, so mastery computed
+    # before these rows can no longer coincidentally agree with the log.
+    for suffix, correct in (("dup-a", True), ("dup-b", False)):
         counter += 1
         session.add(
             Attempt(
@@ -262,11 +298,12 @@ def _add_ugly_rows(
                 learner_id=learner.id,
                 skill_id=skill.id,
                 at=at,
-                correct=True,
+                correct=correct,
                 difficulty=0.5,
                 idempotency_key=f"seed-{learner.id}-{suffix}",
             )
         )
+        outcomes.setdefault((learner.id, skill.id), []).append(correct)
 
 
 def checksum(session: Session) -> str:

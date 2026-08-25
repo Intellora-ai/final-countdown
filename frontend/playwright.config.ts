@@ -179,7 +179,7 @@ export default defineConfig({
    */
   webServer: [
     {
-      command: 'npm run server:build && ANTHROPIC_API_KEY=sk-ant-e2e-not-a-real-key PORT=8787 node dist-server/index.js',
+      command: 'npm run server:build && ANTHROPIC_API_KEY=CANARY-e2e-must-not-leak PORT=8787 node dist-server/index.js',
       /* The one route that answers a GET. Every other route mutates or costs
          money, so none of them can be polled -- which is why this endpoint
          exists at all. */

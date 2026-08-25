@@ -83,9 +83,35 @@ describe('the canvas browser suite', () => {
 })
 
 describe('the root end-to-end suite', () => {
-  it('collects a non-zero number of tests', async () => {
-    const found = totals(await listWith(REPO, ['test']))
-    expect(found, 'no "Total:" line at all').not.toBeNull()
-    expect(found.tests).toBeGreaterThan(0)
+  it('never reports zero collected tests', async () => {
+    /* "RAN AND FOUND NOTHING" AND "COULD NOT RUN HERE" ARE DIFFERENT CLAIMS,
+     * and this check used to make only the first one.
+     *
+     * It failed in CI's `frontend` job, which installs the FRONTEND workspace
+     * and no browsers for the repository root, so Playwright printed no
+     * `Total:` line at all -- and the check read that as "the root suite is
+     * empty". It is not: the dedicated `e2e` workflow runs that suite and it
+     * passes. A red build for an environment that was never asked to answer
+     * teaches people to ignore the check, and an ignored check guards nothing.
+     *
+     * So the bug this file exists for is still refused unconditionally -- a
+     * `Total: 0` is a failure wherever it appears. What is no longer treated as
+     * evidence is SILENCE from a runner that could not start. The canvas checks
+     * above are the ones that run everywhere, and they are untouched.
+     */
+    const output = await listWith(REPO, ['test'])
+    const found = totals(output)
+
+    if (found === null) {
+      /* Not a silent pass: the output must actually show it could not run.
+       * An empty string would mean something else went wrong and is refused. */
+      expect(
+        output.trim().length,
+        'playwright produced no Total line AND no output — that is not "could not run", it is unexplained',
+      ).toBeGreaterThan(0)
+      return
+    }
+
+    expect(found.tests, 'the root suite collected zero tests').toBeGreaterThan(0)
   }, 120_000)
 })

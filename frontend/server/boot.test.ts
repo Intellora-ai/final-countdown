@@ -82,20 +82,20 @@ describe('the built server', () => {
   }, 120_000)
 
   it('starts without a module-resolution error', async () => {
-    await withServer({ ANTHROPIC_API_KEY: 'sk-ant-boot-test' }, async (s) => {
+    await withServer({ ANTHROPIC_API_KEY: 'CANARY-boot-bind-test' }, async (s) => {
       expect(s.output()).not.toContain('ERR_MODULE_NOT_FOUND')
       expect(s.output()).toContain('listening on')
     })
   })
 
   it('binds to loopback, not every interface', async () => {
-    await withServer({ ANTHROPIC_API_KEY: 'sk-ant-boot-test' }, async (s) => {
+    await withServer({ ANTHROPIC_API_KEY: 'CANARY-boot-bind-test' }, async (s) => {
       expect(s.output()).toContain('http://127.0.0.1:')
     })
   })
 
   it('answers a request over a real socket', async () => {
-    await withServer({ ANTHROPIC_API_KEY: 'sk-ant-boot-test' }, async (s) => {
+    await withServer({ ANTHROPIC_API_KEY: 'CANARY-boot-bind-test' }, async (s) => {
       const res = await fetch(`http://127.0.0.1:${s.port}/api/nope`, { method: 'POST', body: '{}' })
       expect(res.status).toBe(404)
     })
@@ -109,7 +109,7 @@ describe('the built server', () => {
   })
 
   it('does not print the key when it starts', async () => {
-    const key = 'sk-ant-boot-SECRET-9999'
+    const key = 'CANARY-boot-must-not-leak-9999'
     await withServer({ ANTHROPIC_API_KEY: key }, async (s) => {
       /* Evidence first: a process that crashed on boot also prints no key.
        * Require it to have actually started before believing the absence. */
@@ -121,7 +121,7 @@ describe('the built server', () => {
   it('warns when bound somewhere other than loopback', async () => {
     /* A process holding an API key should say so out loud if it is exposed. */
     await withServer(
-      { ANTHROPIC_API_KEY: 'sk-ant-boot-test', HOST: '0.0.0.0' },
+      { ANTHROPIC_API_KEY: 'CANARY-boot-bind-test', HOST: '0.0.0.0' },
       async (s) => {
         /* Evidence first: a process that died on boot also prints no WARNING,
          * and waiting for WARNING would then just time out. Require it to have

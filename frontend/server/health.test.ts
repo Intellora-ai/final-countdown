@@ -40,7 +40,7 @@ describe('GET /api/health', () => {
   })
 
   it('leaks no credential, path, or student, whatever it is holding', async () => {
-    const secret = 'sk-ant-health-SECRET-9999'
+    const secret = 'CANARY-health-must-not-leak-9999'
     const res = await createHandler({
       model, search, almanac: createLedger(memoryStore()), secrets: [secret],
     })(GET)

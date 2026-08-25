@@ -222,7 +222,7 @@ describe('routing and input limits', () => {
 })
 
 describe('the API key never leaves this process', () => {
-  const SENTINEL = 'sk-ant-SENTINEL-DO-NOT-LEAK-0000'
+  const SENTINEL = 'CANARY-handler-must-not-leak-0000'
 
   const everyRoute = [
     { method: 'POST', path: '/api/lesson', body: { concept: 'x' } },

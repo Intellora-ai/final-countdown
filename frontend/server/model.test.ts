@@ -25,7 +25,7 @@ import { describe, expect, it } from 'vitest'
 
 import { createModel } from './model.ts'
 
-const KEY = 'sk-ant-test-key-DO-NOT-LEAK'
+const KEY = 'CANARY-model-must-not-leak'
 
 const LESSON = {
   id: 'photosynthesis',

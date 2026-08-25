@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { boundaryFor, deliverable } from './wiring';
+import { admits, boundaryFor, deliverable } from './wiring';
 import { asChapterId, asSubjectId, asTopicId } from './engine/ids';
 import type { TopicProfile } from './engine/plan';
 import type { VerifiedQuestion } from './engine/types';
@@ -143,3 +143,92 @@ describe('a question only reaches the student if the boundary passes it', () => 
  * `figure.test.ts`, which asserts the figure survives the moment the text
  * withholds a quantity.
  */
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE ADMISSION GATE, ON THE REAL PATH.
+ *
+ * `boundary.ts` asks three questions and every one of them reads a field WE
+ * stamped: `question.topicId === boundary.topicId`, where both sides come from
+ * the same spec. On the generation path that comparison cannot fail, and
+ * measured, 12 of 12 nonsense questions passed it.
+ *
+ * `drift.ts` reads the question TEXT and asks a different question: of all the
+ * topics in this curriculum, is the requested one really the nearest? That is
+ * the check a stamp cannot satisfy by construction.
+ *
+ * Wired here so it runs before a question reaches a student, rather than
+ * becoming the fifth engine in this directory with green tests and no callers.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+describe('a question is admitted only if it belongs', () => {
+  const CURRICULUM = [
+    {
+      id: 'mathematics',
+      name: 'Mathematics',
+      chapters: [
+        {
+          id: 'algebra',
+          number: 1,
+          name: 'Algebra',
+          topics: [
+            { id: 'functions--graphs', name: 'Quadratic equations and the discriminant' },
+            { id: 'linear', name: 'Pair of linear equations by substitution' },
+          ],
+        },
+      ],
+    },
+  ] as never;
+
+  it('admits a question whose words match the topic it was made for', () => {
+    const question2 = question({
+      questionText: 'For which values of k does this quadratic equation have equal roots?',
+    } as Partial<VerifiedQuestion>);
+
+    expect(admits(question2, boundaryFor(PROFILE), CURRICULUM).ok).toBe(true);
+  });
+
+  it('refuses a question that belongs to a different topic', () => {
+    /*
+     * THE CASE EVERY EXISTING CHECK MISSES. Same subject, same chapter,
+     * correctly stamped with the session's topic id -- and it is a
+     * linear-equations question inside a quadratics session.
+     */
+    const wrong = question({
+      questionText: 'Solve the pair of linear equations by substitution: 2x + y = 7, x − y = 2.',
+    } as Partial<VerifiedQuestion>);
+
+    const admission = admits(wrong, boundaryFor(PROFILE), CURRICULUM);
+    expect(admission.ok).toBe(false);
+    /* The reason names the gate that fired, so a log reader is not left guessing. */
+    expect(admission.reason).toContain('drift');
+  });
+
+  it('still refuses what the boundary already refused', () => {
+    /*
+     * THE PAIR. Adding a drift check must not replace the id checks -- a
+     * question from a genuinely different topic id has to stay refused even if
+     * its wording happens to look right.
+     */
+    const foreign = question({
+      topicId: asTopicId('somewhere-else'),
+      questionText: 'For which values of k does this quadratic equation have equal roots?',
+    } as Partial<VerifiedQuestion>);
+
+    const admission = admits(foreign, boundaryFor(PROFILE), CURRICULUM);
+    expect(admission.ok).toBe(false);
+    expect(admission.reason).toContain('boundary');
+  });
+
+  it('admits when the curriculum is unknown, rather than refusing everything', () => {
+    /*
+     * FAILS OPEN. The drift gate needs a curriculum to compare against, and a
+     * caller that has none -- a test, a seeded session, a class whose data has
+     * not loaded -- must still get questions. Refusing here would make an
+     * absent centroid indistinguishable from a bad question.
+     */
+    const any = question({ questionText: 'Anything at all, really.' } as Partial<VerifiedQuestion>);
+
+    expect(admits(any, boundaryFor(PROFILE), []).ok).toBe(true);
+  });
+});

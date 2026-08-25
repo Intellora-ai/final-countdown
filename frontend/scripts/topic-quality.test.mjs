@@ -440,3 +440,54 @@ describe('a label with a hyphen is still a label', () => {
     }
   });
 });
+
+/*
+ * `● If there were no friction` — found by the drift gate, not by reading a
+ * diff. A statistics question scored nearest to that topic, which is how a
+ * topic that names nothing announces itself: it attracts anything.
+ *
+ * Two things are wrong with it and only one was already covered. It opens with
+ * a BULLET CHARACTER, which no heading does -- a heading that still carries its
+ * list marker was lifted out of a list, and the words after the marker are a
+ * list item rather than a title. `If` then makes it a conditional clause, which
+ * is a sentence fragment by construction: a heading names a thing, and "if X"
+ * names nothing until the other half arrives.
+ */
+describe('a heading that is still wearing its bullet', () => {
+  it('rejects a line that opens with a list marker', () => {
+    for (const name of [
+      '● If there were no friction',
+      '• Types of chemical reactions',
+      '- Newtons second law',
+      '· Sum of the angles',
+      '*  Area of a triangle',
+    ]) {
+      expect(reasonsUnusable(name), name).toContain('list-marker');
+    }
+  });
+
+  it('keeps a heading that merely contains punctuation', () => {
+    /*
+     * THE PAIR. A rule that rejected every bullet-like character anywhere would
+     * delete real headings -- a hyphen inside a word, a middle dot in a
+     * chemical name -- and the marker only means anything at the START.
+     */
+    for (const name of [
+      'Half-life of a radioactive sample',
+      'p-Block elements',
+      'Sum of the angles of a triangle',
+    ]) {
+      expect(reasonsUnusable(name), name).toEqual([]);
+    }
+  });
+
+  it('rejects a conditional clause used as a heading', () => {
+    /*
+     * "If there were no friction" is half a sentence. A heading names a thing;
+     * a conditional names nothing until its consequence arrives, and the
+     * consequence was on the line the extractor did not take.
+     */
+    expect(reasonsUnusable('If there were no friction')).toContain('continuation');
+    expect(reasonsUnusable('When a body is at rest')).toContain('continuation');
+  });
+});

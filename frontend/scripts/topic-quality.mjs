@@ -49,9 +49,32 @@
  * structural rather than another list entry. A connective is different again:
  * no heading has ever begun `And ...`, so those match in either case.
  */
+/*
+ * `if` and `when` open a CONDITIONAL, which is a fragment by construction: a
+ * heading names a thing, and "if X" names nothing until its consequence
+ * arrives -- and the consequence was on the line the extractor did not take.
+ * Found as `● If there were no friction`, a real topic in the class 10 data.
+ *
+ * Case-sensitive like the rest of this list, because "When Motion Is Uniform"
+ * capitalised is a heading style some syllabuses genuinely use.
+ */
 const DETERMINER = '(?:the|a|an|its|their|which|where|when|that|this|these|those|such|it|he|she|they)'
 
-const CONNECTIVE = '(?:for|in|with|including|and|or|but|of|as|at|by|from|we|you|us|let|e\\.g\\.?|i\\.e\\.?|etc)'
+/*
+ * `if` and `when` sit here rather than with the determiners, and the difference
+ * is CASE SENSITIVITY.
+ *
+ * A capitalised determiner opens a great many real headings -- "The Solid
+ * State", "A Note on Notation" -- which is why those match only in lower case.
+ * A conditional does not: "If there were no friction" is half a sentence
+ * whatever its capitalisation, because a heading names a thing and a condition
+ * names nothing until its consequence arrives. That consequence was on the line
+ * the extractor did not take.
+ *
+ * Found as `● If there were no friction`, a real topic in the class 10 data,
+ * surfaced by the drift gate rather than by reading a diff.
+ */
+const CONNECTIVE = '(?:for|in|with|including|and|or|but|of|as|at|by|from|we|you|us|let|if|when|e\\.g\\.?|i\\.e\\.?|etc)'
 
 /**
  * Bare imperatives — an instruction to a teacher or a student, not a scope.
@@ -152,6 +175,22 @@ const RULES = [
 
   /* Two bare numbers at the end is the marks column of a syllabus table. */
   ['marks-row', (t) => /\b\d+\s+\d+\s*$/.test(t)],
+
+  /*
+   * A heading still wearing its list marker.
+   *
+   * Found by the topic-drift gate rather than by reading a diff: a statistics
+   * question scored nearest to `● If there were no friction`, which is how a
+   * topic that names nothing announces itself -- it attracts anything.
+   *
+   * No heading opens with a bullet. A line that does was lifted out of a list,
+   * and what follows the marker is a list ITEM rather than a title.
+   *
+   * ANCHORED TO THE START, and only the start. A hyphen inside a word and a
+   * middle dot inside a chemical name are ordinary punctuation; the marker
+   * means something only where a marker goes.
+   */
+  ['list-marker', (t) => /^[\u2022\u25cf\u25aa\u00b7*\u2013\u2014-]\s*/.test(t)],
 
   /*
    * A heading that stops mid-reach.

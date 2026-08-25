@@ -174,6 +174,78 @@ export function used() { return 2 }
     expect(dead).toEqual(['helper', 'stranded'])
   })
 
+  /* `export default` was invisible to this gate.
+
+     DECL_RE requires a declaration keyword straight after `export`, and
+     `default` is not one of them, so `export default function x() {}` produced
+     no symbol at all -- not a live one, not a dead one. A genuinely dead
+     default export was planted in a reachable file and the gate answered
+     `orphans: [] dead: [] warnings: []` and PASS. Seven shipping files in
+     src/ use `export default`, so this was not a corner.
+
+     The import side already speaks the right vocabulary: `parseClause` records
+     a default import under the name `default`. Only the export side was
+     missing, which is why the two never met. */
+
+  it('calls a DEAD default export dead', () => {
+    const area = fixture({
+      'entry.ts': `import { used } from './m'\nexport const go = used\n`,
+      'm.ts': `export function used() { return 2 }
+export default function nobodyImportsThis() { return 1 }
+`,
+    })
+    const dead = analyze(area).deadExports.map((d) => d.name)
+    expect(dead).toEqual(['default'])
+  })
+
+  it('calls a default export LIVE when another module imports it', () => {
+    /* The PAIR. Without it, reporting every default export as dead would
+       satisfy the test above, and seven real files would light up red. */
+    const area = fixture({
+      'entry.ts': `import thing from './m'\nexport const go = thing\n`,
+      'm.ts': `export default function whateverItIsCalled() { return 1 }\n`,
+    })
+    expect(analyze(area).deadExports).toEqual([])
+  })
+
+  it('does not treat the declared name of a default export as importable', () => {
+    /* A default export is imported under whatever name the importer chooses,
+       so its declared name is NOT an export anyone can ask for. Marking
+       `whateverItIsCalled` as an exported name would report it dead on every
+       file that uses `export default`, which is the cry-wolf direction. */
+    const area = fixture({
+      'entry.ts': `import thing from './m'\nexport const go = thing\n`,
+      'm.ts': `export default function whateverItIsCalled() { return 1 }\n`,
+    })
+    const dead = analyze(area).deadExports.map((d) => d.name)
+    expect(dead).not.toContain('whateverItIsCalled')
+  })
+
+  it('calls a default export dead even when a live comment says the word "default"', () => {
+    /* CAUGHT BY THE TWO-WAY PROOF, NOT BY THE FIXTURES.
+
+       Naming the symbol `default` made it collide with an ordinary English
+       word. Propagation resurrects a symbol whose name matches `\bname\b`
+       anywhere in a live symbol's span, so one live function whose COMMENT
+       read "falls to the `conversation` default" was enough to mark the
+       default export live. The unit fixtures passed and the same plant in
+       `src/agent/communicate/communicate.ts` still sailed through the real
+       gate.
+
+       `default` is not an identifier anyone can write to reach that export --
+       an importer binds it to a name of their own choosing. So it can be
+       SEEDED by a real default import and must never be reached by text. */
+    const area = fixture({
+      'entry.ts': `import { used } from './m'\nexport const go = used\n`,
+      'm.ts': `/* falls back to the conversation default when nothing matches */
+export function used() { return 2 }
+export default function nobodyImportsThis() { return 1 }
+`,
+    })
+    const dead = analyze(area).deadExports.map((d) => d.name)
+    expect(dead).toEqual(['default'])
+  })
+
   it('treats a star import as consuming everything', () => {
     const area = fixture({
       'entry.ts': `import * as m from './m'\nexport const go = m\n`,

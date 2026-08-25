@@ -630,3 +630,46 @@ must_contain = [
 ]
 evidence = "GitHub Actions artifact sandbox-verification-bundle-<source-sha>"
 artifact = ""
+
+# ==========================================================================
+# [advisory] --- jobs that run, report a verdict, and cannot block a merge.
+#
+# Check 9b in scripts/gate_integrity.py walks disk -> manifest and refuses any
+# job that is neither a required check nor listed here with a reason. Check 9
+# walks manifest -> manifest ("the manifest agrees with itself"), so before 9b
+# existed a job in neither side was invisible rather than failing: fourteen of
+# them ran for months while the gate printed `17 required, 17 mandatory: PASS`.
+#
+# This is an ALLOWLIST. A job nobody has classified is refused, so the next
+# workflow anyone adds must be either required or written off on purpose.
+#
+# THE REASON IS THE POINT. An exemption nobody has to justify is an exemption
+# everybody takes. Two kinds of entry live here and they are not the same
+# thing, so each says which it is:
+#   DELIBERATE --- it should not block, and here is why.
+#   DEBT       --- it SHOULD block and does not yet. That is a defect with a
+#                  reason recorded, not a decision that has been made.
+# ==========================================================================
+[advisory]
+
+"ai-review.yml::ai-review" = "DELIBERATE. Review commentary, not a verdict. It also cannot pass today -- the credential is dead and 0 of 36 reviews have run (issue #93) -- so requiring it would block every merge in the repository."
+
+"annotation-canary.yml::emit" = "DELIBERATE. A canary. It runs on schedule and push as well as pull_request, and exists to notice annotation rendering breaking, not to judge a change."
+"annotation-canary.yml::verify" = "DELIBERATE. The other half of the canary above."
+
+"ci-findings.yml::reconcile" = "DELIBERATE. Triggered by workflow_run, so it starts only after another workflow has finished. A required check cannot be satisfied by a job that runs after the run it reports on."
+
+"deep-verify.yml::gate" = "DELIBERATE. Deep verification is also workflow_dispatch and is heavier than a per-PR gate. verify.yml carries the blocking checks."
+"deep-verify.yml::deep-verify" = "DELIBERATE. The lane behind the gate above."
+
+"codeql.yml::codeql-javascript-typescript" = "DEBT. codeql-python and codeql-actions ARE required and this one is not, which is an inconsistency rather than a decision. The aggregate `CodeQL` context is required, so JavaScript findings are not wholly unguarded, but the per-language job should match its two siblings."
+
+"learning-canvas-frontend.yml::frontend" = "DEBT. This is the P0 that check 9b was written to expose. The mutation gate, the reachability gate, the bundle budget and the lint over four directories all run in this job and none of them can fail a merge."
+"learning-canvas-frontend.yml::frontend-mutation" = "DEBT. The mutation gate. It runs, it reports, it blocks nothing."
+"learning-canvas-frontend.yml::frontend-scenes" = "DEBT. Roughly 290 browser tests across sharded matrix jobs. They run, they report, they block nothing."
+"learning-canvas-frontend.yml::frontend-verdict" = "DEBT. The job that aggregates the three above into one verdict, which is the context that would be required once the ruleset is updated."
+
+"learning-os.yml::learning-os" = "DELIBERATE for now. learning-os v1 is an unmerged draft (PR #48, marked DRAFT -- do not merge). Requiring a draft subsystem would block unrelated work."
+"learning-os.yml::deployed-layout" = "DELIBERATE for now. Same draft subsystem as above."
+
+"verify.yml::merge-evidence" = "DEBT. It checks the PR's measured claims against the run's evidence, which is exactly the kind of thing that should be able to fail a merge. It runs `if: always()` after `full` on pull_request only and is not a required check."

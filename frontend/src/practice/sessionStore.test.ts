@@ -23,11 +23,11 @@ const PROFILE: TopicProfile = {
   chapterId: 'mechanics',
   quantitative: 0.8,
   concepts: [
-    { id: 'moment-of-inertia', name: 'Moment of inertia', numeric: true, prerequisites: ['mass'], commonMisconception: 'treats it as mass' },
-    { id: 'angular-momentum', name: 'Angular momentum', numeric: true, prerequisites: [], commonMisconception: 'ignores the axis' },
-    { id: 'torque', name: 'Torque', numeric: true, prerequisites: ['force'], commonMisconception: 'ignores the lever arm' },
-    { id: 'rolling', name: 'Rolling', numeric: true, prerequisites: [], commonMisconception: 'adds the speeds' },
-    { id: 'rotational-ke', name: 'Rotational KE', numeric: true, prerequisites: [], commonMisconception: 'forgets the half' },
+    { id: 'moment-of-inertia', name: 'Moment of inertia', topicId: 'rotational-motion', numeric: true, prerequisites: ['mass'], commonMisconception: 'treats it as mass' },
+    { id: 'angular-momentum', name: 'Angular momentum', topicId: 'rotational-motion', numeric: true, prerequisites: [], commonMisconception: 'ignores the axis' },
+    { id: 'torque', name: 'Torque', topicId: 'rotational-motion', numeric: true, prerequisites: ['force'], commonMisconception: 'ignores the lever arm' },
+    { id: 'rolling', name: 'Rolling', topicId: 'rotational-motion', numeric: true, prerequisites: [], commonMisconception: 'adds the speeds' },
+    { id: 'rotational-ke', name: 'Rotational KE', topicId: 'rotational-motion', numeric: true, prerequisites: [], commonMisconception: 'forgets the half' },
   ],
 };
 

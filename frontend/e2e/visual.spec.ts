@@ -137,3 +137,113 @@ test.describe('the acceptance lessons render without regressing', () => {
     ).not.toBe(physics)
   })
 })
+
+/**
+ * P12-T5 — under reduced motion the simulation must HOLD STILL.
+ *
+ * WHY THIS EXISTS, MEASURED RATHER THAN SUPPOSED
+ * ----------------------------------------------
+ * The first CI run of the baselines above failed on `gas` and only on `gas`:
+ * two captures of the SAME commit on the SAME runner differed by ~14,000
+ * pixels, a ratio of 0.01 -- five times `MAX_DIFF_RATIO`. `bill` and `ml` wrote
+ * their images on the first attempt and never disagreed.
+ *
+ * The differing pixels were confined to a single rectangle, x 106..694 by
+ * y 375..821, and every pixel outside it was identical. That rectangle is the
+ * simulation surface.
+ *
+ * Two hypotheses were tested and one was refuted by measurement:
+ *
+ *   REFUTED  the lazy 3D scene had not finished loading, so one attempt caught
+ *            the Suspense fallback. Both crops are fully rendered scenes --
+ *            161 and 163 unique grey levels, means 30.0 and 30.2, standard
+ *            deviations 27.0 and 27.1. A caption on a flat panel does not look
+ *            like that.
+ *   STANDS   the scene is still animating despite `prefers-reduced-motion`.
+ *
+ * SO THIS IS NOT A TEST PROBLEM
+ * -----------------------------
+ * `usePrefersReducedMotion` gates both surfaces and `reducedMotion: 'reduce'`
+ * is set on this project, so a reader who asked the system to stop moving
+ * things is being ignored. That is an accessibility defect that happens to
+ * surface as a flaky screenshot. Committing a `gas` baseline without fixing it
+ * would bake a permanently red gate into the pipeline and teach the next person
+ * to regenerate baselines without looking -- the exact failure `visual-review.md`
+ * is written to prevent.
+ *
+ * WAITING ON FRAMES, NOT ON THE CLOCK
+ * -----------------------------------
+ * The gap between the two captures is a number of ANIMATION FRAMES. A frame is
+ * the unit the thing under test actually advances in, and it is why this file
+ * carries no `waitForTimeout`: a duration would be a race dressed up as a
+ * measurement.
+ */
+async function passFrames(page: Page, count: number): Promise<void> {
+  for (let i = 0; i < count; i += 1) {
+    await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => r())))
+  }
+}
+
+/** The drawn surface of the gas lesson, whichever renderer produced it. */
+function surfaceOf(page: Page) {
+  return page.locator('main canvas, main svg[role="img"]').first()
+}
+
+async function openPhysics(page: Page): Promise<void> {
+  await page.goto('/#/canvas')
+  await page.waitForLoadState('networkidle')
+  await canvasReady(page)
+  const button = page.getByRole('button', { name: 'Physics', exact: true })
+  await button.click()
+  await expect(button).toHaveAttribute('aria-pressed', 'true')
+  await page.waitForLoadState('networkidle')
+}
+
+test.describe('reduced motion holds the simulation still', () => {
+  test('the gas surface is identical across frames', async ({ page }) => {
+    await openPhysics(page)
+    const surface = surfaceOf(page)
+    await expect(surface).toBeVisible()
+
+    const before = await surface.screenshot()
+    await passFrames(page, 30)
+    const after = await surface.screenshot()
+
+    expect(
+      after.equals(before),
+      'The simulation surface changed across 30 animation frames while ' +
+        'prefers-reduced-motion is set. A reader who asked the system to stop ' +
+        'moving things is being ignored, and every screenshot baseline of this ' +
+        'lesson is unreproducible.',
+    ).toBe(true)
+  })
+
+  test('and it DOES move when motion is allowed', async ({ browser, baseURL }) => {
+    /*
+     * The PAIR. "Identical across frames" is satisfied completely by a surface
+     * that renders nothing, by a locator that matches an empty element, and by
+     * a screenshot helper that returns the same buffer twice. Without this half
+     * the test above proves only that something did not change, which is also
+     * what a broken measurement looks like.
+     */
+    const context = await browser.newContext({ reducedMotion: 'no-preference', baseURL })
+    const page = await context.newPage()
+    try {
+      await openPhysics(page)
+      const surface = surfaceOf(page)
+      await expect(surface).toBeVisible()
+
+      const before = await surface.screenshot()
+      await passFrames(page, 30)
+      const after = await surface.screenshot()
+
+      expect(
+        after.equals(before),
+        'The surface did not change over 30 frames with motion allowed, so ' +
+          'the stillness test above is measuring nothing.',
+      ).toBe(false)
+    } finally {
+      await context.close()
+    }
+  })
+})

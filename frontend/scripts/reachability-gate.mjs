@@ -80,112 +80,52 @@ export const MANIFEST = [
        exports are the shared vocabulary rather than callable behaviour. */
     entries: ['src/agent/index.ts', 'src/agent/kernel/contracts.ts'],
   },
-  /* `src/websearch` IS DELIBERATELY NOT DECLARED, AND THAT IS NOT MINE TO
-     REVERSE MID-MERGE.
-
-     Declaring it was tried here and the gate reported, truthfully:
-
-       [websearch] 25/25 source files reachable from entry points
-         ORPHAN src/websearch/bench.ts
-         ORPHAN src/websearch/evalReport.ts
-         DEAD   src/websearch/provenance.ts exports MAX_ORIGINS
-
-     All three are already documented as deliberate in `engine.ts`: "evalReport
-     is reached only by evalGate.test.ts, deliberately", and "provenance exports
-     a MAX_ORIGINS nothing but its own test imports". That is a parked decision
-     by the author of that area, not a discovery of mine, and silently
-     overriding somebody's recorded judgement to make a merge go green is the
-     opposite of what this gate exists for.
-
-     The measurement is written down so the next person inherits the finding
-     rather than the silence. When it is picked up, `webSearchClient.ts` needs
-     declaring as a third entry: `App.tsx` reaches it by dynamic import, an edge
-     that starts OUTSIDE the area and that no entry list inside it can find. */
   {
-      name: 'server',
-      root: 'server',
-      /* `index.ts` is the process. Everything else in here has to be reachable
-         from the thing that actually boots.
+    name: 'websearch',
+    root: 'src/websearch',
+    /* FOUR ENTRIES, AND THE FOURTH IS THE INTERESTING ONE.
 
-         This area was added because the gate could not see it: `handler.ts`
-         imports `citationSupports` from `src/websearch`, and the gate went on
-         reporting that export DEAD because `server/` was not a scanned area and
-         so was not a "shipping file" to it. An importer the gate cannot see is
-         indistinguishable from no importer at all.
+       `index.ts` is the doorway `src/tutor/TutorView.tsx` imports. `port.ts`
+       is the shared vocabulary, listed for the same reason `agent` lists
+       `contracts.ts`: a type-only module is legitimately imported for its types
+       from outside. `bench.ts` is the offline benchmark's surface.
 
-         `node.d.ts` is an ambient declaration file with no runtime existence,
-         listed for the same reason `websearch` lists its own. */
-      /* `node.d.ts` is NOT listed. This gate collects `.ts`/`.tsx` only, so an
-         ambient declaration is not part of an area at all -- naming one as an
-         entry asks the gate to find a file it never collected. */
-      /* Never imported by the browser, on purpose: it holds the API key, and
-         the secret-exposure gate refuses any `src/` -> `server/` import. So the
-         product-reachability question does not apply to it. */
-      shipsToBrowser: false,
-      entries: ['server/index.ts'],
-    },
-  /* -----------------------------------------------------------------------
-     `src/websearch` IS NOT DECLARED HERE YET, AND THAT IS A MEASURED RESULT
-     RATHER THAN AN OVERSIGHT. THIS BLOCK IS THE EVIDENCE, NOT A TODO.
-     -----------------------------------------------------------------------
-     This branch added the doorway --- `src/websearch/index.ts`, exporting
-     `searchPort` and `researchPort`, imported by `src/tutor/TutorView.tsx` ---
-     and declared the area with entries `index.ts`, `bench.ts` and `port.ts`.
-     On this branch alone that configuration passed. Merged with `main` it does
-     not, and the honest move is to record WHY rather than to reshape the
-     declaration until the number goes green. Measured output of
-     `npm run gate:reachability` with the entry restored:
+       `webSearchClient.ts` is here because `src/App.tsx:57` does
+       `import('./websearch/webSearchClient').then((m) => m.searchTheWeb(...))`.
+       That edge STARTS OUTSIDE this area, and an area walk begins at the
+       area's own entries, so no arrangement of the other three can express it.
+       Something outside the area calls it, which is this MANIFEST's own
+       definition of a public surface. `wikipedia.ts` follows from it by a lazy
+       `import('./wikipedia')` at `webSearchClient.ts:372`.
 
-       [websearch] 21/24 source files reachable from entry points
-         ORPHAN src/websearch/evalReport.ts
-         ORPHAN src/websearch/webSearchClient.ts
-         ORPHAN src/websearch/wikipedia.ts
-         DEAD   src/websearch/provenance.ts exports MAX_ORIGINS
+       This block was withheld once, deliberately, and the comment that stood
+       here recorded why: declaring the area then reported three orphans and a
+       dead export, and adding entries until the number went green would have
+       cleared the two findings that were artefacts while hiding the two that
+       were real. Both real ones are now fixed rather than reclassified —
+       `evalReport.evaluate()` is called by `formatReport`, and `MAX_ORIGINS`
+       is imported by `webSearchClient.ts` instead of being shadowed by a
+       private copy of the same list. */
+    entries: [
+      'src/websearch/index.ts',
+      'src/websearch/port.ts',
+      'src/websearch/bench.ts',
+      'src/websearch/webSearchClient.ts',
+    ],
+  },
+  {
+    name: 'server',
+    root: 'server',
+    /* A FIFTH AREA, and deliberately outside `src/`. It holds the API key and
+       never ships to the browser -- the secret-exposure gate refuses any
+       `src/` -> `server/` import outright.
 
-     Those four are three different problems, and only one of them is this
-     branch's to solve:
-
-     1. `webSearchClient.ts` IS REACHED, AND THE GATE CANNOT SEE IT. `App.tsx`
-        does `import('./websearch/webSearchClient').then((m) => m.searchTheWeb(...))`.
-        That edge starts OUTSIDE `src/websearch`, and an area walk begins at the
-        area's own declared entries, so no entry list can express it.
-        `wikipedia.ts` follows it: `webSearchClient.ts` reaches it by a dynamic
-        `import('./wikipedia')`, so it is orphaned only because its parent is.
-        Declaring `webSearchClient.ts` as a third entry would clear both, and
-        would even be defensible --- something outside the area does call it,
-        which is this MANIFEST's own definition of a surface. It is left out
-        because it would clear the two failures that are NOT real while leaving
-        the two that are, which is the worst of both.
-
-     2. `evalReport.ts` IS REACHED ONLY BY TEST FILES, BY DESIGN. Its consumer
-        is `evalGate.test.ts`, whose own header argues the case: a `.mjs` script
-        cannot import TypeScript here, so the eval gate is written as a test and
-        run by `npm run gate:eval`. This gate's central rule is that TEST FILES
-        ARE NOT EDGES --- that rule is the reason it caught `execute.ts` and
-        `world.ts` at all. So `main` deliberately built a module this gate must
-        deliberately call an orphan. Both decisions are defensible and they
-        contradict, and no wording of an entry list dissolves that.
-
-     3. `provenance.ts` EXPORTS `MAX_ORIGINS`, WHICH NOTHING BUT ITS OWN TEST
-        IMPORTS. That is a genuine dead export in `main`, and exactly the
-        subtler bug §2 of this file's header describes. It is a real finding.
-
-     WHAT WAS NOT DONE, AND WHY. Adding `evalReport.ts` as an "entry" would be
-     the fudge this file's own header warns about: an entry is a PUBLIC SURFACE
-     something outside the area calls, and a test is not that. Re-exporting it
-     from `index.ts` would ship the eval harness to every learner's browser --
-     the metric improves, the product gets worse. Relaxing "test files are not
-     edges" would delete the gate's reason to exist. Deleting `MAX_ORIGINS`
-     inside a merge would be unreviewed product surgery on someone else's
-     branch. Each of those makes the red go away without changing what is
-     wrong, which is the one thing this repository forbids outright.
-
-     TO FINISH IT, two things have to be true, and neither is a gate edit:
-     `evalReport.evaluate()` needs a non-test caller (`bench.ts` is the obvious
-     one --- it already runs the corpus and has nothing that applies the
-     floors), and `MAX_ORIGINS` needs a real consumer or removal. When both
-     hold, restore the block above and delete this comment.
-     ----------------------------------------------------------------------- */
+       `node.d.ts` is NOT an entry: this gate collects `.ts`/`.tsx` only, so an
+       ambient declaration is not part of an area at all, and naming one asks
+       the gate to find a file it never collected. */
+    shipsToBrowser: false,
+    entries: ['server/index.ts'],
+  },
 ]
 
 /* -------------------------------------------------------------------------- */
@@ -932,8 +872,19 @@ export function report(results, { productReachability = null } = {}) {
   let failed = false
 
   for (const r of results) {
-    const sources = r.files.filter((f) => !isTestFile(f)).length
-    lines.push(`[${r.area}] ${r.reached.length}/${sources} source files reachable from entry points`)
+    const sources = r.files.filter((f) => !isTestFile(f))
+    /* Both halves of this ratio must count the SAME SET, and they did not.
+       `reached` holds every file the walk arrived at, cross-area imports
+       included, so an area that imports anything from outside itself printed a
+       numerator bigger than its denominator --- `[server] 15/8` was real.
+
+       Worse than untidy: while the numerator carried outside files, the ratio
+       could not fall below 100% for such an area, so an area WITH an orphan
+       still read as complete. Intersecting with the area's own source files is
+       what lets the number say something is wrong. */
+    const inArea = new Set(sources)
+    const reachedHere = r.reached.filter((f) => inArea.has(f)).length
+    lines.push(`[${r.area}] ${reachedHere}/${sources.length} source files reachable from entry points`)
 
     for (const w of r.warnings) {
       failed = true

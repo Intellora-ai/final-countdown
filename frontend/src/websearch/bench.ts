@@ -31,6 +31,7 @@ import { fixtureProvider, jsonProvider } from './engine'
 import { nearestRank as percentile } from './latency'
 import { citationSupports } from './quality'
 import { grade, type Expectation, type Grade } from './accuracy'
+import { evaluate, FLOORS } from './evalReport'
 import type { Answer } from './answer'
 import type { SearchHit } from './port'
 
@@ -122,6 +123,22 @@ export function formatReport(report: CorpusReport): string {
     + `  p50=${show(percentile(independent, 50))}`
     + `  p90=${show(percentile(independent, 90))}`,
   )
+
+  /* THE VERDICT, NOT ONLY THE MEASUREMENTS.
+     Everything above is a number with no stated expectation, which asks the
+     reader to compare against floors they cannot see. `evalReport` holds those
+     floors and the sentence-per-breach; until this call its only consumer was
+     `evalGate.test.ts`, so the module that knew what "good" meant was reachable
+     from nothing that ships.
+     The `met` line is not decoration. Printing only breaches is indistinguishable
+     from printing nothing when a run is healthy, and a silent gate is the one
+     failure mode this repository keeps finding. */
+  const verdict = evaluate(report, FLOORS)
+  if (verdict.ok) {
+    lines.push('  floors: met')
+  } else {
+    for (const failure of verdict.failures) lines.push(`  FLOOR  ${failure}`)
+  }
   return lines.join('\n')
 }
 

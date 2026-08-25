@@ -32,12 +32,24 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { TodayView, localDate } from './TodayView'
 import { store } from '../data/store'
 import { loadPlannedSubjects } from '../almanac/curriculum'
+import CURRICULUM_MODULE from '../data/curriculum'
+const CURRICULUM_CLASSES = CURRICULUM_MODULE.classes
 import type { SubjectLike } from '../almanac/resolve'
 import type { AlmanacClient, DayPlan, PlannedItem } from '../almanac/client'
 import type { DB } from '../types'
 
 const STUDENT_ID = 'stu_test'
 const TODAY = '2026-08-25'
+
+/* THE CLASS VALUE THE SETUP SCREEN ACTUALLY WRITES, taken from the constant it
+ * maps over rather than typed here.
+ *
+ * This file used to seed `'9'`. Nothing in the application produces that:
+ * `SetupFlow` writes "Class 9". So `Number(student.cls)` was `NaN`, the
+ * dashboard said "Choose a class first" to every real student, and every test
+ * in this file passed. A fixture that does not match reality is a test that
+ * proves the code works on the fixture. */
+const REAL_CLASS = CURRICULUM_CLASSES[0]
 
 /** Real ids out of the real curriculum, so resolution is genuinely exercised
  *  -- hard-coded ids would pass against a resolver that echoes its input.
@@ -96,12 +108,12 @@ beforeAll(async () => {
   /* The GENERATED curriculum, which is what Almanac plans from. Seeding the
    * student from the dashboard's older module would give them subject ids the
    * planner has never heard of -- `physics` in class 9, for one. */
-  PLANNED = await loadPlannedSubjects('9')
+  PLANNED = await loadPlannedSubjects(REAL_CLASS)
   const subjects = PLANNED.slice(0, 2).map((s) => s.id)
   const db: DB = {
     students: {
       [STUDENT_ID]: {
-        id: STUDENT_ID, name: 'Test', avatarHue: 0, cls: '9', stream: null,
+        id: STUDENT_ID, name: 'Test', avatarHue: 0, cls: REAL_CLASS, stream: null,
         subjects, minutes: 120, deadlines: {}, createdAt: 0, lastActiveAt: 0,
       },
     },

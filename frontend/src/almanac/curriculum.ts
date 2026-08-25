@@ -23,6 +23,7 @@
  */
 
 import type { SubjectLike } from './resolve'
+import { schoolClassOf } from './school-class'
 
 /** Classes the generated curriculum covers. Strings, because that is how a
  *  student record stores `cls`. */
@@ -30,9 +31,9 @@ export const SUPPORTED_CLASSES = ['9', '10', '11', '12'] as const
 
 export type SupportedClass = (typeof SUPPORTED_CLASSES)[number]
 
-function isSupported(cls: string | null): cls is SupportedClass {
-  return cls !== null && (SUPPORTED_CLASSES as readonly string[]).includes(cls)
-}
+/* Reads the form a student record ACTUALLY stores. Comparing against
+ * ['9','10','11','12'] returned nothing for every real student, because setup
+ * writes "Class 9". */
 
 /**
  * The subjects Almanac can plan for this class, or `[]` when it plans none.
@@ -43,20 +44,21 @@ function isSupported(cls: string | null): cls is SupportedClass {
  * lookup came back short.
  */
 export async function loadPlannedSubjects(cls: string | null): Promise<readonly SubjectLike[]> {
-  if (!isSupported(cls)) return []
+  const number = schoolClassOf(cls)
+  if (number === null) return []
 
   /* Written as a switch of literal specifiers rather than a template string.
    * A computed import path defeats the bundler's static analysis: Vite would
    * either fail to create the chunks or glob the whole directory back into
    * one, which is the cost this file exists to avoid. */
-  switch (cls) {
-    case '9':
+  switch (number) {
+    case 9:
       return (await import('../data/curriculum/class9')).CLASS_9 as readonly SubjectLike[]
-    case '10':
+    case 10:
       return (await import('../data/curriculum/class10')).CLASS_10 as readonly SubjectLike[]
-    case '11':
+    case 11:
       return (await import('../data/curriculum/class11')).CLASS_11 as readonly SubjectLike[]
-    case '12':
+    case 12:
       return (await import('../data/curriculum/class12')).CLASS_12 as readonly SubjectLike[]
   }
 }

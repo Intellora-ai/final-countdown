@@ -14,6 +14,8 @@
  *   the server is down.
  */
 
+import { schoolClassOf } from './school-class'
+
 /** One thing to study. `carriedFrom` present means it is backlog: it first
  *  appeared on an earlier day and was never marked done. */
 export interface PlannedItem {
@@ -83,9 +85,8 @@ type FetchLike = (url: string, init: { method: string; headers: Record<string, s
 
 const UNREACHABLE = 'the planner could not be reached'
 
-/** Classes Almanac has curriculum for. Mirrors SUPPORTED_CLASSES on the
- *  server; the contract test proves they still agree. */
-const SUPPORTED_CLASSES = [9, 10, 11, 12]
+/* Classes Almanac has curriculum for live in `school-class.ts`, alongside the
+ * reader that understands the form a student record ACTUALLY stores. */
 
 /** Used when a student finished setup without choosing a daily budget. Two
  *  hours is the same default the dashboard already shows. */
@@ -286,8 +287,11 @@ export function dayRequestFor(
   student: StudentLike,
   date: string,
 ): { ok: true; request: DayRequest } | { ok: false; reason: string } {
-  const schoolClass = Number(student.cls)
-  if (student.cls === null || student.cls === '' || !SUPPORTED_CLASSES.includes(schoolClass)) {
+  /* NOT `Number(student.cls)`. Setup stores "Class 9", so that produced `NaN`
+   * and refused to plan for every real student, while every test passed on a
+   * fixture that said "9". */
+  const schoolClass = schoolClassOf(student.cls)
+  if (schoolClass === null) {
     return { ok: false, reason: 'Choose a class first — Almanac plans for classes 9 to 12.' }
   }
   if (student.subjects.length === 0) {

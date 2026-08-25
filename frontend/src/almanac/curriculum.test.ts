@@ -57,13 +57,37 @@ describe('loading the curriculum Almanac plans from', () => {
   })
 
   it('answers an unsupported class with nothing, not a crash', async () => {
-    /* A student record can hold anything a past version of setup wrote. */
-    for (const cls of ['8', '13', '', 'Class 9', null]) {
+    /* EXPECTED VALUE CORRECTED, AND THE CORRECTION IS THE POINT.
+     *
+     * This list used to contain "Class 9", asserting that it returned nothing.
+     * That was asserting the DEFECT: `SetupFlow` writes exactly "Class 9", so
+     * the check was pinning the behaviour that made the product dead for every
+     * real student. The application's own constant is the evidence.
+     *
+     * What remains here are classes Almanac genuinely has no curriculum for. */
+    for (const cls of ['8', '13', '', 'Class 8', 'Class 13', null]) {
       expect(await loadPlannedSubjects(cls), `class ${JSON.stringify(cls)}`).toEqual([])
+    }
+  })
+
+  it('loads for the class SETUP ACTUALLY WRITES, not a shape the tests invented', async () => {
+    /* Sourced from the constant the setup screen maps over, so renaming the
+     * option breaks this check rather than the product. */
+    const { default: CURRICULUM } = await import('../data/curriculum')
+    expect(CURRICULUM.classes.length).toBeGreaterThan(0)
+
+    for (const option of CURRICULUM.classes) {
+      const subjects = await loadPlannedSubjects(option)
+      expect(subjects.length, `setup offers "${option}" and it loads no curriculum`).toBeGreaterThan(0)
     }
   })
 
   it('names the classes it supports, and they are the four that exist', () => {
     expect([...SUPPORTED_CLASSES]).toEqual(['9', '10', '11', '12'])
+  })
+
+  it('still loads for a bare number, which older records hold', async () => {
+    /* A student set up before the fix has "9" on their device. */
+    expect((await loadPlannedSubjects('9')).length).toBeGreaterThan(0)
   })
 })

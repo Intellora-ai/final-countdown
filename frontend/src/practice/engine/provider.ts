@@ -1,3 +1,4 @@
+import { figureFor } from './figure'
 import type {
   CandidateQuestion,
   OptionKey,
@@ -274,6 +275,12 @@ function sound(spec: QuestionSpec, attempt: number): CandidateQuestion {
     fullSolution: template.solve(vars, round(answer)),
     generationSource: 'fixture-v1',
     computation,
+    /*
+     * Built from `computation`, which is the same object the question text and
+     * the verifier both read. There is no path here that can put a number on
+     * screen that the question does not use.
+     */
+    figure: figureFor(spec, computation),
   };
 }
 

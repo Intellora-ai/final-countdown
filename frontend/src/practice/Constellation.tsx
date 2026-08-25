@@ -12,6 +12,7 @@ import type { Subject } from './curriculum'
 import { useExamChoice } from './examChoice'
 import { useMapClass } from './mapClass'
 import { practiceCurriculumFor } from './mapSource'
+import { setActiveCurriculum } from './registry'
 
 import { type ChapterId, type TopicId } from './curriculum'
 import {
@@ -76,7 +77,23 @@ export function Constellation() {
   useEffect(() => {
     let live = true
     void practiceCurriculumFor(cls, exam).then((result) => {
-      if (live) setCurriculum(result.subjects)
+      if (!live) return
+      /*
+       * THE REGISTRY IS SET BEFORE THE STATE, and that order is the fix for a
+       * real defect rather than a preference.
+       *
+       * The map used to be the only thing that knew which curriculum was on
+       * screen. Every lookup elsewhere -- profile building, pin validation,
+       * the session header -- stayed on the class-12 commerce seed, so the map
+       * drew 523 real topics and not one of them could be practised. Nothing
+       * failed; the ids simply did not resolve.
+       *
+       * Setting the registry first means that by the frame the map renders a
+       * node, every id on it already resolves. Reversed, there is a frame in
+       * which a student can click a topic that does not exist yet.
+       */
+      setActiveCurriculum(result.subjects)
+      setCurriculum(result.subjects)
     })
     return () => {
       live = false

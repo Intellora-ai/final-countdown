@@ -1,4 +1,5 @@
 import { validateQuestionTopic, type TopicBoundary } from './engine/boundary'
+import { setIsAllText, TEXT_ONLY } from './engine/representation'
 import type { TopicProfile } from './engine/plan'
 import type { VerifiedQuestion } from './engine/types'
 
@@ -38,4 +39,35 @@ export function boundaryFor(profile: TopicProfile): TopicBoundary {
  */
 export function deliverable(question: VerifiedQuestion, boundary: TopicBoundary): boolean {
   return validateQuestionTopic(question, boundary).ok
+}
+
+/**
+ * Does this set draw anything at all?
+ *
+ * `setIsAllText` has lived in `engine/representation.ts` since it was written
+ * and had ZERO non-test importers. It could not have fired even once, because
+ * no question carried a figure for it to look at.
+ *
+ * ONE FIGURE IS THE BAR, on purpose. Requiring one per question forces a
+ * diagram onto questions that genuinely do not need one, and a decorative chart
+ * is its own kind of noise.
+ *
+ * An EMPTY set is refused. Zero of zero questions carry a figure, so the
+ * arithmetic says the ban is satisfied while usefulness says nothing was
+ * delivered -- and reading that as a pass is how a generator that produced
+ * nothing reports success.
+ */
+export function setDrawsSomething(questions: readonly VerifiedQuestion[]): boolean {
+  if (questions.length === 0) return false
+
+  return !setIsAllText(
+    /*
+     * A falsy figure counts as text, which fails SAFE. The field is required by
+     * the type, but a question can arrive from JSON that never met the
+     * compiler, and there the missing field should make the set refuse rather
+     * than throw -- a refusal is recoverable and names itself, a crash in the
+     * ban is neither.
+     */
+    questions.map((question) => question.figure?.as ?? TEXT_ONLY),
+  )
 }

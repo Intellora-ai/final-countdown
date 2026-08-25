@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { boundaryFor, deliverable } from './wiring';
+import { boundaryFor, deliverable, setDrawsSomething } from './wiring';
 import { asChapterId, asSubjectId, asTopicId } from './engine/ids';
 import type { TopicProfile } from './engine/plan';
 import type { VerifiedQuestion } from './engine/types';
@@ -71,6 +71,7 @@ function question(over: Partial<VerifiedQuestion> = {}): VerifiedQuestion {
     reasoningStructure: 'direct',
     prerequisites: [],
     generationSource: 'fixture',
+    figure: null,
     verificationStatus: 'PASSED',
     similarityStatus: 'novel',
     qualityScore: 1,
@@ -117,5 +118,55 @@ describe('a question only reaches the student if the boundary passes it', () => 
   it('stops a question whose prerequisite became its target', () => {
     expect(deliverable(question({ prerequisites: ['functions--graphs'] }), boundaryFor(PROFILE)))
       .toBe(false);
+  });
+});
+
+/*
+ * THE BAN ON A SET THAT DRAWS NOTHING.
+ *
+ * `engine/representation.ts` has held `setIsAllText` since it was written, with
+ * ZERO non-test importers. It could not have fired even once: no question
+ * carried a figure at all, so there was nothing for it to look at.
+ *
+ * Wiring it before questions had figures would have refused every session in
+ * the product, which is why `engine/figure.ts` came first.
+ *
+ * ONE FIGURE IS THE BAR, on purpose. Requiring one per question forces a
+ * diagram onto questions that do not need one, and a decorative chart is its
+ * own kind of noise.
+ */
+describe('a set of questions has to draw something', () => {
+  const withFigure = () =>
+    question({
+      figure: {
+        kind: 'figure',
+        id: 'f1',
+        emphasis: 'supporting',
+        tone: 'neutral',
+        as: 'bar',
+        data: {
+          shape: 'series',
+          series: [{ name: 's', colorIndex: 0, points: [{ x: 'a', y: 1 }] }],
+          continuousX: false,
+          stacked: false,
+        },
+      },
+    } as unknown as Partial<VerifiedQuestion>);
+
+  it('refuses a set where every question is text', () => {
+    expect(setDrawsSomething([question(), question(), question()])).toBe(false);
+  });
+
+  it('accepts a set where one question carries a figure', () => {
+    expect(setDrawsSomething([question(), withFigure(), question()])).toBe(true);
+  });
+
+  it('refuses an EMPTY set rather than passing it', () => {
+    /*
+     * Zero of zero questions carry a figure. Arithmetic says the ban is
+     * satisfied; usefulness says nothing was delivered. Reading it as a pass is
+     * how a generator that produced nothing reports success.
+     */
+    expect(setDrawsSomething([])).toBe(false);
   });
 });

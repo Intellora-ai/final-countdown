@@ -95,6 +95,7 @@ export function verify(input: VerifyInput): VerificationOutcome {
       prerequisites: candidate.spec.prerequisites,
       generationSource: candidate.generationSource,
       verificationStatus: 'PASSED',
+      figure: candidate.figure,
       similarityStatus: input.similarityStatus ?? 'UNIQUE',
       qualityScore,
       fingerprint: fingerprintOf(candidate),

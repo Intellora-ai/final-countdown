@@ -139,6 +139,32 @@ const RULES = [
 
   /* Two bare numbers at the end is the marks column of a syllabus table. */
   ['marks-row', (t) => /\b\d+\s+\d+\s*$/.test(t)],
+
+  /*
+   * A heading that stops mid-reach.
+   *
+   * `Proofs of irrationality of` was read off the practice screen during a real
+   * session: the extractor cut the line before "root 2, root 3 and root 5". It
+   * passed every rule above -- five words, capitalised, opens on a noun, no
+   * full stop -- because they all read the START of the string.
+   *
+   * The END gives it away. A heading names a thing and ends on the thing it
+   * names; a phrase ending in a preposition or a conjunction is still reaching
+   * for its object, and the object was on the line that got cut. Same shape as
+   * `continuation`, read from the other end.
+   *
+   * Anchored to the WORD, never the letters. `proof` ends in "of" and `Work
+   * done on a gas` ends in a noun; matching letters would delete both and look
+   * like a mystery to whoever hit it.
+   */
+  [
+    'cut-off',
+    (t) =>
+      new RegExp(
+        `\\b(?:of|in|with|for|to|from|by|between|under|over|about|into|onto|and|or|than|as|at|on)\\s*$`,
+        'i',
+      ).test(t),
+  ],
 ]
 
 /**

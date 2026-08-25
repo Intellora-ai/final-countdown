@@ -2,31 +2,55 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+import { enginePlugin } from './vite-plugin-engine'
+import { searchPlugin } from './vite-plugin-search'
+
 export default defineConfig({
-  /* THE DEV SERVER COULD NOT REACH ALMANAC AT ALL.
+  /* THE ENGINE ROUTE, IN DEV ONLY.
+   *
+   * `POST /api/doubt` spawns the Python engine and returns its answer. It is a
+   * middleware on a server that is already running rather than a server of its
+   * own, because this repository has no HTTP server anywhere and adding one to
+   * move a single JSON document between two languages on the same machine would
+   * be a framework, a port and a deployment story for nothing.
+   *
+   * It is absent from `vite build` on purpose, and `vite-plugin-engine.ts` says
+   * why: making the engine reachable in production is a hosting decision, not
+   * one a build plugin should make quietly. */
+  /* THE OPEN-WEB SEARCH ROUTE, IN DEV ONLY, FOR THE SAME REASONS.
+   *
+   * `POST /api/search` searches a general provider and reads the pages it
+   * returns. It needs a server for two independent reasons — a key cannot ship
+   * to a browser, and a browser may not read a page that did not opt into CORS
+   * — and it is absent from `vite build` on purpose. See
+   * `vite-plugin-search.ts`. */
+
+  /* AND THE PLANNER, WHICH IS A SEPARATE PROCESS.
    *
    * The browser posts to /api/day and /api/lesson. Vite serves the app on one
    * port and the planner listens on another, so in development every one of
    * those requests 404'd against Vite itself -- the dashboard reported "the
-   * planner answered 404" honestly, and nobody could run the product end to
-   * end on their own machine.
+   * planner answered 404" honestly, and nobody could run the product end to end
+   * on their own machine. Found by the deep-qa harness, which counted 180
+   * console errors from this one cause.
    *
-   * Found by the deep-qa harness, which counts console errors and saw 180 of
-   * them from this one cause. The gap was mine: a server was built in Phase 1
-   * and never connected to the thing that talks to it.
+   * ROUTED ONE PATH AT A TIME, NOT AS `/api`. A blanket `/api` proxy would
+   * swallow `/api/doubt` and `/api/search` above, which are handled HERE by
+   * plugins and are not the planner's at all. Two owners of one prefix is a
+   * collision that only shows up as a confusing 404 in somebody's dev session.
    *
    * `changeOrigin` is off deliberately: the planner is same-machine and binds
    * to loopback, and rewriting the Host header would hide which origin a
    * request really came from. */
   server: {
-    proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:8787',
-        changeOrigin: false,
-      },
-    },
+    proxy: Object.fromEntries(
+      ['/api/day', '/api/done', '/api/lesson', '/api/ask', '/api/health'].map((route) => [
+        route,
+        { target: 'http://127.0.0.1:8787', changeOrigin: false },
+      ]),
+    ),
   },
-  plugins: [react()],
+  plugins: [react(), enginePlugin(), searchPlugin()],
 
   /* ONE REACT, ONE THREE — enforced, not assumed.
    *
@@ -98,10 +122,19 @@ export default defineConfig({
       'src/**/*.{test,spec}.{ts,tsx}',
       'eslint-rules/**/*.test.ts',
       'scripts/**/*.test.mjs',
-      /* server/ is a FOURTH area, and deliberately separate from src/. It never
-       * ships to the browser: it holds the API key. Its tests run here so the
-       * one command that proves the frontend also proves the thing standing
-       * between the browser and the model. */
+      /* A FOURTH AREA: the dev-server plugins beside this file.
+       *
+       * `vite-plugin-engine.ts` spawns a Python subprocess and turns its output
+       * into an HTTP response. It has real failure modes -- a missing
+       * interpreter, a missing package, a non-zero exit, a timeout -- and it
+       * shipped with the wrong venv in its discovery order, which made every
+       * request a traceback. Infrastructure that can fail and has no test is
+       * infrastructure nobody finds out about until a learner does. */
+      '*.test.ts',
+      /* AND A FIFTH: `server/`, deliberately separate from `src/`. It never
+       * ships to the browser because it holds the API key. Its tests run here
+       * so the one command that proves the frontend also proves the thing
+       * standing between the browser and the model. */
       'server/**/*.test.ts',
     ],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**'],

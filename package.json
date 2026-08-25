@@ -1,7 +1,7 @@
 {
   "name": "final-countdown",
   "version": "1.0.0",
-  "description": "Learning OS with 100% verified Python code via AXLE + Lean 4.",
+  "description": "Learning OS. Every function in src/ carries a Lean 4 specification kernel-checked by AXLE; the rest is gated by coverage, mutation and type checks.",
   "main": "index.js",
   "directories": {
     "test": "tests"

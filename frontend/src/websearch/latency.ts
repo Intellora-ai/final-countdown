@@ -138,6 +138,17 @@ export class Latency {
   private readonly stages = new Map<string, number[]>()
 
   /**
+   * Per-host request durations, for §31.
+   *
+   * Separate from `paths` because the question is different: `paths` asks how
+   * long a KIND of request takes, this asks whether the SECOND request to a
+   * given host was cheaper than the first. Connection reuse is invisible in an
+   * aggregate — averaging a cold request with nine warm ones hides exactly the
+   * cost §31 is about.
+   */
+  private readonly hosts = new Map<string, number[]>()
+
+  /**
    * One completed request.
    *
    * A non-finite or negative duration is DROPPED rather than stored. It is
@@ -152,6 +163,22 @@ export class Latency {
     if (outcome === 'timeout') bucket.timeouts += 1
     else if (outcome === 'error') bucket.failures += 1
     else bucket.successes += 1
+  }
+
+  /** One request to one host, in arrival order. §31. */
+  request(host: string, ms: number): void {
+    if (!host) return
+    if (!Number.isFinite(ms) || ms < 0) return
+    const list = this.hosts.get(host) ?? []
+    list.push(ms)
+    this.hosts.set(host, list)
+  }
+
+  /** Every request sample, in the order they were recorded. */
+  requestSamples(): readonly { host: string; ms: number }[] {
+    const out: { host: string; ms: number }[] = []
+    for (const [host, times] of this.hosts) for (const ms of times) out.push({ host, ms })
+    return out
   }
 
   /** One stage of the pipeline, so the budget can be attributed. */
@@ -169,6 +196,21 @@ export class Latency {
    * mutated by later traffic — a dashboard that changes under a reader is a
    * dashboard nobody can quote.
    */
+  /**
+   * Raw samples for one path, so a different VIEW of the same measurements can
+   * be built without taking them twice. §30 needs the hop breakdown; two
+   * parallel sets of numbers describing the same events eventually drift, and
+   * the one nobody checks is the one that lies.
+   */
+  samples(path: PathKind): readonly number[] {
+    return [...(this.paths[path]?.durations ?? [])]
+  }
+
+  /** The same, for a named stage. Empty when the stage was never recorded. */
+  stageSamples(name: string): readonly number[] {
+    return [...(this.stages.get(name) ?? [])]
+  }
+
   summary(): Summary {
     const cachedCount = this.paths.cached.durations.length
     const liveCount = this.paths.live.durations.length

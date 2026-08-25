@@ -1,7 +1,7 @@
 [project]
 name = "final-countdown"
 version = "0.1.0"
-description = "Learning OS with 100% verified Python code via AXLE + Lean 4"
+description = "Learning OS. Every function in src/ carries a Lean 4 specification kernel-checked by AXLE; the rest is gated by coverage, mutation and type checks"
 requires-python = ">=3.12"
 
 [tool.pytest.ini_options]
@@ -18,6 +18,18 @@ markers = [
 [tool.coverage.run]
 source = ["src"]
 branch = true
+# NOTHING IS ADDED HERE FOR SUBPROCESS COVERAGE, AND THAT IS DELIBERATE.
+#
+# 34 test files run the code under test with `subprocess.run`, and coverage
+# measures only the process it started in, so all of that work was reported as
+# zero --- `scripts/registry_gate.py` showed 294 statements at 0% while
+# `tests/test_registries.py` ran the file and asserted on its output.
+#
+# The fix is `tests/coverage-subprocess.cfg`, armed by `tests/conftest.py`.
+# `parallel = true` was tried HERE first and measured as making no difference:
+# 270 lines of `registry_gate.py` were counted with it and 270 without. It is
+# therefore absent, because an inert setting on a required gate is one more
+# thing every future reader has to rule out.
 
 [tool.coverage.report]
 fail_under = 95
@@ -38,14 +50,64 @@ typeCheckingMode = "strict"
 pythonVersion = "3.12"
 reportMissingImports = true
 
-[tool.mutmut]
-paths_to_mutate = ["src/"]
-tests_dir = "tests/"
+# NO [tool.mutmut] SECTION, DELIBERATELY. The mutmut PACKAGE was removed from
+# requirements.txt because nothing imported it; the mutation scoring is done by
+# scripts/mutation_gate.py, which reads none of mutmut's configuration. A config
+# block for a tool that is neither installed nor consulted is a second source of
+# truth that can only ever drift out of agreement with the first: someone edits
+# `paths_to_mutate` here, nothing changes, and the next reader believes the gate
+# was reconfigured. Verified before deleting -- `grep mutmut scripts/mutation_gate.py`
+# returns only a docstring line saying it REPLACED mutmut.
+#
+# THE GATE ID STAYS `mutmut`. It is one of the 17 required status-check contexts
+# in live ruleset 20990225, so renaming it would leave that context permanently
+# pending and block every merge. It is a compatibility name for this repository's
+# own AST mutation scorer, not a reference to the package.
 
 [tool.bandit]
 exclude_dirs = ["tests"]
 
 [tool.ruff.lint]
+# THE RULE SET IS PINNED, AND LEAVING IT IMPLICIT WAS THE REAL RISK.
+#
+# Measured 2026-08-25 on `ruff check src scripts tests`:
+#
+#   with no `select` at all              258 findings
+#   with select = E4, E7, E9, F           12 findings
+#
+# Both numbers came from the same ruff (0.16.3) against the same tree. The
+# difference is entirely which rules ruff decided to run, and that decision
+# moves between releases. A gate whose meaning is "whatever this version of
+# ruff felt like checking" reports a different thing after every upgrade, and
+# the day it reports MORE it fails a pull request that changed nothing. That is
+# the same scope drift the coverage gate had: a threshold pinned, a scope not.
+#
+# So the scope is written down. E4 (imports), E7 (statement-level mistakes),
+# E9 (syntax and IO errors) and F (pyflakes -- undefined names, unused imports,
+# broken f-strings) are the rules that find defects rather than opinions.
+#
+# WHAT IS DELIBERATELY NOT ENABLED YET, WITH THE COUNT THAT MAKES IT A
+# SEPARATE PIECE OF WORK. Of the 246 findings outside this set:
+#
+#   78  PLW1510  subprocess.run without explicit check=. Mechanical, but it is
+#                78 call sites across the test suite and each one deserves a
+#                glance at whether the return code is being read.
+#   66  RUF100   unused `# noqa`. ALREADY DOCUMENTED BELOW AS A FALSE POSITIVE
+#                HERE -- ruff judges `# noqa: S603` unused against its own rule
+#                set while bandit still runs B603 in CI. 48 were deleted on an
+#                earlier pass before that was understood.
+#   36  ISC004   implicit string concatenation
+#   30  EXE001   shebang present, file not executable
+#   12  BLE001   blind `except Exception`. Needs care rather than a sweep: the
+#                gate lifecycle catches Exception ON PURPOSE, to record an
+#                INFRASTRUCTURE_FAILURE instead of crashing. Some of these are
+#                the documented design and some may be real.
+#
+# Enabling those is a rule-by-rule decision with real judgement in it, not a
+# `--fix` run. Recorded here with numbers so the next person inherits a
+# measurement instead of a vague intention.
+select = ["E4", "E7", "E9", "F"]
+
 # UP040/UP047 rewrite type aliases and generic functions into PEP 695 syntax.
 # Semantically equivalent, structurally not -- `X: TypeAlias = Y` parses as an
 # AnnAssign, `type X = Y` parses as a TypeAlias node that did not exist before

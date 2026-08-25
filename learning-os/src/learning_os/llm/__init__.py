@@ -1,17 +1,26 @@
 """The model boundary: what the LLM is told, what it returns, and what checks it.
 
-Three files, in the order the data moves:
+Four files, in the order the data moves:
 
     contract.py    what the policy layer permits, as fields a validator reads
     client.py      the interface, and a deterministic fake that needs no key
+    select.py      which implementation this environment asked for
     validation.py  whether the returned content honoured the contract
 
 The split is the point. `contract.py` alone is a prompt; it becomes a contract
 only because `validation.py` can fail it.
+
+THE LIVE ADAPTERS ARE NOT RE-EXPORTED HERE, ON PURPOSE.
+`anthropic_client` and `gemini_client` are reachable by their full path and by
+`select.client_from_env`, and by nothing else. Importing this package must not
+pull a vendor adapter into a process that only wanted the contract types --
+that is what keeps "the SDK is optional" a fact about the import graph rather
+than a promise about how carefully people import.
 """
 
 from learning_os.llm.client import (
     API_KEY_ENV,
+    GEMINI_API_KEY_ENV,
     FailureMode,
     FakeLLMClient,
     GeneratedContent,
@@ -25,6 +34,13 @@ from learning_os.llm.contract import (
     SimplicityConstraints,
     Strategy,
 )
+from learning_os.llm.select import (
+    DEFAULT_PROVIDER,
+    PROVIDER_ENV,
+    PROVIDERS,
+    client_from_env,
+    configured_provider,
+)
 from learning_os.llm.validation import (
     BLOCK_KINDS,
     Violation,
@@ -37,6 +53,10 @@ from learning_os.llm.validation import (
 __all__ = [
     "API_KEY_ENV",
     "BLOCK_KINDS",
+    "DEFAULT_PROVIDER",
+    "GEMINI_API_KEY_ENV",
+    "PROVIDERS",
+    "PROVIDER_ENV",
     "DiagnosisKind",
     "FailureMode",
     "FakeLLMClient",
@@ -49,6 +69,8 @@ __all__ = [
     "Violation",
     "ViolationKind",
     "api_key_present",
+    "client_from_env",
+    "configured_provider",
     "is_repairable",
     "is_usable",
     "validate",

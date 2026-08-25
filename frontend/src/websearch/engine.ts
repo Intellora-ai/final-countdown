@@ -1,6 +1,86 @@
 /**
  * THE MISSING HALF: a query goes in, fetched evidence comes out.
  *
+ * THIS IS NOW REACHED. THE ISLAND ENDED.
+ * ---------------------------------------
+ * This comment used to open "NOTHING IN THE PRODUCT CALLS THIS YET", and that
+ * was true and load-bearing: `src/websearch` had zero references from anywhere
+ * outside itself, so the module was complete, tested, and dead.
+ *
+ * It is wired now. SIX files outside this directory reference it:
+ *
+ *   App.tsx                       lazy `import()` of the live search client
+ *   canvas/CanvasRoute.tsx        assembles the resolver chain
+ *   canvas/teach/webResolver.ts   adapts a search into a doubt answer
+ *   canvas/teach/chain.ts         runs it after the lesson and the engine
+ *   canvas/teach/contract.ts      the async doorway that made it possible
+ *   tutor/TutorView.tsx           hands the agent a `SearchPort` to look with
+ *
+ * WHAT MADE IT UNREACHABLE WAS A TYPE, NOT AN OVERSIGHT. `search()` returns a
+ * promise and `DoubtResolver.resolve` was synchronous, so no amount of wiring
+ * could have connected them; `contract.ts` now carries an async variant behind
+ * an explicit pending state, which is what the old comment there asked for.
+ *
+ * `island.test.ts` is what keeps this paragraph honest, and it has now done it
+ * TWICE. It first asserted the empty set and failed the moment this module was
+ * wired at all -- "that is GOOD NEWS and not a broken test", as its own note
+ * promised. The expectation then named five files and warned that a sixth would
+ * break it too. A sixth arrived; the assertion fired again, on the merge, before
+ * anyone had to remember to look; and this list is the sentence it forced
+ * somebody to come back and rewrite. It is an exact set, so the seventh will do
+ * the same.
+ *
+ * THE LAST GAP IS CLOSED, and it is worth saying plainly because the previous
+ * version of this paragraph named it as still open. It read: "It is now the ONE
+ * change that would make this code run: `createAgent()` already takes an
+ * optional `search?: SearchPort` (`src/agent/index.ts`), `SearchProvider
+ * extends SearchPort`, and the path from `App.tsx` to `research()` is complete
+ * except for that argument." That argument is now passed. `src/websearch/index.ts`
+ * exports `searchPort` and `researchPort`, both shaped as the `SearchPort` the
+ * agent already declares, and `tutor/TutorView.tsx` hands one to `createAgent()`.
+ * The agent can look things up.
+ *
+ * IT IS SPREAD IN, NOT PASSED AS `undefined`, and that distinction is load
+ * bearing rather than stylistic. `AgentOptions.search` being ABSENT makes the
+ * agent report the capability UNMET -- "I cannot look things up" -- which is the
+ * honest state when no engine is configured. An explicit `undefined` is a
+ * different thing to the agent, so the doorway returns `null` and `TutorView`
+ * spreads conditionally to keep the two apart.
+ *
+ * A COMMENT ABOUT REACHABILITY GOES STALE THE MOMENT SOMEONE ELSE SHIPS, and
+ * it goes stale SILENTLY — nothing fails, because a comment cannot fail. Both
+ * halves were verified when written and one of them expired within hours. Run
+ * the greps below before trusting either; do not trust this paragraph.
+ *
+ * `npm run gate:reachability` PRINTS PASS AND STILL DOES NOT MEASURE THIS.
+ * It scans one declared area — `src/agent`, from the entry points
+ * `src/agent/index.ts` and `src/agent/kernel/contracts.ts` — so
+ * "19/19 source files reachable" is a statement about paths WITHIN that
+ * island, not about whether anything outside reaches it. `src/websearch` is
+ * still not a declared area, so the gate never looks here. Read the PASS as
+ * "no orphans inside the scanned area", which is what it measures and is
+ * worth having; do not read it as "wired up".
+ *
+ * DECLARING THIS AREA WAS TRIED AND DID NOT HOLD, which is a better fact than
+ * the guess it replaces. The attempt, its measured output, and the two things
+ * that would have to change before it can be restored are written down in
+ * `scripts/reachability-gate.mjs` where the entry would go. The short version:
+ * `evalReport.ts` is reached only by `evalGate.test.ts`, deliberately, and this
+ * gate's whole reason to exist is that TEST FILES ARE NOT EDGES; and
+ * `provenance.ts` exports a `MAX_ORIGINS` nothing but its own test imports.
+ * Neither is fixable by rewording an entry list.
+ *
+ * SO THE THING THAT ACTUALLY POLICES THE SENTENCE ABOVE IS `island.test.ts`,
+ * NOT THE GATE. It text-searches every non-test file under `src/` and pins the
+ * six names exactly. That is a weaker question than "is there a static edge"
+ * and a more honest one, and it is the only check in the repository that fails
+ * when this paragraph goes stale.
+ *
+ * Stated here rather than in a pull request, because a gap recorded only in a
+ * thread is memory rather than mechanism, and memory is what this module has
+ * repeatedly been caught relying on. What is below is tested, mutation-checked,
+ * and now reached; "shipped" here has finally caught up with "running".
+ *
  * Everything else in this directory processes results. Nothing produced them.
  * That gap is why the system could be fully tested and still not run, and it
  * is what this file closes.
@@ -181,15 +261,21 @@ export function jsonProvider(config: JsonProviderConfig): SearchProvider {
         .replace('{limit}', encodeURIComponent(String(limit)))
         .replace('{key}', encodeURIComponent(secret))
 
-      try {
-        const body = await fetchJson(url)
-        /* The mapper runs against a remote party's JSON. A changed response
-           shape is an outage to report as "no results", never a thrown error
-           that takes the caller down. */
-        return config.map(body).filter(usable)
-      } catch {
-        return []
-      }
+      /* FAILURES PROPAGATE. They used to be swallowed here.
+       *
+       * This returned [] on any error, so `search()`'s own catch never fired
+       * and a dead engine produced `{ results: [], engineFailed: false }` —
+       * byte-identical to a question that genuinely has no answers. Those two
+       * mean opposite things: one is an answer about the world, the other is
+       * an outage, and `engineFailed` exists only to tell them apart.
+       *
+       * The old comment argued a thrown error "takes the caller down". It
+       * does not: `search()` catches it and converts it to `engineFailed`
+       * with the reason attached. Swallowing did not protect the caller, it
+       * lied to them — and a status field that reports success for every real
+       * failure mode is worse than no status field, because it is trusted. */
+      const body = await fetchJson(url)
+      return config.map(body).filter(usable)
     },
   }
 }

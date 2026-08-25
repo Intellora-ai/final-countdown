@@ -62,8 +62,14 @@ jobs:
   emit:
     name: canary emit
     runs-on: ubuntu-latest
+    # A checkout and two `echo`s. If this has not finished in five minutes it is
+    # wedged, and a canary that hangs is strictly worse than one that fails: the
+    # whole point is to notice a GitHub-side change quickly, and a job sitting in
+    # GitHub's six-hour default notices nothing while holding one of the eight
+    # concurrent slots this account has.
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # `::warning`, never `::error`. The level does not change how GitHub
       # resolves `file=`, and errors would paint two red annotations on every
@@ -76,8 +82,10 @@ jobs:
     name: canary verify
     needs: emit
     runs-on: ubuntu-latest
+    # Two `gh api` reads and one script. Same reasoning as `emit` above.
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # A job's annotations are only queryable once its check-run has completed,
       # which `needs: emit` guarantees. GitHub's job id and check-run id are the

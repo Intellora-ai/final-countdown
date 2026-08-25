@@ -33,6 +33,13 @@ jobs:
   learning-os:
     name: learning-os
     runs-on: ubuntu-latest
+    # Measured: this job completes in 28-58s across recent runs. 15 minutes is
+    # roughly fifteen times the observed worst case, which leaves room for a
+    # slow runner or a grown suite without the ceiling becoming the thing that
+    # fails. What it removes is GitHub's SIX HOUR default, which this job
+    # inherited by declaring nothing -- a hung pip resolve or a test that waits
+    # on a socket would have held a runner slot for an afternoon.
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: learning-os
@@ -55,7 +62,7 @@ jobs:
       # lets Dependabot bump it. Both are enforced by tests/test_supply_chain.py;
       # this file failed all of it, and these are the SHAs the rest of the
       # repository already uses.
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # 3.12 to match every other Python job here. It was 3.11 for no reason
       # beyond `requires-python = ">=3.11"`, and a lone version means this job
@@ -140,6 +147,9 @@ jobs:
   deployed-layout:
     name: deployed-layout
     runs-on: ubuntu-latest
+    # Same install, then three named sandbox tests. Same reasoning as
+    # `learning-os` above; if anything this one is smaller.
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: learning-os
@@ -147,7 +157,7 @@ jobs:
       PYTHONHASHSEED: "0"
 
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:

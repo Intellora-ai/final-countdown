@@ -1,187 +1,356 @@
-"""The Gemini provider. Second implementation of the same one-method seam.
+"""Google's provider, behind the same one-method boundary as the fake.
 
-WHY A SECOND PROVIDER IS A NEW FILE
------------------------------------
-`LLMClient` is a Protocol with a single method, so adding a model means adding a
-file rather than editing one. `runtime/loop.py` never learns which model
-answered, and the two providers cannot drift into different call shapes because
-neither can see the other.
+WHY A SECOND LIVE PROVIDER AND NOT JUST THE FIRST
+-------------------------------------------------
+`AnthropicClient` proved the boundary holds. This one proves it is a BOUNDARY
+and not a shape that happens to fit one vendor: it reuses `build_prompt`
+verbatim, reuses the parse rules verbatim, and differs only where the provider
+genuinely differs -- the request call, the credential it reads, and the schema
+dialect it accepts. Everything a second provider had to change is the honest
+list of what was vendor-specific all along.
 
-WHY REST AND NOT THE SDK
-------------------------
-`tests/test_supply_chain.py` rejects any install that is not hash-locked, and CI
-installs only the locked base set so the suite cannot reach the network. An
-optional `google-genai` dependency would either fail that gate or sit untested
-in the one place that matters. The REST surface needs no package: `urllib` is in
-the standard library and is already available everywhere this runs.
+The practical reason is access. Gemini has a free tier that needs a Google
+account and no card, so "run this engine against a real model" stops requiring
+a billing decision. That matters more than it sounds: every honesty property in
+this engine is asserted against `FakeLLMClient`, and a property nobody can
+cheaply check against a real model is a property that drifts.
 
-The trade is real and worth naming. The SDK would handle retries, streaming and
-model-name aliasing; this does none of those. What it buys is a provider that
-installs nowhere, tests without a socket, and cannot break the supply-chain gate.
+WHAT IS OBTAINED HERE, AND WHAT IS NOT
+--------------------------------------
+This file obtains nothing. It reads `LEARNING_OS_GEMINI_API_KEY` from the
+environment at call time. Creating the account and issuing the key is the
+owner's action, in Google's own interface, and no part of this repository asks
+for, stores, defaults, or logs the value.
 
-WHAT IS SHARED WITH THE ANTHROPIC PATH, AND WHY
------------------------------------------------
-`build_prompt`, `SYSTEM` and `RESPONSE_SCHEMA` are imported, not copied. Two
-providers building two prompts from one contract is two behaviours to keep in
-step, and they drift on the first edit to either. Only the transport differs,
-because only the transport is genuinely different.
+THE OFFLINE GUARANTEE IS NOT WEAKENED
+-------------------------------------
+The same three mechanisms that hold for the Anthropic adapter hold here, and
+none of them is this file behaving well:
 
-THE TRANSPORT IS INJECTED
--------------------------
-`post` defaults to the real `urllib` call and is replaceable. Tests drive a stub,
-so the suite never opens a socket -- which `tests/conftest.py` blocks anyway. A
-test that needs the harness to permit the thing it forbids is a test that passes
-for the wrong reason.
+  * `google-genai` is an OPTIONAL dependency. CI installs only
+    `requirements-learning-os.lock`, which does not contain it, so the SDK is
+    not present in the job at all.
+  * the import is INSIDE the method. Importing this module on a machine without
+    the SDK is fine; only calling `generate` is not.
+  * `tests/conftest.py` blocks `socket.connect` for every test. Even with the
+    SDK installed and a key exported, a test that reached the network fails
+    rather than succeeding slowly and expensively.
+
+THE SCHEMA IS DERIVED, NOT COPIED
+---------------------------------
+`response_json_schema` accepts a documented SUBSET of JSON Schema. Anthropic's
+schema uses `minLength`, which is outside it. An unsupported keyword is not an
+error at the call site -- it is ignored, so the constraint stops being enforced
+and the first visible symptom is a block with no text in it, blamed on the
+model. `SUPPORTED_SCHEMA_KEYWORDS` is the documented list, `schema_keywords`
+reads what a schema actually uses, and the test asserts the difference is empty.
+That makes the drift detectable the day the schema changes rather than the day a
+lesson renders wrong.
+
+THE KEY IS READ AT CALL TIME AND NEVER STORED
+---------------------------------------------
+Not a constructor default, not a module constant, not an attribute. A key on the
+instance ends up in a `repr`, a traceback, or a pickled test fixture, and the CI
+credential grep only catches the literal that was committed -- not the one that
+leaked through a log line.
 """
 
 from __future__ import annotations
 
 import json
-import os
-import urllib.error
-import urllib.request
-from dataclasses import dataclass, field
-from typing import Any, Callable
+from dataclasses import dataclass
+from typing import Any
 
-from learning_os.llm.anthropic_client import (
-    MAX_TOKENS,
-    RESPONSE_SCHEMA,
-    SYSTEM,
-    build_prompt,
-    parse_blocks,
-)
-from learning_os.llm.client import GeneratedContent, LLMUnavailable
+from learning_os.llm.anthropic_client import BUILDABLE, SYSTEM, build_prompt
+from learning_os.llm.client import GEMINI_API_KEY_ENV, GeneratedContent, LLMUnavailable
 from learning_os.llm.contract import InstructionContract
 
-#: Its OWN variable, not the Anthropic one. Sharing a single key name would make
-#: "which provider am I actually talking to" depend on which client happened to
-#: be constructed, which is the kind of ambiguity that produces a bill nobody
-#: expected.
-GEMINI_API_KEY_ENV = "LEARNING_OS_GEMINI_API_KEY"
+__all__ = [
+    "BUILDABLE",
+    "MAX_TOKENS",
+    "MODEL",
+    "RESPONSE_SCHEMA",
+    "SDK_MODULE",
+    "SUPPORTED_SCHEMA_KEYWORDS",
+    "GeminiClient",
+    "build_prompt",
+    "parse_blocks",
+    "schema_keywords",
+]
 
-MODEL = "gemini-2.5-pro"
+#: The model this adapter is written against.
+#:
+#: Pinned rather than caller-supplied, for the reason the Anthropic adapter pins
+#: its own: "which model taught this learner" belongs in the record of a
+#: decision, and a caller-supplied default makes it unanswerable afterwards.
+#:
+#: Flash rather than Pro because this is the tier the free key actually reaches,
+#: and an adapter whose default cannot be run by the person who just followed
+#: the setup instructions is an adapter that gets reported as broken. A model id
+#: this service does not serve arrives as its own error text through
+#: `LLMUnavailable` below -- it is never quietly swapped for another.
+MODEL = "gemini-2.5-flash"
 
-ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+#: Generous, because a lesson is short but thinking is not, and a truncated
+#: lesson fails validation for a reason that has nothing to do with teaching.
+MAX_TOKENS = 8000
 
-#: Finish reasons that mean the model chose not to answer. These are NOT
-#: outages: retrying the identical contract produces the identical refusal, so
-#: they must stay out of the retry path or the loop never terminates.
-_REFUSALS = frozenset({"SAFETY", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII", "RECITATION"})
+#: The import path the adapter needs. Named once so the test that forces the
+#: import to fail is patching the same string the code imports, rather than a
+#: second copy of it that can drift out of agreement silently.
+SDK_MODULE = "google.genai"
 
-_TIMEOUT_SECONDS = 60
-
-
-def build_request(contract: InstructionContract, *, model: str = MODEL) -> dict[str, Any]:
-    """The request body, separated from the sending so it can be asserted on.
-
-    A request shape only checkable by making a real call is a request shape
-    nobody checks.
-    """
-    return {
-        "systemInstruction": {"parts": [{"text": SYSTEM}]},
-        "contents": [{"role": "user", "parts": [{"text": build_prompt(contract)}]}],
-        "generationConfig": {
-            "responseMimeType": "application/json",
-            "responseSchema": RESPONSE_SCHEMA,
-            "maxOutputTokens": MAX_TOKENS,
-        },
+#: The JSON Schema keywords `response_json_schema` documents as supported.
+#:
+#: Transcribed from the SDK's own docstring for the field. Anything outside this
+#: set is accepted by the call and ignored by the service, which is why it is
+#: written down as data and checked, rather than remembered.
+SUPPORTED_SCHEMA_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "$id",
+        "$defs",
+        "$ref",
+        "$anchor",
+        "type",
+        "format",
+        "title",
+        "description",
+        "enum",
+        "items",
+        "prefixItems",
+        "minItems",
+        "maxItems",
+        "minimum",
+        "maximum",
+        "anyOf",
+        "oneOf",
+        "properties",
+        "additionalProperties",
+        "required",
+        "propertyOrdering",
     }
+)
+
+#: What the model must return.
+#:
+#: Deliberately NOT `anthropic_client.RESPONSE_SCHEMA`. That one carries
+#: `minLength: 1` on the block text, which this dialect does not support -- so
+#: the emptiness of a block is enforced HERE, in `parse_blocks`, for both
+#: providers. Stating it in a schema Gemini ignores would have looked like a
+#: guarantee and been a comment.
+RESPONSE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "blocks": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "kind": {"type": "string", "enum": list(BUILDABLE)},
+                    "text": {
+                        "type": "string",
+                        # `minLength` is not in the supported subset, so the
+                        # requirement is stated in prose where the model reads it
+                        # and enforced in `parse_blocks` where it binds.
+                        "description": "The prose for this block. Never empty.",
+                    },
+                },
+                "required": ["kind", "text"],
+                "additionalProperties": False,
+            },
+        },
+        "introduced_concepts": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+    },
+    "required": ["blocks", "introduced_concepts"],
+    "additionalProperties": False,
+}
 
 
-def _post(url: str, payload: dict[str, Any]) -> dict[str, Any]:
-    """The real transport. Replaced wholesale in tests."""
-    request = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(request, timeout=_TIMEOUT_SECONDS) as response:
-        body: Any = json.loads(response.read().decode("utf-8"))
-    if not isinstance(body, dict):
-        raise LLMUnavailable("the model returned a body that is not an object")
-    return body
+def schema_keywords(schema: object) -> set[str]:
+    """Every JSON Schema keyword a schema actually uses, at any depth.
 
-
-def _text_of(body: dict[str, Any]) -> str:
-    """Every step defensive, because every step is provider-shaped.
-
-    Reaching into `candidates[0].content.parts[*].text` with dots and brackets
-    raises `KeyError`, `IndexError` or `TypeError` depending on which layer is
-    missing. The runtime reads those as engine bugs, not bad responses, so each
-    layer is checked and the failure arrives in the one vocabulary the caller
-    knows how to route.
+    Walks keys rather than values, and steps INTO `properties` without treating
+    the property names themselves as keywords -- a property called `format` is a
+    field name, not a constraint, and counting it would produce a warning about
+    a keyword nobody wrote.
     """
-    candidates = body.get("candidates")
-    if not isinstance(candidates, list) or not candidates:
-        return ""
-    first = candidates[0]
-    if not isinstance(first, dict):
-        return ""
-    content = first.get("content")
-    if not isinstance(content, dict):
-        return ""
-    parts = content.get("parts")
-    if not isinstance(parts, list):
-        return ""
-    return "".join(
-        part["text"] for part in parts if isinstance(part, dict) and isinstance(part.get("text"), str)
+    found: set[str] = set()
+
+    def walk(node: object, *, inside_properties: bool) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if not inside_properties:
+                    found.add(str(key))
+                walk(value, inside_properties=(not inside_properties and key == "properties"))
+        elif isinstance(node, list):
+            for item in node:
+                walk(item, inside_properties=False)
+
+    walk(schema, inside_properties=False)
+    return found
+
+
+def parse_blocks(payload: str) -> GeneratedContent:
+    """Turn the model's JSON into the shape the emitter expects.
+
+    THE SAME RULES AS THE OTHER PROVIDER, INCLUDING THE ONE THE SCHEMA CANNOT
+    STATE. Refuses rather than salvages: a response missing `blocks`, carrying
+    an unbuildable kind, or carrying an empty one is a contract failure the
+    caller must see. Half-reading it produces a lesson quietly shorter or
+    differently shaped than the one that was asked for, and nothing downstream
+    can tell.
+
+    Not delegated to `anthropic_client.parse_blocks` for one reason: `note`.
+    Provenance has to name the provider that wrote the lesson, and a shared
+    parser would stamp every lesson `anthropic:` regardless of who produced it.
+    """
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError as error:
+        raise LLMUnavailable(f"the model returned something that is not JSON: {error}") from error
+
+    raw = data.get("blocks") if isinstance(data, dict) else None
+    if not isinstance(raw, list) or not raw:
+        raise LLMUnavailable("the model returned no blocks; there is no lesson to render")
+
+    blocks: list[tuple[str, str]] = []
+    for index, item in enumerate(raw):
+        if not isinstance(item, dict):
+            raise LLMUnavailable(f"block {index} is not an object")
+        kind, text = item.get("kind"), item.get("text")
+        if kind not in BUILDABLE:
+            raise LLMUnavailable(f"block {index} has kind {kind!r}, which cannot be built")
+        if not isinstance(text, str) or not text.strip():
+            raise LLMUnavailable(f"block {index} has no text")
+        blocks.append((kind, text.strip()))
+
+    concepts = data.get("introduced_concepts") or []
+    return GeneratedContent(
+        blocks=tuple(blocks),
+        introduced_concepts=tuple(str(c) for c in concepts if str(c).strip()),
+        note=f"gemini:{MODEL}",
     )
 
 
-def _refusal_of(body: dict[str, Any]) -> str | None:
-    candidates = body.get("candidates")
-    if not isinstance(candidates, list) or not candidates:
-        return None
-    first = candidates[0]
-    if not isinstance(first, dict):
-        return None
-    reason = first.get("finishReason")
-    return reason if isinstance(reason, str) and reason in _REFUSALS else None
-
-
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class GeminiClient:
-    """The live Gemini provider. Same one method, same failure vocabulary.
+    """The live Google provider. Same one method as the fake, same failures.
 
-    Frozen and holding no key: constructing one is free and safe on a machine
-    with no credential. It fails when CALLED, which is when the caller can do
-    something about it.
+    Frozen and holding no key: construction is free and safe, and an instance can
+    be built on a machine that has neither the SDK nor a credential. It fails
+    when it is CALLED, which is when the caller can do something about it.
     """
 
     model: str = MODEL
-    post: Callable[[str, dict[str, Any]], dict[str, Any]] = field(default=_post)
+    max_tokens: int = MAX_TOKENS
 
     def generate(self, contract: InstructionContract) -> GeneratedContent:
-        """One call. Any provider problem arrives as `LLMUnavailable`."""
+        """One call. Any provider problem arrives as `LLMUnavailable`.
+
+        The runtime already distinguishes "could not reach the model" from "the
+        model returned something unusable" -- the first is retried or routed
+        around, the second means the CONTRACT was wrong. Raising anything else
+        from here would make that distinction unavailable to the caller.
+        """
+        # Imported here rather than at module scope so the key is read without
+        # touching `os` at import time, and so this stays a one-import module.
+        import os
+
         key = os.environ.get(GEMINI_API_KEY_ENV)
         if not key:
             raise LLMUnavailable(
                 f"{GEMINI_API_KEY_ENV} is not set. The engine runs on FakeLLMClient "
-                f"without it; this client is the opt-in path."
+                f"without it; this client is the opt-in path. Issue a key from Google "
+                f"AI Studio and export it -- never commit it."
             )
 
-        url = f"{ENDPOINT.format(model=self.model)}?key={key}"
         try:
-            body = self.post(url, build_request(contract, model=self.model))
-        except LLMUnavailable:
-            # Already in the right vocabulary. Re-wrapping would bury the
-            # specific message under a generic one.
-            raise
+            from google import genai
+        except ImportError as error:
+            raise LLMUnavailable(
+                "the google-genai SDK is not installed. It is an optional dependency "
+                "on purpose -- CI installs only the hash-locked base set so the suite "
+                "cannot reach the network. Install with: pip install 'learning-os[live]'"
+            ) from error
+
+        # BOUND TO A NAME, NEVER CHAINED. THIS IS A FIX, NOT A STYLE CHOICE.
+        #
+        # Written as `genai.Client(api_key=key).models.generate_content(...)` the
+        # client is a temporary: it is finalised while the request is still in
+        # flight, and every call fails with
+        #
+        #     Cannot send a request, as the client has been closed.
+        #
+        # Measured. With the reference held, the same call against a deliberately
+        # invalid key reaches Google and returns `400 API_KEY_INVALID` -- which
+        # is the correct answer to a bad key and proof the request left the
+        # machine. `tests/test_gemini_client.py` asserts the shape of this line,
+        # because no offline test can catch a lifetime bug that only appears
+        # once a socket is opened.
+        client = genai.Client(api_key=key)
+
+        try:
+            response = client.models.generate_content(
+                model=self.model,
+                contents=build_prompt(contract),
+                config={
+                    "system_instruction": SYSTEM,
+                    "max_output_tokens": self.max_tokens,
+                    # Both are required together: the schema without the mime
+                    # type is ignored, which is the silent version of no schema
+                    # at all.
+                    "response_mime_type": "application/json",
+                    "response_json_schema": RESPONSE_SCHEMA,
+                },
+            )
         except Exception as error:
+            # Deliberately broad. The SDK raises its own exception hierarchy and
+            # this layer's contract is "any provider problem is LLMUnavailable";
+            # letting one vendor's class escape would make the runtime's retry
+            # decision depend on which vendor is configured.
             raise LLMUnavailable(f"the model could not be reached: {error}") from error
 
-        if not isinstance(body, dict):
-            raise LLMUnavailable("the model returned a body that is not an object")
+        blocked = _refusal_reason(response)
+        if blocked is not None:
+            # A safety decline is not an outage and not a bad contract. Naming it
+            # separately keeps it out of the "retry the same thing" path, where
+            # it would loop against a decision that will not change.
+            raise LLMUnavailable(f"the model declined to generate for this contract: {blocked}")
 
-        refusal = _refusal_of(body)
-        if refusal is not None:
-            raise LLMUnavailable(
-                f"the model declined to generate for this contract ({refusal})"
-            )
-
-        text = _text_of(body)
-        if not text.strip():
+        text = getattr(response, "text", None)
+        if not isinstance(text, str) or not text.strip():
             raise LLMUnavailable("the model returned no text")
 
         return parse_blocks(text)
+
+
+def _refusal_reason(response: object) -> str | None:
+    """Why the provider declined, or `None` if it did not.
+
+    Two places carry it and they mean different things: `prompt_feedback` is the
+    request being refused, a candidate's `finish_reason` is the answer being cut
+    off. Both produce empty text, and collapsing them into "no text" would report
+    a safety decline as an outage -- which the runtime would then retry, forever,
+    against a decision that does not change.
+
+    Reads defensively through `getattr` because this must not require the SDK to
+    be installed in order to be imported or tested.
+    """
+    feedback = getattr(response, "prompt_feedback", None)
+    block_reason = getattr(feedback, "block_reason", None)
+    if block_reason:
+        return f"prompt blocked ({block_reason})"
+
+    candidates = getattr(response, "candidates", None) or []
+    for candidate in candidates:
+        finish = getattr(candidate, "finish_reason", None)
+        if finish is None:
+            continue
+        name = str(getattr(finish, "name", finish)).upper()
+        if name in {"SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII"}:
+            return f"candidate stopped ({name})"
+    return None

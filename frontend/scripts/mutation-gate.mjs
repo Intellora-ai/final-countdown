@@ -131,7 +131,203 @@ process.on('uncaughtException', (e) => {
 
 /** Each mutant re-creates a defect that could ship, or inverts a stated rule. */
 const MUTANTS = [
-  /* THE HONESTY LAYER. `shapeInvariants.ts` is the only thing standing between
+  /* PER-SOURCE ISOLATION. `gather.ts` states "FAILURE IS PER SOURCE, NEVER PER
+   * SEARCH" in its own header, and nothing enforced it: the worker loop had no
+   * try/catch, so one throwing dependency rejected through `Promise.all` and
+   * lost every other source. Latent only because the shipped fetcher and cache
+   * never throw — a dependency on a fact nobody promised, in a file that
+   * explicitly anticipates a network-backed cache. */
+  {
+    id: 'cache-read-failure-sinks-the-batch',
+    file: 'src/websearch/gather.ts',
+    /* Anchored to the whole recovery BLOCK, not to the bare `cached = undefined`
+       inside it. That assignment is generic text whose uniqueness rested on its
+       indentation, and a stale-anchor refusal there would read as a formatting
+       problem rather than as "the cache recovery moved". `} catch {` paired with
+       the assignment is unique in this file — the fetch recovery below catches
+       `(err)` — and it names the construct the mutant is actually about. */
+    from: '      } catch {\n        cached = undefined\n      }',
+    to: '      } catch (e) {\n        throw e\n      }',
+    breaks: 'a cache whose connection has dropped takes down every search instead of degrading to no-cache; the pages were reachable the whole time',
+  },
+  {
+    id: 'fetch-failure-loses-its-reason',
+    file: 'src/websearch/gather.ts',
+    from: '          detail: err instanceof Error ? err.message : String(err),',
+    to: "          detail: '',",
+    breaks: 'a source that threw is reported as failed with no reason, so nothing upstream can tell a dead host from a host that returned nothing',
+  },
+  {
+    id: 'engine-outage-reported-as-no-answers',
+    file: 'src/websearch/engine.ts',
+    from: '      const body = await fetchJson(url)\n      return config.map(body).filter(usable)',
+    to: '      try { const body = await fetchJson(url); return config.map(body).filter(usable) } catch { return [] }',
+    breaks: 'a dead search engine reports engineFailed:false with zero results, which is byte-identical to a question that genuinely has no answers — an outage presented as a fact about the world',
+  },
+  /* SEARCH RETRIEVAL. `src/websearch` had ZERO mutants while carrying the SSRF
+   * guard, the injection quarantine and the size cap — and the gate reported
+   * PASS on every PR that shipped it, because it was mutating a different
+   * directory. Every real defect in that module was found by something its
+   * author did not write: CodeQL caught a sanitiser bypass, a loopback stub
+   * caught an unbounded body read at 5011ms against a 250ms budget, and
+   * generated encodings caught 42 SSRF bypasses where five had been guessed.
+   * These entries convert that observation into enforcement. */
+  {
+    id: 'ssrf-guard-string-matching',
+    file: 'src/websearch/fetchPage.ts',
+    from: '  const host = withoutRootLabel(hostname).toLowerCase()',
+    to: '  const host = hostname.trim().toLowerCase()',
+    breaks: 'http://localhost./ and http://printer.local./ reach the fetcher, because every internal-name pattern is anchored and the trailing root label survives into URL.hostname',
+  },
+  {
+    id: 'ssrf-mapped-ipv6-unwrap-removed',
+    file: 'src/websearch/fetchPage.ts',
+    from: '    const wrapped = unwrapV4(groups)',
+    to: '    const wrapped = null as number | null',
+    breaks: 'http://[::ffff:169.254.169.254]/ reaches cloud instance metadata: URL serialises it to [::ffff:a9fe:a9fe], so no dotted-quad pattern matches and credentials are one redirect away',
+  },
+  {
+    id: 'ssrf-cgnat-range-dropped',
+    file: 'src/websearch/fetchPage.ts',
+    from: '  [0x64400000, 10],',
+    to: '  [0x64400001, 32],',
+    breaks: '100.64.0.0/10 becomes reachable, so a fetched page can pivot into carrier-internal address space that is not the public internet',
+  },
+  {
+    id: 'injection-fence-fixed-not-chosen',
+    file: 'src/websearch/guard.ts',
+    from: '    if (!content.includes(candidate)) return candidate',
+    to: '    if (true) return candidate',
+    breaks: 'a page that ships the fence delimiter closes its own quarantine block early and the rest of its text is read as though the system said it',
+  },
+  {
+    id: 'size-cap-after-the-fact',
+    file: 'src/websearch/fetchPage.ts',
+    from: '    if (total + value.length > maxBytes) {',
+    to: '    if (false) {',
+    breaks: 'the size cap stops bounding anything: an adversarial host streams until memory gives out, because the limit is only consulted after the bytes have arrived',
+  },
+  /* §24 ACCURACY. This module grades the answer, so a weakness here is
+     invisible by construction: a broken grader reports good numbers, and good
+     numbers are what everyone reads. Every mutant below is a way the grader
+     could keep producing plausible output while measuring nothing. */
+  {
+    id: 'silence-grades-as-a-perfect-answer',
+    file: 'src/websearch/accuracy.ts',
+    from: '      const absoluteError = closest === undefined ? Number.POSITIVE_INFINITY : Math.abs(closest - truth)',
+    to: '      const absoluteError = closest === undefined ? 0 : Math.abs(closest - truth)',
+    breaks: 'an answer that states no figure at all scores zero error, so saying nothing beats saying something wrong and the benchmark is topped by a system that never answers',
+  },
+  {
+    id: 'relative-error-divides-by-a-zero-truth',
+    file: 'src/websearch/accuracy.ts',
+    from: '        truth === 0 || closest === undefined ? undefined : Math.abs(closest - truth) / Math.abs(truth)',
+    to: '        closest === undefined ? undefined : Math.abs(closest - truth) / Math.abs(truth)',
+    breaks: 'a true value of zero yields Infinity or NaN, and that number then poisons every average computed downstream from it',
+  },
+  {
+    id: 'comparative-grading-ignores-direction',
+    file: 'src/websearch/accuracy.ts',
+    from: '          return s >= 0 && rel > s && o > rel',
+    to: '          return s >= 0 && rel >= 0 && o >= 0',
+    breaks: 'a backwards comparison scores as correct, because both directions mention every word and only the ORDER tells "LIFO is higher than FIFO" from its reverse',
+  },
+  {
+    id: 'a-citation-no-claim-supports-is-not-reported',
+    file: 'src/websearch/accuracy.ts',
+    from: '    .filter((c) => !claimKeys.has(`${c.sourceUrl}|${c.offset}|${c.text}`))',
+    to: '    .filter(() => false)',
+    breaks: 'invariant 3 stops being checked: an answer reporting one figure while citing a span that states another grades clean, which is a wrong answer wearing a real source',
+  },
+  {
+    id: 'refusing-everything-scores-as-correct',
+    file: 'src/websearch/accuracy.ts',
+    from: "      outcome: expectation.unanswerable ? 'correct-refusal' : 'missed-answerable',",
+    to: "      outcome: 'correct-refusal',",
+    breaks: 'a refusal is always correct, so a system that answers nothing scores perfectly and the benchmark rewards silence',
+  },
+  {
+    id: 'a-flagged-source-counts-as-support',
+    file: 'src/websearch/accuracy.ts',
+    from: '  if (allClaims.length > 0 && untainted.length === 0) {',
+    to: '  if (false) {',
+    breaks: 'invariant 5 stops being graded: a fact carried only by a page that tried to instruct us is scored as supported evidence',
+  },
+
+  /* §32 PROVENANCE. Every mutant here is a way to call stale data fresh while
+     still producing a confident, well-formed answer. */
+  {
+    id: 'a-majority-of-live-sources-is-called-live',
+    file: 'src/websearch/provenance.ts',
+    from: `    live: usable.every((p) => originOf(p, now) === 'live'),`,
+    to: `    live: usable.filter((p) => originOf(p, now) === 'live').length * 2 > usable.length,`,
+    breaks: 'nine live pages and one week-old cache entry is reported as a live answer, so the label describes most of the evidence and is wrong about the rest — invariant 2 exactly',
+  },
+  {
+    id: 'an-answer-built-on-nothing-reports-itself-live',
+    file: 'src/websearch/provenance.ts',
+    from: '    return { live: false, origins: [], usableSources: 0 }',
+    to: '    return { live: true, origins: [], usableSources: 0 }',
+    breaks: 'no usable sources at all yields the strongest possible claim from the weakest possible evidence, which is what [].every() does by default',
+  },
+  {
+    id: 'the-newest-source-hides-the-oldest',
+    file: 'src/websearch/provenance.ts',
+    from: '{ oldestAgeMs: Math.max(...ages) }',
+    to: '{ oldestAgeMs: Math.min(...ages) }',
+    breaks: 'one fresh page hides a week-old one sitting beside it, so the reported age is about the best source rather than the worst',
+  },
+  {
+    id: 'a-failed-fetch-counts-as-a-live-source',
+    file: 'src/websearch/provenance.ts',
+    from: '  const usable = pages.filter((p) => p.ok)',
+    to: '  const usable = pages',
+    breaks: 'a search where every fetch died except one cached page reports itself live, because the dead ones carry fromCache:false',
+  },
+  {
+    id: 'precomputed-is-folded-into-cache',
+    file: 'src/websearch/provenance.ts',
+    from: `  if (page.precomputed) return 'precomputed'`,
+    to: '  if (false) return \'precomputed\'',
+    breaks: 'a speculatively prepared entry becomes indistinguishable from one fetched for a real earlier question, which is the distinction §32 asks for by name',
+  }, 
+  /* §30 / §31 MEASUREMENT. A broken measurement still produces confident
+     numbers, which is the only kind of failure nobody notices. */
+  {
+    id: 'the-hop-we-cannot-see-is-reported-as-instant',
+    file: 'src/websearch/hops.ts',
+    from: 'const unobservable = (reason: string): Hop => ({ observable: false, reason, count: 0 })',
+    to: 'const unobservable = (reason: string): Hop => ({ observable: true, reason, count: 0, p50: 0 })',
+    breaks: 'the client-to-server leg this package cannot see is reported as 0ms, which reads as instant - the most flattering possible lie about a hop nobody measured',
+  },
+  {
+    id: 'an-unmeasured-hop-reports-zero-instead-of-nothing',
+    file: 'src/websearch/hops.ts',
+    from: '    ...(values.length === 0 ? {} : { p50: percentile(values, 50), p99: percentile(values, 99) }),',
+    to: '    p50: percentile(values, 50) ?? 0,',
+    breaks: 'a hop with no samples reports 0ms rather than nothing, so never measured and instant become the same reading',
+  },
+  {
+    id: 'reuse-is-inferred-from-request-count',
+    file: 'src/websearch/hops.ts',
+    from: '        : { reused: subsequentP50 <= first * (1 - REUSE_RATIO) }),',
+    to: '        : { reused: true }),',
+    breaks: 'a hundred requests each paying full connection setup is reported as reuse, inverting the signal at exactly the moment it matters',
+  },
+  {
+    id: 'one-request-claims-no-reuse-rather-than-admitting-it-cannot-tell',
+    file: 'src/websearch/hops.ts',
+    from: '      ...(rest.length === 0 || subsequentP50 === undefined',
+    to: '      ...(false',
+    breaks: 'a host seen once reports reused false, which is an unsupported claim in the other direction - one request cannot evidence reuse either way',
+  },
+  {
+    id: 'every-request-is-recorded-as-free',
+    file: 'src/websearch/gather.ts',
+    from: '      latency?.request(hostOf(url), elapsed)',
+    to: '      latency?.request(hostOf(url), 0)',
+    breaks: 'every request is recorded as costing nothing, so connection reuse looks perfect for a transport that was never actually measured',
+  }, /* THE HONESTY LAYER. `shapeInvariants.ts` is the only thing standing between
    * a dishonest dataset and a picture that looks fine. Every mutant here is a
    * way for a representation to stop being able to refuse. */
   {
@@ -331,8 +527,8 @@ const MUTANTS = [
   {
     id: 'process-loop-drawn-as-a-step',
     file: 'src/canvas/render/shapes/ProcessShape.tsx',
-    from: "      if (seen === 1) backEdges.add(`${transition.from}>${transition.to}`)",
-    to: "      if (false) backEdges.add(`${transition.from}>${transition.to}`)",
+    from: '      if (seen === 1) backEdges.add(`${transition.from}>${transition.to}`)',
+    to: '      if (false) backEdges.add(`${transition.from}>${transition.to}`)',
     breaks: 'a "reject, go back and rework it" transition is drawn as an ordinary left-to-right arrow, so the reader is shown a process that only ever moves forwards',
   },
   {
@@ -645,11 +841,63 @@ const MUTANTS = [
     breaks: 'the exact shape of the original defect: arithmetic passes every unit test and cannot work for a real caller, because the only registry the product builds does not contain a calculator',
   },
   {
+    /* ANCHOR RE-POINTED, NOT RETIRED. `suspend()` changed from serialising the
+     * task alone to writing the whole session, which moved this line. The
+     * mutant is the same defect at the new address; deleting it because its
+     * anchor drifted would have quietly dropped coverage of a bug that has
+     * already happened once. */
     id: 'agent-suspended-task-resumes-stuck-mid-step',
     file: 'src/agent/index.ts',
-    from: '      const stopped = pause(session.task, session.working, now())',
-    to: '      const stopped = session.task',
+    from: '        session = { ...session, task: pause(session.task, session.working, now()) }',
+    to: '        session = { ...session, task: session.task }',
     breaks: 'an `active` task is serialised, so tomorrow it restores believing a step is still running — `nextStep` skips it, nothing is pending, and the task reports itself stuck the moment someone comes back to it',
+  },
+
+  /* THE TEACHING LEDGER. Four mutants, and the bar for each was: does this
+   * reproduce a defect that ACTUALLY OCCURRED, rather than one that could?
+   * All four are measured failures from this repository, not hypotheses. */
+  {
+    /* THE ONLY ONE OF TWENTY-THREE THAT SURVIVED. Twenty-three mutants were
+     * applied to the ledger before it shipped; twenty-two died. This one
+     * lived, and the gap was real: the corrupt-blob test used `version`, which
+     * is the LEDGER's field name, so that case was being refused for having no
+     * `conversation` rather than for its version. One version gate was tested
+     * twice and the other not at all. A mutant that has caught something is
+     * evidence; the other twenty-two are hypotheses. */
+    id: 'agent-session-envelope-version-ignored',
+    file: 'src/agent/session/persist.ts',
+    from: '  if (raw.v !== SESSION_VERSION) {',
+    to: '  if (false) {',
+    breaks: 'a session written by a different build is read as if its shape had not changed, so a field added since is silently absent and the lesson resumes from a position half of which was never in the file',
+  },
+  {
+    /* OCCURRED. `established` accepted `advanced` as evidence of exposure, so
+     * opening a session on `quad` reported the student as exposed to
+     * quadratics before a single thing had been taught. */
+    id: 'agent-intent-to-teach-counts-as-having-taught',
+    file: 'src/agent/session/ledger.ts',
+    from: "  const seen = l.log.some((e) => e.conceptId === conceptId && e.kind === 'shown')",
+    to: "  const seen = l.log.some((e) => e.conceptId === conceptId && (e.kind === 'shown' || e.kind === 'advanced'))",
+    breaks: 'the teacher moving the lesson to a concept counts as the student having seen it, so a curriculum skips material that was never presented and the log agrees it was',
+  },
+  {
+    /* OCCURRED, measured: the identical `Turn` applied twice took `turnIndex`
+     * from 1 to 2 and appended the goal twice. */
+    id: 'agent-retry-counted-as-a-second-turn',
+    file: 'src/agent/session/wire.ts',
+    from: '  const claimed = beginTurn(l, id)\n  if (claimed.alreadySeen) return l',
+    to: '  const claimed = beginTurn(l, id)',
+    breaks: 'a network retry appends to the evidence log a second time, so a student who asked once is recorded as having asked twice and the learner model drifts toward over-confidence with nothing to notice',
+  },
+  {
+    /* OCCURRED, measured on a conversation already about quadratics:
+     * "continue" produced entities [quadratics, continue] and topicShift=true.
+     * The word whose entire meaning is "do not change the subject". */
+    id: 'agent-continue-reads-as-a-new-subject',
+    file: 'src/agent/understand/understand.ts',
+    from: "  'continue', 'continues', 'continuing', 'carry', 'keep', 'keeps', 'going',",
+    to: "  'continues', 'continuing', 'carry', 'keep', 'keeps', 'going',",
+    breaks: 'asking to carry on is read as changing the subject, so the lesson pushes a detour that never happened and the position the student wanted resumed is buried one frame deeper each time they say it',
   },
 ]
 

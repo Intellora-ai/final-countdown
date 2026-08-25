@@ -36,7 +36,7 @@
 
 import { extract } from './extract'
 import { asEvidence, type InjectionSignal } from './guard'
-import { fetchPage, type FetchFailure, type FetchOutcome } from './fetchPage'
+import { fetchPage, type FetchFailure, type FetchOptions, type FetchOutcome } from './fetchPage'
 import { Latency } from './latency'
 import type { SearchHit } from './port'
 
@@ -95,6 +95,14 @@ export interface Retrieved {
   truncated: boolean
   retrievedAt: string
   fromCache: boolean
+  /**
+   * True when this came from a PRECOMPUTED entry rather than one cached from a
+   * real earlier request. `fromCache` is also true in that case; this is the
+   * more specific fact, and §32 asks for them to stay distinguishable — a cache
+   * entry answered a real question once, a precomputed one may never have been
+   * asked for at all.
+   */
+  precomputed?: boolean
 }
 
 export interface GatherOptions {
@@ -105,11 +113,34 @@ export interface GatherOptions {
   maxAgeMs?: number
   /** Time-sensitive questions skip the cache outright. */
   requireFresh?: boolean
+  /**
+   * Passed straight to `fetchPage` on the default path.
+   *
+   * Without this, NONE of the fetcher's limits were reachable from here —
+   * `gather` called `fetchPage(url)` with no options, so `timeoutMs`,
+   * `totalBudgetMs`, `maxBytes` and `allowLoopback` were all fixed at their
+   * defaults and no caller could change them. In the shipped configuration one
+   * source could occupy (maxRedirects + 1) x (retries + 1) x timeoutMs, which
+   * is 6 x 3 x 8s = 144 seconds.
+   *
+   * `fetchPage.test.ts` proved every one of those limits works. Nothing proved
+   * they were wired, and a mechanism that is tested but unreachable is the same
+   * as a mechanism that does not exist.
+   *
+   * Ignored when `fetchImpl` is supplied, because then there is no
+   * `fetchPage` to configure.
+   */
+  fetch?: FetchOptions
   fetchImpl?: (url: string) => Promise<FetchOutcome>
   now?: () => number
 }
 
 const DEFAULT_CONCURRENCY = 4
+
+/** Host for §31 accounting. An unparseable URL is its own bucket, never a shared blank. */
+const hostOf = (url: string): string => {
+  try { return new URL(url).hostname.toLowerCase() } catch { return `unparseable:${url}` }
+}
 
 const emptyResult = (hit: SearchHit, failure: FetchFailure, detail: string): Retrieved => ({
   hit,
@@ -145,7 +176,7 @@ export async function gather(
   const latency = options.latency
   const cache = options.cache
   const now = options.now ?? Date.now
-  const doFetch = options.fetchImpl ?? ((url: string) => fetchPage(url))
+  const doFetch = options.fetchImpl ?? ((url: string) => fetchPage(url, options.fetch ?? {}))
 
   /* One request per distinct URL. Two hits pointing at the same page are two
      results and one fetch — anything else pays twice for identical bytes and
@@ -161,8 +192,23 @@ export async function gather(
       if (index >= distinct.length) return
       const url = distinct[index]
 
+      /* A CACHE THAT THROWS IS A CACHE MISS, NOT A DEAD SEARCH.
+       *
+       * `cache.get` is a call into someone else's implementation. The shipped
+       * `MemoryCache` cannot fail, which is exactly why this was missing —
+       * the promise at the top of this file ("failure is per source, never
+       * per search") held only because nothing had tested it against a
+       * dependency that fails. The comment below anticipates a cache backed
+       * by disk or by a network store; the day one arrives, a dropped
+       * connection would have taken down every search rather than degrading
+       * to no-cache. */
       const lookupStarted = now()
-      const cached = !options.requireFresh && cache ? cache.get(url) : undefined
+      let cached: CachedPage | undefined
+      try {
+        cached = !options.requireFresh && cache ? cache.get(url) : undefined
+      } catch {
+        cached = undefined
+      }
       if (cached && fresh(cached, options.maxAgeMs, now)) {
         /* Measured, not assumed zero. A hardcoded 0 would make the cached p99
            a statement about this line rather than about the cache — and the
@@ -174,8 +220,29 @@ export async function gather(
         continue
       }
 
+      /* A FETCHER THAT THROWS IS ONE DEAD SOURCE, NOT A DEAD SEARCH.
+       *
+       * `fetchPage` returns failures as values and never throws, so this was
+       * unreachable with the shipped implementation — and unreachable is not
+       * the same as impossible. `fetchImpl` is an injection seam: any caller
+       * can pass one that rejects, and one rejection here used to propagate
+       * through `Promise.all` and lose every other source in the batch.
+       * The reason is preserved rather than flattened, because upstream
+       * distinguishes a source that could not be read from a source that had
+       * nothing to say. */
       const started = now()
-      const outcome = await doFetch(url)
+      let outcome: FetchOutcome
+      try {
+        outcome = await doFetch(url)
+      } catch (err) {
+        outcome = {
+          ok: false,
+          reason: 'network',
+          detail: err instanceof Error ? err.message : String(err),
+          elapsedMs: Math.max(0, now() - started),
+          attempts: 1,
+        }
+      }
       const elapsed = Math.max(0, now() - started)
 
       if (!outcome.ok) {
@@ -187,6 +254,10 @@ export async function gather(
       }
 
       latency?.record('live', elapsed)
+      /* §31 — the same measurement, keyed by host. Recorded here because this
+         is where a real request was actually made; anywhere later and a cache
+         hit would be counted as a request that never left the process. */
+      latency?.request(hostOf(url), elapsed)
       const stored: CachedPage = {
         body: outcome.page.body,
         contentType: outcome.page.contentType,
@@ -196,8 +267,18 @@ export async function gather(
         truncated: outcome.page.truncated,
       }
       /* Only successes are cached. A cached failure turns a transient outage
-         into a permanent absence. */
-      cache?.set(url, stored)
+         into a permanent absence.
+         Wrapped for the same reason as `get`: a full or disconnected store
+         must cost the CACHE WRITE, never the page. The bytes are already in
+         hand at this point, and throwing them away because the cache could
+         not record them would turn a storage problem into a retrieval one. */
+      try {
+        cache?.set(url, stored)
+      } catch {
+        /* Intentionally silent. There is no caller decision to make here and
+           nothing is lost: the page is returned either way, and the next
+           request simply misses. */
+      }
       bodies.set(url, { page: stored, fromCache: false })
     }
   })

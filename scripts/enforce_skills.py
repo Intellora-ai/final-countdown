@@ -134,6 +134,13 @@ REQUIRED = (
     # was needed. Its own core is deliberately small -- 8.5 KB, with four
     # reference files read only at the stage that needs them -- so the recurring
     # price is one preamble per session and near zero per re-invocation.
+    #
+    # HOW IT GOT HERE, from the other side of an add/add conflict: it was named
+    # by the reminder hook and NOT by this gate, so it was injected into every
+    # prompt while nothing checked it had been invoked. The drift test caught
+    # that on 2026-08-25 -- not a reader of either file. Two branches then fixed
+    # it independently and collided here, which is itself the argument for the
+    # test: the lists disagree quietly and only a check notices.
     "tokenlock",
 )
 

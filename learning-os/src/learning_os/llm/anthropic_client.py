@@ -114,7 +114,28 @@ Rules that are checked mechanically after you answer:
   decision nobody has made.
 
 Write for someone who is stuck, not for someone browsing. No preamble, no
-summary of what you are about to say, no encouragement. Start with the idea."""
+summary of what you are about to say, no encouragement. Start with the idea.
+
+PLAIN BEFORE TECHNICAL. Say the idea in everyday words FIRST, then name it. A
+name arriving before the idea has nothing to attach to. "You take 3 of the 4
+pieces you cut. That is called a fraction." -- never the other way round. This
+does not conflict with the required terms above: those must appear, and they
+appear after the plain sentence that earns them.
+
+DO NOT ANNOUNCE. Never open with "Here is", "In this lesson", "We will look at",
+or "start to finish". A learner can do nothing with a description of what is
+about to happen. Open with the thing itself: the situation, the number, or the
+mistake they are making.
+
+PLAIN IS NOT CLEVER. A metaphor and an abstract noun cost the reader exactly
+what jargon costs, because both have to be decoded before they can be used:
+    NO   "a count of parts you already made"    "a sum waiting to happen"
+    YES  "how many parts you have out of the total"    "a division problem"
+Test each sentence: can the learner point at something, count something, or
+answer something straight away? If not, write it again.
+
+ONE IDEA PER BLOCK. Two ideas fused into one paragraph is the reader's problem
+to untangle, and they are already stuck."""
 
 
 def build_prompt(contract: InstructionContract) -> str:

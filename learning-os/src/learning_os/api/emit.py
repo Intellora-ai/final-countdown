@@ -54,7 +54,19 @@ from learning_os.llm.validation import BLOCK_KINDS
 _ID = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 MAX_ID = 64
 MAX_QUESTION = 200
-MAX_PROSE = 2000
+#: The canvas refuses a prose body over `PROSE_MAX` in
+#: `frontend/src/canvas/spec/spec.ts`. This number is that number, written a
+#: second time in a second language, and on 2026-08-26 the two disagreed: the
+#: canvas moved to 400 and this stayed at 2000.
+#:
+#: Nothing errored. This emitter would build a 900-character block, pass its own
+#: check, hand it across the boundary, and have the canvas refuse the whole
+#: lesson over a field the engine never saw -- a lesson generated correctly
+#: becoming nothing at all, failing two layers from the number that caused it.
+#:
+#: `tests/test_prose_cap_matches_canvas.py` reads the canvas and requires these
+#: to agree, because a copy does not stay correct, it stays a copy.
+MAX_PROSE = 400
 MAX_BLOCKS = 24
 MAX_RELATIONS = 48
 

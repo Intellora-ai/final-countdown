@@ -25,6 +25,7 @@
  */
 
 import { validateLesson } from '../src/canvas/spec/validate.ts'
+import { checkPlainFirst } from '../src/canvas/spec/plainFirst.ts'
 import { chooseStrategy, type Strategy } from './teaching.ts'
 import { injectionSignals, stripInvisible } from '../src/websearch/guard.ts'
 import { citationSupports } from '../src/websearch/quality.ts'
@@ -174,6 +175,33 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         issues: result.issues.map((issue) => ({
           path: issue.path,
           message: safeMessage(issue.message),
+        })),
+      })
+    }
+
+    /*
+     * The lesson is well-formed. That is not the same as teachable.
+     *
+     * `validateLesson` asks whether a model invented a style key or a dangling
+     * relation. It has nothing to say about a lesson that is three prose blocks
+     * opening with "Here is one worked case, start to finish" — which is what
+     * every committed generated lesson looked like when this was measured on
+     * 2026-08-25, while the whole suite was green.
+     *
+     * Checked HERE and not inside `validateLesson` because that gate also
+     * parses the committed corpus in the browser, and refusing there would stop
+     * lessons that already shipped from rendering. This seam sees only what a
+     * model has just produced, so the rule binds new output without rewriting
+     * what exists.
+     */
+    const plain = checkPlainFirst(result.lesson)
+    if (plain.length > 0) {
+      return reply(502, {
+        ...decided,
+        error: 'the model returned a lesson that failed validation',
+        issues: plain.map((violation) => ({
+          path: violation.path,
+          message: safeMessage(`${violation.evidence} — ${violation.fix}`),
         })),
       })
     }

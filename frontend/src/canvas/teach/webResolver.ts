@@ -2,6 +2,7 @@ import type { AsyncDoubtResolver, Doubt, Resolution } from './contract'
 import { contentTokens, HALF } from './doubt'
 import type { Lesson } from '../spec/spec'
 import { validateLesson } from '../spec/validate'
+import { PROSE_MAX } from '../spec/spec'
 
 /* -------------------------------------------------------------------------- */
 /* What this needs from a retrieval layer, stated here rather than imported    */
@@ -211,7 +212,24 @@ export interface WebResolverDeps {
 const MAX_SOURCES = 5
 
 /** Long enough to carry a real explanation, short enough to read in a panel. */
-const MAX_EVIDENCE_CHARS = 600
+/* Read from the schema, never chosen here. This was a private 600 while the
+ * schema allowed 2000, and it silently became wrong the day the schema tightened
+ * -- a clamp that lets through more than the validator accepts turns a real
+ * answer into a refusal, which is the worst shape of failure: nothing errors. */
+const MAX_EVIDENCE_CHARS = PROSE_MAX
+
+/**
+ * Clamp the FINISHED body, never a fragment of it.
+ *
+ * The bug this closes: evidence was clamped to the cap and a source line was
+ * appended afterwards, so the block that actually got built was always longer
+ * than the limit it had just been trimmed to. Invisible while the schema
+ * allowed 2000; the moment the cap tightened, a real answer became a refusal
+ * and nothing errored anywhere. Compose first, clamp last.
+ */
+function proseBody(text: string): string {
+  return clamp(text, PROSE_MAX)
+}
 
 const MAX_TITLE = 120
 const MAX_ID = 64
@@ -488,10 +506,11 @@ function buildCheckedAnswer(
     {
       id: 'web-note',
       kind: 'callout',
-      body:
+      body: proseBody(
         `This is not from this lesson. It is quoted from a page found on the web. ` +
-        `${STATUS_NOTE[status as 'supported' | 'single-source']}${freshnessNote(freshness)}` +
-        `${fallbackNote(fallback)}`,
+          `${STATUS_NOTE[status as 'supported' | 'single-source']}${freshnessNote(freshness)}` +
+          `${fallbackNote(fallback)}`,
+      ),
       emphasis: 'aside',
       tone: check.status === 'supported' ? 'insight' : 'warning',
     },
@@ -499,7 +518,7 @@ function buildCheckedAnswer(
       id: 'web-answer',
       kind: 'prose',
       title: clamp(readableAddress(evidence.sourceUrl), MAX_TITLE),
-      body: evidence.text,
+      body: proseBody(evidence.text),
       emphasis: 'primary',
       tone: 'neutral',
     },
@@ -511,7 +530,7 @@ function buildCheckedAnswer(
       id: 'web-sources',
       kind: 'prose',
       title: 'Where this came from',
-      body: sourceList(ids.map(readableAddress)),
+      body: proseBody(sourceList(ids.map(readableAddress))),
       emphasis: 'supporting',
       tone: 'neutral',
     })
@@ -561,7 +580,7 @@ function buildConflictAnswer(
       id: `web-conflict-${index}`,
       kind: 'prose',
       title: clamp(readableSource(page), MAX_TITLE),
-      body: clamp(page.readerText.trim(), MAX_EVIDENCE_CHARS),
+      body: proseBody(clamp(page.readerText.trim(), MAX_EVIDENCE_CHARS)),
       emphasis: index === 0 ? 'primary' : 'supporting',
       tone: 'neutral',
     })
@@ -605,7 +624,9 @@ function buildAnswer(doubt: Doubt, pages: readonly RetrievedPage[]): Lesson | nu
       id: slug(index),
       kind: 'prose',
       title: clamp(page.title || page.hit.title || readableSource(page), MAX_TITLE),
-      body: `${clamp(page.readerText.trim(), MAX_EVIDENCE_CHARS)}\n\nSource: ${readableSource(page)}`,
+      body: proseBody(
+        `${clamp(page.readerText.trim(), MAX_EVIDENCE_CHARS)}\n\nSource: ${readableSource(page)}`,
+      ),
       emphasis: index === 0 ? 'primary' : 'supporting',
       tone: 'neutral',
     })

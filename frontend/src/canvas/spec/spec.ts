@@ -51,7 +51,33 @@ const Id = z
   .regex(/^[a-z0-9][a-z0-9-]*$/, 'ids are lowercase kebab-case')
 
 const Label = z.string().min(1).max(120)
-const Prose = z.string().min(1).max(2000)
+/**
+ * One idea, not one essay.
+ *
+ * This was 2000 for as long as the schema existed, and the guidance beside it
+ * said "keep each block to one idea" — a request, which cannot fail a build.
+ * The number is measured, and the first attempt at it was measured WRONG. 320
+ * was taken from the generated lessons and the engine fixture alone, which is
+ * where a model's output lands; it broke 24 tests, because the hand-authored
+ * acceptance lessons are longer and nobody had looked at them. Across every
+ * lesson in the repo the longest body is 394 characters, in
+ * classifierEvaluation.ts, so 400 refuses nothing that exists.
+ *
+ * What changes is the ceiling. At 2000 a wall of text is expressible and a
+ * model will eventually write one; at 400 it is not, and ideas that were being
+ * fused into a paragraph have to become separate blocks instead.
+ *
+ * EXPORTED, and that matters. The web resolver clamped its own evidence to a
+ * private 600 and built a prose block out of it. Two places holding the same
+ * fact is how they disagree, and they did the moment this cap moved: the
+ * resolver produced a 600-character body the schema then refused, so a real
+ * answer turned into a refusal. Anything constructing prose reads THIS.
+ *
+ * That is the point. A block cap is the only part of "one idea per block" that
+ * does not depend on the author agreeing with it.
+ */
+export const PROSE_MAX = 400
+const Prose = z.string().min(1).max(PROSE_MAX)
 
 /* -------------------------------------------------------------------------- */
 /* Blocks                                                                     */

@@ -259,3 +259,78 @@ describe('the API key never leaves this process', () => {
     expect(JSON.stringify(res)).not.toContain(SENTINEL)
   })
 })
+
+/*
+ * PLAIN FIRST AT THE GENERATION SEAM
+ * ----------------------------------
+ * Measured in this repo on 2026-08-25: every committed generated lesson was
+ * three prose blocks, and two of the three opened by announcing themselves —
+ * "Here is one worked case of identify base case, start to finish." Nothing in
+ * that sentence is technical. It is still unusable, because it tells the
+ * learner what is about to happen rather than teaching them anything.
+ *
+ * The prompt already asked for better. Asking is a request, and a request
+ * cannot fail a build, which is why the corpus looked like that while the
+ * suite was green. These tests put the rule where a model cannot talk its way
+ * past it: the same 502 that already catches an invented style key.
+ *
+ * Refused HERE and not in `validateLesson` on purpose. The browser validator
+ * also parses the committed corpus, and refusing there would break rendering
+ * for lessons that already shipped. This seam sees only what a model has just
+ * produced, so the rule binds new output without rewriting history.
+ */
+describe('plain first', () => {
+  const proseBlock = (id: string, body: string) => ({
+    id,
+    kind: 'prose',
+    emphasis: 'supporting',
+    body,
+  })
+
+  it('refuses a lesson whose blocks are all the same kind', async () => {
+    const allProse = {
+      id: 'photosynthesis',
+      question: 'How does a leaf make food?',
+      blocks: [
+        proseBlock('a', 'A leaf turns light into sugar.'),
+        proseBlock('b', 'It takes in air through small holes.'),
+        proseBlock('c', 'Water comes up from the roots.'),
+      ],
+      relations: [],
+    }
+    const res = await handlerWith(modelReturning(allProse))(LESSON_REQUEST)
+    expect(res.status).toBe(502)
+    const issues = res.body['issues'] as { path: string; message: string }[]
+    expect(issues.some((i) => i.message.includes('all prose'))).toBe(true)
+  })
+
+  it('refuses an opening that announces the lesson instead of teaching it', async () => {
+    const announces = {
+      id: 'photosynthesis',
+      question: 'How does a leaf make food?',
+      blocks: [
+        proseBlock('a', 'Here is one worked case of making sugar, start to finish.'),
+        { id: 'b', kind: 'metric', emphasis: 'supporting', title: 'sugar', value: '1', unit: 'g' },
+      ],
+      relations: [],
+    }
+    const res = await handlerWith(modelReturning(announces))(LESSON_REQUEST)
+    expect(res.status).toBe(502)
+  })
+
+  it('accepts a lesson that opens plainly and varies its shape', async () => {
+    /* The pair. A gate asserted only to refuse is satisfied by refusing
+       everything, which is the same as having no gate and no lessons. */
+    const good = {
+      id: 'photosynthesis',
+      question: 'How does a leaf make food?',
+      blocks: [
+        proseBlock('a', 'A leaf turns light into sugar.'),
+        { id: 'b', kind: 'metric', emphasis: 'supporting', title: 'sugar', value: '1', unit: 'g' },
+      ],
+      relations: [],
+    }
+    const res = await handlerWith(modelReturning(good))(LESSON_REQUEST)
+    expect(res.status).toBe(200)
+  })
+})

@@ -36,10 +36,14 @@ from pathlib import Path
 
 #: The smallest number of database tests that may exist.
 #:
-#: Set from the measured count at the time Phase 5 landed, minus nothing. If
-#: this file and the suite disagree, one of them changed and the diff says
-#: which.
-FLOOR = 8
+#: Measured, not estimated. 8 when Phase 5 landed the seed suite; 63 once Phase
+#: 6 added the nine invariants -- idempotency, mastery reconciliation, foreign
+#: keys, review ordering, closed sessions, time zones, migrations, transactions,
+#: and database failure.
+#:
+#: Raise it when the suite grows. Never lower it to make a build pass: that is
+#: the shape this file exists to refuse.
+FLOOR = 63
 
 #: Where the database suite lives, relative to the repository root.
 SUITE = Path("learning-os") / "tests" / "db"

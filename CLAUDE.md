@@ -738,3 +738,57 @@ rule is waste, and it teaches everyone to ignore the rule.
 
 Checked by the `knowledge-gate` job in `.github/workflows/gate.yml`, which is
 **non-blocking today**. It reports; it does not yet refuse.
+
+---
+
+## Scope Lock
+
+The current task is the ONLY objective.
+
+Do not:
+
+- refactor unrelated code
+- fix unrelated warnings
+- upgrade dependencies unless required
+- redesign architecture unless required
+- investigate unrelated bugs
+- improve UX unrelated to the task
+- clean up unrelated files
+- add speculative abstractions
+- pursue optimizations that do not affect task completion
+
+If you notice an unrelated issue:
+
+1. record it in `.agent/deferred.md`
+2. do not fix it
+3. continue the current task
+
+Only leave the current task if the issue BLOCKS completion.
+
+### Why "blocks" is a narrow word
+
+A blocker is something that makes finishing the current task *impossible*, not
+merely something encountered on the way to it. A failing unrelated test that
+prevents the push is a blocker. A failing unrelated test that does not is a
+deferral, however tempting.
+
+The test to apply: **can the current task be completed and verified without
+touching this?** If yes, it goes in `.agent/deferred.md` and nowhere else.
+
+### Why recording beats fixing
+
+A noticed problem that is never written down is lost the moment the session
+ends, and the next session rediscovers it from scratch. A noticed problem that
+is fixed on the spot turns a reviewable change into an unreviewable one, and
+buries the actual work under edits nobody asked for.
+
+Writing it down is the only option that keeps both the finding and the focus.
+
+### This does not weaken anything above it
+
+Scope Lock decides what is IN a task. It does not lower the bar for the work
+that IS in scope. LAW 0 still governs: the test comes first and is watched
+failing. "Every bug becomes a permanent fix" still applies **to the bug the
+task is about** — root cause, a guard, and every copy of that same defect. A
+variant of the bug you are fixing is in scope by definition; an unrelated bug
+in the next file is not.

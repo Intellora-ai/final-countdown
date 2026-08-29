@@ -82,6 +82,16 @@ export type ConceptResult =
        */
       lesson: Lesson
       attempts: number
+      /**
+       * WHICH way in was taken, so the caller can refuse to take it twice.
+       *
+       * `nextRoute` already picks a route the learner has not had, but it can
+       * only do that if someone REMEMBERS what they were given, and the id was
+       * computed inside this function and thrown away. A caller with no way to
+       * read it back had no way to fill `alreadyUsed`, so the parameter stayed
+       * empty forever and the same question always took the same route.
+       */
+      route: string
     }
   /**
    * `unreachable` separates two outcomes a learner must never see conflated:
@@ -492,6 +502,12 @@ export async function authorConcept(
   /** The route seed. Defaults to the question, so behaviour is unchanged. */
   seed: number = questionSeed(question),
 ): Promise<ConceptResult> {
+  /*
+   * The SAME choice `conceptRequest` makes, made once and named, because the
+   * caller has to be told which one it was. `nextRoute` is pure, so asking it
+   * twice with the same state cannot disagree with itself.
+   */
+  const taken = nextRoute({ seed, alreadyUsed })
   const system = conceptRequest(question, sources, alreadyUsed, seed)
   let user = question
   let prior: string | undefined
@@ -515,7 +531,7 @@ export async function authorConcept(
 
     const verdict = judge(raw)
     if (verdict.concept !== null && verdict.lesson !== null && verdict.issues.length === 0) {
-      return { ok: true, concept: verdict.concept, lesson: verdict.lesson, attempts: attempt }
+      return { ok: true, concept: verdict.concept, lesson: verdict.lesson, attempts: attempt, route: taken.id }
     }
 
     last = { raw, issues: verdict.issues }

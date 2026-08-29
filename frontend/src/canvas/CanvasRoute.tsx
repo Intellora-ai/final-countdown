@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import type { AnyResolver } from './teach/contract'
@@ -26,7 +26,7 @@ import { validateLesson, type Issue, type TeachingLevel } from './spec/validate'
 import { chatOnce } from '../agent/ports/httpModel'
 import { sourcesFrom } from './teach/researched'
 import type { Source } from './teach/grounding'
-import { authorConcept } from './teach/concept'
+import { explainAgain, NOTHING_YET, type Remembered } from './teach/again'
 import { scopedQuery } from './teach/level'
 import type { Lesson } from './spec/spec'
 import { TeachView } from './teach/TeachView'
@@ -154,6 +154,22 @@ export default function CanvasRoute({
   const [authored, setAuthored] = useState<Lesson | null>(null)
   const [authoring, setAuthoring] = useState(false)
   const [authorFailed, setAuthorFailed] = useState<Issue[] | null>(null)
+
+  /*
+   * WHAT THIS LEARNER HAS ALREADY BEEN TOLD, PER TOPIC.
+   *
+   * "Never repeat yourself" is not a property of one lesson, so no gate can
+   * hold it: it is a property of a PAIR, and something has to remember the
+   * first half. Without this the call below passed no history, `alreadyUsed`
+   * stayed empty, the seed came out of the same question every time, and asking
+   * the same thing twice returned the same route and the same words.
+   *
+   * A REF, NOT STATE, because nothing on screen is derived from it -- writing
+   * it through `setState` would re-render the canvas to change nothing. Keyed
+   * by the topic so two subjects do not spend each other's routes, and cased
+   * down so "Photosynthesis" and "photosynthesis" are one topic, not two.
+   */
+  const alreadyTaught = useRef(new Map<string, Remembered>())
 
   /*
    * WHETHER THERE IS A MODEL TO ASK, KNOWN BEFORE ANYONE ASKS.
@@ -286,7 +302,18 @@ export default function CanvasRoute({
        * path `authorLesson`'s did. A canvas that quietly fell back would tell a
        * learner their question had been answered when it had not.
        */
-      const written = await authorConcept(chat, question, sources)
+      /*
+       * A DIFFERENT WAY IN EACH TIME, AND A CHECK THAT IT REALLY WAS ONE.
+       *
+       * `explainAgain` feeds the routes this learner has already spent back
+       * into `authorConcept` so `nextRoute` picks a fresh one, and runs
+       * `sameAgain` over what comes back so a model that ignored the reroute
+       * and reprinted its last answer is asked once more rather than shipped.
+       */
+      const topicKey = question.toLowerCase()
+      const remembered = alreadyTaught.current.get(topicKey) ?? NOTHING_YET
+      const { written, memory } = await explainAgain(chat, question, sources, remembered)
+      alreadyTaught.current.set(topicKey, memory)
       if (written.ok) {
         setAuthored(written.lesson)
       } else {

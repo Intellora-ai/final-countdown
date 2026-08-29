@@ -1,5 +1,5 @@
 import { validateLesson, type Issue } from '../spec/validate'
-import type { LessonModel } from './authorLesson'
+import { extractJson, type LessonModel } from './authorLesson'
 import { classifyTurn } from './turn'
 
 /**
@@ -221,13 +221,24 @@ export async function authorConcept(
     }
   }
 
-  let parsed: Concept
-  try {
-    parsed = JSON.parse(raw) as Concept
-  } catch {
+  /*
+   * `extractJson`, NOT `JSON.parse`, AND THE DIFFERENCE WAS 6 OF 6.
+   *
+   * The first live run of this module scored 0 of 6 against qwen2.5:7b, and
+   * every refusal was "the reply was not one JSON object" -- not one was a
+   * teaching failure. `authorLesson` had already exported `extractJson` for
+   * exactly this, with the reason recorded beside it: local models fence their
+   * JSON, apologise before it, or add a sentence after it, however firmly they
+   * are told not to.
+   *
+   * Reusing it rather than re-deriving it also keeps the two authors agreeing
+   * about what counts as a reply. Two parsers is two answers to one question.
+   */
+  const parsed = extractJson(raw) as Concept | null
+  if (parsed === null || typeof parsed !== 'object') {
     return {
       ok: false,
-      issues: [{ path: '(reply)', message: 'the reply was not one JSON object' }],
+      issues: [{ path: '(reply)', message: 'the reply contained no JSON object' }],
       raw,
     }
   }

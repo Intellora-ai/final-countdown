@@ -198,6 +198,30 @@ describe('a broken bridge is not a bad concept', () => {
     expect(result.unreachable).toMatch(/connection refused/)
   })
 
+  it('accepts a concept the model fenced, apologised before, or chattered after', async () => {
+    /*
+     * MEASURED, AND IT WAS MY BUG, NOT THE MODEL'S.
+     *
+     * The first per-concept run against qwen2.5:7b scored 0 of 6 — and every
+     * single refusal was `the reply was not one JSON object`. Not one was a
+     * teaching failure. This module called `JSON.parse` directly while
+     * `authorLesson` had already exported `extractJson` for exactly this, with
+     * a comment recording the reason:
+     *
+     *   "Local models fence their JSON, apologise before it, or add a sentence
+     *    after it, however firmly they are told not to."
+     *
+     * That knowledge was in the codebase and this file did not use it, so the
+     * measurement it produced said nothing about whether a per-concept unit
+     * teaches better. A probe that fails on the harness rather than the subject
+     * reports a number that looks like a finding and is not.
+     */
+    const fenced = '```json\n' + soundConcept() + '\n```\nHope that helps!'
+    const result = await authorConcept(says(fenced), 'What is a base case?')
+    if (!result.ok) throw new Error(`refused: ${JSON.stringify(result.issues)}`)
+    expect(result.concept.id).toBe('base-case')
+  })
+
   it('a refused concept carries the gate reasons, not a generic apology', async () => {
     const result = await authorConcept(says('not json at all'), 'What is a base case?')
     expect(result.ok).toBe(false)

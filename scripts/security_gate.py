@@ -105,6 +105,11 @@ def check_no_sql(path: str, line_no: int) -> tuple[bool, str]:
 
 
 ELIGIBLE = {
+    # knowledge_manifest.py reads pinned submodule revisions from
+    # `git submodule status`. Eligible only; the four call-site conditions
+    # above are still re-derived from its AST on every run.
+    ("B404", "scripts/knowledge_manifest.py"),
+    ("B603", "scripts/knowledge_manifest.py"),
     ("B404", "scripts/proof_gate.py"),
     ("B603", "scripts/proof_gate.py"),
     ("B404", "scripts/security_gate.py"),

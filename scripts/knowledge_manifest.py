@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import configparser
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -52,9 +53,26 @@ LICENCE_PATTERNS = (
 )
 
 
-def run(*args: str) -> str:
+# Resolved once, by the process, never by PATH at call time. security_gate.py
+# re-derives this from the AST on every run: argv[0] must come from
+# shutil.which (or sys.executable), argv must be a list literal, shell must be
+# False, and a timeout must be present. A bare "git" is rejected because PATH
+# then decides what executes. This is a verified exception, not a suppression --
+# if any of the four stops holding, the gate fails again.
+GIT = shutil.which("git")
+
+
+def git_submodule_status() -> str:
+    """`git submodule status`, the only subprocess this script runs."""
+    if GIT is None:
+        raise RuntimeError("git is not on PATH; cannot read submodule revisions")
     return subprocess.run(
-        args, cwd=REPO, capture_output=True, text=True, check=False
+        [GIT, "submodule", "status"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
     ).stdout
 
 
@@ -81,7 +99,7 @@ def submodule_paths_and_urls() -> dict[str, str]:
 def pinned_revisions() -> dict[str, tuple[str, bool]]:
     """path -> (sha, initialised). A leading '-' means never initialised."""
     revs: dict[str, tuple[str, bool]] = {}
-    for line in run("git", "submodule", "status").splitlines():
+    for line in git_submodule_status().splitlines():
         if not line.strip():
             continue
         initialised = not line.startswith("-")

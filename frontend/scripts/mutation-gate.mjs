@@ -458,7 +458,7 @@ const MUTANTS = [
   {
     id: 'beat-cap-lifted',
     file: 'src/canvas/teach/beats.ts',
-    from: 'const MAX_BLOCKS_PER_BEAT = 3',
+    from: 'const MAX_BLOCKS_PER_BEAT = 5',
     to: 'const MAX_BLOCKS_PER_BEAT = 99',
     breaks: 'the whole lesson arrives in one go and the learner is never once asked whether any of it landed',
   },

@@ -867,9 +867,29 @@ export function checkTeaching(
   checkExamplesIsolateOneRule(lesson, out)
   checkChainsAreDrawn(lesson, out)
   checkTechnicalTermsArriveLate(lesson, out)
-  checkAmbiguousWords(lesson, out)
 
   if (options.arc) {
+    /*
+     * ARC-ONLY, FOR THE SAME REASON `checkSomethingIsMarked` IS.
+     *
+     * This rule is satisfied one of two ways, and BOTH are authorial: declare
+     * the word in `technicalTerms`, or mark it `distinction` on the block. A
+     * caller that ASSEMBLES a reply out of text somebody else wrote can do
+     * neither without inventing an intent the author never expressed.
+     *
+     * Two such callers exist. `captionNote` builds a block from the author's
+     * caption and never invents text — the case that put `nothing-marked` in
+     * this half. And the Python engine emits `{id, kind, emphasis, body}`,
+     * with no field for a term or a mark at all, so every answer it produces
+     * naming a word like "base" or "force" was refused with an instruction
+     * the emitter has no way to follow.
+     *
+     * A rule the caller cannot satisfy is a trap, not a standard. Held here,
+     * it keeps its full force on every taught lesson — where the author IS
+     * writing the words and can say which sense is meant — and stops firing
+     * at replies, which is exactly what the `'answer'` scope is for.
+     */
+    checkAmbiguousWords(lesson, out)
     checkSomethingIsMarked(lesson, out)
     checkArc(lesson, out)
     checkRulesAreEarned(lesson, out)

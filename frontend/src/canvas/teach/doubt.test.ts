@@ -50,7 +50,12 @@ function answerTo(lesson: Lesson, text: string): DoubtAnswer {
   if (resolution.kind !== 'answer')
     throw new Error(`expected an answer to "${text}", got a refusal: ${resolution.reason}`)
 
-  const revalidated = validateLesson(resolution.lesson)
+  /* At `'answer'`, which is the level the resolver itself builds against
+     (`doubt.ts`). Re-checking at `'lesson'` would demand an opening definition
+     and a closing summary from a reply to one question -- a contract the
+     resolver never makes and production never applies, so a failure there
+     would say nothing about whether the resolver is correct. */
+  const revalidated = validateLesson(resolution.lesson, { teaching: 'answer' })
   expect(
     revalidated.ok,
     revalidated.ok ? '' : `answer to "${text}" does not validate: ${JSON.stringify(revalidated.issues)}`,

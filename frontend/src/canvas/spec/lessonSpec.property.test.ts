@@ -84,7 +84,10 @@ describe('any lesson the schema accepts survives the pipeline', () => {
         expect(parsed.success, JSON.stringify(parsed.error?.issues ?? [])).toBe(true)
         if (!parsed.success) return
 
-        const result = validateLesson(candidate)
+        /* `'off'`. The property is that the LAYOUT pipeline loses no block.
+           A generator that also had to satisfy the teaching arc would explore
+           a far narrower space, which would weaken this test, not harden it. */
+        const result = validateLesson(candidate, { teaching: 'off' })
         expect(result.ok).toBe(true)
         if (!result.ok) return
 
@@ -131,7 +134,8 @@ describe('any lesson the schema accepts survives the pipeline', () => {
         relations: [],
       }
 
-      const result = validateLesson(candidate)
+      /* `'off'`, as above: block counts at the boundary, not teaching. */
+      const result = validateLesson(candidate, { teaching: 'off' })
       expect(result.ok, `count=${count}`).toBe(true)
       if (!result.ok) continue
 
@@ -151,7 +155,7 @@ describe('any lesson the schema accepts survives the pipeline', () => {
       question: 'Is an empty lesson a lesson?',
       blocks: [],
       relations: [],
-    })
+    }, { teaching: 'off' })
     expect(result.ok).toBe(false)
   })
 
@@ -169,7 +173,7 @@ describe('any lesson the schema accepts survives the pipeline', () => {
         { id: 'same', kind: 'prose', body: 'second' },
       ],
       relations: [],
-    })
+    }, { teaching: 'off' })
     expect(result.ok).toBe(false)
   })
 })

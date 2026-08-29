@@ -264,7 +264,32 @@ export interface BeatIssue {
  * all, because a lesson silently missing its last block looks exactly like a
  * lesson that ended.
  */
-export function checkBeats(beats: Beats, lesson: Lesson): BeatIssue[] {
+export interface BeatOptions {
+  /**
+   * Whether the teaching requirements apply on top of the structural ones.
+   *
+   * The partition rules below — every block in exactly one beat, in order,
+   * every beat non-empty, no step counting — are INTEGRITY. They hold for
+   * anything cut into beats, and they always run.
+   *
+   * "Every beat shows something" is a TEACHING requirement, and it is held
+   * here for the same reason the arc rules are held in `checkTeaching`: a
+   * caller that cannot build a representation cannot satisfy it. The Python
+   * engine is exactly that caller — `emit` refuses every kind except `prose`
+   * and `callout`, so its output is words by construction. Demanding a chart
+   * from a component with no chart builder refuses honest output and names no
+   * fixable fault.
+   *
+   * True for a lesson being TAUGHT, which is where the rule earns its keep.
+   */
+  teaching: boolean
+}
+
+export function checkBeats(
+  beats: Beats,
+  lesson: Lesson,
+  options: BeatOptions = { teaching: true },
+): BeatIssue[] {
   const issues: BeatIssue[] = []
   const order = lesson.blocks.map((b: Block) => b.id)
 
@@ -320,6 +345,8 @@ export function checkBeats(beats: Beats, lesson: Lesson): BeatIssue[] {
    */
   const shows = new Set(['chart', 'table', 'flow', 'figure', 'simulation'])
   const kindOf = new Map(lesson.blocks.map((b: Block) => [b.id, b.kind]))
+
+  if (!options.teaching) return issues
 
   for (const beat of beats) {
     const here = new Set(beat.blockIds)

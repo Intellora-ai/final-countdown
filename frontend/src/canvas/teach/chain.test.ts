@@ -27,6 +27,8 @@ import { validateLesson } from '../spec/validate'
  */
 
 const LESSON: Lesson = (() => {
+  /* `'off'`. What this file tests is which resolver answers and whether the
+     chain falls through -- not whether the fixture teaches. */
   const result = validateLesson({
     id: 'chain-fixture',
     question: 'Why does heating a gas raise its pressure?',

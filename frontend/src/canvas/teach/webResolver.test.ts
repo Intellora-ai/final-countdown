@@ -214,7 +214,7 @@ describe('an answer quotes its source and says where it came from', () => {
        here. */
     const r = await resolverFor(outcome()).resolve(DOUBT, LESSON)
     if (r.kind !== 'answer') throw new Error('expected an answer')
-    expect(validateLesson(r.lesson).ok).toBe(true)
+    expect(validateLesson(r.lesson, { teaching: 'answer' }).ok).toBe(true)
   })
 
   it('a long source is truncated rather than dumped whole', async () => {

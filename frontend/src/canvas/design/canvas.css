@@ -522,6 +522,16 @@
  * comparison. `auto-fit` lets the pair stack on a narrow frame rather than
  * squeezing two unreadable columns — the reader still gets both, in order.
  */
+/*
+ * The container itself. Its parts were all styled and IT was not, so the
+ * pair, the reason and the check ran together with no rhythm between them —
+ * the block had rules for every piece and none for the whole.
+ */
+.lc-misconception {
+  display: grid;
+  gap: var(--s-md);
+}
+
 .lc-misconception__pair {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 22ch), 1fr));
@@ -557,6 +567,12 @@
  * The arrows are drawn from the ORDER of the array — the author writes a list
  * and never types an arrow, which is the same division `flow` already keeps.
  */
+/* The container, for the same reason the misconception block needed one. */
+.lc-summary {
+  display: grid;
+  gap: var(--s-md);
+}
+
 .lc-summary__progression {
   display: flex;
   flex-wrap: wrap;

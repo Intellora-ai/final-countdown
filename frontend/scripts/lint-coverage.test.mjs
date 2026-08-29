@@ -102,6 +102,16 @@ const NOT_SOURCE = new Set([
   'test-results',
   'playwright-report',
   'public',
+  /* Written by a Sauce Labs cloud run: the HTML report from
+     playwright.sauce.config.ts, and the artefacts .sauce/config.yml downloads
+     when a suite fails. Both are gitignored, but this check reads the
+     FILESYSTEM rather than git -- so a developer who has run the cloud suite
+     once would otherwise see this gate fail on directories that are not
+     source. They belong here and not in TOP_EXEMPT: an exemption means
+     "source we chose not to lint", and listing a run product there would
+     dilute what an exemption means. */
+  'playwright-report-sauce',
+  'artifacts',
 ])
 
 const lintScript = () => {

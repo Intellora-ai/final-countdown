@@ -427,6 +427,57 @@ requirements:
     evidence: "playwright report, uploaded as an artifact on failure"
     source: README.md "Browser smoke test"; ci/gates.toml [gates.e2e] must_contain
 
+  - id: REQ-040
+    statement: >-
+      Every change is read by this repository's own linters - the ones whose
+      configs somebody tuned - before it can merge, and a failure in any of the
+      three stops the merge rather than being reported and scrolled past.
+    verification: catch-errors
+    severity: blocking
+    evidence: "per-linter PASS/FAIL lines in the job summary"
+    source: ci/gates.toml [gates.catch-errors] must_contain
+    note: >-
+      Deliberately NOT a general-purpose linter action. One that ships its own
+      defaults would report thousands of complaints from rules nobody here
+      chose, across files that are fine, and a gate people learn to scroll past
+      enforces nothing.
+
+  - id: REQ-041
+    statement: >-
+      The canvas survives its model dependency failing. A refused connection, a
+      503, a proxy returning HTML, a reply truncated mid-JSON, valid JSON of the
+      wrong shape, or an empty reply each produce a refusal the learner can
+      read - never a hang, never a crash, never a lesson built from a broken
+      reply.
+    verification: chaos
+    severity: blocking
+    evidence: "per-experiment PASS/FAIL from the vitest verbose reporter"
+    source: ci/gates.toml [gates.chaos]; frontend/src/canvas/chaos/dependencyChaos.test.ts
+    note: >-
+      Bounded by construction, which is what makes it a PR gate rather than a
+      nightly campaign: every fault is injected into an in-process fake
+      dependency, so nothing reaches a network, a database, or a deployment.
+      Two of these experiments failed on their first run and found a real
+      defect - `authorLesson` threw on a transport failure, so a caller could
+      not tell "the model is down" from "the model wrote a bad lesson".
+
+  - id: REQ-042
+    statement: >-
+      Every skill the automatic fixer is told to read exists in this repository
+      and is not empty, and the fixer's prompt never names a skill that is
+      absent.
+    verification: skills
+    severity: blocking
+    evidence: "pytest result per required skill"
+    source: ci/gates.toml [gates.skills]; .github/workflows/gate.yml claude-fix prompt
+    note: >-
+      `claude-fix` has write access to the branch. `.claude/skills/` is what
+      points it at a root cause rather than at the cheapest green, and a deleted
+      skill file fails silently - the job runs, unguided, and nothing reports
+      it. A prompt naming a skill the repository lacks is an instruction about a
+      file the model cannot open, and a model will invent a process rather than
+      report the gap.
+
   # -------------------------------------------------------------------------
   # verification: none — the rows this file exists for
   #

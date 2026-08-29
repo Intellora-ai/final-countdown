@@ -260,6 +260,24 @@
   padding: var(--s-md) 0;
   color: var(--c-ink);
 }
+/*
+ * KaTeX SETS ITS OWN VERTICAL MARGINS, AND THE BOARD OWNS SPACING.
+ *
+ * `katex.min.css` styles `.katex-display { margin: 1em 0 }`. That stylesheet
+ * arrived with the renderer-owns-its-stylesheet change; before it, the margin
+ * simply did not exist and the board's rhythm held by accident. With it
+ * loaded, display maths carried 15px of air the layout had not allowed for and
+ * pushed `PV = nRT` onto the panel below it.
+ *
+ * Zeroed here rather than worked around, because vertical rhythm on this
+ * surface is the design system's decision and not a maths library's. `0` is a
+ * bare number and carries no design value, so this stays inside Law 4.
+ */
+.lc-equation .katex-display,
+.lc-reasoning .katex-display {
+  margin: 0;
+}
+
 .lc-equation .katex { font-size: 1.9em; }
 
 /* A highlighted term gets an accent underline, exactly as `RT` does in the

@@ -228,7 +228,19 @@ test.describe('explanation canvas regressions', () => {
     page.on('pageerror', (e) => errors.push(e.message))
 
     await open(page, testInfo)
-    await settle(page)
+    /*
+     * THE LESSON IS NAMED, NOT ASSUMED.
+     *
+     * These two tests used `open()` alone and read whatever lesson the picker
+     * opens by default. That was Physics until two reference lessons were added
+     * ahead of it in the catalogue, at which point both quietly began measuring
+     * a maths lesson that has no simulation in it — the block locator found
+     * nothing and the failure pointed at the renderer.
+     *
+     * A test whose subject depends on catalogue ORDER is a test that can lose
+     * its subject without anyone editing it. It says which lesson it means now.
+     */
+    await teach(page, physics.label)
 
     const block = page.locator('.lc-block[data-kind="simulation"]').first()
     await expect(block).toBeVisible()
@@ -275,7 +287,8 @@ test.describe('explanation canvas regressions', () => {
   test('one control moves every readout that depends on it', async ({ page }, testInfo) => {
     attribute(testInfo, ['simulation'])
     await open(page, testInfo)
-    await settle(page)
+    /* Named for the reason given above. */
+    await teach(page, physics.label)
 
     /* The architectural claim, checked through the UI rather than the model:
      * move temperature, and every readout derived from it must agree.

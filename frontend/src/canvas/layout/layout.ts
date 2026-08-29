@@ -70,6 +70,15 @@ export interface Profile {
   dataHeavy: number
 }
 
+/**
+ * What counts as SHOWING rather than telling.
+ *
+ * Deliberately the same set `teaching.ts` and `beats.ts` use: a block that
+ * counts as a representation in one file and not in another is a rule that
+ * depends on which file you asked.
+ */
+const REPRESENTATION_KINDS = new Set<string>(['chart', 'table', 'flow', 'figure', 'simulation'])
+
 const VISUAL: BlockKind[] = ['chart', 'simulation', 'flow', 'equation']
 /* `misconception`, `summary` and `reasoning` are read like prose — they are
    sentences the learner works through, not data to scan. Leaving them out of
@@ -240,13 +249,33 @@ export function plan(spec: Lesson, viewport: Viewport): Frame {
   let band = 0
   let cursor = 0
 
-  /* Centrepiece hoists its simulation to the first band alone, so nothing
-     shares a row with the thing the lesson is about. */
+  /*
+   * Centrepiece hoists its simulation to the first band alone, so nothing
+   * shares a row with the thing the lesson is about.
+   *
+   * BUT NEVER ABOVE THE OPENING. The hoist used to sort over every block, so
+   * a lesson that opens with a definition — which the teaching gate now
+   * REQUIRES — had the simulation lifted over it and met the learner with a
+   * control panel for a word they had not been given yet. The gate and the
+   * layout would have been asking for opposite things, and the layout would
+   * have won silently.
+   *
+   * So the opening run is pinned: every block before the first representation
+   * keeps its place, and the hoist reorders only what follows. A lesson with
+   * no such opening is unaffected, which is every lesson written before this.
+   */
+  const firstShown = spec.blocks.findIndex((b) => REPRESENTATION_KINDS.has(b.kind))
+  const opening = firstShown <= 0 ? [] : spec.blocks.slice(0, firstShown)
+  const rest = firstShown <= 0 ? [...spec.blocks] : spec.blocks.slice(firstShown)
+
   const ordered =
     archetype === 'centrepiece'
-      ? [...spec.blocks].sort((a, b) =>
-          a.kind === 'simulation' ? -1 : b.kind === 'simulation' ? 1 : 0,
-        )
+      ? [
+          ...opening,
+          ...rest.sort((a, b) =>
+            a.kind === 'simulation' ? -1 : b.kind === 'simulation' ? 1 : 0,
+          ),
+        ]
       : spec.blocks
 
   /*

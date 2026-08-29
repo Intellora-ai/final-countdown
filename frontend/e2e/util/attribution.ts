@@ -54,6 +54,18 @@ export const RENDERER_SOURCE: Record<string, string> = {
      name to a shape and hands it to one of `render/shapes/`; which shape is not
      in the DOM, so this is as precise as an attribution can honestly be. */
   figure: 'frontend/src/canvas/render/FigureView.tsx',
+  /* The teaching-shape kinds. All three are drawn by `BlockView` itself, like
+     prose and callout — they are structured text, not a chart engine.
+
+     They were added to the schema and to the renderer without arriving here,
+     and the gap is exactly what this map exists to prevent: a kind with no
+     entry falls through to `RENDERER_FALLBACK`, so every failure in a
+     misconception, a summary or a derivation was attributed to `TeachView`
+     rather than to the file that drew it. Nothing failed until a lesson
+     actually used one. */
+  misconception: 'frontend/src/canvas/render/BlockView.tsx',
+  summary: 'frontend/src/canvas/render/BlockView.tsx',
+  reasoning: 'frontend/src/canvas/render/BlockView.tsx',
 }
 
 /**

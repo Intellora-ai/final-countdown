@@ -348,12 +348,72 @@ function repairRequest(question: string, issues: Issue[]): string {
  * again" and "your definition was 34 words and the cap is 30". `GenerateRequest`
  * in the agent makes the same distinction with `mustFix`, for the same reason.
  */
+/** What a caller may bound, beyond the model itself. */
+export interface AuthorOptions {
+  /**
+   * A budget for the WHOLE attempt, both model calls together.
+   *
+   * NOT per call, and that distinction is the bug this exists to fix. The
+   * transport already has a per-request timeout, and `CanvasRoute` passed it
+   * 240_000 -- so a value chosen as "four minutes" was really eight, because
+   * this function calls the model twice. Measured in a browser: the button sat
+   * on "Writing…" for over ten minutes with no error.
+   *
+   * A learner watching a blank button does not care which of the two calls
+   * they are waiting on. They are having one wait, so there is one budget.
+   *
+   * Optional. Absent means no deadline of this function's own, exactly as
+   * before this parameter existed.
+   */
+  readonly deadlineMs?: number
+}
+
 export async function authorLesson(
   model: LessonModel,
   question: string,
   sources: readonly Source[] = [],
+  options: AuthorOptions = {},
 ): Promise<AuthorResult> {
   const system = teachingSystemPrompt()
+
+  const endsAt = options.deadlineMs === undefined ? null : Date.now() + options.deadlineMs
+
+  /**
+   * Run a model call against whatever is left of the shared budget.
+   *
+   * Rejecting rather than returning a sentinel is deliberate: both call sites
+   * below already catch and turn a rejection into an `unreachable` result, so a
+   * timeout arrives as "nothing answered" through the same path as a refused
+   * connection. That is the honest description -- a reply that never came and a
+   * connection that never opened leave the learner in the same place.
+   *
+   * The timer is cleared on settle. A pending `setTimeout` keeps a test runner
+   * alive after its assertions have passed, which turns a fast suite into one
+   * that hangs at the end and gets blamed on something else.
+   */
+  async function withinBudget(work: Promise<string>): Promise<string> {
+    if (endsAt === null) return work
+    const left = Math.max(0, endsAt - Date.now())
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      return await Promise.race([
+        work,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () =>
+              reject(
+                new Error(
+                  `no reply within the ${options.deadlineMs}ms allowed for the whole attempt`,
+                ),
+              ),
+            left,
+          )
+        }),
+      ])
+    } finally {
+      if (timer !== undefined) clearTimeout(timer)
+    }
+  }
 
   /*
    * THE GATE READS SHAPE. NOTHING HERE READ TRUTH.
@@ -383,7 +443,7 @@ export async function authorLesson(
    */
   let first: string
   try {
-    first = await model(system, ask)
+    first = await withinBudget(model(system, ask))
   } catch (error) {
     return {
       ok: false,
@@ -413,7 +473,7 @@ export async function authorLesson(
    */
   let second: string
   try {
-    second = await model(system, repairRequest(question, firstIssues), first)
+    second = await withinBudget(model(system, repairRequest(question, firstIssues), first))
   } catch (error) {
     /* The dependency died between the two attempts. The first reply is still
        the most honest thing to report, so it is kept as `raw`. */

@@ -203,7 +203,11 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
            truncates the JSON mid-object — which arrives as "no JSON object at
            all" and reads as a model failure rather than a budget one. */
         maxTokens: 4000,
-        timeoutMs: 240_000,
+        /* PER CALL. `authorLesson` makes two, so this is not the learner's
+           wait -- `deadlineMs` below is. Halved from 240s once that total
+           existed: a single stuck call should fail well inside the budget,
+           leaving room for the repair to still happen. */
+        timeoutMs: 120_000,
       })
       /*
        * SEARCH FIRST, THEN WRITE. The gate reads shape and has no opinion about
@@ -228,7 +232,15 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
         }
       }
 
-      const written = await authorLesson(chat, question, sources)
+      /*
+       * ONE BUDGET FOR THE WHOLE WAIT.
+       *
+       * Measured in a browser: this button sat on "Writing…" for over ten
+       * minutes. The transport timeout was 240s and it was applied PER CALL, so
+       * two calls meant eight minutes before any error could appear. A learner
+       * is having one wait, not two, so the budget is stated once here.
+       */
+      const written = await authorLesson(chat, question, sources, { deadlineMs: 240_000 })
       if (written.ok) {
         setAuthored(written.lesson)
       } else {

@@ -316,11 +316,32 @@ function readableSource(page: RetrievedPage): string {
  * pages needs a stronger test than word presence, and this paragraph is where
  * whoever adds one should start.
  */
-export function isAbout(page: RetrievedPage, asked: readonly string[]): boolean {
+export function isAbout(
+  page: RetrievedPage,
+  asked: readonly string[],
+  /**
+   * Words that must appear, not merely count towards the fraction.
+   *
+   * Empty for an ordinary question. Non-empty only when the doubt was ambiguous
+   * and the lesson supplied the word that disambiguates it -- and then that
+   * word is not one vote among several, it is the whole reason this page is
+   * being considered.
+   *
+   * MEASURED: with asked = ["base", "logarithm"], the BASE jumping article
+   * matches one of two, which is exactly the 0.5 threshold, so it PASSED. Half
+   * the words being enough is right for an ordinary question and wrong here,
+   * because the half it matched was the ambiguous half.
+   */
+  required: readonly string[] = [],
+): boolean {
   /* `hit.title` as well as `title` because `buildAnswer` already falls back to
      it — a page whose title arrives empty is a real case, and the name a page
      is going to be DISPLAYED under is the name it should be judged by. */
   const found = new Set(contentTokens(`${page.title} ${page.hit.title} ${page.readerText}`))
+
+  /* A disambiguating word that is absent means this page is about the OTHER
+     sense of the learner's word. That is the failure this exists to catch. */
+  if (required.length > 0 && !required.some((word) => found.has(word))) return false
 
   let matched = 0
   for (const token of asked) if (found.has(token)) matched += 1
@@ -369,6 +390,7 @@ function readableAddress(raw: string): string {
 function usablePages(
   results: readonly RetrievedPage[],
   asked: readonly string[],
+  required: readonly string[] = [],
 ): {
   usable: RetrievedPage[]
   droppedUnsafe: number
@@ -389,7 +411,7 @@ function usablePages(
     }
     if (!page.ok) continue
     if (page.readerText.trim().length === 0) continue
-    if (!isAbout(page, asked)) {
+    if (!isAbout(page, asked, required)) {
       droppedOffTopic += 1
       continue
     }
@@ -635,11 +657,63 @@ function buildAnswer(doubt: Doubt, pages: readonly RetrievedPage[]): Lesson | nu
   return result.ok ? result.lesson : null
 }
 
+
+/** At most this many lesson words are added; beyond it the learner's question
+ *  stops being the bulk of the query. */
+const MAX_CONTEXT_TERMS = 2
+
+/**
+ * The search query: the learner's words, plus a little of the lesson when the
+ * word they used is one the lesson itself uses.
+ *
+ * THE RULE IS MEMBERSHIP, NOT LENGTH, AND A TEST IS WHY.
+ *
+ * The first attempt keyed on how many words the doubt had, on the reasoning
+ * that a short question cannot disambiguate itself. That is true of "base" and
+ * false of "photosynthesis" -- both are one word, and only one of them is
+ * ambiguous. An existing test caught it: asking about photosynthesis inside the
+ * gas lesson produced "photosynthesis heating gas", which is a worse query than
+ * the one it replaced. Word count does not measure ambiguity.
+ *
+ * What does: whether the lesson uses the word too. A learner typing "base"
+ * inside a lesson that says "base" throughout means the lesson's sense of it --
+ * that is what the word means HERE. A learner typing "photosynthesis" inside a
+ * lesson about gas pressure has left the lesson behind, and pinning the lesson
+ * to their question would answer one they did not ask.
+ *
+ * Measured origin: "what is the base" on the logarithms lesson returned BASE
+ * JUMPING, with links to Base_pair, Free_base and The_Base.
+ */
+function withLessonContext(
+  terms: readonly string[],
+  lesson: Lesson,
+): { terms: string[]; context: string[] } {
+  /*
+   * The whole lesson as text. Serialising it catches every block kind without
+   * this function needing to know their shapes -- a table's cells and a flow's
+   * node labels are lesson vocabulary exactly as much as a prose body is, and
+   * a per-kind walk would silently miss whichever kind was added next.
+   */
+  const lessonWords = new Set(contentTokens(JSON.stringify(lesson)))
+  const shared = terms.filter((word) => lessonWords.has(word))
+  if (shared.length === 0) return { terms: [...terms], context: [] }
+
+  const already = new Set(terms)
+  const context: string[] = []
+  for (const word of contentTokens(lesson.question)) {
+    if (already.has(word)) continue
+    context.push(word)
+    already.add(word)
+    if (context.length === MAX_CONTEXT_TERMS) break
+  }
+  return { terms: [...terms, ...context], context }
+}
+
 export function webResolver(deps: WebResolverDeps): AsyncDoubtResolver {
   return {
     name: 'web',
 
-    async resolve(doubt: Doubt, _lesson: Lesson, signal?: AbortSignal): Promise<Resolution> {
+    async resolve(doubt: Doubt, askedIn: Lesson, signal?: AbortSignal): Promise<Resolution> {
       if (signal?.aborted) {
         return refuse('The search was stopped before it started.')
       }
@@ -669,7 +743,40 @@ export function webResolver(deps: WebResolverDeps): AsyncDoubtResolver {
           'I could not tell which thing that question is about. Try naming it — one or two words is enough.',
         )
       }
-      const query = terms.join(' ')
+      /*
+       * A SHORT DOUBT CANNOT DISAMBIGUATE ITSELF, SO THE LESSON DOES IT.
+       *
+       * Measured in a browser: on the logarithms lesson, "what is the base"
+       * reduced to the single word "base" and came back as BASE JUMPING, with
+       * links to Base_pair, Free_base and The_Base. The disambiguating word was
+       * sitting in this function's own argument list, in the parameter named
+       * `_lesson` to record that it was ignored.
+       *
+       * Only for SHORT doubts, and that bound is the whole design. One or two
+       * content words is a question that leans on where it was asked -- a
+       * learner typing "base" inside a logarithms lesson means the logarithm
+       * one, or they would have said more. A longer doubt already describes
+       * itself, and bolting the lesson onto it would answer a question nobody
+       * asked.
+       *
+       * Terms already in the doubt are skipped, so nothing is said twice, and
+       * at most two are added, so the learner's own words stay the bulk of the
+       * query rather than a minority of it.
+       */
+      /*
+       * ONE LIST, USED TWICE, AND THAT IS THE POINT.
+       *
+       * The query and the aboutness check must judge by the same words. They
+       * did not: the query was fixed first and `usablePages` was still handed
+       * the bare `terms`, so the BASE jumping article -- which contains "base"
+       * -- was judged to be about a logarithms question and shown. A probe
+       * caught it, because the test passed for the wrong reason until it
+       * asserted WHICH refusal came back.
+       *
+       * Two names for the same list would let them drift again. There is one.
+       */
+      const searchTerms = withLessonContext(terms, askedIn)
+      const query = searchTerms.terms.join(' ')
 
       let outcome: SearchResult
       try {
@@ -690,7 +797,7 @@ export function webResolver(deps: WebResolverDeps): AsyncDoubtResolver {
         )
       }
 
-      const { usable, droppedUnsafe, droppedOffTopic } = usablePages(outcome.results, terms)
+      const { usable, droppedUnsafe, droppedOffTopic } = usablePages(outcome.results, searchTerms.terms, searchTerms.context)
 
       if (usable.length === 0) {
         /* Three outcomes that look identical from outside and mean opposite

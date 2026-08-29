@@ -111,8 +111,8 @@ def build() -> str:
     urls = submodule_paths_and_urls()
     revs = pinned_revisions()
 
-    rows = []
-    uninitialised = []
+    rows: list[tuple[str, str, str, str]] = []
+    uninitialised: list[str] = []
     for path in sorted(urls):
         url = urls[path]
         sha, initialised = revs.get(path, ("(not recorded)", False))

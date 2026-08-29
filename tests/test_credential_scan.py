@@ -209,6 +209,22 @@ def test_each_credential_shape_blocks(tmp_path: Path, label: str, planted: str) 
 # ---------------------------------------------------------------------------
 
 
+# Descriptive resource names, not credentials. Both are real values this
+# repository tracks: an official CBSE syllabus URL, and a figure link captured
+# from a page. Each carries a delimiter-separated run over 32 characters that
+# mixes upper case, lower case and digits, which is the whole of what the
+# generic high-entropy rule required. A gate that fires on every long file name
+# is a gate somebody switches off -- the same argument the `sk-` pattern
+# already makes about the word "risk-based".
+CBSE_PDF_URL = (
+    "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart1/"
+    "Computer_Applications_SecP1X_2026-27.pdf"
+)
+RESEARCHGATE_FIGURE_URL = (
+    "https://www.researchgate.net/figure/"
+    "Scanning-electron-micrographs-of-normal-a-and-deciliated-b_fig5_1583989770"
+)
+
 @pytest.mark.parametrize(
     ("name", "body"),
     [
@@ -217,6 +233,8 @@ def test_each_credential_shape_blocks(tmp_path: Path, label: str, planted: str) 
         ("prose.md", f"{ENGLISH}\n"),
         ("lock.txt", "--hash=sha256:" + "abcdef0123456789" * 4 + "\n"),
         ("package-lock.json", "{\n" + NPM_INTEGRITY + "\n}\n"),
+        ("manifest.mjs", CBSE_PDF_URL + "\n"),
+        ("curriculum.ts", RESEARCHGATE_FIGURE_URL + "\n"),
     ],
 )
 def test_ordinary_content_does_not_trip_the_gate(
@@ -339,3 +357,51 @@ def test_an_unreadable_index_is_not_a_clean_scan(tmp_path: Path) -> None:
     r = run_scan(w)
     assert r.returncode == 2, r.stdout + r.stderr
     assert "CANNOT SCAN" in r.stderr
+
+
+def test_a_delimited_run_hiding_a_full_length_secret_still_fails(
+    tmp_path: Path,
+) -> None:
+    """The descriptive-name exemption must not become a way to smuggle a key.
+
+    A credential stays a credential when a delimiter is put next to it. What
+    separates an official syllabus file name from a secret is that every
+    delimiter-separated piece of the file name is short; a real token carries an
+    unbroken random run at credential length. This plants exactly that -- a
+    32-character unbroken payload with delimiters bolted on either side -- and
+    requires the gate to fail on it.
+    """
+    w = repo(tmp_path)
+    # Assembled from parts, like every other planted shape in this file, so
+    # the literal cannot make this very file a finding.
+    payload = "A7xK2mQ9zL4pR8vN" + "1wC6bY3tE5uH0dFg"
+    smuggled = "release-notes-" + payload + "-draft"
+    commit_file(w, "notes.md", smuggled + "\n")
+    r = run_scan(w)
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert "high-entropy-token" in r.stdout
+    assert smuggled not in r.stdout
+
+
+def test_a_segment_exactly_at_the_credential_floor_is_not_short(
+    tmp_path: Path,
+) -> None:
+    """The floor is inclusive: 16 characters IS credential length.
+
+    Added because a mutant survived. Changing `len(piece) < FLOOR` to `<=` left
+    the whole suite green, which means nothing distinguished a 16-character
+    segment from a 17-character one, and the boundary the exemption turns on
+    was untested. `sk-` already reads 16 as credential length (`{16,}`), so a
+    segment of exactly 16 must not count as a short descriptive word.
+
+    Both segments here are exactly 16 characters. Under `<` this is a finding;
+    under the surviving `<=` mutant it was silently exempt.
+    """
+    w = repo(tmp_path)
+    left = "A7xK2mQ9zL4pR8vN"
+    right = "1wC6bY3tE5uH0dFg"
+    assert len(left) == 16 and len(right) == 16
+    commit_file(w, "at-the-floor.md", left + "-" + right + "\n")
+    r = run_scan(w)
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert "high-entropy-token" in r.stdout

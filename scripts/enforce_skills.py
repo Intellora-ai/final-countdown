@@ -69,9 +69,19 @@ from typing import Any, cast
 # unchanged" at effectively zero tokens. That argument was used to justify
 # holding ten, and it was only half right -- the RECURRING cost is near zero,
 # but the ONE-OFF cost is ~8 KB per skill and it lands on the first prompt of
-# every new session, which is exactly when context is most valuable. Three is
+# every new session, which is exactly when context is most valuable. FIVE is
 # the list now; see the note on REQUIRED below for what was dropped and why.
 # CUT FROM TEN TO THREE, 2026-08-24, at the user's explicit instruction.
+# RAISED FROM THREE TO FIVE, 2026-08-25, also at the user's explicit
+# instruction: /root-sweep and /thiel were added.
+#
+# A note for whoever reads this next. The gate was raised to five BEFORE
+# force-skills.py was updated, and the two lists disagreed. The result was
+# the failure the header of that file predicts: turns refused by a gate
+# demanding skills nothing had named, twice in one session, with no warning.
+# The three lists -- this file, its installed copy, and the reminder -- are
+# now identical, and test_installed_copy_matches_this_one keeps two of them
+# that way. Nothing keeps the REMINDER in step except reading this.
 #
 # Removed: mutate, test-driven-development, proptest, adversarial-reviewer,
 # chaos-engineer, chaos-engineering, systematic-debugging.
@@ -95,6 +105,36 @@ REQUIRED = (
     "rtk",
     "investigate",
     "caveman",
+    # The two built in this repo. They are 450 and 686 lines of method, and a
+    # method nothing forces is a method that gets skipped on the turn it was
+    # written for -- the same 0-of-8 measurement that made this a Stop hook
+    # rather than a prompt.
+    #
+    # On cost: the FIRST invocation each session pays the preamble. Every
+    # re-invocation returns "already loaded above; instructions unchanged" at
+    # effectively zero tokens, so the recurring price of a five-skill gate is
+    # close to that of a three-skill one. The one-off cost is real and is the
+    # trade being made knowingly.
+    "thiel",
+    "root-sweep",
+    # `fullrun` is a RELEASE-time skill and this gate fires on EVERY turn, which
+    # is a real mismatch worth stating rather than hiding: it is loaded on turns
+    # that will never run a browser. The owner asked for it knowingly. The
+    # recurring price is near zero -- a re-invocation returns "already loaded
+    # above" -- so the cost is one preamble per session, paid once.
+    "fullrun",
+    # `tokenlock` compiles a verbose instruction set into a smaller one that
+    # provably behaves the same: invariants extracted and locked, repeated rules
+    # canonicalised into named primitives, monolith split into a core plus
+    # modules the router reaches only when needed, and every compression made to
+    # survive a regression and adversarial suite against the original as oracle.
+    #
+    # It is on a turn gate rather than a session one for the same reason as the
+    # rest: a method nothing forces is a method that gets skipped on the turn it
+    # was needed. Its own core is deliberately small -- 8.5 KB, with four
+    # reference files read only at the stage that needs them -- so the recurring
+    # price is one preamble per session and near zero per re-invocation.
+    "tokenlock",
 )
 
 # "turn"    --- every skill in REQUIRED must be re-invoked for EVERY prompt.

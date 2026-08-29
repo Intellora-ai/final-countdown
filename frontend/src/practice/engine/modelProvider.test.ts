@@ -1,3 +1,8 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { asChapterId, asSubjectId, asTopicId } from './ids';
+import { fileURLToPath } from 'node:url'
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { modelProvider, toCandidate } from './modelProvider';
@@ -15,8 +20,9 @@ import type { QuestionSpec } from './types';
 
 const SPEC: QuestionSpec = {
   specId: 'rotational-motion-0',
-  topicId: 'rotational-motion',
-  chapterId: 'mechanics',
+  topicId: asTopicId('rotational-motion'),
+  chapterId: asChapterId('mechanics'),
+    subjectId: asSubjectId('subject'),
   conceptId: 'moment-of-inertia',
   conceptName: 'moment of inertia',
   questionType: 'standard',
@@ -247,5 +253,51 @@ describe('malformed responses fail at the provider', () => {
     expect(outcome.ok).toBe(false);
     if (outcome.ok) return;
     expect(outcome.failures.map((f) => f.check)).toContain('distractor_quality');
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+
+/*
+ * ONE PLACE DECIDES WHAT AN OPTION KEY IS.
+ *
+ * `types.ts` exports `isOptionKey`, a type guard over `OPTION_KEYS`. Nothing
+ * imported it. `requireOptionKey` here re-wrote its body character for
+ * character — `(OPTION_KEYS as readonly string[]).includes(value)` — and then
+ * needed `value as OptionKey` to get the narrowing back, because a hand-rolled
+ * boolean does not narrow and a type guard does.
+ *
+ * So the cast existed only because the guard was not used, and the guard was
+ * dead only because the cast made it unnecessary. Each defect was the other's
+ * excuse.
+ *
+ * The behaviour is already tested above: a `correctOption` of `'E'` is refused.
+ * That test passes against either version, which is exactly why it could not
+ * catch this. This one is structural: the membership expression may appear in
+ * `types.ts` and nowhere else in this directory. Two copies that agree today
+ * are a coincidence with a maintenance schedule — adding a fifth option key
+ * would be accepted by one and refused by the other, and `types.ts` says a
+ * fifth "would change what 'exactly one correct' means".
+ */
+describe('the option-key predicate is declared once', () => {
+  /* `fileURLToPath`, NOT `.pathname`.
+   *
+   * A file URL percent-encodes, so on a checkout whose path contains a space
+   * `.pathname` yields `/Users/.../final%20countdown/...` and every read of it
+   * fails with ENOENT. The test then reports the product as broken when the
+   * only broken thing is the path it built. This repository is checked out at
+   * such a path today, which is how it was found. */
+  const DIR = fileURLToPath(new URL('.', import.meta.url));
+
+  it('tests membership of OPTION_KEYS in types.ts and nowhere else in engine/', () => {
+    const offenders: string[] = [];
+    for (const name of readdirSync(DIR).sort()) {
+      if (!name.endsWith('.ts') || /\.(test|spec)\.ts$/.test(name)) continue;
+      const source = readFileSync(join(DIR, name), 'utf8');
+      if (/OPTION_KEYS\s+as\s+readonly\s+string\[\]\s*\)\s*\.includes/.test(source)) {
+        offenders.push(name);
+      }
+    }
+    expect(offenders).toEqual(['types.ts']);
   });
 });

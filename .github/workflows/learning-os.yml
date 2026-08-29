@@ -18,11 +18,15 @@ on:
       # gate itself triggers nothing, and a broken gate would sit undetected
       # until the next unrelated learning-os change happened to run it.
       - "scripts/openapi_drift.py"
+      # Same reasoning: this job is the only one that runs the learning-os
+      # property gate, so a change to the gate must trigger it.
+      - "scripts/property_gate.py"
   pull_request:
     paths:
       - "learning-os/**"
       - ".github/workflows/learning-os.yml"
       - "scripts/openapi_drift.py"
+      - "scripts/property_gate.py"
 
 # Supersede only within the same pull request, matching the convention the other
 # workflows in this repository already follow: a newer commit on the SAME PR
@@ -112,7 +116,29 @@ jobs:
           PYTHONPATH: src
 
       - name: Tests
-        run: pytest tests -q
+        # `tests/db` is EXCLUDED, and the exclusion is the honest half of a
+        # decision made in tests/db/conftest.py.
+        #
+        # Those tests need a real PostgreSQL, which this job does not have. The
+        # obvious alternative -- have them switch themselves off when no
+        # database is configured -- was written first and refused by this
+        # repository's own gate, correctly: a test that has been switched off
+        # and a test that passed are indistinguishable in a summary line.
+        #
+        # So they are a separate suite in a separate job.
+        # `.github/workflows/integration.yml` runs them against a service
+        # container and fails if the suite has shrunk. Excluding them here means
+        # this job never silently loses them: it never had them.
+        run: pytest tests -q --ignore=tests/db
+        env:
+          PYTHONPATH: src
+
+      # Same reasoning as the root suite's property gate: a line count says
+      # nothing about whether the generated tests ran. This suite's floor covers
+      # the review-scheduling properties, which are the ones a calendar bug
+      # would silently remove.
+      - name: Property tests actually executed
+        run: python3 ../scripts/property_gate.py --suite learning-os --root ..
         env:
           PYTHONPATH: src
 

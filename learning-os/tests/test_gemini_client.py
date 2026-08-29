@@ -51,6 +51,8 @@ from learning_os.llm.gemini_client import (
     SDK_MODULE,
     SUPPORTED_SCHEMA_KEYWORDS,
     GeminiClient,
+    _content_of,
+    _send,
     parse_blocks,
     schema_keywords,
 )
@@ -302,3 +304,178 @@ def test_the_sdk_client_is_bound_to_a_name_and_not_chained() -> None:
         "the SDK client is constructed inline in the call chain, so it is "
         f"finalised mid-request: {chained}"
     )
+
+
+# --------------------------------------------------------------------------
+# The failure paths, which nothing reached
+# --------------------------------------------------------------------------
+#
+# MEASURED BEFORE THESE WERE WRITTEN. Replacing the call
+# `blocked = _refusal_reason(response)` with `blocked = None` -- deleting the
+# entire safety-refusal path -- left `pytest tests/test_gemini_client.py -q`
+# reporting 17 passed. The handler and its 25-line helper could be removed and
+# the suite would not notice.
+#
+# `grep -rn "_refusal_reason" src tests` returned exactly two hits: the
+# definition and its single call site. Zero tests.
+#
+# WHY NOTHING REACHED THEM. Every `GeminiClient().generate(...)` in this file
+# raises before it gets that far -- at the API-key check, or at the SDK import
+# via `_block_sdk_import`. `test_ask.py` and `test_speak.py` only set or unset
+# the key and hit the same two branches. So four production branches downstream
+# of the SDK call had no test and could not have had one: reaching them required
+# both the SDK installed and a controllable response.
+#
+# `_content_of` and `_send` exist to make that reachable without either. They
+# hold the logic `generate()` used to hold inline; `generate()` keeps the parts
+# that genuinely need the SDK -- reading the key, importing it, constructing the
+# client -- and delegates the rest. `_refusal_reason`'s own docstring already
+# said it "must not require the SDK to be installed in order to be imported or
+# tested"; that was true of the helper and false of its call site.
+
+
+class _Feedback:
+    def __init__(self, block_reason: object) -> None:
+        self.block_reason = block_reason
+
+
+class _Candidate:
+    def __init__(self, finish_reason: object) -> None:
+        self.finish_reason = finish_reason
+
+
+class _Response:
+    """The parts of an SDK response these paths actually read."""
+
+    def __init__(
+        self,
+        text: object = None,
+        prompt_feedback: object = None,
+        candidates: object = None,
+    ) -> None:
+        self.text = text
+        self.prompt_feedback = prompt_feedback
+        self.candidates = candidates
+
+
+_GOOD = (
+    '{"blocks": [{"kind": "prose", "text": "A base case stops it."}], '
+    '"introduced_concepts": []}'
+)
+
+
+def test_a_blocked_prompt_is_a_decline_not_an_outage() -> None:
+    with pytest.raises(LLMUnavailable, match="declined"):
+        _content_of(_Response(prompt_feedback=_Feedback("SAFETY")))
+
+
+def test_a_candidate_stopped_for_safety_is_also_a_decline() -> None:
+    """The two carry different meanings and both must be named as declines.
+
+    `prompt_feedback` is the REQUEST refused; a candidate's `finish_reason` is
+    the ANSWER cut off. Collapsing either into "no text" sends the runtime down
+    the retry path against a decision that will not change.
+    """
+    with pytest.raises(LLMUnavailable, match="declined"):
+        _content_of(_Response(candidates=[_Candidate("RECITATION")]))
+
+
+def test_a_decline_outranks_the_empty_text_it_also_produces() -> None:
+    """THE ORDERING TEST, and the reason the two checks cannot be swapped.
+
+    A refusal ALWAYS arrives with empty text. Reading the text first would
+    report every safety decline as "no text" -- an outage -- and the refusal
+    branch would then be unreachable in production, not merely untested.
+    """
+    blocked = _Response(text="   ", prompt_feedback=_Feedback("SAFETY"))
+    with pytest.raises(LLMUnavailable, match="declined"):
+        _content_of(blocked)
+
+
+def test_a_response_carrying_no_text_says_so() -> None:
+    with pytest.raises(LLMUnavailable, match="no text"):
+        _content_of(_Response(text=None))
+
+
+def test_whitespace_is_not_text() -> None:
+    with pytest.raises(LLMUnavailable, match="no text"):
+        _content_of(_Response(text="   \n\t "))
+
+
+def test_a_usable_response_is_parsed_by_the_shared_parser() -> None:
+    """The success path THROUGH the interpretation, not `parse_blocks` alone.
+
+    `parse_blocks` was already tested directly. What was not tested is that a
+    response which passes both guards reaches it.
+    """
+    got = _content_of(_Response(text=_GOOD))
+    assert got.blocks == (("prose", "A base case stops it."),)
+
+
+def test_a_provider_exception_becomes_unavailable_rather_than_escaping() -> None:
+    class _Boom:
+        class models:
+            @staticmethod
+            def generate_content(**_kwargs: object) -> object:
+                raise RuntimeError("socket closed")
+
+    with pytest.raises(LLMUnavailable, match="could not be reached"):
+        _send(_Boom(), MODEL, _contract(), 100)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [RuntimeError("x"), ValueError("x"), OSError("x"), KeyError("x"), TimeoutError("x")],
+)
+def test_every_provider_exception_type_becomes_unavailable(error: Exception) -> None:
+    """Deliberately broad, and that breadth is the contract being pinned.
+
+    This layer promises "any provider problem is `LLMUnavailable`". Letting one
+    vendor's exception class escape would make the runtime's retry decision
+    depend on which vendor happens to be configured.
+    """
+    class _Boom:
+        class models:
+            @staticmethod
+            def generate_content(**_kwargs: object) -> object:
+                raise error
+
+    with pytest.raises(LLMUnavailable):
+        _send(_Boom(), MODEL, _contract(), 100)
+
+
+def test_the_original_error_is_chained_rather_than_swallowed() -> None:
+    """A wrapped cause that loses the original is how a stack trace stops
+    naming the thing that actually broke."""
+    original = RuntimeError("API_KEY_INVALID")
+
+    class _Boom:
+        class models:
+            @staticmethod
+            def generate_content(**_kwargs: object) -> object:
+                raise original
+
+    with pytest.raises(LLMUnavailable) as caught:
+        _send(_Boom(), MODEL, _contract(), 100)
+    assert caught.value.__cause__ is original
+
+
+def test_the_request_carries_the_model_the_schema_and_the_mime_type() -> None:
+    """Both response settings are required TOGETHER. The schema without the
+    mime type is ignored, which is the silent version of sending no schema."""
+    seen: dict[str, object] = {}
+
+    class _Ok:
+        class models:
+            @staticmethod
+            def generate_content(**kwargs: object) -> object:
+                seen.update(kwargs)
+                return _Response(text=_GOOD)
+
+    _send(_Ok(), "gemini-test-model", _contract(), 4096)
+    assert seen["model"] == "gemini-test-model"
+    config = seen["config"]
+    assert isinstance(config, dict)
+    assert config["response_mime_type"] == "application/json"
+    assert config["response_json_schema"] == RESPONSE_SCHEMA
+    assert config["max_output_tokens"] == 4096

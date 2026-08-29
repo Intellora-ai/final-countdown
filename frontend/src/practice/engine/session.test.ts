@@ -1,3 +1,8 @@
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { asChapterId, asTopicId, asSubjectId } from './ids';
+import { fileURLToPath } from 'node:url'
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -41,7 +46,11 @@ function question(index: number, correct: OptionKey = 'A'): VerifiedQuestion {
   return {
     questionId: `q${index}`,
     sessionId: 's1',
-    topicId: 't1',
+    topicId: asTopicId('t1'),
+    chapterId: asChapterId('ch'),
+    subjectId: asSubjectId('subject'),
+    misconceptionTested: null,
+    generationVersion: '1.0',
     conceptId: `c${index}`,
     questionType: 'standard',
     difficulty: 'medium',
@@ -53,6 +62,7 @@ function question(index: number, correct: OptionKey = 'A'): VerifiedQuestion {
     prerequisites: [],
     generationSource: 'fixture',
     verificationStatus: 'PASSED',
+    figure: null,
     similarityStatus: 'UNIQUE',
     qualityScore: 0.9,
     fingerprint: `fp${index}`,
@@ -67,8 +77,8 @@ function newSession(overrides: Partial<Parameters<typeof createSession>[0]> = {}
   const created = createSession({
     sessionId: 's1',
     userId: 'u1',
-    topicId: 't1',
-    chapterId: 'ch1',
+    topicId: asTopicId('t1'),
+    chapterId: asChapterId('ch1'),
     questions: FIVE,
     timerEnabled: false,
     timerMinutes: 10,
@@ -91,8 +101,8 @@ describe('creating a session', () => {
     const created = createSession({
       sessionId: 's1',
       userId: 'u1',
-      topicId: 't1',
-      chapterId: 'ch1',
+      topicId: asTopicId('t1'),
+      chapterId: asChapterId('ch1'),
       questions: [question(1), question(2), question(3)],
       timerEnabled: false,
       timerMinutes: 10,
@@ -106,8 +116,8 @@ describe('creating a session', () => {
     const created = createSession({
       sessionId: 's1',
       userId: 'u1',
-      topicId: 't1',
-      chapterId: 'ch1',
+      topicId: asTopicId('t1'),
+      chapterId: asChapterId('ch1'),
       questions: sixteen,
       timerEnabled: false,
       timerMinutes: 10,
@@ -121,8 +131,8 @@ describe('creating a session', () => {
       const created = createSession({
         sessionId: 's1',
         userId: 'u1',
-        topicId: 't1',
-        chapterId: 'ch1',
+        topicId: asTopicId('t1'),
+        chapterId: asChapterId('ch1'),
         questions: FIVE,
         timerEnabled: true,
         timerMinutes: minutes,
@@ -143,12 +153,12 @@ describe('creating a session', () => {
   });
 
   it('refuses a question that is not from the session topic', () => {
-    const foreign = { ...question(6), topicId: 'somewhere-else' };
+    const foreign = { ...question(6), topicId: asTopicId('somewhere-else') };
     const created = createSession({
       sessionId: 's1',
       userId: 'u1',
-      topicId: 't1',
-      chapterId: 'ch1',
+      topicId: asTopicId('t1'),
+      chapterId: asChapterId('ch1'),
       questions: [...FIVE.slice(0, 4), foreign],
       timerEnabled: false,
       timerMinutes: 10,
@@ -340,5 +350,55 @@ describe('the result', () => {
     const result = resultOf(session);
     expect(result.attempts.map((a) => a.questionId)).toEqual(['q3', 'q1']);
     expect(result.attempts.map((a) => a.selectedOption)).toEqual(['A', 'B']);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+
+/*
+ * ONE COUNTDOWN, NOT TWO THAT AGREE TODAY.
+ *
+ * Time remaining was computed in two places. `remainingMs` here, and
+ * `remainingFor` in `sessionStore.ts` — the one the screen actually calls at
+ * `SessionView.tsx:287`. The live one also inlined the body of `elapsedMs`
+ * rather than calling it, so the elapsed calculation existed twice as well:
+ *
+ *     elapsedMs      Math.max(0, highWaterMs - startedAtMs)
+ *     remainingFor   Math.max(0, timerDurationMs - (highWaterMs - startedAtMs))
+ *
+ * Two copies of a clock is the worst kind to have two of. They agree until one
+ * is corrected — a pause, a recovery, a change to what "elapsed" counts — and
+ * then the screen and the engine disagree about how long a learner has left,
+ * with no test failing, because each was tested against itself.
+ *
+ * The only real difference was null-tolerance: the screen may hold no session.
+ * So `remainingFor` keeps that and delegates the arithmetic.
+ */
+describe('the countdown is computed once', () => {
+  /* `fileURLToPath`, NOT `.pathname`.
+   *
+   * A file URL percent-encodes, so on a checkout whose path contains a space
+   * `.pathname` yields `/Users/.../final%20countdown/...` and every read of it
+   * fails with ENOENT. The test then reports the product as broken when the
+   * only broken thing is the path it built. This repository is checked out at
+   * such a path today, which is how it was found. */
+  const DIR = fileURLToPath(new URL('.', import.meta.url));
+  const PRACTICE = join(DIR, '..');
+
+  it('subtracts from timerDurationMs in engine/session.ts and nowhere else', () => {
+    const offenders: string[] = [];
+    const walk = (dir: string, prefix: string): void => {
+      for (const name of readdirSync(dir).sort()) {
+        const full = join(dir, name);
+        const rel = prefix ? `${prefix}/${name}` : name;
+        if (statSync(full).isDirectory()) {
+          walk(full, rel);
+        } else if (/\.tsx?$/.test(name) && !/\.(test|spec)\.tsx?$/.test(name)) {
+          if (/timerDurationMs\s*-/.test(readFileSync(full, 'utf8'))) offenders.push(rel);
+        }
+      }
+    };
+    walk(PRACTICE, '');
+    expect(offenders).toEqual(['engine/session.ts']);
   });
 });

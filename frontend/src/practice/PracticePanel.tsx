@@ -1,11 +1,8 @@
+import { chapterById, chapterOfTopic, subjectOfChapter, topicById } from './registry'
 import { useMemo } from 'react'
 
 import {
-  CHAPTER_BY_ID,
-  CHAPTER_OF_TOPIC,
   SUBJECT_BY_ID,
-  SUBJECT_OF_CHAPTER,
-  TOPIC_BY_ID,
 } from './curriculum'
 import {
   QUESTION_CHOICES,
@@ -189,21 +186,21 @@ export function PracticePanel() {
 /* -------------------------------------------------------------------------- */
 
 function titleOf(selection: NonNullable<Selection>): string {
-  if (selection.kind === 'chapter') return CHAPTER_BY_ID.get(selection.id)?.name ?? 'Chapter'
-  return TOPIC_BY_ID.get(selection.id)?.name ?? 'Topic'
+  if (selection.kind === 'chapter') return chapterById(selection.id)?.name ?? 'Chapter'
+  return topicById(selection.id)?.name ?? 'Topic'
 }
 
 /** Breadcrumb: which subject, and for a topic, which chapter it came from. */
 function subtitleOf(selection: NonNullable<Selection>): string {
   if (selection.kind === 'chapter') {
-    const chapter = CHAPTER_BY_ID.get(selection.id)
-    const subject = SUBJECT_BY_ID.get(SUBJECT_OF_CHAPTER.get(selection.id) ?? '')
+    const chapter = chapterById(selection.id)
+    const subject = SUBJECT_BY_ID.get(subjectOfChapter(selection.id) ?? '')
     return [subject?.name, chapter ? `Chapter ${chapter.number}` : null].filter(Boolean).join(' · ')
   }
 
-  const chapterId = CHAPTER_OF_TOPIC.get(selection.id)
-  const chapter = chapterId ? CHAPTER_BY_ID.get(chapterId) : undefined
-  const subject = SUBJECT_BY_ID.get(chapterId ? (SUBJECT_OF_CHAPTER.get(chapterId) ?? '') : '')
+  const chapterId = chapterOfTopic(selection.id)
+  const chapter = chapterId ? chapterById(chapterId) : undefined
+  const subject = SUBJECT_BY_ID.get(chapterId ? (subjectOfChapter(chapterId) ?? '') : '')
   return [subject?.name, chapter ? `Chapter ${chapter.number}` : null].filter(Boolean).join(' · ')
 }
 

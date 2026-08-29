@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { plannedSubjects, primePlannedCurriculum, isPlannedCurriculumReady } from './almanac/plannedCurriculum'
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useStore, useNarrow } from './hooks/useStore'
 import CURRICULUM from './data/curriculum'
@@ -63,6 +64,22 @@ const searchTheWeb = (query: string, options: Record<string, unknown>) =>
 const PracticeView = React.lazy(() => import('./practice/PracticeView'))
 const TutorView = React.lazy(() => import('./tutor/TutorView'))
 
+/* The teaching screen is LAZY for the same reason the practice view is: it
+ * pulls in the whole canvas renderer, and a learner sitting on /today should
+ * not download it to look at a list.
+ *
+ * Imported eagerly, it took the initial bundle from 70 KB to 186 KB and the
+ * budget gate refused the change -- correctly. */
+const LearnView = React.lazy(() =>
+  import('./canvas/learn/LearnView').then((m) => ({ default: m.LearnView })),
+)
+
+/* Ask-anything shares the teaching screen's machinery, so it shares its chunk
+ * boundary too: a learner on /today pays for neither. */
+const AskView = React.lazy(() =>
+  import('./canvas/learn/AskView').then((m) => ({ default: m.AskView })),
+)
+
 function SceneFallback() {
   return (
     <div style={{
@@ -89,6 +106,29 @@ export default function App() {
   useEffect(() => { if (narrow !== wasNarrow) { setWasNarrow(narrow); setDrawer(null) } }, [narrow, wasNarrow])
 
   const st = store.db ? store.student() : null
+
+  /* The curriculum is one lazy chunk per class and every screen below reads it
+     DURING RENDER, so it is primed here, once, as soon as the student's class
+     is known. Until it lands the screens show empty rather than the older
+     hand-written syllabus -- an empty sidebar is a visible problem, a sidebar
+     full of the wrong subjects is not. */
+  const [curriculumReady, setCurriculumReady] = useState(false)
+  useEffect(() => {
+    if (!st?.cls) return
+    let live = true
+    void primePlannedCurriculum(st.cls).then(() => {
+      if (!live) return
+      /* The store caches its plan and its sidebar counts against a revision
+         number. Both are computed FROM the curriculum, so a curriculum that
+         arrives after the first render would leave those caches holding the
+         empty answer for the rest of the session. */
+      store.bump()
+      setCurriculumReady(isPlannedCurriculumReady(st.cls))
+    })
+    return () => {
+      live = false
+    }
+  }, [st?.cls])
   useEffect(() => {
     if (st && Object.keys(open).length === 0 && st.subjects.length) setOpen({ [st.subjects[0]]: true })
   }, [st && st.id])
@@ -130,7 +170,14 @@ export default function App() {
 
   return (
     <div className="dark" style={{ minHeight: '100vh', background: 'var(--background)', color: 'var(--foreground)' }}>
-      <div data-shell="shell" style={{ position: 'relative' }}>
+      <div
+        data-shell="shell"
+        /* Observable on purpose: "did the curriculum load" is otherwise
+           impossible to answer from outside, and a feature nobody can observe
+           is indistinguishable from one that never ran. */
+        data-curriculum={curriculumReady ? 'ready' : 'loading'}
+        style={{ position: 'relative' }}
+      >
         <div data-shell="row" style={{ display: 'flex', alignItems: 'stretch', minHeight: '100vh' }}>
           {drawerOpen && <>
             <Sidebar open={open} setOpen={setOpen} onNavigate={closeOnPhone} />
@@ -141,6 +188,15 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Navigate to="/today" replace />} />
               <Route path="/today" element={<TodayView />} />
+
+              <Route
+              path="/learn/:conceptId"
+              element={
+                <React.Suspense fallback={<SceneFallback />}>
+                  <LearnView cls={st?.cls ?? null} />
+                </React.Suspense>
+              }
+            />
               <Route path="/chapter/:subjectId/:chapterId" element={<ChapterView />} />
               <Route
                 path="/practice"
@@ -150,7 +206,29 @@ export default function App() {
                   </React.Suspense>
                 }
               />
+              {/* BOTH SURFACES KEPT, AND THE OVERLAP IS REPORTED RATHER THAN
+                  RESOLVED SILENTLY.
+
+                  Two branches independently built "ask anything". `TutorView`
+                  wires `src/agent` -- eleven thousand lines that were an island
+                  -- and shows the trace of what actually ran. `AskView` teaches
+                  a free question through the canvas, the same screen a planned
+                  concept uses.
+
+                  They are different products, not two attempts at one, and
+                  deleting either to settle a merge would destroy work nobody
+                  asked to lose. `/quick-question` keeps the tutor because that
+                  is where it already shipped; the canvas answer gets its own
+                  path until the owner picks. */}
               <Route path="/quick-question" element={<TutorView />} />
+              <Route
+                path="/ask"
+                element={
+                  <React.Suspense fallback={<SceneFallback />}>
+                    <AskView />
+                  </React.Suspense>
+                }
+              />
               <Route path="/misconception" element={<Placeholder kind="misconception" />} />
               {/* The blackboard's two routes are gone with the blackboard itself
                 * (see docs/migrations/step-0-blackboard-deletion.md). The
@@ -173,7 +251,7 @@ function TopBar({ drawerOpen, toggle }: { drawerOpen: boolean; toggle: () => voi
   let crumb = 'Today'
   const m = loc.pathname.match(/^\/chapter\/([^/]+)\/([^/]+)$/)
   if (m && st) {
-    const sub = CURRICULUM.subjectsFor(st.cls, st.stream).find((s) => s.id === m[1])
+    const sub = plannedSubjects(st.cls).find((s) => s.id === m[1])
     const ch = sub && sub.chapters.find((c) => c.id === m[2])
     crumb = sub ? sub.name + ' · ' + (ch ? ch.name : '') : 'Chapter'
   } else if (loc.pathname !== '/today' && loc.pathname !== '/') crumb = loc.pathname.slice(1)

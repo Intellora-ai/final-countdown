@@ -78,70 +78,65 @@ export const MANIFEST = [
        `contracts.ts` is listed because a type-only module is legitimately
        imported for its types by files outside the area, and because its
        exports are the shared vocabulary rather than callable behaviour. */
-    entries: ['src/agent/index.ts', 'src/agent/kernel/contracts.ts'],
+    entries: ['src/agent/index.ts'],
   },
-  /* -----------------------------------------------------------------------
-     `src/websearch` IS NOT DECLARED HERE YET, AND THAT IS A MEASURED RESULT
-     RATHER THAN AN OVERSIGHT. THIS BLOCK IS THE EVIDENCE, NOT A TODO.
-     -----------------------------------------------------------------------
-     This branch added the doorway --- `src/websearch/index.ts`, exporting
-     `searchPort` and `researchPort`, imported by `src/tutor/TutorView.tsx` ---
-     and declared the area with entries `index.ts`, `bench.ts` and `port.ts`.
-     On this branch alone that configuration passed. Merged with `main` it does
-     not, and the honest move is to record WHY rather than to reshape the
-     declaration until the number goes green. Measured output of
-     `npm run gate:reachability` with the entry restored:
+  {
+    name: 'websearch',
+    root: 'src/websearch',
+    /* FOUR ENTRIES, AND THE FOURTH IS THE INTERESTING ONE.
 
-       [websearch] 21/24 source files reachable from entry points
-         ORPHAN src/websearch/evalReport.ts
-         ORPHAN src/websearch/webSearchClient.ts
-         ORPHAN src/websearch/wikipedia.ts
-         DEAD   src/websearch/provenance.ts exports MAX_ORIGINS
+       `index.ts` is the doorway `src/tutor/TutorView.tsx` imports. `port.ts`
+       is the shared vocabulary, listed for the same reason `agent` lists
+       `contracts.ts`: a type-only module is legitimately imported for its types
+       from outside. `bench.ts` is the offline benchmark's surface.
 
-     Those four are three different problems, and only one of them is this
-     branch's to solve:
+       `webSearchClient.ts` is here because `src/App.tsx:57` does
+       `import('./websearch/webSearchClient').then((m) => m.searchTheWeb(...))`.
+       That edge STARTS OUTSIDE this area, and an area walk begins at the
+       area's own entries, so no arrangement of the other three can express it.
+       Something outside the area calls it, which is this MANIFEST's own
+       definition of a public surface. `wikipedia.ts` follows from it by a lazy
+       `import('./wikipedia')` at `webSearchClient.ts:372`.
 
-     1. `webSearchClient.ts` IS REACHED, AND THE GATE CANNOT SEE IT. `App.tsx`
-        does `import('./websearch/webSearchClient').then((m) => m.searchTheWeb(...))`.
-        That edge starts OUTSIDE `src/websearch`, and an area walk begins at the
-        area's own declared entries, so no entry list can express it.
-        `wikipedia.ts` follows it: `webSearchClient.ts` reaches it by a dynamic
-        `import('./wikipedia')`, so it is orphaned only because its parent is.
-        Declaring `webSearchClient.ts` as a third entry would clear both, and
-        would even be defensible --- something outside the area does call it,
-        which is this MANIFEST's own definition of a surface. It is left out
-        because it would clear the two failures that are NOT real while leaving
-        the two that are, which is the worst of both.
+       This block was withheld once, deliberately, and the comment that stood
+       here recorded why: declaring the area then reported three orphans and a
+       dead export, and adding entries until the number went green would have
+       cleared the two findings that were artefacts while hiding the two that
+       were real. Both real ones are now fixed rather than reclassified —
+       `evalReport.evaluate()` is called by `formatReport`, and `MAX_ORIGINS`
+       is imported by `webSearchClient.ts` instead of being shadowed by a
+       private copy of the same list. */
+    entries: ['src/websearch/index.ts', 'src/websearch/webSearchClient.ts'],
+    /* `bench.ts` is the offline benchmark's surface. It is a real public
+       surface of this area, so the AREA walk must start there or its internals
+       read as orphans — but it is a TOOL, and "does the browser reach the
+       benchmark harness" has no true answer. Asking it produced a permanent
+       UNREACHED finding nobody could act on, and a gate that cries wolf gets
+       switched off.
 
-     2. `evalReport.ts` IS REACHED ONLY BY TEST FILES, BY DESIGN. Its consumer
-        is `evalGate.test.ts`, whose own header argues the case: a `.mjs` script
-        cannot import TypeScript here, so the eval gate is written as a test and
-        run by `npm run gate:eval`. This gate's central rule is that TEST FILES
-        ARE NOT EDGES --- that rule is the reason it caught `execute.ts` and
-        `world.ts` at all. So `main` deliberately built a module this gate must
-        deliberately call an orphan. Both decisions are defensible and they
-        contradict, and no wording of an entry list dissolves that.
+       Same reasoning as `shipsToBrowser: false` on the server area, applied per
+       file instead of per area. The reason is required, so an entry cannot be
+       parked here silently. */
+    toolEntries: [
+      {
+        path: 'src/websearch/bench.ts',
+        why: 'offline benchmark harness; deliberately not imported by main.tsx',
+      },
+    ],
+  },
+  {
+    name: 'server',
+    root: 'server',
+    /* A FIFTH AREA, and deliberately outside `src/`. It holds the API key and
+       never ships to the browser -- the secret-exposure gate refuses any
+       `src/` -> `server/` import outright.
 
-     3. `provenance.ts` EXPORTS `MAX_ORIGINS`, WHICH NOTHING BUT ITS OWN TEST
-        IMPORTS. That is a genuine dead export in `main`, and exactly the
-        subtler bug §2 of this file's header describes. It is a real finding.
-
-     WHAT WAS NOT DONE, AND WHY. Adding `evalReport.ts` as an "entry" would be
-     the fudge this file's own header warns about: an entry is a PUBLIC SURFACE
-     something outside the area calls, and a test is not that. Re-exporting it
-     from `index.ts` would ship the eval harness to every learner's browser --
-     the metric improves, the product gets worse. Relaxing "test files are not
-     edges" would delete the gate's reason to exist. Deleting `MAX_ORIGINS`
-     inside a merge would be unreviewed product surgery on someone else's
-     branch. Each of those makes the red go away without changing what is
-     wrong, which is the one thing this repository forbids outright.
-
-     TO FINISH IT, two things have to be true, and neither is a gate edit:
-     `evalReport.evaluate()` needs a non-test caller (`bench.ts` is the obvious
-     one --- it already runs the corpus and has nothing that applies the
-     floors), and `MAX_ORIGINS` needs a real consumer or removal. When both
-     hold, restore the block above and delete this comment.
-     ----------------------------------------------------------------------- */
+       `node.d.ts` is NOT an entry: this gate collects `.ts`/`.tsx` only, so an
+       ambient declaration is not part of an area at all, and naming one asks
+       the gate to find a file it never collected. */
+    shipsToBrowser: false,
+    entries: ['server/index.ts'],
+  },
 ]
 
 /* -------------------------------------------------------------------------- */
@@ -601,6 +596,18 @@ export function resolveSpec(fromFile, spec) {
  *             orphans: string[], deadExports: {file: string, name: string}[],
  *             warnings: string[] }}
  */
+/**
+ * Every path an AREA walk starts from: declared entries plus tool entries.
+ *
+ * A tool entry is a real public surface of the area — the area walk must begin
+ * there or the tool's internals report as orphans — but it is exempt from the
+ * PRODUCT question, because "does the browser reach the benchmark harness" has
+ * no true answer.
+ */
+export function areaEntries(area) {
+  return [...area.entries, ...(area.toolEntries ?? []).map((t) => t.path)]
+}
+
 export function analyze(area) {
   const root = resolve(ROOT, area.root)
   const files = walk(root)
@@ -637,8 +644,8 @@ export function analyze(area) {
 
   /* 1. Orphan modules --- breadth-first from the declared entries. */
   const reached = new Set()
-  const queue = [...area.entries]
-  for (const e of area.entries) {
+  const queue = [...areaEntries(area)]
+  for (const e of areaEntries(area)) {
     if (!sources.includes(e)) {
       throw new Error(`entry point does not exist or is a test file: ${e}`)
     }
@@ -648,12 +655,25 @@ export function analyze(area) {
     if (reached.has(f)) continue
     reached.add(f)
     for (const imp of edges.get(f) ?? []) {
-      /* TYPE-ONLY EDGES ARE NOT TRAVERSED. tsc erases them, so a module
-         reachable only through `import type` contributes nothing to the
-         bundle and is exactly as absent as one nobody imports at all. This
-         line is the difference between measuring reachability and measuring
-         "mentioned in something that looks like an import". */
-      if (imp.typeOnly) continue
+      /* TYPE-ONLY EDGES ARE NOT TRAVERSED, WITH ONE EXCEPTION. tsc erases
+         them, so a module reachable only through `import type` contributes
+         nothing to the bundle and is exactly as absent as one nobody imports
+         at all. That line is the difference between measuring reachability and
+         measuring "mentioned in something that looks like an import".
+
+         The exception is a module that exports ONLY types. It has no other
+         kind of edge available, so requiring a value import is a rule it can
+         never satisfy — and the old workaround was to declare such modules
+         MANIFEST entries, which exempted them from the question instead of
+         answering it.
+
+         THE SAME EXCEPTION LIVES IN `analyzeProductReachability`, and it has
+         to live in both. Fixing only the product walk made `port.ts` reachable
+         from the product and an ORPHAN inside its own area — one blindness in
+         two places, and half a fix reads as a new bug. */
+      if (imp.typeOnly && !isTypesOnlyModule(readFileSync(resolve(ROOT, imp.target), 'utf8'))) {
+        continue
+      }
       if (!reached.has(imp.target)) queue.push(imp.target)
     }
   }
@@ -679,7 +699,7 @@ export function analyze(area) {
     /* An entry point's exports ARE the public surface, so they are seeds
        rather than candidates --- but everything they reach inside the file
        still has to be reached, so the same propagation runs. */
-    const seed = area.entries.includes(f)
+    const seed = areaEntries(area).includes(f)
       ? new Set(exportsOf(read.get(f)))
       : (taken.get(f) ?? new Set())
     for (const name of unreachableExports(read.get(f), seed)) {
@@ -690,8 +710,68 @@ export function analyze(area) {
   return { area: area.name, files, reached: [...reached].sort(), orphans, deadExports, warnings }
 }
 
+/**
+ * Every named import taken from any file, by any non-test file in ANY area.
+ *
+ * `analyze` looks at one area at a time, so an importer in a different area is
+ * invisible to it. `server/handler.ts` imports `citationSupports` from
+ * `src/websearch`, and the gate went on calling that export DEAD while a
+ * shipping file used it on every request. An importer the gate cannot see is
+ * indistinguishable from no importer at all, which is the single distinction
+ * this gate exists to make.
+ */
+function takenAcrossAreas(manifest) {
+  const taken = new Map()
+  const starred = new Set()
+
+  for (const area of manifest) {
+    let files
+    try {
+      files = walk(resolve(ROOT, area.root)).map((f) => relative(ROOT, f))
+    } catch {
+      /* An area whose directory is absent contributes no importers. Reported
+       * by `analyze` as an area with no files, not silently swallowed here. */
+      continue
+    }
+    for (const file of files) {
+      if (isTestFile(file)) continue
+      let source
+      try {
+        source = readFileSync(resolve(ROOT, file), 'utf8')
+      } catch {
+        continue
+      }
+      for (const imp of importsOf(source)) {
+        const target = resolveSpec(file, imp.spec)
+        if (target === null || target === undefined) continue
+        if (imp.star) starred.add(target)
+        const set = taken.get(target) ?? new Set()
+        for (const name of imp.names) set.add(name)
+        taken.set(target, set)
+      }
+    }
+  }
+  return { taken, starred }
+}
+
 export function runAll(manifest = MANIFEST) {
-  return manifest.map(analyze)
+  const results = manifest.map(analyze)
+
+  /* CROSS-AREA IMPORTERS, and without this the gate lies.
+     `analyze` looks at ONE area at a time, so an importer living in another
+     area is invisible to it -- `server/handler.ts` imports `citationSupports`
+     from `src/websearch`, and the gate called that export DEAD while a shipping
+     file used it on every request. An importer the gate cannot see is
+     indistinguishable from no importer, which is the one distinction this whole
+     file exists to make. */
+  const { taken, starred } = takenAcrossAreas(manifest)
+
+  return results.map((result) => ({
+    ...result,
+    deadExports: result.deadExports.filter(
+      (d) => !starred.has(d.file) && !(taken.get(d.file)?.has(d.name) ?? false),
+    ),
+  }))
 }
 
 /* -------------------------------------------------------------------------- */
@@ -750,7 +830,17 @@ export function analyzeProductReachability(
      correct: the question cannot be answered for it, and refusing to answer
      beats answering wrongly. */
   for (const area of manifest) {
-    for (const e of area.entries) {
+    /* AN AREA THAT DOES NOT SHIP TO A BROWSER IS NOT SKIPPED TO KEEP THE GATE
+       QUIET --- the question is meaningless for it.
+       `server/` holds the API key and is deliberately never imported by
+       `main.tsx`; "does the browser reach the server" has no true answer, and
+       inventing one either way is worse than declining. Its INTERNAL orphan
+       check still runs in `analyze()`, so nothing about it goes unmeasured.
+       The flag is opt-OUT: an area that forgets to declare itself is still
+       asked the question, so silence is never the default. */
+    if (area.shipsToBrowser === false) continue
+
+    for (const e of areaEntries(area)) {
       if (!sources.includes(e)) {
         throw new Error(
           `area entry does not exist, is a test file, or is outside ${root}: ` +
@@ -779,17 +869,96 @@ export function analyzeProductReachability(
     if (reached.has(f)) continue
     reached.add(f)
     for (const imp of edges.get(f) ?? []) {
-      if (imp.typeOnly) continue
+      /* THE THIRD ANSWER. A type-only edge normally stops the walk, because
+         tsc erases it and the target ships nothing. But a module that exports
+         ONLY types has no other kind of edge available to it: requiring a value
+         import is a rule it can never satisfy, and the previous workaround was
+         to declare such modules MANIFEST entries and exempt them.
+
+         So the edge is followed when — and only when — the target is
+         types-only. A target with even one value export is still stopped here,
+         which is what keeps a genuine orphan reportable. */
+      if (imp.typeOnly && !isTypesOnlyModule(readFileSync(resolve(ROOT, imp.target), 'utf8'))) {
+        continue
+      }
       if (!reached.has(imp.target)) queue.push(imp.target)
     }
   }
 
   const findings = []
   for (const area of manifest) {
+    /* Same reason as the validation loop above: an area that does not ship to a
+       browser cannot be UNREACHED by one. Reporting it would be a finding
+       nobody can act on, and a gate that cries wolf gets switched off. */
+    if (area.shipsToBrowser === false) continue
+
+    /* `area.entries`, NOT `areaEntries(area)`. Tool entries are deliberately
+       excluded here and nowhere else: the area walk starts from them, so their
+       internals are still measured, but the PRODUCT question is meaningless for
+       a benchmark harness and asking it produced a finding nobody could act
+       on. */
     const unreachable = area.entries.filter((e) => !reached.has(e))
     if (unreachable.length > 0) findings.push({ area: area.name, unreachable })
   }
   return findings
+}
+
+/* -------------------------------------------------------------------------- */
+/* Types-only modules                                                         */
+/* -------------------------------------------------------------------------- */
+
+/* A VALUE export ships runtime code. `enum` is here on purpose: TypeScript
+   compiles a non-const enum into an object, so it is a value however much it
+   reads like a type. */
+const VALUE_EXPORT_RE =
+  /^export\s+(?:declare\s+)?(?:async\s+)?(?:abstract\s+)?(?:function\*?|const|let|var|class|enum)\s/gm
+const DEFAULT_VALUE_EXPORT_RE = /^export\s+default\s/gm
+/* `export { a }` and `export { a } from './x'` — a VALUE re-export unless the
+   whole clause is `export type { ... }`. Every barrel file in the repository is
+   this shape, and reading one as types-only would exempt all of them. */
+const BRACE_EXPORT_RE = /^export\s+(type\s+)?\{/gm
+const TYPE_EXPORT_RE = /^export\s+(?:type|interface)\s/gm
+
+/**
+ * Does this module export types and NOTHING that survives compilation?
+ *
+ * WHY THE GATE NEEDS TO ASK.
+ *
+ * TypeScript erases `import type`, so `analyzeProductReachability` skips
+ * type-only edges: a module reached only that way ships nothing. That is right
+ * for a module with runtime code and IMPOSSIBLE for a module with none.
+ *
+ * `src/agent/kernel/contracts.ts` has 31 type exports and 0 value exports.
+ * No arrangement of imports can make it product-reachable, because every
+ * legitimate import of it is a type import. It was declared a MANIFEST entry to
+ * keep the gate quiet — an exemption with paperwork, for a rule the file could
+ * never satisfy.
+ *
+ * Deliberately narrow: ONE value export and the answer is false. Such a module
+ * can be reached normally, and letting it through this door would hide exactly
+ * the orphan this file exists to find.
+ *
+ * @returns {boolean} true when there is at least one type export and no value
+ *          export.
+ */
+export function isTypesOnlyModule(src) {
+  /* Comments and strings blanked first, so the word `export` inside either
+     cannot vote. Both helpers already exist for the import scanner. */
+  const clean = blankStrings(blankComments(src))
+
+  const braces = [...clean.matchAll(BRACE_EXPORT_RE)]
+  const valueBraces = braces.filter((m) => m[1] === undefined).length
+  const typeBraces = braces.length - valueBraces
+
+  const values =
+    [...clean.matchAll(VALUE_EXPORT_RE)].length +
+    [...clean.matchAll(DEFAULT_VALUE_EXPORT_RE)].length +
+    valueBraces
+  const types = [...clean.matchAll(TYPE_EXPORT_RE)].length + typeBraces
+
+  /* A module with no exports at all is EMPTY, not types-only. Calling it
+     types-only would make every stub file permanently live. */
+  return types > 0 && values === 0
 }
 
 /* -------------------------------------------------------------------------- */
@@ -813,8 +982,19 @@ export function report(results, { productReachability = null } = {}) {
   let failed = false
 
   for (const r of results) {
-    const sources = r.files.filter((f) => !isTestFile(f)).length
-    lines.push(`[${r.area}] ${r.reached.length}/${sources} source files reachable from entry points`)
+    const sources = r.files.filter((f) => !isTestFile(f))
+    /* Both halves of this ratio must count the SAME SET, and they did not.
+       `reached` holds every file the walk arrived at, cross-area imports
+       included, so an area that imports anything from outside itself printed a
+       numerator bigger than its denominator --- `[server] 15/8` was real.
+
+       Worse than untidy: while the numerator carried outside files, the ratio
+       could not fall below 100% for such an area, so an area WITH an orphan
+       still read as complete. Intersecting with the area's own source files is
+       what lets the number say something is wrong. */
+    const inArea = new Set(sources)
+    const reachedHere = r.reached.filter((f) => inArea.has(f)).length
+    lines.push(`[${r.area}] ${reachedHere}/${sources.length} source files reachable from entry points`)
 
     for (const w of r.warnings) {
       failed = true

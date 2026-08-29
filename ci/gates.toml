@@ -139,6 +139,19 @@ unmeasured = [
   # all, so its 482 tests run unmeasured. Adding a floor here needs its own
   # measurement first, for the same reason as `scripts`.
   { path = "learning-os/src", why = "no coverage configuration exists in learning-os/pyproject.toml yet" },
+
+  # Alembic's environment and its migration scripts. This IS production code --
+  # it is what changes a real database -- so it is `unmeasured` rather than
+  # `excluded`, which would claim it is not production at all.
+  #
+  # No floor, and line coverage is the wrong instrument here. A migration runs
+  # once, forward, against a specific starting schema; "which lines executed"
+  # says nothing about whether the resulting schema is correct. What does say
+  # so is `.github/workflows/integration.yml`, which applies every migration to
+  # an empty database on each run, and the database suite, which then asserts
+  # the constraints those migrations created actually refuse bad rows.
+  { path = "learning-os/alembic", why = "migration runner; exercised by integration.yml applying it to an empty database, not by line coverage" },
+  { path = "learning-os/alembic/versions", why = "migration scripts; correctness is the resulting schema, which tests/db asserts, not which lines ran" },
 ]
 
 excluded = [
@@ -531,6 +544,7 @@ must_contain = ["scripts/merge_evidence_gate.py"]
 evidence = "reports/merge-evidence.json"
 artifact = "reports-merge-evidence"
 
+
 # ---------------------------------------------------------------------------
 # DEEP VERIFICATION — supplementary, label-gated, and deliberately not required.
 #
@@ -626,3 +640,22 @@ artifact = ""
 "learning-os.yml::deployed-layout" = "DELIBERATE for now. Same draft subsystem as above."
 
 "verify.yml::merge-evidence" = "DEBT. It checks the PR's measured claims against the run's evidence, which is exactly the kind of thing that should be able to fail a merge. It runs `if: always()` after `full` on pull_request only and is not a required check."
+
+"integration.yml::integration" = "DEBT. It is the only job that proves the migrations apply to an empty database, that the CHECK and UNIQUE constraints actually refuse bad rows, and that the seeded dataset is byte-identical across runs. Nothing else can prove any of that, because no other job has a PostgreSQL. It runs, it reports, it blocks nothing. Making it block is an edit to live ruleset 20990225, which only the repository owner can make -- until then a red database suite stops no merge, and a green pull request should not be read as one this job approved."
+
+"integration.yml::contract" = "DEBT. It regenerates the Pact consumer contract and fails if the committed pacts/ file differs. Without it a developer can change what the canvas needs, forget to commit the regenerated contract, and the provider goes on verifying needs the consumer no longer has -- both suites green while the two sides drift apart, which is the exact failure Pact was added to prevent. It runs, it reports, it blocks nothing, for the same ruleset reason as its sibling job above."
+
+# NOTE: the accessibility spec is NOT a job. It runs inside frontend-scenes,
+# so it is covered by that job's classification and must not be declared
+# here -- an advisory key naming a job that does not exist is a claim
+# gate_integrity cannot check, which is the shape this file exists to
+# refuse. Kept as a comment because the reasoning is worth reading.
+#   axe-core over three routes at three states each (loaded, after keyboard
+#   traversal, at phone width), failing on any violation outside
+#   ci/baselines/a11y.json. axe detects roughly a third of real
+#   accessibility problems, so green means no automatically-detectable
+#   violation outside the baseline, never that a route is accessible.
+
+"learning-canvas-frontend.yml::frontend-visual" = "DEBT, and PARTIAL. toHaveScreenshot baselines for three acceptance lessons. The spec and its pairing test are complete and the discipline is written down in docs/visual-review.md, but the baselines themselves are platform-specific and must come from a Linux CI run: a macOS capture can never match, and .gitignore refuses one so it cannot be committed by accident. Until those baselines land, this job fails on missing snapshots -- which is the correct behaviour and is why Playwright is not allowed to create them in CI."
+
+"nightly.yml::fuzzing" = "DELIBERATE. It runs on a schedule, not on a pull request, so it cannot be a required check by construction -- there is no commit for it to gate. The same suite runs on every pull request at 30 generated examples per operation; this runs it at 500. That difference is not cosmetic: 30 examples pass while 1500 found a real schema defect, so the nightly profile finds things the blocking profile cannot afford to look for. A failure here is a finding to act on, not a merge to stop."

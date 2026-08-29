@@ -1,6 +1,7 @@
+import { figureFor } from './figure'
 import type { QuestionProvider } from './provider';
 import {
-  OPTION_KEYS,
+  isOptionKey,
   type CandidateQuestion,
   type NumericComputation,
   type NumericStep,
@@ -115,7 +116,14 @@ export function modelProvider(options: ModelProviderOptions = {}): QuestionProvi
 /* The brief                                                                  */
 /* -------------------------------------------------------------------------- */
 
-const SYSTEM = [
+/*
+ * EXPORTED SO THE OLLAMA PROVIDER SHARES IT RATHER THAN COPYING IT.
+ *
+ * Two prompts for one job drift apart, and then a question that passes on one
+ * model fails on another for a reason nobody can see in the diff. The transport
+ * differs between providers; the instructions must not.
+ */
+export const SYSTEM = [
   'You write single-answer multiple-choice questions for exam practice.',
   '',
   'Every question you return is independently verified before a student sees it.',
@@ -132,9 +140,21 @@ const SYSTEM = [
   '- The solution explains the reasoning. Never "Option C is correct".',
   '- If the question involves arithmetic, declare it in `computation` so it can',
   '  be recomputed. Steps reference earlier inputs or earlier step names only.',
+  '',
+  'Three mistakes that get questions rejected. Each has happened:',
+  '',
+  '- `expected` is the answer to the question you asked, not a number that',
+  '  merely appears in it. A garden of area 150 whose WIDTH is asked for has',
+  '  expected = the width. One of your four options must equal it exactly.',
+  '- Every `left` and `right` in a step must name an input you declared or an',
+  '  earlier step. A name that appears nowhere makes the whole question',
+  '  unusable.',
+  '- Before you return, compare your four options. If any two are equal, or',
+  '  algebraically equal, replace one. Two right answers is a broken question,',
+  '  and it is the failure a reader is least likely to notice.',
 ].join('\n');
 
-function briefFor(spec: QuestionSpec, attempt: number): string {
+export function briefFor(spec: QuestionSpec, attempt: number): string {
   const lines = [
     `Topic: ${spec.topicId}`,
     `Concept: ${spec.conceptName}`,
@@ -164,7 +184,7 @@ function briefFor(spec: QuestionSpec, attempt: number): string {
   return lines.join('\n');
 }
 
-const SCHEMA = {
+export const SCHEMA = {
   type: 'object',
   additionalProperties: false,
   required: ['questionText', 'options', 'correctOption', 'fullSolution'],
@@ -256,6 +276,8 @@ export function toCandidate(
     };
   });
 
+  const computation = parseComputation(parsed['computation']);
+
   return {
     candidateId: `${spec.specId}-a${attempt}`,
     spec,
@@ -264,7 +286,14 @@ export function toCandidate(
     correctOption,
     fullSolution,
     generationSource: model,
-    computation: parseComputation(parsed['computation']),
+    computation,
+    /*
+     * BUILT HERE, NOT ASKED OF THE MODEL. LAW 1 -- the model never draws. It
+     * returns the question and the arithmetic; the figure is derived from that
+     * arithmetic, so a model cannot put a quantity on screen that its own
+     * question does not use, however it was prompted.
+     */
+    figure: figureFor(spec, computation, questionText),
   };
 }
 
@@ -352,10 +381,13 @@ function requireString(record: Record<string, unknown>, key: string): string {
 }
 
 function requireOptionKey(value: unknown): OptionKey {
-  if (typeof value !== 'string' || !(OPTION_KEYS as readonly string[]).includes(value)) {
+  /* `isOptionKey` is the declared guard and it NARROWS, which is what removes
+     the `as OptionKey` this function used to need. Re-writing its body here
+     bought a cast and a second copy of the rule; importing it costs neither. */
+  if (typeof value !== 'string' || !isOptionKey(value)) {
     throw new Error(`model returned an option key that is not A-D: ${String(value)}`);
   }
-  return value as OptionKey;
+  return value;
 }
 
 async function safeText(response: Response): Promise<string> {

@@ -321,7 +321,22 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
         </div>
       )}
 
-      <div className="lc-stage">
+      {/*
+        A MAIN LANDMARK, and it was missing entirely.
+        `/canvas` returns before the app shell because it owns the whole
+        window, and the shell is where `<main>` lived -- so this route rendered
+        with zero landmarks. A page that owns the whole window is exactly when
+        a landmark matters most: it is how a screen-reader user skips the
+        toggle bar and reaches the lesson.
+        Measured on the running page before the fix:
+        `document.querySelectorAll('main').length` was 0.
+        It also broke two e2e tests, which timed out waiting for `main` to
+        exist and reported it as a 90s hang rather than as a missing element.
+        The swap is semantic only. The class, and therefore every style rule,
+        is unchanged, and `main` and `div` are both block boxes -- which is why
+        the screenshot baselines taken before it are still valid.
+      */}
+      <main className="lc-stage">
         {result.ok ? (
           /*
            * `key` on the lesson id, so switching subject starts the new lesson
@@ -333,7 +348,7 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
         ) : (
           <Refusal title="This lesson was refused" issues={result.issues} />
         )}
-      </div>
+      </main>
     </div>
   )
 }

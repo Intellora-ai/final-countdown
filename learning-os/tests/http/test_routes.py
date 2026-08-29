@@ -335,6 +335,26 @@ def test_an_attempt_without_an_idempotency_key_is_refused(client: TestClient) ->
 def test_an_attempt_on_an_unknown_skill_is_refused_not_recorded(
     client: TestClient,
 ) -> None:
+    """404, and this assertion USED TO SAY 422.
+
+    It was changed on measured evidence, which is the only thing that licenses
+    changing an assertion. Schemathesis produced two findings against the 422:
+
+        JsonSchemaError: "no subskill '000...'" is not of type "array"
+            Validated against the response schema for status code 422.
+
+        RejectedPositiveData: API rejected schema-compliant request
+
+    Both are the Phase 4 failure condition -- "a route that returns a shape its
+    schema does not describe". FastAPI publishes 422 as
+    `{"detail": [ValidationError]}`, an ARRAY; the route was returning a string
+    under that code. And the request was schema-compliant, because the document
+    says `skill_id` is any string of 1..120 characters, so blaming the caller
+    was wrong twice over.
+
+    404 is true and expressible: the skill does not exist, no edit to the
+    request makes it exist, and a schema cannot enumerate which ids are real.
+    """
     learner_id = _new_learner(client)
     response = client.post(
         f"/learners/{learner_id}/attempts",
@@ -346,7 +366,11 @@ def test_an_attempt_on_an_unknown_skill_is_refused_not_recorded(
         },
         headers={"Idempotency-Key": "k-unknown"},
     )
-    assert response.status_code == 422
+    assert response.status_code == 404
+    # The detail is a STRING, and that is now what the document declares for
+    # 404. Asserting the type is the check that would have caught the original
+    # bug and did not exist.
+    assert isinstance(response.json()["detail"], str)
     report = MasteryReport.model_validate(
         client.get(f"/learners/{learner_id}/mastery").json()
     )
@@ -475,11 +499,18 @@ def test_lessons_emits_a_lesson_for_a_known_skill(client: TestClient) -> None:
 
 
 def test_lessons_refuses_a_skill_the_graph_does_not_define(client: TestClient) -> None:
+    """404 for the same measured reason as the attempts route above.
+
+    Same two Schemathesis findings, same fix. Recorded in both places rather
+    than cross-referenced, because a reader arriving at either test needs to
+    know the assertion was changed and why.
+    """
     response = client.post(
         "/lessons",
         json={"skill_id": "python.recursion.not_real", "question": "Anything?"},
     )
-    assert response.status_code == 422
+    assert response.status_code == 404
+    assert isinstance(response.json()["detail"], str)
 
 
 def test_lessons_refuses_an_empty_question(client: TestClient) -> None:

@@ -127,6 +127,62 @@ function plus(block: Record<string, unknown>): Lesson {
 const ok = (lesson: Lesson = baseline()): Case => ({ lesson, arc: true })
 const arcOff = (lesson: Lesson): Case => ({ lesson, arc: false })
 
+/**
+ * The baseline plus a chart of `chartType` over a CONTINUOUS x axis.
+ *
+ * The relation is not decoration here: without it `representation-is-decoration`
+ * fires and the pair would pass for the wrong reason -- "a rule fired" is not
+ * "THIS rule fired".
+ *
+ * The two halves of the pair differ in `chartType` and nothing else, so a
+ * failure names the boundary rather than a lesson that was wrong in a dozen
+ * ways at once.
+ */
+function plusChartOverNumbers(chartType: 'bar' | 'line'): Lesson {
+  const l = baseline()
+  /* BEFORE the closing summary, not after it. The summary has to be the last
+     core block -- `summary-does-not-close-the-core` -- and a representation
+     belongs in the body it illustrates rather than past the ending. Appending
+     it tripped that rule instead of this one, which would have made the pair
+     pass for the wrong reason. */
+  const closing = l.blocks.findIndex((b) => b.kind === 'summary')
+  const chart = [
+    {
+      id: 'curve',
+      kind: 'chart',
+      emphasis: 'supporting',
+      tone: 'neutral',
+      role: 'component',
+      depth: 'core',
+      chartType,
+      xLabel: 'Light (arbitrary units)',
+      yLabel: 'Sugar made',
+      series: [
+        {
+          name: 'Rate',
+          colorIndex: 0,
+          points: [
+            { x: 1, y: 0 },
+            { x: 2, y: 1 },
+            { x: 4, y: 2 },
+            { x: 8, y: 3 },
+          ],
+        },
+      ],
+    } as unknown as Block,
+  ]
+  ;(l as { blocks: Block[] }).blocks = [
+    ...l.blocks.slice(0, closing),
+    ...(chart as Block[]),
+    ...l.blocks.slice(closing),
+  ]
+  ;(l as { relations: Lesson['relations'] }).relations = [
+    ...l.relations,
+    { kind: 'supports', from: 'mechanism', to: 'curve' },
+  ] as Lesson['relations']
+  return l
+}
+
 /** Thirty-one words: one over the cap, so the boundary is the only difference. */
 const THIRTY_ONE =
   'one two three four five six seven eight nine ten eleven twelve thirteen ' +
@@ -138,6 +194,25 @@ const THIRTY_ONE =
 const THIRTY_ONE_BROKEN = THIRTY_ONE.replace('sixteen ', 'sixteen\n\n')
 
 export const RULE_PAIRS: Record<string, RulePair> = {
+  /*
+   * THE CHART MUST FIT THE DATA, NOT SATISFY A RULE.
+   *
+   * `nothing-is-shown` already demands a representation, and its own message
+   * says one "chosen because it fits, never for decoration" -- but nothing
+   * enforced the fitting half, so the cheapest way to satisfy it was to bolt on
+   * whatever chart came to mind. A rule that can be satisfied by the wrong
+   * answer teaches a model to give the wrong answer.
+   *
+   * The registry already records when each type is the wrong choice.
+   * `REPRESENTATIONS.bar.avoidWhen` is "the x axis is continuous -- use a
+   * line", and that is the case made executable here: bars over numbers claim
+   * the gaps between them mean nothing, when on a continuous axis they are the
+   * whole point.
+   */
+  'chart-fights-its-data': {
+    refuses: ok(plusChartOverNumbers('bar')),
+    accepts: ok(plusChartOverNumbers('line')),
+  },
   'run-too-long': {
     refuses: ok(withBlock('mechanism', { body: THIRTY_ONE, terms: [{ text: 'seven', mark: 'key' }] })),
     accepts: ok(withBlock('mechanism', { body: THIRTY_ONE_BROKEN, terms: [{ text: 'seven', mark: 'key' }] })),

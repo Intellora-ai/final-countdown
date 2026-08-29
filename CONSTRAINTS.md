@@ -95,9 +95,11 @@ Today's values, recorded so they can only improve. A drop is the finding.
 
 | Metric | Today | Direction |
 |---|---|---|
-| Gate rule coverage | `teach/teaching.ts` has **no test file** | must reach a failing/passing pair per rule |
-| Lessons passing the teaching gate | **2 of 8** registered | must reach 8 |
-| Canvas reachability | `src/canvas` is **not in the gate's manifest** | should be declared, or the silence is a hole |
+| Gate rule coverage | **31 rules, 31 paired** — `ruleCensus.test.ts`, 61 tests | stays at zero unpaired; the census fails naming any new rule |
+| Lessons passing the teaching gate | **5 of 8** registered, all 5 guarded by `lessons.test.ts` | must reach 8 |
+| Canvas reachability | declared it and **measured 6 orphans + 25 dead exports**; reverted to keep the gate honest | classify all 31, then declare `src/canvas` permanently |
+| Authoring, real model | **0 of 6** lessons pass, mean **223.5s** (`qwen2.5:7b`, whole-lesson) | must reach 6 of 6; try a per-concept unit and a stronger free model |
+| `teach/concept.ts` | built and tested (9 tests), **imported by nothing that ships** | wire it into `CanvasRoute`, or it is the orphan this repo's reachability gate exists to catch |
 | Local model, warm latency | **1.68s** (`qwen2.5:3b`, 40 tokens) | cold load is minutes — budget for it |
 
 ---

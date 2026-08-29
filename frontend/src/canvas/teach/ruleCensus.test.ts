@@ -36,6 +36,41 @@ describe('the rule census', () => {
   })
 })
 
+describe('a chart that misrepresents its data is wrong at every level', () => {
+  /*
+   * `checkTeaching` splits its rules in two: chunk rules that hold everywhere,
+   * and arc rules that only apply when an AUTHOR is writing a whole lesson.
+   * The file states the reason -- an assembled doubt answer has no authored
+   * opening, so demanding one refused five real call sites.
+   *
+   * `chart-fights-its-data` was first written inside `checkRepresentations`,
+   * which is arc-gated, and that was wrong. Whether bars claim the gaps
+   * between values carry no meaning is a fact about ONE BLOCK and its numbers.
+   * It does not become true because the surrounding blocks form an arc, and a
+   * learner reading a doubt answer is misled by exactly the same chart.
+   *
+   * Its neighbours in that function are arc-gated for real reasons:
+   * `nothing-is-shown` counts blocks across the whole lesson, and
+   * `representation-is-decoration` reads the relation graph. Both are
+   * statements about a composed lesson. This one is not.
+   */
+  it('fires on a doubt answer, where the arc rules are off', () => {
+    const fired = checkTeaching(RULE_PAIRS['chart-fights-its-data']!.refuses.lesson, {
+      arc: false,
+    })
+    expect(fired.map((i) => i.rule)).toContain('chart-fights-its-data')
+  })
+
+  it('still stays silent on the line chart at that level', () => {
+    /* The paired positive at the same level. A rule that fired on every chart
+       would pass the test above and be useless. */
+    const fired = checkTeaching(RULE_PAIRS['chart-fights-its-data']!.accepts.lesson, {
+      arc: false,
+    })
+    expect(fired.map((i) => i.rule)).not.toContain('chart-fights-its-data')
+  })
+})
+
 describe.each(Object.entries(RULE_PAIRS))('%s', (rule, pair) => {
   it('fires on the lesson that breaks it', () => {
     const fired = checkTeaching(pair.refuses.lesson, { arc: pair.refuses.arc })

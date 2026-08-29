@@ -146,10 +146,48 @@ export function selectArchetype(p: Profile): { archetype: Archetype; explain: st
       explain: `${p.dataHeavy} data blocks against ${p.textual} of prose — this is material to scan, so it lays out as a dense grid rather than a reading column`,
     }
 
-  if (p.hasSequence && p.counts.flow >= 1 && p.visual >= p.textual)
+  /*
+   * A CHAIN IS A CHAIN WHETHER IT IS DRAWN OR DERIVED.
+   *
+   * This branch used to read `p.hasSequence && p.counts.flow >= 1 && p.visual
+   * >= p.textual`, and BOTH extra conditions were wrong.
+   *
+   * `visual >= textual` punished teaching: explaining each step in prose is
+   * what teaching a process looks like, so the prose counted against the flow
+   * and disqualified the lesson from the archetype built for it.
+   *
+   * `counts.flow >= 1` was a DEAD CONDITION. `hasSequence` is already
+   * `counts.flow > 0 || figureSequence > 0` (line ~124), so re-requiring a flow
+   * block here meant the `figureSequence` half could never contribute to
+   * anything. `bill` draws its legislative process as four `figure` blocks with
+   * a sequence intent, so it was a chain this selector structurally could not
+   * see, and it landed on `evidence` beside a grammar table.
+   *
+   * `hasSequence` on its own is the whole question. Nothing further needed
+   * proving, and the two conditions that looked like extra rigour were each
+   * hiding a lesson from the composition built for it.
+   */
+  if (p.hasSequence)
     return {
       archetype: 'sequence',
-      explain: `a flow drives the lesson, so blocks run in reading order along the chain rather than competing for the centre`,
+      explain:
+        `${p.counts.flow} flow block(s) and ${p.counts.figure} figure(s) over ${p.total} blocks — ` +
+        `a chain is walked end to end, so the blocks run in reading order rather than competing for the centre`,
+    }
+
+  /*
+   * A DERIVATION IS A CHAIN TOO, and nothing here used to look at `equation`,
+   * so every derivation fell through to `evidence` -- which is how `logs`
+   * landed on the same composition as a grammar table.
+   *
+   * TWO, not one. A lone formula beside prose is a claim and its statement,
+   * which is exactly what `evidence` means. The chain only exists once one line
+   * follows from the line above it, and that takes a second equation.
+   */
+  if (p.counts.equation >= 2)
+    return {
+      archetype: 'sequence',
+      explain: `${p.counts.equation} equations follow one from the next — a derivation is walked end to end, so the steps run in reading order rather than competing for the centre`,
     }
 
   if (p.dataHeavy >= 1 && p.textual >= 1)

@@ -195,8 +195,43 @@ export default defineConfig({
    * be a real key in CI.
    */
   webServer: [
+    /*
+     * THE STUB MODEL, so the journey can cross the model boundary with no key.
+     *
+     * `journey.spec.ts` is the one test that goes browser -> proxy -> backend ->
+     * model -> validator -> renderer. Without something answering, it can only
+     * ever assert that the product fails, which is half a test.
+     *
+     * The stub speaks the OpenAI shape and nothing else about it is faked: real
+     * HTTP, real proxy, real parsing, real validation, real rendering. Only the
+     * model's creativity is absent, and that is the one part a wiring test must
+     * not measure.
+     */
     {
-      command: 'npm run server:build && ANTHROPIC_API_KEY=CANARY-e2e-must-not-leak PORT=8787 node dist-server/index.js',
+      command: 'node e2e/stub-model.mjs',
+      url: 'http://127.0.0.1:8788/health',
+      reuseExistingServer: !process.env.CI,
+      timeout: 30_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
+    {
+      /*
+       * POINTED AT THE STUB, AND THE CANARY KEY STAYS.
+       *
+       * `GROQ_API_KEY` selects the OpenAI-compatible provider and
+       * `GROQ_ENDPOINT` sends it to the stub, so no real credential is involved
+       * and no request leaves the machine. `ANTHROPIC_API_KEY` keeps its canary
+       * value: the secret-leak assertions elsewhere in this suite watch for that
+       * exact string, and removing it would quietly retire them.
+       *
+       * Both keys being set would normally make `chooseProvider` refuse rather
+       * than guess -- so the canary is unset for this process only, on the line
+       * below, which is the honest way to express "use the stub" without
+       * weakening the refusal.
+       */
+      command:
+        'npm run server:build && ANTHROPIC_API_KEY= GROQ_API_KEY=STUB-e2e-not-a-real-key GROQ_ENDPOINT=http://127.0.0.1:8788/v1/chat/completions GROQ_MODEL=stub-model PORT=8787 node dist-server/index.js',
       /* The one route that answers a GET. Every other route mutates or costs
          money, so none of them can be polled -- which is why this endpoint
          exists at all. */

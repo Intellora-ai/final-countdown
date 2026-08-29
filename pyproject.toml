@@ -13,6 +13,10 @@ markers = [
   # milliseconds. Deselect with `-m "not axle"` for a fast local loop; CI runs
   # everything, because a correspondence nobody kernel-checks proves nothing.
   "axle: sends a proof to the AXLE service for kernel checking",
+  # Walks the 414MB knowledge corpus and measures wall clock. Deselect with
+  # `-m "not slow"`; CI runs it, because an unmeasured latency budget is not a
+  # budget.
+  "slow: measures wall-clock time against a stated budget",
 ]
 
 [tool.coverage.run]

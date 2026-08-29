@@ -173,6 +173,15 @@ ELIGIBLE = {
     # covering it in the same run that removed them.
     ("B404", "scripts/build_bundle.py"),
     ("B603", "scripts/build_bundle.py"),
+    # knowledge_search.py runs `grep` once per query term and `pdftotext` once
+    # per PDF. Both argvs are list literals whose argv[0] is bound in the same
+    # scope from shutil.which, both pass a timeout, and neither joins a caller
+    # string: the query reaches grep after `-e` and the directories after `--`,
+    # so nothing from the command line can be read as an option. As with every
+    # entry here, this line is re-proven from the file's AST by
+    # check_subprocess_safety on each run rather than remembered.
+    ("B404", "scripts/knowledge_search.py"),
+    ("B603", "scripts/knowledge_search.py"),
 }
 
 

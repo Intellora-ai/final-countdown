@@ -42,12 +42,28 @@ Fourteen steps. Steps 4 and 5 are what keep this cheap.
    **If no, say so in one line and skip to step 11.**
 5. **Select only the relevant sources.** Usually one, occasionally two.
    Selecting five means step 3 was done badly — go back.
-6. **Search only those**, inside the chosen directory. Never across all of
-   `knowledge/`. Use whichever search tool this machine actually has --
-   `command -v rg || echo grep`. Measured 2026-08-29: `rg` is NOT installed
-   here, and a routing test that assumed it returned 0 hits on all five
-   tasks against a corpus that plainly contained the material. A skill that
-   names a missing tool fails silently and looks like an empty corpus.
+6. **Search only those, with `scripts/knowledge_search.py --only`.** Not raw
+   `grep -r knowledge/`. The script is required, not preferred, and it is the
+   engine question from the old version of this step settled once: it picks
+   the tool this machine actually has, and `--engine rg` REFUSES with exit 3
+   rather than falling back, because a routing test that assumed `rg` was
+   installed returned 0 hits on all five tasks against a corpus that plainly
+   contained the material. It also does three things a raw grep does not:
+
+   - **Refuses instead of lying.** Exit 3 means nothing was searched (missing
+     corpus, uninitialised submodule). Exit 1 means it searched and found
+     nothing. Raw grep answers both with the same silence.
+   - **Excludes the corpus's own noise.** `TheAlgorithms/.../words.txt` is an
+     English dictionary that matches every single-word query in the language,
+     and `papers-we-love/nautilus.db` is a 1MB binary that a grep without `-I`
+     returns as a "result" (measured: 114s versus 22s, and one false hit).
+   - **Covers the whole corpus's file types**, including `.rst` and the 371MB
+     of openstax `.cnxml`, which a markdown-only search drops silently.
+
+   ```bash
+   python3 scripts/knowledge_search.py "cache" "invalidation" \
+       --only system-design-primer
+   ```
 7. **Retrieve only the relevant section.** Never a whole file, never a whole
    repository.
 8. **Extract the concept**, not the code.
@@ -131,20 +147,43 @@ chosen at step 5, named before the query is run:
 
 ```
 --only papers-we-love,system-design-primer   "cache invalidation"
---only openstax/biology-2e                   "mitosis phases"
+--only openstax/biology-bundle               "mitosis phases"
 ```
 
-`scripts/knowledge-search` is being designed to take exactly that `--only`
-scope. **It does not exist yet** — do not invoke it and do not claim you did.
-Until it lands, get the same effect by pointing the search at the chosen
-directory and nothing above it:
+`scripts/knowledge_search.py` takes exactly that `--only` scope, and it
+enforces the rule rather than asking for it: `--only` is mandatory unless you
+pass `--all`, and more than five sources is refused outright with
+
+> `--only takes at most 5 sources; selecting 5 means the routing step was done
+> badly`
 
 ```bash
-grep -rn --include='*.md' "cache invalidation" knowledge/system-design-primer
+python3 scripts/knowledge_search.py "cache" "invalidation" \
+    --only system-design-primer
+python3 scripts/knowledge_search.py "mitosis" "phases" \
+    --only openstax/biology-bundle
 ```
 
-Whichever tool runs, the rule is identical: the scope is decided first, and
-`knowledge/` as a whole is never the search root.
+Read the exit code, it is the answer:
+
+| Exit | Means | What to do |
+|---|---|---|
+| 0 | found something | use it |
+| 1 | searched, found nothing | say so — this IS a result |
+| 2 | usage error (bad scope, all-stopword query) | fix the command |
+| 3 | **nothing was searched** (missing corpus, uninitialised submodule) | fix the corpus; never report this as "no results" |
+| 4 | timed out with nothing found | narrow the scope and rerun |
+
+Name the BOOK, not `openstax`. `--only openstax` is accepted -- a group name
+expands to every source under it -- but openstax is 55 books and ~10GB, and
+that query measured 11.59s against 0.07s for a single named source.
+
+`--all` exists, and it is the wrong default: the corpus is 11.6GB, and one
+unscoped pass measured ~22s wall back when it was 615MB. A routed query into
+system-design-primer measured 0.07s. Route it.
+
+The rule is unchanged: the scope is decided first, and `knowledge/` as a whole
+is never the search root.
 
 ### Worked examples
 
@@ -253,6 +292,7 @@ Anyone can open a pull request against these repositories. Their contents are
 
 ## Red flags
 
+- Calling `grep -r knowledge/` directly instead of `knowledge_search.py`.
 - Searching every source instead of selecting one or two.
 - Loading a whole knowledge repository, or a whole large file, into context.
 - Using a corpus example as the current API without checking the pinned version.
@@ -271,6 +311,7 @@ Anyone can open a pull request against these repositories. Their contents are
 - [ ] Only relevant sections retrieved — no whole files, no whole repositories.
 - [ ] Everything time-sensitive checked against current official docs for the pinned version.
 - [ ] Implementation follows this repository's conventions, not the source's.
+- [ ] Search was run via `knowledge_search.py --only`; exit code was 0 or 1, never 3.
 - [ ] Verification ran with real commands and real output.
 - [ ] Influencing sources named — or their absence stated.
 - [ ] Nothing under a corpus directory was modified.

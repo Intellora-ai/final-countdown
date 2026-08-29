@@ -1,5 +1,35 @@
+import jsxA11y from 'eslint-plugin-jsx-a11y'
 import tseslint from 'typescript-eslint'
 import designValue from './eslint-rules/design-value.js'
+
+/*
+ * ACCESSIBILITY, CHECKED WHERE IT IS WRITTEN AS WELL AS WHERE IT RUNS.
+ *
+ * `e2e/a11y.spec.ts` runs axe over eight routes, five projects and three states
+ * each. That is the better measurement -- it sees the real DOM -- and it arrives
+ * minutes later, in CI, after the change is already written. This catches the
+ * cheap half at the keystroke.
+ *
+ * TWO RULES ARE TUNED, AND EACH IS A MEASURED DISAGREEMENT RATHER THAN A
+ * SILENCED COMPLAINT.
+ *
+ * `no-noninteractive-tabindex` is OFF. It fires on five scrollable regions that
+ * carry `role="region"`, `tabIndex={0}` and an `aria-label` -- and that pattern
+ * is not a mistake, it is the fix axe's own `scrollable-region-focusable`
+ * REQUIRES. A scrollable box that cannot take focus cannot be scrolled without
+ * a mouse. Two tools disagree; the one measuring the real browser against WCAG
+ * wins, and "fixing" the lint finding would turn a passing axe run red.
+ *
+ * `label-has-associated-control` gets `depth: 3`. `SimulationView` nests its
+ * label text one span deeper than the rule looks by default, and the control IS
+ * inside the label. Raising the depth makes the rule see what is there rather
+ * than turning it off.
+ */
+const a11yRules = {
+  ...jsxA11y.flatConfigs.recommended.rules,
+  'jsx-a11y/no-noninteractive-tabindex': 'off',
+  'jsx-a11y/label-has-associated-control': ['error', { depth: 3 }],
+}
 
 /* TWO DESIGN SYSTEMS, SO TWO LINT SURFACES.
  *
@@ -33,8 +63,10 @@ export default tseslint.config(
     extends: [...tseslint.configs.recommended],
     plugins: {
       canvas: { rules: { 'design-value': designValue } },
+      'jsx-a11y': jsxA11y,
     },
     rules: {
+      ...a11yRules,
       'canvas/design-value': 'error',
       /* The codebase predates this config and uses `any` deliberately in a few
        * registry-shaped places. Turning these into errors now would bury the
@@ -46,7 +78,9 @@ export default tseslint.config(
   {
     files: ['src/practice/**/*.{ts,tsx}'],
     extends: [...tseslint.configs.recommended],
+    plugins: { 'jsx-a11y': jsxA11y },
     rules: {
+      ...a11yRules,
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     },
@@ -141,8 +175,9 @@ export default tseslint.config(
   {
     files: ['src/tutor/**/*.{ts,tsx}'],
     extends: [...tseslint.configs.recommended],
-    plugins: { canvas: { rules: { 'design-value': designValue } } },
+    plugins: { canvas: { rules: { 'design-value': designValue } }, 'jsx-a11y': jsxA11y },
     rules: {
+      ...a11yRules,
       'canvas/design-value': 'error',
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
@@ -161,8 +196,9 @@ export default tseslint.config(
   {
     files: ['src/almanac/**/*.{ts,tsx}'],
     extends: [...tseslint.configs.recommended],
-    plugins: { canvas: { rules: { 'design-value': designValue } } },
+    plugins: { canvas: { rules: { 'design-value': designValue } }, 'jsx-a11y': jsxA11y },
     rules: {
+      ...a11yRules,
       'canvas/design-value': 'error',
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
@@ -198,6 +234,52 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
+
+  /*
+   * THE FOUR TOP-LEVEL DIRECTORIES, WHICH NO BLOCK HAS EVER MATCHED.
+   *
+   * `lint-coverage.test.mjs` was built to stop a directory being silently
+   * exempt, and it worked -- five times, all of them under `src/`. It only ever
+   * looked under `src/`, so four whole trees outside it were invisible to the
+   * gate AND to the linter at once. Measured before writing this:
+   *
+   *     e2e            19 files   the browser harness, and every gate that
+   *                               depends on it
+   *     server         28 files   holds the API key; the one process standing
+   *                               between a browser and the model
+   *     scripts        43 files   every gate, the mutation runner, the
+   *                               curriculum pipeline
+   *     eslint-rules    1 file    the custom rule the canvas lint depends on
+   *
+   * `npx eslint e2e server scripts eslint-rules` reported "ignored because no
+   * matching configuration was supplied" for all of them. Ninety-one files, no
+   * rule ever applied. The gate's own scope was the blind spot.
+   *
+   * `no-explicit-any` is a WARNING rather than an error in these three
+   * TypeScript trees: they predate this block, and turning a rule on as an
+   * error over existing code buries the rule under work it did not cause. The
+   * lint script runs at `--max-warnings 0`, so a warning still fails the gate
+   * -- it is the SEVERITY that is softened for a future reader, not the
+   * enforcement.
+   */
+  {
+    files: ['e2e/**/*.{ts,tsx,mjs}', 'server/**/*.ts', 'eslint-rules/**/*.{ts,js}'],
+    extends: [...tseslint.configs.recommended],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
+
+  /* `scripts/` is plain ESM JavaScript, not TypeScript. The type-aware preset
+     would report nothing useful there, so it gets the base rules only. */
+  {
+    files: ['scripts/**/*.mjs', '*.mjs'],
+    extends: [tseslint.configs.base],
+    rules: {
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     },
   },
 )

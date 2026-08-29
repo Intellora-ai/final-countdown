@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 
 import { classifierEvaluation } from '../lessons/classifierEvaluation'
 import type { Lesson } from '../spec/spec'
 import { validateLesson } from '../spec/validate'
 import { TeachView } from './TeachView'
+import { MOST_CHARACTERS, MOST_QUESTIONS_PER_BEAT } from './bounds'
+import { deriveBeats } from './beats'
+import { keyFor } from './remembered'
 
 /**
  * The teaching view, exercised the way a learner meets it.
@@ -31,6 +34,39 @@ import { TeachView } from './TeachView'
  */
 
 afterEach(cleanup)
+
+/*
+ * A real, empty store before every test.
+ *
+ * TWO REASONS, AND BOTH ARE LOAD-BEARING.
+ *
+ * jsdom in this project provides NO `localStorage` -- probed, not assumed:
+ * `typeof globalThis.localStorage` is `undefined` here, which is why
+ * `LearnView.test.tsx` and `TutorView.repeat-submit.test.tsx` each install one
+ * too. Without it the remembering below would silently take the no-storage
+ * path and every assertion about it would pass for the wrong reason.
+ *
+ * And it is cleared per test because jsdom gives the whole FILE one store while
+ * every test here teaches the SAME lesson, so a test that advances two beats
+ * would otherwise decide where the next test starts -- with the failure landing
+ * in whichever test happened to run afterwards.
+ */
+beforeEach(() => {
+  const data = new Map<string, string>()
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => data.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        data.set(key, value)
+      },
+      removeItem: (key: string) => {
+        data.delete(key)
+      },
+      clear: () => data.clear(),
+    },
+  })
+})
 
 function fixture(): Lesson {
   const result = validateLesson(classifierEvaluation)
@@ -443,5 +479,404 @@ describe('asking a doubt', () => {
     expect(field.tabIndex).toBe(0)
     expect(field.disabled).toBe(false)
     expect(document.querySelector('.lc-teach__question')?.getAttribute('tabindex')).toBe('-1')
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* One submit, one effect                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Wait long enough for an answer that takes a measurable moment to arrive.
+ *
+ * `settle` yields one macrotask, which is enough for a resolver that answers
+ * out of the lesson and not enough for one that awaits anything. A guard that
+ * releases on the promise settling can only be proved by a promise that has not
+ * settled yet.
+ */
+async function settleFor(ms: number): Promise<void> {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, ms))
+  })
+}
+
+/**
+ * Two Enters, delivered before React has re-rendered between them.
+ *
+ * WHY NOT TWO CALLS TO `submitText`
+ * ---------------------------------
+ * `fireEvent` flushes React synchronously, so the second submit would run
+ * against a component that has already cleared its draft — it would classify as
+ * empty and prove nothing. The defect being measured is the OTHER order: two
+ * key events delivered inside one frame, where the second handler still holds
+ * the first's draft in its closure. Dispatching both inside a single `act`
+ * reproduces exactly that, and nothing about the component is mocked to do it.
+ */
+async function submitTwice(text: string): Promise<void> {
+  const field = screen.getByLabelText('Answer the question, or ask one of your own')
+  fireEvent.change(field, { target: { value: text } })
+  const form = field.closest('form') as HTMLFormElement
+  await act(async () => {
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+  })
+}
+
+describe('one submit, one effect', () => {
+  it('spends one model call when Enter is pressed twice quickly', async () => {
+    /*
+     * A double Enter is one intention. Spending it twice is not only a wasted
+     * call: the second answer also increments `questionsAsked`, which feeds
+     * `strugglingAfter`, so a stutter on the keyboard silently changes what the
+     * learner is taught next.
+     */
+    let calls = 0
+    render(
+      <TeachView
+        lesson={fixture()}
+        mode="2d"
+        ask={async () => {
+          calls += 1
+          await new Promise((resolve) => setTimeout(resolve, 20))
+          return { ok: true, text: 'Mount Everest is 8,849 metres high.' }
+        }}
+      />,
+    )
+    await settle()
+
+    await submitTwice('how tall is mount everest')
+    await settleFor(60)
+
+    expect(calls, 'a double Enter spent two model calls').toBe(1)
+  })
+
+  it('still sends a second, different question once the first has landed', async () => {
+    /*
+     * The pair, and the reason the guard cannot be a latch that never releases.
+     * A learner who asks one question and is then refused every later one has a
+     * worse product than one who occasionally pays for a duplicate.
+     */
+    let calls = 0
+    render(
+      <TeachView
+        lesson={fixture()}
+        mode="2d"
+        ask={async () => {
+          calls += 1
+          return { ok: true, text: `answer number ${calls}` }
+        }}
+      />,
+    )
+    await settle()
+
+    await askAbout('how tall is mount everest')
+    await askAbout('how deep is the mariana trench')
+    await settleFor(20)
+
+    expect(calls, 'the guard latched and never released').toBe(2)
+  })
+
+  it('advances one beat when the answer is submitted twice quickly', async () => {
+    /*
+     * The same defect on the other branch, and the one a learner actually
+     * loses something to: two reveals from one keypress means a beat is put on
+     * screen and buried by the next in the same frame. They never read it.
+     */
+    await teach()
+    expect(screen.queryByText(SECOND_BEAT), 'the fixture already showed beat two').toBeNull()
+
+    await submitTwice('the model flags too many innocent transactions')
+    await settle()
+
+    expect(screen.queryByText(SECOND_BEAT), 'the answer did not advance the lesson').not.toBeNull()
+    expect(screen.queryByText(THIRD_BEAT), 'a double Enter skipped a beat').toBeNull()
+  })
+
+  it('says why a question sent during an answer was held, rather than dropping it', async () => {
+    /*
+     * A guard that silently swallows a submit is the failure this repository
+     * keeps finding: the learner presses Enter, nothing happens, and they
+     * conclude the product is broken. The refusal has to be stated.
+     */
+    render(
+      <TeachView
+        lesson={fixture()}
+        mode="2d"
+        ask={async () => {
+          await new Promise((resolve) => setTimeout(resolve, 40))
+          return { ok: true, text: 'Mount Everest is 8,849 metres high.' }
+        }}
+      />,
+    )
+    await settle()
+
+    await submitText('how tall is mount everest')
+    await submitText('how deep is the mariana trench?')
+
+    expect(
+      document.querySelector('.lc-teach__announce')?.textContent ?? '',
+      'the held question was dropped without a word',
+    ).toMatch(/still working/i)
+
+    await settleFor(80)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Nothing typed is ever lost                                                 */
+/* -------------------------------------------------------------------------- */
+
+const FIELD = 'Answer the question, or ask one of your own'
+
+/** The one box, read back. */
+function box(): HTMLInputElement {
+  return screen.getByLabelText(FIELD) as HTMLInputElement
+}
+
+describe('nothing typed is ever lost', () => {
+  it('keeps the draft across a reload mid-typing', async () => {
+    /*
+     * A learner half-way through composing an answer, on a phone, on a train.
+     * The tab is evicted and comes back. Before this, the box came back empty
+     * and there was no record anything had been typed at all.
+     */
+    const { unmount } = render(<TeachView lesson={fixture()} mode="2d" />)
+    await settle()
+    fireEvent.change(box(), { target: { value: 'i think it is about the base rate' } })
+    await settle()
+
+    unmount()
+    render(<TeachView lesson={fixture()} mode="2d" />)
+    await settle()
+
+    expect(box().value, 'the reload emptied the box').toBe('i think it is about the base rate')
+  })
+
+  it('reopens the lesson where the learner left it', async () => {
+    /*
+     * Not scope creep: a question is remembered against the BEAT it was asked
+     * on, and a lesson that reopens at beat one renders no answer for a doubt
+     * raised at beat three. Restoring the place is what makes the restored
+     * question visible at all.
+     */
+    const { unmount } = render(<TeachView lesson={fixture()} mode="2d" />)
+    await settle()
+    await answerBeat()
+    expect(screen.queryByText(SECOND_BEAT)).not.toBeNull()
+
+    unmount()
+    render(<TeachView lesson={fixture()} mode="2d" />)
+    await settle()
+
+    expect(screen.queryByText(SECOND_BEAT), 'the reload sent the learner back to the start').not.toBeNull()
+  })
+
+  it('brings back a question the reload interrupted, and finishes it', async () => {
+    /*
+     * The worst of the three. The answer was in flight, so the reload killed
+     * the request -- and the question vanished with no record it had ever been
+     * asked. Restoring it as "pending" alone would be a lie, because nothing
+     * would ever answer it, so it is re-asked.
+     */
+    let calls = 0
+    const ask = async (): Promise<{ ok: boolean; text: string }> => {
+      calls += 1
+      /* Never settles. The reload has to happen while the answer is genuinely
+         outstanding, which a resolved promise cannot express. */
+      return new Promise(() => {})
+    }
+
+    const { unmount } = render(<TeachView lesson={fixture()} mode="2d" ask={ask} />)
+    await settle()
+    await submitText('how tall is mount everest?')
+    expect(document.body.textContent).toMatch(/Working on it/)
+    expect(calls).toBe(1)
+
+    unmount()
+    render(<TeachView lesson={fixture()} mode="2d" ask={ask} />)
+    await settle()
+
+    expect(
+      document.body.textContent,
+      'the question vanished with no record it was ever asked',
+    ).toMatch(/how tall is mount everest/)
+    expect(calls, 'the restored question was never re-asked, so nothing could ever answer it').toBe(2)
+  })
+
+  it('forgets a question once it has been answered', async () => {
+    /* Otherwise every reload for the rest of the session re-asks it, and the
+       learner pays for the same answer again and again. */
+    let calls = 0
+    const ask = async (): Promise<{ ok: boolean; text: string }> => {
+      calls += 1
+      return { ok: true, text: 'Mount Everest is 8,849 metres high.' }
+    }
+
+    const { unmount } = render(<TeachView lesson={fixture()} mode="2d" ask={ask} />)
+    await settle()
+    await submitText('how tall is mount everest?')
+    expect(calls).toBe(1)
+
+    unmount()
+    render(<TeachView lesson={fixture()} mode="2d" ask={ask} />)
+    await settle()
+
+    expect(calls, 'an answered question was re-asked after the reload').toBe(1)
+  })
+
+  it('renders and teaches normally when storage is unavailable', async () => {
+    /*
+     * A private window, a browser set to block site data, a thumbnail capture:
+     * the accessor itself throws. A remembered draft is a convenience and must
+     * never be able to take the lesson down with it.
+     */
+    /* The accessor ITSELF raises, which is the shape a private window and a
+       blocked origin actually take -- not a store whose methods fail. A guard
+       that only wraps the method calls would pass this and still crash a real
+       browser. */
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('site data is blocked for this origin')
+      },
+    })
+
+    await teach()
+    expect(screen.queryByText(FIRST_BEAT), 'a blocked store stopped the lesson rendering').not.toBeNull()
+    await answerBeat()
+    expect(screen.queryByText(SECOND_BEAT), 'a blocked store stopped the lesson advancing').not.toBeNull()
+  })
+
+  it('ignores a stored value that is corrupt or from another version', async () => {
+    /* Storage is shared with anything else on the origin and survives a deploy.
+       A bad read must degrade to a fresh lesson, never to a crash. */
+    window.localStorage.setItem('lc.teach.classifier-evaluation', '{"draft":')
+    await teach()
+    expect(screen.queryByText(FIRST_BEAT)).not.toBeNull()
+    expect(box().value).toBe('')
+
+    cleanup()
+    window.localStorage.setItem(
+      'lc.teach.classifier-evaluation',
+      JSON.stringify({ draft: 42, revealed: 'nine', pending: 'not an array' }),
+    )
+    await teach()
+    expect(screen.queryByText(FIRST_BEAT)).not.toBeNull()
+    expect(box().value).toBe('')
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Nothing unbounded reaches the model                                        */
+/* -------------------------------------------------------------------------- */
+
+describe('the box states its own limits', () => {
+  it('declares the character limit on the field itself', async () => {
+    /* So the browser enforces it on a paste before any of our code runs, and so
+       an assistive technology can announce the limit rather than letting
+       someone type past it and find out afterwards. */
+    await teach()
+    expect(box().maxLength).toBe(MOST_CHARACTERS)
+  })
+
+  it('keeps only what it can send, and says that it cut something', async () => {
+    /* A silent truncation is the worst of the three options: the learner watches
+       an answer arrive to half a question with no way to know which half was
+       read. */
+    await teach()
+    fireEvent.change(box(), { target: { value: 'x'.repeat(MOST_CHARACTERS + 500) } })
+    await settle()
+
+    expect(box().value.length, 'the box held more than it can send').toBe(MOST_CHARACTERS)
+    expect(
+      document.querySelector('.lc-teach__announce')?.textContent ?? '',
+      'text was cut and nobody was told',
+    ).toMatch(/kept the first/i)
+  })
+
+  it('sends no more than the bound even when the draft never went through the box', async () => {
+    /*
+     * The restore path does not type. A record written by another version, or
+     * by hand, can hold any length at all, and it is re-issued automatically on
+     * mount -- so the guard cannot live only in the input's onChange.
+     */
+    let sent = ''
+    const first = deriveBeats(fixture())[0]
+    window.localStorage.setItem(
+      keyFor('classifier-evaluation'),
+      JSON.stringify({
+        draft: '',
+        revealed: 1,
+        pending: [{ at: 0, beatId: first?.id ?? '', text: `why ${'y'.repeat(9000)}?`, shown: [] }],
+      }),
+    )
+
+    render(
+      <TeachView
+        lesson={fixture()}
+        mode="2d"
+        ask={async (question) => {
+          sent = question
+          return { ok: true, text: 'an answer' }
+        }}
+      />,
+    )
+    await settle()
+
+    expect(sent.length, 'a stored question reached the model unbounded').toBeLessThanOrEqual(
+      MOST_CHARACTERS,
+    )
+    expect(sent.length, 'the stored question was not sent at all').toBeGreaterThan(0)
+  })
+
+  it('stops answering one beat forever, and says why', async () => {
+    /*
+     * Every other bound on this path is a person pressing Enter. A held key, a
+     * stuck page or a script has no such bound, and each question is a paid
+     * call. The cap is far above real use -- `strugglingAfter` already treats
+     * two questions on one beat as a signal the lesson is not landing -- so a
+     * learner meeting it is evidence of a machine, not of curiosity.
+     */
+    let calls = 0
+    render(
+      <TeachView
+        lesson={fixture()}
+        mode="2d"
+        ask={async () => {
+          calls += 1
+          return { ok: true, text: `answer ${calls}` }
+        }}
+      />,
+    )
+    await settle()
+
+    const attempts = MOST_QUESTIONS_PER_BEAT + 3
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      await submitText(`what is question number ${attempt}?`)
+    }
+
+    /*
+     * THE ORACLE IS QUESTIONS TAKEN, NOT MODEL CALLS.
+     *
+     * Measured while writing this: of twelve questions the lesson's own
+     * resolver answered one out of the material already on screen, so eleven
+     * reached the model. That is the system working -- the fast path costs
+     * nothing and cannot invent -- and an assertion on the call count would
+     * have read it as a lost submit. What the cap governs is how many questions
+     * one beat will TAKE, and the learner sees each one echoed above the
+     * checkpoint, so that is what is counted.
+     */
+    const taken = Array.from({ length: attempts }, (_unused, attempt) =>
+      (document.body.textContent ?? '').includes(`what is question number ${attempt}?`),
+    ).filter(Boolean).length
+
+    expect(taken, 'one beat took questions without limit').toBe(MOST_QUESTIONS_PER_BEAT)
+    expect(calls, 'more questions reached the model than the beat allows').toBeLessThanOrEqual(
+      MOST_QUESTIONS_PER_BEAT,
+    )
+    expect(
+      document.querySelector('.lc-teach__announce')?.textContent ?? '',
+      'the cap was reached in silence',
+    ).toMatch(/as many questions as I can answer/i)
   })
 })

@@ -260,6 +260,13 @@ export function SessionView() {
       : (topicById(launchedFrom.id)?.name ?? 'this topic')
 
   return (
+    /*
+     * The same disagreement as `PanZoom`: the rule reads the tag, not the role.
+     * A modal dialog MUST handle the keyboard -- Escape closes it, and focus is
+     * trapped inside -- so `onKeyDown` on the element carrying `role="dialog"`
+     * and `aria-modal` is the required pattern, not a violation of it.
+     */
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       className="pm-session"
       role="dialog"

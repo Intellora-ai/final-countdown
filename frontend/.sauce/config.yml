@@ -1,0 +1,129 @@
+# saucectl — the CANVAS browser harness on Sauce Labs cloud browsers.
+#
+# Run it with:   npm run test:sauce          (from frontend/)
+# which is:      saucectl run --config .sauce/config.yml
+#
+# CREDENTIALS ARE NOT IN THIS FILE AND MUST NEVER BE.
+# saucectl reads SAUCE_USERNAME and SAUCE_ACCESS_KEY from the environment:
+#
+#     export SAUCE_USERNAME=...
+#     export SAUCE_ACCESS_KEY=...
+#
+# `saucectl configure` writes them to `.sauce/credentials.yml` instead. That
+# path is gitignored, and it is the one file in this directory that may ever
+# hold a key.
+#
+# WHAT RUNS WHERE. saucectl uploads `rootDir` to a Sauce VM and runs Playwright
+# inside it, so both webServers in playwright.sauce.config.ts -- the planner on
+# 8787 and the Vite dev server on 5183 -- start in the VM, and 127.0.0.1 means
+# the VM's own loopback. Nothing reaches back to a developer's machine, which
+# is why no Sauce Connect tunnel is configured.
+#
+# THE VM HAS TO BUILD. `npm run server:build` and `npm run dev` both run there,
+# so node_modules is installed in the VM and the first run pays for a Vite
+# build. The harness drives the DEV server on purpose: the __boardHarness
+# bridge and the perf marks compile to no-ops in production, so a production
+# build would quietly remove what several specs read.
+
+apiVersion: v1alpha
+kind: playwright
+
+sauce:
+  # us-west-1 or eu-central-1 are the two valid values, and `region` belongs
+  # HERE, nested under `sauce:` -- not at the top level of the file. A
+  # top-level `region:` key is not in the saucectl schema, so it is ignored and
+  # the run silently falls back to the default (us-west-1), which reads exactly
+  # like the region setting having had no effect.
+  #
+  # eu-central-1 because this account is provisioned for the EU only. A US
+  # request against an EU-only account is refused at authentication, which
+  # surfaces as an access error rather than as anything mentioning regions.
+  region: eu-central-1
+  # Five suites, five VMs, all at once -- so the matrix costs the time of its
+  # slowest project rather than the sum of five. THIS is the cloud parallelism.
+  # The per-VM worker count is Playwright's and is left to it in
+  # playwright.sauce.config.ts, deliberately NOT capped at the local `4`.
+  concurrency: 5
+  metadata:
+    tags:
+      - canvas
+      - learning-canvas
+      - e2e
+
+playwright:
+  # Read from package.json rather than pinned here, so the cloud runner can
+  # never drift from the version this package actually installs.
+  version: package.json
+  # The cloud-only config. The local playwright.config.ts is untouched and is
+  # still what CI runs.
+  configFile: playwright.sauce.config.ts
+
+# Everything uploaded to the VM, trimmed by `.sauceignore` beside this file.
+rootDir: ./
+
+suites:
+  # ONE SUITE PER PLAYWRIGHT PROJECT, which is what makes the run parallel:
+  # each entry is a separate VM. `params.project` selects a project already
+  # declared in the local config and inherited by the cloud one, so this list
+  # names projects rather than redefining them.
+  #
+  # `screenResolution` is the VM's DESKTOP, not the page. Every project sets
+  # its own viewport, so the page size comes from the project in all five
+  # cases; the desktop is only kept large enough that a 1440-wide viewport is
+  # never clipped by the machine it is drawn on.
+  - name: 'canvas — desktop 1440'
+    platformName: 'Windows 11'
+    screenResolution: '1920x1080'
+    testMatch: ['.*\.spec\.ts']
+    params:
+      browserName: 'chromium'
+      project: 'desktop-1440'
+
+  - name: 'canvas — square 900'
+    platformName: 'Windows 11'
+    screenResolution: '1920x1080'
+    testMatch: ['.*\.spec\.ts']
+    params:
+      browserName: 'chromium'
+      project: 'square-900'
+
+  - name: 'canvas — mobile 375'
+    platformName: 'Windows 11'
+    screenResolution: '1920x1080'
+    testMatch: ['.*\.spec\.ts']
+    params:
+      browserName: 'chromium'
+      # Synthetic touch and the 375 viewport come from the project. Nothing
+      # here claims real-device evidence, exactly as the local config says.
+      project: 'mobile-375'
+
+  - name: 'canvas — reduced motion'
+    platformName: 'Windows 11'
+    screenResolution: '1920x1080'
+    testMatch: ['.*\.spec\.ts']
+    params:
+      browserName: 'chromium'
+      project: 'reduced-motion'
+
+  - name: 'canvas — keyboard'
+    platformName: 'Windows 11'
+    screenResolution: '1920x1080'
+    testMatch: ['.*\.spec\.ts']
+    params:
+      browserName: 'chromium'
+      project: 'keyboard'
+
+# Bring the evidence back only when something went wrong; a full artefact
+# download on every green run is how nobody opens any of them.
+artifacts:
+  download:
+    when: fail
+    match:
+      - console.log
+      - '*.png'
+      - '*.zip'
+    directory: ./artifacts/sauce/
+
+reporters:
+  spotlight:
+    enabled: true

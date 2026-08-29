@@ -16,7 +16,7 @@
  *   renaming means the real file is only ever whole.
  */
 
-import { describe, expect, it, beforeEach, afterEach } from 'vitest'
+import { describe, expect, it, beforeEach } from 'vitest'
 import { mkdtemp, writeFile, readFile, readdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

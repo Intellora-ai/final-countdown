@@ -17,7 +17,6 @@
 
 import { describe, expect, it, afterEach } from 'vitest'
 import { Readable } from 'node:stream'
-import { createServer as createNodeServer } from 'node:http'
 import type { Server } from 'node:http'
 
 import { readJsonBody, DEFAULT_HOST, createServer } from './index.ts'

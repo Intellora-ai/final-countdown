@@ -181,6 +181,15 @@ docs, patterns, constraints. Prefer reading the files over guessing at them.
 **8. Never claim success without evidence.** A task is done when it is verified
 and committed. If you cannot verify, say so plainly. Honesty over optimism.
 
+**9. Know what the gates cannot see.** Read
+[`docs/engineering/uncatchable.md`](docs/engineering/uncatchable.md) before
+treating a green run as proof of anything. It lists the failures this repository
+genuinely cannot detect — slow versus dead across a boundary, a confidently
+wrong answer that scores as grounded, a learner who misunderstands and answers
+correctly — each with the measured incident behind it. A reader who meets thirty
+green ticks and no list of blind spots concludes the ticks are total, and they
+are not.
+
 ---
 
 ## Knowledge proof

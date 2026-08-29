@@ -1,0 +1,500 @@
+{
+  "consumer": {
+    "name": "learning-canvas"
+  },
+  "interactions": [
+    {
+      "description": "a concept marked done",
+      "providerStates": [
+        {
+          "name": "a student with a plannable class and subjects"
+        }
+      ],
+      "request": {
+        "body": {
+          "conceptId": "number-systems-irrational",
+          "studentId": "stu_arya"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.conceptId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.studentId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "method": "POST",
+        "path": "/api/done"
+      },
+      "response": {
+        "body": {
+          "done": true
+        },
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "a day request with no subjects",
+      "providerStates": [
+        {
+          "name": "the planner is configured"
+        }
+      ],
+      "request": {
+        "body": {
+          "dailyMinutes": 120,
+          "date": "2026-08-30",
+          "schoolClass": 9,
+          "studentId": "stu_arya",
+          "subjectIds": []
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.dailyMinutes": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.date": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.schoolClass": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.studentId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "method": "POST",
+        "path": "/api/day"
+      },
+      "response": {
+        "body": {
+          "error": "subjectIds must list at least one subject"
+        },
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "matchingRules": {
+          "body": {
+            "$.error": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 400
+      }
+    },
+    {
+      "description": "a free question",
+      "providerStates": [
+        {
+          "name": "the model answers"
+        }
+      ],
+      "request": {
+        "body": {
+          "question": "why is the sky blue?"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.question": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "method": "POST",
+        "path": "/api/ask"
+      },
+      "response": {
+        "body": {
+          "lesson": {
+            "blocks": [
+              {
+                "body": "Shorter wavelengths scatter more.",
+                "id": "opening",
+                "kind": "prose"
+              }
+            ],
+            "id": "sky-blue",
+            "question": "Why is the sky blue?"
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "matchingRules": {
+          "body": {
+            "$.lesson.blocks": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "arrayContains",
+                  "variants": [
+                    {
+                      "index": 0,
+                      "rules": {
+                        "$": {
+                          "combine": "AND",
+                          "matchers": [
+                            {
+                              "match": "type"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            "$.lesson.id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.lesson.question": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "a request for a day",
+      "providerStates": [
+        {
+          "name": "a student with a plannable class and subjects"
+        }
+      ],
+      "request": {
+        "body": {
+          "dailyMinutes": 120,
+          "date": "2026-08-30",
+          "schoolClass": 9,
+          "studentId": "stu_arya",
+          "subjectIds": [
+            "mathematics"
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.dailyMinutes": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.date": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.schoolClass": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.studentId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.subjectIds": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            }
+          }
+        },
+        "method": "POST",
+        "path": "/api/day"
+      },
+      "response": {
+        "body": {
+          "day": {
+            "allocated": 20,
+            "capacity": 120,
+            "date": "2026-08-30",
+            "items": [
+              {
+                "chapterId": "number-systems",
+                "conceptId": "number-systems-irrational",
+                "minutes": 20,
+                "subjectId": "mathematics"
+              }
+            ]
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "matchingRules": {
+          "body": {
+            "$.day.allocated": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.day.capacity": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.day.date": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.day.items": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.day.items[*].chapterId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.day.items[*].conceptId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.day.items[*].minutes": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.day.items[*].subjectId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "a request for a lesson on a concept",
+      "providerStates": [
+        {
+          "name": "the model answers"
+        }
+      ],
+      "request": {
+        "body": {
+          "concept": "Irrational numbers"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.concept": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "method": "POST",
+        "path": "/api/lesson"
+      },
+      "response": {
+        "body": {
+          "lesson": {
+            "blocks": [
+              {
+                "id": "opening",
+                "kind": "prose"
+              }
+            ],
+            "id": "irrational-numbers",
+            "question": "What makes a number irrational?"
+          },
+          "strategy": "worked_example"
+        },
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "matchingRules": {
+          "body": {
+            "$.lesson.blocks": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "arrayContains",
+                  "variants": [
+                    {
+                      "index": 0,
+                      "rules": {
+                        "$": {
+                          "combine": "AND",
+                          "matchers": [
+                            {
+                              "match": "type"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            "$.lesson.id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.lesson.question": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.strategy": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    }
+  ],
+  "metadata": {
+    "pact-js": {
+      "version": "17.1.2"
+    },
+    "pactRust": {
+      "ffi": "0.5.6",
+      "models": "1.3.14"
+    },
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  },
+  "provider": {
+    "name": "canvas-planner"
+  }
+}

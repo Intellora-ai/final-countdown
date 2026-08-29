@@ -34,6 +34,8 @@ const DEFAULT_RESOLVERS: readonly AnyResolver[] = [lessonResolver]
 
 import './teach.css'
 import { shownAlready } from './shownAlready'
+import { recall, remember, type Remembered } from './remembered'
+import { MOST_CHARACTERS, MOST_QUESTIONS_PER_BEAT, bound } from './bounds'
 
 /**
  * A lesson, taught one beat at a time.
@@ -120,10 +122,23 @@ export function TeachView({
     [frame],
   )
 
+  /*
+   * NOTHING TYPED IS EVER LOST.
+   *
+   * Read once, BEFORE the state exists, so the first paint already carries the
+   * draft. Restoring in an effect instead would paint an empty box and then
+   * fill it, which reads as the page overwriting what the learner typed.
+   *
+   * `lessonKey` is derived here rather than below because these initialisers
+   * need it. It stays the same value the switch-lesson guard compares.
+   */
+  const lessonKey = safe === null ? '' : safe.id
+  const restored = useRef<Remembered>(recall(lessonKey))
+
   /* How many beats have been revealed — never rendered, only sliced with. */
-  const [revealed, setRevealed] = useState(1)
-  const [asked, setAsked] = useState<Asked[]>([])
-  const [draft, setDraft] = useState('')
+  const [revealed, setRevealed] = useState(() => restored.current.revealed)
+  const [asked, setAsked] = useState<Asked[]>(() => reopened(restored.current))
+  const [draft, setDraft] = useState(() => restored.current.draft)
   const [announcement, setAnnouncement] = useState('')
   /* Watched, never shown. Depth is added when the learner asks for it and
      automatically when their answers show a gap; nothing on screen ever says
@@ -135,6 +150,39 @@ export function TeachView({
   const struggleReported = useRef(false)
 
   /*
+   * ONE SUBMIT, ONE EFFECT.
+   *
+   * Two Enters pressed inside one frame are one intention, and React has not
+   * re-rendered between them -- so the second handler still holds the first's
+   * draft and runs the whole of `submit` again. Measured, both branches:
+   *
+   *   a question  two model calls, two records both keyed `at: 0` (React
+   *               reported "two children with the same key, 0"), and two
+   *               `questionsAsked` increments, which feed `strugglingAfter`
+   *               and silently change what the learner is taught next.
+   *   an answer   two reveals, so a beat is painted and buried by the next in
+   *               the same frame. The learner never reads it.
+   *
+   * GUARDED ON STATE, NEVER ON A TIMER. A timer is a guess about how fast a
+   * person types, and it is wrong for a switch, a screen reader, or a phone
+   * keyboard that repeats. These two refs are the two real boundaries:
+   *
+   *   `submittedThisFrame`  released after every commit, because once the empty
+   *                         box is on screen the next Enter is a new intention.
+   *   `askInFlight`         held until the answer settles, which no render
+   *                         boundary can bound -- an answer arrives seconds
+   *                         later.
+   *
+   * Refs, not state, because the guard has to be visible to a handler that runs
+   * before React re-renders. That is the entire defect.
+   */
+  const submittedThisFrame = useRef(false)
+  useEffect(() => {
+    submittedThisFrame.current = false
+  })
+  const askInFlight = useRef(false)
+
+  /*
    * A different lesson is a different session.
    *
    * Without this a learner switching lessons opens the new one partway through
@@ -143,13 +191,16 @@ export function TeachView({
    * rather than compared in an effect body with no guard, so a plain mount does
    * not queue four state updates it will immediately discard.
    */
-  const lessonKey = safe === null ? '' : safe.id
   const taught = useRef(lessonKey)
   if (taught.current !== lessonKey) {
     taught.current = lessonKey
-    setRevealed(1)
-    setAsked([])
-    setDraft('')
+    /* The new lesson gets ITS OWN remembered state, not a blank one. Switching
+       away and back is the same interruption a reload is. */
+    const carried = recall(lessonKey)
+    restored.current = carried
+    setRevealed(carried.revealed)
+    setAsked(reopened(carried))
+    setDraft(carried.draft)
     setAnnouncement('')
   }
 
@@ -170,6 +221,78 @@ export function TeachView({
     focusClosing.current = false
     closingRef.current?.focus()
   }, [revealed])
+
+  /* The lesson answers what it can, instantly and without inventing anything.
+     Everything else escalates to the model rather than being refused: a learner
+     who has just admitted confusion is the worst possible audience for "I
+     cannot answer that".
+
+     A memo rather than a fresh object each render, because the restore effect
+     below depends on it and a new identity every render would re-issue the
+     learner's question on every keystroke. */
+  const answering = useMemo(
+    () =>
+      createAnswering({
+        resolvers,
+        ask: askPort ?? (async () => ({ ok: false, reason: 'no question service is configured' })),
+      }),
+    [resolvers, askPort],
+  )
+
+  /* Whether this render reaches the taught view at all — the same four
+     conditions as the four refusals below, named once so the effects can ask.
+     An effect that ran on a refused lesson would touch bindings the early
+     return skipped. */
+  const isTeaching =
+    validated.ok && beatIssues.length === 0 && frame !== null && frameFailures.length === 0
+
+  /*
+   * THE ONE PLACE ANYTHING IS WRITTEN.
+   *
+   * Draft, place, and any question still waiting. Resolved answers are
+   * deliberately NOT stored: each one carries a whole `Lesson`, so a chatty
+   * session would fill the origin's quota and start losing the draft, which is
+   * the thing this exists to protect. An answer that is gone can be asked for
+   * again; a question nobody recorded cannot.
+   */
+  useEffect(() => {
+    remember(lessonKey, {
+      draft,
+      revealed,
+      pending: asked
+        .filter((record) => record.pending)
+        .map((record) => ({
+          at: record.at,
+          beatId: record.beatId,
+          text: record.doubt.text,
+          shown: record.doubt.shown ?? [],
+        })),
+    })
+  }, [lessonKey, draft, revealed, asked])
+
+  /*
+   * A QUESTION THE RELOAD INTERRUPTED IS ASKED AGAIN.
+   *
+   * Restoring it as "pending" and stopping there would be a lie: the request
+   * died with the page, so nothing would ever answer it and the learner would
+   * read "Working on it…" until they gave up. They asked; the page failed
+   * them; the honest recovery is to finish the job.
+   *
+   * Once per lesson, guarded by a ref rather than by a dependency list, because
+   * the list would re-run this on every re-render of the same lesson.
+   */
+  const reissued = useRef<string | null>(null)
+  useEffect(() => {
+    if (!isTeaching) return
+    if (reissued.current === lessonKey) return
+    reissued.current = lessonKey
+    const waiting = restored.current.pending
+    if (waiting.length === 0) return
+    for (const doubt of waiting) {
+      fireQuestion({ text: doubt.text, atBeatId: doubt.beatId, shown: doubt.shown }, doubt.at)
+    }
+    setAnnouncement('Picking your question back up from before the page reloaded.')
+  }, [isTeaching, lessonKey])
 
   if (!validated.ok) {
     return (
@@ -204,15 +327,6 @@ export function TeachView({
     )
   }
 
-  /* The lesson answers what it can, instantly and without inventing anything.
-     Everything else escalates to the model rather than being refused: a learner
-     who has just admitted confusion is the worst possible audience for "I
-     cannot answer that". */
-  const answering = createAnswering({
-    resolvers,
-    ask: askPort ?? (async () => ({ ok: false, reason: 'no question service is configured' })),
-  })
-
   const teaching = validated.lesson
   const shown = beats.slice(0, Math.min(revealed, beats.length))
   const current = shown[shown.length - 1]
@@ -244,6 +358,30 @@ export function TeachView({
    * a question is answered where they stand and never advances the lesson; an
    * answer moves it on. Nothing was added to the screen to disambiguate them.
    */
+  /*
+   * WHAT THE BOX WILL HOLD, AND WHAT IT SAYS WHEN IT WILL NOT HOLD MORE.
+   *
+   * A 10,000-character paste -- a chapter, a log file, an accident -- used to
+   * reach the model verbatim, at whatever that costs, and come back as an
+   * answer to something nobody asked. It is cut here, at the moment it is
+   * typed, so the learner can SEE what will be sent rather than finding out
+   * from the answer.
+   *
+   * And the cut is said out loud. A silent truncation is the worst of the three
+   * options available: refusing is honest, keeping it is expensive, and
+   * quietly reading half a question is a lie the learner cannot detect.
+   */
+  function changeDraft(value: string): void {
+    const kept = bound(value)
+    setDraft(kept.text)
+    if (kept.clamped) {
+      setAnnouncement(
+        `That is longer than I can send, so I kept the first ${MOST_CHARACTERS} characters. ` +
+          'Trim it and press Enter.',
+      )
+    }
+  }
+
   function reportStruggle(history: { questionsAsked: number; emptyAnswers: number; beatsSeen: number }): void {
     if (struggleReported.current) return
     if (!strugglingAfter(history)) return
@@ -258,15 +396,57 @@ export function TeachView({
     if (kind === 'empty') {
       /* Not a refusal and not an advance. Counted, because pressing Enter on an
          empty box twice is someone stuck for what to say, and that is one of
-         the signals that deepens the lesson without anyone being graded. */
+         the signals that deepens the lesson without anyone being graded.
+
+         DELIBERATELY OUTSIDE THE DUPLICATE GUARD. Repeated Enter on an empty
+         box is not a stutter to be swallowed -- it is the signal itself, and
+         de-duplicating it would suppress the evidence that the learner is
+         stuck. Nothing is spent and nothing advances, so there is nothing to
+         protect. */
       setEmptyAnswers((count) => count + 1)
       reportStruggle({ questionsAsked, emptyAnswers: emptyAnswers + 1, beatsSeen: revealed })
       return
     }
 
+    /* Everything past here spends something -- a beat, or a model call. */
+    if (submittedThisFrame.current) return
+    submittedThisFrame.current = true
+
     if (kind === 'answer') {
       setDraft('')
       advance()
+      return
+    }
+
+    /*
+     * A second question while the first is still in flight is HELD AND SAID SO,
+     * never dropped. A guard that swallows a submit in silence is the failure
+     * this file already carries one fix for: the learner presses Enter, nothing
+     * happens, and they conclude the product is broken. The draft is left in
+     * the box, so nothing they typed is lost either.
+     */
+    if (askInFlight.current) {
+      setAnnouncement(
+        'Still working on your last question. It will be answered before the next one is sent.',
+      )
+      return
+    }
+
+    /*
+     * A CEILING ON ONE BEAT.
+     *
+     * Every other bound on this path is a person pressing Enter. A held key, a
+     * stuck page or a script has no such bound, and each question is a paid
+     * call. The cap is far above real use -- `strugglingAfter` already reads
+     * two questions on one beat as a signal the lesson is not landing -- so
+     * meeting it is evidence of a machine rather than of curiosity, and it is
+     * stated rather than enforced in silence.
+     */
+    if (asked.filter((record) => record.beatId === current.id).length >= MOST_QUESTIONS_PER_BEAT) {
+      setAnnouncement(
+        `That is as many questions as I can answer about this part. ` +
+          'Answer the question above and ask again on the next one.',
+      )
       return
     }
 
@@ -278,16 +458,38 @@ export function TeachView({
       atBeatId: current.id,
       shown: shownAlready(asked),
     }
-    const at = asked.length
+    /* The next free key, not the count. A question restored from before a
+       reload keeps its original `at`, so counting would collide with it and
+       React would render two records under one key. */
+    const at = asked.reduce((next, record) => Math.max(next, record.at + 1), 0)
     setDraft('')
 
     /* Recorded as PENDING first, so the question is visibly received before any
        answer exists. A learner who sees nothing happen assumes they were
        ignored, and stops asking. */
     setAsked((previous) => [...previous, { at, beatId: current.id, doubt, pending: true }])
+    fireQuestion(doubt, at)
+  }
+
+  /*
+   * One question, asked.
+   *
+   * Shared by the learner's own submit and by the restore of a question a
+   * reload interrupted, so both paths announce, resolve, fail and release the
+   * in-flight guard through exactly the same code. Two copies of this is how
+   * one of them ends up without the `.catch` that stops a permanent spinner.
+   */
+  function fireQuestion(doubt: Doubt, at: number): void {
+    askInFlight.current = true
     setAnnouncement('Your question was received. Working on it.')
 
-    void answering.answer(doubt, teaching).then((answered) => {
+    /* THE ONE PLACE TEXT LEAVES FOR THE MODEL, so this is where the bound is
+       enforced rather than at each call site. The box clamps as it is typed,
+       but a restored question came from storage -- which another version, another
+       tab or a hand edit may have written -- and is re-issued automatically. */
+    const sending: Doubt = { ...doubt, text: bound(doubt.text).text }
+
+    void answering.answer(sending, teaching).then((answered) => {
       setAsked((previous) =>
         previous.map((record) =>
           record.at === at
@@ -345,6 +547,10 @@ export function TeachView({
         ),
       )
       setAnnouncement('Your question could not be answered. The reason is above the checkpoint.')
+    }).finally(() => {
+      /* Released on BOTH paths. A latch that only opens on success is worse
+         than no latch: one failed answer and the learner can never ask again. */
+      askInFlight.current = false
     })
   }
 
@@ -425,7 +631,7 @@ export function TeachView({
         <Checkpoint
           beat={current}
           draft={draft}
-          onDraft={setDraft}
+          onDraft={changeDraft}
           onAsk={submit}
           closingRef={closingRef}
         />
@@ -487,6 +693,12 @@ function Checkpoint({
             className="lc-teach__input"
             type="text"
             value={draft}
+            /* The browser enforces this on a paste before any of our code runs,
+               and an assistive technology can announce the limit rather than
+               letting someone type past it and find out afterwards. The clamp in
+               `changeDraft` is the one that actually holds -- jsdom, a script and
+               a programmatic set all ignore this attribute. */
+            maxLength={MOST_CHARACTERS}
             onChange={(event) => onDraft(event.target.value)}
             aria-label="Answer the question, or ask one of your own"
             placeholder="Answer here — or ask if something is not clear"
@@ -515,6 +727,22 @@ function Checkpoint({
 /* -------------------------------------------------------------------------- */
 /* Doubts                                                                     */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * The questions a reload interrupted, as records the view can render at once.
+ *
+ * They are painted as pending BEFORE they are re-issued, so the learner sees
+ * their own question come back with the page rather than watching an empty
+ * screen while a request they cannot see is made again.
+ */
+function reopened(state: Remembered): Asked[] {
+  return state.pending.map((doubt) => ({
+    at: doubt.at,
+    beatId: doubt.beatId,
+    doubt: { text: doubt.text, atBeatId: doubt.beatId, shown: doubt.shown },
+    pending: true,
+  }))
+}
 
 interface Asked {
   /** Insertion order. Answers accumulate, so this is a stable React key. */

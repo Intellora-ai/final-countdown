@@ -1,0 +1,48 @@
+# What is NOT uploaded to the Sauce Labs VM, for the ROOT smoke suite.
+#
+# `rootDir: ./` in .sauce/config.yml means this whole monorepo is the upload
+# candidate. Without this file that is a multi-gigabyte archive containing
+# `.venv`, every `node_modules`, and -- far worse -- anything holding a key.
+#
+# A WHITELIST, NOT A BLACKLIST, AND THE REASON IS SECRETS.
+# A blacklist leaks whatever nobody thought to name. Everything is excluded on
+# the first line and the handful of paths this suite actually needs are added
+# back, so a new directory arriving in this repository is excluded by default
+# rather than uploaded by default. The cost of getting a whitelist wrong is a
+# missing file and a loud failure; the cost of getting a blacklist wrong is a
+# credential on someone else's infrastructure.
+
+# 1. Everything.
+*
+
+# 2. What the root smoke suite genuinely needs in the VM.
+#    A directory has to be un-ignored before anything inside it can be.
+!package.json
+!package-lock.json
+!playwright.config.ts
+!playwright.sauce.config.ts
+
+!tests/
+!tests/**
+
+# The Python coverage report this suite serves. Build it locally first:
+#     .venv/bin/coverage html -d htmlcov
+!htmlcov/
+!htmlcov/**
+
+# 3. Re-excluded even though rule 1 already covers them.
+#    Belt and braces: if a future edit loosens rule 1, or a matcher treats a
+#    pattern differently than expected, these must still never be uploaded.
+.env
+.env.*
+**/.env
+**/.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+.sauce/credentials.yml
+**/credentials.yml
+.venv/
+**/node_modules/
+.git/

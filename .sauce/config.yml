@@ -1,0 +1,101 @@
+# saucectl — the ROOT smoke suite on Sauce Labs cloud browsers.
+#
+# Run it with:   npm run test:sauce
+# which is:      saucectl run --config .sauce/config.yml
+#
+# CREDENTIALS ARE NOT IN THIS FILE AND MUST NEVER BE.
+# saucectl reads SAUCE_USERNAME and SAUCE_ACCESS_KEY from the environment:
+#
+#     export SAUCE_USERNAME=...
+#     export SAUCE_ACCESS_KEY=...
+#
+# `saucectl configure` writes them to `.sauce/credentials.yml` instead. That
+# path is gitignored, and it is the one file in this directory that may ever
+# hold a key.
+#
+# WHAT RUNS WHERE. saucectl uploads `rootDir` to a Sauce VM and runs Playwright
+# inside it, so `webServer` in playwright.sauce.config.ts starts in the VM and
+# 127.0.0.1 means the VM's own loopback. That is why no tunnel is configured:
+# nothing reaches back to the developer's machine.
+#
+# PREREQUISITE, AND IT IS NOT OPTIONAL. This suite serves `htmlcov/`, the
+# Python coverage report. There is no `.venv` in a Sauce VM, so the report must
+# be built locally first and uploaded with the project:
+#
+#     .venv/bin/coverage html -d htmlcov
+#
+# playwright.sauce.config.ts refuses with a readable message if it is missing.
+
+apiVersion: v1alpha
+kind: playwright
+
+sauce:
+  # us-west-1 or eu-central-1 are the two valid values, and `region` belongs
+  # HERE, nested under `sauce:` -- not at the top level of the file. A
+  # top-level `region:` key is not in the saucectl schema, so it is ignored and
+  # the run silently falls back to the default (us-west-1), which reads exactly
+  # like the region setting having had no effect.
+  #
+  # eu-central-1 because this account is provisioned for the EU only. A US
+  # request against an EU-only account is refused at authentication, which
+  # surfaces as an access error rather than as anything mentioning regions.
+  region: eu-central-1
+  # How many suites run at the same time. Two suites, so two VMs, so the whole
+  # matrix finishes in the time of its slowest project rather than their sum.
+  # This is the cloud parallelism; the per-VM worker count is Playwright's and
+  # is left to it in playwright.sauce.config.ts.
+  concurrency: 2
+  metadata:
+    tags:
+      - smoke
+      - coverage-report
+
+playwright:
+  # Read from package.json rather than pinned here, so the cloud runner can
+  # never drift from the version this repository actually installs.
+  version: package.json
+  # The cloud-only config. The local playwright.config.ts is untouched and is
+  # still what CI runs.
+  configFile: playwright.sauce.config.ts
+
+# Everything uploaded to the VM. Trimmed hard by `.sauceignore` beside this
+# file -- without it this would ship the whole monorepo, including .venv and
+# every node_modules.
+rootDir: ./
+
+suites:
+  # ONE SUITE PER PLAYWRIGHT PROJECT, which is what makes the run parallel:
+  # each entry is a separate VM. `params.project` selects the project that is
+  # already declared in the local config and inherited by the cloud one.
+  - name: 'root smoke — desktop chromium'
+    platformName: 'Windows 11'
+    screenResolution: '1440x900'
+    testMatch: ['.*\.spec\.ts']
+    params:
+      browserName: 'chromium'
+      project: 'desktop-chromium'
+
+  - name: 'root smoke — mobile chromium'
+    platformName: 'Windows 11'
+    screenResolution: '1440x900'
+    testMatch: ['.*\.spec\.ts']
+    params:
+      browserName: 'chromium'
+      # The Pixel 7 viewport is declared by the project itself, so the cloud
+      # screen resolution above is only the VM's desktop, not the page.
+      project: 'mobile-chromium'
+
+# Bring the evidence back only when something went wrong; a full artefact
+# download on every green run is how nobody opens any of them.
+artifacts:
+  download:
+    when: fail
+    match:
+      - console.log
+      - '*.png'
+      - '*.zip'
+    directory: ./artifacts/sauce/
+
+reporters:
+  spotlight:
+    enabled: true

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import type { AnyResolver } from './teach/contract'
@@ -26,7 +26,8 @@ import { validateLesson, type Issue, type TeachingLevel } from './spec/validate'
 import { chatOnce } from '../agent/ports/httpModel'
 import { sourcesFrom } from './teach/researched'
 import type { Source } from './teach/grounding'
-import { authorLesson } from './teach/authorLesson'
+import { explainAgain, NOTHING_YET, type Remembered } from './teach/again'
+import { scopedQuery } from './teach/level'
 import type { Lesson } from './spec/spec'
 import { TeachView } from './teach/TeachView'
 
@@ -63,12 +64,22 @@ import './route.css'
  * The first five are authored LESSONS and owe the whole arc — a definition
  * first, a summary last, something shown rather than told.
  *
- * The last three are the engine's contract, and they are ANSWERS. Held at
- * `'lesson'` alongside the rest, all three rendered the refusal panel instead
- * of a lesson: the engine's `emit` builds only `prose` and `callout`, so it
- * cannot open with a definition, cannot close with a progression and cannot
- * show anything at all. The level is a property of what a thing IS, so it is
- * recorded here beside the thing rather than assumed at the call site.
+ * The two GENERATED entries are lessons too, as of Batch 4.
+ *
+ * They were ANSWERS because the engine's `emit` built only `prose` and
+ * `callout` -- so it could not open with a definition, could not close with a
+ * progression, and could not show anything at all. That was a limit of the
+ * output contract, not of the canvas: `GeneratedContent.blocks` was a
+ * `(kind, text)` pair, and a sentence cannot carry a summary's progression or a
+ * flow's nodes. The pair grew an optional third slot for exactly that, and the
+ * emitter now sets `role` from the model's own declaration -- which is what
+ * `checkArc` reads to find the definition and the summary.
+ *
+ * `by-hand` stays an ANSWER, and the reason is different in kind: it is a HUMAN
+ * meeting the same contract, and its prose does not meet the arc (a 54-word
+ * definition against a 30-word cap). Recorded in `.agent/deferred.md`. The
+ * level is a property of what a thing IS, so it is recorded here beside the
+ * thing rather than assumed at the call site.
  */
 const LESSONS = [
   { id: 'logs', label: 'Maths', spec: logarithms, teaching: 'lesson' },
@@ -79,8 +90,8 @@ const LESSONS = [
   // The last three are the engine's, not an author's. A and B share a knowledge
   // state and differ only in what has already been tried on them, so the two
   // sitting side by side is the adaptation claim rendered rather than asserted.
-  { id: 'engine-a', label: 'Engine: first attempt', spec: learnerA, teaching: 'answer' },
-  { id: 'engine-b', label: 'Engine: preferred mechanism failed', spec: learnerB, teaching: 'answer' },
+  { id: 'engine-a', label: 'Engine: first attempt', spec: learnerA, teaching: 'lesson' },
+  { id: 'engine-b', label: 'Engine: preferred mechanism failed', spec: learnerB, teaching: 'lesson' },
   { id: 'by-hand', label: 'Same contract, written by hand', spec: byHand, teaching: 'answer' },
 ] as const satisfies readonly { id: string; label: string; spec: unknown; teaching: TeachingLevel }[]
 
@@ -119,7 +130,29 @@ function readEnv(name: string): string {
   return typeof v === 'string' ? v : ''
 }
 
-export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
+/**
+ * The class the student is in and the entrance exam they picked, passed IN
+ * rather than imported. Both come from onboarding.
+ *
+ * The EXAM says which subjects matter. The CLASS says how far along they are.
+ * Neither alone is the level: a class 9 and a class 12 student both preparing
+ * for JEE are years apart, and the same sources would fail one of them.
+ *
+ * `src/practice/examChoice.ts` owns the list and the storage. This file takes
+ * the id as a prop for the same reason it takes `search` as a function:
+ * `tsconfig.canvas.json` includes only `src/canvas`, so importing across drags
+ * `src/practice` into a stricter project it was not written against.
+ *
+ * Optional, and an absent value is NOT an error. A student who never opened the
+ * practice screen must still be taught -- refusing on missing configuration is
+ * exactly the curriculum lock this product must not have. Unset means the
+ * search is unscoped, which is how it behaved before this existed.
+ */
+export default function CanvasRoute({
+  search,
+  examId = null,
+  classId = null,
+}: { search?: WebSearch; examId?: string | null; classId?: string | null } = {}) {
   const navigate = useNavigate()
   const [mode, setMode] = useState<'2d' | '3d'>('2d')
   const [lessonId, setLessonId] = useState<string>(LESSONS[0].id)
@@ -131,6 +164,22 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
   const [authored, setAuthored] = useState<Lesson | null>(null)
   const [authoring, setAuthoring] = useState(false)
   const [authorFailed, setAuthorFailed] = useState<Issue[] | null>(null)
+
+  /*
+   * WHAT THIS LEARNER HAS ALREADY BEEN TOLD, PER TOPIC.
+   *
+   * "Never repeat yourself" is not a property of one lesson, so no gate can
+   * hold it: it is a property of a PAIR, and something has to remember the
+   * first half. Without this the call below passed no history, `alreadyUsed`
+   * stayed empty, the seed came out of the same question every time, and asking
+   * the same thing twice returned the same route and the same words.
+   *
+   * A REF, NOT STATE, because nothing on screen is derived from it -- writing
+   * it through `setState` would re-render the canvas to change nothing. Keyed
+   * by the topic so two subjects do not spend each other's routes, and cased
+   * down so "Photosynthesis" and "photosynthesis" are one topic, not two.
+   */
+  const alreadyTaught = useRef(new Map<string, Remembered>())
 
   /*
    * WHETHER THERE IS A MODEL TO ASK, KNOWN BEFORE ANYONE ASKS.
@@ -220,7 +269,16 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
       let sources: readonly Source[] = []
       if (search) {
         try {
-          sources = sourcesFrom(await search(question, {}))
+          /*
+           * SCOPED BY LEVEL, BEFORE THE SEARCH RUNS.
+           *
+           * `grounding.ts` states the principle for truth -- "the fix belongs
+           * BEFORE the sentence exists" -- and it carries to level unchanged.
+           * Checking a finished lesson's level would reject good lessons and
+           * still pass a badly-pitched one that scored in band. Scoping the
+           * query means wrong-level material never reaches the model at all.
+           */
+          sources = sourcesFrom(await search(scopedQuery(question, examId, classId), {}))
         } catch {
           /* The search layer's own failure is not this learner's problem, and
              it is already reported by the doubt chain when they ask one. */
@@ -228,7 +286,44 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
         }
       }
 
-      const written = await authorLesson(chat, question, sources)
+      /*
+       * ONE CONCEPT, NOT A WHOLE LESSON, AND THE NUMBERS ARE THE ARGUMENT.
+       *
+       * Same six questions across six subjects, temperature 0, every run:
+       *
+       *   authorLesson   whole lesson    qwen2.5:7b        0 of 6   223.5s
+       *   authorConcept  per concept     qwen2.5:7b        2 of 6    58.5s
+       *   authorConcept  per concept     gpt-oss-120b      5 of 6    22.0s
+       *
+       * The full table, including the four runs whose refusals turned out to be
+       * defects in the measuring harness rather than the model, is in
+       * `CONSTRAINTS.md` and `WORK.md`.
+       *
+       * WHY THIS LINE MATTERED MORE THAN ANY MODEL CHANGE. `authorConcept`
+       * measured 5 of 6 while this call site went on invoking `authorLesson` at
+       * 0 of 6 -- so the PRODUCT's score stayed zero no matter how good the
+       * model got. `concept.ts` was imported by nothing that ships, which is
+       * exactly the orphan pattern this repository built a reachability gate to
+       * catch, and `src/canvas` is not in that gate's manifest, so nothing said
+       * so.
+       *
+       * THE REFUSAL IS STILL SHOWN, NOT SWALLOWED. `authorConcept` returns the
+       * gate's own issues, and they reach the screen verbatim through the same
+       * path `authorLesson`'s did. A canvas that quietly fell back would tell a
+       * learner their question had been answered when it had not.
+       */
+      /*
+       * A DIFFERENT WAY IN EACH TIME, AND A CHECK THAT IT REALLY WAS ONE.
+       *
+       * `explainAgain` feeds the routes this learner has already spent back
+       * into `authorConcept` so `nextRoute` picks a fresh one, and runs
+       * `sameAgain` over what comes back so a model that ignored the reroute
+       * and reprinted its last answer is asked once more rather than shipped.
+       */
+      const topicKey = question.toLowerCase()
+      const remembered = alreadyTaught.current.get(topicKey) ?? NOTHING_YET
+      const { written, memory } = await explainAgain(chat, question, sources, remembered)
+      alreadyTaught.current.set(topicKey, memory)
       if (written.ok) {
         setAuthored(written.lesson)
       } else {

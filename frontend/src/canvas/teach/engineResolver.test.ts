@@ -407,6 +407,44 @@ describe('a hung engine does not stall the chain', () => {
     return { fetchImpl, seenSignal: () => seen }
   }
 
+  it('leaves the rest of the chain time to answer', async () => {
+    /*
+     * THE SECOND CAUSE, AND IT WAS INTRODUCED BY THE FIX FOR THE FIRST.
+     *
+     * `scene-regressions.spec.ts:454` waits 10_000ms for an answer to render.
+     * The first fix here gave this rung a 10_000ms deadline -- the SAME number
+     * -- so when the lesson rung cannot answer, the engine rung consumes the
+     * entire budget before giving up and the rung behind it never runs. The
+     * infinite hang became a deadline that exactly exhausts the caller.
+     *
+     * Measured on `main` after that fix shipped: the same test, same locator,
+     * `24 x locator resolved to 0 elements`, now on the `square-900` viewport.
+     * A different projection of one bug, which is what a partial fix looks like.
+     *
+     * A deadline is only useful if something can happen after it expires. This
+     * asserts the rung leaves most of the budget for the rungs behind it, and
+     * it is written as a FRACTION rather than a number so changing either side
+     * cannot silently reintroduce the collision.
+     */
+    const UI_BUDGET_MS = 10_000
+    /* Honours the abort, like `hangingFetch` above. A stub that ignores it
+       never settles, so the test would hit vitest's own timeout instead of the
+       assertion -- a weak red that proves nothing about the deadline. */
+    const { fetchImpl } = hangingFetch()
+    /* The DEFAULT, not an override. The default is what shipped and what broke. */
+    const resolver = engineResolver({ fetchImpl })
+
+    const startedAt = Date.now()
+    await expect(resolver.resolve(DOUBT, LESSON)).rejects.toThrow(/timed out/)
+    const took = Date.now() - startedAt
+
+    expect(
+      took,
+      'the engine rung must give up well inside the budget its caller has, or ' +
+        'the rungs behind it never run',
+    ).toBeLessThan(UI_BUDGET_MS / 2)
+  }, 30_000)
+
   it('gives up on a POST that never answers, and says the engine timed out', async () => {
     const { fetchImpl } = hangingFetch()
     const resolver = engineResolver({ fetchImpl, timeoutMs: 20 })

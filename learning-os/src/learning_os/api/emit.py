@@ -87,6 +87,59 @@ RELATION_KINDS = ("supports", "derives", "contrasts", "exemplifies")
 #: lesser table, it is a claim about content that does not exist.
 TEXT_BLOCK_KINDS = frozenset({"prose", "callout"})
 
+#: Where a block's ONE SENTENCE goes, per kind.
+#:
+#: Slot 2 of a block is always "the sentence"; slot 3 is always "the structure".
+#: Different kinds spell the sentence differently -- `prose` calls it `body`, a
+#: `summary` calls it `mentalModel`, a `flow` calls it `caption` -- and this map
+#: is that spelling, declared once. It is a NAMING table, not an inference: the
+#: emitter never chooses which sentence a block gets, only what the canvas calls
+#: the field it lands in.
+#:
+#: A kind absent from this map has no single-sentence field at all, and is
+#: buildable only from structured data.
+PROSE_FIELD: dict[str, str] = {
+    "prose": "body",
+    "callout": "body",
+    "summary": "mentalModel",
+    "flow": "caption",
+}
+
+#: The roles the canvas knows, mirroring `spec/roles.ts`.
+#:
+#: Checked here rather than left to Zod because the failure modes differ in
+#: kind: a bad role from this emitter is a bug in this repository, and it should
+#: be named here with the offending value rather than surfacing in a browser as
+#: a strict-parse refusal against the whole document.
+#:
+#: WHY ROLE IS TAKEN FROM THE MODEL AND NEVER INFERRED. `checkArc` reads `role`
+#: to find the definition and the summary, and every block defaulting to
+#: `support` is precisely why every engine lesson failed `no-definition` and
+#: `no-summary` and had to be held at `answer` level. The obvious repair --
+#: "first block is the definition, last is the summary" -- would assert an
+#: ordering the model never claimed, which is the same fabrication as emitting
+#: an empty table. So the model declares it, or it stays `support`.
+BLOCK_ROLES = frozenset(
+    {
+        "anchor",
+        "definition",
+        "notation",
+        "framework",
+        "classification",
+        "component",
+        "rule",
+        "restriction",
+        "contrast",
+        "misconception",
+        "example",
+        "summary",
+        "support",
+    }
+)
+
+#: Fields the emitter consumes itself rather than passing through to the block.
+_RESERVED = frozenset({"role", "terms", "kind", "id", "emphasis"})
+
 
 class EmitError(ValueError):
     """The payload would have been refused by the canvas.
@@ -171,23 +224,35 @@ def emit(contract: InstructionContract, content: GeneratedContent) -> Lesson:
     blocks: list[dict[str, object]] = []
     seen: set[str] = set()
 
-    for index, (kind, body) in enumerate(content.blocks):
+    for index, block in enumerate(content.blocks):
+        # Indexed, not unpacked: slot 3 is optional (see `GeneratedContent`), and
+        # a two-name unpack would raise ValueError on a structured block.
+        kind = block[0]
+        body = block[1]
+        extra: dict[str, object] = dict(block[2]) if len(block) > 2 else {}
+
         if kind not in BLOCK_KINDS:
             raise EmitError(
                 f"block kind {kind!r} has no renderer; the schema is strict and "
                 f"would refuse the whole lesson"
             )
-        if kind not in TEXT_BLOCK_KINDS:
-            # Known to the canvas, and still not buildable from a sentence.
-            # Naming both facts, because "has no renderer" would be wrong here
-            # and would send whoever hits this looking in the wrong language.
+
+        prose_field = PROSE_FIELD.get(kind)
+        structural = {k: v for k, v in extra.items() if k not in _RESERVED}
+
+        if kind not in TEXT_BLOCK_KINDS and not structural:
+            # Known to the canvas, and still not buildable from a sentence
+            # alone. Naming both facts, because "has no renderer" would be wrong
+            # here and would send whoever hits this looking in the wrong
+            # language.
             raise EmitError(
                 f"block kind {kind!r} needs structured data this emitter was not "
                 f"given; only {sorted(TEXT_BLOCK_KINDS)} can be built from text. "
                 f"The model claimed a {kind} and supplied prose."
             )
+
         text = body.strip()
-        if not text:
+        if not text and kind in TEXT_BLOCK_KINDS:
             raise EmitError(f"block {index} has empty body; `Prose` is min(1)")
         if len(text) > MAX_PROSE:
             raise EmitError(f"block {index} body is {len(text)} chars, over the {MAX_PROSE} limit")
@@ -199,10 +264,16 @@ def emit(contract: InstructionContract, content: GeneratedContent) -> Lesson:
             )
         seen.add(block_id)
 
-        blocks.append(
-            {
-                "id": block_id,
-                "kind": kind,
+        role = str(extra.get("role", "support"))
+        if role not in BLOCK_ROLES:
+            raise EmitError(
+                f"block {index} declares role {role!r}, which the canvas does not "
+                f"know; roles are {sorted(BLOCK_ROLES)}"
+            )
+
+        built: dict[str, object] = {
+            "id": block_id,
+            "kind": kind,
                 # EMPHASIS IS SET DELIBERATELY, NEVER LEFT TO THE DEFAULT.
                 #
                 # The canvas derives beats from emphasis and relations. Leaving
@@ -210,10 +281,16 @@ def emit(contract: InstructionContract, content: GeneratedContent) -> Lesson:
                 # into one beat -- a lecture, which is the failure the beat
                 # system exists to prevent. The first block carries the idea, so
                 # it is primary; the rest support it.
-                "emphasis": "primary" if index == 0 else "supporting",
-                "body": text,
-            }
-        )
+            "emphasis": "primary" if index == 0 else "supporting",
+            # THE ROLE THE MODEL DECLARED, never one this emitter guessed.
+            "role": role,
+        }
+        if prose_field is not None and text:
+            built[prose_field] = text
+        if extra.get("terms"):
+            built["terms"] = extra["terms"]
+        built.update(structural)
+        blocks.append(built)
 
     relations = _relations_over(blocks)
     return Lesson(id=lesson_id, question=question, blocks=tuple(blocks), relations=relations)

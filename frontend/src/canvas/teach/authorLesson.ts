@@ -92,10 +92,43 @@ export function teachingSystemPrompt(): string {
     'law, music, or a general question with no subject at all. The shape below does not',
     'change between them.',
     '',
-    'THE SHAPE',
-    '{ "id": kebab-case, "question": the question you are answering, "subject": optional,',
-    '  "technicalTerms": [{ "term": word, "introducedIn": block id }],',
-    '  "blocks": [...], "relations": [...] }',
+    /*
+     * A REAL JSON OBJECT, BECAUSE A MODEL COPIES THE FORMAT IT IS SHOWN.
+     *
+     * This block used to print unquoted placeholders -- `"id": kebab-case` --
+     * and `authorPrompt.test.ts` records what that cost when the same mistake
+     * was made in `concept.ts`: qwen2.5:7b replied `{"id": gas-partic和平}`,
+     * an unquoted value, and every reply was refused as "no JSON object" six
+     * times out of six across three runs.
+     *
+     * Built as an object and serialised, so it cannot drift out of being valid
+     * JSON. `blocks` and `relations` are shown filled rather than as `[...]`
+     * for the same reason: an ellipsis is an invitation to invent.
+     */
+    'THE SHAPE — copy this format exactly, change only the content:',
+    JSON.stringify(
+      {
+        id: 'photosynthesis',
+        question: 'What is photosynthesis?',
+        subject: 'biology',
+        technicalTerms: [{ term: 'chlorophyll', introducedIn: 'mechanism' }],
+        blocks: [
+          {
+            id: 'definition',
+            kind: 'prose',
+            emphasis: 'primary',
+            tone: 'neutral',
+            role: 'definition',
+            depth: 'core',
+            body: 'Photosynthesis is how a plant turns light into food.',
+            terms: [{ text: 'light', mark: 'key' }],
+          },
+        ],
+        relations: [{ kind: 'supports', from: 'definition', to: 'mechanism' }],
+      },
+      null,
+      2,
+    ),
     '',
     /*
      * EVERY ENUM IS WRITTEN OUT, BECAUSE "..." IS AN INVITATION TO INVENT.
@@ -124,7 +157,8 @@ export function teachingSystemPrompt(): string {
     '  "exemplifies"  A is an example of B',
     'There is no "explains", no "relates", no "leads-to". Use the closest of the four.',
     '',
-    'Each block: { "id", "kind", "title", "emphasis", "tone", "role", "depth", ...fields }',
+    'Each block carries: id, kind, title, emphasis, tone, role, depth, plus the',
+    'fields listed for its kind below.',
     '  emphasis: primary | supporting | aside',
     '  tone:     neutral | insight | warning | result',
     '  depth:    core | deeper',
@@ -141,17 +175,22 @@ export function teachingSystemPrompt(): string {
     '  equation  table  chart  flow  simulation  figure',
     '',
     'BLOCK KINDS AND THEIR FIELDS',
-    '  prose / callout      body (string), terms: [{ text, mark: "key" | "distinction" }]',
+    '  prose / callout      body (string); terms is a list, each with text and',
+    '                       mark, where mark is "key" or "distinction"',
     '  misconception        wrong, correct, why, counterexample (optional)',
     '  reasoning            mode: "why" | "worked", claim, therefore,',
-    '                       steps: [{ expression, latex (optional), because }]  — 2 to 10',
+    '                       steps is a list of 2 to 10, each with expression,',
+    '                       because, and optionally latex',
     '  summary              progression: [string, ...] (2+), mentalModel',
-    '  table                columns: [{ key, label, type }], rows, caption',
+    '  table                columns is a list, each with key, label and type;',
+    '                       plus rows and caption',
     '                       `key` is the field name, NOT `id`. type is one of',
     '                       "text" | "number" | "percent" | "currency". Every',
     '                       row is an object whose keys are the column keys.',
-    '  chart                chartType, series: [{name,colorIndex,points:[{x,y}]}], caption',
-    '  flow                 nodes: [{id,label,tone}], links: [{from,to}], caption',
+    '  chart                chartType, caption, and series -- a list, each with',
+    '                       name, colorIndex, and points (each point has x and y)',
+    '  flow                 caption, nodes -- a list, each with id, label, tone --',
+    '                       and links, a list, each with from and to',
     '  equation             latex, highlight: [string], caption',
     '',
     'THE RULES. These are CHECKED. A lesson that breaks one is refused.',

@@ -153,7 +153,10 @@ def test_every_generated_block_kind_is_one_the_canvas_renders() -> None:
     """The schema is `.strict()`, so one unknown kind refuses the WHOLE lesson,
     not just that block."""
     for strategy in Strategy:
-        for kind, _ in FakeLLMClient().generate(_contract(strategy=strategy)).blocks:
+        # Indexed, not unpacked: a block may carry an optional third slot of
+        # structured fields. The assertion below is unchanged.
+        for block in FakeLLMClient().generate(_contract(strategy=strategy)).blocks:
+            kind = block[0]
             assert kind in BLOCK_KINDS, f"{strategy} emitted unrenderable {kind!r}"
 
 

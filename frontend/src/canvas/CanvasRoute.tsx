@@ -64,12 +64,22 @@ import './route.css'
  * The first five are authored LESSONS and owe the whole arc — a definition
  * first, a summary last, something shown rather than told.
  *
- * The last three are the engine's contract, and they are ANSWERS. Held at
- * `'lesson'` alongside the rest, all three rendered the refusal panel instead
- * of a lesson: the engine's `emit` builds only `prose` and `callout`, so it
- * cannot open with a definition, cannot close with a progression and cannot
- * show anything at all. The level is a property of what a thing IS, so it is
- * recorded here beside the thing rather than assumed at the call site.
+ * The two GENERATED entries are lessons too, as of Batch 4.
+ *
+ * They were ANSWERS because the engine's `emit` built only `prose` and
+ * `callout` -- so it could not open with a definition, could not close with a
+ * progression, and could not show anything at all. That was a limit of the
+ * output contract, not of the canvas: `GeneratedContent.blocks` was a
+ * `(kind, text)` pair, and a sentence cannot carry a summary's progression or a
+ * flow's nodes. The pair grew an optional third slot for exactly that, and the
+ * emitter now sets `role` from the model's own declaration -- which is what
+ * `checkArc` reads to find the definition and the summary.
+ *
+ * `by-hand` stays an ANSWER, and the reason is different in kind: it is a HUMAN
+ * meeting the same contract, and its prose does not meet the arc (a 54-word
+ * definition against a 30-word cap). Recorded in `.agent/deferred.md`. The
+ * level is a property of what a thing IS, so it is recorded here beside the
+ * thing rather than assumed at the call site.
  */
 const LESSONS = [
   { id: 'logs', label: 'Maths', spec: logarithms, teaching: 'lesson' },
@@ -80,8 +90,8 @@ const LESSONS = [
   // The last three are the engine's, not an author's. A and B share a knowledge
   // state and differ only in what has already been tried on them, so the two
   // sitting side by side is the adaptation claim rendered rather than asserted.
-  { id: 'engine-a', label: 'Engine: first attempt', spec: learnerA, teaching: 'answer' },
-  { id: 'engine-b', label: 'Engine: preferred mechanism failed', spec: learnerB, teaching: 'answer' },
+  { id: 'engine-a', label: 'Engine: first attempt', spec: learnerA, teaching: 'lesson' },
+  { id: 'engine-b', label: 'Engine: preferred mechanism failed', spec: learnerB, teaching: 'lesson' },
   { id: 'by-hand', label: 'Same contract, written by hand', spec: byHand, teaching: 'answer' },
 ] as const satisfies readonly { id: string; label: string; spec: unknown; teaching: TeachingLevel }[]
 

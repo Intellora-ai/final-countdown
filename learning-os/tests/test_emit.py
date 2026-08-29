@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import pytest
 
-from learning_os.api.emit import TEXT_BLOCK_KINDS, EmitError, emit
+from learning_os.api.emit import PROSE_FIELD, TEXT_BLOCK_KINDS, EmitError, emit
 from learning_os.llm.client import FakeLLMClient, GeneratedContent
 from learning_os.llm.contract import DiagnosisKind, InstructionContract, Strategy
 from learning_os.llm.validation import BLOCK_KINDS
@@ -56,10 +56,35 @@ def test_no_strategy_emits_a_block_the_canvas_would_refuse(strategy: Strategy) -
     # `dict[str, Any]` for JSON's sake, so indexing it hands mypy an `object`
     # and the loop below stops being checked at all.
     for block in emit(contract, content).blocks:
-        assert block["kind"] in TEXT_BLOCK_KINDS, (
-            f"{strategy.value} emitted a {block['kind']} built from prose; "
-            f"the canvas refuses it"
+        kind = str(block["kind"])
+
+        # 1. THE RENDERER EXISTS. Unchanged in force from the original check.
+        assert kind in BLOCK_KINDS, (
+            f"{strategy.value} emitted a {kind} the canvas has no renderer for"
         )
+
+        # 2. THE EXACT BUG THAT SHIPPED, now asserted directly rather than by
+        #    proxy. `body` on a kind whose schema has no `body` field is what
+        #    produced `Unrecognized key(s) in object: 'body'` against a strict
+        #    parser. The old check inferred this from "kind is prose or
+        #    callout", which was true of the emitter then and stopped being true
+        #    when the emitter learned to build structured kinds -- so the proxy
+        #    began refusing blocks the canvas demonstrably accepts.
+        if "body" in block:
+            assert PROSE_FIELD.get(kind) == "body", (
+                f"{strategy.value} emitted a {kind} carrying `body`, which its "
+                f"schema does not define; a strict parse refuses the whole lesson"
+            )
+
+        # 3. NOTHING IS FABRICATED. A kind that cannot be built from a sentence
+        #    must carry the structure it claims, or it is a shaped hole.
+        if kind not in TEXT_BLOCK_KINDS:
+            structural = set(block) - {"id", "kind", "emphasis", "role", "terms"}
+            assert structural, (
+                f"{strategy.value} emitted a {kind} with no structural fields; "
+                f"an empty {kind} is not a lesser {kind}, it is a claim about "
+                f"content that does not exist"
+            )
 
 
 def test_a_structured_kind_supplied_as_prose_is_refused_not_faked() -> None:

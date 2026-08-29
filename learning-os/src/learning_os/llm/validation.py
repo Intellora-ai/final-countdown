@@ -189,7 +189,12 @@ def validate(contract: InstructionContract, content: GeneratedContent) -> list[V
             )
         )
 
-    for kind, _ in content.blocks:
+    # Indexed rather than unpacked: a block may carry an optional third slot of
+    # structured fields (see `GeneratedContent`), and a two-name unpack would
+    # raise ValueError on it -- turning a richer lesson into a crash here rather
+    # than a validation result.
+    for block in content.blocks:
+        kind = block[0]
         if kind not in BLOCK_KINDS:
             out.append(
                 Violation(

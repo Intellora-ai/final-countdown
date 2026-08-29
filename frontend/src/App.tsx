@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { useExamChoice } from './practice/examChoice'
 import { plannedSubjects, primePlannedCurriculum, isPlannedCurriculumReady } from './almanac/plannedCurriculum'
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useStore, useNarrow } from './hooks/useStore'
@@ -113,6 +114,21 @@ export default function App() {
      hand-written syllabus -- an empty sidebar is a visible problem, a sidebar
      full of the wrong subjects is not. */
   const [curriculumReady, setCurriculumReady] = useState(false)
+
+  /*
+   * The entrance exam this student picked, read here and passed DOWN.
+   *
+   * `CanvasRoute` cannot import `examChoice` itself: `tsconfig.canvas.json`
+   * includes only `src/canvas`, so importing `src/practice` would drag a whole
+   * directory into a stricter project it was not written against. Same reason
+   * `searchTheWeb` is handed down as a function rather than imported there.
+   *
+   * The canvas uses it to scope its web search by reading level, so a CLAT
+   * student and a JEE student asking the same question are given sources
+   * written for different readers. An unset value scopes nothing and refuses
+   * nothing.
+   */
+  const [examChoice] = useExamChoice()
   useEffect(() => {
     if (!st?.cls) return
     let live = true
@@ -161,7 +177,7 @@ export default function App() {
   if (loc.pathname === '/canvas') {
     return (
       <React.Suspense fallback={<SceneFallback />}>
-        <CanvasRoute search={searchTheWeb} />
+        <CanvasRoute search={searchTheWeb} examId={examChoice} />
       </React.Suspense>
     )
   }

@@ -27,6 +27,7 @@ import { chatOnce } from '../agent/ports/httpModel'
 import { sourcesFrom } from './teach/researched'
 import type { Source } from './teach/grounding'
 import { authorConcept } from './teach/concept'
+import { scopedQuery } from './teach/level'
 import type { Lesson } from './spec/spec'
 import { TeachView } from './teach/TeachView'
 
@@ -119,7 +120,29 @@ function readEnv(name: string): string {
   return typeof v === 'string' ? v : ''
 }
 
-export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
+/**
+ * The class the student is in and the entrance exam they picked, passed IN
+ * rather than imported. Both come from onboarding.
+ *
+ * The EXAM says which subjects matter. The CLASS says how far along they are.
+ * Neither alone is the level: a class 9 and a class 12 student both preparing
+ * for JEE are years apart, and the same sources would fail one of them.
+ *
+ * `src/practice/examChoice.ts` owns the list and the storage. This file takes
+ * the id as a prop for the same reason it takes `search` as a function:
+ * `tsconfig.canvas.json` includes only `src/canvas`, so importing across drags
+ * `src/practice` into a stricter project it was not written against.
+ *
+ * Optional, and an absent value is NOT an error. A student who never opened the
+ * practice screen must still be taught -- refusing on missing configuration is
+ * exactly the curriculum lock this product must not have. Unset means the
+ * search is unscoped, which is how it behaved before this existed.
+ */
+export default function CanvasRoute({
+  search,
+  examId = null,
+  classId = null,
+}: { search?: WebSearch; examId?: string | null; classId?: string | null } = {}) {
   const navigate = useNavigate()
   const [mode, setMode] = useState<'2d' | '3d'>('2d')
   const [lessonId, setLessonId] = useState<string>(LESSONS[0].id)
@@ -220,7 +243,16 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
       let sources: readonly Source[] = []
       if (search) {
         try {
-          sources = sourcesFrom(await search(question, {}))
+          /*
+           * SCOPED BY LEVEL, BEFORE THE SEARCH RUNS.
+           *
+           * `grounding.ts` states the principle for truth -- "the fix belongs
+           * BEFORE the sentence exists" -- and it carries to level unchanged.
+           * Checking a finished lesson's level would reject good lessons and
+           * still pass a badly-pitched one that scored in band. Scoping the
+           * query means wrong-level material never reaches the model at all.
+           */
+          sources = sourcesFrom(await search(scopedQuery(question, examId, classId), {}))
         } catch {
           /* The search layer's own failure is not this learner's problem, and
              it is already reported by the doubt chain when they ask one. */

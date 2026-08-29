@@ -24,6 +24,8 @@ import learnerB from './lessons/generated/learner-b-preferred-mechanism-failed.j
 import byHand from './lessons/handwritten/contract-honoured-by-hand.json'
 import { validateLesson, type Issue, type TeachingLevel } from './spec/validate'
 import { chatOnce } from '../agent/ports/httpModel'
+import { sourcesFrom } from './teach/researched'
+import type { Source } from './teach/grounding'
 import { authorLesson } from './teach/authorLesson'
 import type { Lesson } from './spec/spec'
 import { TeachView } from './teach/TeachView'
@@ -203,7 +205,30 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
         maxTokens: 4000,
         timeoutMs: 240_000,
       })
-      const written = await authorLesson(chat, question)
+      /*
+       * SEARCH FIRST, THEN WRITE. The gate reads shape and has no opinion about
+       * truth, so an invented lesson passes every check in this repository. The
+       * only defence is giving the author real text to write from.
+       *
+       * FAILING TO FIND SOURCES IS NOT FAILING TO TEACH. A refused search, an
+       * unconfigured provider, or a topic the web does not cover all end here
+       * with an empty list, and `groundingPreamble([])` returns '' -- so the
+       * lesson is written exactly as it was before this existed. Turning a
+       * silent retrieval failure into a silent teaching failure would be worse
+       * than being honestly ungrounded.
+       */
+      let sources: readonly Source[] = []
+      if (search) {
+        try {
+          sources = sourcesFrom(await search(question, {}))
+        } catch {
+          /* The search layer's own failure is not this learner's problem, and
+             it is already reported by the doubt chain when they ask one. */
+          sources = []
+        }
+      }
+
+      const written = await authorLesson(chat, question, sources)
       if (written.ok) {
         setAuthored(written.lesson)
       } else {

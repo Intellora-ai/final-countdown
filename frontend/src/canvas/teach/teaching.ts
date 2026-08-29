@@ -110,19 +110,45 @@ function firstSentence(text: string): string {
  * needs to catch the long ones that survive it.
  */
 const STOPWORDS = new Set([
-  'what', 'when', 'where', 'which', 'while', 'does', 'doing', 'this', 'that',
-  'these', 'those', 'with', 'from', 'into', 'about', 'their', 'there', 'here',
-  'have', 'been', 'they', 'them', 'then', 'than', 'your', 'ours', 'will',
-  'would', 'could', 'should', 'because', 'between',
+  /*
+   * SHORT FUNCTION WORDS ARE LISTED, NOT FILTERED BY LENGTH.
+   *
+   * The first version kept only words of four letters or more, which removed
+   * function words for free and removed the topic along with them. Measured
+   * before the fix: "What is DNA?", "What is pH?" and "What is tax?" all
+   * produced an EMPTY anchor set, and `checkOpensOnTheTopic` returns without
+   * checking when the anchor is empty — so the pleasantry it exists to catch
+   * walked straight through on every short-word subject. Only long-word topics
+   * like "logarithm" were ever protected.
+   *
+   * A rule that silently does nothing on a whole class of subjects is worse
+   * than no rule: it reports PASS. So the length floor drops to two and the
+   * function words are named instead.
+   */
+  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'but', 'by', 'can', 'did', 'do',
+  'does', 'doing', 'for', 'from', 'get', 'got', 'had', 'has', 'have', 'he',
+  'her', 'him', 'his', 'how', 'i', 'if', 'in', 'into', 'is', 'it', 'its', 'me',
+  'my', 'no', 'not', 'of', 'on', 'or', 'our', 'ours', 'out', 'own', 'she',
+  'so', 'than', 'that', 'the', 'their', 'them', 'then', 'there', 'these',
+  'they', 'this', 'those', 'to', 'too', 'up', 'us', 'was', 'we', 'were',
+  'what', 'when', 'where', 'which', 'while', 'who', 'why', 'will', 'with',
+  'would', 'could', 'should', 'because', 'between', 'about', 'been', 'here',
+  'your',
 ])
 
-/** Lowercased, plural-stripped, so "tenses" anchors "tense". */
+/**
+ * Lowercased, plural-stripped, so "tenses" anchors "tense".
+ *
+ * The plural strip applies only from four letters up. Below that it does harm:
+ * "gas" would anchor as "ga" and "bus" as "bu", so a gas lesson would fail to
+ * match its own subject. Three-letter words are kept whole.
+ */
 function contentWords(text: string): Set<string> {
   const out = new Set<string>()
   for (const raw of words(text)) {
     const word = raw.toLowerCase().replace(/[^a-z0-9]/g, '')
-    if (word.length < 4 || STOPWORDS.has(word)) continue
-    out.add(word.endsWith('s') ? word.slice(0, -1) : word)
+    if (word.length < 2 || STOPWORDS.has(word)) continue
+    out.add(word.length >= 4 && word.endsWith('s') ? word.slice(0, -1) : word)
   }
   return out
 }
@@ -648,116 +674,48 @@ function checkChainsAreDrawn(lesson: Lesson, out: TeachingIssue[]): void {
   })
 }
 
-/**
- * Words whose everyday meaning actively fights their meaning in a lesson.
+/*
+ * THE AMBIGUOUS-WORD RULE WAS REMOVED, AND THE MEASUREMENT IS WHY.
  *
- * WHY THIS ONE IS A LIST, SAID OUT LOUD
- * -------------------------------------
- * Everywhere else in this file the checks are SHAPES, because a list is only
- * as good as whoever last edited it and fails silently on the spelling nobody
- * thought of. Word-sense ambiguity is the exception: which words carry two
- * senses is a fact about English, not a structure a rule can derive. Pretending
- * otherwise would produce a check that looks general and is not.
+ * It held a register of words whose everyday meaning fights their technical
+ * one -- right, base, power, order, matter, current, state, positive, mean --
+ * and refused a lesson that used one without declaring it. The intent was
+ * real: a reader meeting "right" in a geometry lesson genuinely cannot tell
+ * which sense is meant, and that exact confusion produced a field named
+ * `right` in this very branch.
  *
- * So it is a list, it is deliberately short, and the cost of being wrong is
- * low: the fix is to declare the word as a technical term or mark it as a
- * distinction, both of which the author should be doing anyway.
+ * MEASURED, on seven ordinary English sentences inside a lesson about reading
+ * tables, none of them using a technical sense of anything:
  *
- * THE CASE THAT PROVED IT WORTH HAVING. A `misconception` block was first
- * written with a field named `right`, meaning "the correct form". `right` is
- * also a CSS position, and `validate.ts` refused the whole lesson for it. The
- * gate was correct and the NAME was wrong, because `right` means two things
- * and the author had only one of them in mind. A learner reading "right" in a
- * geometry lesson has the same problem, and nothing was watching for it.
+ *   "In order to see this, look at the two rows."     -> REFUSED
+ *   "It does not matter which one you pick first."    -> REFUSED
+ *   "The current example shows the same idea again."  -> REFUSED
+ *   "You state the rule, then you test it."           -> REFUSED
+ *   "That is a positive sign the method is sound."    -> REFUSED
+ *   "The mean of those numbers is what we want."      -> REFUSED
+ *   "This works well in most cases you will meet."    -> passed
+ *
+ * Six false alarms out of seven. It also refused this repository's own gas
+ * lesson for using "force" in a physics lesson, where the physical sense is
+ * the only sense present.
+ *
+ * THE DEFECT IS IN THE PREMISE, NOT THE LIST. Ambiguity is a property of a
+ * word IN USE, not of the word. "In order to" is not the mathematical order;
+ * no list can separate those, and a longer list makes it worse rather than
+ * better. This was the one rule here that was a lexical list instead of a
+ * shape. It was documented as a deliberate exception, and the exception did
+ * not pay.
+ *
+ * Its own docstring said a gate that cries wolf gets switched off. It did, six
+ * times in seven -- so it is switched off deliberately rather than left to be
+ * quietly ignored.
+ *
+ * THE NEED IS REAL AND IS MET ELSEWHERE. Knowing which sense a word carries is
+ * a judgement, and judgement is what the mechanisms in
+ * `docs/engineering/teaching-patterns.md` are for: self-critique against a
+ * confused reader, and generating several explanations and choosing. A rule
+ * can refuse a wall of text. It cannot know what a word means.
  */
-const AMBIGUOUS_IN_TEACHING = new Map<string, string>([
-  /*
-   * DELIBERATELY SPREAD ACROSS SUBJECTS, NOT DRAWN FROM ONE.
-   *
-   * The first version of this register was almost entirely mathematical —
-   * base, power, root, degree, product — which would have made the check
-   * useful in one subject and inert in every other. A rule that only fires for
-   * maths is a maths rule wearing a general name.
-   *
-   * The test for admitting a word is the same everywhere: does its ORDINARY
-   * meaning actively mislead a learner meeting its technical one? If the two
-   * senses merely differ, the word is fine. If the everyday sense would send
-   * the reader somewhere wrong, it belongs here.
-   */
-
-  // General
-  ['right', 'correct, or the direction, or a 90° angle'],
-  ['mean', 'the average, or to signify'],
-  ['order', 'a sequence, or a command, or a rank'],
-  ['odd', 'not divisible by two, or strange'],
-  ['positive', 'greater than zero, or good'],
-  ['negative', 'less than zero, or bad'],
-  ['significant', 'unlikely to be chance, or simply important'],
-  ['theory', 'a well-tested explanation, or a guess'],
-
-  // Quantity and mathematics
-  ['base', 'the bottom of a thing, or the number a power is taken of'],
-  ['power', 'an exponent, or energy per second, or influence'],
-  ['root', 'the root of a number, or of a plant, or of a word'],
-  ['degree', 'an angle, a temperature step, or an academic award'],
-  ['product', 'the result of multiplying, or a thing that is sold'],
-
-  // Science
-  ['volume', 'how much space something takes, or how loud it is'],
-  ['work', 'force times distance, or a job'],
-  ['force', 'a push or pull, or coercion'],
-  ['matter', 'physical substance, or to be important'],
-  ['cell', 'a living unit, a battery, or a box in a table'],
-  ['solution', 'a dissolved mixture, or the answer to a problem'],
-  ['medium', 'what a wave travels through, or a middling size'],
-  ['current', 'a flow of charge or water, or happening now'],
-
-  // Humanities, economics and language
-  ['state', 'a country or region, or the condition something is in'],
-  ['capital', 'money used to produce more, a city, or a large letter'],
-  ['period', 'a span of time, or a full stop'],
-  ['subject', 'what a sentence is about, a field of study, or a person studied'],
-  ['tense', 'when an action happens, or feeling anxious'],
-])
-
-/**
- * A smart teacher says which meaning they are using, before the reader guesses.
- *
- * The word may be used freely once the lesson has committed to a sense — by
- * declaring it in `technicalTerms`, which fixes where it is introduced, or by
- * marking it as a `distinction`, which draws the reader's eye to the fact that
- * this word is doing precise work here.
- */
-function checkAmbiguousWords(lesson: Lesson, out: TeachingIssue[]): void {
-  const declared = new Set(lesson.technicalTerms.map((t) => t.term.toLowerCase()))
-  for (const block of lesson.blocks) {
-    if (block.kind !== 'prose' && block.kind !== 'callout') continue
-    for (const term of block.terms) declared.add(term.text.toLowerCase())
-  }
-
-  const reported = new Set<string>()
-
-  lesson.blocks.forEach((block, i) => {
-    const text = readableText(block)
-    if (text === '') return
-
-    for (const [word, senses] of AMBIGUOUS_IN_TEACHING) {
-      if (declared.has(word) || reported.has(word)) continue
-      /* Whole word only. "based" and "ordered" are not the ambiguity. */
-      if (!new RegExp(`\\b${word}\\b`, 'i').test(text)) continue
-
-      reported.add(word)
-      out.push({
-        path: `blocks[${i}]`,
-        rule: 'ambiguous-word-left-ambiguous',
-        message:
-          `"${word}" is used without saying which sense is meant — it can be ${senses}. ` +
-          `Declare it in technicalTerms so its introduction is pinned, or mark it as a ` +
-          `"distinction" so the reader sees the word is doing precise work`,
-      })
-    }
-  })
-}
 
 /**
  * A stated rule is earned, or it is an assertion.
@@ -869,27 +827,6 @@ export function checkTeaching(
   checkTechnicalTermsArriveLate(lesson, out)
 
   if (options.arc) {
-    /*
-     * ARC-ONLY, FOR THE SAME REASON `checkSomethingIsMarked` IS.
-     *
-     * This rule is satisfied one of two ways, and BOTH are authorial: declare
-     * the word in `technicalTerms`, or mark it `distinction` on the block. A
-     * caller that ASSEMBLES a reply out of text somebody else wrote can do
-     * neither without inventing an intent the author never expressed.
-     *
-     * Two such callers exist. `captionNote` builds a block from the author's
-     * caption and never invents text — the case that put `nothing-marked` in
-     * this half. And the Python engine emits `{id, kind, emphasis, body}`,
-     * with no field for a term or a mark at all, so every answer it produces
-     * naming a word like "base" or "force" was refused with an instruction
-     * the emitter has no way to follow.
-     *
-     * A rule the caller cannot satisfy is a trap, not a standard. Held here,
-     * it keeps its full force on every taught lesson — where the author IS
-     * writing the words and can say which sense is meant — and stops firing
-     * at replies, which is exactly what the `'answer'` scope is for.
-     */
-    checkAmbiguousWords(lesson, out)
     checkSomethingIsMarked(lesson, out)
     checkArc(lesson, out)
     checkRulesAreEarned(lesson, out)

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { authorConcept, conceptIssues, conceptRequest, type Concept } from './concept'
 import type { LessonModel } from './authorLesson'
 import { AXES } from './route'
+import { MAX_DEFINITION_WORDS, MAX_RUN_WORDS } from './teaching'
 
 /*
  * ONE ATOMIC CONCEPT, NOT A LESSON.
@@ -187,6 +188,31 @@ describe('a concept teaches one idea and asks what is next', () => {
     const secondRoute = AXES.find((a) => seen[1]!.includes(a.directive))
     expect(secondRoute, 'no route directive on the second ask').toBeDefined()
     expect(secondRoute!.id, 'the learner was given the same way in twice').not.toBe(firstRoute!.id)
+  })
+
+  it('tells the model the word caps, in the numbers the gate actually enforces', () => {
+    /*
+     * MEASURED, AND IT IS BOTH REMAINING FAILURES.
+     *
+     * The any-topic matrix taught 14 of 16 against gpt-oss-120b. Both refusals
+     * were the same sentence:
+     *
+     *   the definition is 32 words, and the cap is 30
+     *   the definition is 33 words, and the cap is 30
+     *
+     * Two words over. Not retrieval, not matching, not the model's competence
+     * -- `conceptRequest` mentioned the cap ZERO times, so the model was
+     * refused for breaking a limit nobody told it about.
+     *
+     * `authorLesson` already got this right and says why beside its own
+     * interpolation: "Change `MAX_RUN_WORDS` and the instruction changes with
+     * it." A number typed into a prompt as a literal drifts from the checker
+     * the day someone edits the constant, and then the prompt teaches the model
+     * to fail. Asserted from the constants for that reason.
+     */
+    const prompt = conceptRequest('Why does heating a gas raise its pressure?')
+    expect(prompt, 'the definition cap is never stated').toContain(String(MAX_DEFINITION_WORDS))
+    expect(prompt, 'the run cap is never stated').toContain(String(MAX_RUN_WORDS))
   })
 
   it('refuses a concept that shows nothing, however well it is written', async () => {

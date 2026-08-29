@@ -3,6 +3,7 @@ import { validateLesson, type Issue } from '../spec/validate'
 import { extractJson, type LessonModel } from './authorLesson'
 import { groundingPreamble, type Source } from './grounding'
 import { nextRoute, routeDirective } from './route'
+import { MAX_DEFINITION_WORDS, MAX_EXAMPLE_WORDS, MAX_RUN_WORDS } from './teaching'
 import { classifyTurn } from './turn'
 
 /**
@@ -305,6 +306,27 @@ export function conceptRequest(
     '  SHOWS the idea, and it must FIT the content — a graph for a continuous',
     '  relationship, a table for cases, a flow for a process. Never add one',
     '  because this list asked for one.',
+    /*
+     * THE CAPS, AND THEY ARE BOTH REMAINING FAILURES.
+     *
+     * The any-topic matrix taught 14 of 16 against gpt-oss-120b. BOTH refusals
+     * were the same sentence: "the definition is 32 words, and the cap is 30",
+     * and "33 words". Two words over -- and this prompt mentioned the cap ZERO
+     * times, so the model was refused for breaking a limit nobody told it
+     * about. Same class as the unquoted-JSON bug: the contract declining to
+     * state itself.
+     *
+     * INTERPOLATED, NEVER TYPED. `authorLesson` records the reason beside its
+     * own: "Change `MAX_RUN_WORDS` and the instruction changes with it." A
+     * literal drifts from the checker the day somebody edits the constant, and
+     * then the prompt actively teaches the model to fail.
+     */
+    `- the definition block is AT MOST ${MAX_DEFINITION_WORDS} words. Count them. This is the`,
+    '  one sentence the learner has to be able to hold, and it is a hard cap',
+    `- no unbroken run of text anywhere may exceed ${MAX_RUN_WORDS} words. Break a longer`,
+    '  passage with a blank line rather than trimming the meaning out of it',
+    `- an example block is at most ${MAX_EXAMPLE_WORDS} words. Its job is to isolate one rule,`,
+    '  not to tell a story',
     '- "checkpoint" is a QUESTION that finds out whether the idea landed',
     '- "next" has at least two branches, each naming a real idea. "Learn more"',
     '  and "Continue" name nothing and will be refused.',

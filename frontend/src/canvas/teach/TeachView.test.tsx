@@ -445,3 +445,143 @@ describe('asking a doubt', () => {
     expect(document.querySelector('.lc-teach__question')?.getAttribute('tabindex')).toBe('-1')
   })
 })
+
+/* -------------------------------------------------------------------------- */
+/* One submit, one effect                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Wait long enough for an answer that takes a measurable moment to arrive.
+ *
+ * `settle` yields one macrotask, which is enough for a resolver that answers
+ * out of the lesson and not enough for one that awaits anything. A guard that
+ * releases on the promise settling can only be proved by a promise that has not
+ * settled yet.
+ */
+async function settleFor(ms: number): Promise<void> {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, ms))
+  })
+}
+
+/**
+ * Two Enters, delivered before React has re-rendered between them.
+ *
+ * WHY NOT TWO CALLS TO `submitText`
+ * ---------------------------------
+ * `fireEvent` flushes React synchronously, so the second submit would run
+ * against a component that has already cleared its draft — it would classify as
+ * empty and prove nothing. The defect being measured is the OTHER order: two
+ * key events delivered inside one frame, where the second handler still holds
+ * the first's draft in its closure. Dispatching both inside a single `act`
+ * reproduces exactly that, and nothing about the component is mocked to do it.
+ */
+async function submitTwice(text: string): Promise<void> {
+  const field = screen.getByLabelText('Answer the question, or ask one of your own')
+  fireEvent.change(field, { target: { value: text } })
+  const form = field.closest('form') as HTMLFormElement
+  await act(async () => {
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+  })
+}
+
+describe('one submit, one effect', () => {
+  it('spends one model call when Enter is pressed twice quickly', async () => {
+    /*
+     * A double Enter is one intention. Spending it twice is not only a wasted
+     * call: the second answer also increments `questionsAsked`, which feeds
+     * `strugglingAfter`, so a stutter on the keyboard silently changes what the
+     * learner is taught next.
+     */
+    let calls = 0
+    render(
+      <TeachView
+        lesson={fixture()}
+        mode="2d"
+        ask={async () => {
+          calls += 1
+          await new Promise((resolve) => setTimeout(resolve, 20))
+          return { ok: true, text: 'Mount Everest is 8,849 metres high.' }
+        }}
+      />,
+    )
+    await settle()
+
+    await submitTwice('how tall is mount everest')
+    await settleFor(60)
+
+    expect(calls, 'a double Enter spent two model calls').toBe(1)
+  })
+
+  it('still sends a second, different question once the first has landed', async () => {
+    /*
+     * The pair, and the reason the guard cannot be a latch that never releases.
+     * A learner who asks one question and is then refused every later one has a
+     * worse product than one who occasionally pays for a duplicate.
+     */
+    let calls = 0
+    render(
+      <TeachView
+        lesson={fixture()}
+        mode="2d"
+        ask={async () => {
+          calls += 1
+          return { ok: true, text: `answer number ${calls}` }
+        }}
+      />,
+    )
+    await settle()
+
+    await askAbout('how tall is mount everest')
+    await askAbout('how deep is the mariana trench')
+    await settleFor(20)
+
+    expect(calls, 'the guard latched and never released').toBe(2)
+  })
+
+  it('advances one beat when the answer is submitted twice quickly', async () => {
+    /*
+     * The same defect on the other branch, and the one a learner actually
+     * loses something to: two reveals from one keypress means a beat is put on
+     * screen and buried by the next in the same frame. They never read it.
+     */
+    await teach()
+    expect(screen.queryByText(SECOND_BEAT), 'the fixture already showed beat two').toBeNull()
+
+    await submitTwice('the model flags too many innocent transactions')
+    await settle()
+
+    expect(screen.queryByText(SECOND_BEAT), 'the answer did not advance the lesson').not.toBeNull()
+    expect(screen.queryByText(THIRD_BEAT), 'a double Enter skipped a beat').toBeNull()
+  })
+
+  it('says why a question sent during an answer was held, rather than dropping it', async () => {
+    /*
+     * A guard that silently swallows a submit is the failure this repository
+     * keeps finding: the learner presses Enter, nothing happens, and they
+     * conclude the product is broken. The refusal has to be stated.
+     */
+    render(
+      <TeachView
+        lesson={fixture()}
+        mode="2d"
+        ask={async () => {
+          await new Promise((resolve) => setTimeout(resolve, 40))
+          return { ok: true, text: 'Mount Everest is 8,849 metres high.' }
+        }}
+      />,
+    )
+    await settle()
+
+    await submitText('how tall is mount everest')
+    await submitText('how deep is the mariana trench?')
+
+    expect(
+      document.querySelector('.lc-teach__announce')?.textContent ?? '',
+      'the held question was dropped without a word',
+    ).toMatch(/still working/i)
+
+    await settleFor(80)
+  })
+})

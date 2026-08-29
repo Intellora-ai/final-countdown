@@ -135,6 +135,39 @@ export function TeachView({
   const struggleReported = useRef(false)
 
   /*
+   * ONE SUBMIT, ONE EFFECT.
+   *
+   * Two Enters pressed inside one frame are one intention, and React has not
+   * re-rendered between them -- so the second handler still holds the first's
+   * draft and runs the whole of `submit` again. Measured, both branches:
+   *
+   *   a question  two model calls, two records both keyed `at: 0` (React
+   *               reported "two children with the same key, 0"), and two
+   *               `questionsAsked` increments, which feed `strugglingAfter`
+   *               and silently change what the learner is taught next.
+   *   an answer   two reveals, so a beat is painted and buried by the next in
+   *               the same frame. The learner never reads it.
+   *
+   * GUARDED ON STATE, NEVER ON A TIMER. A timer is a guess about how fast a
+   * person types, and it is wrong for a switch, a screen reader, or a phone
+   * keyboard that repeats. These two refs are the two real boundaries:
+   *
+   *   `submittedThisFrame`  released after every commit, because once the empty
+   *                         box is on screen the next Enter is a new intention.
+   *   `askInFlight`         held until the answer settles, which no render
+   *                         boundary can bound -- an answer arrives seconds
+   *                         later.
+   *
+   * Refs, not state, because the guard has to be visible to a handler that runs
+   * before React re-renders. That is the entire defect.
+   */
+  const submittedThisFrame = useRef(false)
+  useEffect(() => {
+    submittedThisFrame.current = false
+  })
+  const askInFlight = useRef(false)
+
+  /*
    * A different lesson is a different session.
    *
    * Without this a learner switching lessons opens the new one partway through
@@ -258,17 +291,42 @@ export function TeachView({
     if (kind === 'empty') {
       /* Not a refusal and not an advance. Counted, because pressing Enter on an
          empty box twice is someone stuck for what to say, and that is one of
-         the signals that deepens the lesson without anyone being graded. */
+         the signals that deepens the lesson without anyone being graded.
+
+         DELIBERATELY OUTSIDE THE DUPLICATE GUARD. Repeated Enter on an empty
+         box is not a stutter to be swallowed -- it is the signal itself, and
+         de-duplicating it would suppress the evidence that the learner is
+         stuck. Nothing is spent and nothing advances, so there is nothing to
+         protect. */
       setEmptyAnswers((count) => count + 1)
       reportStruggle({ questionsAsked, emptyAnswers: emptyAnswers + 1, beatsSeen: revealed })
       return
     }
+
+    /* Everything past here spends something -- a beat, or a model call. */
+    if (submittedThisFrame.current) return
+    submittedThisFrame.current = true
 
     if (kind === 'answer') {
       setDraft('')
       advance()
       return
     }
+
+    /*
+     * A second question while the first is still in flight is HELD AND SAID SO,
+     * never dropped. A guard that swallows a submit in silence is the failure
+     * this file already carries one fix for: the learner presses Enter, nothing
+     * happens, and they conclude the product is broken. The draft is left in
+     * the box, so nothing they typed is lost either.
+     */
+    if (askInFlight.current) {
+      setAnnouncement(
+        'Still working on your last question. It will be answered before the next one is sent.',
+      )
+      return
+    }
+    askInFlight.current = true
 
     /* The history this component has always kept, finally handed over. Without
        it the resolver cannot tell a first ask from a fourth, and answers all
@@ -345,6 +403,10 @@ export function TeachView({
         ),
       )
       setAnnouncement('Your question could not be answered. The reason is above the checkpoint.')
+    }).finally(() => {
+      /* Released on BOTH paths. A latch that only opens on success is worse
+         than no latch: one failed answer and the learner can never ask again. */
+      askInFlight.current = false
     })
   }
 

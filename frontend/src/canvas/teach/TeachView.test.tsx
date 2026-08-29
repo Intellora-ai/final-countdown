@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 
 import { classifierEvaluation } from '../lessons/classifierEvaluation'
@@ -31,6 +31,39 @@ import { TeachView } from './TeachView'
  */
 
 afterEach(cleanup)
+
+/*
+ * A real, empty store before every test.
+ *
+ * TWO REASONS, AND BOTH ARE LOAD-BEARING.
+ *
+ * jsdom in this project provides NO `localStorage` -- probed, not assumed:
+ * `typeof globalThis.localStorage` is `undefined` here, which is why
+ * `LearnView.test.tsx` and `TutorView.repeat-submit.test.tsx` each install one
+ * too. Without it the remembering below would silently take the no-storage
+ * path and every assertion about it would pass for the wrong reason.
+ *
+ * And it is cleared per test because jsdom gives the whole FILE one store while
+ * every test here teaches the SAME lesson, so a test that advances two beats
+ * would otherwise decide where the next test starts -- with the failure landing
+ * in whichever test happened to run afterwards.
+ */
+beforeEach(() => {
+  const data = new Map<string, string>()
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => data.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        data.set(key, value)
+      },
+      removeItem: (key: string) => {
+        data.delete(key)
+      },
+      clear: () => data.clear(),
+    },
+  })
+})
 
 function fixture(): Lesson {
   const result = validateLesson(classifierEvaluation)
@@ -583,5 +616,149 @@ describe('one submit, one effect', () => {
     ).toMatch(/still working/i)
 
     await settleFor(80)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Nothing typed is ever lost                                                 */
+/* -------------------------------------------------------------------------- */
+
+const FIELD = 'Answer the question, or ask one of your own'
+
+/** The one box, read back. */
+function box(): HTMLInputElement {
+  return screen.getByLabelText(FIELD) as HTMLInputElement
+}
+
+describe('nothing typed is ever lost', () => {
+  it('keeps the draft across a reload mid-typing', async () => {
+    /*
+     * A learner half-way through composing an answer, on a phone, on a train.
+     * The tab is evicted and comes back. Before this, the box came back empty
+     * and there was no record anything had been typed at all.
+     */
+    const { unmount } = render(<TeachView lesson={fixture()} mode="2d" />)
+    await settle()
+    fireEvent.change(box(), { target: { value: 'i think it is about the base rate' } })
+    await settle()
+
+    unmount()
+    render(<TeachView lesson={fixture()} mode="2d" />)
+    await settle()
+
+    expect(box().value, 'the reload emptied the box').toBe('i think it is about the base rate')
+  })
+
+  it('reopens the lesson where the learner left it', async () => {
+    /*
+     * Not scope creep: a question is remembered against the BEAT it was asked
+     * on, and a lesson that reopens at beat one renders no answer for a doubt
+     * raised at beat three. Restoring the place is what makes the restored
+     * question visible at all.
+     */
+    const { unmount } = render(<TeachView lesson={fixture()} mode="2d" />)
+    await settle()
+    await answerBeat()
+    expect(screen.queryByText(SECOND_BEAT)).not.toBeNull()
+
+    unmount()
+    render(<TeachView lesson={fixture()} mode="2d" />)
+    await settle()
+
+    expect(screen.queryByText(SECOND_BEAT), 'the reload sent the learner back to the start').not.toBeNull()
+  })
+
+  it('brings back a question the reload interrupted, and finishes it', async () => {
+    /*
+     * The worst of the three. The answer was in flight, so the reload killed
+     * the request -- and the question vanished with no record it had ever been
+     * asked. Restoring it as "pending" alone would be a lie, because nothing
+     * would ever answer it, so it is re-asked.
+     */
+    let calls = 0
+    const ask = async (): Promise<{ ok: boolean; text: string }> => {
+      calls += 1
+      /* Never settles. The reload has to happen while the answer is genuinely
+         outstanding, which a resolved promise cannot express. */
+      return new Promise(() => {})
+    }
+
+    const { unmount } = render(<TeachView lesson={fixture()} mode="2d" ask={ask} />)
+    await settle()
+    await submitText('how tall is mount everest?')
+    expect(document.body.textContent).toMatch(/Working on it/)
+    expect(calls).toBe(1)
+
+    unmount()
+    render(<TeachView lesson={fixture()} mode="2d" ask={ask} />)
+    await settle()
+
+    expect(
+      document.body.textContent,
+      'the question vanished with no record it was ever asked',
+    ).toMatch(/how tall is mount everest/)
+    expect(calls, 'the restored question was never re-asked, so nothing could ever answer it').toBe(2)
+  })
+
+  it('forgets a question once it has been answered', async () => {
+    /* Otherwise every reload for the rest of the session re-asks it, and the
+       learner pays for the same answer again and again. */
+    let calls = 0
+    const ask = async (): Promise<{ ok: boolean; text: string }> => {
+      calls += 1
+      return { ok: true, text: 'Mount Everest is 8,849 metres high.' }
+    }
+
+    const { unmount } = render(<TeachView lesson={fixture()} mode="2d" ask={ask} />)
+    await settle()
+    await submitText('how tall is mount everest?')
+    expect(calls).toBe(1)
+
+    unmount()
+    render(<TeachView lesson={fixture()} mode="2d" ask={ask} />)
+    await settle()
+
+    expect(calls, 'an answered question was re-asked after the reload').toBe(1)
+  })
+
+  it('renders and teaches normally when storage is unavailable', async () => {
+    /*
+     * A private window, a browser set to block site data, a thumbnail capture:
+     * the accessor itself throws. A remembered draft is a convenience and must
+     * never be able to take the lesson down with it.
+     */
+    /* The accessor ITSELF raises, which is the shape a private window and a
+       blocked origin actually take -- not a store whose methods fail. A guard
+       that only wraps the method calls would pass this and still crash a real
+       browser. */
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('site data is blocked for this origin')
+      },
+    })
+
+    await teach()
+    expect(screen.queryByText(FIRST_BEAT), 'a blocked store stopped the lesson rendering').not.toBeNull()
+    await answerBeat()
+    expect(screen.queryByText(SECOND_BEAT), 'a blocked store stopped the lesson advancing').not.toBeNull()
+  })
+
+  it('ignores a stored value that is corrupt or from another version', async () => {
+    /* Storage is shared with anything else on the origin and survives a deploy.
+       A bad read must degrade to a fresh lesson, never to a crash. */
+    window.localStorage.setItem('lc.teach.classifier-evaluation', '{"draft":')
+    await teach()
+    expect(screen.queryByText(FIRST_BEAT)).not.toBeNull()
+    expect(box().value).toBe('')
+
+    cleanup()
+    window.localStorage.setItem(
+      'lc.teach.classifier-evaluation',
+      JSON.stringify({ draft: 42, revealed: 'nine', pending: 'not an array' }),
+    )
+    await teach()
+    expect(screen.queryByText(FIRST_BEAT)).not.toBeNull()
+    expect(box().value).toBe('')
   })
 })

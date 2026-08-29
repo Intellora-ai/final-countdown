@@ -58,7 +58,20 @@ export interface LessonModel {
 
 export type AuthorResult =
   | { ok: true; lesson: Lesson; attempts: number }
-  | { ok: false; issues: Issue[]; attempts: number; raw: string }
+  /*
+   * `unreachable` SEPARATES TWO OUTCOMES A LEARNER MUST NEVER SEE CONFLATED.
+   *
+   * "the model answered and what it wrote does not teach" and "nothing
+   * answered" want different words on screen: one is try again, the other is
+   * this model cannot write lessons. Without this field the caller has only
+   * `ok: false` and guesses -- which is how a learner gets told their question
+   * was answered badly when it was never asked.
+   *
+   * Found by `chaos/dependencyChaos.test.ts` rather than by reading the code:
+   * under a refused connection and under a 503, this function THREW, so the
+   * caller could not distinguish them at all.
+   */
+  | { ok: false; issues: Issue[]; attempts: number; raw: string; unreachable?: string }
 
 /**
  * The rules, phrased for a model rather than for a checker.
@@ -360,7 +373,26 @@ export async function authorLesson(
   const grounding = groundingPreamble(sources)
   const ask = grounding === '' ? `Teach this: ${question}` : `${grounding}\n\nTeach this: ${question}`
 
-  const first = await model(system, ask)
+  /*
+   * A TRANSPORT FAILURE IS A RESULT, NOT AN EXCEPTION.
+   *
+   * `chatOnce` rejects on a refused connection, a 503, a DNS failure or a
+   * timeout. Letting that propagate made "the dependency is down" arrive at the
+   * caller in a different shape from "the lesson does not teach", and the
+   * banner then described one as the other.
+   */
+  let first: string
+  try {
+    first = await model(system, ask)
+  } catch (error) {
+    return {
+      ok: false,
+      attempts: 1,
+      raw: '',
+      unreachable: error instanceof Error ? error.message : String(error),
+      issues: [{ path: '(transport)', message: 'the model was never reached, so nothing was written' }],
+    }
+  }
   const firstParsed = dropNulls(extractJson(first))
   const firstResult = validateLesson(firstParsed)
   if (firstResult.ok) return { ok: true, lesson: firstResult.lesson, attempts: 1 }
@@ -379,7 +411,20 @@ export async function authorLesson(
    * to correct. It regenerated blind, and the second failure was reported as a
    * failed repair when no repair had been possible.
    */
-  const second = await model(system, repairRequest(question, firstIssues), first)
+  let second: string
+  try {
+    second = await model(system, repairRequest(question, firstIssues), first)
+  } catch (error) {
+    /* The dependency died between the two attempts. The first reply is still
+       the most honest thing to report, so it is kept as `raw`. */
+    return {
+      ok: false,
+      attempts: 2,
+      raw: first,
+      unreachable: error instanceof Error ? error.message : String(error),
+      issues: [{ path: '(transport)', message: 'the model stopped answering before the repair attempt' }],
+    }
+  }
   const secondParsed = dropNulls(extractJson(second))
   const secondResult = validateLesson(secondParsed)
   if (secondResult.ok) return { ok: true, lesson: secondResult.lesson, attempts: 2 }

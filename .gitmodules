@@ -168,3 +168,144 @@
 [submodule "knowledge/openstax/introduccion-estadistica-bundle"]
 	path = knowledge/openstax/introduccion-estadistica-bundle
 	url = https://github.com/openstax/osbooks-introduccion-estadistica-bundle.git
+	shallow = true
+[submodule "knowledge/openstax/introduction-anthropology"]
+	path = knowledge/openstax/introduction-anthropology
+	url = https://github.com/openstax/osbooks-introduction-anthropology.git
+	shallow = true
+[submodule "knowledge/openstax/introduction-business"]
+	path = knowledge/openstax/introduction-business
+	url = https://github.com/openstax/osbooks-introduction-business.git
+	shallow = true
+[submodule "knowledge/openstax/introduction-intellectual-property"]
+	path = knowledge/openstax/introduction-intellectual-property
+	url = https://github.com/openstax/osbooks-introduction-intellectual-property.git
+	shallow = true
+[submodule "knowledge/openstax/introduction-philosophy"]
+	path = knowledge/openstax/introduction-philosophy
+	url = https://github.com/openstax/osbooks-introduction-philosophy.git
+	shallow = true
+[submodule "knowledge/openstax/introduction-political-science"]
+	path = knowledge/openstax/introduction-political-science
+	url = https://github.com/openstax/osbooks-introduction-political-science.git
+	shallow = true
+[submodule "knowledge/openstax/introduction-python-programming"]
+	path = knowledge/openstax/introduction-python-programming
+	url = https://github.com/openstax/osbooks-introduction-python-programming.git
+	shallow = true
+[submodule "knowledge/openstax/introduction-sociology"]
+	path = knowledge/openstax/introduction-sociology
+	url = https://github.com/openstax/osbooks-introduction-sociology.git
+	shallow = true
+[submodule "knowledge/openstax/introductory-statistics-bundle"]
+	path = knowledge/openstax/introductory-statistics-bundle
+	url = https://github.com/openstax/osbooks-introductory-statistics-bundle.git
+	shallow = true
+[submodule "knowledge/openstax/life-liberty-and-pursuit-happiness"]
+	path = knowledge/openstax/life-liberty-and-pursuit-happiness
+	url = https://github.com/openstax/osbooks-life-liberty-and-pursuit-happiness.git
+	shallow = true
+[submodule "knowledge/openstax/lifespan-development"]
+	path = knowledge/openstax/lifespan-development
+	url = https://github.com/openstax/osbooks-lifespan-development.git
+	shallow = true
+[submodule "knowledge/openstax/makroekonomia"]
+	path = knowledge/openstax/makroekonomia
+	url = https://github.com/openstax/osbooks-makroekonomia.git
+	shallow = true
+[submodule "knowledge/openstax/microbiology"]
+	path = knowledge/openstax/microbiology
+	url = https://github.com/openstax/osbooks-microbiology.git
+	shallow = true
+[submodule "knowledge/openstax/mikroekonomia"]
+	path = knowledge/openstax/mikroekonomia
+	url = https://github.com/openstax/osbooks-mikroekonomia.git
+	shallow = true
+[submodule "knowledge/openstax/neuroscience"]
+	path = knowledge/openstax/neuroscience
+	url = https://github.com/openstax/osbooks-neuroscience.git
+	shallow = true
+[submodule "knowledge/openstax/nursing-external-bundle"]
+	path = knowledge/openstax/nursing-external-bundle
+	url = https://github.com/openstax/osbooks-nursing-external-bundle.git
+	shallow = true
+[submodule "knowledge/openstax/organic-chemistry"]
+	path = knowledge/openstax/organic-chemistry
+	url = https://github.com/openstax/osbooks-organic-chemistry.git
+	shallow = true
+[submodule "knowledge/openstax/physics"]
+	path = knowledge/openstax/physics
+	url = https://github.com/openstax/osbooks-physics.git
+	shallow = true
+[submodule "knowledge/openstax/playground"]
+	path = knowledge/openstax/playground
+	url = https://github.com/openstax/osbooks-playground.git
+	shallow = true
+[submodule "knowledge/openstax/prealgebra-bundle"]
+	path = knowledge/openstax/prealgebra-bundle
+	url = https://github.com/openstax/osbooks-prealgebra-bundle.git
+	shallow = true
+[submodule "knowledge/openstax/precalculo"]
+	path = knowledge/openstax/precalculo
+	url = https://github.com/openstax/osbooks-precalculo.git
+	shallow = true
+[submodule "knowledge/openstax/principles-accounting-bundle"]
+	path = knowledge/openstax/principles-accounting-bundle
+	url = https://github.com/openstax/osbooks-principles-accounting-bundle.git
+	shallow = true
+[submodule "knowledge/openstax/principles-data-science"]
+	path = knowledge/openstax/principles-data-science
+	url = https://github.com/openstax/osbooks-principles-data-science.git
+	shallow = true
+[submodule "knowledge/openstax/principles-economics-bundle"]
+	path = knowledge/openstax/principles-economics-bundle
+	url = https://github.com/openstax/osbooks-principles-economics-bundle.git
+	shallow = true
+[submodule "knowledge/openstax/principles-finance"]
+	path = knowledge/openstax/principles-finance
+	url = https://github.com/openstax/osbooks-principles-finance.git
+	shallow = true
+[submodule "knowledge/openstax/principles-marketing"]
+	path = knowledge/openstax/principles-marketing
+	url = https://github.com/openstax/osbooks-principles-marketing.git
+	shallow = true
+[submodule "knowledge/openstax/principles-of-management-bundle"]
+	path = knowledge/openstax/principles-of-management-bundle
+	url = https://github.com/openstax/osbooks-principles-of-management-bundle.git
+	shallow = true
+[submodule "knowledge/openstax/psychologia"]
+	path = knowledge/openstax/psychologia
+	url = https://github.com/openstax/osbooks-psychologia.git
+	shallow = true
+[submodule "knowledge/openstax/psychology"]
+	path = knowledge/openstax/psychology
+	url = https://github.com/openstax/osbooks-psychology.git
+	shallow = true
+[submodule "knowledge/openstax/quimica-bundle"]
+	path = knowledge/openstax/quimica-bundle
+	url = https://github.com/openstax/osbooks-quimica-bundle.git
+	shallow = true
+[submodule "knowledge/openstax/statistics"]
+	path = knowledge/openstax/statistics
+	url = https://github.com/openstax/osbooks-statistics.git
+	shallow = true
+[submodule "knowledge/openstax/university-physics-bundle"]
+	path = knowledge/openstax/university-physics-bundle
+	url = https://github.com/openstax/osbooks-university-physics-bundle.git
+	shallow = true
+[submodule "knowledge/openstax/us-history"]
+	path = knowledge/openstax/us-history
+	url = https://github.com/openstax/osbooks-us-history.git
+	shallow = true
+[submodule "knowledge/openstax/workplace-software-skills"]
+	path = knowledge/openstax/workplace-software-skills
+	url = https://github.com/openstax/osbooks-workplace-software-skills.git
+	shallow = true
+[submodule "knowledge/openstax/world-history"]
+	path = knowledge/openstax/world-history
+	url = https://github.com/openstax/osbooks-world-history.git
+	shallow = true
+[submodule "knowledge/openstax/writing-guide"]
+	path = knowledge/openstax/writing-guide
+	url = https://github.com/openstax/osbooks-writing-guide.git
+	shallow = true

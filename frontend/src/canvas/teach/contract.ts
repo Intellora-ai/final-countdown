@@ -304,6 +304,52 @@ export function checkBeats(beats: Beats, lesson: Lesson): BeatIssue[] {
     }
   }
 
+  /*
+   * EVERY BEAT SHOWS SOMETHING, AND IT IS SOMETHING THE BEAT REFERS TO.
+   *
+   * "One representation per lesson" was the weaker rule, and it let a learner
+   * meet three beats of solid prose before the single chart arrived. The unit
+   * the learner actually experiences is the BEAT — it is what they are shown
+   * before being asked whether to go on — so it is the unit the rule has to
+   * bind.
+   *
+   * RELEVANT, NOT DECORATIVE. Presence is not enough: the shown block must be
+   * joined by a relation to something else in the same beat. A chart dropped
+   * into a beat it has nothing to do with satisfies a presence check and
+   * teaches nobody, which is the exact failure this is here to stop.
+   */
+  const shows = new Set(['chart', 'table', 'flow', 'figure', 'simulation'])
+  const kindOf = new Map(lesson.blocks.map((b: Block) => [b.id, b.kind]))
+
+  for (const beat of beats) {
+    const here = new Set(beat.blockIds)
+    const shown = beat.blockIds.filter((id) => shows.has(kindOf.get(id) ?? ''))
+
+    if (shown.length === 0) {
+      issues.push({
+        message:
+          `beat "${beat.id}" shows the learner nothing — it is all words. Every beat carries one ` +
+          `representation that fits it: a chart, a table, a flow or a figure`,
+      })
+      continue
+    }
+
+    const relevant = shown.some((id) =>
+      lesson.relations.some(
+        (r) =>
+          (r.from === id && here.has(r.to) && r.to !== id) ||
+          (r.to === id && here.has(r.from) && r.from !== id),
+      ),
+    )
+    if (!relevant) {
+      issues.push({
+        message:
+          `beat "${beat.id}" shows something, but nothing else in the beat refers to it. ` +
+          `A representation earns its place by being connected, or it is decoration`,
+      })
+    }
+  }
+
   const lastFlags = beats.map((b) => b.isLast)
   if (lastFlags.filter(Boolean).length !== 1 || !lastFlags[lastFlags.length - 1]) {
     issues.push({ message: 'exactly one beat must be marked last, and it must be the final one' })

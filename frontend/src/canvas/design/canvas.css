@@ -203,7 +203,10 @@
 .lc-body {
   font-size: var(--type-body-size);
   line-height: var(--type-body-height);
-  color: var(--c-ink-muted);
+  /* `--c-ink`, not `--c-ink-muted`. The body carries the teaching; muting it
+     made the most important text on the page the hardest to read. Muted ink
+     stays where it belongs, on captions. */
+  color: var(--c-ink);
   max-width: 62ch;
   margin: 0;
 }
@@ -475,3 +478,262 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* -- Breathing space ----------------------------------------------------- */
+/*
+ * A body is rendered as one `.lc-body` per run the author separated with a
+ * blank line. This is the space that separation buys — without it the runs
+ * stack flush and the break the gate enforced is invisible to the reader,
+ * which would make the rule theatre.
+ */
+.lc-body + .lc-body {
+  margin-top: var(--s-lg);
+}
+
+/* -- Marked terms -------------------------------------------------------- */
+/*
+ * The author marks a term `key` or `distinction`. What that LOOKS like is
+ * decided here and nowhere else, which is why the schema carries a role and
+ * never `bold: true` — Law 3.
+ */
+/* BOTH marks are bold AND underlined. An important word is meant to survive a
+   skim, and weight alone does not do that inside a paragraph of the same
+   colour. The two marks differ by what the underline MEANS, not by whether
+   there is one: a key term is underlined in the body ink, a distinction in the
+   accent, because a distinction is the word that separates two things the
+   reader is about to confuse. */
+.lc-term {
+  font-weight: bold;
+  color: var(--c-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--c-line-strong);
+  text-decoration-thickness: var(--stroke-thin);
+  text-underline-offset: var(--s-xs);
+}
+
+.lc-term[data-mark='distinction'] {
+  text-decoration-color: var(--c-accent);
+  text-decoration-thickness: var(--stroke-thick);
+}
+
+/* -- Misconception ------------------------------------------------------- */
+/*
+ * Side by side, because the whole value of showing the error is the
+ * comparison. `auto-fit` lets the pair stack on a narrow frame rather than
+ * squeezing two unreadable columns — the reader still gets both, in order.
+ */
+.lc-misconception__pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22ch), 1fr));
+  gap: var(--s-lg);
+}
+
+.lc-misconception__side {
+  padding-left: var(--s-md);
+  border-left: var(--stroke-thick) solid var(--c-line-strong);
+}
+.lc-misconception__side[data-side='wrong'] { border-left-color: var(--c-warning); }
+.lc-misconception__side[data-side='correct'] { border-left-color: var(--c-result); }
+
+.lc-misconception__tag {
+  display: block;
+  margin-bottom: var(--s-xs);
+  font-size: var(--type-label-size);
+  font-weight: var(--type-label-weight);
+  letter-spacing: var(--type-label-tracking);
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+.lc-misconception__side[data-side='wrong'] .lc-misconception__tag { color: var(--c-warning); }
+.lc-misconception__side[data-side='correct'] .lc-misconception__tag { color: var(--c-result); }
+
+.lc-misconception__why {
+  margin-top: var(--s-lg);
+}
+
+/* -- Summary ------------------------------------------------------------- */
+/*
+ * The progression reads left to right as one run, wrapping only when it must.
+ * The arrows are drawn from the ORDER of the array — the author writes a list
+ * and never types an arrow, which is the same division `flow` already keeps.
+ */
+.lc-summary__progression {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lc-summary__step {
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-height);
+  color: var(--c-ink);
+}
+
+.lc-summary__arrow {
+  color: var(--c-accent);
+}
+
+.lc-summary__model {
+  margin: var(--s-lg) 0 0;
+  padding-left: var(--s-lg);
+  border-left: var(--stroke-thick) solid var(--c-accent);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-height);
+  color: var(--c-ink);
+  max-width: 62ch;
+}
+
+/* -- Highlighted terms inside an equation --------------------------------- */
+/*
+ * `EquationView` has wrapped `highlight` terms in `.lc-hl` since the feature
+ * shipped, and its docstring says "the design system decides that a
+ * highlighted term is an accent underline". No such rule existed anywhere in
+ * the codebase, so the class was applied and did nothing — the author named a
+ * term and the reader saw no difference.
+ *
+ * Colour and underline rather than weight: KaTeX picks its own math fonts, and
+ * a bolder weight inside a formula reads as a different symbol.
+ */
+.katex .lc-hl {
+  color: var(--c-accent);
+  border-bottom: var(--stroke-thin) solid var(--c-accent);
+}
+
+/* -- Reasoning ------------------------------------------------------------ */
+/*
+ * A claim earned one step at a time. The reason sits BESIDE its step rather
+ * than in a paragraph underneath, because the whole value of a derivation is
+ * being able to check a step against its justification without holding either
+ * in your head.
+ */
+.lc-reasoning__claim {
+  margin: 0 0 var(--s-md);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-height);
+  font-weight: bold;
+  color: var(--c-ink);
+}
+
+.lc-reasoning__steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-left: var(--stroke-thick) solid var(--c-line);
+}
+
+.lc-reasoning__step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--s-md);
+  padding: var(--s-sm) 0 var(--s-sm) var(--s-lg);
+}
+
+.lc-reasoning__n {
+  font-size: var(--type-label-size);
+  font-weight: var(--type-label-weight);
+  color: var(--c-ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A justification is not numbered, so the step column starts at the state. */
+.lc-reasoning[data-mode='why'] .lc-reasoning__step {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.lc-reasoning__state {
+  color: var(--c-ink);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-height);
+  overflow-x: auto;
+}
+
+.lc-reasoning__because {
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-height);
+  color: var(--c-ink-muted);
+}
+.lc-reasoning__because::before {
+  content: '← ';
+  color: var(--c-accent);
+}
+
+.lc-reasoning__therefore {
+  margin: var(--s-lg) 0 0;
+  padding-left: var(--s-lg);
+  border-left: var(--stroke-thick) solid var(--c-accent);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-height);
+  color: var(--c-ink);
+}
+
+.lc-misconception__proof {
+  margin: var(--s-md) 0 0;
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-height);
+  color: var(--c-ink);
+}
+.lc-misconception__proof .lc-misconception__tag {
+  margin-bottom: var(--s-xs);
+  color: var(--c-accent);
+}
+
+/* On a narrow frame the reason drops beneath its step rather than being
+   squeezed into an unreadable column. */
+@media (max-width: 700px) {
+  .lc-reasoning__step,
+  .lc-reasoning[data-mode='why'] .lc-reasoning__step {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-xs);
+  }
+}
+
+/* -- Ask for any topic ---------------------------------------------------- */
+/*
+ * The control that turns the canvas from "the lessons someone wrote" into
+ * "anything you ask about". It sits in the route bar beside the picker because
+ * it is the same kind of choice: which lesson am I looking at.
+ */
+.lc-ask-topic {
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+  min-width: 0;
+}
+
+.lc-ask-topic input {
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: var(--s-sm) var(--s-md);
+  border: var(--stroke-hair) solid var(--c-line);
+  border-radius: var(--r-pill);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font-family: var(--lc-sans);
+  font-size: var(--type-body-size);
+}
+
+.lc-ask-topic input::placeholder { color: var(--c-ink-faint); }
+.lc-ask-topic input:focus-visible { outline: var(--stroke-thin) solid var(--c-accent); }
+.lc-ask-topic input:disabled { opacity: 0.6; }
+
+.lc-ask-topic button {
+  white-space: nowrap;
+  padding: var(--s-sm) var(--s-lg);
+  border: var(--stroke-hair) solid var(--c-line-strong);
+  border-radius: var(--r-pill);
+  background: var(--c-panel);
+  color: var(--c-ink);
+  font-family: var(--lc-sans);
+  font-size: var(--type-label-size);
+  cursor: pointer;
+}
+.lc-ask-topic button:disabled { opacity: 0.5; cursor: default; }
+.lc-ask-topic button:not(:disabled):hover { background: var(--c-panel-hover); }

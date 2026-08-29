@@ -255,6 +255,10 @@ function draw(block: FigureBlock): ReactNode {
         title: block.title,
         emphasis: block.emphasis,
         tone: block.tone,
+        /* The teaching job travels with the block. A figure that IS the
+           contrast must still be the contrast once it is drawn as a table. */
+        role: block.role,
+        depth: block.depth,
         columns: block.data.columns,
         rows: block.data.rows,
       }

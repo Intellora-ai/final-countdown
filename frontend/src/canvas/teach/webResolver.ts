@@ -522,7 +522,7 @@ function buildCheckedAnswer(
     question: clamp(doubt.text.trim(), 200),
     blocks,
     relations: [],
-  })
+  }, { teaching: 'answer' })
   return result.ok ? result.lesson : null
 }
 
@@ -572,7 +572,7 @@ function buildConflictAnswer(
     question: clamp(doubt.text.trim(), 200),
     blocks,
     relations: [],
-  })
+  }, { teaching: 'answer' })
   return result.ok ? result.lesson : null
 }
 
@@ -616,7 +616,7 @@ function buildAnswer(doubt: Doubt, pages: readonly RetrievedPage[]): Lesson | nu
     question: clamp(doubt.text.trim(), 200),
     blocks,
     relations: [],
-  })
+  }, { teaching: 'answer' })
   return result.ok ? result.lesson : null
 }
 

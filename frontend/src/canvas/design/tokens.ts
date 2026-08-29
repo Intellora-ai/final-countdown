@@ -73,7 +73,13 @@ export const tokens = {
     question: { size: '30px', weight: 500, height: 1.3 },
     sectionTitle: { size: '17px', weight: 600, height: 1.3, tracking: '0.06em' },
     blockTitle: { size: '14px', weight: 500, height: 1.35 },
-    body: { size: '14px', weight: 400, height: 1.6 },
+    /* 17px, matching `sectionTitle`, and NOT the 14px it was.
+       The body was the same size as a block title and set in the muted ink, so
+       the teaching was the faintest, smallest text on a page whose headings
+       were louder than the thing they introduced. The rule is that the body is
+       never much smaller than the heading above it: a lesson is read, not
+       skimmed by its titles. */
+    body: { size: '17px', weight: 400, height: 1.65 },
     caption: { size: '12px', weight: 400, height: 1.5 },
     label: { size: '11px', weight: 500, height: 1.4, tracking: '0.1em' },
     metric: { size: '28px', weight: 500, height: 1.1 },

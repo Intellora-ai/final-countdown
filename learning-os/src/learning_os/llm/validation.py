@@ -70,7 +70,32 @@ class Violation:
 #: instead of at `validateLesson` in the browser, where the engine is no longer
 #: in the stack and the payload is all anyone can see.
 BLOCK_KINDS = frozenset(
-    {"prose", "callout", "metric", "equation", "table", "chart", "flow", "simulation"}
+    {
+        "prose",
+        "callout",
+        "metric",
+        "equation",
+        "table",
+        "chart",
+        "flow",
+        "simulation",
+        # The teaching-shape kinds. See `docs/engineering/teaching-patterns.md`.
+        #
+        # Absent from this set, they were a LIVE BUG rather than a gap: the
+        # canvas accepts them, so a model emitting a correction or a derivation
+        # would have had its lesson rejected here with "no renderer" -- a
+        # message that is false, and that points the reader at the canvas
+        # instead of at this list.
+        #
+        # None of the three is subject-specific. `misconception` is the error a
+        # learner actually makes, in any subject; `reasoning` is an ordered
+        # chain where every step names what licenses it, which is a proof in
+        # mathematics and a causal chain in geography; `summary` is the
+        # progression plus the one sentence worth keeping.
+        "misconception",
+        "summary",
+        "reasoning",
+    }
 )
 
 #: Text telling the learner where they are in a sequence.

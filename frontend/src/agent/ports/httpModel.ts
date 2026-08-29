@@ -146,7 +146,23 @@ export function buildPrompt(req: GenerateRequest): { system: string; user: strin
   return { system, user }
 }
 
-export function httpModel(options: HttpModelOptions): ModelPort {
+/**
+ * One chat turn against the endpoint. System in, user in, text out.
+ *
+ * WHY THIS IS SEPARATE FROM `httpModel`
+ * ------------------------------------
+ * `ModelPort.generate` takes a `GenerateRequest` — the agent's whole state:
+ * understanding, communication plan, claims, working memory. That is the right
+ * shape for the agent and the wrong shape for anything else, and the canvas's
+ * lesson author needs none of it: it has a question and a set of rules.
+ *
+ * The alternative was a second HTTP client with its own timeout handling, its
+ * own abort, its own error strings and its own key check — which is how two
+ * clients end up disagreeing about what a 200-with-no-content means. So the
+ * transport is extracted and both callers share it. `httpModel` is unchanged
+ * from the outside: it builds the agent prompt and hands it here.
+ */
+export function chatOnce(options: HttpModelOptions) {
   const {
     endpoint,
     model = DEFAULT_MODEL,
@@ -156,83 +172,95 @@ export function httpModel(options: HttpModelOptions): ModelPort {
     fetchImpl,
   } = options
 
+  return async function chat(system: string, user: string): Promise<string> {
+    if (!endpoint) {
+      throw new Error(
+        'httpModel: no model endpoint is configured, so there is nothing to ask. '
+        + 'Set VITE_TUTOR_ENDPOINT to a chat-completions URL — for a local runner '
+        + 'that is usually http://localhost:11434/v1/chat/completions (Ollama) or '
+        + 'http://localhost:1234/v1/chat/completions (LM Studio) — and '
+        + 'VITE_TUTOR_MODEL to the model name it serves.',
+      )
+    }
+    assertLocalOrKeyless(endpoint, apiKey)
+
+    const doFetch = fetchImpl ?? globalThis.fetch
+    if (typeof doFetch !== 'function') throw new Error('httpModel: no fetch in this environment')
+
+    const headers: Record<string, string> = { 'content-type': 'application/json' }
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`
+
+    /* A tab left open on a dead endpoint must not hold a pending request for
+       the life of the session. The abort is what turns that into a `degraded`
+       turn the student can read. */
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+
+    let response: Response
+    try {
+      response = await doFetch(endpoint, {
+        method: 'POST',
+        headers,
+        signal: controller.signal,
+        body: JSON.stringify({
+          model,
+          max_tokens: maxTokens,
+          /* Low, because this is exposition against fixed claims. Sampling
+             variety here shows up as the same question answered differently
+             on a retry, which reads to a student as the teacher changing its
+             mind. */
+          temperature: 0.2,
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: user },
+          ],
+        }),
+      })
+    } catch (e) {
+      const why = e instanceof Error ? e.message : String(e)
+      const aborted = e instanceof Error && (e.name === 'AbortError' || /abort/i.test(why))
+      throw new Error(
+        aborted
+          ? `httpModel: the model at ${endpoint} did not answer within ${timeoutMs}ms, so the request timed out.`
+          : `httpModel: ${endpoint} is unreachable (${why}). Check the model server is running and that it allows requests from this page.`,
+      )
+    } finally {
+      clearTimeout(timer)
+    }
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => '')
+      throw new Error(
+        `httpModel: ${endpoint} returned ${response.status}. ${body.slice(0, BODY_SNIPPET)}`,
+      )
+    }
+
+    const payload = (await response.json().catch(() => null)) as
+      | { choices?: { message?: { content?: string } }[] }
+      | null
+    const content = payload?.choices?.[0]?.message?.content
+    if (typeof content !== 'string' || content.trim() === '') {
+      throw new Error(
+        `httpModel: ${endpoint} answered 200 with no message content. `
+        + 'Treating that as an answer would put an empty string through verification '
+        + 'and report on it as though the model had replied.',
+      )
+    }
+    return content
+  }
+}
+
+export function httpModel(options: HttpModelOptions): ModelPort {
+  /* The agent's prompt, over the shared transport. Everything that used to be
+     inline here — the endpoint check, the key guard, the abort, the empty-body
+     refusal — now lives in `chatOnce` and is shared with the lesson author. */
+  const chat = chatOnce(options)
+
   return {
     async generate(req: GenerateRequest): Promise<string> {
-      if (!endpoint) {
-        throw new Error(
-          'httpModel: no model endpoint is configured, so there is nothing to ask. '
-          + 'Set VITE_TUTOR_ENDPOINT to a chat-completions URL — for a local runner '
-          + 'that is usually http://localhost:11434/v1/chat/completions (Ollama) or '
-          + 'http://localhost:1234/v1/chat/completions (LM Studio) — and '
-          + 'VITE_TUTOR_MODEL to the model name it serves.',
-        )
-      }
-      assertLocalOrKeyless(endpoint, apiKey)
-
-      const doFetch = fetchImpl ?? globalThis.fetch
-      if (typeof doFetch !== 'function') throw new Error('httpModel: no fetch in this environment')
-
       const { system, user } = buildPrompt(req)
-      const headers: Record<string, string> = { 'content-type': 'application/json' }
-      if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`
-
-      /* A tab left open on a dead endpoint must not hold a pending request for
-         the life of the session. The abort is what turns that into a `degraded`
-         turn the student can read. */
-      const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), timeoutMs)
-
-      let response: Response
-      try {
-        response = await doFetch(endpoint, {
-          method: 'POST',
-          headers,
-          signal: controller.signal,
-          body: JSON.stringify({
-            model,
-            max_tokens: maxTokens,
-            /* Low, because this is exposition against fixed claims. Sampling
-               variety here shows up as the same question answered differently
-               on a retry, which reads to a student as the teacher changing its
-               mind. */
-            temperature: 0.2,
-            messages: [
-              { role: 'system', content: system },
-              { role: 'user', content: user },
-            ],
-          }),
-        })
-      } catch (e) {
-        const why = e instanceof Error ? e.message : String(e)
-        const aborted = e instanceof Error && (e.name === 'AbortError' || /abort/i.test(why))
-        throw new Error(
-          aborted
-            ? `httpModel: the model at ${endpoint} did not answer within ${timeoutMs}ms, so the request timed out.`
-            : `httpModel: ${endpoint} is unreachable (${why}). Check the model server is running and that it allows requests from this page.`,
-        )
-      } finally {
-        clearTimeout(timer)
-      }
-
-      if (!response.ok) {
-        const body = await response.text().catch(() => '')
-        throw new Error(
-          `httpModel: ${endpoint} returned ${response.status}. ${body.slice(0, BODY_SNIPPET)}`,
-        )
-      }
-
-      const payload = (await response.json().catch(() => null)) as
-        | { choices?: { message?: { content?: string } }[] }
-        | null
-      const content = payload?.choices?.[0]?.message?.content
-      if (typeof content !== 'string' || content.trim() === '') {
-        throw new Error(
-          `httpModel: ${endpoint} answered 200 with no message content. `
-          + 'Treating that as an answer would put an empty string through verification '
-          + 'and report on it as though the model had replied.',
-        )
-      }
-      return content
+      return chat(system, user)
     },
   }
 }
+

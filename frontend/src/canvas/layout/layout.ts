@@ -71,12 +71,17 @@ export interface Profile {
 }
 
 const VISUAL: BlockKind[] = ['chart', 'simulation', 'flow', 'equation']
-const TEXTUAL: BlockKind[] = ['prose', 'callout']
+/* `misconception`, `summary` and `reasoning` are read like prose — they are
+   sentences the learner works through, not data to scan. Leaving them out of
+   this list made a lesson of eight text blocks profile as having one, and the
+   selector picked a dense reference grid for something meant to be read. */
+const TEXTUAL: BlockKind[] = ['prose', 'callout', 'misconception', 'summary', 'reasoning']
 
 export function profile(spec: Lesson): Profile {
   const counts = {
     prose: 0, callout: 0, metric: 0, equation: 0,
     table: 0, chart: 0, flow: 0, simulation: 0, figure: 0,
+    misconception: 0, summary: 0, reasoning: 0,
   } as Record<BlockKind, number>
 
   for (const block of spec.blocks) counts[block.kind] += 1
@@ -158,12 +163,28 @@ export function selectArchetype(p: Profile): { archetype: Archetype; explain: st
 const NATURAL_SPAN: Record<BlockKind, number> = {
   simulation: 6, chart: 6, table: 8, flow: 12,
   equation: 5, prose: 6, callout: 4, metric: 3, figure: 6,
+  /* A misconception is two short lines set against each other. It needs the
+     width to put them side by side rather than stacked, which is the entire
+     point of showing the wrong form next to the right one. */
+  misconception: 8,
+  /* A summary is the widest thing on the page: the progression reads as one
+     left-to-right run, and wrapping it back onto a second line breaks the
+     sense of an order. */
+  summary: 12,
+  /* A justification is read down the page, one step per line, with the reason
+     beside each step. It needs the width for that second column. */
+  reasoning: 10,
 }
 
 /** How many grid rows a kind needs. Height is derived from kind, never authored. */
 const NATURAL_ROWS: Record<BlockKind, number> = {
   simulation: 4, chart: 3, table: 3, flow: 2,
   equation: 2, prose: 2, callout: 2, metric: 1, figure: 3,
+  /* Wrong, right, and the reason: three short rows. */
+  misconception: 2,
+  summary: 2,
+  /* Taller than anything else: every step gets its own line. */
+  reasoning: 4,
 }
 
 /**

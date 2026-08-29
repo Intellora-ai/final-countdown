@@ -592,7 +592,7 @@ function buildAnswer(
     question: clamp(question.trim(), MAX_QUESTION),
     blocks,
     relations,
-  })
+  }, { teaching: 'answer' })
   return result.ok ? result.lesson : null
 }
 

@@ -25,6 +25,17 @@ import { askChain } from './chain'
 
 /** The single soft line that invites the learner back. Never a reprimand, and
  *  never more than once. */
+/**
+ * How long any one rung may take.
+ *
+ * Ten seconds, not three: `engineResolver` already applies its own 3s deadline,
+ * and this is the ceiling for the rungs that have none -- the web resolver and
+ * the model escalation, both of which are legitimately slower than the engine.
+ * A ceiling below a rung's honest working time would refuse good answers, which
+ * is the failure mode a deadline is easiest to get wrong in.
+ */
+const RUNG_BUDGET_MS = 10_000
+
 export const RETURN_LINE = 'Shall we get back to it?'
 
 export type AnswerSource = 'lesson' | 'model' | 'unavailable'
@@ -68,7 +79,13 @@ export function createAnswering(options: { resolvers: readonly AnyResolver[]; as
        * became its LAST rung rather than a second mechanism beside it.
        *
        * Neither idea was discarded to settle a merge. */
-      const chained = await askChain(doubt, lesson, options.resolvers)
+      const chained = await askChain(doubt, lesson, options.resolvers, {
+    /* THE CHAIN HAD NO OPTIONS AT ALL, AND SO NO DEADLINE.
+       Every rung behind `engineResolver` was unbounded, including the model
+       escalation below, so a rung that never settled left the learner reading
+       "Working on it..." with nothing able to interrupt it. */
+    budgetMs: RUNG_BUDGET_MS,
+  })
       const resolution = chained.resolution as { kind?: string; text?: string }
 
       /* Something in the chain answered it. No come-back line: we never left. */

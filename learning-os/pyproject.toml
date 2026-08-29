@@ -43,6 +43,15 @@ dev = [
     "pytest>=8,<10",
     "ruff>=0.6,<1",
     "mypy>=1.11,<3",
+    # The human-scenario layer in tests/human/. Bounded for the same reason as
+    # the three above: it gates the `real-life` job, so an unbounded floor means
+    # a release can turn that job red with no change to this repository.
+    #
+    # `<9` rather than no ceiling because the 7 -> 8 major already changed how
+    # steps are matched. A major that changes step binding does not break a
+    # build loudly -- it can leave a scenario collected and doing less than it
+    # says, which is the one failure the human suite exists to make impossible.
+    "pytest-bdd>=8.1,<9",
 ]
 
 [build-system]

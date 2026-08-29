@@ -47,12 +47,23 @@ ledgers, which is nowhere. So each job enforces its own floor, and a suite whose
 properties vanish fails in the job that owns it -- which is also the job whose
 red is easiest to act on.
 
+A THIRD SUITE THAT IS NOT HYPOTHESIS
+------------------------------------
+`--suite human` enforces the same floor over pytest-bdd SCENARIOS in
+`learning-os/tests/human/`. It is here rather than in a second script because
+the failure has the same shape and the same fix: a scenario that stops being
+bound disappears from the count without anything turning red. Only the noun
+differs, and `COUNTS` carries it so the error message stays true.
+
 USAGE
     python3 -m pytest tests -q
     python3 scripts/property_gate.py --suite root
 
     cd learning-os && python3 -m pytest tests -q --ignore=tests/db
     python3 scripts/property_gate.py --suite learning-os
+
+    cd learning-os && python3 -m pytest tests/human -q
+    python3 scripts/property_gate.py --suite human
 """
 
 from __future__ import annotations
@@ -74,9 +85,30 @@ from pathlib import Path
 #:
 #: Raise a floor when properties are added. Never lower one to make a build
 #: pass: that is the shape this file exists to refuse.
+#:
+#: `human` is the third suite and the only one that does not count Hypothesis.
+#: Its ledger counts pytest-bdd SCENARIOS, and the reason it is enforced by this
+#: file rather than a second gate is that the failure is identical in shape:
+#: delete a `.feature` file, or let a `scenarios()` call stop matching after an
+#: upgrade, and the suite reports a smaller green number with nothing red. One
+#: floor, one ledger, one message -- a second script would only differ in the
+#: noun. That noun is in `COUNTS` below, so the error still names the right
+#: thing. Measured: 24 scenarios across four feature files.
 SUITES: dict[str, int] = {
     "root": 7,
     "learning-os": 6,
+    "human": 24,
+}
+
+#: What each suite's ledger actually counts, for the error message.
+#:
+#: "the human suite executed only 3 property tests" would send a reader looking
+#: for a `@given` that nobody has written. A gate that misnames what went
+#: missing costs more time than one that says nothing.
+COUNTS: dict[str, str] = {
+    "root": "property tests",
+    "learning-os": "property tests",
+    "human": "human scenarios",
 }
 
 #: A suite's ledger is `property-execution-<suite>.json`, written ONCE.
@@ -158,22 +190,22 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     floor = SUITES[args.suite]
+    counted = COUNTS[args.suite]
     executed = read(args.root, args.suite)
 
     if executed < floor:
         print(
-            f"::error::the {args.suite} suite executed only {executed} property "
-            f"tests; its floor is {floor}.\n"
-            "Generated coverage has gone down. Either a `@given` was removed, a "
-            "collection error took a file out of the run, or tests were "
-            "deselected.\n"
+            f"::error::the {args.suite} suite executed only {executed} "
+            f"{counted}; its floor is {floor}.\n"
+            "Coverage has gone down. Either a test was removed, a collection "
+            "error took a file out of the run, or tests were deselected.\n"
             "If the removal was deliberate, lower the floor in the same commit "
             "and say why -- do not lower it to make an unrelated build pass.",
             file=sys.stderr,
         )
         return 1
 
-    print(f"{args.suite}: {executed} property tests executed (floor {floor})")
+    print(f"{args.suite}: {executed} {counted} executed (floor {floor})")
     return 0
 
 

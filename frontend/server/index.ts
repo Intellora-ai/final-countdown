@@ -22,7 +22,9 @@ import { chooseProvider } from './provider.ts'
 import { createOllamaModel, DEFAULT_OLLAMA_ENDPOINT } from './ollama.ts'
 import type { Readable } from 'node:stream'
 
-import { createHandler, type ModelPort, type SearchPort } from './handler.ts'
+import { createHandler, type DoubtPort, type ModelPort, type SearchPort } from './handler.ts'
+import { doubtPort } from './doubtEngine.ts'
+import { createSearchPort } from './searchPort.ts'
 import { createModel } from './model.ts'
 import { createLedger, type Ledger } from './almanac/ledger.ts'
 import { fileStore } from './almanac/fileStore.ts'
@@ -75,6 +77,12 @@ export interface ServerOptions {
   readonly model: ModelPort
   readonly search: SearchPort
   readonly almanac?: Ledger
+  /**
+   * The doubt engine bridge. Absent means `/api/doubt` answers 503 with a
+   * document rather than 404 — see `handler.ts`, where 404 is the symptom of
+   * the route not being deployed and must not be the symptom of anything else.
+   */
+  readonly doubt?: DoubtPort
   readonly secrets?: readonly string[]
 }
 
@@ -83,6 +91,7 @@ export function createServer(options: ServerOptions): Server {
     model: options.model,
     search: options.search,
     ...(options.almanac === undefined ? {} : { almanac: options.almanac }),
+    ...(options.doubt === undefined ? {} : { doubt: options.doubt }),
     secrets: options.secrets,
     maxBodyBytes: MAX_BODY_BYTES,
   })
@@ -155,23 +164,42 @@ function main(): void {
   /* Only a real credential is worth scrubbing from responses. There is none in
      local mode, and listing an empty string would make `scrub` match
      everywhere. */
-  const secrets = provider.kind === 'anthropic' ? [provider.apiKey] : []
-  const search: SearchPort = {
-    /* Wired in Phase 4. Until then the route answers honestly rather than
-     * pretending to have searched. */
-    async search() {
-      throw new Error('search is not configured')
-    },
-  }
+  /* Every credential this process holds, so `scrub` can catch one that escapes
+   * into a response by a route nobody predicted. The search key is listed for
+   * the same reason the model key is: `searchPort.ts` keeps it out of its own
+   * messages, and this is the layer that does not have to trust that. Empty
+   * strings are filtered — listing one would make `scrub` match everywhere. */
+  const secrets = [
+    ...(provider.kind === 'anthropic' ? [provider.apiKey] : []),
+    process.env['WEB_SEARCH_API_KEY'] ?? '',
+  ].filter((secret) => secret.length > 0)
+  /* THE REAL OPEN-WEB SEARCH, not a stub that throws.
+   *
+   * This read "Wired in Phase 4" and threw on every call, while the working
+   * implementation sat in `vite-plugin-search.ts` behind a dev-only hook. It is
+   * now `server/searchWeb.ts` and this is the port onto it. With no
+   * `WEB_SEARCH_API_KEY` set it still refuses — but it refuses because the
+   * provider is unconfigured, which is a fact, rather than because nobody
+   * finished the wiring. */
+  const search: SearchPort = createSearchPort()
 
   /* Almanac's memory. One JSON file beside the curriculum it plans against. */
   const ledgerPath = process.env['ALMANAC_LEDGER'] ?? 'data/almanac-ledger.json'
   const almanac = createLedger(fileStore(ledgerPath))
 
-  const server = createServer({ model, search, almanac, secrets })
+  /* THE DOUBT ENGINE, ON THE DEPLOYED SERVER.
+   *
+   * `LEARNING_OS_ROOT` names the directory holding `learning-os/`, so a
+   * container that puts the repository somewhere other than the working
+   * directory does not have to guess. The bridge finds the interpreter from
+   * there; `doubtEngine.ts` documents the order it tries. */
+  const doubt = doubtPort({ root: process.env['LEARNING_OS_ROOT'] ?? process.cwd() })
+
+  const server = createServer({ model, search, almanac, doubt, secrets })
   server.listen(port, host, () => {
     console.log(`almanac server listening on http://${host}:${port}`)
     console.log(`  ledger: ${ledgerPath}`)
+    console.log(`  doubt:  learning-os engine under ${process.env['LEARNING_OS_ROOT'] ?? process.cwd()}`)
     console.log(
       provider.kind === 'ollama'
         ? `  model:  ${provider.model} via ollama at ${provider.endpoint ?? DEFAULT_OLLAMA_ENDPOINT}`

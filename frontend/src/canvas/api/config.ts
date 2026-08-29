@@ -73,3 +73,34 @@ export function apiConfigured(
 ): boolean {
   return apiBase(env) !== null
 }
+
+/**
+ * A URL for a backend path, absolute when a backend is configured.
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * `teach/engineResolver.ts` posts to the relative path `/api/doubt`, which is
+ * right while one Vite process serves both the page and the route. Deployed,
+ * the page is static files on a CDN and nothing on that origin answers, so
+ * every doubt is a 404 that looks like the engine refusing.
+ *
+ * UNSET STILL MEANS RELATIVE, AND THAT IS THE POINT
+ * -------------------------------------------------
+ * Development must keep working with no configuration at all. So an absent
+ * base returns the path untouched and the request goes to the same origin,
+ * exactly as before. Only a deployment that sets the variable changes.
+ *
+ * THIS VALUE IS PUBLIC AND MUST STAY THAT WAY
+ * -------------------------------------------
+ * Every `VITE_` value is compiled into the bundle a browser downloads. A base
+ * URL is fine there — it is the address of a server, not a way in. A key is
+ * not, and no key belongs in any `VITE_` variable for the same reason.
+ */
+export function apiUrl(
+  path: string,
+  env?: Record<string, string | undefined>,
+): string {
+  const base = apiBase(env)
+  if (base === null) return path
+  return `${base}/${path.replace(/^\/+/, '')}`
+}

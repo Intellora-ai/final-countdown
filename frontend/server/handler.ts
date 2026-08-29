@@ -52,6 +52,23 @@ export interface SearchPort {
   search(query: string): Promise<readonly SearchResult[]>
 }
 
+/**
+ * The bridge to the Python doubt engine.
+ *
+ * A PORT, LIKE THE MODEL AND THE SEARCH, AND FOR THE SAME REASON. The engine is
+ * a subprocess with a venv and an interpreter to find; injecting it keeps every
+ * error path here testable without one, and keeps the one implementation of the
+ * bridge — `askEngine` in `doubtEngine.ts` — shared with the dev middleware
+ * instead of copied into it.
+ *
+ * It returns the engine's own status and its raw JSON text, both untouched. The
+ * status map is `ask.py`'s and not this server's: a refusal is 200, because the
+ * engine exits zero for every OUTCOME.
+ */
+export interface DoubtPort {
+  ask(request: string): Promise<{ readonly status: number; readonly body: string }>
+}
+
 export interface ServerRequest {
   readonly method: string
   readonly path: string
@@ -70,6 +87,12 @@ export interface HandlerOptions {
   readonly search: SearchPort
   /** Almanac's memory. Absent means the day routes answer 503, never a guess. */
   readonly almanac?: Ledger
+  /**
+   * The doubt engine. Absent means `/api/doubt` answers 503 with a document the
+   * browser can read, never a 404 — a 404 is indistinguishable from the defect
+   * this route exists to fix, which is the route not being deployed at all.
+   */
+  readonly doubt?: DoubtPort
   /** Strings that must never appear in a response, whatever produced them. */
   readonly secrets?: readonly string[]
   readonly maxBodyBytes?: number
@@ -78,7 +101,7 @@ export interface HandlerOptions {
 /** 256 KB is far above any real request and far below anything that hurts. */
 const DEFAULT_MAX_BODY_BYTES = 256 * 1024
 
-const ROUTES = new Set(['/api/lesson', '/api/ask', '/api/search', '/api/day', '/api/done', '/api/health'])
+const ROUTES = new Set(['/api/lesson', '/api/ask', '/api/search', '/api/doubt', '/api/day', '/api/done', '/api/health'])
 
 /* The one route that answers a GET.
  *
@@ -251,6 +274,57 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         return reply(400, { error: 'question is required' })
       }
       return lessonFrom({ question: body['question'] }, 'answer')
+    }
+
+    if (req.path === '/api/doubt') {
+      /* NO FIELD VALIDATION HERE, DELIBERATELY, AND IT IS THE ONE ROUTE LIKE
+       * THAT. Every other route above guards its fields because it owns them.
+       * The doubt engine owns this one: `ask.py` answers a blank question with
+       * its own `bad_request` document and exit zero. A second validator here
+       * would answer the same request with a different status, and the two
+       * would drift the first time either changed. */
+      if (options.doubt === undefined) {
+        /* 503 AND A DOCUMENT, NOT 404. `engineResolver.ts:170` throws on any
+         * non-ok status and reads the body of what it threw on; a bare 404 is
+         * exactly what the undeployed route already produces, so answering with
+         * one would hide the very failure this route closes. */
+        return reply(503, {
+          outcome: 'unavailable',
+          refusal: 'the doubt engine is not configured on this server',
+        })
+      }
+
+      let engine: { readonly status: number; readonly body: string }
+      try {
+        engine = await options.doubt.ask(JSON.stringify(body))
+      } catch {
+        /* THE REASON IS DROPPED ON PURPOSE. A bridge failure message can carry
+         * an interpreter path, an environment value or a key, and this response
+         * goes to a browser. `scrub` is the last line of defence and not the
+         * first; not putting it in the document is the first. */
+        return reply(503, {
+          outcome: 'unavailable',
+          refusal: 'the doubt engine could not be reached',
+        })
+      }
+
+      let document: unknown
+      try {
+        document = JSON.parse(engine.body)
+      } catch {
+        return reply(502, {
+          outcome: 'engine_error',
+          refusal: 'the engine returned something that is not JSON',
+        })
+      }
+      if (!isPlainObject(document)) {
+        return reply(502, {
+          outcome: 'engine_error',
+          refusal: 'the engine returned something that is not an object',
+        })
+      }
+      /* The engine's status, carried through untouched. See the port's note. */
+      return reply(engine.status, document)
     }
 
     if (req.path === '/api/day') {

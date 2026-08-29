@@ -1,6 +1,7 @@
 import type { AsyncDoubtResolver, Doubt, Resolution } from './contract'
 import type { Lesson } from '../spec/spec'
 import { validateLesson } from '../spec/validate'
+import { apiUrl } from '../api/config'
 
 /**
  * The rung that reaches the engine.
@@ -42,8 +43,21 @@ import { validateLesson } from '../spec/validate'
  * makes that impossible rather than unlikely.
  */
 
-/** Relative on purpose. A relative path cannot leak a key it never has. */
-const ENDPOINT = '/api/doubt'
+/**
+ * The path, and where it is resolved against.
+ *
+ * RELATIVE ON PURPOSE, AND NO LONGER ONLY RELATIVE. A relative path cannot leak
+ * a key it never has, and that is still why there is no credential here. But
+ * relative also means "this origin", and deployed, this origin is a CDN serving
+ * static files: nothing there answers `/api/doubt`, so every doubt was a 404
+ * that read to the learner as the engine refusing.
+ *
+ * `apiUrl` leaves the path untouched when `VITE_API_BASE` is unset, so the dev
+ * server keeps working with no configuration at all, and points at the deployed
+ * backend when it is set. The base is a URL and never a credential -- see the
+ * note in `canvas/api/config.ts` about everything `VITE_` being public.
+ */
+const PATH = '/api/doubt'
 
 export interface EngineResolverOptions {
   /** Overridden only in tests. Defaults to the global fetch. */
@@ -57,6 +71,11 @@ export interface EngineResolverOptions {
    * previous behaviour, and it is the defect this closes.
    */
   readonly timeoutMs?: number
+  /**
+   * The environment to read `VITE_API_BASE` from. Overridden only in tests:
+   * `import.meta.env` is fixed at build time and cannot be varied per case.
+   */
+  readonly env?: Record<string, string | undefined>
 }
 
 /**
@@ -106,7 +125,7 @@ function refuse(reason: string): Resolution {
 }
 
 export function engineResolver(options: EngineResolverOptions = {}): AsyncDoubtResolver {
-  const endpoint = options.endpoint ?? ENDPOINT
+  const endpoint = options.endpoint ?? apiUrl(PATH, options.env)
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
 
   return {

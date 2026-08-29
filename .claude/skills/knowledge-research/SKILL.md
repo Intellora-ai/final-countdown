@@ -194,8 +194,22 @@ records none of that until someone opens a pull request.
 ## No blind copying
 
 These are third-party repositories under their own licences, recorded in
-`knowledge/README.md`. **Five carry no licence file at all**, which means all
-rights reserved, not public domain. Two are GPL-3.0.
+`knowledge/README.md`. Measured from the generated manifest, 2026-08-29:
+
+- **Seven carry no licence file at all** — `build-your-own-x`, `free-for-dev`,
+  `machine-learning-zoomcamp`, `papers-we-love`, `progit`, `what-happens-when`,
+  and `openstax/mikroekonomia`. No licence means **all rights reserved**, not
+  public domain.
+- **Two are GPL-3.0.**
+- **`progit` and all 55 `openstax/*` are CC BY-NC-SA — NonCommercial.** They may
+  not be reused in anything commercial. See
+  `knowledge/decisions/corpus-exclusions.md`.
+
+That last point is why the manifest cannot be trusted alone here: the detector
+reads LICENSE files, and it reports `progit` as UNLICENSED and 41 OpenStax repos
+as "SEE LICENSE FILE" even though their own READMEs state the NonCommercial
+term. The manifest records what was found; the decision file records what is
+actually true.
 
 - Understand the approach; do not transcribe the code.
 - Adapt to this repository's structure and conventions.
@@ -207,8 +221,14 @@ rights reserved, not public domain. Two are GPL-3.0.
 
 ## Cost discipline
 
-The corpus is roughly 413 MB across 21 repositories. Reading it carelessly makes
-this system worse than having no system.
+The corpus is **11 GB across 83 repositories** (`du -sh knowledge`, 83 declared
+submodules, measured 2026-08-29). Reading it carelessly makes this system worse
+than having no system.
+
+**`openstax/` alone is 10 GB of that — 95% of the disk.** It is also almost none
+of the readable text: those books are ~96% images by size, and their text is
+`.cnxml`, not markdown. Never point a search at `knowledge/` and expect it to
+finish sensibly.
 
 - Never read a whole knowledge file into context.
 - Never search across all of `knowledge/`. Scope to the one selected directory.

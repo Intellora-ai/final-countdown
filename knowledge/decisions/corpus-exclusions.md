@@ -80,6 +80,11 @@ The GitHub licence detector disagrees with the repositories themselves:
 - **13 of 55** report `CC-BY-4.0` to the API.
 - **42 of 55** report `NOASSERTION` — the detector found no standard licence file.
 
+Confirmed independently after all 55 were checked out, by reading the generated
+`knowledge/README.md`: **13 detected as `CC-BY-4.0`, 41 as "SEE LICENSE FILE",
+1 (`openstax/mikroekonomia`) as `UNLICENSED`.** The same 13. So the split is a
+real property of the repositories, not an artefact of the API.
+
 Reading the `NOASSERTION` repositories' own READMEs shows they state **CC BY-NC-SA**.
 So the API answer is not usable, and the safe reading — the one recorded here —
 is that the whole OpenStax set carries the **NonCommercial** term. Do not assume
@@ -144,11 +149,15 @@ So do not carry a "shallow saves ~N%" figure forward from any of these. Ask the
 question that actually decides it: *is this repository heavy with history, or
 heavy with files?* Only the first kind is helped by `--depth 1`.
 
-The consequence to expect and not be alarmed by: across the full corpus,
-**`openstax/` is roughly 90% of the disk and roughly 2% of the searchable
-text.** A future session looking at `du -sh knowledge` and concluding the corpus
-is enormous is reading a picture library, not a reading list. The owner was
-shown the 9-11 GB figure and approved it.
+The consequence to expect and not be alarmed by, now measured on the finished
+corpus rather than projected: `knowledge/` is **11 GB (11,333 MB)** across 83
+submodules, of which `knowledge/openstax/` is **10 GB (10,718 MB) — 95% of the
+disk**, and almost none of the readable text.
+
+A future session running `du -sh knowledge` and concluding the corpus is
+enormous is reading a picture library, not a reading list. The owner was shown
+the 9-11 GB estimate before the batch ran and approved it; the real figure
+landed inside that range.
 
 ### The option that exists if the corpus ever needs to shrink
 

@@ -608,3 +608,119 @@ stroke weights, arrow style, motion timing. Geometry differs. Grammar does not.
 
 > If lesson 2 has different padding tokens than lesson 5, the token layer failed.
 > If the selector cannot justify its archetype choice, the selector failed.
+
+---
+
+# Working rules — knowledge base and engineering discipline
+
+Added 2026-08-26. **This section is ADDITIVE.** Everything above it still
+stands, unchanged.
+
+## Precedence — read this before the rules below
+
+**LAW 0 and LAW 5 win.** Where anything in this section is weaker than them, they
+govern.
+
+Specifically: "verify by running" below is a **floor, not a replacement for
+test-first**. LAW 0 requires the order
+
+```
+requirements -> what must be true -> the hardest test -> WATCH IT FAIL -> then code
+```
+
+Running the code afterwards and seeing it work does not satisfy that. A test
+written after the implementation passes on its first run and proves nothing,
+which is exactly why the red run is mandatory. Nothing below relaxes it.
+
+## Session start
+
+At the start of every session, read `knowledge/README.md` and `wiki/index.md` to
+load the current state of the project before doing anything else.
+
+## Context first
+
+Before ANY task, search the `knowledge/` folder (and `wiki/` if present) for
+relevant context. Read the relevant files before writing code. Never build from
+a partial picture. **If knowledge is missing, say so and ask before
+proceeding** — do not fill the gap with a guess.
+
+Order of authority when the sources disagree:
+
+```
+1. this repository's own code and tests   — what is actually true here
+2. knowledge/architecture, decisions, patterns, api — what we decided and why
+3. current official documentation          — what is true today upstream
+4. knowledge/ curated corpus               — background and prior art only
+```
+
+The corpus never outranks official documentation on a live API. See
+`.claude/skills/knowledge-research/SKILL.md` for the routing table and the
+Current-Truth Rule.
+
+## The always-on loop
+
+For every non-trivial implementation task:
+
+```
+UNDERSTAND -> INSPECT CURRENT STATE -> RESEARCH RELEVANT KNOWLEDGE
+           -> FORM STRUCTURED PLAN -> IMPLEMENT -> VERIFY
+```
+
+Use the repository-local `knowledge-research` skill when it is relevant. It is
+not relevant to most tasks, and that is fine — skipping it deliberately and
+saying so is correct behaviour.
+
+Never:
+
+- load an entire knowledge repository into context
+- blindly copy an implementation
+- assume an old example is current
+- treat a curated list as authoritative
+- use obsolete API information without verification
+- research irrelevant sources merely to satisfy this rule
+
+## Engineering rules
+
+**1. Spec before code.** Define "done" in writing first: the exact behaviour,
+the acceptance criteria, and how it will be verified. Write a short
+step-by-step plan. Keep each step small and atomic. If "done" is unclear, ask —
+do not code on a guess. *(Subordinate to LAW 0: the test comes before the code
+and must be seen failing.)*
+
+**2. State assumptions, do not guess.** List every assumption about
+requirements, codebase and environment. If anything is ambiguous, STOP and ask
+rather than silently picking one reading. Present multiple interpretations when
+a request admits them. Push back when a simpler approach exists.
+
+**3. Write minimum, surgical code.** The least code that solves the problem,
+nothing speculative. Do not refactor what is not broken. Match existing style;
+do not "improve" adjacent code.
+
+**4. Verify by running, never by assuming.** After each piece, run it — tests,
+build, or a real manual check — and prove it works. Do not move on until the
+current piece is verified. "Done" requires evidence: a passing test, a clean
+build, a successful run. If you cannot show it, it is not done. *(Floor only.
+LAW 0's red-first requirement still applies.)*
+
+**5. Git is your save point.** Commit after each verified step with a clear
+message. If something breaks, revert to the last good commit rather than
+patching on top of broken code. Stage explicit paths — never `git add -A` —
+because other sessions share this worktree and a blanket add commits their work
+under your message.
+
+**6. If stuck, stop and report.** Do not guess and do not fake it. Report what
+you tried, the exact error, what you think is wrong, and what you need.
+
+**7. Context first.** Gather relevant context before large work: existing code,
+docs, patterns, constraints. Prefer reading the files over guessing at them.
+
+**8. Never claim success without evidence.** A task is done when it is verified
+and committed. If you cannot verify, say so plainly. Honesty over optimism.
+
+### One rule deliberately omitted
+
+An earlier draft of this section said "treat coverage as a quality gate". It was
+removed rather than softened. The required coverage check in this repository
+measures **38 lines, about 0.05% of the codebase**, so that sentence would have
+asserted a guarantee that does not exist here. Restoring it needs the gate to
+cover something real first.

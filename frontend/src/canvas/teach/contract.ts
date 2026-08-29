@@ -98,6 +98,23 @@ export interface Doubt {
   text: string
   /** The beat the learner was on. Answering does not change it. */
   atBeatId: string
+  /**
+   * Block ids this learner has already been shown for this doubt.
+   *
+   * WITHOUT IT, ASKING TWICE ANSWERS TWICE THE SAME WAY. `resolve` is a pure
+   * function of `(doubt, lesson)`, so a learner who did not understand and
+   * asks again gets the identical blocks back byte for byte -- and their
+   * asking again is the ONE signal that the first explanation failed, which is
+   * exactly the signal the resolver could not see.
+   *
+   * Repeating an explanation that already did not work is worse than saying
+   * nothing. It costs the learner the same reading twice and teaches them the
+   * system is not listening.
+   *
+   * Optional, and absent means "nothing shown yet" rather than "no history
+   * kept": every existing caller behaves as it did before.
+   */
+  shown?: readonly string[]
 }
 
 /**

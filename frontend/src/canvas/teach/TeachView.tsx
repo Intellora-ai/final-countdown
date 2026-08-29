@@ -33,6 +33,7 @@ import type { AnyResolver } from './contract'
 const DEFAULT_RESOLVERS: readonly AnyResolver[] = [lessonResolver]
 
 import './teach.css'
+import { shownAlready } from './shownAlready'
 
 /**
  * A lesson, taught one beat at a time.
@@ -269,7 +270,14 @@ export function TeachView({
       return
     }
 
-    const doubt: Doubt = { text: text.trim(), atBeatId: current.id }
+    /* The history this component has always kept, finally handed over. Without
+       it the resolver cannot tell a first ask from a fourth, and answers all
+       four identically -- see `shownAlready` and `Doubt.shown`. */
+    const doubt: Doubt = {
+      text: text.trim(),
+      atBeatId: current.id,
+      shown: shownAlready(asked),
+    }
     const at = asked.length
     setDraft('')
 

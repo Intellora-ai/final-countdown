@@ -1055,13 +1055,38 @@ export const lessonResolver: DoubtResolver = {
   name: 'lesson',
 
   resolve(doubt: Doubt, lesson: Lesson): Resolution {
+    /*
+     * WHAT THEY HAVE ALREADY READ IS REMOVED BEFORE ANYTHING ELSE RUNS.
+     *
+     * Every strategy below reads `lesson`, so filtering here is what makes all
+     * of them vary rather than only the one that happened to be edited. A
+     * learner asking a second time is telling us the first answer did not land;
+     * handing back the same blocks answers a question they did not ask.
+     *
+     * `shown` empty or absent leaves `lesson` untouched, so this is invisible
+     * to every caller that does not use it.
+     */
+    const seen = new Set(doubt.shown ?? [])
+    const unseen =
+      seen.size === 0
+        ? lesson
+        : { ...lesson, blocks: lesson.blocks.filter((b) => !seen.has(b.id)) }
+
+    /*
+     * RUNNING OUT IS INFORMATION, NOT A BUG. When every block has been shown,
+     * `unseen` is empty, nothing can match, and the refusal below names what
+     * the lesson was about. No special case is needed for it -- one was written
+     * here and removed: a mutant proved the general path already covered it,
+     * and a branch no test can reach is a branch that can rot unnoticed.
+     */
+
     const raw = words(doubt.text)
     const typed = new Set(contentTokens(doubt.text))
-    const index = buildIndex(lesson)
+    const index = buildIndex(unseen)
 
     if (typed.size === 0) return { kind: 'refusal', reason: NOTHING_NAMED, nearest: [] }
 
-    const compared = comparisonStrategy(doubt, lesson, raw)
+    const compared = comparisonStrategy(doubt, unseen, raw)
     if (compared) return compared
 
     /* A guessy name match is discarded rather than answered — but the doubt
@@ -1069,15 +1094,15 @@ export const lessonResolver: DoubtResolver = {
        coincidence" is not the same as "the lesson does not cover this". */
     const named = bestMatch(index.mentions, typed)
     const best = named && !isGuess(named, typed, index.known) ? named : null
-    const asked = best ? lesson.blocks[best.mention.blockIndex] : undefined
+    const asked = best ? unseen.blocks[best.mention.blockIndex] : undefined
 
     if (best && asked) {
       if (isWhy(raw) && best.mention.role === 'title') {
-        const explained = relationStrategy(doubt, lesson, asked)
+        const explained = relationStrategy(doubt, unseen, asked)
         if (explained) return explained
       }
 
-      const derived = derivationStrategy(doubt, lesson, asked)
+      const derived = derivationStrategy(doubt, unseen, asked)
       if (derived) return derived
 
       const alone = aloneStrategy(doubt, asked)
@@ -1085,19 +1110,47 @@ export const lessonResolver: DoubtResolver = {
     }
 
     if (acceptsSentence(index.question, typed) > 0) {
-      const whole = wholeLessonStrategy(doubt, lesson)
+      const whole = wholeLessonStrategy(doubt, unseen)
       if (whole) return whole
     }
 
     const sentence = bestSentence(index.sentences, typed)
     if (sentence) {
-      const block = lesson.blocks[sentence.blockIndex]
+      const block = unseen.blocks[sentence.blockIndex]
       if (block) {
         const alone = aloneStrategy(doubt, block)
         if (alone) return alone
       }
     }
 
-    return refuse(lesson, index, typed)
+    const refused = refuse(unseen, index, typed)
+
+    /*
+     * ON A RE-ASK, A NEAR MATCH IS BETTER THAN A REFUSAL.
+     *
+     * The strategies above answer only on a confident hit. First time round
+     * that is right: pointing at three loosely related blocks when the lesson
+     * plainly covers the thing is worse than saying so. But a learner with
+     * `shown` has ALREADY had the confident hit, and it did not work. The
+     * refusal is then saying "the one good answer is spent" while holding a
+     * list of blocks about the same words -- which is a different angle on the
+     * question, and the next honest move rather than a dead end.
+     *
+     * Guarded on `seen.size`, so the first ask is untouched.
+     */
+    if (seen.size > 0 && refused.kind === 'refusal' && refused.nearest.length > 0) {
+      const near = refused.nearest
+        .map((id) => unseen.blocks.find((b) => b.id === id))
+        .filter((b): b is Block => b !== undefined)
+      const answer = buildAnswer(
+        near.map((b) => b.id),
+        doubt.text,
+        near.map((b) => represent(b, 'primary')),
+        [],
+      )
+      if (answer) return { kind: 'answer', lesson: answer, drawnFrom: near.map((b) => b.id) }
+    }
+
+    return refused
   },
 }

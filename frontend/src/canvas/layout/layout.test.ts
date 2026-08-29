@@ -92,6 +92,81 @@ describe('the selector', () => {
     expect(selectArchetype(profile(lessonOf('prose', 5))).archetype).toBe<Archetype>('discourse')
   })
 
+  /*
+   * TWO LESSONS THAT ARE CHAINS AND WERE READ AS EVIDENCE.
+   *
+   * Found by guarding `logarithms` and `tenses` in `lessons.test.ts`: a
+   * flowchart (bill), a derivation (logs) and a grammar table (tenses) all
+   * landed on `evidence`. Three unlike profiles on one composition is the exact
+   * failure `does not give two unlike lessons the same archetype` names -- the
+   * selector was not reading the content.
+   *
+   * Both cases below are chains the reader walks end to end, which is what
+   * `sequence` means.
+   */
+  it('reads a flow-driven process as a sequence even when the steps are explained in prose', () => {
+    /* `sequence` required `visual >= textual`, so explaining each step in prose
+       -- which is what a civics lesson DOES -- disqualified the lesson from the
+       archetype built for it. `hasSequence` plus a flow block already says the
+       flow drives the lesson; counting prose against it punished teaching. */
+    const lesson = validateLesson(
+      {
+        id: 'x',
+        question: 'Q?',
+        blocks: [
+          body('flow', 'f'),
+          body('prose', 'p1'),
+          body('prose', 'p2'),
+          body('prose', 'p3'),
+        ],
+      },
+      { teaching: 'off' },
+    )
+    if (!lesson.ok) throw new Error('fixture invalid')
+    expect(selectArchetype(profile(lesson.lesson)).archetype).toBe<Archetype>('sequence')
+  })
+
+  it('reads a multi-step derivation as a sequence', () => {
+    /* A derivation is a chain walked end to end -- the same shape as a flow,
+       written in equations instead of boxes. Nothing in the selector looked at
+       `equation`, so every derivation fell through to `evidence`.
+
+       TWO equations, not one: a lone formula sitting beside prose is a claim
+       with its statement, which IS evidence. The chain only exists once one
+       line follows from the one above it. */
+    const lesson = validateLesson(
+      {
+        id: 'x',
+        question: 'Q?',
+        blocks: [
+          body('prose', 'p'),
+          body('equation', 'e1'),
+          body('equation', 'e2'),
+          body('equation', 'e3'),
+        ],
+      },
+      { teaching: 'off' },
+    )
+    if (!lesson.ok) throw new Error('fixture invalid')
+    expect(selectArchetype(profile(lesson.lesson)).archetype).toBe<Archetype>('sequence')
+  })
+
+  it('a single equation beside prose is still evidence, not a sequence', () => {
+    /* THE PAIRED NEGATIVE, and it is load bearing. A selector that returned
+       `sequence` for any equation at all passes the test above and destroys the
+       distinction. One equation is a claim and its statement. */
+    const lesson = validateLesson(
+      {
+        id: 'x',
+        question: 'Q?',
+        blocks: [body('prose', 'p'), body('equation', 'e'), body('table', 't')],
+      },
+      { teaching: 'off' },
+    )
+    if (!lesson.ok) throw new Error('fixture invalid')
+    expect(selectArchetype(profile(lesson.lesson)).archetype).not.toBe<Archetype>('sequence')
+  })
+
   it('always explains itself', () => {
     /* "If the selector cannot justify its archetype choice, the selector
        failed." An empty or boilerplate reason is that failure, so it is

@@ -1,0 +1,63 @@
+[submodule "knowledge/what-happens-when"]
+	path = knowledge/what-happens-when
+	url = https://github.com/alex/what-happens-when.git
+[submodule "knowledge/build-your-own-x"]
+	path = knowledge/build-your-own-x
+	url = https://github.com/codecrafters-io/build-your-own-x.git
+[submodule "knowledge/awesome"]
+	path = knowledge/awesome
+	url = https://github.com/sindresorhus/awesome.git
+[submodule "knowledge/TheAlgorithms/Rust"]
+	path = knowledge/TheAlgorithms/Rust
+	url = https://github.com/TheAlgorithms/Rust.git
+[submodule "knowledge/secret-knowledge"]
+	path = knowledge/secret-knowledge
+	url = https://github.com/trimstray/the-book-of-secret-knowledge.git
+[submodule "knowledge/ossu"]
+	path = knowledge/ossu
+	url = https://github.com/ossu/computer-science.git
+[submodule "knowledge/TheAlgorithms/JavaScript"]
+	path = knowledge/TheAlgorithms/JavaScript
+	url = https://github.com/TheAlgorithms/JavaScript.git
+[submodule "knowledge/TheAlgorithms/Java"]
+	path = knowledge/TheAlgorithms/Java
+	url = https://github.com/TheAlgorithms/Java.git
+[submodule "knowledge/llm-course"]
+	path = knowledge/llm-course
+	url = https://github.com/mlabonne/llm-course.git
+[submodule "knowledge/public-apis"]
+	path = knowledge/public-apis
+	url = https://github.com/public-apis/public-apis.git
+[submodule "knowledge/free-for-dev"]
+	path = knowledge/free-for-dev
+	url = https://github.com/ripienaar/free-for-dev.git
+[submodule "knowledge/system-design-primer"]
+	path = knowledge/system-design-primer
+	url = https://github.com/donnemartin/system-design-primer.git
+[submodule "knowledge/machine-learning-zoomcamp"]
+	path = knowledge/machine-learning-zoomcamp
+	url = https://github.com/DataTalksClub/machine-learning-zoomcamp.git
+[submodule "knowledge/TheAlgorithms/Python"]
+	path = knowledge/TheAlgorithms/Python
+	url = https://github.com/TheAlgorithms/Python.git
+[submodule "knowledge/awesome-selfhosted"]
+	path = knowledge/awesome-selfhosted
+	url = https://github.com/awesome-selfhosted/awesome-selfhosted.git
+[submodule "knowledge/awesome-ios"]
+	path = knowledge/awesome-ios
+	url = https://github.com/vsouza/awesome-ios.git
+[submodule "knowledge/TheAlgorithms/C"]
+	path = knowledge/TheAlgorithms/C
+	url = https://github.com/TheAlgorithms/C.git
+[submodule "knowledge/tech-interview-handbook"]
+	path = knowledge/tech-interview-handbook
+	url = https://github.com/yangshun/tech-interview-handbook.git
+[submodule "knowledge/TheAlgorithms/C-Plus-Plus"]
+	path = knowledge/TheAlgorithms/C-Plus-Plus
+	url = https://github.com/TheAlgorithms/C-Plus-Plus.git
+[submodule "knowledge/papers-we-love"]
+	path = knowledge/papers-we-love
+	url = https://github.com/papers-we-love/papers-we-love.git
+[submodule "knowledge/freeCodeCamp"]
+	path = knowledge/freeCodeCamp
+	url = https://github.com/freeCodeCamp/freeCodeCamp.git

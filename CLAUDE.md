@@ -7,27 +7,90 @@ gets compacted; these files do not.
 
 ## How to talk to Tanveer — read this first
 
-Tanveer is 12. He has ADHD and autism. He asked for this rule on 2026-08-24:
+Tanveer asked for this rule on 2026-08-24:
 
 > **Use simple language. Explain technical things in plain words.**
 
-This applies to EVERY reply, every session, forever.
+This is an accessibility requirement, not a style preference. It applies to
+EVERY reply, every session, forever.
 
-- Short sentences. One idea each.
+### Writing rules
+
+- Short sentences. One idea each. One concept at a time.
 - Plain words: "broken", not "defective". "Check", not "validate".
 - Explain a technical word the first time you use it, in brackets, like:
   "CI (the robot on GitHub that checks your code)".
 - Answer first. Details after.
 - Use short lists and small tables. Walls of text are hard to scan.
+- Use numbered steps when the order matters.
 - **Bold** the part that matters most.
+- Keep facts, actions, warnings and decisions in separate blocks. Do not mix
+  them into one paragraph.
+- Say plainly what is happening now, what happens next, what is finished, and
+  what is blocked and why.
+- Do not repeat one idea in different words.
+
+Say: "This file checks whether…" · "This command does…" · "The error means…" ·
+"The problem is…" · "The fix is…" · "Run this next…" · "This is complete
+because…"
+
+Never say: "Obviously…" · "Simply…" · "As you know…" · "Just do…" · "This is
+trivial…" · "You should already understand…" · "It goes without saying…"
 
 **Do not talk down to him.** He runs this repo, directs several AI sessions at
 once, and catches real mistakes in their work — including mine. Simple is not
-the same as dumb. He also asks for the "HONEST ANSWER" and means it: never soften
-bad news, just say it plainly.
+the same as dumb. He works across Python, AI and LLMs, OCR, CI/CD, GitHub
+Actions, Lean, Rust, APIs, databases and security tools. **Simplify the
+explanation, never the technical quality of the work.** He also asks for the
+"HONEST ANSWER" and means it: never soften bad news, just say it plainly.
 
 If a hook turns on "caveman mode" (dropping words, using fragments), **this rule
 wins**. Fragments are harder to read, not easier. Write full simple sentences.
+
+### How to run a task
+
+1. State the objective.
+2. List the smallest actions needed.
+3. Do one group of related actions at a time.
+4. Show the result.
+5. Name any error straight away, in plain words.
+6. State the next action.
+7. Mark a step complete only after you have verified it.
+
+Mark every step **not started**, **in progress**, **blocked**, or **complete**.
+
+Do not put ten unrelated decisions in front of him at once. When several choices
+are valid: explain them briefly, recommend one, say why it is recommended. Do not
+make him compare options that do not matter.
+
+### How to end a substantial task
+
+End with these four headings, in this order:
+
+- **Completed** — what was built, what was tested, what passed, which files.
+- **Problems** — what failed, what the error means, what you did about it.
+- **Next step** — the single most important next action.
+- **Status** — complete, in progress, blocked, or awaiting approval.
+
+This does not replace the STEP COMPLETE stop protocol further down. When a reply
+finishes a numbered step, use the stop protocol. Use these four headings for
+everything else.
+
+### Scope — chat only
+
+These rules govern replies to Tanveer in chat. Commit messages, PR bodies, issue
+text and code comments stay technical and complete — they are written for the
+repo and for other engineers.
+
+**Personal details about Tanveer never go into anything published.** That means
+commit messages, PR bodies, issues, GitHub annotations, CI logs, generated
+reports, application logs and shared artifacts. This repository is public. Those
+details live only in local instruction files that are never pushed.
+
+**Their absence from this file is deliberate. Do not add them back.** A future
+session may notice the rules here have no stated reason and want to supply one.
+Do not. The reason is recorded privately, off this repository, and this file
+carries the rules alone on purpose.
 
 ---
 
@@ -436,7 +499,7 @@ Also true today, and not to be papered over:
 
 | Concern | Mechanism |
 |---|---|
-| Goal 1 invariance | `token-invariance.spec.ts` — render N lessons, extract computed CSS per block kind, assert every style-token property is identical. Geometry (width, height, item count) is **excluded**. |
+| Goal 1 invariance | `frontend/e2e/token-invariance.spec.ts` — renders all three lessons, reads computed CSS per **(block kind, emphasis)** and asserts every style-token property is identical across lessons. Geometry is **excluded**: width, height, margin, position, grid placement. Runs on all five viewport projects. |
 | Law 4 | `design-value` ESLint AST rule with a structural allowlist |
 | Token coverage | every computed colour / spacing / font-size in the DOM traces to `tokens.ts` |
 | Chart ticks | property test — 20 random ranges per chart type, monotonic and evenly spaced |

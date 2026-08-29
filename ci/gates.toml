@@ -60,6 +60,7 @@ required_checks = [
   "e2e",
   "full",
   "catch-errors",
+  "chaos",
 ]
 
 [schema]
@@ -465,6 +466,28 @@ mandatory = true
 role = "scanner"
 must_contain = ["npm ci", "npm run test:e2e"]
 evidence = "playwright report, uploaded as an artifact on failure"
+artifact = ""
+
+# ---------------------------------------------------------------------------
+# CHAOS — the software is broken on purpose and has to survive it.
+#
+# `must_contain` pins the invocation, not the tool. `npx vitest run` alone would
+# still pass while pointed at a directory that no longer exists, and this
+# repository has already had one gate whose threshold was pinned and whose scope
+# was not. The path is the scope.
+#
+# Every fault is injected into an in-process fake dependency -- a rejected
+# promise, a truncated string, an HTML error page -- so nothing reaches a
+# network, a database or a deployment. Bounded and safe is what makes this a PR
+# gate rather than a nightly campaign.
+# ---------------------------------------------------------------------------
+[gates.chaos]
+workflow = "gate.yml"
+job = "chaos"
+mandatory = true
+role = "scanner"
+must_contain = ["npx vitest run src/canvas/chaos"]
+evidence = "per-experiment PASS/FAIL from the vitest verbose reporter"
 artifact = ""
 
 # ---------------------------------------------------------------------------

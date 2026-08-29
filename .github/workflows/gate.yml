@@ -93,6 +93,66 @@ jobs:
       - name: Ruff
         run: ruff check .
 
+  # CHAOS RUNS ON EVERY PUSH, AS ITS OWN NAMED CHECK.
+  #
+  # The experiments already execute inside the `frontend` job, because they are
+  # vitest files and that job runs the suite. Giving them a job of their own is
+  # not duplication for its own sake: a chaos failure buried among 8,654 unit
+  # results reads as "a test broke", and the thing worth knowing is WHICH REAL
+  # OUTAGE the software stopped surviving. A check named `chaos` says that in
+  # the PR list without anyone opening a log.
+  #
+  # These are bounded and safe by construction. Every fault is injected into an
+  # in-process fake dependency -- a rejected promise, a truncated string, an
+  # HTML error page -- so nothing touches a network, a database or a deployed
+  # environment. That is what makes it a PR gate rather than a nightly campaign.
+  chaos:
+    name: chaos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # EVIDENCE THAT THE SKILLS ARE IN THE REPOSITORY AND NOT ON A LAPTOP.
+      #
+      # A skill that exists only on one machine cannot be used by CI, and
+      # "we have chaos skills" is unfalsifiable until a runner prints them.
+      # This step reads the committed directory on the runner's own checkout.
+      - name: The skills CI can see
+        run: |
+          set -euo pipefail
+          echo "### Repository skills available to this run" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          ls -1 .claude/skills | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          test -f .claude/skills/chaos-engineer/SKILL.md
+          test -f .claude/skills/chaos-engineering/SKILL.md
+          test -f .claude/skills/systematic-debugging/SKILL.md
+          echo "chaos-engineer, chaos-engineering and systematic-debugging are all present."
+
+      - name: Inject faults and check the invariant survives
+        working-directory: frontend
+        run: npx vitest run src/canvas/chaos --reporter=verbose
+
+      - name: Keep the chaos report whatever the verdict
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: chaos-report
+          path: frontend/src/canvas/chaos
+          if-no-files-found: ignore
+
   claude-fix:
     name: claude-fix
     needs: catch-errors

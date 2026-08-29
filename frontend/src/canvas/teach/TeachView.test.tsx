@@ -509,6 +509,31 @@ describe('input the view does not recognise', () => {
     ).toMatch(/A reply to your question/i)
   })
 
+  it('advances the beat on "yes", which is the reply it asked for', async () => {
+    /*
+     * THE CHECKPOINT IS A YES/NO QUESTION, SO "yes" IS THE ANSWER, NOT NOISE.
+     *
+     * Every string `beats.ts` can put here is closed -- "Did that land?",
+     * "Does that follow?", "Making sense so far?". The filler list used to hold
+     * `yes`, `no`, `yeah`, `yep`, `nope`, `sure`, `ok`, `okay`, `k` and `kk`, so
+     * the learner answered the question exactly as asked and the screen replied
+     * "I didn't catch that." The lesson could not be finished by anyone who
+     * answered it in one word.
+     *
+     * ASSERTED HERE AND NOT ONLY IN `turn.test.ts` FOR THE REASON THIS FILE
+     * ALREADY GIVES ABOVE: a classifier returning the right verdict proves
+     * nothing if `submit` does not act on it. What a learner can see is whether
+     * the question on screen changed, so that is what is checked.
+     */
+    const { container } = await teach()
+    const before = checkpointText(container)
+    await submitText('yes')
+    expect(
+      checkpointText(container),
+      '"yes" answered a yes/no checkpoint and the lesson refused to move',
+    ).not.toBe(before)
+  })
+
   it('still advances the beat on a real answer', async () => {
     /* The other pair: `unclear` must not swallow answers either, or the lesson
        can never move. */

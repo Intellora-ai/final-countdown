@@ -29,14 +29,31 @@ import { classifyTurn } from './turn'
  * advance, it asks back.
  */
 
-/** What people type when they are not answering: greetings, noise, filler. */
+/**
+ * What people type when they are not answering: greetings, noise, filler.
+ *
+ * `ok`, `okay`, `k` AND `a` WERE REMOVED, AND THE EXPECTATION WAS WRONG, NOT
+ * THE CODE. Every checkpoint `beats.ts` writes is a yes/no question -- "Did
+ * that land?", "Does that follow?", "Making sense so far?" -- and "ok" is how a
+ * person says yes to one. This file asserted that the reply the screen had just
+ * asked for must never advance the lesson, so a learner who answered correctly
+ * was told "I didn't catch that" and the beat never moved.
+ *
+ * The removal is not a weakening. The pair below is new and STRICTER: it pins
+ * the direction this list must never cross again.
+ *
+ * `a` goes for a nearer reason -- it is a plausible answer to any question
+ * offering lettered options, and it only appeared here because a `length <= 2`
+ * rule needed something to justify it.
+ *
+ * WHAT STAYS. A greeting is not an answer to anything, and no question this
+ * product asks is answered by "hi". That distinction is the whole content of
+ * this list, and it is why the list cannot simply be deleted.
+ */
 const NOT_AN_ANSWER = fc.constantFrom(
   'hi',
   'hey',
   'hello',
-  'ok',
-  'okay',
-  'k',
   'yo',
   'sup',
   'lol',
@@ -45,11 +62,30 @@ const NOT_AN_ANSWER = fc.constantFrom(
   'idk',
   'asdf',
   'test',
-  'a',
   '...',
   'thanks',
   'nice',
   'cool',
+)
+
+/**
+ * The replies the product's OWN questions ask for.
+ *
+ * Not a guess about English. `beats.ts` authors every checkpoint, and all
+ * fifteen strings it can produce are closed yes/no questions, so this is the
+ * set of things a learner is being invited to type. Whatever else the noise
+ * list grows to hold, it may never hold one of these.
+ */
+const THE_REPLY_THE_QUESTION_ASKED_FOR = fc.constantFrom(
+  'yes',
+  'no',
+  'yeah',
+  'yep',
+  'nope',
+  'sure',
+  'ok',
+  'okay',
+  'k',
 )
 
 describe('what a person actually types', () => {
@@ -96,6 +132,31 @@ describe('what a person actually types', () => {
     ]) {
       expect(classifyTurn(real), `a real answer was refused: "${real}"`).toBe('answer')
     }
+  })
+
+  it('never refuses the reply its own question asked for', () => {
+    /*
+     * THE GUARD THAT WAS MISSING, and its absence is what let ten valid answers
+     * into the filler list at once.
+     *
+     * The direction matters more than the count. Noise getting through wastes
+     * one beat and the learner can still ask a question. A refused answer
+     * strands them: the beat will not move, the screen says it did not catch
+     * what they typed, and typing it more clearly does not help because it was
+     * never unclear.
+     *
+     * So this asserts the SAFE direction, and it is the one the earlier fix
+     * crossed without noticing.
+     */
+    fc.assert(
+      fc.property(THE_REPLY_THE_QUESTION_ASKED_FOR, (typed) => {
+        expect(
+          classifyTurn(typed),
+          `"${typed}" answers a yes/no checkpoint and was refused, stranding the learner`,
+        ).toBe('answer')
+      }),
+      { numRuns: 200 },
+    )
   })
 
   it('still calls a question a question', () => {

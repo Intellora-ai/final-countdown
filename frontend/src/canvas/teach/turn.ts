@@ -21,15 +21,41 @@ export type Turn = 'question' | 'answer' | 'empty' | 'unclear'
  * Tokens people type instead of answering. Greetings, acknowledgement, noise.
  *
  * A LIST, AND SAID TO BE ONE. A list is exactly as good as the imagination of
- * whoever last edited it, so it does not carry this alone -- the length and
- * shape rule beside it catches the ones nobody thought of, and both feed the
- * INERT outcome rather than an active one. A spelling that escapes this set and
- * is longer than two characters is treated as an answer, which is the same
- * behaviour as before; nothing regresses when the list is incomplete.
+ * whoever last edited it, so it is INCOMPLETE by construction and always will
+ * be. It feeds the inert outcome rather than an active one for exactly that
+ * reason: a spelling nobody thought of is treated as an answer, which is the
+ * old behaviour, so nothing regresses when the list falls short.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * WHAT MAY NEVER BE IN HERE: A REPLY THE PRODUCT'S OWN QUESTION ASKS FOR.
+ * ────────────────────────────────────────────────────────────────────────────
+ *
+ * This set used to contain `yes`, `no`, `yeah`, `yep`, `nope`, `sure`, `ok`,
+ * `okay`, `k` and `kk`, and every checkpoint this product asks is a YES/NO
+ * QUESTION. All fifteen strings `beats.ts` can produce are closed:
+ *
+ *     ASK_BY_TONE   "Did that land?"   "That is the result -- is it clear?"
+ *     ASK_BY_FORM   "Does that follow?"   "Making sense so far?"
+ *                   "Can you see that in the numbers?"
+ *     UNNAMED_NEXT  "There is a bit more -- shall we carry on?"
+ *
+ * So the learner read "Did that land?", typed "yes", and was told "I didn't
+ * catch that." The beat did not move. `beats.ts:444` says of the depth offer
+ * that "saying no here loses them nothing" -- the design EXPECTS "no", and this
+ * refused it.
+ *
+ * That is the worse failure of the two, and the direction matters. Noise
+ * getting through wastes one beat and the learner can still ask. A refused
+ * answer strands them with nothing that works.
+ *
+ * The rule this leaves behind needs no new vocabulary, because the two sets are
+ * different in kind. Noise is UNBOUNDED -- there are endlessly many ways to say
+ * nothing, so this list can never be finished. The replies to a yes/no question
+ * are BOUNDED BY THE QUESTION the product itself wrote. Anything in the second
+ * set is not noise, whatever it looks like in isolation.
  */
 const FILLER = new Set([
   'hi', 'hey', 'hello', 'yo', 'sup', 'hiya',
-  'ok', 'okay', 'k', 'kk', 'sure', 'yeah', 'yep', 'yes', 'no', 'nope',
   'lol', 'haha', 'hmm', 'hm', 'huh', 'oh', 'ah', 'wow', 'nice', 'cool',
   'idk', 'dunno', 'asdf', 'test', 'testing', 'thanks', 'thank', 'ty', 'please',
 ])
@@ -90,7 +116,18 @@ export function classifyTurn(text: string): Turn {
     const bare = only.replace(/[^a-z0-9']/g, '')
     if (bare === '') return 'unclear'
     if (/[0-9]/.test(bare)) return 'answer'
-    if (FILLER.has(bare) || bare.length <= 2) return 'unclear'
+    /*
+     * NO LENGTH RULE. This said `|| bare.length <= 2`, which refused every
+     * two-letter token that was not a digit -- so `pi`, `pH`, `Na`, `eV` and
+     * `CO` were all "unclear", and those are the names a science lesson asks
+     * about by name. It also refused `ok`, `no` and `k` a second time, after
+     * the list above already had them.
+     *
+     * Length is not evidence of emptiness. It was standing in for "I could not
+     * think of every filler word", and that is what the list is for -- honestly
+     * incomplete rather than dressed up as a measurement.
+     */
+    if (FILLER.has(bare)) return 'unclear'
   }
 
   return 'answer'

@@ -46,7 +46,13 @@ import {
 
 /** What a caller needs from a model. One turn, text in, text out. */
 export interface LessonModel {
-  (system: string, user: string): Promise<string>
+  /**
+   * `priorAssistant` is what the model returned last time. Supplying it on a
+   * repair turns "fix these problems" into a correction of a document the model
+   * can actually see; omitting it makes the same message a complaint about
+   * something it has never read, and it regenerates from scratch.
+   */
+  (system: string, user: string, priorAssistant?: string): Promise<string>
 }
 
 export type AuthorResult =
@@ -112,21 +118,24 @@ export function teachingSystemPrompt(): string {
     '    separates two things that get confused. The marked text must appear in the body.',
     ' 6. TECHNICAL WORDS. List them in technicalTerms with the block that earns each one.',
     '    A term must not appear anywhere before that block.',
-    ' 7. AMBIGUOUS WORDS. If you use a word with two meanings (right, base, power, mean,',
-    '    order, state, capital, volume, work, force, positive, significant, theory...),',
-    '    either declare it in technicalTerms or mark it as a "distinction".',
-    ' 8. SHOW SOMETHING. Every few blocks include a table, chart, flow or figure that fits,',
+    /* Rule 7 was "declare any ambiguous word". It is gone because the CHECK is
+       gone: it refused six of seven ordinary English sentences, so it was
+       removed from `teaching.ts`. Leaving the instruction here would make this
+       list say "These are CHECKED" about something that is not, which is the
+       drift this file's header warns against. Numbering closes up rather than
+       leaving a hole, so the list reads as what it is. */
+    ' 7. SHOW SOMETHING. Every few blocks include a table, chart, flow or figure that fits,',
     '    and connect it with a relation to a text block near it. Never decorative.',
-    ' 9. EARN RULES. If any block has role "rule", include a reasoning block with',
+    ' 8. EARN RULES. If any block has role "rule", include a reasoning block with',
     '    mode "why" that derives one of them from something simpler. Every step needs',
     '    its "because". Never assert a rule you do not justify.',
-    '10. ARROWS. Never type "->" or an arrow into prose. Order and cause go in a flow block.',
-    `11. EXAMPLES. role "example" blocks: at most ${MAX_EXAMPLE_WORDS} words, and exactly one`,
+    ' 9. ARROWS. Never type "->" or an arrow into prose. Order and cause go in a flow block.',
+    `10. EXAMPLES. role "example" blocks: at most ${MAX_EXAMPLE_WORDS} words, and exactly one`,
     '    "exemplifies" relation pointing at the single thing they illustrate.',
-    '12. MISTAKES. Use a misconception block for the error people actually make. Give the',
+    '11. MISTAKES. Use a misconception block for the error people actually make. Give the',
     '    wrong form, the correct form, why, and where possible a counterexample with',
     '    concrete numbers or a concrete case.',
-    '13. ENDING. The core ends with a "summary" block: an ordered progression of 2+ steps',
+    '12. ENDING. The core ends with a "summary" block: an ordered progression of 2+ steps',
     '    and a one-sentence mentalModel.',
     '',
     'DEPTH IS OPT-IN, AND THIS MATTERS MORE THAN LENGTH.',
@@ -202,7 +211,16 @@ export async function authorLesson(
       ? [{ path: '(root)', message: 'the reply contained no JSON object at all' }]
       : firstResult.issues
 
-  const second = await model(system, repairRequest(question, firstIssues))
+  /*
+   * THE FIRST REPLY IS REPLAYED, AND WITHOUT IT THIS WAS NOT A REPAIR PASS.
+   *
+   * `repairRequest` says "return the whole corrected JSON object again" and
+   * "do not start over". Both were impossible: the transport sent only
+   * `[system, user]`, so the model had never seen the object it was being asked
+   * to correct. It regenerated blind, and the second failure was reported as a
+   * failed repair when no repair had been possible.
+   */
+  const second = await model(system, repairRequest(question, firstIssues), first)
   const secondParsed = extractJson(second)
   const secondResult = validateLesson(secondParsed)
   if (secondResult.ok) return { ok: true, lesson: secondResult.lesson, attempts: 2 }

@@ -163,6 +163,31 @@ function readableText(block: Block): string {
       return block.why
     case 'summary':
       return block.mentalModel
+
+    /*
+     * A REASONING BLOCK IS TEXT, AND IT WAS INVISIBLE TO EVERY TEXT RULE.
+     *
+     * This returned `''` for `reasoning`, so the length rule never measured a
+     * derivation and `checkBodyOutweighsHeadings` counted ZERO body words for a
+     * lesson led by one. A lesson whose whole argument is a reasoning block was
+     * therefore told "the lesson is a contents page: the teaching has to be in
+     * the text, not in the titles" — about a block that is nothing but text.
+     *
+     * The same class of false alarm as the `heading === 0` case fixed earlier
+     * in this branch. That fix closed one half and left this half open.
+     *
+     * Every field a reader actually reads is joined here. The step separator is
+     * a blank line on purpose: `segments()` splits on exactly that, so each
+     * step is measured as its own run rather than the whole derivation being
+     * counted as one 200-word block and refused for it.
+     */
+    case 'reasoning':
+      return [
+        block.claim,
+        ...block.steps.map((s) => `${s.expression} ${s.because}`),
+        block.therefore,
+      ].join('\n\n')
+
     default:
       return ''
   }

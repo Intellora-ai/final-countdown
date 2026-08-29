@@ -172,7 +172,20 @@ export function chatOnce(options: HttpModelOptions) {
     fetchImpl,
   } = options
 
-  return async function chat(system: string, user: string): Promise<string> {
+  /**
+   * `priorAssistant` is what the model said LAST time, replayed so a follow-up
+   * can be a correction rather than a re-roll.
+   *
+   * Without it a "fix these problems" message is a complaint about a document
+   * the model cannot see, so it regenerates from scratch and the second failure
+   * gets reported as though a repair had been attempted. The agent's own
+   * `GenerateRequest.mustFix` makes the same distinction for the same reason.
+   */
+  return async function chat(
+    system: string,
+    user: string,
+    priorAssistant?: string,
+  ): Promise<string> {
     if (!endpoint) {
       throw new Error(
         'httpModel: no model endpoint is configured, so there is nothing to ask. '
@@ -210,10 +223,17 @@ export function chatOnce(options: HttpModelOptions) {
              on a retry, which reads to a student as the teacher changing its
              mind. */
           temperature: 0.2,
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: user },
-          ],
+          messages:
+            priorAssistant === undefined
+              ? [
+                  { role: 'system', content: system },
+                  { role: 'user', content: user },
+                ]
+              : [
+                  { role: 'system', content: system },
+                  { role: 'assistant', content: priorAssistant },
+                  { role: 'user', content: user },
+                ],
         }),
       })
     } catch (e) {

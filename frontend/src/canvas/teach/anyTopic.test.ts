@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import { authorConcept } from './concept'
-import { itemTable, neverReached, summarise, type ItemVerdict, type SeedRun } from './matrix'
+import {
+  implausiblyFast,
+  itemTable,
+  neverReached,
+  summarise,
+  type ItemVerdict,
+  type SeedRun,
+} from './matrix'
 import type { LessonModel } from './authorLesson'
 
 /*
@@ -127,6 +134,35 @@ describe.skipIf(ENDPOINT === '')('any topic, not six topics', () => {
   it(
     'teaches across the whole matrix, and never refuses for a curriculum reason',
     async () => {
+      /*
+       * HEARTBEAT FIRST, AND THE RUN DOES NOT START WITHOUT ONE.
+       *
+       * A model id is a hard dependency on a third party who can retire it
+       * without telling anyone, and nothing here was taking its pulse. When
+       * `llama-3.3-70b-versatile` was withdrawn, every one of sixteen items
+       * came back `HTTP 404` and the suite reported PASS -- the withdrawal
+       * COLOURED the result instead of stopping it.
+       *
+       * `system-design-primer` states the shape: heartbeats between the active
+       * and the passive server, and the passive takes over when the heartbeat
+       * stops. There is no passive model here yet, so this does the half that
+       * matters most -- it refuses to report a number it cannot stand behind.
+       *
+       * One trivial prompt, before sixteen expensive ones.
+       */
+      try {
+        await httpModel()('Reply with the single word: ok', 'ok')
+      } catch (error) {
+        const why = error instanceof Error ? error.message : String(error)
+        throw new Error(
+          `heartbeat failed, so no measurement was attempted: ${why}\n` +
+            `The configured model is ${MODEL}. A withdrawn or misspelled model ` +
+            `id looks exactly like a system that cannot teach, and the whole ` +
+            `point of stopping here is that those two must never be confused.`,
+        )
+      }
+
+      const started = Date.now()
       const runs: SeedRun[] = []
 
       for (const seed of SEEDS) {
@@ -215,6 +251,24 @@ describe.skipIf(ENDPOINT === '')('any topic, not six topics', () => {
         unreached.map((v) => `${v.item} -> ${v.unreachable ?? ''}`),
         'the model was never reached, so this run measured nothing at all',
       ).toEqual([])
+
+      /*
+       * AND IT HAS TO HAVE TAKEN LONG ENOUGH TO BE REAL.
+       *
+       * The check above catches the failure already seen, because the provider
+       * announced it. This catches the ones that will not announce themselves
+       * -- a cache, a fake left wired in, a mock answering instantly -- because
+       * all of them produce individually plausible output and only the
+       * arithmetic gives them away. The run that prompted all of this took
+       * 972ms for sixteen items.
+       */
+      const elapsed = Date.now() - started
+      const attempted = runs.flatMap((run) => run.items)
+      expect(
+        implausiblyFast(attempted, elapsed),
+        `${attempted.length} generations finished in ${elapsed}ms, which is too ` +
+          `fast to have happened; nothing was really measured`,
+      ).toBe(false)
     },
     45 * 60 * 1000,
   )

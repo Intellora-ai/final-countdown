@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { authorConcept, conceptRequest } from './concept'
 import type { LessonModel } from './authorLesson'
 import { AXES, nextRoute } from './route'
-import { itemTable, neverReached, summarise } from './matrix'
+import { implausiblyFast, itemTable, neverReached, summarise } from './matrix'
 
 describe('the route is a pure function of (question, seed)', () => {
   it('sends the directive the caller seeded, not one derived from the question', async () => {
@@ -133,5 +133,55 @@ describe('a run that never reached the model is not a result', () => {
       { seed: 1, items: [{ item: 'a', ok: false, why: 'blocks[0]: the definition is 32 words' }] },
     ]
     expect(neverReached(runs)).toEqual([])
+  })
+})
+
+/*
+ * A RESULT THAT COULD NOT PHYSICALLY HAVE BEEN PRODUCED IS NOT A RESULT.
+ *
+ * `neverReached` catches the failure that has already been seen: the provider
+ * said 404 and said so out loud. It cannot catch the next way this goes hollow,
+ * because that one will not announce itself -- a cache returning stubs, a fake
+ * left wired in, a mock that answers instantly.
+ *
+ * What all of them share is arithmetic. Sixteen language-model generations do
+ * not complete in under a second. The run that started this had a wall clock of
+ * 972ms for sixteen items and reported PASS; no assertion on the OUTPUT could
+ * have caught that, because the outputs were individually plausible.
+ *
+ * So the process is checked, not only the output. This is the guard that
+ * survives the specific bug it was written for.
+ */
+describe('a run too fast to have happened', () => {
+  const items = Array.from({ length: 16 }, (_, i) => ({
+    item: `q${i}`,
+    ok: true,
+    why: '',
+  }))
+
+  it('refuses a wall clock no real generation could have produced', () => {
+    /* The exact number from the run that started this: 16 items, 972ms. */
+    expect(
+      implausiblyFast(items, 972),
+      'sixteen generations in under a second were accepted as real',
+    ).toBe(true)
+  })
+
+  it('accepts a run that took a plausible amount of time', () => {
+    /*
+     * THE PAIR. Without it, `return true` satisfies the case above and every
+     * real run is refused -- which would get the check deleted within a day,
+     * and then it enforces nothing at all.
+     */
+    expect(
+      implausiblyFast(items, 16 * 20_000),
+      'a genuine twenty-second-per-item run was called impossible',
+    ).toBe(false)
+  })
+
+  it('does not judge a run with nothing in it', () => {
+    /* Zero items in zero time is not evidence of anything, and calling it
+       impossible would fire on a legitimately empty matrix. */
+    expect(implausiblyFast([], 0)).toBe(false)
   })
 })

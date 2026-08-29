@@ -112,3 +112,36 @@ export function neverReached(runs: readonly SeedRun[]): readonly ItemVerdict[] {
     run.items.filter((item) => item.unreachable !== undefined && item.unreachable !== ''),
   )
 }
+
+/**
+ * The floor below which a generation cannot have happened, per item.
+ *
+ * Deliberately far under any real figure. The measured means on this matrix
+ * have run 12s to 223s per item; 250ms is not a performance expectation, it is
+ * a statement about physics. Setting it near the real mean would make the check
+ * fire on a fast provider and get it deleted, and a check that has been deleted
+ * enforces nothing.
+ */
+export const MIN_MS_PER_GENERATION = 250
+
+/**
+ * Whether a run finished too fast to have generated what it claims.
+ *
+ * WHY THE PROCESS IS CHECKED AND NOT ONLY THE OUTPUT.
+ *
+ * `neverReached` catches the failure already seen -- the provider answered 404
+ * and said so. It cannot catch the next way a run goes hollow, because that one
+ * will not announce itself: a cache returning stubs, a fake left wired in, a
+ * mock that answers instantly. Every one of those produces individually
+ * plausible outputs, so no assertion on the output can separate them.
+ *
+ * What they share is arithmetic. The run that prompted this took 972ms for
+ * sixteen items and reported PASS.
+ *
+ * An empty run is not judged: zero items in zero time is not evidence of
+ * anything, and refusing it would fire on a legitimately empty matrix.
+ */
+export function implausiblyFast(items: readonly ItemVerdict[], elapsedMs: number): boolean {
+  if (items.length === 0) return false
+  return elapsedMs < items.length * MIN_MS_PER_GENERATION
+}

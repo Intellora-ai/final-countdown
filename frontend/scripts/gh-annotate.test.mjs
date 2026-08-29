@@ -260,3 +260,76 @@ describe('states that are not failures', () => {
     expect(out).toContain('anyTopic.test.ts')
   })
 })
+
+/*
+ * EVERY STATUS THE RUNNER CAN EMIT IS NAMED, AND AN UNKNOWN ONE IS AN ERROR.
+ *
+ * The first fix here replaced a denylist (`passed` or `pending` are fine,
+ * annotate everything else) with a one-item allowlist (`failed` is a failure,
+ * ignore everything else). That swapped one silent-miss for its mirror image:
+ * `timedOut` and `interrupted` ARE failures, and the new line dropped both
+ * without a word.
+ *
+ * Ptacek & Newsham 1998 -- `knowledge/papers-we-love/security/` -- is the
+ * canonical statement of the class: a detector that enumerates what it knows
+ * misses everything it did not enumerate, because its model of the world and
+ * the real one disagree. Vitest said `skipped`; the list held `pending`.
+ *
+ * So both sets are named, and a status in NEITHER is reported as an error in
+ * its own right. That is the part that stops the list rotting: the next status
+ * a runner invents arrives as a loud annotation naming itself, instead of being
+ * silently counted as a pass or a failure. This repository already draws the
+ * distinction -- `laws.py` refuses unknown shapes by default where
+ * `no-symptom-patch.py` holds a list of spellings -- and the annotator had not
+ * been written to it.
+ */
+describe('the status map is closed, and says so when it is not', () => {
+  function reportWithStatus(status) {
+    return JSON.stringify({
+      numTotalTests: 1,
+      numFailedTests: 0,
+      testResults: [
+        {
+          name: '/w/final-countdown/frontend/src/canvas/teach/anyTopic.test.ts',
+          assertionResults: [
+            {
+              status,
+              title: 'teaches across the whole matrix',
+              ancestorTitles: ['any topic'],
+              failureMessages: [],
+            },
+          ],
+        },
+      ],
+    })
+  }
+
+  for (const status of ['failed', 'timedOut', 'interrupted']) {
+    it(`annotates ${status}, because it is a failure`, () => {
+      const out = annotate('vitest', reportWithStatus(status))
+      expect(out, `a ${status} test reached nobody`).toContain('::error')
+    })
+  }
+
+  for (const status of ['passed', 'pending', 'skipped', 'todo', 'disabled']) {
+    it(`does not annotate ${status}, because it is not a failure`, () => {
+      const out = annotate('vitest', reportWithStatus(status))
+      expect(out, `a ${status} test was reported as a failure`).not.toContain('::error')
+    })
+  }
+
+  it('reports a status it has never seen rather than guessing', () => {
+    /*
+     * THE GUARD AGAINST THE LIST ROTTING.
+     *
+     * Both branches above are lists, and a list is exactly as good as the
+     * imagination of whoever last edited it. This is what makes the next
+     * unknown status arrive as a message instead of as silence -- in either
+     * direction, since guessing "failure" cries wolf and guessing "fine" is the
+     * bug that started all this.
+     */
+    const out = annotate('vitest', reportWithStatus('quarantined'))
+    expect(out, 'an unknown status was silently classified').toContain('::error')
+    expect(out, 'the unknown status was not named').toContain('quarantined')
+  })
+})

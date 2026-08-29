@@ -230,10 +230,20 @@ export const SYSTEM = [
   '     line in every two or three lines. Write as much as the idea needs, but',
   '     give the reader somewhere to breathe.',
   '',
+  '     An EXAMPLE is tighter: twenty words, not thirty. Its job is to isolate',
+  '     one rule, and twenty words is not room for a story.',
+  '',
   '  6. MARK WHAT MATTERS. In any block over ten words, mark the term worth',
   '     remembering with terms: [{text, mark: "key"}], or the one that',
   '     separates two confusable things with mark "distinction". The marked',
   '     text must appear in that block word for word.',
+  '',
+  '  7. AN EXAMPLE MUST SAY WHAT IT IS AN EXAMPLE OF. Every block with role',
+  '     "example" needs exactly one relation {from: <the example id>, to: <the',
+  '     id of the rule it illustrates>, kind: "exemplifies"}. Not zero, and not',
+  '     two. A reader who cannot tell which rule an example demonstrates cannot',
+  '     learn the rule from it, and a lesson with a dangling example is',
+  '     rejected before the student sees it.',
 ].join('\n')
 
 export function briefFor(brief: LessonBrief): string {

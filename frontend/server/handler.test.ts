@@ -298,3 +298,83 @@ describe('the API key never leaves this process', () => {
     expect(JSON.stringify(res)).not.toContain(SENTINEL)
   })
 })
+
+/*
+ * A REFUSAL MUST SAY WHY, AND THE KEY STILL MUST NOT ESCAPE.
+ *
+ * These two were treated as opposites, and the safe-looking choice was made:
+ * the model's error was dropped entirely and every failure became the single
+ * sentence "the model could not be reached".
+ *
+ * Measured cost of that choice, twice in one day:
+ *
+ *   - A withdrawn model id (`HTTP 404`) was reported for hours as sixteen
+ *     teaching refusals, because "could not be reached" is what a network
+ *     fault says too.
+ *   - The live lesson route returned that same sentence in 0.12s with NOTHING
+ *     in the server log, so the actual cause could not be recovered at all.
+ *
+ * They are not opposites. `scrub` already runs over every outgoing body -- the
+ * file header calls it the second of two independent defences -- so the
+ * credential cannot ride out on this path even when the reason does. Dropping
+ * the text was redundant defence that destroyed the diagnosis, and an honest
+ * failure names what a person can act on.
+ */
+describe('a model failure says what happened', () => {
+  const brokenModel = (message: string): ModelPort => ({
+    async lesson() {
+      throw new Error(message)
+    },
+  })
+
+  const ask = async (model: ModelPort, secrets: readonly string[] = []) =>
+    createHandler({
+      model,
+      secrets,
+      /* Required by `HandlerOptions`. These cases never reach a search, and a
+         port that throws says so rather than quietly returning nothing. */
+      search: {
+        async search() {
+          throw new Error('search is not configured in this test')
+        },
+      },
+    })({
+      method: 'POST',
+      path: '/api/lesson',
+      body: { concept: 'primes' },
+    })
+
+  it('carries the reason the model gave', async () => {
+    const res = await ask(
+      brokenModel('The model "openai/gpt-oss-120b" does not exist at this endpoint'),
+    )
+    expect(res.status).toBe(502)
+    expect(
+      JSON.stringify(res.body),
+      'the reason was destroyed, so nothing downstream can act on it',
+    ).toContain('does not exist')
+  })
+
+  it('separates a dead model from an unreachable network', async () => {
+    /* The distinction that cost the day. Two different fixes -- edit a config
+       value, or wait out an outage -- and one sentence for both. */
+    const dead = await ask(brokenModel('The model "x" does not exist at this endpoint'))
+    const down = await ask(brokenModel('The model endpoint could not be reached at http://h'))
+    expect(JSON.stringify(dead.body)).not.toBe(JSON.stringify(down.body))
+  })
+
+  it('still never lets the credential out, even inside the reason', async () => {
+    /*
+     * THE PAIR, and the reason the original choice was made. Without this,
+     * "carry the reason" is satisfied by forwarding upstream text verbatim --
+     * which is exactly how a rejected key escapes. `scrub` must still catch it.
+     */
+    const res = await ask(
+      brokenModel('rejected key gsk-SECRET-9999 at endpoint'),
+      ['gsk-SECRET-9999'],
+    )
+    expect(JSON.stringify(res.body), 'the credential escaped in the error text').not.toContain(
+      'SECRET',
+    )
+  })
+})

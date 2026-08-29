@@ -19,6 +19,7 @@
 
 import { createServer as createNodeServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { chooseProvider } from './provider.ts'
+import { createOpenAIModel } from './openaiModel.ts'
 import { createOllamaModel, DEFAULT_OLLAMA_ENDPOINT } from './ollama.ts'
 import type { Readable } from 'node:stream'
 
@@ -147,15 +148,31 @@ function main(): void {
      student with a 3B model on a laptop while everyone believed the key was
      working. */
   const provider = chooseProvider(process.env as Record<string, string | undefined>)
+  /* A switch over the WHOLE union, with no default arm.
+     `chooseProvider` refuses rather than guessing, and so does this: adding a
+     provider to the type without wiring it here is a compile error, not a
+     runtime surprise. */
   const model =
     provider.kind === 'ollama'
       ? createOllamaModel({ model: provider.model, ...(provider.endpoint === undefined ? {} : { endpoint: provider.endpoint }) })
-      : createModel({ apiKey: provider.apiKey })
+      : provider.kind === 'openai'
+        ? createOpenAIModel({
+            apiKey: provider.apiKey,
+            model: provider.model,
+            endpoint: provider.endpoint,
+          })
+        : createModel({ apiKey: provider.apiKey })
 
   /* Only a real credential is worth scrubbing from responses. There is none in
      local mode, and listing an empty string would make `scrub` match
      everywhere. */
-  const secrets = provider.kind === 'anthropic' ? [provider.apiKey] : []
+  /* Every real credential is scrubbed from responses, not only Anthropic's.
+     An OpenAI-compatible key is exactly as leakable, and listing only one
+     provider here was a hole the moment a second one existed. Local mode has
+     no credential, and listing an empty string would make `scrub` match
+     everywhere. */
+  const secrets =
+    provider.kind === 'anthropic' || provider.kind === 'openai' ? [provider.apiKey] : []
   const search: SearchPort = {
     /* Wired in Phase 4. Until then the route answers honestly rather than
      * pretending to have searched. */
@@ -172,14 +189,20 @@ function main(): void {
   server.listen(port, host, () => {
     console.log(`almanac server listening on http://${host}:${port}`)
     console.log(`  ledger: ${ledgerPath}`)
+    /* The model id is printed because a number without the model that produced
+       it is uncitable later -- and because a withdrawn id looks exactly like a
+       system that cannot teach until someone reads this line. The key is never
+       printed. */
     console.log(
       provider.kind === 'ollama'
         ? `  model:  ${provider.model} via ollama at ${provider.endpoint ?? DEFAULT_OLLAMA_ENDPOINT}`
-        : '  model:  anthropic',
+        : provider.kind === 'openai'
+          ? `  model:  ${provider.model} via ${provider.endpoint}`
+          : '  model:  anthropic',
     )
     if (host !== DEFAULT_HOST) {
       console.log(
-        provider.kind === 'anthropic'
+        provider.kind === 'anthropic' || provider.kind === 'openai'
           ? `WARNING: bound to ${host}, not loopback. This process holds an API key.`
           : `WARNING: bound to ${host}, not loopback.`,
       )

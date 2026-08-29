@@ -26,7 +26,7 @@ import { validateLesson, type Issue, type TeachingLevel } from './spec/validate'
 import { chatOnce } from '../agent/ports/httpModel'
 import { sourcesFrom } from './teach/researched'
 import type { Source } from './teach/grounding'
-import { authorLesson } from './teach/authorLesson'
+import { authorPiecewise } from './teach/authorPiecewise'
 import type { Lesson } from './spec/spec'
 import { TeachView } from './teach/TeachView'
 
@@ -183,10 +183,18 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
   /**
    * Write a lesson for whatever the learner just asked about.
    *
-   * THE REFUSAL IS SHOWN, NOT SWALLOWED. `authorLesson` returns the gate's
+   * THE REFUSAL IS SHOWN, NOT SWALLOWED. `authorPiecewise` returns the gate's
    * issues when the model's lesson does not teach, and those reach the screen
    * verbatim. A canvas that quietly fell back to a picked lesson would tell the
    * learner their question had been answered when it had not.
+   *
+   * WHY PIECEWISE AND NOT `authorLesson`. The one-reply author asks a small
+   * model for a whole lesson in a single turn and allows one repair; measured
+   * on qwen2.5:7b that produced arrays with one item where two are required and
+   * keys on the wrong block type. `authorPiecewise` settles the structure on a
+   * skeleton first -- where the nineteen cross-block rules live -- then fills
+   * the bodies CONCURRENTLY, so splitting the work does not cost wall clock.
+   * Same signature, same `AuthorResult`, same gate at the end.
    */
   const askForALesson = async (): Promise<void> => {
     const question = topic.trim()
@@ -228,7 +236,7 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
         }
       }
 
-      const written = await authorLesson(chat, question, sources)
+      const written = await authorPiecewise(chat, question, sources)
       if (written.ok) {
         setAuthored(written.lesson)
       } else {

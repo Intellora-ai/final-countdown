@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { authorConcept, conceptIssues, conceptRequest, type Concept } from './concept'
 import type { LessonModel } from './authorLesson'
+import { AXES } from './route'
 
 /*
  * ONE ATOMIC CONCEPT, NOT A LESSON.
@@ -157,6 +158,35 @@ describe('a concept teaches one idea and asks what is next', () => {
     expect(seenSystem, 'the source text must reach the model').toContain(
       'stops the recursion by returning',
     )
+  })
+
+  it('asks for a different way in when the learner has already seen one', async () => {
+    /*
+     * VARIATION HAS TO REACH THE MODEL, OR IT IS AN ORPHAN.
+     *
+     * `route.ts` picks an unused way into the same idea. That is worth nothing
+     * unless the directive actually lands in the prompt -- which is precisely
+     * the mistake that cost this session hours: `concept.ts` measured 5 of 6
+     * while `CanvasRoute` went on calling `authorLesson` at 0 of 6, because
+     * nobody checked the wiring.
+     *
+     * So this asserts the DIRECTIVE reaches the model, and that asking twice
+     * does not send the same one.
+     */
+    const seen: string[] = []
+    const model: LessonModel = async (system) => {
+      seen.push(system)
+      return soundConcept()
+    }
+
+    await authorConcept(model, 'What is a base case?', [], [])
+    const firstRoute = AXES.find((a) => seen[0]!.includes(a.directive))
+    expect(firstRoute, 'no route directive reached the model at all').toBeDefined()
+
+    await authorConcept(model, 'What is a base case?', [], [firstRoute!.id])
+    const secondRoute = AXES.find((a) => seen[1]!.includes(a.directive))
+    expect(secondRoute, 'no route directive on the second ask').toBeDefined()
+    expect(secondRoute!.id, 'the learner was given the same way in twice').not.toBe(firstRoute!.id)
   })
 
   it('refuses a concept that shows nothing, however well it is written', async () => {

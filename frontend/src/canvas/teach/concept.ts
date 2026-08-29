@@ -2,6 +2,7 @@ import type { Lesson } from '../spec/spec'
 import { validateLesson, type Issue } from '../spec/validate'
 import { extractJson, type LessonModel } from './authorLesson'
 import { groundingPreamble, type Source } from './grounding'
+import { nextRoute, routeDirective } from './route'
 import { classifyTurn } from './turn'
 
 /**
@@ -250,7 +251,25 @@ const WORKED_EXAMPLE = {
 }
 
 /** What the model is asked for. One concept, and a real one to copy. */
-export function conceptRequest(question: string, sources: readonly Source[] = []): string {
+export function conceptRequest(
+  question: string,
+  sources: readonly Source[] = [],
+  alreadyUsed: readonly string[] = [],
+): string {
+  /*
+   * A DIFFERENT WAY IN EACH TIME, and it reaches the model or it is nothing.
+   *
+   * `route.ts` rotates over twelve accidental axes -- where the step opens,
+   * what it shows, which example domain it reaches for -- none of which can
+   * change whether a statement is true. Shannon: a message the receiver could
+   * have predicted carries zero bits, and a second explanation arriving in the
+   * shape of the first is exactly that.
+   *
+   * The seed is the question, so the same topic rotates consistently while two
+   * different topics do not march in lockstep.
+   */
+  const seed = [...question].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7)
+  const route = routeDirective(nextRoute({ seed, alreadyUsed }))
   /*
    * SEARCH FIRST, THEN WRITE -- the same order `authorLesson` uses, and for the
    * reason `CanvasRoute` records beside its own search: "The gate reads shape
@@ -267,6 +286,8 @@ export function conceptRequest(question: string, sources: readonly Source[] = []
   return [
     ...(grounding === '' ? [] : [grounding, '']),
     `Teach ONE atomic concept that moves a learner toward answering: ${question}`,
+    '',
+    `HOW TO COME AT IT THIS TIME: ${route}`,
     '',
     'Not a lesson. One idea, the smallest that stands on its own.',
     '',
@@ -401,8 +422,10 @@ export async function authorConcept(
   model: LessonModel,
   question: string,
   sources: readonly Source[] = [],
+  /** Route ids this learner has already been given for this idea. */
+  alreadyUsed: readonly string[] = [],
 ): Promise<ConceptResult> {
-  const system = conceptRequest(question, sources)
+  const system = conceptRequest(question, sources, alreadyUsed)
   let user = question
   let prior: string | undefined
   let last: { raw: string; issues: Issue[] } = { raw: '', issues: [] }

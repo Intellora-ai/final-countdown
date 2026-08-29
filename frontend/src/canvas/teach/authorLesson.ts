@@ -117,6 +117,15 @@ export function teachingSystemPrompt(): string {
     '  role:     anchor | definition | notation | framework | classification | component',
     '            | rule | restriction | contrast | misconception | example | summary | support',
     '',
+    'KIND AND ROLE ARE DIFFERENT FIELDS. DO NOT PUT A ROLE IN `kind`.',
+    '  `kind` is WHAT THE BLOCK IS  -- how it is drawn.',
+    '  `role` is WHAT IT IS FOR     -- its job in the teaching.',
+    'A block can be kind "prose" with role "definition". "definition" is NOT a kind.',
+    '',
+    '`kind` is EXACTLY one of these twelve, and nothing else:',
+    '  prose  callout  misconception  reasoning  summary  metric',
+    '  equation  table  chart  flow  simulation  figure',
+    '',
     'BLOCK KINDS AND THEIR FIELDS',
     '  prose / callout      body (string), terms: [{ text, mark: "key" | "distinction" }]',
     '  misconception        wrong, correct, why, counterexample (optional)',
@@ -240,6 +249,50 @@ const DATA_KEYS = new Set(['rows', 'points', 'data', 'columns', 'controls', 'rea
  * hand-written lesson has no excuse for a null, and the shared gate keeps
  * refusing one.
  */
+/** The twelve legal block kinds, and the roles that get mistaken for them. */
+const BLOCK_KINDS = new Set([
+  'prose', 'callout', 'misconception', 'reasoning', 'summary', 'metric',
+  'equation', 'table', 'chart', 'flow', 'simulation', 'figure',
+])
+const BLOCK_ROLES = new Set([
+  'anchor', 'definition', 'notation', 'framework', 'classification', 'component',
+  'rule', 'restriction', 'contrast', 'misconception', 'example', 'summary', 'support',
+])
+
+/**
+ * A role written into `kind`, put back where it belongs.
+ *
+ * MEASURED, with the model's own output in hand rather than inferred from a
+ * zod path. Asked to teach "admission of partners", qwen2.5:7b emitted:
+ *
+ *     { "id": "example", "kind": "example", "role": "example",
+ *       "body": "If Partner A and B have capitals of $10,000..." }
+ *
+ * `example` is a legal ROLE and not a legal KIND. The model had the intent
+ * exactly right and used the wrong field for the shape, which is the
+ * predictable failure when two enums sit on one object and one of them is
+ * printed first. Two rounds of making the prompt more explicit did not stop it.
+ *
+ * The repair is narrow on purpose, and only fires when the reading is
+ * unambiguous: the kind is invalid, it is a legal role, and the block carries a
+ * `body` — which only `prose` and `callout` do. A block with a body IS prose;
+ * nothing is being guessed. `role` is filled in from the misplaced value only
+ * when the model did not already set one, so an explicit role always wins.
+ *
+ * Anything that does not meet all three conditions is left alone and refused,
+ * because a normaliser that repairs what it cannot read is how a gate stops
+ * meaning anything.
+ */
+function repairKind(block: Record<string, unknown>): Record<string, unknown> {
+  const kind = block['kind']
+  if (typeof kind !== 'string') return block
+  if (BLOCK_KINDS.has(kind)) return block
+  if (!BLOCK_ROLES.has(kind)) return block
+  if (typeof block['body'] !== 'string') return block
+
+  return { ...block, kind: 'prose', role: block['role'] ?? kind }
+}
+
 export function dropNulls(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(dropNulls)
   if (value === null || typeof value !== 'object') return value
@@ -247,9 +300,14 @@ export function dropNulls(value: unknown): unknown {
   const out: Record<string, unknown> = {}
   for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
     if (child === null) continue
+    /* An empty string in an optional field means the same as absent, and the
+       schema's `Label` requires at least one character. Measured alongside the
+       nulls: the same reply carried `"title": ""`. Data keys are exempt for the
+       same reason nulls are — an empty cell is the author's. */
+    if (child === '' && !DATA_KEYS.has(key)) continue
     out[key] = DATA_KEYS.has(key) ? child : dropNulls(child)
   }
-  return out
+  return 'kind' in out ? repairKind(out) : out
 }
 
 function repairRequest(question: string, issues: Issue[]): string {

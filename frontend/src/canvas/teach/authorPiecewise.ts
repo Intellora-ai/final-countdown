@@ -222,13 +222,63 @@ function usableBody(reply: string): Record<string, unknown> | null {
   return Object.keys(parsed).length === 0 ? null : (parsed as Record<string, unknown>)
 }
 
+/**
+ * Knobs the caller may set. All optional; omitting every one behaves exactly as
+ * this function did before they existed.
+ */
+export interface AuthorOptions {
+  /**
+   * Wall-clock ceiling for the whole attempt.
+   *
+   * IT REFUSES, IT DOES NOT DEGRADE. There is deliberately no path from "out of
+   * budget" to "deliver what we have". A refusal can be retried; a half-written
+   * lesson teaches something false. The practice engine makes the same choice
+   * by giving `EngineFailure` no member that could express the alternative.
+   *
+   * Absent means no ceiling, which is the behaviour that shipped before.
+   */
+  readonly budgetMs?: number
+  /** Injected so a budget is testable without spending the time. */
+  readonly now?: () => number
+}
+
 export async function authorPiecewise(
   model: LessonModel,
   question: string,
   sources: readonly Source[] = [],
+  options: AuthorOptions = {},
 ): Promise<AuthorResult> {
   const system = teachingSystemPrompt()
   const grounding = groundingPreamble(sources)
+  const now = options.now ?? (() => Date.now())
+  const startedAt = now()
+
+  /**
+   * True once the attempt has spent its budget.
+   *
+   * Checked BETWEEN stages rather than racing the calls, because cancelling a
+   * request in flight buys nothing here: the model has already done the work,
+   * and the honest question is whether to spend MORE.
+   */
+  const outOfBudget = (): boolean =>
+    options.budgetMs !== undefined && now() - startedAt > options.budgetMs
+
+  const budgetFailure = (attemptsSoFar: number, where: string): AuthorResult => ({
+    ok: false,
+    attempts: attemptsSoFar,
+    raw: '',
+    /*
+     * `(budget)`, never `(root)`. A learner told their lesson "does not teach"
+     * when it was simply never finished has been told something false about
+     * their question -- the same distinction `unreachable` draws for transport.
+     */
+    issues: [
+      {
+        path: '(budget)',
+        message: `the lesson ran past its time budget ${where}, so it was abandoned rather than half-written`,
+      },
+    ],
+  })
 
   /* ---------------------------------------------------------------- stage 1 */
 
@@ -276,6 +326,14 @@ export async function authorPiecewise(
   }
 
   const outline = skeleton.blocks
+  const planMs = now() - startedAt
+
+  /*
+   * The ceiling is read HERE, between the stages, because this is the moment
+   * the decision matters: the plan is paid for and N body calls are about to
+   * be. Spending them on an attempt already over budget is the waste.
+   */
+  if (outOfBudget()) return budgetFailure(attempts, 'while planning it')
 
   /* ---------------------------------------------------------------- stage 2 */
 
@@ -326,6 +384,7 @@ export async function authorPiecewise(
    * clock the slowest single body rather than the sum. Awaiting these in a loop
    * would make this shape strictly worse than the single call it replaces.
    */
+  const bodiesStartedAt = now()
   let bodies: string[]
   try {
     bodies = await Promise.all(outline.map((block, index) => fillOne(block, index)))
@@ -333,6 +392,9 @@ export async function authorPiecewise(
     return transportFailure(error, attempts + outline.length, 'while writing the blocks')
   }
   attempts += outline.length
+  const bodiesMs = now() - bodiesStartedAt
+
+  if (outOfBudget()) return budgetFailure(attempts, 'while writing the blocks')
 
   /* --------------------------------------------------------------- assembly */
 
@@ -356,7 +418,14 @@ export async function authorPiecewise(
   }
 
   const result = validateLesson(assembled)
-  if (result.ok) return { ok: true, lesson: result.lesson as Lesson, attempts }
+  if (result.ok) {
+    return {
+      ok: true,
+      lesson: result.lesson as Lesson,
+      attempts,
+      timing: { planMs, bodiesMs, totalMs: now() - startedAt },
+    }
+  }
 
   /*
    * THE MODEL'S OWN WORDS ARE THE EVIDENCE, so the raw replies are reported

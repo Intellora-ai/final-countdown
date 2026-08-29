@@ -274,4 +274,82 @@ describe('authorPiecewise', () => {
        it. `JSON.stringify` without an indent emits no space after the colon. */
     if (!result.ok) expect(result.raw).toContain('{"body":""}')
   })
+
+  /*
+   * A CEILING THAT REFUSES, RATHER THAN ONE THAT DEGRADES.
+   *
+   * Measured before this branch: 187 seconds and then nothing, and a 316-second
+   * transport timeout. Both are "no answer" with no ceiling, and a learner
+   * cannot tell a slow success from a hang.
+   *
+   * There is deliberately no path from "out of budget" to "deliver what we
+   * have". A refusal can be retried; a half-written lesson teaches something
+   * false, and the practice engine's `EngineFailure` makes the same choice by
+   * having no member that could express the alternative.
+   *
+   * The clock is injected so this costs no wall time -- the same reason the
+   * practice pipeline takes a `now`.
+   */
+  it('refuses when the plan stage has already spent the budget', async () => {
+    const { model } = recordingModel(reply)
+    let clock = 0
+    const now = () => (clock += 5_000)
+
+    const result = await authorPiecewise(model, 'Why does water boil on a mountain?', [], {
+      budgetMs: 1_000,
+      now,
+    })
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.issues[0]!.message).toContain('budget')
+      /* Named as a timeout, not as a teaching fault. Conflating them tells a
+         learner their question was answered badly when it was never answered. */
+      expect(result.issues[0]!.path).toBe('(budget)')
+    }
+  })
+
+  /* The other direction. Without this, the check above is satisfied by an
+     implementation that refuses everything. */
+  it('does not refuse when the work fits inside the budget', async () => {
+    const { model } = recordingModel(reply)
+    let clock = 0
+    const now = () => (clock += 1)
+
+    const result = await authorPiecewise(model, 'Why does water boil on a mountain?', [], {
+      budgetMs: 60_000,
+      now,
+    })
+
+    expect(result.ok).toBe(true)
+  })
+
+  /* No budget given behaves exactly as before the option existed. */
+  it('has no ceiling when none is asked for', async () => {
+    const { model } = recordingModel(reply)
+
+    expect((await authorPiecewise(model, 'Why does water boil on a mountain?')).ok).toBe(true)
+  })
+
+  /*
+   * WHERE THE TIME WENT, not merely how much. 187 seconds with no breakdown is
+   * a complaint; a per-stage split is a measurement, and it is what says
+   * whether the next optimisation belongs in search, the model, or the gate.
+   */
+  it('reports how long the plan and the bodies each took', async () => {
+    const { model } = recordingModel(reply)
+    let clock = 0
+    const now = () => (clock += 100)
+
+    const result = await authorPiecewise(model, 'Why does water boil on a mountain?', [], { now })
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.timing!.planMs).toBeGreaterThan(0)
+      expect(result.timing!.bodiesMs).toBeGreaterThan(0)
+      expect(result.timing!.totalMs).toBeGreaterThanOrEqual(
+        result.timing!.planMs + result.timing!.bodiesMs,
+      )
+    }
+  })
 })

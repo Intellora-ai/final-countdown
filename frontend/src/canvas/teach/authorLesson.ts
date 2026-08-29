@@ -56,8 +56,26 @@ export interface LessonModel {
   (system: string, user: string, priorAssistant?: string): Promise<string>
 }
 
+/**
+ * Where the wall clock went, by stage.
+ *
+ * A TOTAL IS A COMPLAINT; A SPLIT IS A MEASUREMENT. Authoring was measured at
+ * 187 seconds and then nothing, with no breakdown -- which says the run was
+ * slow and nothing about where to look. Planning, writing the bodies and the
+ * gate are three different costs with three different fixes, and only the split
+ * says which one to attack.
+ *
+ * Optional because `authorLesson` does not report it; a caller must not assume
+ * either author produces it.
+ */
+export interface AuthorTiming {
+  readonly planMs: number
+  readonly bodiesMs: number
+  readonly totalMs: number
+}
+
 export type AuthorResult =
-  | { ok: true; lesson: Lesson; attempts: number }
+  | { ok: true; lesson: Lesson; attempts: number; timing?: AuthorTiming }
   /*
    * `unreachable` SEPARATES TWO OUTCOMES A LEARNER MUST NEVER SEE CONFLATED.
    *

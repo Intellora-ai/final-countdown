@@ -9,6 +9,8 @@ import { cssVariables } from './design/tokens'
 import { billBecomesLaw } from './lessons/billBecomesLaw'
 import { classifierEvaluation } from './lessons/classifierEvaluation'
 import { gasPressure } from './lessons/gasPressure'
+import { logarithms } from './lessons/logarithms'
+import { tenses } from './lessons/tenses'
 /* Engine output, not hand-authored. `learning-os` generates these from two
    learners with IDENTICAL knowledge and different histories — see
    `learning_os/api/demo.py`, whose `--check` keeps them from drifting. The
@@ -20,7 +22,12 @@ import learnerB from './lessons/generated/learner-b-preferred-mechanism-failed.j
    cannot show what the contract does to real sentences. Labelled as
    hand-written wherever it appears, so nobody reads it as a model's work. */
 import byHand from './lessons/handwritten/contract-honoured-by-hand.json'
-import { validateLesson, type Issue } from './spec/validate'
+import { validateLesson, type Issue, type TeachingLevel } from './spec/validate'
+import { chatOnce } from '../agent/ports/httpModel'
+import { sourcesFrom } from './teach/researched'
+import type { Source } from './teach/grounding'
+import { authorLesson } from './teach/authorLesson'
+import type { Lesson } from './spec/spec'
 import { TeachView } from './teach/TeachView'
 
 import './design/canvas.css'
@@ -50,17 +57,32 @@ import './route.css'
  * have no idea they are inside a study app.
  */
 
+/**
+ * WHY EACH ENTRY CARRIES ITS OWN TEACHING LEVEL
+ * ---------------------------------------------
+ * The first five are authored LESSONS and owe the whole arc — a definition
+ * first, a summary last, something shown rather than told.
+ *
+ * The last three are the engine's contract, and they are ANSWERS. Held at
+ * `'lesson'` alongside the rest, all three rendered the refusal panel instead
+ * of a lesson: the engine's `emit` builds only `prose` and `callout`, so it
+ * cannot open with a definition, cannot close with a progression and cannot
+ * show anything at all. The level is a property of what a thing IS, so it is
+ * recorded here beside the thing rather than assumed at the call site.
+ */
 const LESSONS = [
-  { id: 'gas', label: 'Physics', spec: gasPressure },
-  { id: 'bill', label: 'Civics', spec: billBecomesLaw },
-  { id: 'ml', label: 'Machine learning', spec: classifierEvaluation },
+  { id: 'logs', label: 'Maths', spec: logarithms, teaching: 'lesson' },
+  { id: 'tenses', label: 'English', spec: tenses, teaching: 'lesson' },
+  { id: 'gas', label: 'Physics', spec: gasPressure, teaching: 'lesson' },
+  { id: 'bill', label: 'Civics', spec: billBecomesLaw, teaching: 'lesson' },
+  { id: 'ml', label: 'Machine learning', spec: classifierEvaluation, teaching: 'lesson' },
   // The last three are the engine's, not an author's. A and B share a knowledge
   // state and differ only in what has already been tried on them, so the two
   // sitting side by side is the adaptation claim rendered rather than asserted.
-  { id: 'engine-a', label: 'Engine: first attempt', spec: learnerA },
-  { id: 'engine-b', label: 'Engine: preferred mechanism failed', spec: learnerB },
-  { id: 'by-hand', label: 'Same contract, written by hand', spec: byHand },
-] as const
+  { id: 'engine-a', label: 'Engine: first attempt', spec: learnerA, teaching: 'answer' },
+  { id: 'engine-b', label: 'Engine: preferred mechanism failed', spec: learnerB, teaching: 'answer' },
+  { id: 'by-hand', label: 'Same contract, written by hand', spec: byHand, teaching: 'answer' },
+] as const satisfies readonly { id: string; label: string; spec: unknown; teaching: TeachingLevel }[]
 
 /**
  * How the canvas reaches a source outside the lesson, if it has one.
@@ -79,10 +101,52 @@ const LESSONS = [
  */
 export type WebSearch = (query: string, options: Record<string, unknown>) => Promise<SearchResult>
 
+/**
+ * The local model the learner's own machine is running.
+ *
+ * Same three variables `TutorView` reads, on purpose. A second set would mean a
+ * machine configured for the tutor still could not author a lesson, and the
+ * learner would have no way to tell which half they had missed.
+ */
+/** Shown instead of a refusal when there is no model to refuse anything. */
+const NO_MODEL_NOTE =
+  'Set VITE_TUTOR_ENDPOINT to a chat-completions URL to author lessons on any topic — '
+  + 'for a local runner that is usually http://localhost:11434/v1/chat/completions (Ollama) '
+  + 'or http://localhost:1234/v1/chat/completions (LM Studio).'
+
+function readEnv(name: string): string {
+  const v = (import.meta.env as Record<string, string | undefined>)[name]
+  return typeof v === 'string' ? v : ''
+}
+
 export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
   const navigate = useNavigate()
   const [mode, setMode] = useState<'2d' | '3d'>('2d')
   const [lessonId, setLessonId] = useState<string>(LESSONS[0].id)
+
+  /* A lesson written for THIS learner, on a topic nobody authored in advance.
+     Null until they ask for one; once set it replaces the picked lesson, and
+     clearing it hands the picker back. */
+  const [topic, setTopic] = useState('')
+  const [authored, setAuthored] = useState<Lesson | null>(null)
+  const [authoring, setAuthoring] = useState(false)
+  const [authorFailed, setAuthorFailed] = useState<Issue[] | null>(null)
+
+  /*
+   * WHETHER THERE IS A MODEL TO ASK, KNOWN BEFORE ANYONE ASKS.
+   *
+   * Without this the button stayed enabled, `chatOnce` threw "no model endpoint
+   * is configured", and that arrived under the heading "That lesson was refused
+   * — the model answered, and what it produced does not teach". The model was
+   * never contacted. Telling a learner their question produced bad teaching
+   * when nothing was asked is the worst kind of wrong: it is confident, and it
+   * blames the wrong thing.
+   *
+   * `TutorView` already gets this right by checking up front. This is the same
+   * check, in the one place that was missing it.
+   */
+  const modelEndpoint = readEnv('VITE_TUTOR_ENDPOINT')
+  const hasModel = modelEndpoint.trim() !== ''
 
   /*
    * The chain, in trust order: the page the learner is looking at first, then
@@ -116,6 +180,69 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
     return chain
   }, [search])
 
+  /**
+   * Write a lesson for whatever the learner just asked about.
+   *
+   * THE REFUSAL IS SHOWN, NOT SWALLOWED. `authorLesson` returns the gate's
+   * issues when the model's lesson does not teach, and those reach the screen
+   * verbatim. A canvas that quietly fell back to a picked lesson would tell the
+   * learner their question had been answered when it had not.
+   */
+  const askForALesson = async (): Promise<void> => {
+    const question = topic.trim()
+    if (question === '' || authoring) return
+
+    setAuthoring(true)
+    setAuthorFailed(null)
+    try {
+      const chat = chatOnce({
+        endpoint: readEnv('VITE_TUTOR_ENDPOINT'),
+        model: readEnv('VITE_TUTOR_MODEL') || undefined,
+        apiKey: readEnv('VITE_TUTOR_KEY') || undefined,
+        /* A lesson is far longer than a chat reply, and the default 1024 tokens
+           truncates the JSON mid-object — which arrives as "no JSON object at
+           all" and reads as a model failure rather than a budget one. */
+        maxTokens: 4000,
+        timeoutMs: 240_000,
+      })
+      /*
+       * SEARCH FIRST, THEN WRITE. The gate reads shape and has no opinion about
+       * truth, so an invented lesson passes every check in this repository. The
+       * only defence is giving the author real text to write from.
+       *
+       * FAILING TO FIND SOURCES IS NOT FAILING TO TEACH. A refused search, an
+       * unconfigured provider, or a topic the web does not cover all end here
+       * with an empty list, and `groundingPreamble([])` returns '' -- so the
+       * lesson is written exactly as it was before this existed. Turning a
+       * silent retrieval failure into a silent teaching failure would be worse
+       * than being honestly ungrounded.
+       */
+      let sources: readonly Source[] = []
+      if (search) {
+        try {
+          sources = sourcesFrom(await search(question, {}))
+        } catch {
+          /* The search layer's own failure is not this learner's problem, and
+             it is already reported by the doubt chain when they ask one. */
+          sources = []
+        }
+      }
+
+      const written = await authorLesson(chat, question, sources)
+      if (written.ok) {
+        setAuthored(written.lesson)
+      } else {
+        setAuthored(null)
+        setAuthorFailed(written.issues)
+      }
+    } catch (e) {
+      setAuthored(null)
+      setAuthorFailed([{ path: '(model)', message: e instanceof Error ? e.message : String(e) }])
+    } finally {
+      setAuthoring(false)
+    }
+  }
+
   const chosen = LESSONS.find((l) => l.id === lessonId) ?? LESSONS[0]
 
   /*
@@ -127,7 +254,15 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
    * work whose result cannot have changed, since the lesson is a module
    * constant.
    */
-  const result = useMemo(() => validateLesson(chosen.spec), [chosen])
+  const picked = useMemo(
+    () => validateLesson(chosen.spec, { teaching: chosen.teaching }),
+    [chosen],
+  )
+
+  /* An authored lesson has ALREADY been through `validateLesson` inside
+     `authorLesson` — that is what "ok" means there. Re-parsing it would be work
+     whose answer cannot differ. */
+  const result: typeof picked = authored === null ? picked : { ok: true, lesson: authored }
 
   return (
     <div className="lc-root lc-route" style={cssVariables() as React.CSSProperties}>
@@ -141,13 +276,48 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
             <button
               key={lesson.id}
               type="button"
-              aria-pressed={lessonId === lesson.id}
-              onClick={() => setLessonId(lesson.id)}
+              aria-pressed={authored === null && lessonId === lesson.id}
+              onClick={() => {
+                setAuthored(null)
+                setAuthorFailed(null)
+                setLessonId(lesson.id)
+              }}
             >
               {lesson.label}
             </button>
           ))}
         </div>
+
+        {/*
+          ANY SUBJECT, NOT A PICKED ONE.
+          ------------------------------
+          Every lesson above was written by hand, which means the canvas could
+          only teach the things somebody had already sat down and authored. This
+          asks the learner's own local model for a lesson on anything, and puts
+          the answer through exactly the same gate the hand-written ones face —
+          so a model that produces a wall of text is refused here as loudly as
+          an author would be.
+        */}
+        <form
+          className="lc-ask-topic"
+          onSubmit={(e) => {
+            e.preventDefault()
+            void askForALesson()
+          }}
+        >
+          <input
+            type="text"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            placeholder={hasModel ? 'Teach me anything…' : 'No model configured'}
+            aria-label="A topic to be taught"
+            title={hasModel ? undefined : NO_MODEL_NOTE}
+            disabled={authoring || !hasModel}
+          />
+          <button type="submit" disabled={authoring || !hasModel || topic.trim() === ''}>
+            {authoring ? 'Writing…' : 'Teach me'}
+          </button>
+        </form>
 
         <div className="lc-route-end">
           {result.ok && result.lesson.subject && (
@@ -170,6 +340,27 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
           </div>
         </div>
       </div>
+
+      {authorFailed !== null && (
+        <div className="lc-refusal" role="alert">
+          <h2>That lesson was refused</h2>
+          <p className="lc-caption">
+            {/* Two different failures wore one sentence. A model that was never
+                reached did not "produce" anything, and saying it did sends the
+                reader looking for a teaching problem that does not exist. */}
+            {authorFailed.some((i) => i.path === '(model)')
+              ? 'The model could not be reached, so nothing was written.'
+              : 'The model answered, and what it produced does not teach. It is not being shown.'}
+          </p>
+          <ul>
+            {authorFailed.slice(0, 8).map((issue, i) => (
+              <li key={i}>
+                <code>{issue.path}</code> — {issue.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/*
         A MAIN LANDMARK, and it was missing entirely.

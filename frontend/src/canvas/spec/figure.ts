@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { REPRESENTATIONS, type RepresentationName, shapeOf } from './representations'
+import { BlockRole } from './roles'
 import { checkShape, type ShapeData, type ShapeIssue } from './shapeInvariants'
 
 /**
@@ -268,6 +269,10 @@ export const FigureBlock = z
     title: Label.optional(),
     emphasis: z.enum(['primary', 'supporting', 'aside']).default('supporting'),
     tone: z.enum(['neutral', 'insight', 'warning', 'result']).default('neutral'),
+    /** The teaching job this block does. Imported rather than re-declared: see `roles.ts`. */
+    role: BlockRole.default('support'),
+    /** Core answer, or material offered beyond it. See `BlockBase.depth` in `spec.ts`. */
+    depth: z.enum(['core', 'deeper']).default('core'),
     /** One of the 137 names. The registry turns it into a shape and a variant. */
     as: RepresentationEnum,
     data: Payload,

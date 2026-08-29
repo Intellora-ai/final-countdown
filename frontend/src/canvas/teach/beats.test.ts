@@ -4,7 +4,7 @@ import { billBecomesLaw } from '../lessons/billBecomesLaw'
 import { classifierEvaluation } from '../lessons/classifierEvaluation'
 import { gasPressure } from '../lessons/gasPressure'
 import type { Lesson, LessonInput } from '../spec/spec'
-import { validateLesson } from '../spec/validate'
+import { validateLesson, type TeachingLevel } from '../spec/validate'
 import { checkBeats, type Beat, type Beats } from './contract'
 import { deriveBeats } from './beats'
 
@@ -37,8 +37,15 @@ function beatAt(beats: Beats, index: number): Beat {
  * outcome loud.
  */
 
-function validated(input: LessonInput): Lesson {
-  const result = validateLesson(input)
+/**
+ * @param teaching The three real lessons are checked at `'lesson'` — they ARE
+ * lessons, and this file should notice if one stops teaching. The edge-case
+ * fixtures built by `lessonOf` below are checked at `'off'`: they are N blocks
+ * of one emphasis, built to probe WHERE THE CUT FALLS, and a lesson arc would
+ * change the very thing under test. Structure is still fully checked in both.
+ */
+function validated(input: LessonInput, teaching: TeachingLevel = 'lesson'): Lesson {
+  const result = validateLesson(input, { teaching })
   if (!result.ok) throw new Error(`fixture is invalid: ${JSON.stringify(result.issues, null, 1)}`)
   return result.lesson
 }
@@ -75,7 +82,7 @@ function lessonOf(
   blocks: LessonInput['blocks'],
   relations: LessonInput['relations'] = [],
 ): Lesson {
-  return validated({ id: 'edge-case', question: 'Does the cut hold here?', blocks, relations })
+  return validated({ id: 'edge-case', question: 'Does the cut hold here?', blocks, relations }, 'off')
 }
 
 /* -------------------------------------------------------------------------- */
@@ -180,11 +187,17 @@ describe('the cut follows emphasis', () => {
      * broken by the cap instead of being handed over in one go.
      */
     expect(deriveBeats(validated(gasPressure)).map((beat) => [...beat.blockIds])).toEqual([
-      ['particle-model'],
-      ['causal-chain'],
-      ['proportionality', 'ideal-gas-law'],
-      ['pressure-vs-temperature', 'what-changes', 'energy-split'],
-      ['misconception', 'result', 'summary'],
+      ['what-pressure-is', 'the-whole-idea', 'particle-model'],
+      ['causal-chain', 'proportionality', 'ideal-gas-law'],
+      [
+        'pressure-vs-temperature',
+        'what-changes',
+        'energy-split',
+        'misconception',
+        'result',
+        'wall-collisions',
+        'keep-this',
+      ],
     ])
   })
 
@@ -220,7 +233,13 @@ describe('a lesson that does not open on a primary block', () => {
       ['the-claim', 'evidence'],
     ])
     expect(beatAt(beats, 0).id).toBe('scene-one')
-    expect(checkBeats(beats, lesson)).toHaveLength(0)
+    /* Structural beat rules only. These fixtures are runs of `say()` blocks
+       built to probe WHERE THE CUT FALLS; none contains a representation, so
+       "every beat shows something" could never pass and would say nothing
+       about the cut. The partition, the ordering and the no-step-counting
+       rules all still run, which is what these tests are actually about.
+       The three real lessons above are checked with it ON. */
+    expect(checkBeats(beats, lesson, { teaching: false })).toHaveLength(0)
   })
 })
 
@@ -231,21 +250,27 @@ describe('a lesson with no primary block at all', () => {
      * about emphasis lands here. Left to the emphasis rule alone it would be a
      * single beat containing the lesson.
      */
+    /* SEVEN blocks, not five. With the cap at five a five-block fixture is one
+       beat, and this test — whose whole name is "still cuts" — would have
+       passed only because the assertion was rewritten to match. Seven keeps
+       the cut being exercised, which is the thing under test. */
     const lesson = lessonOf([
       say('one', 'supporting', 'First thing'),
       say('two', 'supporting'),
       say('three', 'supporting'),
-      say('four', 'supporting', 'Fourth thing'),
+      say('four', 'supporting'),
       say('five', 'supporting'),
+      say('six', 'supporting', 'Sixth thing'),
+      say('seven', 'supporting'),
     ])
 
     const beats = deriveBeats(lesson)
     expect(beats.map((beat) => [...beat.blockIds])).toEqual([
-      ['one', 'two', 'three'],
-      ['four', 'five'],
+      ['one', 'two', 'three', 'four', 'five'],
+      ['six', 'seven'],
     ])
-    expect(beatAt(beats, 0).checkpoint).toContain('Next: fourth thing.')
-    expect(checkBeats(beats, lesson)).toHaveLength(0)
+    expect(beatAt(beats, 0).checkpoint).toContain('Next: sixth thing.')
+    expect(checkBeats(beats, lesson, { teaching: false })).toHaveLength(0)
   })
 })
 
@@ -258,7 +283,7 @@ describe('a single-block lesson', () => {
     expect([...beatAt(beats, 0).blockIds]).toEqual(['only'])
     expect(beatAt(beats, 0).isLast).toBe(true)
     expect(beatAt(beats, 0).checkpoint).not.toContain('Next:')
-    expect(checkBeats(beats, lesson)).toHaveLength(0)
+    expect(checkBeats(beats, lesson, { teaching: false })).toHaveLength(0)
   })
 })
 
@@ -284,7 +309,7 @@ describe('a block that derives from the beat it follows', () => {
     expect(beats.map((beat) => [...beat.blockIds])).toEqual([
       ['premise', 'working', 'conclusion'],
     ])
-    expect(checkBeats(beats, lesson)).toHaveLength(0)
+    expect(checkBeats(beats, lesson, { teaching: false })).toHaveLength(0)
   })
 
   it('does not reach back past the current beat', () => {
@@ -294,10 +319,17 @@ describe('a block that derives from the beat it follows', () => {
      * evaluation has exactly this shape: `takeaway` derives from `confusion`
      * with three blocks between them.
      */
+    /* The two supporting blocks are load-bearing. A beat may no longer end
+       before it holds two blocks, so with three bare primaries `source` was
+       still inside the beat under construction when `derived` arrived — it
+       joined for the RIGHT reason, and the fixture no longer built the case it
+       is named for. These push `source` into a beat that has closed. */
     const lesson = lessonOf(
       [
         say('source', 'primary', 'The source'),
+        say('source-detail', 'supporting'),
         say('elsewhere', 'primary', 'Somewhere else'),
+        say('elsewhere-detail', 'supporting'),
         say('derived', 'primary', 'The derived claim'),
       ],
       [{ from: 'derived', to: 'source', kind: 'derives' }],
@@ -305,11 +337,11 @@ describe('a block that derives from the beat it follows', () => {
 
     const beats = deriveBeats(lesson)
     expect(beats.map((beat) => [...beat.blockIds])).toEqual([
-      ['source'],
-      ['elsewhere'],
+      ['source', 'source-detail'],
+      ['elsewhere', 'elsewhere-detail'],
       ['derived'],
     ])
-    expect(checkBeats(beats, lesson)).toHaveLength(0)
+    expect(checkBeats(beats, lesson, { teaching: false })).toHaveLength(0)
   })
 
   it('is still bound by the cap', () => {
@@ -318,13 +350,18 @@ describe('a block that derives from the beat it follows', () => {
         say('premise', 'primary', 'The premise'),
         say('a', 'supporting'),
         say('b', 'supporting'),
+        say('c', 'supporting'),
+        say('d', 'supporting'),
         say('conclusion', 'primary', 'The conclusion'),
       ],
       [{ from: 'conclusion', to: 'premise', kind: 'derives' }],
     )
 
+    /* SIX blocks, because four of them fit inside a cap of five and the cap
+       would never have been reached — the test would have gone green while
+       proving nothing about the cap it names. */
     expect(deriveBeats(lesson).map((beat) => [...beat.blockIds])).toEqual([
-      ['premise', 'a', 'b'],
+      ['premise', 'a', 'b', 'c', 'd'],
       ['conclusion'],
     ])
   })
@@ -345,9 +382,13 @@ describe('a beat that would swallow the lesson', () => {
     ])
 
     const beats = deriveBeats(lesson)
-    expect(beats).toHaveLength(3)
-    for (const beat of beats) expect(beat.blockIds.length).toBeLessThanOrEqual(3)
-    expect(checkBeats(beats, lesson)).toHaveLength(0)
+    /* Two, not three, and five, not three: the cap moved from 3 to 5 in this
+       change. The property is unchanged and is the reason the test exists —
+       nine blocks are broken up rather than handed over as one beat, and no
+       beat exceeds the ceiling. */
+    expect(beats).toHaveLength(2)
+    for (const beat of beats) expect(beat.blockIds.length).toBeLessThanOrEqual(5)
+    expect(checkBeats(beats, lesson, { teaching: false })).toHaveLength(0)
   })
 })
 
@@ -359,20 +400,27 @@ describe('a title that reads as a count', () => {
      * front of the learner through no fault of the phrasing, and `checkBeats`
      * would refuse the lesson at the door.
      */
+    /* The filler is what makes this test test anything. Two bare primaries are
+       now ONE beat, so beat 0 was the last beat, its checkpoint was "that is
+       the whole answer", and `not.toContain('2 of 3')` passed without a title
+       ever being read. Named plainly: this is the assertion being made real,
+       not a fix. */
     const lesson = lessonOf([
       say('opening', 'primary', 'The opening'),
+      say('filler', 'supporting'),
       say('counted', 'primary', 'Section 2 of 3'),
     ])
 
     const beats = deriveBeats(lesson)
     expect(beatAt(beats, 0).checkpoint).not.toContain('2 of 3')
     expect(READS_AS_A_COUNT.test(beatAt(beats, 0).checkpoint)).toBe(false)
-    expect(checkBeats(beats, lesson)).toHaveLength(0)
+    expect(checkBeats(beats, lesson, { teaching: false })).toHaveLength(0)
   })
 
   it('still names an ordinary title that happens to contain a number', () => {
     const lesson = lessonOf([
       say('opening', 'primary', 'The opening'),
+      say('filler', 'supporting'),
       say('measured', 'primary', 'At 450 K'),
     ])
     expect(beatAt(deriveBeats(lesson), 0).checkpoint).toContain('Next: at 450 K.')
@@ -383,12 +431,13 @@ describe('a beat whose next lead has no title', () => {
   it('still asks something the learner can answer', () => {
     const lesson = lessonOf([
       say('opening', 'primary', 'The opening'),
+      say('filler', 'supporting'),
       say('untitled', 'primary'),
     ])
 
     const beats = deriveBeats(lesson)
     expect(beatAt(beats, 0).checkpoint).not.toContain('Next:')
     expect(beatAt(beats, 0).checkpoint.trim().length).toBeGreaterThan(0)
-    expect(checkBeats(beats, lesson)).toHaveLength(0)
+    expect(checkBeats(beats, lesson, { teaching: false })).toHaveLength(0)
   })
 })

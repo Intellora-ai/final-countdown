@@ -1,3 +1,4 @@
+import { checkTeaching } from '../teach/teaching'
 import { checkFigure } from './figure'
 import { LessonSpec, type Block, type Lesson } from './spec'
 
@@ -21,6 +22,37 @@ import { LessonSpec, type Block, type Lesson } from './spec'
 export interface Issue {
   path: string
   message: string
+  /**
+   * The teaching rule that was broken, where one was. Absent for structural
+   * issues, which have no rule name because the schema IS the rule.
+   */
+  rule?: string
+}
+
+/**
+ * How hard the teaching rules bite for this particular lesson.
+ *
+ * WHY THIS IS A LEVEL AND NOT A BOOLEAN
+ * -------------------------------------
+ * A lesson being TAUGHT owes the learner the whole arc: a definition first, a
+ * summary last, at least one thing shown rather than told. A DOUBT ANSWER owes
+ * none of that — it is a reply to one question, and demanding it open with a
+ * definition and close with a progression would refuse every answer the doubt
+ * resolvers produce.
+ *
+ * The honest way to express that is a named scope. The dishonest way is to
+ * weaken the arc rules until answers slip under them, which would take the
+ * teeth out of the lesson path at the same time and leave nobody able to say
+ * which rules apply where.
+ *
+ * `'off'` exists for callers checking structure alone — a fixture round-trip,
+ * a shape test. It is deliberately not the default: a gate you have to remember
+ * to switch on is a gate that is off.
+ */
+export type TeachingLevel = 'lesson' | 'answer' | 'off'
+
+export interface ValidateOptions {
+  teaching?: TeachingLevel
 }
 
 export type Result =
@@ -160,8 +192,9 @@ function checkBlock(block: Block, index: number, issues: Issue[]): void {
 /* The gate                                                                   */
 /* -------------------------------------------------------------------------- */
 
-export function validateLesson(input: unknown): Result {
+export function validateLesson(input: unknown, options: ValidateOptions = {}): Result {
   const issues: Issue[] = []
+  const teaching = options.teaching ?? 'lesson'
 
   // Appearance is checked on the RAW input, before Zod strips anything.
   appearanceKeysDeep(input, '', issues)
@@ -190,6 +223,24 @@ export function validateLesson(input: unknown): Result {
     if (!seen.has(relation.to))
       issues.push({ path: `relations[${index}].to`, message: `no block "${relation.to}"` })
   })
+
+  /*
+   * WHETHER IT TEACHES, NOT ONLY WHETHER IT RENDERS.
+   *
+   * Everything above answers "is this well-formed". A lesson can pass all of it
+   * and still be six paragraphs of undifferentiated text, which renders
+   * perfectly and teaches nobody. The teaching rules run here, at the one gate
+   * every lesson already passes through, because a check placed anywhere else
+   * is a check some path can go around.
+   *
+   * Run only on a lesson the structural pass accepted. Word-counting a body
+   * that failed to parse reports noise on top of the real fault.
+   */
+  if (teaching !== 'off' && issues.length === 0) {
+    for (const issue of checkTeaching(lesson, { arc: teaching === 'lesson' })) {
+      issues.push({ path: issue.path, message: issue.message, rule: issue.rule })
+    }
+  }
 
   return issues.length > 0 ? { ok: false, issues } : { ok: true, lesson }
 }

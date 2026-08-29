@@ -97,9 +97,18 @@ function checkpointText(container: HTMLElement): string {
 }
 
 /** Blocks of the fixture, which `beats.ts` cuts into five parts. */
+/*
+ * One title from each of the ML lesson's three beats, re-pinned in this change.
+ *
+ * The lesson gained a definition and a summary, and a beat now ends when it is
+ * FINISHED rather than at a cap of three, so the boundaries moved: the class
+ * balance figure sits in the FIRST beat now, beside the headline it undercuts,
+ * rather than opening the second. These constants have to name blocks that are
+ * genuinely in different beats or the assertions below stop meaning anything.
+ */
 const FIRST_BEAT = 'Reported accuracy'
-const SECOND_BEAT = 'What the data actually contains'
-const THIRD_BEAT = 'Where the errors actually fall'
+const SECOND_BEAT = 'Where the errors actually fall'
+const THIRD_BEAT = 'Precision-recall tells the truth'
 const LAST_BEAT = 'The rule'
 
 /** Sentences that appear ONLY inside an answer, never in the first beat. */

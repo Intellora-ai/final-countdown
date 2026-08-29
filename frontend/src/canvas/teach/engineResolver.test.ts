@@ -44,7 +44,11 @@ const LESSON: Lesson = (() => {
       },
     ],
     relations: [],
-  })
+  /* `'off'`. This fixture is the lesson a doubt is asked ABOUT. What the
+     file tests is which resolver answers, what it cites and how it falls
+     through -- never whether this stub teaches. Structure is still fully
+     checked, so a malformed fixture still fails here. */
+  }, { teaching: 'off' })
   if (!result.ok) throw new Error('fixture invalid')
   return result.lesson
 })()
@@ -101,7 +105,8 @@ describe('an answer from the engine reaches the learner', () => {
     }).resolve(DOUBT, LESSON)
 
     if (r.kind !== 'answer') throw new Error('expected an answer')
-    expect(validateLesson(r.lesson).ok).toBe(true)
+    /* `'answer'`, matching `engineResolver.ts` itself. */
+    expect(validateLesson(r.lesson, { teaching: 'answer' }).ok).toBe(true)
   })
 
   it('a payload the canvas refuses becomes a refusal, not a broken frame', async () => {

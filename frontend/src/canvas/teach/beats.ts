@@ -48,7 +48,37 @@ import type { Beat, Beats } from './contract'
  * The cap is a ceiling, not a target — a beat ends early whenever the next
  * block leads one of its own.
  */
-const MAX_BLOCKS_PER_BEAT = 3
+const MAX_BLOCKS_PER_BEAT = 5
+
+/**
+ * A beat is a COMPLETE IDEA, not a fixed number of blocks.
+ *
+ * THE MISTAKE THIS CORRECTS, MEASURED
+ * -----------------------------------
+ * With a cap of three and a cut at every `primary` block, the logarithms
+ * lesson came out as SIX beats over ten blocks — the learner was stopped and
+ * asked "shall I continue" after the definition alone, then after the
+ * framework alone. One idea at a time is not careful teaching, it is slow
+ * teaching, and a checkpoint that arrives every forty words stops being read.
+ *
+ * So a beat now ends when it is FINISHED rather than when it is full: it needs
+ * something shown — a table, a chart, a flow, a figure — and at least two
+ * blocks around it. Text that has not yet reached its picture keeps absorbing.
+ * The cap is the backstop for a lesson that never shows anything.
+ *
+ * On logarithms that gives three beats of three, five and two, each carrying
+ * its own representation, instead of six beats of one and two.
+ */
+const MIN_BLOCKS_BEFORE_A_BEAT_MAY_END = 2
+
+/**
+ * What counts as SHOWING rather than telling.
+ *
+ * The same set `teaching.ts` uses, and deliberately the same list: a beat that
+ * satisfies "every beat shows something" under one definition and fails it
+ * under another would be a rule that depends on which file you asked.
+ */
+const SHOWS = new Set(['chart', 'table', 'flow', 'figure', 'simulation'])
 
 /**
  * A run of blocks that will become one beat. Non-empty, and typed to say so.
@@ -118,6 +148,21 @@ function cutIntoRuns(lesson: Lesson): Run[] {
   let current: Block[] = []
 
   /*
+   * DOES THIS LESSON SHOW ANYTHING, ANYWHERE?
+   *
+   * Both rules below ask a run to contain a representation. Neither can be
+   * satisfied by a lesson that has none, and when a rule cannot be satisfied it
+   * stops discriminating and starts applying to everything -- so `finished` was
+   * never true, `leadsItsOwn` was never true, emphasis was ignored outright,
+   * and the only surviving cut was the cap.
+   *
+   * A taught lesson cannot get here: `nothing-is-shown` refuses one that shows
+   * nothing. An ANSWER can, and does -- the engine emits prose and callouts
+   * only -- so this is a live path, not a hypothetical.
+   */
+  const showsSomewhere = lesson.blocks.some((b) => SHOWS.has(b.kind))
+
+  /*
    * `const [lead, ...rest] = current` rather than `current.length > 0`.
    *
    * The two are the same test, but only one of them convinces the compiler. A
@@ -133,11 +178,25 @@ function cutIntoRuns(lesson: Lesson): Run[] {
     const continuesTheThought =
       sources !== undefined && current.some((held) => sources.has(held.id))
 
-    const leadsItsOwn = block.emphasis === 'primary' && !continuesTheThought
+    /* A beat may only end once it has shown something and has enough around it
+       to be worth pausing on. Until then a new `primary` block joins rather
+       than interrupts — which is what turns six one-idea beats into three
+       complete ones. */
+    const finished =
+      current.length >= MIN_BLOCKS_BEFORE_A_BEAT_MAY_END
+      && (!showsSomewhere || current.some((b) => SHOWS.has(b.kind)))
+
+    /* A beat never straddles the boundary between the core answer and the
+       material offered beyond it. If it did, the learner would be shown the
+       first block of a deeper topic in the same breath as being asked whether
+       they wanted it — which is asking after the fact. */
+    const crossesIntoDepth = current.length > 0 && current[0]?.depth !== block.depth
+
+    const leadsItsOwn = block.emphasis === 'primary' && !continuesTheThought && finished
     const full = current.length >= MAX_BLOCKS_PER_BEAT
 
     const [lead, ...rest] = current
-    if (lead !== undefined && (leadsItsOwn || full)) {
+    if (lead !== undefined && (leadsItsOwn || full || crossesIntoDepth)) {
       runs.push([lead, ...rest])
       current = []
     }
@@ -146,6 +205,55 @@ function cutIntoRuns(lesson: Lesson): Run[] {
 
   const [lead, ...rest] = current
   if (lead !== undefined) runs.push([lead, ...rest])
+
+  /*
+   * A TAIL THAT CANNOT STAND ALONE JOINS THE BEAT BEFORE IT.
+   *
+   * The summary is the last block and is almost always `primary`, so it ends
+   * up as a run of one containing nothing shown — measured on `tenses`, where
+   * the final beat was `[keep-this]` and had no representation to carry.
+   *
+   * Two wrong ways to fix that. Exempting the last beat from the rule would
+   * put the hole exactly where the lesson is summarised, which is the beat
+   * that most needs its picture. Forcing every author to end on a chart would
+   * bend lessons around the checker.
+   *
+   * Merging is the honest one: a conclusion belongs with the material it
+   * concludes, and the beat it joins already showed something. The cap yields
+   * here on purpose — a beat one block over the ceiling is a smaller cost than
+   * a beat the learner is asked to stop on with nothing in front of them.
+   */
+  /*
+   * NOTHING TO MERGE INTO, SO DO NOT MERGE.
+   *
+   * The merge exists to hand a picture-less run the picture from its
+   * neighbour. When the lesson shows NOTHING ANYWHERE there is no picture to
+   * hand over, and the rule stops being a repair: every run qualifies, each
+   * folds into the one before it, and the whole lesson arrives as a single
+   * beat. That is precisely the failure `deriveBeats` exists to prevent — the
+   * view renders, nothing throws, every block is present, and the feature is
+   * gone.
+   *
+   * A taught lesson cannot reach this state: `nothing-is-shown` refuses one
+   * that shows nothing. An ANSWER can, and does — the engine builds prose and
+   * callouts only — so this is the live path, not a hypothetical one.
+   */
+  if (!showsSomewhere) return runs
+
+  for (let i = runs.length - 1; i > 0; i--) {
+    const run = runs[i]
+    const previous = runs[i - 1]
+    if (run === undefined || previous === undefined) continue
+    if (run.some((b) => SHOWS.has(b.kind))) continue
+
+    /* Only into a beat of the same tier. Folding a core conclusion into a
+       deeper beat — or the reverse — would put material the learner has not
+       agreed to see in the same breath as material they have. */
+    if (previous[0].depth !== run[0].depth) continue
+
+    runs.splice(i - 1, 2, [...previous, ...run] as Run)
+  }
+
   return runs
 }
 
@@ -161,7 +269,18 @@ function cutIntoRuns(lesson: Lesson): Run[] {
  * differently would be variation for its own sake rather than variation the
  * content earns.
  */
-type Form = 'model' | 'sequence' | 'formal' | 'data' | 'parts' | 'structure' | 'number' | 'point'
+type Form =
+  | 'model'
+  | 'sequence'
+  | 'formal'
+  | 'data'
+  | 'parts'
+  | 'structure'
+  | 'number'
+  | 'point'
+  | 'correction'
+  | 'recap'
+  | 'argument'
 
 const KIND_FORM: Record<Exclude<BlockKind, 'figure'>, Form> = {
   simulation: 'model',
@@ -172,6 +291,14 @@ const KIND_FORM: Record<Exclude<BlockKind, 'figure'>, Form> = {
   metric: 'number',
   callout: 'point',
   prose: 'point',
+  /* A correction and a recap get their own forms rather than folding into
+     'point'. After showing a wrong form beside a right one, "Making sense so
+     far?" asks the wrong question — what matters is whether the reader can see
+     WHY the first one fails, and a checkpoint that does not ask that lets the
+     misreading survive the pause it was meant to catch. */
+  misconception: 'correction',
+  summary: 'recap',
+  reasoning: 'argument',
 }
 
 /**
@@ -230,6 +357,9 @@ const ASK_BY_FORM: Record<Form, string> = {
   structure: 'Can you see how those link up?',
   number: 'Clear where that number comes from?',
   point: 'Making sense so far?',
+  correction: 'Can you see why the first one is wrong?',
+  recap: 'Does the whole thing hang together?',
+  argument: 'Does every step follow from the one before it?',
 }
 
 /** Used when the next beat's lead block has no title to name. */
@@ -299,6 +429,26 @@ function asPhrase(title: string): string | undefined {
 
 function checkpointFor(lead: Block, nextLead: Block | undefined): string {
   if (nextLead === undefined) return closingAsk(lead)
+
+  /*
+   * CROSSING INTO DEPTH IS AN OFFER, NOT A CONTINUE.
+   *
+   * Every other checkpoint asks whether the last part landed. This one asks a
+   * different question — whether the learner wants a topic they did not ask
+   * for — and it has to be phrased as that, by name, or the software takes
+   * silence as permission and delivers a chapter at someone who asked one
+   * thing.
+   *
+   * The core has ended by the time this fires, so the learner already has a
+   * complete answer. Saying no here loses them nothing.
+   */
+  if (lead.depth === 'core' && nextLead.depth === 'deeper') {
+    const name = nextLead.title === undefined ? undefined : asPhrase(nextLead.title)
+    if (name === undefined || READS_AS_A_COUNT.test(name)) {
+      return 'That answers it. There is more to this if you want it — shall I go on?'
+    }
+    return `That answers it. I can go further into ${name} — shall I?`
+  }
 
   const ask = ASK_BY_TONE[lead.tone] ?? ASK_BY_FORM[formOf(lead)]
 

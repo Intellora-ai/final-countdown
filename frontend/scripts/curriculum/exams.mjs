@@ -1,3 +1,4 @@
+import { htmlToText } from './html.mjs'
 /* Entrance-exam syllabi: discover the link, then parse the document.
  *
  * WHY DISCOVERY IS A FUNCTION AND NOT A CONSTANT
@@ -60,7 +61,10 @@ export function discoverSyllabusLinks(html, baseUrl) {
   const found = []
   const anchor = /<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi
   for (const [, href, inner] of html.matchAll(anchor)) {
-    const text = inner.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim()
+    /* js/incomplete-multi-character-sanitization lived on this line: stripping
+       tags with one pass over `<[^>]+>` and decoding only `&amp;` leaves both
+       jobs half done. `htmlToText` does each once and correctly. */
+    const text = htmlToText(inner).replace(/\s+/g, ' ').trim()
     if (!/syllab/i.test(text)) continue
     if (!/\.pdf(?:[?#]|$)/i.test(href)) continue
     found.push({ text, url: new URL(href, baseUrl).href })

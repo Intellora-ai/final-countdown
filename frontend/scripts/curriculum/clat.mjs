@@ -1,3 +1,4 @@
+import { htmlToText } from './html.mjs'
 /* CLAT: a skills test, read from the Consortium's own page.
  *
  * WHY NOT THE UNIT SHAPE JEE AND NEET USE
@@ -33,25 +34,14 @@ const SECTIONS = [
   { id: 'quantitative-techniques', heading: 'Quantitative Techniques' },
 ]
 
-/** Readable text, with block tags turned into line breaks so headings and list
- *  items stay apart. */
-function toText(html) {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<\/(p|div|li|h[1-6]|tr|section)>/gi, '\n')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<li[^>]*>/gi, '\n• ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&#39;|&rsquo;/g, "'")
-    .replace(/[ \t]+/g, ' ')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line !== '')
-    .join('\n')
-}
+/* Readable text, with block tags turned into line breaks so headings and list
+ * items stay apart.
+ *
+ * The regex chain that used to live here carried two CodeQL findings --
+ * js/bad-tag-filter and js/double-escaping -- and `exams.mjs` had a third of
+ * the same class. `html.mjs` is the one correct implementation all of them now
+ * share; see its header for what each mistake actually produced. */
+const toText = htmlToText
 
 /** The first whole number after `label`, or null. Read from the page rather
  *  than assumed: every one of these is a number a student plans around. */

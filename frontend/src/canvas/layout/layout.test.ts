@@ -31,7 +31,11 @@ const NARROW = { width: 600, height: 900 }
 /** A minimal lesson of one repeated kind, for profiling the selector. */
 function lessonOf(kind: Lesson['blocks'][number]['kind'], count: number): Lesson {
   const blocks = Array.from({ length: count }, (_, i) => body(kind, `b${i}`))
-  const result = validateLesson({ id: 'x', question: 'Q?', blocks })
+  /* `'off'`: this fixture exists to PROFILE the selector -- N blocks of one
+     kind -- and the archetype it picks is the subject. The teaching arc is
+     not, and a repeated-kind fixture cannot carry one. Structure is still
+     fully checked. */
+  const result = validateLesson({ id: 'x', question: 'Q?', blocks }, { teaching: 'off' })
   if (!result.ok) throw new Error(JSON.stringify(result.issues))
   return result.lesson
 }
@@ -79,7 +83,7 @@ describe('the selector', () => {
       id: 'x',
       question: 'Q?',
       blocks: [body('table', 't'), body('chart', 'c')],
-    })
+    }, { teaching: 'off' })
     if (!mixed.ok) throw new Error('fixture invalid')
     expect(selectArchetype(profile(mixed.lesson)).archetype).toBe<Archetype>('reference')
   })

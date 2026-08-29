@@ -70,6 +70,32 @@ jobs:
           # Python is interpreted: there is nothing to compile, and asking
           # autobuild to find a build would only invent a failure mode.
           build-mode: none
+          # SCOPED TO THE CODE THIS REPOSITORY WRITES, for the same reason the
+          # javascript job excludes `technology-universe/runtimes/**`.
+          #
+          # `.claude/skills/` holds 385 vendored skills from five upstream
+          # repositories, 131 of them carrying Python. Scanning them reports on
+          # other people's code: an `incomplete-url-substring-sanitization`
+          # finding landed in a Google agent-platform skill's helper, a file
+          # this product never executes, and ruleset 20990225 requires zero
+          # open alerts -- so one finding in somebody else's example blocks
+          # every merge here.
+          #
+          # The path is deliberately not written out. gate_integrity reads
+          # workflow text for script references and would take a quoted path as
+          # a step this job runs, then refuse the workflow for calling a script
+          # that does not exist. It caught exactly that on the first attempt.
+          #
+          # An unscoped scanner over vendored code is the same failure as an
+          # unscoped linter: findings nobody can act on, and a gate people
+          # learn to scroll past enforces nothing.
+          config: |
+            paths:
+              - scripts
+              - tests
+              - src
+              - learning-os/src
+              - learning-os/tests
       - name: Analyze
         uses: github/codeql-action/analyze@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
         with:

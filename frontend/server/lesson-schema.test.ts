@@ -36,10 +36,32 @@ const lessonWith = (block: Record<string, unknown>) => ({
   relations: [],
 })
 
+/**
+ * Does this BLOCK KIND survive the browser's gate?
+ *
+ * `teaching: 'off'` because the question here is about one KIND, asked with a
+ * one-block lesson. The teaching arc — a definition first, a summary last,
+ * something shown — is a property of a whole lesson and cannot be carried by a
+ * single block, so checking it here would refuse all five kinds without
+ * saying anything about any of them.
+ *
+ * Every STRUCTURAL check still runs, and structure is what "survives the gate"
+ * means for a kind: the schema, the appearance blocklist, and each kind's own
+ * invariants. `handler.test.ts` is where a whole lesson is held to the arc.
+ */
+const gateAccepts = (block: Record<string, unknown>) =>
+  validateLesson(lessonWith(block), { teaching: 'off' })
+
 describe('the kinds a model may produce', () => {
   it('offers more than prose and callout', () => {
     expect(ALLOWED_BLOCK_KINDS.length).toBeGreaterThan(2)
-    expect([...ALLOWED_BLOCK_KINDS]).toEqual(['prose', 'callout', 'metric', 'equation', 'table'])
+    /* `summary` joined the list in this change. The gate refuses a taught
+       lesson that does not close with one, and there was no way to write it —
+       so every lesson the model produced was refused and `/api/lesson`
+       answered 502 whatever came back. */
+    expect([...ALLOWED_BLOCK_KINDS]).toEqual([
+      'prose', 'callout', 'metric', 'equation', 'table', 'summary',
+    ])
   })
 
   it('matches the enum the schema actually enforces', () => {
@@ -60,36 +82,36 @@ describe('the kinds a model may produce', () => {
 
 describe('every offered kind survives the browser gate', () => {
   it('accepts prose', () => {
-    expect(validateLesson(lessonWith({ id: 'p', kind: 'prose', body: 'A sentence.' })).ok).toBe(true)
+    expect(gateAccepts({ id: 'p', kind: 'prose', body: 'A sentence.' }).ok).toBe(true)
   })
 
   it('accepts a callout', () => {
     expect(
-      validateLesson(lessonWith({ id: 'c', kind: 'callout', body: 'Careful here.', tone: 'warning' })).ok,
+      gateAccepts({ id: 'c', kind: 'callout', body: 'Careful here.', tone: 'warning' }).ok,
     ).toBe(true)
   })
 
   it('accepts a metric', () => {
-    const result = validateLesson(lessonWith({ id: 'm', kind: 'metric', value: 273, unit: 'K', caption: 'Absolute zero offset' }))
+    const result = gateAccepts({ id: 'm', kind: 'metric', value: 273, unit: 'K', caption: 'Absolute zero offset' })
     expect(result.ok, JSON.stringify('issues' in result ? result.issues : '')).toBe(true)
   })
 
   it('accepts an equation, which is the whole point for mathematics', () => {
-    const result = validateLesson(lessonWith({
+    const result = gateAccepts({
       id: 'e', kind: 'equation', latex: 'x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}', highlight: ['b^2-4ac'],
-    }))
+    })
     expect(result.ok, JSON.stringify('issues' in result ? result.issues : '')).toBe(true)
   })
 
   it('accepts a table, which is the whole point for a comparison', () => {
-    const result = validateLesson(lessonWith({
+    const result = gateAccepts({
       id: 't', kind: 'table',
       columns: [
         { key: 'method', label: 'Method', type: 'text' },
         { key: 'cost', label: 'Cost', type: 'number' },
       ],
       rows: [{ method: 'LIFO', cost: 120 }, { method: 'FIFO', cost: 90 }],
-    }))
+    })
     expect(result.ok, JSON.stringify('issues' in result ? result.issues : '')).toBe(true)
   })
 })

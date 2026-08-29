@@ -1,13 +1,13 @@
 {
   "blocks": [
     {
-      "body": "Every time a function calls itself, Python sets aside a new frame to hold that call's own variables. The frames pile onto the call stack, one per call still waiting to finish. Nothing has returned yet, so nothing is cleared away.",
+      "body": "Every time a function calls itself, Python sets aside a new frame to hold that call's own variables. \n\nThe frames pile onto the call stack, one per call still waiting to finish. Nothing has returned yet, so nothing is cleared away.",
       "emphasis": "primary",
       "id": "prose-0",
       "kind": "prose"
     },
     {
-      "body": "The base case is the branch that returns a value WITHOUT calling itself again. It is what lets the pile start unwinding. The recursive case is the other branch, the one that adds another frame. A function needs both: the recursive case makes progress toward the base case, and the base case stops it.",
+      "body": "The base case is the branch that returns a value WITHOUT calling itself again. It is what lets the pile start unwinding.\n\n The recursive case is the other branch, the one that adds another frame. \n\nA function needs both: the recursive case makes progress toward the base case, and the base case stops it.",
       "emphasis": "supporting",
       "id": "prose-1",
       "kind": "prose"

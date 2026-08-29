@@ -370,7 +370,11 @@ jobs:
         with:
           name: learning-canvas-frontend-build
           path: frontend/dist
-          if-no-files-found: ignore
+          # `error`, not `ignore`. This gate is required, and a required check
+          # that goes green while producing nothing is exactly the shape the
+          # finalizer exists to catch -- a build that emitted no dist is a build
+          # that did not happen, and `ignore` would report that as success.
+          if-no-files-found: error
 
   # THE MUTATION GATE, FOUR SHARDS WIDE.
   #
@@ -704,6 +708,38 @@ jobs:
     # waiting on it.
     timeout-minutes: 10
     steps:
+      # THE VERDICT IS WRITTEN DOWN, NOT ONLY EXITED.
+      #
+      # This is a required check, and `gate_integrity` refuses a mandatory gate
+      # that preserves no evidence -- correctly: a check whose only output is an
+      # exit code cannot be audited after the run, and "it was green" becomes
+      # unfalsifiable the moment the logs age out. The three results are the
+      # whole verdict, so the file is three lines.
+      - name: Record the three results
+        if: always()
+        env:
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          MUTATION_RESULT: ${{ needs.frontend-mutation.result }}
+          SCENES_RESULT: ${{ needs.frontend-scenes.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p verdict
+          {
+            echo "frontend=$FRONTEND_RESULT"
+            echo "mutation=$MUTATION_RESULT"
+            echo "scenes=$SCENES_RESULT"
+          } > verdict/frontend-verdict.txt
+          cat verdict/frontend-verdict.txt
+
+      - name: Upload the verdict
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: learning-canvas-frontend-verdict
+          path: verdict/frontend-verdict.txt
+          if-no-files-found: error
+
       - name: Aggregate verdict
         # `!= 'success'` rather than `== 'failure'`: a cancelled or skipped
         # dependency is also not a pass, and treating either as one is how a

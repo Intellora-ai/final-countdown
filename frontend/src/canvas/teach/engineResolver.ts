@@ -114,7 +114,7 @@ export function engineResolver(options: EngineResolverOptions = {}): AsyncDoubtR
          `LessonInput` only because both sides run this check; a payload trusted
          on arrival surfaces as a broken frame in a browser rather than as a
          refusal here, and it looks like the canvas's fault. */
-      const checked = validateLesson(reply.lesson)
+      const checked = validateLesson(reply.lesson, { teaching: 'answer' })
       if (!checked.ok) {
         return refuse('The engine sent back an answer this canvas could not render.')
       }

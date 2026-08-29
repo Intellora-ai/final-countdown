@@ -98,6 +98,23 @@ export interface Doubt {
   text: string
   /** The beat the learner was on. Answering does not change it. */
   atBeatId: string
+  /**
+   * Block ids this learner has already been shown for this doubt.
+   *
+   * WITHOUT IT, ASKING TWICE ANSWERS TWICE THE SAME WAY. `resolve` is a pure
+   * function of `(doubt, lesson)`, so a learner who did not understand and
+   * asks again gets the identical blocks back byte for byte -- and their
+   * asking again is the ONE signal that the first explanation failed, which is
+   * exactly the signal the resolver could not see.
+   *
+   * Repeating an explanation that already did not work is worse than saying
+   * nothing. It costs the learner the same reading twice and teaches them the
+   * system is not listening.
+   *
+   * Optional, and absent means "nothing shown yet" rather than "no history
+   * kept": every existing caller behaves as it did before.
+   */
+  shown?: readonly string[]
 }
 
 /**
@@ -264,7 +281,32 @@ export interface BeatIssue {
  * all, because a lesson silently missing its last block looks exactly like a
  * lesson that ended.
  */
-export function checkBeats(beats: Beats, lesson: Lesson): BeatIssue[] {
+export interface BeatOptions {
+  /**
+   * Whether the teaching requirements apply on top of the structural ones.
+   *
+   * The partition rules below — every block in exactly one beat, in order,
+   * every beat non-empty, no step counting — are INTEGRITY. They hold for
+   * anything cut into beats, and they always run.
+   *
+   * "Every beat shows something" is a TEACHING requirement, and it is held
+   * here for the same reason the arc rules are held in `checkTeaching`: a
+   * caller that cannot build a representation cannot satisfy it. The Python
+   * engine is exactly that caller — `emit` refuses every kind except `prose`
+   * and `callout`, so its output is words by construction. Demanding a chart
+   * from a component with no chart builder refuses honest output and names no
+   * fixable fault.
+   *
+   * True for a lesson being TAUGHT, which is where the rule earns its keep.
+   */
+  teaching: boolean
+}
+
+export function checkBeats(
+  beats: Beats,
+  lesson: Lesson,
+  options: BeatOptions = { teaching: true },
+): BeatIssue[] {
   const issues: BeatIssue[] = []
   const order = lesson.blocks.map((b: Block) => b.id)
 
@@ -300,6 +342,54 @@ export function checkBeats(beats: Beats, lesson: Lesson): BeatIssue[] {
     if (/\b(step|part)\s*\d|\b\d+\s*(of|\/)\s*\d/i.test(beat.checkpoint)) {
       issues.push({
         message: `beat "${beat.id}" tells the learner a step number: "${beat.checkpoint}"`,
+      })
+    }
+  }
+
+  /*
+   * EVERY BEAT SHOWS SOMETHING, AND IT IS SOMETHING THE BEAT REFERS TO.
+   *
+   * "One representation per lesson" was the weaker rule, and it let a learner
+   * meet three beats of solid prose before the single chart arrived. The unit
+   * the learner actually experiences is the BEAT — it is what they are shown
+   * before being asked whether to go on — so it is the unit the rule has to
+   * bind.
+   *
+   * RELEVANT, NOT DECORATIVE. Presence is not enough: the shown block must be
+   * joined by a relation to something else in the same beat. A chart dropped
+   * into a beat it has nothing to do with satisfies a presence check and
+   * teaches nobody, which is the exact failure this is here to stop.
+   */
+  const shows = new Set(['chart', 'table', 'flow', 'figure', 'simulation'])
+  const kindOf = new Map(lesson.blocks.map((b: Block) => [b.id, b.kind]))
+
+  if (!options.teaching) return issues
+
+  for (const beat of beats) {
+    const here = new Set(beat.blockIds)
+    const shown = beat.blockIds.filter((id) => shows.has(kindOf.get(id) ?? ''))
+
+    if (shown.length === 0) {
+      issues.push({
+        message:
+          `beat "${beat.id}" shows the learner nothing — it is all words. Every beat carries one ` +
+          `representation that fits it: a chart, a table, a flow or a figure`,
+      })
+      continue
+    }
+
+    const relevant = shown.some((id) =>
+      lesson.relations.some(
+        (r) =>
+          (r.from === id && here.has(r.to) && r.to !== id) ||
+          (r.to === id && here.has(r.from) && r.from !== id),
+      ),
+    )
+    if (!relevant) {
+      issues.push({
+        message:
+          `beat "${beat.id}" shows something, but nothing else in the beat refers to it. ` +
+          `A representation earns its place by being connected, or it is decoration`,
       })
     }
   }

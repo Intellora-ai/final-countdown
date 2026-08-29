@@ -1,0 +1,105 @@
+{
+  "id": "admission-of-partners-class-12-accounts",
+  "question": "Explain admission of partners in class 12 accounts",
+  "subject": "accounting",
+  "technicalTerms": [
+    { "term": "admission", "introducedIn": "admission-of-partners-class-12-accounts" },
+    { "term": "capital", "introducedIn": "admission-of-partners-class-12-accounts" },
+    { "term": "profit-sharing-ratio", "introducedIn": "admission-of-partners-class-12-accounts" },
+    { "term": "valuation", "introducedIn": "admission-of-partners-class-12-accounts" }
+  ],
+  "blocks": [
+    {
+      "id": "admission-of-partners-class-12-accounts",
+      "kind": "prose",
+      "title": null,
+      "emphasis": "primary",
+      "tone": "neutral",
+      "role": "anchor",
+      "depth": "core",
+      "body": "Admission of a new partner involves bringing them into an existing partnership. This changes the capital structure and profit-sharing ratio."
+    },
+    {
+      "id": "capital-valuation",
+      "kind": "prose",
+      "title": null,
+      "emphasis": "supporting",
+      "tone": "neutral",
+      "role": "definition",
+      "depth": "core",
+      "body": "The valuation of the existing partnership is necessary to determine the new partner's capital contribution."
+    },
+    {
+      "id": "valuation-methods",
+      "kind": "table",
+      "title": null,
+      "emphasis": "supporting",
+      "tone": "neutral",
+      "role": "framework",
+      "depth": "core",
+      "caption": null,
+      "columns": [
+        { "key": "valuation-method", "label": "Valuation Method", "type": "text" },
+        { "key": "description", "label": "Description", "type": "text" }
+      ],
+      "rows": [
+        { "valuation-method": "Going Concern", "description": "Based on the value of the business as a going concern." },
+        { "valuation-method": "Realization", "description": "Based on the value of assets if sold immediately." }
+      ]
+    },
+    {
+      "id": "profit-sharing-ratio",
+      "kind": "prose",
+      "title": null,
+      "emphasis": "supporting",
+      "tone": "neutral",
+      "role": "definition",
+      "depth": "core",
+      "body": "The profit-sharing ratio is the proportion of profits each partner receives. It changes when a new partner is admitted."
+    },
+    {
+      "id": "admission-entries",
+      "kind": "table",
+      "title": null,
+      "emphasis": "supporting",
+      "tone": "neutral",
+      "role": "framework",
+      "depth": "core",
+      "caption": null,
+      "columns": [
+        { "key": "account", "label": "Account", "type": "text" },
+        { "key": "debit", "label": "Debit", "type": "number" },
+        { "key": "credit", "label": "Credit", "type": "number" }
+      ],
+      "rows": [
+        { "account": "Cash", "debit": 10000, "credit": 0 },
+        { "account": "Capital of Partner A", "debit": 0, "credit": 5000 },
+        { "account": "Capital of Partner B", "debit": 0, "credit": 5000 }
+      ]
+    },
+    {
+      "id": "admission-of-partners-class-12-accounts-summary",
+      "kind": "summary",
+      "title": null,
+      "emphasis": "primary",
+      "tone": "neutral",
+      "role": "summary",
+      "depth": "core",
+      "progression": [
+        "Admission of a new partner changes the capital structure.",
+        "Valuation of the existing partnership is necessary.",
+        "Profit-sharing ratio is adjusted.",
+        "Journal entries are made to reflect the new capital."
+      ],
+      "mentalModel": "Admission of a new partner involves changes in capital and profit-sharing, which are recorded through journal entries."
+    }
+  ],
+  "relations": [
+    { "kind": "supports", "from": "admission-of-partners-class-12-accounts", "to": "admission-entries" },
+    { "kind": "supports", "from": "admission-of-partners-class-12-accounts", "to": "valuation-methods" },
+    { "kind": "supports", "from": "admission-of-partners-class-12-accounts", "to": "profit-sharing-ratio" },
+    { "kind": "supports", "from": "valuation-methods", "to": "admission-entries" },
+    { "kind": "supports", "from": "profit-sharing-ratio", "to": "admission-entries" },
+    { "kind": "supports", "from": "admission-entries", "to": "admission-of-partners-class-12-accounts-summary" }
+  ]
+}

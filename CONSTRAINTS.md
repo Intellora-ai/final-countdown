@@ -1,0 +1,132 @@
+# Constraints
+
+Last reviewed: 2026-08-29
+
+What "good enough to ship" means here, with the command that decides it. Every
+number below already passes on this codebase, or is recorded as a measured
+value rather than an aspiration.
+
+**Read this before writing code. Do not weaken it to make a change pass.**
+
+---
+
+## Why this file exists
+
+The rules were already real — they were spread across `CLAUDE.md`, several
+hook scripts, `ci/gates.toml`, and the comments inside individual gates. That
+meant a number could be argued per-change, because it was never written next to
+the command that checks it.
+
+This file does not add rules. It writes down the ones already enforced, so a
+threshold and its verdict live in the same row.
+
+---
+
+## The floor — always, no setup required
+
+- **No new suppressions.** `@ts-ignore`, `eslint-disable`, `# noqa`,
+  `# type: ignore`. Enforced by `~/.claude/hooks/no-symptom-patch.py` and
+  `laws.py`, which refuse the edit rather than reporting it.
+- **No swallowed failures.** An empty `catch`, a `catch` that only logs,
+  `except: pass`. A caught failure must change control flow.
+- **No skipped or deleted tests** to reach green.
+- **No weakening a test.** The only licence to change one is a surviving
+  mutant — mutation evidence that the test cannot fail. Not "it looks too
+  strict", not "the code is fine".
+- **No secrets in source.** Note `VITE_*` is compiled into the browser bundle,
+  so a key there is a published key.
+- **This file is not edited to make a change pass.**
+
+---
+
+## Enforced, with the command that decides
+
+| Dimension | Rule | Checked by | Runs at |
+|---|---|---|---|
+| Types (frontend) | zero errors, three projects | `npm run typecheck` | every edit, CI |
+| Types (engine) | zero errors | `pyright` | CI (`pyright`) |
+| Lint | zero errors, **zero warnings** | `npm run lint` (`--max-warnings 0`) | every edit, CI |
+| Design values | no raw colour or arbitrary px outside `tokens.ts` | the `design-value` ESLint rule | every edit |
+| Unit tests | all pass | `npm test -- --run` | every edit, CI (`frontend`) |
+| Engine tests | all pass | `pytest` | CI (`full`, `coverage`) |
+| Security (engine) | no findings | `bandit` | CI (`bandit`) |
+| Security (code scanning) | no alerts | CodeQL — python, actions | CI (required) |
+| Secrets | none exposed | `npm run gate:secrets` | CI |
+| Dead code | no unreachable non-test file, no dead export | `npm run gate:reachability` | CI (`frontend`) |
+| Assertion quality | planted mutants are killed | `npm run test:mutation`, `mutmut` | CI (`mutation N/4`, `mutmut`) |
+| Bundle size | within budget | `npm run budget` | CI (`frontend`) |
+| End to end | all specs pass | Playwright | CI (`e2e`) |
+| Teaching shape | a lesson is refused unless it teaches | `checkTeaching` via `validateLesson` | every render |
+
+A dimension with a number and no command in the `Checked by` column is an
+aspiration, not a constraint.
+
+---
+
+## The 17 that block a merge
+
+Enforced by repository **ruleset `20990225`**, not classic branch protection —
+`gh api .../branches/main/protection` returns 404, which misleads. The list is
+asserted against GitHub's live set by `scripts/check_ruleset.py`, so
+`ci/gates.toml:54-62` and reality cannot drift.
+
+```
+preflight   axle-verify   spec-strength   spec-composition   vacuity-check
+counterexample-search     honest-report   coverage           pyright
+bandit      mutmut        correspondence  full
+codeql-python             codeql-actions  CodeQL             e2e
+```
+
+`strict_required_status_checks_policy: true` — a branch must be up to date with
+`main` before it can merge.
+
+**Not required, and worth knowing why:**
+
+- `learning-canvas-frontend` — has been red on `main` and on every recent PR
+  since 2026-08-25. Do not read its red as caused by your change.
+- `ai-review` — blocked on a credential; 0 of 36 reviews have run (issue #93).
+- `codeql-javascript-typescript` — explicitly excluded at `ci/gates.toml:405-411`.
+
+---
+
+## Measured, not yet enforced
+
+Today's values, recorded so they can only improve. A drop is the finding.
+
+| Metric | Today | Direction |
+|---|---|---|
+| Gate rule coverage | `teach/teaching.ts` has **no test file** | must reach a failing/passing pair per rule |
+| Lessons passing the teaching gate | **2 of 8** registered | must reach 8 |
+| Canvas reachability | `src/canvas` is **not in the gate's manifest** | should be declared, or the silence is a hole |
+| Local model, warm latency | **1.68s** (`qwen2.5:3b`, 40 tokens) | cold load is minutes — budget for it |
+
+---
+
+## Where the checks run, and why placement matters
+
+A check that stalls the edit loop gets switched off, and a gate people switched
+off is worse than no gate because the bar still looks like it exists.
+
+| Phase | What runs | Budget |
+|---|---|---|
+| Every edit | typecheck, lint, the changed file's tests | seconds |
+| Task end | the full unit suite, reachability | under 90s |
+| CI | everything above plus mutation, e2e, CodeQL, bandit | minutes |
+
+---
+
+## The one thing this file cannot check
+
+**Whether the teaching is good.** `llm/validation.py` and
+`teach/teaching.ts` both draw that line deliberately, and it holds here: a
+score mixing countable structure with judged quality produces a number that
+looks like a measurement and is not.
+
+Rules are a floor. They prevent bad teaching; they cannot produce good
+teaching. The mechanisms that raise the ceiling — generate several and pick,
+self-critique, learner-outcome evidence, never repeating an explanation — are
+in `docs/engineering/teaching-patterns.md`, and none of them is a rule.
+
+**Do not add rules to fix a quality problem.** Each new rule narrows what can
+be said, and a model optimising against a long rule list produces output that
+passes and does not teach.

@@ -24,7 +24,7 @@
  *    off this server, so refusals carry paths and fixed wording only.
  */
 
-import { validateLesson } from '../src/canvas/spec/validate.ts'
+import { validateLesson, type TeachingLevel } from '../src/canvas/spec/validate.ts'
 import { chooseStrategy, type Strategy } from './teaching.ts'
 import { injectionSignals, stripInvisible } from '../src/websearch/guard.ts'
 import { citationSupports } from '../src/websearch/quality.ts'
@@ -149,8 +149,26 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     body: scrub(body, secrets) as Record<string, unknown>,
   })
 
-  /** Ask the model, then put its answer through the browser's own gate. */
-  async function lessonFrom(request: LessonRequest): Promise<ServerResponse> {
+  /**
+   * Ask the model, then put its answer through the browser's own gate.
+   *
+   * WHY THE TEACHING LEVEL IS A PARAMETER AND NOT A CONSTANT
+   * -------------------------------------------------------
+   * This one function serves two routes that owe the reader different things.
+   * `/api/lesson` teaches a named concept, so it owes the whole arc: a
+   * definition first, a summary last, something shown rather than told.
+   * `/api/ask` answers one free question, and owes none of that -- demanding
+   * an opening definition and a closing progression from a reply would refuse
+   * every honest answer the model can give.
+   *
+   * Held at `'lesson'` for both, `/api/ask` returned 502 for every question
+   * ever asked. That is the same defect already found and fixed in the doubt
+   * resolver, reached by a second path; this is the other copy.
+   */
+  async function lessonFrom(
+    request: LessonRequest,
+    teaching: TeachingLevel,
+  ): Promise<ServerResponse> {
     /* Reported on EVERY outcome, including failure. A decision nobody can
      * observe is a decision nobody can debug, and this repo has already
      * shipped a trace that claimed capabilities were used when they had done
@@ -166,7 +184,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       return reply(502, { ...decided, error: 'the model could not be reached' })
     }
 
-    const result = validateLesson(produced)
+    const result = validateLesson(produced, { teaching })
     if (!result.ok) {
       return reply(502, {
         ...decided,
@@ -225,14 +243,14 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
           carriedFrom: nonEmptyString(body['carriedFrom']) ? body['carriedFrom'] : undefined,
           diagnosis: typeof body['diagnosis'] === 'string' ? body['diagnosis'] : undefined,
         }),
-      })
+      }, 'lesson')
     }
 
     if (req.path === '/api/ask') {
       if (!nonEmptyString(body['question'])) {
         return reply(400, { error: 'question is required' })
       }
-      return lessonFrom({ question: body['question'] })
+      return lessonFrom({ question: body['question'] }, 'answer')
     }
 
     if (req.path === '/api/day') {

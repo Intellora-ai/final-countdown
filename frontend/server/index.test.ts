@@ -103,8 +103,29 @@ describe('over a real socket', () => {
       model: { lesson: async () => ({
         id: 'photosynthesis',
         question: 'How does a leaf make food?',
-        blocks: [{ id: 'a', kind: 'prose', body: 'Light becomes sugar.' }],
-        relations: [],
+        /* A whole lesson: `/api/lesson` holds the model to the teaching arc,
+           so a one-block stub could never produce the 200 asserted below. */
+        blocks: [
+          {
+            id: 'a', kind: 'prose', emphasis: 'primary', role: 'definition',
+            body: 'A leaf makes food by turning light into sugar.', terms: [{ text: 'sugar', mark: 'key' }],
+          },
+          {
+            id: 'swap', kind: 'table', emphasis: 'primary', title: 'In and out',
+            columns: [
+              { key: 'side', label: 'Side', type: 'text' },
+              { key: 'what', label: 'What', type: 'text' },
+            ],
+            rows: [{ side: 'In', what: 'Light' }, { side: 'Out', what: 'Sugar' }],
+            caption: 'One row per side.',
+          },
+          {
+            id: 'keep', kind: 'summary', emphasis: 'primary', role: 'summary',
+            progression: ['Light arrives', 'Sugar is stored'],
+            mentalModel: 'A leaf cooks with light instead of heat.',
+          },
+        ],
+        relations: [{ from: 'swap', to: 'a', kind: 'supports' }],
       }) },
       search: { search: async () => [] },
       secrets: [],

@@ -51,7 +51,11 @@ export function AskView({ almanac }: { almanac?: AlmanacClient } = {}) {
         setProblem(result.reason)
         return
       }
-      const checked = validateLesson(result.lesson)
+      /* An ANSWER, not a lesson. This screen replies to one free question, so
+         it does not owe an opening definition or a closing progression the way
+         a taught concept does. Checked at `'lesson'`, every answer this screen
+         ever received was refused. */
+      const checked = validateLesson(result.lesson, { teaching: 'answer' })
       if (!checked.ok) {
         setProblem('The answer that came back could not be trusted, so it was not shown.')
         return

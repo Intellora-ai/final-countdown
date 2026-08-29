@@ -20,7 +20,41 @@ export const gasPressure: LessonInput = {
   question: 'Why does increasing temperature increase pressure in a gas?',
   subject: 'Physics',
 
+  /* "force" means a push or a pull here, not coercion, and "pressure" is the
+     technical quantity rather than the everyday word. Both are pinned to the
+     block that earns them, so an earlier use is refused rather than noticed
+     later by a reader who has already been confused by it. */
+  technicalTerms: [
+    { term: 'force', introducedIn: 'wall-collisions' },
+    { term: 'kinetic energy', introducedIn: 'wall-collisions' },
+  ],
+
   blocks: [
+    {
+      id: 'what-pressure-is',
+      kind: 'prose',
+      title: 'What pressure is',
+      emphasis: 'primary',
+      tone: 'neutral',
+      role: 'definition',
+      /* Plain words only. Not "force per unit area", not "kinetic energy" —
+         both are declared above and earned later. The learner meets the idea
+         before they meet the vocabulary for it. */
+      body: 'Pressure is how hard a gas pushes on the walls of its container.',
+      terms: [{ text: 'pressure', mark: 'key' }],
+    },
+
+    {
+      id: 'the-whole-idea',
+      kind: 'prose',
+      title: 'The whole idea',
+      emphasis: 'primary',
+      tone: 'insight',
+      role: 'framework',
+      body: 'Heat makes the particles move faster. Faster particles hit the walls harder and more often, so the push goes up.',
+      terms: [{ text: 'move faster', mark: 'distinction' }],
+    },
+
     {
       id: 'particle-model',
       kind: 'simulation',
@@ -157,7 +191,11 @@ export const gasPressure: LessonInput = {
       title: 'The common mistake',
       emphasis: 'supporting',
       tone: 'warning',
-      body: 'Particles do not get bigger when heated, and there are not more of them. What changes is how fast they move, and therefore how hard and how often they hit the walls.',
+      role: 'misconception',
+      /* Broken into two runs rather than shortened. Nothing was cut: the
+         paragraph break is where the reader gets to breathe. */
+      body: 'Particles do not get bigger when heated, and there are not more of them.\n\nWhat changes is how fast they move, and therefore how hard and how often they hit the walls.',
+      terms: [{ text: 'how fast they move', mark: 'key' }],
     },
 
     {
@@ -174,12 +212,36 @@ export const gasPressure: LessonInput = {
     },
 
     {
-      id: 'summary',
+      id: 'wall-collisions',
       kind: 'prose',
       title: 'In one paragraph',
       emphasis: 'supporting',
       tone: 'neutral',
-      body: 'Temperature is a measure of the average kinetic energy of the particles. Heat a gas in a sealed rigid container and the particles move faster, so they strike the walls more often and with more force each time. Pressure is exactly that force per unit area, so it rises in step with temperature.',
+      role: 'component',
+      /* Where "force" and "kinetic energy" are earned — `technicalTerms` above
+         pins both to this block id. Three runs rather than one 53-word wall;
+         every word of the original survives. */
+      body: 'Temperature is a measure of the average kinetic energy of the particles.\n\nHeat a gas in a sealed rigid container and the particles move faster, so they strike the walls more often and with more force each time.\n\nPressure is exactly that force per unit area, so it rises in step with temperature.',
+      terms: [
+        { text: 'kinetic energy', mark: 'key' },
+        { text: 'force per unit area', mark: 'distinction' },
+      ],
+    },
+
+    {
+      id: 'keep-this',
+      kind: 'summary',
+      title: 'Keep this',
+      emphasis: 'primary',
+      tone: 'result',
+      role: 'summary',
+      progression: [
+        'Heat the gas',
+        'Particles move faster',
+        'They hit the walls harder and more often',
+        'Pressure rises',
+      ],
+      mentalModel: 'Pressure is a drumbeat on the walls. Heat makes it faster and harder, never bigger.',
     },
   ],
 
@@ -190,8 +252,19 @@ export const gasPressure: LessonInput = {
   relations: [
     { from: 'pressure-vs-temperature', to: 'proportionality', kind: 'supports' },
     { from: 'ideal-gas-law', to: 'proportionality', kind: 'derives' },
+    /* The proportionality is what the chain establishes, and the two sit in
+       the same beat -- a representation nothing in its own beat refers to is
+       decoration however good it is. */
+    { from: 'proportionality', to: 'causal-chain', kind: 'derives' },
     { from: 'causal-chain', to: 'particle-model', kind: 'exemplifies' },
     { from: 'what-changes', to: 'pressure-vs-temperature', kind: 'supports' },
     { from: 'misconception', to: 'causal-chain', kind: 'contrasts' },
+    { from: 'particle-model', to: 'the-whole-idea', kind: 'exemplifies' },
+    { from: 'causal-chain', to: 'the-whole-idea', kind: 'supports' },
+    /* The pie chart was joined to nothing, so nothing in the lesson referred to
+       it — a representation that earns its place or is decoration. It answers
+       "where does the added energy go", which is the paragraph that earns
+       kinetic energy. */
+    { from: 'energy-split', to: 'wall-collisions', kind: 'supports' },
   ],
 }

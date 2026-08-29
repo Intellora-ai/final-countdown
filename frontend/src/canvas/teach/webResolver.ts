@@ -488,8 +488,20 @@ function buildCheckedAnswer(
     {
       id: 'web-note',
       kind: 'callout',
+      /*
+       * THE BREAKS ARE LOAD-BEARING. This banner ran to 31 words in one go
+       * against a 30-word limit, so `run-too-long` refused it — and since the
+       * wording is byte-identical on every call, it refused every checked web
+       * answer ever built, whatever the question was. All three builders in
+       * this file had the same fault, and none of it was visible until this
+       * file's tests could load at all.
+       *
+       * The title names the question because a reader should see what was
+       * asked before being told where the answer came from.
+       */
+      title: clamp(doubt.text.trim(), MAX_TITLE),
       body:
-        `This is not from this lesson. It is quoted from a page found on the web. ` +
+        `This answer is not from this lesson.\n\nIt is quoted from a page found on the web.\n\n` +
         `${STATUS_NOTE[status as 'supported' | 'single-source']}${freshnessNote(freshness)}` +
         `${fallbackNote(fallback)}`,
       emphasis: 'aside',
@@ -522,7 +534,7 @@ function buildCheckedAnswer(
     question: clamp(doubt.text.trim(), 200),
     blocks,
     relations: [],
-  })
+  }, { teaching: 'answer' })
   return result.ok ? result.lesson : null
 }
 
@@ -548,8 +560,9 @@ function buildConflictAnswer(
     {
       id: 'web-note',
       kind: 'callout',
+      title: clamp(doubt.text.trim(), MAX_TITLE),
       body:
-        `This is not from this lesson. ${STATUS_NOTE.conflicting}` +
+        `This answer is not from this lesson.\n\n${STATUS_NOTE.conflicting}` +
         `${freshnessNote(freshness)}${fallbackNote(fallback)}`,
       emphasis: 'aside',
       tone: 'warning',
@@ -572,7 +585,7 @@ function buildConflictAnswer(
     question: clamp(doubt.text.trim(), 200),
     blocks,
     relations: [],
-  })
+  }, { teaching: 'answer' })
   return result.ok ? result.lesson : null
 }
 
@@ -592,9 +605,11 @@ function buildAnswer(doubt: Doubt, pages: readonly RetrievedPage[]): Lesson | nu
          subject. Without it an answer appears in the lesson's own styling,
          sourced from elsewhere, and teaches the learner that the lesson said
          something it never said. */
+      title: clamp(doubt.text.trim(), MAX_TITLE),
       body:
-        'This is not from this lesson. It is quoted from pages found on the web, ' +
-        'with the address of each one, so you can judge them yourself.',
+        'This answer is not from this lesson.\n\n' +
+        'It is quoted from pages found on the web, with the address of each one, ' +
+        'so you can judge them yourself.',
       emphasis: 'aside',
       tone: 'insight',
     },
@@ -616,7 +631,7 @@ function buildAnswer(doubt: Doubt, pages: readonly RetrievedPage[]): Lesson | nu
     question: clamp(doubt.text.trim(), 200),
     blocks,
     relations: [],
-  })
+  }, { teaching: 'answer' })
   return result.ok ? result.lesson : null
 }
 

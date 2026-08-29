@@ -27,11 +27,11 @@ one.**
 | `wiki/entities/` | concrete things: services, files, systems, people, tools | ingest |
 | `wiki/concepts/` | ideas, mechanisms, techniques | ingest |
 | `wiki/decisions/` | a decision, its options, and its evidence | ingest |
-| `wiki/summarages/` | condensed roll-ups across several pages | ingest |
+| `wiki/summaries/` | condensed roll-ups across several pages | ingest |
 | `index.md` | every page, and how pages relate | ingest |
 | `log.md` | every ingest that has ever run | ingest |
 
-Note on `wiki/summarages/`: this name is carried verbatim from the
+Note on `wiki/summaries/`: this name is carried verbatim from the
 specification. If it was meant to be `summaries`, rename the directory and this
 row together -- do not leave the two disagreeing.
 

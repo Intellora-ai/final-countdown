@@ -79,13 +79,25 @@ REQUIRED = (
     # wants held is easier to reason about than one with a silent exception in
     # it, and the marginal cost of a re-invocation is near zero.
     "caveman",
-    "mutate",
-    "test-driven-development",
-    "proptest",
-    "adversarial-reviewer",
-    "chaos-engineer",
-    "chaos-engineering",
-    "systematic-debugging",
+    # REMOVED 2026-08-25 on the owner's instruction: mutate,
+    # test-driven-development, proptest, adversarial-reviewer, chaos-engineer,
+    # chaos-engineering, systematic-debugging.
+    #
+    # They were removed from the RUNNING copy at ~/.claude/hooks/enforce_skills.py
+    # earlier and this file was never updated, so for some time the repo
+    # documented a nine-skill gate while the machine enforced a different set.
+    # That drift is the reason a reader could not audit the gate from the repo,
+    # which is the exact failure the header of this file warns about.
+    #
+    # They are not coming back. Each one loads a large preamble on the first
+    # invocation of a session, and a turn gate fires them on prompts that will
+    # never mutate a file or run a property test. The methods remain available
+    # as skills to invoke deliberately; what was removed is the obligation to
+    # invoke them on every single turn.
+    "thiel",
+    "root-sweep",
+    "fullrun",
+    "tokenlock",
 )
 
 # "turn"    --- both skills must be re-invoked for EVERY user prompt.

@@ -84,3 +84,20 @@ screenshots/
 # one commit. Ignored by pattern rather than by path, because the same trap
 # waits in any other Next.js app added later.
 .next/
+
+# Agent scan and sweep output. Both directories are written by tooling on
+# demand, are regenerated from the repository itself, and carry timestamps and
+# machine-local paths. Untracked they are worse than useless: `git add -A` —
+# the obvious command for staging work — sweeps them into history, and a
+# findings file committed once is read later as if it were current.
+.repo-oracle/
+.root-sweep/
+
+# setuptools build metadata for learning-os.
+#
+# This rule already existed, but ONLY in .git/info/exclude, which is per-clone
+# and never committed. That is the same trap this file already documents for
+# .venv: the ignore works on the machine that added it and nowhere else, so a
+# fresh clone or a CI checkout gets the bug back with no warning. Moved here so
+# it travels. A fix that does not travel is memory, not mechanism.
+learning-os/src/*.egg-info/

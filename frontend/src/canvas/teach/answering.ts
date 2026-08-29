@@ -45,14 +45,34 @@ export interface Answered {
 /** Asks the server a free question. Kept narrow so a double is two lines. */
 export type AskPort = (question: string) => Promise<{ ok?: boolean; text?: string; reason?: string }>
 
-/* Said when the model cannot be reached. It still ANSWERS in the only honest
- * way left -- by saying what happened and what will be done about it. The
- * learner's question is not thrown away, and the wording says so, because the
- * failure a learner cannot see is the one that makes them stop asking. */
+/*
+ * Said when the model cannot be reached.
+ *
+ * IT PROMISES NOTHING, BECAUSE NOTHING HERE PERFORMS A PROMISE.
+ *
+ * It used to end: "Your question is saved — ask me again in a moment and I will
+ * come back to it." Both halves were false. There is no queue, no retry and no
+ * pending list in this file; a grep for save/retry/queue found only that
+ * sentence. And asking again returns this identical text, so the advice fails
+ * the moment a learner follows it -- which is exactly when they are told it.
+ *
+ * Measured in a browser: a learner asked "who is the president of india", was
+ * told their question was saved, asked again as instructed, and got the same
+ * message back word for word.
+ *
+ * This is the refusal banner defect again, one level along: a sentence that is
+ * kind and untrue, which is worse than a blunt one that is true, because the
+ * learner acts on it and is let down a second time. The failure a learner
+ * cannot see is what makes them stop asking -- and so is the reassurance that
+ * turns out to be empty.
+ *
+ * What it says now is only what is true: what broke, and that it is this end's
+ * problem rather than their question's.
+ */
 const UNAVAILABLE = [
   'I could not reach the part of me that answers questions outside this lesson,',
-  'so I cannot answer that one properly yet. Your question is saved — ask me',
-  'again in a moment and I will come back to it.',
+  'so I cannot answer that one yet. That is a problem on this end, not with your',
+  'question. The lesson below still works, and anything in it I can still answer.',
 ].join(' ')
 
 export function createAnswering(options: { resolvers: readonly AnyResolver[]; ask: AskPort }) {

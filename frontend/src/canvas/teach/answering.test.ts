@@ -108,9 +108,33 @@ describe('when the lesson does not contain the answer', () => {
     expect(result.from).toBe('unavailable')
     expect(result.text.length).toBeGreaterThan(20)
     expect(result.text).toMatch(/could not be reached|cannot answer/i)
-    /* And it says the question is kept, so the learner knows it was not
-     * ignored. */
-    expect(result.text).toMatch(/saved|kept|come back/i)
+    /*
+     * And it tells the learner they were not ignored.
+     *
+     * THIS ASSERTION CHANGED, AND HERE IS THE EVIDENCE THAT LICENSED IT.
+     *
+     * It used to require the words /saved|kept|come back/. The requirement
+     * behind those words -- stated in the line above it, unchanged -- is that
+     * the learner knows their question was not thrown away. But the only
+     * message that could satisfy that regex was one promising the question had
+     * been STORED and would be RETURNED TO, and nothing in `answering.ts` does
+     * either: no queue, no retry, no pending list.
+     *
+     * Measured in a browser: a learner asked "who is the president of india",
+     * was told "Your question is saved — ask me again in a moment and I will
+     * come back to it", asked again exactly as instructed, and received the
+     * identical sentence. The assertion was pinning a promise the system
+     * cannot keep -- which is the measured contradiction LAW 0 requires before
+     * a test may move, not a preference about wording.
+     *
+     * The requirement is unchanged and now tested directly: the message must
+     * put the fault on this end rather than on their question.
+     */
+    expect(result.text).toMatch(/not with your question|on this end|not your fault/i)
+    expect(
+      /saved|kept|come back to it/i.test(result.text),
+      'the message promises to store or return to the question, and nothing does',
+    ).toBe(false)
   })
 
   it('never returns an empty answer, whatever the model sends', async () => {

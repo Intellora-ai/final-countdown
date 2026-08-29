@@ -61,9 +61,13 @@ const QUESTIONS = [
   'What makes a hypothesis testable rather than merely plausible?',
 ]
 
+/** How many times a 429 is waited out before the question is given up on. */
+const RATE_LIMIT_RETRIES = 3
+
 /** An OpenAI-compatible chat call. Groq, Cerebras, OpenRouter and Mistral all speak it. */
 function httpModel(): LessonModel {
   return async (system, user) => {
+    const call = async (waited: number): Promise<string> => {
     const response = await fetch(ENDPOINT, {
       method: 'POST',
       headers: {
@@ -100,11 +104,43 @@ function httpModel(): LessonModel {
         max_tokens: 2000,
       }),
     })
+    /*
+     * 429 IS THE FREE TIER SAYING "SLOW DOWN", NOT THE MODEL FAILING.
+     *
+     * Measured against `openai/gpt-oss-120b`: questions 1 and 2 passed in 2.6s
+     * and 2.9s, then 3 through 6 returned HTTP 429 in 0.1s each and never
+     * reached the model at all. Reported as a score that would have read 2/6
+     * and meant nothing -- four of those six were never asked.
+     *
+     * A probe that counts a rate limit as a teaching failure measures the
+     * billing plan, so it waits and asks again instead. `retry-after` is
+     * honoured when the server sends one; the fallback doubles, because a
+     * fixed pause against a token-per-minute window either wastes time or
+     * never clears it.
+     */
+    if (response.status === 429) {
+      /*
+       * BOUNDED. The first version of this recursed with no cap:
+       * `return httpModel()(system, user)`. Against a free tier that keeps
+       * returning 429 that is an infinite loop, 20 seconds at a time, and it
+       * hung a whole run with no output -- a probe that never finishes reports
+       * nothing, which is worse than reporting a rate limit.
+       */
+      if (waited >= RATE_LIMIT_RETRIES) {
+        throw new Error(`${MODEL}: rate limited after ${RATE_LIMIT_RETRIES} waits`)
+      }
+      const after = Number(response.headers.get('retry-after') ?? '0')
+      const waitMs = Number.isFinite(after) && after > 0 ? after * 1000 : 15_000
+      await new Promise((resolve) => setTimeout(resolve, waitMs))
+      return call(waited + 1)
+    }
     if (!response.ok) throw new Error(`${MODEL}: HTTP ${response.status}`)
     const body = (await response.json()) as {
       choices?: { message?: { content?: string } }[]
     }
     return String(body.choices?.[0]?.message?.content ?? '')
+    }
+    return call(0)
   }
 }
 

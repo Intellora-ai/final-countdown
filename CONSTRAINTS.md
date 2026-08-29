@@ -98,9 +98,38 @@ Today's values, recorded so they can only improve. A drop is the finding.
 | Gate rule coverage | **31 rules, 31 paired** — `ruleCensus.test.ts`, 61 tests | stays at zero unpaired; the census fails naming any new rule |
 | Lessons passing the teaching gate | **5 of 8** registered, all 5 guarded by `lessons.test.ts` | must reach 8 |
 | Canvas reachability | declared it and **measured 6 orphans + 25 dead exports**; reverted to keep the gate honest | classify all 31, then declare `src/canvas` permanently |
-| Authoring, real model | **0 of 6** lessons pass, mean **223.5s** (`qwen2.5:7b`, whole-lesson) | must reach 6 of 6; try a per-concept unit and a stronger free model |
+| Authoring, real model | **5 of 6**, mean **22.0s** (`openai/gpt-oss-120b`, per-concept + repair) | must reach 6 of 6, then widen past six questions |
 | `teach/concept.ts` | built and tested (9 tests), **imported by nothing that ships** | wire it into `CanvasRoute`, or it is the orphan this repo's reachability gate exists to catch |
 | Local model, warm latency | **1.68s** (`qwen2.5:3b`, 40 tokens) | cold load is minutes — budget for it |
+
+### Every authoring measurement, including the failures
+
+Recorded because a number believed on the way to a result is worse than no
+number, and four of these were wrong for reasons that had nothing to do with
+teaching. Same six questions across six subjects every time, temperature 0.
+
+| # | Model | Unit | Score | Mean | What the refusals actually were |
+|---|---|---|---|---|---|
+| 1 | qwen2.5:7b | whole lesson | 0/6 | 223.5s | the baseline this set out to beat |
+| 2 | qwen2.5:7b | per concept | 0/6 | 12.0s | **harness bug** — `JSON.parse` instead of the repo's own `extractJson` |
+| 3 | qwen2.5:7b | per concept | 0/6 | 12.3s | **harness bug** — no token budget, JSON truncated mid-object |
+| 4 | qwen2.5:7b | per concept | 1/6 | 18.4s | first real pass; prompt showed the model UNQUOTED placeholders and it copied them |
+| 5 | qwen2.5:7b | per concept | 0/6 | 21.1s | **worse after adding enum lists** — a negative result, kept |
+| 6 | qwen2.5:7b | per concept + repair | 2/6 | 58.5s | the repair turn doubled it |
+| 7 | openai/gpt-oss-120b | per concept + repair | 2 of 2 asked | 2.6s | four questions never reached the model — HTTP 429, free-tier rate limit |
+| 8 | **openai/gpt-oss-120b** | **per concept + repair** | **5/6** | **22.0s** | only "how does a bill become a law in India" refused |
+
+Three lessons this table is the evidence for:
+
+- **Runs 2, 3 and 4 all measured the harness, not the model.** Both causes were
+  already written down in this repository — `extractJson` in `authorLesson.ts`
+  and the token-budget note in `CanvasRoute.tsx` — and neither was read before
+  the probe was built.
+- **Run 5 got worse and is recorded anyway.** Adding enum lists to the prompt
+  moved 1/6 down to 0/6.
+- **Run 7 is not a 2/6.** Four of six were never asked. A probe that counts a
+  rate limit as a teaching failure measures the billing plan.
+
 
 ---
 

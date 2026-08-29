@@ -105,6 +105,60 @@ describe('a concept teaches one idea and asks what is next', () => {
     expect(result.concept.next).toHaveLength(2)
   })
 
+  it('hands back the VALIDATED lesson, so a caller can render it', async () => {
+    /*
+     * WHY THIS FIELD EXISTS, AND IT IS THE WHOLE POINT OF THE MODULE.
+     *
+     * `authorConcept` already runs `validateLesson` and then threw the result
+     * away, returning the raw parsed object instead. That made it unrenderable:
+     * `CanvasRoute` holds a `Lesson`, and a `Concept` is not one -- it is
+     * whatever JSON the model sent, which is exactly the thing the validator
+     * exists to stop reaching a screen.
+     *
+     * So this module measured 5/6 while the product went on calling
+     * `authorLesson`, which measures 0/6, because there was no type-safe way to
+     * hand the result over. A module that cannot be wired is a module that does
+     * not ship, however good its number is.
+     */
+    const result = await authorConcept(says(soundConcept()), 'What is a base case?')
+    if (!result.ok) throw new Error(`refused: ${JSON.stringify(result.issues)}`)
+    expect(result.lesson.id).toBe('base-case')
+    expect(result.lesson.blocks).toHaveLength(2)
+  })
+
+  it('puts real source text in front of the model before it writes', async () => {
+    /*
+     * PRINCIPLE 13, AND A REGRESSION THIS TEST EXISTS TO STOP.
+     *
+     * `authorLesson` took `sources` and `CanvasRoute` searched the web before
+     * calling it -- "SEARCH FIRST, THEN WRITE. The gate reads shape and has no
+     * opinion about truth, so an invented lesson passes every check in this
+     * repository. The only defence is giving the author real text to write
+     * from."
+     *
+     * Swapping the call site to `authorConcept` without this parameter made
+     * `sources` dead at `CanvasRoute.tsx:227` -- lint caught it -- which would
+     * have silently removed the ONLY thing standing between a learner and a
+     * confidently invented lesson.
+     */
+    let seenSystem = ''
+    const model: LessonModel = async (system) => {
+      seenSystem = system
+      return soundConcept()
+    }
+    const result = await authorConcept(model, 'What is a base case?', [
+      {
+        url: 'https://example.org/recursion',
+        title: 'Recursion',
+        text: 'A base case stops the recursion by returning without calling itself.',
+      },
+    ])
+    expect(result.ok).toBe(true)
+    expect(seenSystem, 'the source text must reach the model').toContain(
+      'stops the recursion by returning',
+    )
+  })
+
   it('refuses a concept that shows nothing, however well it is written', async () => {
     /* Principle 3. Prose alone is telling, not teaching, and this is the rule
        `nothing-is-shown` would apply to a whole lesson -- but that one is

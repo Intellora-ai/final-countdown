@@ -26,7 +26,7 @@ import { validateLesson, type Issue, type TeachingLevel } from './spec/validate'
 import { chatOnce } from '../agent/ports/httpModel'
 import { sourcesFrom } from './teach/researched'
 import type { Source } from './teach/grounding'
-import { authorLesson } from './teach/authorLesson'
+import { authorConcept } from './teach/concept'
 import type { Lesson } from './spec/spec'
 import { TeachView } from './teach/TeachView'
 
@@ -228,7 +228,33 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
         }
       }
 
-      const written = await authorLesson(chat, question, sources)
+      /*
+       * ONE CONCEPT, NOT A WHOLE LESSON, AND THE NUMBERS ARE THE ARGUMENT.
+       *
+       * Same six questions across six subjects, temperature 0, every run:
+       *
+       *   authorLesson   whole lesson    qwen2.5:7b        0 of 6   223.5s
+       *   authorConcept  per concept     qwen2.5:7b        2 of 6    58.5s
+       *   authorConcept  per concept     gpt-oss-120b      5 of 6    22.0s
+       *
+       * The full table, including the four runs whose refusals turned out to be
+       * defects in the measuring harness rather than the model, is in
+       * `CONSTRAINTS.md` and `WORK.md`.
+       *
+       * WHY THIS LINE MATTERED MORE THAN ANY MODEL CHANGE. `authorConcept`
+       * measured 5 of 6 while this call site went on invoking `authorLesson` at
+       * 0 of 6 -- so the PRODUCT's score stayed zero no matter how good the
+       * model got. `concept.ts` was imported by nothing that ships, which is
+       * exactly the orphan pattern this repository built a reachability gate to
+       * catch, and `src/canvas` is not in that gate's manifest, so nothing said
+       * so.
+       *
+       * THE REFUSAL IS STILL SHOWN, NOT SWALLOWED. `authorConcept` returns the
+       * gate's own issues, and they reach the screen verbatim through the same
+       * path `authorLesson`'s did. A canvas that quietly fell back would tell a
+       * learner their question had been answered when it had not.
+       */
+      const written = await authorConcept(chat, question, sources)
       if (written.ok) {
         setAuthored(written.lesson)
       } else {

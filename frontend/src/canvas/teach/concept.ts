@@ -1,5 +1,7 @@
+import type { Lesson } from '../spec/spec'
 import { validateLesson, type Issue } from '../spec/validate'
 import { extractJson, type LessonModel } from './authorLesson'
+import { groundingPreamble, type Source } from './grounding'
 import { classifyTurn } from './turn'
 
 /**
@@ -64,7 +66,21 @@ export interface Concept {
 }
 
 export type ConceptResult =
-  | { ok: true; concept: Concept; attempts: number }
+  | {
+      ok: true
+      concept: Concept
+      /**
+       * The VALIDATED lesson, not the raw parse.
+       *
+       * Without this the module was unrenderable: `CanvasRoute` holds a
+       * `Lesson`, a `Concept` is whatever JSON the model sent, and there was no
+       * type-safe way to hand one over. So this module measured 5 of 6 while
+       * the product went on calling `authorLesson` at 0 of 6. A module that
+       * cannot be wired does not ship, however good its number is.
+       */
+      lesson: Lesson
+      attempts: number
+    }
   /**
    * `unreachable` separates two outcomes a learner must never see conflated:
    * "the model answered and what it wrote does not teach" and "nothing
@@ -234,8 +250,22 @@ const WORKED_EXAMPLE = {
 }
 
 /** What the model is asked for. One concept, and a real one to copy. */
-export function conceptRequest(question: string): string {
+export function conceptRequest(question: string, sources: readonly Source[] = []): string {
+  /*
+   * SEARCH FIRST, THEN WRITE -- the same order `authorLesson` uses, and for the
+   * reason `CanvasRoute` records beside its own search: "The gate reads shape
+   * and has no opinion about truth, so an invented lesson passes every check in
+   * this repository. The only defence is giving the author real text to write
+   * from."
+   *
+   * `groundingPreamble([])` returns '', so a topic the web does not cover, a
+   * refused search, or an unconfigured provider all leave the prompt exactly as
+   * it was. Turning a retrieval failure into a teaching failure would be worse
+   * than being honestly ungrounded.
+   */
+  const grounding = groundingPreamble(sources)
   return [
+    ...(grounding === '' ? [] : [grounding, '']),
     `Teach ONE atomic concept that moves a learner toward answering: ${question}`,
     '',
     'Not a lesson. One idea, the smallest that stands on its own.',
@@ -312,11 +342,12 @@ export function conceptRequest(question: string): string {
 const ATTEMPTS = 2
 
 /** Judge one reply. Returns the issues, empty when the concept is sound. */
-function judge(raw: string): { concept: Concept | null; issues: Issue[] } {
+function judge(raw: string): { concept: Concept | null; lesson: Lesson | null; issues: Issue[] } {
   const parsed = extractJson(raw) as Concept | null
   if (parsed === null || typeof parsed !== 'object') {
     return {
       concept: null,
+      lesson: null,
       issues: [{ path: '(reply)', message: 'the reply contained no JSON object' }],
     }
   }
@@ -337,6 +368,7 @@ function judge(raw: string): { concept: Concept | null; issues: Issue[] } {
 
   return {
     concept: parsed,
+    lesson: structural.ok ? structural.lesson : null,
     issues: [...(structural.ok ? [] : structural.issues), ...conceptIssues(parsed)],
   }
 }
@@ -368,8 +400,9 @@ function judge(raw: string): { concept: Concept | null; issues: Issue[] } {
 export async function authorConcept(
   model: LessonModel,
   question: string,
+  sources: readonly Source[] = [],
 ): Promise<ConceptResult> {
-  const system = conceptRequest(question)
+  const system = conceptRequest(question, sources)
   let user = question
   let prior: string | undefined
   let last: { raw: string; issues: Issue[] } = { raw: '', issues: [] }
@@ -391,8 +424,8 @@ export async function authorConcept(
     }
 
     const verdict = judge(raw)
-    if (verdict.concept !== null && verdict.issues.length === 0) {
-      return { ok: true, concept: verdict.concept, attempts: attempt }
+    if (verdict.concept !== null && verdict.lesson !== null && verdict.issues.length === 0) {
+      return { ok: true, concept: verdict.concept, lesson: verdict.lesson, attempts: attempt }
     }
 
     last = { raw, issues: verdict.issues }

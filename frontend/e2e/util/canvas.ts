@@ -3,6 +3,7 @@ import { expect, type Locator, type Page, type TestInfo } from '@playwright/test
 import { billBecomesLaw } from '../../src/canvas/lessons/billBecomesLaw'
 import { classifierEvaluation } from '../../src/canvas/lessons/classifierEvaluation'
 import { gasPressure } from '../../src/canvas/lessons/gasPressure'
+import { attachCause } from './attribution'
 import { applyProjectMedia } from './media'
 
 /* ONE DEFINITION OF "THE CANVAS IS READY", SHARED BY BOTH SPECS.
@@ -69,6 +70,18 @@ export async function open(page: Page, testInfo: TestInfo): Promise<void> {
    * listener instead of the initial read. Playwright 1.62.1 does not apply
    * project `use.reducedMotion` to the page fixture -- see util/media.ts. */
   await applyProjectMedia(page, testInfo)
+
+  /* BEFORE `goto`, so a throw during the first render is caught rather than
+     missed by a listener registered after it.
+     
+     Every canvas spec opens through here, so one registration gives all of
+     them the same thing: when the page dies, the annotation says so instead of
+     reporting the count of an element on a page that no longer exists. */
+  page.on('pageerror', (e) => attachCause(testInfo, 'pageerror', e.message))
+  page.on('console', (m) => {
+    if (m.type() === 'error') attachCause(testInfo, 'console', m.text())
+  })
+
   await page.goto(ROUTE)
   await bodyBlocks(page).first().waitFor({ timeout: 30_000 })
 }

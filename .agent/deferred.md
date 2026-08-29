@@ -20,3 +20,6 @@ Format:
 ---
 
 _Nothing deferred yet._
+
+## eslint does not cover frontend/e2e/ (found 2026-08-29)
+`npx eslint frontend/e2e/**` returns "File ignored because no matching configuration was supplied" for every file. The whole e2e directory, including the reporter that decides what CI failures look like, is unlinted. Unrelated to the annotation work, so recorded rather than fixed.

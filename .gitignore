@@ -35,7 +35,17 @@ test-results/
 # Scratch git worktrees created for isolated agent runs. They are full
 # checkouts of this repository living inside it; committing one would nest the
 # tree in itself and drag whatever an agent installed there into history.
-.claude/
+# .claude/ holds machine-local state (settings.local.json, launch.json) and
+# .claude/worktrees/, which currently contains 19 working trees. Committing any
+# of that would be wrong, so the directory stays ignored by default.
+#
+# `.claude/skills/` is the exception: skills are project configuration and must
+# travel with the repository, or a fresh clone silently has none. The pattern is
+# `.claude/*` rather than `.claude/`, because git will not re-include a path
+# whose PARENT directory is excluded -- with `.claude/` the negation below would
+# be ignored entirely and the skills would stay untracked with no error.
+.claude/*
+!.claude/skills/
 
 # Local sandbox evidence. Every `make sandbox-*` run writes argv, exit codes, durations
 # and captured output here. It is generated, machine-local, and regenerated on demand;

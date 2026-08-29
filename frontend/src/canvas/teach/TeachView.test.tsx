@@ -339,6 +339,70 @@ describe('asking a doubt', () => {
     expect(document.body.textContent?.match(/Shall we get back to it\?/g) ?? []).toHaveLength(1)
   })
 
+  it('never leaves the learner on "Working on it" when the chain throws', async () => {
+    /*
+     * MEASURED ON CI, AND FOUND TWICE INDEPENDENTLY.
+     *
+     * `TeachView.tsx:290` reads `void answering.answer(...).then(...)` with no
+     * `.catch`. When that promise REJECTS, `setRecord` never runs, the record
+     * stays `pending: true`, and the learner reads "Working on it…" forever.
+     *
+     * That is exactly what GitHub reported on `scene-regressions.spec.ts:454`:
+     *
+     *   Locator: locator('.lc-teach__answer')
+     *   Expected: 1     24 x locator resolved to 0 elements
+     *
+     * Zero elements, not a refusal element -- because the component never left
+     * the pending branch. It failed on three different viewports across three
+     * runs, which is what a timing-dependent unhandled rejection looks like.
+     *
+     * It became reachable the moment `engineResolver` gained a deadline: a dead
+     * middleware now THROWS after 3s instead of hanging, and the throw lands
+     * here. The deadline was correct; the missing catch is what turned it into
+     * a permanent spinner.
+     *
+     * A rung failing is normal. Silence is not. The learner must always be told
+     * something.
+     */
+    const unhandled: unknown[] = []
+    const onUnhandled = (event: PromiseRejectionEvent): void => {
+      event.preventDefault()
+      unhandled.push(event.reason)
+    }
+    window.addEventListener('unhandledrejection', onUnhandled)
+
+    try {
+      render(
+        <TeachView
+          lesson={fixture()}
+          mode="2d"
+          ask={async () => {
+            throw new Error('engine timed out after 3000ms')
+          }}
+        />,
+      )
+      await settle()
+      await askAbout('what is a confusion matrix')
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      })
+
+      /*
+       * The REJECTION is the evidence, not the rendered text. Asserting on
+       * "Working on it…" was the wrong symptom: the component can leave that
+       * branch for other reasons, and the test passed while the promise was
+       * still being dropped on the floor. An unhandled rejection is the bug
+       * itself -- it is what stops `setAsked` running.
+       */
+      expect(
+        unhandled.map((r) => (r instanceof Error ? r.message : String(r))),
+        'the answer promise rejected with nobody listening, so the record never left pending',
+      ).toEqual([])
+    } finally {
+      window.removeEventListener('unhandledrejection', onUnhandled)
+    }
+  })
+
   it('keeps every answer when a second doubt is asked', async () => {
     const { container } = await teach()
 

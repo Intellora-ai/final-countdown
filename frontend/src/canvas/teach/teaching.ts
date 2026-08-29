@@ -538,6 +538,31 @@ function checkTechnicalTermsArriveLate(lesson: Lesson, out: TeachingIssue[]): vo
     }
 
     const needle = declared.term.toLowerCase()
+
+    /*
+     * A WORD THE LEARNER USED IS ALREADY INTRODUCED — BY THEM.
+     *
+     * MEASURED. Against `openai/gpt-oss-120b`, five of six subjects produced a
+     * passing concept. The single refusal was "How does a BILL become a law in
+     * India?", refused because "bill" appeared before the block that introduced
+     * it. The learner typed that word. They cannot have been confused by it —
+     * it is how they asked.
+     *
+     * The message below states this rule's purpose: "Define in the simplest
+     * correct words first; the technical word comes after the idea lands." That
+     * is about a word the learner does NOT know yet. Their own vocabulary is
+     * not that word.
+     *
+     * Without this exemption the rule fires on every correct lesson for any
+     * topic whose NAME is the technical term — photosynthesis, inflation,
+     * recursion, a bill — which is not a strict rule but a wrong one, and it
+     * cost a whole subject.
+     *
+     * Word-boundary matched, not substring: "a bill" must not exempt "billion".
+     */
+    const askedWith = new RegExp(`\\b${needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i')
+    if (askedWith.test(lesson.question)) continue
+
     lesson.blocks.forEach((block, i) => {
       if (i >= earnedAt) return
       const haystack = `${block.title ?? ''} ${readableText(block)}`.toLowerCase()

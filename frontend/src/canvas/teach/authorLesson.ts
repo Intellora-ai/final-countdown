@@ -201,6 +201,57 @@ export function extractJson(reply: string): unknown {
   }
 }
 
+/**
+ * Keys the schema treats as DATA, where a null is the author's and must survive.
+ *
+ * The same boundary `validate.ts` draws for its appearance walk, drawn again
+ * here for the same reason: below one of these keys the contents are the
+ * lesson's subject matter, not its structure. A table cell is explicitly
+ * allowed to be null (`rows: z.record(z.union([string, number, null]))`), and
+ * a normaliser that could not tell a missing title from an empty cell would
+ * quietly delete real data.
+ */
+const DATA_KEYS = new Set(['rows', 'points', 'data', 'columns', 'controls', 'readouts'])
+
+/**
+ * Drop keys the model set to `null` where the schema means "absent".
+ *
+ * MEASURED, TWICE, ON A REAL MODEL. Asked to teach "admission of partners",
+ * qwen2.5:7b returned a structurally sound lesson that was refused for eight
+ * faults, seven of them identical:
+ *
+ *     blocks.0.title — Expected string, received null
+ *     blocks.2.title — Expected string, received null
+ *     ... six more, plus blocks.5.caption
+ *
+ * `title` and `caption` are `.optional()`, which in zod means ABSENT, not
+ * null. The model expressed "no title" the other way round. Nothing about the
+ * teaching was wrong; the lesson died on a JSON dialect difference.
+ *
+ * Emitting `null` for an absent optional is near-universal model behaviour, so
+ * instructing it away is a losing game — the instruction has to win every time,
+ * and normalising has to work once. This is lossless: for an optional field the
+ * two encodings carry identical meaning.
+ *
+ * WHAT THIS IS NOT. It does not touch anything the gate judges. A null does not
+ * become a title, an empty lesson does not become a full one, and every
+ * teaching rule runs afterwards exactly as before. It is a dialect fix at the
+ * model boundary, which is why it lives here and not in `validate.ts` — a
+ * hand-written lesson has no excuse for a null, and the shared gate keeps
+ * refusing one.
+ */
+export function dropNulls(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(dropNulls)
+  if (value === null || typeof value !== 'object') return value
+
+  const out: Record<string, unknown> = {}
+  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+    if (child === null) continue
+    out[key] = DATA_KEYS.has(key) ? child : dropNulls(child)
+  }
+  return out
+}
+
 function repairRequest(question: string, issues: Issue[]): string {
   return [
     `The lesson you produced for "${question}" was refused. Fix exactly these and`,
@@ -232,7 +283,7 @@ export async function authorLesson(
   const system = teachingSystemPrompt()
 
   const first = await model(system, `Teach this: ${question}`)
-  const firstParsed = extractJson(first)
+  const firstParsed = dropNulls(extractJson(first))
   const firstResult = validateLesson(firstParsed)
   if (firstResult.ok) return { ok: true, lesson: firstResult.lesson, attempts: 1 }
 
@@ -251,7 +302,7 @@ export async function authorLesson(
    * failed repair when no repair had been possible.
    */
   const second = await model(system, repairRequest(question, firstIssues), first)
-  const secondParsed = extractJson(second)
+  const secondParsed = dropNulls(extractJson(second))
   const secondResult = validateLesson(secondParsed)
   if (secondResult.ok) return { ok: true, lesson: secondResult.lesson, attempts: 2 }
 

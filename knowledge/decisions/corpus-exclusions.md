@@ -122,12 +122,27 @@ Measured on `knowledge/openstax/anatomy-physiology`, 2026-08-29:
 
 **Images are 99% of the bytes. The searchable text is 1%.**
 
-This is why `--depth 1` saved so little here. Shallow cloning drops *history*,
-and on a code repository that is most of the weight — `mdn/content` went from
-493 MB reported to 139 MB on disk, about 70% off. OpenStax books are not mostly
-history; they are mostly **binary images in the current tree**, which shallow
-cloning cannot remove. `anatomy-physiology` reported 487 MB and landed at 516 MB
-— shallow saved nothing at all.
+This is why `--depth 1` saved so little here, and the reason generalises even
+though the percentage does not.
+
+**Shallow cloning drops history and nothing else.** How much that saves is not a
+rate to expect; it is decided entirely by whether a given repository's weight
+*is* history or is files sitting in the current tree. Measured here:
+
+| Repository | Reported | On disk shallow | What its weight is |
+|---|---|---|---|
+| `progit` | 183 MB | **21 MB** | history |
+| `mdn/content` | 493 MB | **138 MB** | history |
+| `openstax/anatomy-physiology` | 487 MB | **516 MB** | current-tree images |
+
+The first two shrank a lot because history was most of what they carried. The
+third did not shrink at all — it grew slightly against the reported figure —
+because its weight is **binary images in the current tree**, which shallow
+cloning cannot touch.
+
+So do not carry a "shallow saves ~N%" figure forward from any of these. Ask the
+question that actually decides it: *is this repository heavy with history, or
+heavy with files?* Only the first kind is helped by `--depth 1`.
 
 The consequence to expect and not be alarmed by: across the full corpus,
 **`openstax/` is roughly 90% of the disk and roughly 2% of the searchable

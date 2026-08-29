@@ -152,3 +152,19 @@
 [submodule "knowledge/openstax/entrepreneurship"]
 	path = knowledge/openstax/entrepreneurship
 	url = https://github.com/openstax/osbooks-entrepreneurship.git
+	shallow = true
+[submodule "knowledge/openstax/fisica-universitaria-bundle"]
+	path = knowledge/openstax/fisica-universitaria-bundle
+	url = https://github.com/openstax/osbooks-fisica-universitaria-bundle.git
+	shallow = true
+[submodule "knowledge/openstax/fizyka-bundle"]
+	path = knowledge/openstax/fizyka-bundle
+	url = https://github.com/openstax/osbooks-fizyka-bundle.git
+	shallow = true
+[submodule "knowledge/openstax/foundations-information-systems"]
+	path = knowledge/openstax/foundations-information-systems
+	url = https://github.com/openstax/osbooks-foundations-information-systems.git
+	shallow = true
+[submodule "knowledge/openstax/introduccion-estadistica-bundle"]
+	path = knowledge/openstax/introduccion-estadistica-bundle
+	url = https://github.com/openstax/osbooks-introduccion-estadistica-bundle.git

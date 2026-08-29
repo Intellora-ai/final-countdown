@@ -91,6 +91,52 @@ hand-edited.
 
 ---
 
+## OpenStax is `.cnxml`, not markdown — the search layer must know
+
+OpenStax textbook text is **`.cnxml`**, a custom XML format, one file per module
+under `modules/`. It is **not** markdown, and it is not `.xml` either — the
+extension is literally `cnxml`.
+
+**Requirement for the search layer:** its file-extension whitelist must include
+`cnxml`. A whitelist of the usual `.md`/`.txt`/`.rst` shapes will match **zero**
+OpenStax files. That failure is silent and misleading: every OpenStax query
+returns nothing, and the corpus looks *empty* when it is really *unsearched* —
+2 GB of textbook sitting there, invisible, with no error to explain why.
+
+`scripts/knowledge_search.py` is being written by another agent. This is recorded
+here as a requirement on that script, not applied to it. Do not edit that file
+from this decision.
+
+## Why OpenStax is most of the disk and almost none of the text
+
+Measured on `knowledge/openstax/anatomy-physiology`, 2026-08-29:
+
+| Thing | Measured |
+|---|---|
+| Whole checkout | **516 MB** |
+| `media/` (images) | **511 MB** |
+| `modules/` (the `.cnxml` text) | **5.5 MB** |
+| `.cnxml` files | 198 |
+| `.jpg` files | 741 |
+| `.png` files | 196 |
+
+**Images are 99% of the bytes. The searchable text is 1%.**
+
+This is why `--depth 1` saved so little here. Shallow cloning drops *history*,
+and on a code repository that is most of the weight — `mdn/content` went from
+493 MB reported to 139 MB on disk, about 70% off. OpenStax books are not mostly
+history; they are mostly **binary images in the current tree**, which shallow
+cloning cannot remove. `anatomy-physiology` reported 487 MB and landed at 516 MB
+— shallow saved nothing at all.
+
+The consequence to expect and not be alarmed by: across the full corpus,
+**`openstax/` is roughly 90% of the disk and roughly 2% of the searchable
+text.** A future session looking at `du -sh knowledge` and concluding the corpus
+is enormous is reading a picture library, not a reading list. The owner was
+shown the 9-11 GB figure and approved it.
+
+---
+
 ## Flagged for removal
 
 `knowledge/patterns/README.md` is **one line** — effectively empty. It occupies a

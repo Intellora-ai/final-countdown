@@ -104,3 +104,31 @@
 [submodule "knowledge/openstax/anatomy-physiology"]
 	path = knowledge/openstax/anatomy-physiology
 	url = https://github.com/openstax/osbooks-anatomy-physiology.git
+	shallow = true
+[submodule "knowledge/openstax/astronomy"]
+	path = knowledge/openstax/astronomy
+	url = https://github.com/openstax/osbooks-astronomy.git
+	shallow = true
+[submodule "knowledge/openstax/biology-bundle"]
+	path = knowledge/openstax/biology-bundle
+	url = https://github.com/openstax/osbooks-biology-bundle.git
+	shallow = true
+[submodule "knowledge/openstax/business-ethics"]
+	path = knowledge/openstax/business-ethics
+	url = https://github.com/openstax/osbooks-business-ethics.git
+	shallow = true
+[submodule "knowledge/openstax/business-law"]
+	path = knowledge/openstax/business-law
+	url = https://github.com/openstax/osbooks-business-law.git
+	shallow = true
+[submodule "knowledge/openstax/calculo-bundle"]
+	path = knowledge/openstax/calculo-bundle
+	url = https://github.com/openstax/osbooks-calculo-bundle.git
+	shallow = true
+[submodule "knowledge/openstax/calculus-bundle"]
+	path = knowledge/openstax/calculus-bundle
+	url = https://github.com/openstax/osbooks-calculus-bundle.git
+	shallow = true
+[submodule "knowledge/openstax/chemistry-bundle"]
+	path = knowledge/openstax/chemistry-bundle
+	url = https://github.com/openstax/osbooks-chemistry-bundle.git

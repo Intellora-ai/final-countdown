@@ -2,6 +2,7 @@ import type { Payload } from '../spec/figure'
 import type { Block, Lesson } from '../spec/spec'
 import { validateLesson } from '../spec/validate'
 import type { Doubt, DoubtResolver, Resolution } from './contract'
+import { deriveBeats } from './beats'
 
 /**
  * Answering a doubt out of the lesson the learner is already looking at.
@@ -73,6 +74,11 @@ const STOPWORDS = new Set([
   'help', 'here', 'just', 'know', 'like', 'more', 'much', 'need', 'no', 'okay',
   'one', 'please', 'really', 'see', 'show', 'sorry', 'still', 'sure', 'tell',
   'thanks', 'think', 'understand', 'want', 'well', 'yes',
+  // Chat shorthand. A learner types the way they text, and these carry no
+  // subject at all. "wdym" reaching a search engine is the difference between
+  // three real articles and none -- measured; see `webResolver.test.ts`.
+  'wdym', 'idk', 'pls', 'plz', 'thx', 'ur', 'u', 'im', 'ive', 'dont', 'cant',
+  'whats', 'hows', 'whys', 'lol', 'ok', 'oh', 'hmm', 'wait',
   // Light verbs and particles: they carry the sentence, never the subject.
   // "go up", "make", "take", "the way it works" — a lesson labelled "Change"
   // must not be pulled up by the "go" in "why does the pressure go up".
@@ -101,8 +107,18 @@ function words(text: string): string[] {
     .filter((word) => word.length > 0)
 }
 
-/** Words worth matching on, deduplicated, in the order they were written. */
-function contentTokens(text: string): string[] {
+/**
+ * Words worth matching on, deduplicated, in the order they were written.
+ *
+ * Exported because the web rung needs exactly this list. A learner's question
+ * carries filler that a search engine does not merely ignore -- it matches on
+ * it. Measured against the live API: "can you explain photosynthesis to me
+ * please" returns an article about a skateboarder, while "photosynthesis"
+ * returns the right one. A second, private copy of this vocabulary in
+ * `webResolver.ts` would drift, and the drift would show up as wrong answers
+ * carrying citations.
+ */
+export function contentTokens(text: string): string[] {
   const seen = new Set<string>()
   const out: string[] = []
   for (const word of words(text)) {
@@ -158,13 +174,34 @@ function tokenVariants(text: string): string[][] {
  * they get, and there is no second word to require.
  *
  * Returns how many of the name's words were typed; 0 means no match.
+ *
+ * THERE IS NO `if (matched === 0) return 0` GUARD, AND THAT IS DELIBERATE.
+ * It used to sit above the one-word case and it was dead code: every path
+ * below already returns 0 when nothing matched. A one-word name returns
+ * `matched`, which IS 0; a longer name fails `matched >= 2` and falls through
+ * to `return 0`. Checked exhaustively over every reachable
+ * (nameTokens.length, matched) pair for lengths 0..40 — 861 pairs, zero
+ * differences with the guard and without it.
+ *
+ * That made it an EQUIVALENT MUTANT: deleting it could never turn a test red,
+ * so it depressed the mutation score while protecting nothing. The honest fix
+ * for an equivalent mutant is to remove the branch, not to invent a test that
+ * cannot fail. Do not add it back.
  */
-const HALF = 0.5
+/**
+ * Exported because the web rung shares this threshold, and only this threshold.
+ *
+ * `webResolver` asks the mirrored question — does this fetched PAGE cover the
+ * words the learner typed — and a second `0.5` written down over there would be
+ * two numbers meaning one decision, free to stop agreeing. What it does NOT
+ * share is the `matched >= 2` clause below, and the reason it does not is
+ * written where it is not shared: see `isAbout` in `webResolver.ts`.
+ */
+export const HALF = 0.5
 
 function accepts(nameTokens: readonly string[], typed: ReadonlySet<string>): number {
   let matched = 0
   for (const token of nameTokens) if (typed.has(token)) matched += 1
-  if (matched === 0) return 0
   if (nameTokens.length === 1) return matched
   if (matched >= 2 && matched / nameTokens.length >= HALF) return matched
   return 0
@@ -556,7 +593,7 @@ function buildAnswer(
     question: clamp(question.trim(), MAX_QUESTION),
     blocks,
     relations,
-  })
+  }, { teaching: 'answer' })
   return result.ok ? result.lesson : null
 }
 
@@ -962,6 +999,83 @@ function wholeLessonStrategy(doubt: Doubt, lesson: Lesson): Resolution | null {
     : null
 }
 
+
+/* -------------------------------------------------------------------------- */
+/* Strategy: the learner said they are stuck, and named nothing               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The words people use when they are lost.
+ *
+ * A REGISTER, not a list of phrases, and universal on purpose: nothing here is
+ * about any subject, so it works on accountancy and on logarithms without a
+ * carve-out for either. Matching is on the whole trimmed text so "no sense"
+ * catches "this makes no sense" without needing that sentence written down.
+ *
+ * It is deliberately small. Every word added widens what counts as being stuck,
+ * and a register that matches everything answers everything -- which is the
+ * failure the paired refusal test exists to catch.
+ */
+const STUCK_SIGNALS: readonly RegExp[] = [
+  /\bidk\b/,
+  /\bhuh\b/,
+  /\b(confused|lost|stuck|unclear)\b/,
+  /\bno sense\b/,
+  /\b(dont|don't|didnt|didn't|cant|can't|not|no)\b[^.?!]{0,20}\b(understand|get|follow|see|know)\b/,
+]
+
+/** Enough to be a second look, few enough that it is not the beat replayed. */
+const MAX_STUCK_BLOCKS = 2
+
+/** Does this doubt say "I am lost" without saying what about? */
+function soundsStuck(text: string): boolean {
+  const plain = text.toLowerCase().trim()
+  return STUCK_SIGNALS.some((signal) => signal.test(plain))
+}
+
+/**
+ * Answer a learner who is stuck at a beat.
+ *
+ * The doubt carries no subject, so the beat they are ON is the only honest
+ * place to look: it is what they were reading when they got lost. `shown`
+ * removes what already failed them, so saying it twice moves on rather than
+ * repeating -- and when the beat is exhausted this returns null and the caller
+ * refuses, because "I have nothing left for this beat" is information and a
+ * fourth identical answer is not.
+ */
+function stuckStrategy(doubt: Doubt, lesson: Lesson): Resolution | null {
+  const beat = deriveBeats(lesson).find((candidate) => candidate.id === doubt.atBeatId)
+  if (!beat) return null
+
+  const seen = new Set(doubt.shown ?? [])
+  const fresh = beat.blockIds
+    .filter((id) => !seen.has(id))
+    .map((id) => lesson.blocks.find((block) => block.id === id))
+    .filter((block): block is Block => block !== undefined)
+    .slice(0, MAX_STUCK_BLOCKS)
+
+  /* No `fresh.length === 0` guard: with nothing left, `buildAnswer` produces a
+     lesson with no blocks, which does not validate, so this returns null and
+     the caller refuses. A mutant proved an explicit guard changed no outcome,
+     and a branch no test can reach is a branch that rots unnoticed. */
+
+  const ids = new Set(fresh.map((block) => block.id))
+  /* A block does not always stand alone. An `example` with no `exemplifies`
+     relation is an example OF nothing, and the teaching gate refuses it -- as
+     it should. Carrying every relation whose two ends are both inside the
+     selection keeps what was taken intact, and drops the ones that would point
+     out of it. */
+  const joined = lesson.relations.filter((relation) => ids.has(relation.from) && ids.has(relation.to))
+
+  const answer = buildAnswer(
+    fresh.map((block) => block.id),
+    doubt.text,
+    fresh.map((block) => represent(block, 'primary')),
+    joined,
+  )
+  return answer ? { kind: 'answer', lesson: answer, drawnFrom: fresh.map((block) => block.id) } : null
+}
+
 /* -------------------------------------------------------------------------- */
 /* Refusal                                                                    */
 /* -------------------------------------------------------------------------- */
@@ -1019,13 +1133,57 @@ export const lessonResolver: DoubtResolver = {
   name: 'lesson',
 
   resolve(doubt: Doubt, lesson: Lesson): Resolution {
+    /*
+     * WHAT THEY HAVE ALREADY READ IS REMOVED BEFORE ANYTHING ELSE RUNS.
+     *
+     * Every strategy below reads `lesson`, so filtering here is what makes all
+     * of them vary rather than only the one that happened to be edited. A
+     * learner asking a second time is telling us the first answer did not land;
+     * handing back the same blocks answers a question they did not ask.
+     *
+     * `shown` empty or absent leaves `lesson` untouched, so this is invisible
+     * to every caller that does not use it.
+     */
+    const seen = new Set(doubt.shown ?? [])
+    const unseen =
+      seen.size === 0
+        ? lesson
+        : { ...lesson, blocks: lesson.blocks.filter((b) => !seen.has(b.id)) }
+
+    /*
+     * RUNNING OUT IS INFORMATION, NOT A BUG. When every block has been shown,
+     * `unseen` is empty, nothing can match, and the refusal below names what
+     * the lesson was about. No special case is needed for it -- one was written
+     * here and removed: a mutant proved the general path already covered it,
+     * and a branch no test can reach is a branch that can rot unnoticed.
+     */
+
     const raw = words(doubt.text)
     const typed = new Set(contentTokens(doubt.text))
-    const index = buildIndex(lesson)
+    const index = buildIndex(unseen)
 
-    if (typed.size === 0) return { kind: 'refusal', reason: NOTHING_NAMED, nearest: [] }
+    /*
+     * A LAST RESORT, NEVER A FIRST GUESS.
+     *
+     * "I can't follow what happens in the causal chain" says both that they are
+     * lost AND what about, and the strategies below answer it far better than a
+     * beat dump. Running the stuck path first stole three such doubts and was
+     * caught by their tests -- so it runs only where the alternative is a
+     * refusal: here, where the doubt named nothing at all, and again at the very
+     * bottom where every strategy declined.
+     *
+     * The beats come from the FULL lesson, not `unseen`: a beat is a run of the
+     * lesson as authored, and `stuckStrategy` does its own `shown` filtering.
+     */
+    if (typed.size === 0) {
+      if (soundsStuck(doubt.text)) {
+        const helped = stuckStrategy(doubt, lesson)
+        if (helped) return helped
+      }
+      return { kind: 'refusal', reason: NOTHING_NAMED, nearest: [] }
+    }
 
-    const compared = comparisonStrategy(doubt, lesson, raw)
+    const compared = comparisonStrategy(doubt, unseen, raw)
     if (compared) return compared
 
     /* A guessy name match is discarded rather than answered — but the doubt
@@ -1033,15 +1191,15 @@ export const lessonResolver: DoubtResolver = {
        coincidence" is not the same as "the lesson does not cover this". */
     const named = bestMatch(index.mentions, typed)
     const best = named && !isGuess(named, typed, index.known) ? named : null
-    const asked = best ? lesson.blocks[best.mention.blockIndex] : undefined
+    const asked = best ? unseen.blocks[best.mention.blockIndex] : undefined
 
     if (best && asked) {
       if (isWhy(raw) && best.mention.role === 'title') {
-        const explained = relationStrategy(doubt, lesson, asked)
+        const explained = relationStrategy(doubt, unseen, asked)
         if (explained) return explained
       }
 
-      const derived = derivationStrategy(doubt, lesson, asked)
+      const derived = derivationStrategy(doubt, unseen, asked)
       if (derived) return derived
 
       const alone = aloneStrategy(doubt, asked)
@@ -1049,19 +1207,54 @@ export const lessonResolver: DoubtResolver = {
     }
 
     if (acceptsSentence(index.question, typed) > 0) {
-      const whole = wholeLessonStrategy(doubt, lesson)
+      const whole = wholeLessonStrategy(doubt, unseen)
       if (whole) return whole
     }
 
     const sentence = bestSentence(index.sentences, typed)
     if (sentence) {
-      const block = lesson.blocks[sentence.blockIndex]
+      const block = unseen.blocks[sentence.blockIndex]
       if (block) {
         const alone = aloneStrategy(doubt, block)
         if (alone) return alone
       }
     }
 
-    return refuse(lesson, index, typed)
+    /* Named something, and nothing above could answer it. If they also said
+       they were lost, the beat they are on beats a refusal. */
+    if (soundsStuck(doubt.text)) {
+      const helped = stuckStrategy(doubt, lesson)
+      if (helped) return helped
+    }
+
+    const refused = refuse(unseen, index, typed)
+
+    /*
+     * ON A RE-ASK, A NEAR MATCH IS BETTER THAN A REFUSAL.
+     *
+     * The strategies above answer only on a confident hit. First time round
+     * that is right: pointing at three loosely related blocks when the lesson
+     * plainly covers the thing is worse than saying so. But a learner with
+     * `shown` has ALREADY had the confident hit, and it did not work. The
+     * refusal is then saying "the one good answer is spent" while holding a
+     * list of blocks about the same words -- which is a different angle on the
+     * question, and the next honest move rather than a dead end.
+     *
+     * Guarded on `seen.size`, so the first ask is untouched.
+     */
+    if (seen.size > 0 && refused.kind === 'refusal' && refused.nearest.length > 0) {
+      const near = refused.nearest
+        .map((id) => unseen.blocks.find((b) => b.id === id))
+        .filter((b): b is Block => b !== undefined)
+      const answer = buildAnswer(
+        near.map((b) => b.id),
+        doubt.text,
+        near.map((b) => represent(b, 'primary')),
+        [],
+      )
+      if (answer) return { kind: 'answer', lesson: answer, drawnFrom: near.map((b) => b.id) }
+    }
+
+    return refused
   },
 }

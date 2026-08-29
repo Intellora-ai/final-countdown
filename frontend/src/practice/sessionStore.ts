@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { activeCurriculum } from './registry'
+import { admits, boundaryFor } from './wiring'
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { generateSet, type SetMetrics } from './engine/pipeline';
@@ -12,8 +14,7 @@ import {
   resultOf,
   submit as submitSession,
   syncClock,
-  type PracticeSession,
-} from './engine/session';
+  type PracticeSession, remainingMs } from './engine/session';
 import {
   forDelivery,
   isTerminal,
@@ -171,6 +172,55 @@ export const useSessionStore = create<SessionRunState>()(
             ],
           });
           return;
+        }
+
+        /*
+         * THE LAST GATE, and it runs on the real path rather than in a test.
+         *
+         * `verify.ts` already refused a candidate whose topic id differed, but
+         * it compares topic ids and nothing else -- so a question carrying the
+         * right topic while testing somebody else's concept walked straight
+         * through. `boundary.ts` catches that and had ZERO callers until here.
+         *
+         * Refusing rather than filtering: a short set is a different product
+         * promise from the one the student was given, and §24 forbids quietly
+         * substituting one for the other.
+         */
+        const boundary = boundaryFor(input.profile)
+        /*
+         * THE ADMISSION GATE, not just the boundary.
+         *
+         * `deliverable` compares fields we stamped ourselves, so on this path
+         * it cannot fail. `admits` also asks whether the question's WORDS are
+         * nearest to this topic out of every topic on the student's map --
+         * the check a stamp cannot satisfy by construction.
+         *
+         * The curriculum comes from the registry, which is the same object the
+         * map drew. Two sources for "which curriculum is this" is what caused
+         * 523 topics to be unpractisable; there is one.
+         */
+        const curriculum = activeCurriculum()
+        const refused = outcome.questions
+          .map((question) => ({ question, admission: admits(question, boundary, curriculum) }))
+          .find(({ admission }) => !admission.ok)
+        const rejected = refused?.question
+        if (rejected) {
+          set({
+            status: 'failed',
+            error: {
+              failure: 'INVALID_TOPIC',
+              /*
+               * The REASON, from the gate that actually refused. Two gates run
+               * here and an earlier version reported both as "did not pass the
+               * topic boundary" -- a message that named the wrong one and cost
+               * four measurements to see past.
+               */
+              detail: `Question ${rejected.questionId} was refused for ${boundary.topicId} — ${refused?.admission.reason ?? 'unknown'}.`,
+              obtained: 0,
+              requested: input.count,
+            },
+          })
+          return
         }
 
         const session = createSession({
@@ -376,10 +426,6 @@ function remember(existing: readonly string[], added: readonly string[]): string
   );
 }
 
-export function hydrateSessionStore(): void {
-  void useSessionStore.persist?.rehydrate();
-}
-
 /* -------------------------------------------------------------------------- */
 /* Selectors                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -432,6 +478,10 @@ export function progressOf(session: PracticeSession | null): { current: number; 
 
 /** Milliseconds left, or null when this session has no countdown. */
 export function remainingFor(session: PracticeSession | null): number | null {
-  if (!session || !session.timerEnabled) return null;
-  return Math.max(0, session.timerDurationMs - (session.highWaterMs - session.startedAtMs));
+  /* Null-tolerance is the ONLY thing this adds: a screen may hold no session,
+     the engine never does. The arithmetic belongs to `remainingMs`, which is
+     also the only place that knows `elapsedMs` — inlining
+     `highWaterMs - startedAtMs` here made a second copy of the clock, and two
+     clocks agree right up until one of them is corrected. */
+  return session ? remainingMs(session) : null;
 }

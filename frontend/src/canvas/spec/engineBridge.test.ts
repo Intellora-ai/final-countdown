@@ -26,6 +26,26 @@
  * pass: it is the engine's output, not this package's input, and editing it here
  * hides the divergence rather than resolving it. Read the issues, decide which
  * side is wrong, and fix that side.
+ *
+ * WHY THE TEACHING LEVEL HERE IS `'answer'`
+ * -----------------------------------------
+ * When the teaching rules landed, every fixture below was refused: no opening
+ * definition, no closing summary, nothing marked. Following the instruction
+ * above, the question was which side is wrong — and the answer taken is that
+ * the CANVAS was asking for the wrong thing, not that the engine emits bad
+ * output. These fixtures are a `worked_example` and two learner attempts. They
+ * are replies, not lessons with a beginning and an end, and the engine has no
+ * builder that could give them one: `emit` produces `{id, kind, emphasis,
+ * body}` and refuses every kind that is not `prose` or `callout`.
+ *
+ * SAID PLAINLY, BECAUSE IT IS A DECISION AND NOT A DISCOVERY: this settles by
+ * fiat that the engine never emits a full taught lesson. Nothing in the Python
+ * side enforces that today. If the engine ever should emit one, the honest fix
+ * is the Python emitter — teaching-shaped output, then regenerated fixtures —
+ * and this level goes back to `'lesson'`. It is NOT to relax the canvas.
+ *
+ * The fixtures themselves are untouched, which is the part the note above
+ * actually protects.
  */
 
 import { describe, expect, it } from 'vitest'
@@ -60,7 +80,7 @@ const EMITTED = [
 
 describe.each(EMITTED)('%s', (_name, lesson) => {
   it('is accepted by the canvas validator', () => {
-    const result = validateLesson(lesson)
+    const result = validateLesson(lesson, { teaching: 'answer' })
     if (!result.ok) console.error(JSON.stringify(result.issues, null, 2))
     expect(result.ok).toBe(true)
   })
@@ -70,7 +90,7 @@ describe.each(EMITTED)('%s', (_name, lesson) => {
        `validateLesson` catches it, but a bare `ok === false` above does not say
        which block or which key — and that message is the difference between a
        five-minute fix and an afternoon. */
-    const result = validateLesson(lesson)
+    const result = validateLesson(lesson, { teaching: 'answer' })
     /* `Result` is a discriminated union — `issues` exists only on the failing
        arm. Narrowing rather than reaching for `.issues` keeps the union doing
        its job, which is refusing to let a caller read a field that is not
@@ -84,7 +104,7 @@ describe.each(EMITTED)('%s', (_name, lesson) => {
 
 describe('a lesson emitted by the engine', () => {
   it('is accepted by the canvas validator', () => {
-    const result = validateLesson(engineLesson)
+    const result = validateLesson(engineLesson, { teaching: 'answer' })
 
     /* Printed rather than swallowed: a bare `false` tells whoever broke this
        nothing about which field the two languages disagree on. */
@@ -101,17 +121,22 @@ describe('a lesson emitted by the engine', () => {
        exists to prevent. The engine sets `emphasis` and emits `relations`
        deliberately for this reason, so this asserts that intent survived the
        crossing. */
-    const result = validateLesson(engineLesson)
+    const result = validateLesson(engineLesson, { teaching: 'answer' })
     expect(result.ok).toBe(true)
     if (!result.ok) return
 
     const beats = deriveBeats(result.lesson)
     expect(beats.length).toBeGreaterThan(0)
-    expect(checkBeats(beats, result.lesson)).toEqual([])
+    /* Structural beat rules only, matching `'answer'` above: the partition must
+       be exact and no beat may count steps at the learner. "Every beat shows
+       something" is not asserted, because `emit` can only build `prose` and
+       `callout` — the engine cannot produce a representation at all, so the
+       rule could never pass and would never point at a real fault. */
+    expect(checkBeats(beats, result.lesson, { teaching: false })).toEqual([])
   })
 
   it('carries every block into some beat, losing none', () => {
-    const result = validateLesson(engineLesson)
+    const result = validateLesson(engineLesson, { teaching: 'answer' })
     expect(result.ok).toBe(true)
     if (!result.ok) return
 

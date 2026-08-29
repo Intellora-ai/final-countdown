@@ -153,7 +153,7 @@ const MUTANTS = [
   {
     id: 'fetch-failure-loses-its-reason',
     file: 'src/websearch/gather.ts',
-    from: "          detail: err instanceof Error ? err.message : String(err),",
+    from: '          detail: err instanceof Error ? err.message : String(err),',
     to: "          detail: '',",
     breaks: 'a source that threw is reported as failed with no reason, so nothing upstream can tell a dead host from a host that returned nothing',
   },
@@ -253,7 +253,81 @@ const MUTANTS = [
     to: '  if (false) {',
     breaks: 'invariant 5 stops being graded: a fact carried only by a page that tried to instruct us is scored as supported evidence',
   },
-  /* THE HONESTY LAYER. `shapeInvariants.ts` is the only thing standing between
+
+  /* §32 PROVENANCE. Every mutant here is a way to call stale data fresh while
+     still producing a confident, well-formed answer. */
+  {
+    id: 'a-majority-of-live-sources-is-called-live',
+    file: 'src/websearch/provenance.ts',
+    from: `    live: usable.every((p) => originOf(p, now) === 'live'),`,
+    to: `    live: usable.filter((p) => originOf(p, now) === 'live').length * 2 > usable.length,`,
+    breaks: 'nine live pages and one week-old cache entry is reported as a live answer, so the label describes most of the evidence and is wrong about the rest — invariant 2 exactly',
+  },
+  {
+    id: 'an-answer-built-on-nothing-reports-itself-live',
+    file: 'src/websearch/provenance.ts',
+    from: '    return { live: false, origins: [], usableSources: 0 }',
+    to: '    return { live: true, origins: [], usableSources: 0 }',
+    breaks: 'no usable sources at all yields the strongest possible claim from the weakest possible evidence, which is what [].every() does by default',
+  },
+  {
+    id: 'the-newest-source-hides-the-oldest',
+    file: 'src/websearch/provenance.ts',
+    from: '{ oldestAgeMs: Math.max(...ages) }',
+    to: '{ oldestAgeMs: Math.min(...ages) }',
+    breaks: 'one fresh page hides a week-old one sitting beside it, so the reported age is about the best source rather than the worst',
+  },
+  {
+    id: 'a-failed-fetch-counts-as-a-live-source',
+    file: 'src/websearch/provenance.ts',
+    from: '  const usable = pages.filter((p) => p.ok)',
+    to: '  const usable = pages',
+    breaks: 'a search where every fetch died except one cached page reports itself live, because the dead ones carry fromCache:false',
+  },
+  {
+    id: 'precomputed-is-folded-into-cache',
+    file: 'src/websearch/provenance.ts',
+    from: `  if (page.precomputed) return 'precomputed'`,
+    to: '  if (false) return \'precomputed\'',
+    breaks: 'a speculatively prepared entry becomes indistinguishable from one fetched for a real earlier question, which is the distinction §32 asks for by name',
+  }, 
+  /* §30 / §31 MEASUREMENT. A broken measurement still produces confident
+     numbers, which is the only kind of failure nobody notices. */
+  {
+    id: 'the-hop-we-cannot-see-is-reported-as-instant',
+    file: 'src/websearch/hops.ts',
+    from: 'const unobservable = (reason: string): Hop => ({ observable: false, reason, count: 0 })',
+    to: 'const unobservable = (reason: string): Hop => ({ observable: true, reason, count: 0, p50: 0 })',
+    breaks: 'the client-to-server leg this package cannot see is reported as 0ms, which reads as instant - the most flattering possible lie about a hop nobody measured',
+  },
+  {
+    id: 'an-unmeasured-hop-reports-zero-instead-of-nothing',
+    file: 'src/websearch/hops.ts',
+    from: '    ...(values.length === 0 ? {} : { p50: percentile(values, 50), p99: percentile(values, 99) }),',
+    to: '    p50: percentile(values, 50) ?? 0,',
+    breaks: 'a hop with no samples reports 0ms rather than nothing, so never measured and instant become the same reading',
+  },
+  {
+    id: 'reuse-is-inferred-from-request-count',
+    file: 'src/websearch/hops.ts',
+    from: '        : { reused: subsequentP50 <= first * (1 - REUSE_RATIO) }),',
+    to: '        : { reused: true }),',
+    breaks: 'a hundred requests each paying full connection setup is reported as reuse, inverting the signal at exactly the moment it matters',
+  },
+  {
+    id: 'one-request-claims-no-reuse-rather-than-admitting-it-cannot-tell',
+    file: 'src/websearch/hops.ts',
+    from: '      ...(rest.length === 0 || subsequentP50 === undefined',
+    to: '      ...(false',
+    breaks: 'a host seen once reports reused false, which is an unsupported claim in the other direction - one request cannot evidence reuse either way',
+  },
+  {
+    id: 'every-request-is-recorded-as-free',
+    file: 'src/websearch/gather.ts',
+    from: '      latency?.request(hostOf(url), elapsed)',
+    to: '      latency?.request(hostOf(url), 0)',
+    breaks: 'every request is recorded as costing nothing, so connection reuse looks perfect for a transport that was never actually measured',
+  }, /* THE HONESTY LAYER. `shapeInvariants.ts` is the only thing standing between
    * a dishonest dataset and a picture that looks fine. Every mutant here is a
    * way for a representation to stop being able to refuse. */
   {
@@ -384,7 +458,7 @@ const MUTANTS = [
   {
     id: 'beat-cap-lifted',
     file: 'src/canvas/teach/beats.ts',
-    from: 'const MAX_BLOCKS_PER_BEAT = 3',
+    from: 'const MAX_BLOCKS_PER_BEAT = 5',
     to: 'const MAX_BLOCKS_PER_BEAT = 99',
     breaks: 'the whole lesson arrives in one go and the learner is never once asked whether any of it landed',
   },
@@ -453,8 +527,8 @@ const MUTANTS = [
   {
     id: 'process-loop-drawn-as-a-step',
     file: 'src/canvas/render/shapes/ProcessShape.tsx',
-    from: "      if (seen === 1) backEdges.add(`${transition.from}>${transition.to}`)",
-    to: "      if (false) backEdges.add(`${transition.from}>${transition.to}`)",
+    from: '      if (seen === 1) backEdges.add(`${transition.from}>${transition.to}`)',
+    to: '      if (false) backEdges.add(`${transition.from}>${transition.to}`)',
     breaks: 'a "reject, go back and rework it" transition is drawn as an ordinary left-to-right arrow, so the reader is shown a process that only ever moves forwards',
   },
   {

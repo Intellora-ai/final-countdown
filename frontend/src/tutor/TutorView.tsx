@@ -20,6 +20,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createAgent, httpModel, type Agent, type AskResult } from '../agent'
+import { researchPort, searchPort } from '../websearch'
 import './tutor.css'
 
 /** One exchange, kept with the evidence that produced it. */
@@ -54,9 +55,30 @@ export default function TutorView(): JSX.Element {
   const [busy, setBusy] = useState(false)
   const [restoreNote, setRestoreNote] = useState<string | null>(null)
   const nextId = useRef(0)
+  /* Synchronous re-entrancy latch. See the note in `send` — `busy` is state
+   * and updates too late to stop the second click of a double-click. */
+  const inFlight = useRef(false)
   const endRef = useRef<HTMLDivElement>(null)
 
   const endpoint = readEnv('VITE_TUTOR_ENDPOINT')
+  const searchEndpoint = readEnv('VITE_SEARCH_ENDPOINT')
+  const deepSearch = readEnv('VITE_SEARCH_DEPTH') === 'research'
+
+  /* THE SEARCH DOORWAY. One import, one type, and the app knows nothing about
+     what is behind it --- not the engine, not the fetcher, not the extractor.
+     `researchPort` reads the pages it finds and hands back text that has been
+     through the injection guard; `searchPort` is the engine alone. Both are a
+     `SearchPort`, so `createAgent` cannot tell which it received. */
+  const build = useMemo(
+    () => {
+      const cfg = {
+        endpoint: searchEndpoint,
+        apiKey: readEnv('VITE_SEARCH_KEY') || undefined,
+      }
+      return deepSearch ? researchPort(cfg) : searchPort(cfg)
+    },
+    [searchEndpoint, deepSearch],
+  )
 
   /* One agent for the life of the view. Rebuilding it per turn would discard
      the conversation, the working memory and the teaching position — which is
@@ -69,8 +91,15 @@ export default function TutorView(): JSX.Element {
           model: readEnv('VITE_TUTOR_MODEL') || undefined,
           apiKey: readEnv('VITE_TUTOR_KEY') || undefined,
         }),
+        /* SPREAD, NOT `search: maybeNull`. `AgentOptions.search` is optional,
+           and an EXPLICIT `undefined` is not the same as absent to the agent:
+           absent means the capability is reported UNMET ("I cannot look things
+           up"), which is the honest state when no engine is configured. The
+           websearch doorway returns `null` for exactly this reason, so the
+           distinction has to survive the last three lines that carry it. */
+        ...(build ? { search: build } : {}),
       }),
-    [endpoint],
+    [endpoint, build],
   )
 
   useEffect(() => {
@@ -86,7 +115,24 @@ export default function TutorView(): JSX.Element {
 
   const send = useCallback(async () => {
     const question = draft.trim()
-    if (!question || busy) return
+    /* THE LATCH IS A REF, NOT `busy`, AND THAT IS THE WHOLE POINT.
+     *
+     * `busy` is React state, so `setBusy(true)` does not take effect until a
+     * re-render. A synchronous burst of clicks — a double-click, a trackpad
+     * stutter, a rage-click — all run against the same closure, all read
+     * `busy === false`, and all proceed; `disabled={busy}` is not on the
+     * button yet either, for the identical reason. Measured in a browser on
+     * 2026-08-25: 1 click asked once, 2 clicks asked twice, 8 clicks asked
+     * eight times. An asynchronous flag cannot be a mutual-exclusion latch.
+     *
+     * A ref is assigned synchronously, so the second click of a double-click
+     * sees it. `busy` stays exactly as it was — it drives the label and the
+     * disabled attribute, which is a rendering concern and correct as state.
+     *
+     * Today each duplicate is a local no-op. The moment `VITE_TUTOR_ENDPOINT`
+     * is set, each one is a real paid model call. */
+    if (!question || inFlight.current) return
+    inFlight.current = true
     setDraft('')
     setBusy(true)
     try {
@@ -117,9 +163,10 @@ export default function TutorView(): JSX.Element {
         { id, question, answer: `That turn failed before an answer existed: ${why}`, executed: [], unmet: [], replayed: false },
       ])
     } finally {
+      inFlight.current = false
       setBusy(false)
     }
-  }, [agent, busy, draft])
+  }, [agent, draft])
 
   return (
     <div className="tutor">

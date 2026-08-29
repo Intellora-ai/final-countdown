@@ -174,6 +174,78 @@ export function used() { return 2 }
     expect(dead).toEqual(['helper', 'stranded'])
   })
 
+  /* `export default` was invisible to this gate.
+
+     DECL_RE requires a declaration keyword straight after `export`, and
+     `default` is not one of them, so `export default function x() {}` produced
+     no symbol at all -- not a live one, not a dead one. A genuinely dead
+     default export was planted in a reachable file and the gate answered
+     `orphans: [] dead: [] warnings: []` and PASS. Seven shipping files in
+     src/ use `export default`, so this was not a corner.
+
+     The import side already speaks the right vocabulary: `parseClause` records
+     a default import under the name `default`. Only the export side was
+     missing, which is why the two never met. */
+
+  it('calls a DEAD default export dead', () => {
+    const area = fixture({
+      'entry.ts': `import { used } from './m'\nexport const go = used\n`,
+      'm.ts': `export function used() { return 2 }
+export default function nobodyImportsThis() { return 1 }
+`,
+    })
+    const dead = analyze(area).deadExports.map((d) => d.name)
+    expect(dead).toEqual(['default'])
+  })
+
+  it('calls a default export LIVE when another module imports it', () => {
+    /* The PAIR. Without it, reporting every default export as dead would
+       satisfy the test above, and seven real files would light up red. */
+    const area = fixture({
+      'entry.ts': `import thing from './m'\nexport const go = thing\n`,
+      'm.ts': `export default function whateverItIsCalled() { return 1 }\n`,
+    })
+    expect(analyze(area).deadExports).toEqual([])
+  })
+
+  it('does not treat the declared name of a default export as importable', () => {
+    /* A default export is imported under whatever name the importer chooses,
+       so its declared name is NOT an export anyone can ask for. Marking
+       `whateverItIsCalled` as an exported name would report it dead on every
+       file that uses `export default`, which is the cry-wolf direction. */
+    const area = fixture({
+      'entry.ts': `import thing from './m'\nexport const go = thing\n`,
+      'm.ts': `export default function whateverItIsCalled() { return 1 }\n`,
+    })
+    const dead = analyze(area).deadExports.map((d) => d.name)
+    expect(dead).not.toContain('whateverItIsCalled')
+  })
+
+  it('calls a default export dead even when a live comment says the word "default"', () => {
+    /* CAUGHT BY THE TWO-WAY PROOF, NOT BY THE FIXTURES.
+
+       Naming the symbol `default` made it collide with an ordinary English
+       word. Propagation resurrects a symbol whose name matches `\bname\b`
+       anywhere in a live symbol's span, so one live function whose COMMENT
+       read "falls to the `conversation` default" was enough to mark the
+       default export live. The unit fixtures passed and the same plant in
+       `src/agent/communicate/communicate.ts` still sailed through the real
+       gate.
+
+       `default` is not an identifier anyone can write to reach that export --
+       an importer binds it to a name of their own choosing. So it can be
+       SEEDED by a real default import and must never be reached by text. */
+    const area = fixture({
+      'entry.ts': `import { used } from './m'\nexport const go = used\n`,
+      'm.ts': `/* falls back to the conversation default when nothing matches */
+export function used() { return 2 }
+export default function nobodyImportsThis() { return 1 }
+`,
+    })
+    const dead = analyze(area).deadExports.map((d) => d.name)
+    expect(dead).toEqual(['default'])
+  })
+
   it('treats a star import as consuming everything', () => {
     const area = fixture({
       'entry.ts': `import * as m from './m'\nexport const go = m\n`,
@@ -375,7 +447,11 @@ describe('a type-only import is not a runtime edge', () => {
   it('FAILS on a module reached only by `export type ... from`', () => {
     const area = fixture({
       'entry.ts': `export type { Shape } from './orphan'\nexport const go = 1\n`,
-      'orphan.ts': `export interface Shape { x: number }\n`,
+      /* A VALUE export, deliberately. A module of only types is the
+         documented exception (it has no non-type edge available), so
+         without this the fixture stopped expressing the property this
+         test asserts. The paired case is below. */
+      'orphan.ts': `export interface Shape { x: number }\nexport const ships = 1\n`,
     })
     expect(analyze(area).orphans).toEqual(['.reachability-fixture/orphan.ts'])
   })
@@ -383,9 +459,27 @@ describe('a type-only import is not a runtime edge', () => {
   it('FAILS when every specifier is individually marked `type`', () => {
     const area = fixture({
       'entry.ts': `import { type A, type B } from './orphan'\nexport const go: A | B = 1 as never\n`,
-      'orphan.ts': `export type A = 1\nexport type B = 2\n`,
+      'orphan.ts': `export type A = 1\nexport type B = 2\nexport const ships = 1\n`,
     })
     expect(analyze(area).orphans).toEqual(['.reachability-fixture/orphan.ts'])
+  })
+
+  it('PASSES a TYPES-ONLY module reached only by a type edge', () => {
+    /* The paired case for the two tests above, and the rule Phase 10 added.
+       Those assert that a module with runtime code reached only by a type edge
+       is an orphan. This asserts the exception: a module exporting ONLY types
+       has no other kind of edge available, so requiring a value import is a
+       rule it can never satisfy.
+
+       Without this pair, giving the fixtures above a value export would look
+       like the assertions were weakened to accommodate a change. They were
+       not — the property they check is unchanged, and this is the other half
+       of it. */
+    const area = fixture({
+      'entry.ts': `import type { A } from './types'\nexport const go: A | null = null\n`,
+      'types.ts': `export type A = { x: number }\n`,
+    })
+    expect(analyze(area).orphans).toEqual([])
   })
 
   it('PASSES a MIXED clause, because one real specifier still ships', () => {
@@ -590,12 +684,39 @@ describe('area reachability from the product entry', () => {
     }
   }
 
-  it('FAILS on the real repository, because src/agent ships to nobody', () => {
-    /* The whole reason this check exists. If this ever goes green without
-       someone deliberately wiring the agent into the product, the check has
-       stopped measuring what it claims to measure. */
-    const unreached = analyzeProductReachability()
-    expect(unreached.map((u) => u.area)).toContain('agent')
+  it('PASSES on the real repository, and the reason is measured not assumed', () => {
+    /* THIS TEST WAS REWRITTEN, AND THE LICENCE IS ITS OWN OLD DOCSTRING.
+       It read: "If this ever goes green without someone deliberately wiring the
+       agent into the product, the check has stopped measuring what it claims to
+       measure." That is a pinned hole with a stated release condition.
+
+       The condition was met, and NOT by this change. Measured on the commit
+       before Phase 10 touched anything, `analyzeProductReachability()` reported
+       exactly one agent finding: `src/agent/kernel/contracts.ts`. It never
+       reported `src/agent/index.ts`. So the agent's front door was ALREADY
+       product-reachable -- wired through TutorView -- and this test was green
+       for a reason that had nothing to do with its own sentence: it was
+       satisfied by a types-only module that no import could ever reach.
+
+       `src/agent/index.ts` has two value exports, so the types-only rule does
+       not apply to it and could not have made it reachable.
+
+       The hole is closed, so the test asserts what the gate should measure now.
+       The ability to FAIL lives in the fixture test below, which is where it
+       cannot drift with the repository. */
+    expect(analyzeProductReachability()).toEqual([])
+  })
+
+  it('FAILS on an area the product genuinely cannot reach', () => {
+    /* The teeth. The test above can only ever go green, so on its own it would
+       be a check that cannot fail -- exactly what the old docstring warned
+       about. A fixture keeps the failing direction under this file's control
+       instead of hostage to whatever the repository happens to import. */
+    const { manifest, opts } = productFixture({
+      'main.tsx': `export const app = 1\n`,
+      'area/index.ts': `export const orphaned = 1\n`,
+    })
+    expect(analyzeProductReachability(manifest, opts)).toHaveLength(1)
   })
 
   it('PASSES when the product actually imports the area entry', () => {
@@ -635,7 +756,7 @@ describe('area reachability from the product entry', () => {
        turned out to be a line inside a comment. */
     const { manifest, opts } = productFixture({
       'main.tsx': `import type { T } from './area/index'\nexport const x: T | null = null\n`,
-      'area/index.ts': `export type T = { a: number }\n`,
+      'area/index.ts': `export type T = { a: number }\nexport const ships = 1\nexport const ships = 1\n`,
     })
     expect(analyzeProductReachability(manifest, opts)).toHaveLength(1)
   })
@@ -714,7 +835,7 @@ describe('area reachability from the product entry', () => {
        otherwise the fix for the false positive manufactures a false negative. */
     const { manifest, opts } = productFixture({
       'main.tsx': `import type { T } from './area/index'\nexport const x: T | null = null\n`,
-      'area/index.ts': `export type T = { a: number }\n`,
+      'area/index.ts': `export type T = { a: number }\nexport const ships = 1\nexport const ships = 1\n`,
     })
     expect(analyzeProductReachability(manifest, opts)).toHaveLength(1)
   })
@@ -729,12 +850,179 @@ describe('area reachability from the product entry', () => {
     expect(text).not.toContain('UNREACHED')
   })
 
-  it('reports the finding when explicitly asked for it', () => {
+  it('reports UNREACHED in the text when there is something to report', () => {
+    /* Rewritten with its sibling above, and for the same measured reason: the
+       repository no longer has an unreached area, so asserting the real report
+       says 'agent' would be asserting a defect that is fixed.
+
+       What must still hold is that the REPORT renders the finding when one
+       exists -- a gate that detects and does not say so is a gate nobody acts
+       on. So the finding is supplied by a fixture and the text is checked. */
+    const { manifest, opts } = productFixture({
+      'main.tsx': `export const app = 1\n`,
+      'area/index.ts': `export const orphaned = 1\n`,
+    })
     const { failed, text } = report(runAll(), {
-      productReachability: analyzeProductReachability(),
+      productReachability: analyzeProductReachability(manifest, opts),
     })
     expect(failed).toBe(true)
     expect(text).toContain('UNREACHED')
-    expect(text).toContain('agent')
+  })
+
+  it('renders no UNREACHED section when the product reaches everything', () => {
+    /* The pair. Without it, a report that always printed UNREACHED would
+       satisfy the test above. */
+    const { failed, text } = report(runAll(), { productReachability: [] })
+    expect(failed).toBe(false)
+    expect(text).not.toContain('UNREACHED')
+  })
+})
+
+describe('importsOf: clause bounding without semicolons', () => {
+  it('does not swallow an interface body into a later re-export', () => {
+    const src = [
+      'export interface Config {',
+      '  a: string',
+      '}',
+      "export { thing } from './mod'",
+    ].join('\n')
+    const found = importsOf(src)
+    const mod = found.find((f) => f.spec === './mod')
+    expect(mod).toBeDefined()
+    expect(mod.names).toEqual(['thing'])
+  })
+
+  it('still parses a multi-line import clause, which is what [^;] was protecting', () => {
+    const src = ['import {', '  a,', '  b,', "} from './x'"].join('\n')
+    const found = importsOf(src)
+    expect(found.find((f) => f.spec === './x').names).toEqual(['a', 'b'])
+  })
+
+  /* The minimal cut is TWO conditions, not three. A brace block only makes the
+     corruption obvious; without one the clause still runs away and quietly adds
+     a phantom `default` import, which is the more dangerous shape because it
+     looks like a legitimate parse. Found by testing the "safe" cases rather
+     than trusting that they were safe. */
+  it('does not invent a default import from a preceding export statement', () => {
+    const src = ['export const n = 1', "export { t } from './m'"].join('\n')
+    expect(importsOf(src).find((f) => f.spec === './m').names).toEqual(['t'])
+  })
+
+  it('parses cleanly when either condition of the cut is absent', () => {
+    const withSemis = ['export interface C {', '  a: string;', '};', "export { t } from './m'"].join('\n')
+    const notExportKw = ['const x = {', '  a: 1', '}', "export { t } from './m'"].join('\n')
+    for (const src of [withSemis, notExportKw]) {
+      expect(importsOf(src).find((f) => f.spec === './m').names).toEqual(['t'])
+    }
+  })
+})
+
+describe('the summary ratio measures the area, not the whole walk', () => {
+  const AREA = resolve(ROOT, '.ratio-area')
+  const OUTSIDE = resolve(ROOT, '.ratio-outside')
+
+  afterEach(() => {
+    rmSync(AREA, { recursive: true, force: true })
+    rmSync(OUTSIDE, { recursive: true, force: true })
+  })
+
+  function twoDirs(areaFiles, outsideFiles) {
+    rmSync(AREA, { recursive: true, force: true })
+    rmSync(OUTSIDE, { recursive: true, force: true })
+    for (const [dir, files] of [[AREA, areaFiles], [OUTSIDE, outsideFiles]]) {
+      for (const [path, source] of Object.entries(files)) {
+        const full = join(dir, path)
+        mkdirSync(resolve(full, '..'), { recursive: true })
+        writeFileSync(full, source)
+      }
+    }
+    return { name: 'ratio', root: '.ratio-area', entries: ['.ratio-area/entry.ts'] }
+  }
+
+  it("does not count a file from another area as one of this area's own", () => {
+    const area = twoDirs(
+      { 'entry.ts': "import { h } from '../.ratio-outside/helper'\nexport const a = h\n" },
+      { 'helper.ts': 'export const h = 1\n' },
+    )
+    const { text } = report([analyze(area)])
+    expect(text).toContain('[ratio] 1/1 source files reachable from entry points')
+  })
+
+  it('drops the numerator when a file in the area is unreachable, so the ratio can still say something is wrong', () => {
+    const area = twoDirs(
+      {
+        'entry.ts': "import { h } from '../.ratio-outside/helper'\nexport const a = h\n",
+        'orphan.ts': 'export const stranded = 2\n',
+      },
+      { 'helper.ts': 'export const h = 1\n' },
+    )
+    const { text } = report([analyze(area)])
+    expect(text).toContain('[ratio] 1/2 source files reachable from entry points')
+  })
+})
+
+describe('an importer in another area is still an importer', () => {
+  /* `server/handler.ts` imports `citationSupports` from `src/websearch`. The
+   * gate analysed each area on its own, so that import was invisible and the
+   * export went on being reported DEAD while a shipping file used it on every
+   * request. An importer the gate cannot see is indistinguishable from no
+   * importer at all — which is the one thing this gate exists to tell apart. */
+
+  const AREAS = [
+    { name: 'lib', root: '.reachability-fixture/lib', entries: ['.reachability-fixture/lib/index.ts'] },
+    { name: 'app', root: '.reachability-fixture/app', entries: ['.reachability-fixture/app/index.ts'] },
+  ]
+
+  /* `used` is deliberately NOT re-exported by lib/index.ts. Its ONLY importer
+   * is in the other area, which is the whole point — an earlier version of this
+   * test re-exported it and passed without ever exercising the cross-area path. */
+  const FILES = {
+    'lib/index.ts': "export { surface } from './util.ts'\n",
+    'lib/util.ts': [
+      'export function surface() { return 0 }',
+      'export function used() { return 1 }',
+      'export function unused() { return 2 }',
+      '',
+    ].join('\n'),
+    'app/index.ts': "import { used } from '../lib/util.ts'\nconsole.log(used())\n",
+  }
+
+  it('does not report an export dead when another area imports it', () => {
+    fixture(FILES)
+    const dead = runAll(AREAS).flatMap((r) => r.deadExports.map((d) => d.name))
+    expect(dead).not.toContain('used')
+  })
+
+  it('still reports an export nothing anywhere imports', () => {
+    fixture(FILES)
+    const dead = runAll(AREAS).flatMap((r) => r.deadExports.map((d) => d.name))
+    expect(dead).toContain('unused')
+  })
+})
+
+describe('an area that does not ship to a browser', () => {
+  it('is not asked whether the browser reaches it', () => {
+    /* `server/` holds the API key and is deliberately never imported by
+     * `main.tsx` -- the secret-exposure gate refuses that import outright. So
+     * "does the product reach it" has no true answer, and refusing to ask beats
+     * answering wrongly in either direction.
+     *
+     * Its INTERNAL orphan check still runs in `analyze()`. Nothing about it
+     * goes unmeasured; only this one question is declined. */
+    const manifest = [
+      { name: 'backend', root: 'server', shipsToBrowser: false, entries: ['server/index.ts'] },
+    ]
+    expect(() => analyzeProductReachability(manifest)).not.toThrow()
+    expect(analyzeProductReachability(manifest)).toEqual([])
+  })
+
+  it('STILL asks an area that has not declared itself', () => {
+    /* Opt-OUT, not opt-in. An area that forgets to say what it is gets the
+     * question anyway, so silence is never the default and a real island cannot
+     * hide behind a missing field. */
+    const manifest = [
+      { name: 'nowhere', root: 'src/nowhere', entries: ['src/nowhere/index.ts'] },
+    ]
+    expect(() => analyzeProductReachability(manifest)).toThrow(/does not exist|outside/)
   })
 })

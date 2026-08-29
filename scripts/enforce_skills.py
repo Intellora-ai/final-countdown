@@ -64,48 +64,86 @@ from typing import Any, cast
 # what matches. Writing the prefixed form here would never match anything and
 # the gate would block forever on a skill that had in fact been invoked.
 #
-# On cost: the user was explicitly asked to accept it and did. The first
-# invocation of each per session pays its preamble; every re-invocation after
-# that returns "already loaded above; instructions unchanged" at effectively
-# zero tokens, so the recurring cost of a nine-skill gate is close to the cost
-# of a two-skill one. The one-off cost is real and is the trade being made.
+# On cost: the first invocation of each per session pays its preamble; every
+# re-invocation after that returns "already loaded above; instructions
+# unchanged" at effectively zero tokens. That argument was used to justify
+# holding ten, and it was only half right -- the RECURRING cost is near zero,
+# but the ONE-OFF cost is ~8 KB per skill and it lands on the first prompt of
+# every new session, which is exactly when context is most valuable. FIVE is
+# the list now; see the note on REQUIRED below for what was dropped and why.
+# CUT FROM TEN TO THREE, 2026-08-24, at the user's explicit instruction.
+# RAISED FROM THREE TO FIVE, 2026-08-25, also at the user's explicit
+# instruction: /root-sweep and /thiel were added.
+#
+# A note for whoever reads this next. The gate was raised to five BEFORE
+# force-skills.py was updated, and the two lists disagreed. The result was
+# the failure the header of that file predicts: turns refused by a gate
+# demanding skills nothing had named, twice in one session, with no warning.
+# The three lists -- this file, its installed copy, and the reminder -- are
+# now identical, and test_installed_copy_matches_this_one keeps two of them
+# that way. Nothing keeps the REMINDER in step except reading this.
+#
+# Removed: mutate, test-driven-development, proptest, adversarial-reviewer,
+# chaos-engineer, chaos-engineering, systematic-debugging.
+#
+# SCOPE is "turn", so each of those was re-invoked on EVERY prompt at roughly
+# 8 KB of preamble apiece -- about 80 KB spent before any work began. Measured
+# against what they bought: `chaos-engineering` correctly reported it had no
+# target at all, because nothing in this repository is deployed, and the rest
+# restated process the surviving three already carry. The docstring above makes
+# exactly this argument about the original sixteen: a gate expensive enough to
+# resent is a gate that gets switched off, and then it enforces nothing.
+#
+# `caveman` is ONE entry, not two. Plugin skills arrive as "plugin:skill" and
+# the reader below normalises with `skill.split(":")[-1]`, so this single
+# string is satisfied by `/caveman` and by `/caveman:caveman` alike.
+#
+# THE RUNNING COPY IS ~/.claude/hooks/enforce_skills.py AND IT MATCHES THIS.
+# Both were changed together; this file is the one the tests run against and
+# the one a reviewer reads, so a drift between them is a gate nobody can audit.
 REQUIRED = (
     "rtk",
     "investigate",
-    # `caveman` also ships its own SessionStart and UserPromptSubmit hooks, so
-    # it is already active every turn and this entry is belt-and-braces rather
-    # than the thing switching it on. Kept because the user asked for it
-    # explicitly after being told that: a gate listing every skill the user
-    # wants held is easier to reason about than one with a silent exception in
-    # it, and the marginal cost of a re-invocation is near zero.
     "caveman",
-    # REMOVED 2026-08-25 on the owner's instruction: mutate,
-    # test-driven-development, proptest, adversarial-reviewer, chaos-engineer,
-    # chaos-engineering, systematic-debugging.
+    # The two built in this repo. They are 450 and 686 lines of method, and a
+    # method nothing forces is a method that gets skipped on the turn it was
+    # written for -- the same 0-of-8 measurement that made this a Stop hook
+    # rather than a prompt.
     #
-    # They were removed from the RUNNING copy at ~/.claude/hooks/enforce_skills.py
-    # earlier and this file was never updated, so for some time the repo
-    # documented a nine-skill gate while the machine enforced a different set.
-    # That drift is the reason a reader could not audit the gate from the repo,
-    # which is the exact failure the header of this file warns about.
-    #
-    # They are not coming back. Each one loads a large preamble on the first
-    # invocation of a session, and a turn gate fires them on prompts that will
-    # never mutate a file or run a property test. The methods remain available
-    # as skills to invoke deliberately; what was removed is the obligation to
-    # invoke them on every single turn.
+    # On cost: the FIRST invocation each session pays the preamble. Every
+    # re-invocation returns "already loaded above; instructions unchanged" at
+    # effectively zero tokens, so the recurring price of a five-skill gate is
+    # close to that of a three-skill one. The one-off cost is real and is the
+    # trade being made knowingly.
     "thiel",
     "root-sweep",
+    # `fullrun` is a RELEASE-time skill and this gate fires on EVERY turn, which
+    # is a real mismatch worth stating rather than hiding: it is loaded on turns
+    # that will never run a browser. The owner asked for it knowingly. The
+    # recurring price is near zero -- a re-invocation returns "already loaded
+    # above" -- so the cost is one preamble per session, paid once.
     "fullrun",
+    # `tokenlock` compiles a verbose instruction set into a smaller one that
+    # provably behaves the same: invariants extracted and locked, repeated rules
+    # canonicalised into named primitives, monolith split into a core plus
+    # modules the router reaches only when needed, and every compression made to
+    # survive a regression and adversarial suite against the original as oracle.
+    #
+    # It is on a turn gate rather than a session one for the same reason as the
+    # rest: a method nothing forces is a method that gets skipped on the turn it
+    # was needed. Its own core is deliberately small -- 8.5 KB, with four
+    # reference files read only at the stage that needs them -- so the recurring
+    # price is one preamble per session and near zero per re-invocation.
     "tokenlock",
 )
 
-# "turn"    --- both skills must be re-invoked for EVERY user prompt.
+# "turn"    --- every skill in REQUIRED must be re-invoked for EVERY prompt.
 # "session" --- once per session is enough.
 #
-# `turn` is what was asked for and it is the expensive one: each skill body is
-# roughly 8 KB, so this spends ~16 KB per prompt to buy the guarantee. That is
-# the trade being made deliberately, not an oversight --- and it is one
+# `turn` is what was asked for and it is the expensive one. It said "both
+# skills" and "~16 KB per prompt" back when REQUIRED held two; the list has
+# been two, then sixteen, then ten, then three, and the sentence did not move
+# with it. Written without a count now, so it cannot go stale again -- one
 # constant to flip if the bill stops being worth it.
 SCOPE = "turn"
 

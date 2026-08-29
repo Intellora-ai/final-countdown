@@ -1010,6 +1010,70 @@ def absorb(g: Gate, name: str, not_before: float) -> None:
         g.warn(str(recorded))
 
 
+def write_diagnostics(gate: str, stdout: str, stderr: str, combined: str) -> str | None:
+    """Persist the wrapped command's COMPLETE output. Returns the log path.
+
+    WHY A FILE AND NOT JUST THE JOB LOG.
+
+    Everything this wrapper captures used to exist in exactly two places: the
+    GitHub Actions log, which the UI truncates and which nobody can grep from a
+    laptop, and the last six lines glued into `failures[].why`. On a gate that
+    printed thirty pyright errors, six lines is a sample, not a summary. So a
+    red run was diagnosable only by opening the job, expanding a collapsed
+    group, and hoping the interesting line was inside the window the UI kept.
+
+    THREE FILES, NOT ONE. `stdout` and `stderr` are captured separately and the
+    separation is already load-bearing above -- `unreached()` anchors on `^`
+    and a glued stream silently stops matching. Keeping the raw pair means a
+    later reader can reproduce that reasoning instead of trusting the join.
+    `combined` is the numbered one, because a finding that cites a line range
+    needs the numbering to be stable and visible.
+
+    NEVER TRUNCATED. A "complete" log that drops the middle is worse than no
+    log, because a reader trusts it.
+
+    WRITING THIS MUST NEVER DECIDE ANYTHING. A full disk, a read-only mount or
+    a permission error is a diagnostics problem, not a verdict, so every error
+    is swallowed and reported. The gate's status is the command's exit code and
+    nothing here can reach it -- the same rule `aggregate_gates.py` applies to
+    `blocker_report.emit`.
+    """
+    # `<workflow>/<job>/<gate>/` so artifacts from different jobs of the same
+    # run do not collide when they are downloaded into one tree. Locally there
+    # is no workflow or job, and "local" is honest about that.
+    workflow = os.environ.get("GITHUB_WORKFLOW") or "local"
+    job = os.environ.get("GITHUB_JOB") or "local"
+
+    def safe(component: str) -> str:
+        """One path component, from a value this process does not control.
+
+        `GITHUB_WORKFLOW` is the workflow's `name:`, which is free text, and a
+        `/` or a `..` in it would place the log outside the tree the artifact
+        step uploads. Reduced to a known-safe alphabet and bounded, so the path
+        is always exactly three components deep.
+        """
+        return re.sub(r"[^A-Za-z0-9._-]+", "-", component)[:64] or "unnamed"
+
+    directory = Path("diagnostics") / safe(workflow) / safe(job) / safe(gate)
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "command-01.stdout.log").write_text(stdout, encoding="utf-8")
+        (directory / "command-01.stderr.log").write_text(stderr, encoding="utf-8")
+        numbered = "".join(
+            f"{n:6d}\t{line}\n"
+            for n, line in enumerate(combined.splitlines(), start=1)
+        )
+        target = directory / "command-01.combined.log"
+        target.write_text(numbered, encoding="utf-8")
+    except OSError as exc:
+        # Reported, never raised. See the docstring: this cannot be allowed to
+        # change a verdict, and a gate that failed to write a log has still
+        # told you everything the exit code knows.
+        print(f"  [diagnostics unavailable: {exc!r}] the verdict above stands")
+        return None
+    return str(target)
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument(
@@ -1064,6 +1128,14 @@ def main() -> None:
         gap = "" if (not out.stdout or out.stdout.endswith("\n")) else "\n"
         combined = out.stdout + gap + out.stderr
         print(combined, end="" if combined.endswith("\n") else "\n")
+
+        # UNCONDITIONAL, on pass and on fail alike. A log that exists only on
+        # red cannot prove a green run produced no findings: "captured and
+        # clean" and "never captured" would look identical, which is the
+        # absence-looks-like-health failure this repository keeps closing.
+        log_path = write_diagnostics(ns.name, out.stdout, out.stderr, combined)
+        if log_path:
+            g.set_scope(diagnostics_log=log_path)
 
         counts: dict[str, object] = {}
         for pattern, label in SCOPE_PATTERNS:

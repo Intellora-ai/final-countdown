@@ -1,7 +1,7 @@
 {
   "name": "final-countdown",
   "version": "1.0.0",
-  "description": "Learning OS with 100% verified Python code via AXLE + Lean 4.",
+  "description": "Learning OS. Every function in src/ carries a Lean 4 specification kernel-checked by AXLE; the rest is gated by coverage, mutation and type checks.",
   "main": "index.js",
   "directories": {
     "test": "tests"
@@ -11,8 +11,8 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
-    "test:canvas": "playwright test -c frontend/playwright.config.ts",
-    "test:canvas:headed": "playwright test -c frontend/playwright.config.ts --headed"
+    "test:canvas": "cd frontend && npx playwright test",
+    "test:canvas:headed": "cd frontend && npx playwright test --headed"
   },
   "repository": {
     "type": "git",

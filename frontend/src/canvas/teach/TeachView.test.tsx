@@ -59,14 +59,19 @@ async function teach() {
   return view
 }
 
-async function press(name: string): Promise<void> {
-  fireEvent.click(screen.getByRole('button', { name }))
-  await settle()
-}
-
-/** Type a doubt and submit it the way Enter in the field does. */
-async function askAbout(text: string): Promise<void> {
-  const field = screen.getByLabelText('Ask about this part of the lesson')
+/**
+ * Type something into the one box and submit it the way Enter does.
+ *
+ * THERE IS NO CONTINUE BUTTON ANY MORE, and these helpers are where that shows.
+ * A beat already ends with a question, so it advances when the learner ANSWERS
+ * it; a Continue button beside that question asked them to answer and then
+ * separately confirm they had answered.
+ *
+ * One box, two meanings, and the TEXT decides which -- so the two helpers below
+ * differ only in what they type.
+ */
+async function submitText(text: string): Promise<void> {
+  const field = screen.getByLabelText('Answer the question, or ask one of your own')
   fireEvent.change(field, { target: { value: text } })
   /* The form's submit event is what Enter in a text field raises. jsdom does not
      perform implicit submission, so it is raised directly rather than faked with
@@ -75,14 +80,35 @@ async function askAbout(text: string): Promise<void> {
   await settle()
 }
 
+/** Answer the beat's closing question. A plain statement, so it is read as an
+ *  answer rather than as a doubt. */
+async function answerBeat(): Promise<void> {
+  await submitText('the model flags too many innocent transactions')
+}
+
+/** Ask a doubt. Kept as its own helper so every call site says which of the
+ *  two meanings it intends. */
+async function askAbout(text: string): Promise<void> {
+  await submitText(text)
+}
+
 function checkpointText(container: HTMLElement): string {
   return container.querySelector('.lc-teach__question')?.textContent ?? ''
 }
 
 /** Blocks of the fixture, which `beats.ts` cuts into five parts. */
+/*
+ * One title from each of the ML lesson's three beats, re-pinned in this change.
+ *
+ * The lesson gained a definition and a summary, and a beat now ends when it is
+ * FINISHED rather than at a cap of three, so the boundaries moved: the class
+ * balance figure sits in the FIRST beat now, beside the headline it undercuts,
+ * rather than opening the second. These constants have to name blocks that are
+ * genuinely in different beats or the assertions below stop meaning anything.
+ */
 const FIRST_BEAT = 'Reported accuracy'
-const SECOND_BEAT = 'What the data actually contains'
-const THIRD_BEAT = 'Where the errors actually fall'
+const SECOND_BEAT = 'Where the errors actually fall'
+const THIRD_BEAT = 'Precision-recall tells the truth'
 const LAST_BEAT = 'The rule'
 
 /** Sentences that appear ONLY inside an answer, never in the first beat. */
@@ -114,45 +140,48 @@ describe('a lesson arrives one beat at a time', () => {
      * shown while reading the thing that takes it apart.
      */
     await teach()
-    await press('Continue')
+    await answerBeat()
 
     expect(screen.queryByText(SECOND_BEAT), 'the new beat did not arrive').not.toBeNull()
     expect(screen.queryByText(FIRST_BEAT), 'the earlier beat was replaced').not.toBeNull()
   })
 
-  it('runs to the end and then stops offering to continue', async () => {
+  it('runs to the end by being answered, and then stops advancing', async () => {
     await teach()
 
-    /* Bounded so a view that never removes the button fails as a test rather
+    /* Bounded so a view that never reaches its last beat fails as a test rather
        than as a hung run. The bound is far above any sane cut of nine blocks
        and is not read for anything else. */
     let guard = 0
-    while (screen.queryByRole('button', { name: 'Continue' }) !== null) {
+    while (screen.queryByText(/end of this lesson/i) === null) {
       if (guard > 50) throw new Error('the lesson never reached its last beat')
       guard += 1
-      await press('Continue')
+      await answerBeat()
     }
+
+    /* And answering again at the end does not wrap around or blank the page. */
+    await answerBeat()
 
     expect(screen.queryByText(FIRST_BEAT), 'the first beat is gone by the end').not.toBeNull()
     expect(screen.queryByText(LAST_BEAT)).not.toBeNull()
     expect(screen.queryByText(/end of this lesson/i)).not.toBeNull()
   })
 
-  it('puts focus on the closing question when Continue disappears', async () => {
+  it('puts focus on the closing question when the last beat arrives', async () => {
     /*
-     * Focus normally stays on Continue, which is where the learner left it. On
-     * the last beat that button unmounts, and focus would otherwise fall to
-     * <body> — a keyboard learner would have to tab in from the top of the
-     * document to discover what happened. It lands on the closing question,
-     * which is the thing that changed.
+     * Focus normally stays in the answer box, which is where the learner left
+     * it and where the next answer will be typed. On the last beat the lesson
+     * stops advancing, and a keyboard learner needs to be told the thing that
+     * changed rather than left wondering whether their answer registered. It
+     * lands on the closing question.
      */
     const { container } = await teach()
 
     let guard = 0
-    while (screen.queryByRole('button', { name: 'Continue' }) !== null) {
+    while (screen.queryByText(/end of this lesson/i) === null) {
       if (guard > 50) throw new Error('the lesson never reached its last beat')
       guard += 1
-      await press('Continue')
+      await answerBeat()
     }
 
     expect(document.activeElement).toBe(container.querySelector('.lc-teach__question'))
@@ -199,10 +228,10 @@ describe('the learner is never told how far through they are', () => {
         chromeSeen.push(node.textContent ?? '')
       }
       expect(container.textContent).not.toMatch(NUMBERED_STEP)
-      if (screen.queryByRole('button', { name: 'Continue' }) === null) break
+      if (screen.queryByText(/end of this lesson/i) !== null) break
       if (guard > 50) throw new Error('the lesson never reached its last beat')
       guard += 1
-      await press('Continue')
+      await answerBeat()
     }
 
     expect(chromeSeen.length, 'no chrome was inspected, so this proved nothing').toBeGreaterThan(1)
@@ -245,7 +274,8 @@ describe('asking a doubt', () => {
     expect(screen.queryByText(SECOND_BEAT), 'a doubt revealed the next beat').toBeNull()
     expect(screen.queryByText(FIRST_BEAT)).not.toBeNull()
     expect(checkpointText(container), 'the checkpoint moved on').toBe(before)
-    expect(screen.queryByRole('button', { name: 'Continue' })).not.toBeNull()
+    /* And the box is still there to answer with, so the learner is not stuck. */
+    expect(screen.queryByLabelText('Answer the question, or ask one of your own')).not.toBeNull()
   })
 
   it('renders the answer through the lesson renderer, not a prose fallback', async () => {
@@ -264,43 +294,49 @@ describe('asking a doubt', () => {
     expect(screen.queryByText('Precision-recall tells the truth')).not.toBeNull()
   })
 
-  it('renders a refusal as a refusal, with no answer beside it', async () => {
+  it('ESCALATES instead of refusing when the lesson has no answer', async () => {
+    /*
+     * THIS TEST REPLACED "renders a refusal as a refusal", AND THE REASON IS A
+     * REQUIREMENTS CHANGE, NOT A WEAKENED ASSERTION.
+     *
+     * The lesson resolver still refuses -- it answers only out of material the
+     * author already wrote, which is exactly why it cannot invent a wrong
+     * answer. What changed is what happens NEXT. A learner who has just
+     * admitted confusion is the worst possible audience for "I cannot answer
+     * that", so the refusal now escalates to the model.
+     *
+     * With no ask port configured, escalation cannot complete -- and the
+     * learner is told THAT, which is a different and honest thing. What must
+     * never appear again is a dead end.
+     */
     const { container } = await teach()
 
-    /*
-     * THIS DOUBT WAS CHANGED, AND THE REASON IS WORTH KEEPING.
-     *
-     * It used to be "is that number meaningless", on the stated grounds that
-     * both words occur only inside a CAPTION and captions were not matched.
-     * That premise stopped being true: the resolver now indexes captions as a
-     * lower-priority tier, so the headline's own caption ("The number is real.
-     * It is also almost meaningless") answers it. The test was pinning an
-     * implementation detail, and it went red the moment that detail changed.
-     *
-     * "what is the threshold" refuses for a reason that is documented rather
-     * than incidental: a one-word doubt cannot clear a two-word name, so it
-     * misses the axis label "Decision threshold". That is a known limitation of
-     * the matcher — and pinning a known limitation is the honest thing for this
-     * test to do, because if stemming or single-word matching is ever added,
-     * this test SHOULD fail and be reconsidered rather than quietly keep
-     * passing against a resolver that has changed underneath it.
-     *
-     * It also still exercises what this test is actually about: a refusal with
-     * a non-empty "did you mean", since "threshold" does appear in the lesson's
-     * vocabulary.
-     */
-    await askAbout('what is the threshold')
+    await askAbout('how tall is mount everest')
 
-    expect(container.querySelectorAll('.lc-teach__answer--refusal')).toHaveLength(1)
-    expect(
-      container.querySelectorAll('.lc-teach__answer:not(.lc-teach__answer--refusal)'),
-      'a refusal was accompanied by an answer',
-    ).toHaveLength(0)
+    /* The question is on screen, attributed to them. Matched as a substring:
+       it is rendered inside "You asked: ..." rather than as its own node. */
+    expect(container.textContent).toContain('how tall is mount everest')
+    /* And it was answered with something, not closed down. */
+    expect(container.textContent).toMatch(/could not reach|saved/i)
+    /* The old dead end is gone. */
+    expect(container.querySelectorAll('.lc-teach__answer--refusal')).toHaveLength(0)
+    expect(container.textContent).not.toMatch(/could not find an answer to that in this lesson/i)
+  })
 
-    /* The reason is shown as the resolver wrote it. */
-    expect(container.textContent).toMatch(/could not find an answer to that in this lesson/i)
-    /* And "did you mean" offers the nearest block rather than silence. */
-    expect(container.querySelectorAll('.lc-teach__nearest li').length).toBeGreaterThan(0)
+  it('answers an off-lesson question through the model when one is reachable', async () => {
+    render(
+      <TeachView
+        lesson={fixture()}
+        mode="2d"
+        ask={async () => ({ ok: true, text: 'Mount Everest is 8,849 metres high.' })}
+      />,
+    )
+    await settle()
+    await askAbout('how tall is mount everest')
+
+    expect(screen.queryByText(/8,849 metres/)).not.toBeNull()
+    /* And exactly one soft invitation back, never a reprimand. */
+    expect(document.body.textContent?.match(/Shall we get back to it\?/g) ?? []).toHaveLength(1)
   })
 
   it('keeps every answer when a second doubt is asked', async () => {
@@ -335,7 +371,7 @@ describe('asking a doubt', () => {
 
   it('leaves the doubt field reachable by keyboard', async () => {
     await teach()
-    const field = screen.getByLabelText('Ask about this part of the lesson') as HTMLInputElement
+    const field = screen.getByLabelText('Answer the question, or ask one of your own') as HTMLInputElement
 
     /* Tab order, asserted the only way jsdom can honestly: a native input with
        no negative tabindex and not disabled is reachable, and the checkpoint

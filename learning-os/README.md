@@ -93,8 +93,103 @@ PYTHONPATH=src ./.venv/bin/python -m pytest tests -q
 MYPYPATH=src ./.venv/bin/mypy --strict src/learning_os
 ```
 
-When a real provider is added it reads `LEARNING_OS_LLM_API_KEY` from the
-environment. Never hard-coded, never committed; CI greps for an assigned value.
+## Running it against a real model
+
+The fake is the default and needs nothing. Two live adapters exist behind the
+same one-method boundary, and switching between them changes the quality of the
+prose and nothing else — every decision the engine makes is already made before
+the model is called, and `validate` checks the result afterwards either way.
+
+| `LEARNING_OS_LLM_PROVIDER` | Adapter | Credential it reads | SDK |
+|---|---|---|---|
+| unset, or `fake` | `FakeLLMClient` | none | none |
+| `gemini` | `GeminiClient` | `LEARNING_OS_GEMINI_API_KEY` | `google-genai` |
+| `anthropic` | `AnthropicClient` | `LEARNING_OS_LLM_API_KEY` | `anthropic` |
+
+Two variables and not one, deliberately. A single shared name makes the
+providers mutually exclusive on one machine and — worse — sends one vendor's
+credential to the other vendor's endpoint the first time somebody switches. A
+key disclosed to the wrong party has no undo that is not rotation.
+
+An unrecognised value is **refused**, not quietly replaced by the fake. A
+fallback there would mean a typo produces a run that looks live, costs nothing,
+and teaches nobody, with no signal at any layer.
+
+### Getting a Gemini key
+
+This repository does not issue one and cannot. Create it yourself at
+[Google AI Studio](https://aistudio.google.com/apikey) — the free tier needs a
+Google account and no card. Then:
+
+```bash
+# the SDK, hash-pinned, from its OWN lock. Never the base lock — see below.
+.venv/bin/pip install --require-hashes -r requirements-live.lock
+
+export LEARNING_OS_LLM_PROVIDER=gemini
+export LEARNING_OS_GEMINI_API_KEY=...    # your own value; never commit it
+
+# one command that says whether the live path is actually on
+PYTHONPATH=src python -m learning_os.api.ask --doctor
+```
+
+`--doctor` prints the provider, whether the credential is present (a boolean,
+never the value), whether the SDK imports, and the one command to fix whichever
+is missing. It exits non-zero when the live path is not ready, so a script can
+gate on it instead of parsing prose.
+
+### Why the SDK has its own lock file
+
+`requirements-learning-os.lock` is what CI installs. `requirements-live.lock` is
+what it does **not**, and that separation *is* the offline guarantee.
+
+Every honesty property here — the validator refusing content that misses a
+required term, the runtime refusing to fabricate confidence — is asserted
+against `FakeLLMClient`. A suite that *could* reach a real provider is a suite
+that gets skipped the first time a key expires, and the tests that then stop
+running are precisely the ones guarding against overconfident output. With the
+SDK absent from the CI job entirely, a test that tried cannot succeed. That is
+structural rather than a habit.
+
+### Reaching the engine from the canvas
+
+`frontend/vite-plugin-engine.ts` mounts `POST /api/doubt` on the dev server. It
+spawns `python -m learning_os.api.ask` and returns its JSON, so a doubt the
+canvas cannot answer reaches this engine. The subprocess inherits the server's
+environment, which is why the key can be set there and never sent to a browser.
+
+Dev only. `vite build` is static and the middleware is not in it — making the
+engine reachable in production is a hosting decision, not one a build plugin
+should make quietly.
+
+`speak` runs one real turn — same policy, same memory, same validator, same
+emitter as the runtime — and prints the lesson on **stdout** with every
+diagnostic on **stderr**, so `| jq` works. It writes no files. Offline, with no
+provider set, it runs the fake and still prints a valid lesson:
+
+```bash
+PYTHONPATH=src python -m learning_os.api.speak --question "Why does a recursive function need a base case?"
+```
+
+Exit codes are distinct because the fixes are: `2` the provider name is not one
+this engine has · `3` no credential, no SDK, or the provider could not be
+reached · `4` the contract could not be satisfied · `5` every mechanism for this
+diagnosis has already failed and a human belongs here.
+
+### What is deliberately not switched
+
+`api/cli.py` and `api/demo.py` keep passing `FakeLLMClient` explicitly. Both
+write committed fixtures that CI compares byte for byte, and a fixture whose
+contents depend on an environment variable ends that comparison without removing
+it — the check would stay green while checking nothing.
+
+### What is not covered by a test
+
+The one `generate_content` call itself. Mocking the SDK would assert that a mock
+returns what the mock was told to return; the real risk lives in the prompt, the
+response schema and the parse, and those are covered with no SDK, no key and no
+socket. The request **shape** was validated against `google-genai` 2.19.0 by
+constructing a real `GenerateContentConfig` — which rejects a misspelled key, so
+the check is not vacuous — but no live call has been made from this repository.
 
 ## V1 scope
 

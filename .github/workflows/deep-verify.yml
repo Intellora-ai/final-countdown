@@ -54,6 +54,16 @@ jobs:
       run: ${{ steps.decide.outputs.run }}
       source_sha: ${{ steps.decide.outputs.source_sha }}
     steps:
+      # THE ANCESTRY CHECK NEEDS HISTORY, AND `ref:` IS DELIBERATELY NOT THE
+      # DISPATCH INPUT. Checking out an unvalidated attacker-supplied SHA is
+      # precisely what the decision below exists to prevent, so this takes the
+      # workflow's own ref and `fetch-depth: 0` for enough history to answer
+      # "is that commit an ancestor of main". The `deep-verify` job does its
+      # own pinned checkout of the source SHA only after this gate says yes.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
       - name: Decide whether the deep lane may run
         id: decide
         env:
@@ -89,8 +99,39 @@ jobs:
               echo "run=false" >> "$GITHUB_OUTPUT"
               exit 1
             fi
+
+            # FORTY HEX CHARACTERS IS A SHAPE, NOT AN AUTHORIZATION.
+            #
+            # Everything above validates the FORM of the input and nothing
+            # validated its PROVENANCE. This job hands the value to `checkout`
+            # and, downstream, to `cosign sign-blob` under `id-token: write` --
+            # this repository's identity vouching for those bytes. Every commit
+            # that has ever existed here is a valid 40-hex SHA: an abandoned
+            # branch, a reverted change, the head of a closed pull request. All
+            # of them were signable.
+            #
+            # The fork refusal below protects the LABEL path. Nothing protected
+            # the DISPATCH path, which is the one a human triggers by hand and
+            # therefore the one where a mistyped or copy-pasted SHA lands.
+            #
+            # The rule: the commit must be an ancestor of the default branch.
+            # `merge-base --is-ancestor` is exact and cheap, and it admits
+            # exactly the set that should be signable -- anything that actually
+            # got to main -- while refusing anything that did not. A tag or a
+            # release commit is an ancestor of main by construction, so this
+            # does not narrow the legitimate cases.
+            git fetch --quiet origin main
+            if ! git merge-base --is-ancestor "$DISPATCH_SHA" origin/main 2>/dev/null; then
+              echo "STATUS: BLOCK"
+              echo "REASON: source_sha is not an ancestor of origin/main. Signing"
+              echo "        authority is limited to commits that reached the default"
+              echo "        branch; a well-formed SHA is not an authorization."
+              echo "run=false" >> "$GITHUB_OUTPUT"
+              exit 1
+            fi
+
             echo "DEEP_WORKFLOW_STATUS: RUN"
-            echo "SOURCE_SHA        $DISPATCH_SHA (required dispatch input, validated)"
+            echo "SOURCE_SHA        $DISPATCH_SHA (dispatch input, validated and on main)"
             echo "run=true" >> "$GITHUB_OUTPUT"
             echo "source_sha=$DISPATCH_SHA" >> "$GITHUB_OUTPUT"
             exit 0
@@ -260,15 +301,46 @@ jobs:
           # arguments this file supplied.
           ACTUAL_IDENTITY="$(openssl x509 -inform DER -in bundle-out/bundle.cert.der -noout -ext subjectAltName \
             | tr ',' '\n' | grep -o 'URI:.*' | sed 's/^URI://' | head -1)"
-          # -A1, not -A2. Fulcio writes the issuer in OID 1.3.6.1.4.1.57264.1.8 and the
-          # build signer URI in 1.3.6.1.4.1.57264.1.9 immediately after it, so on run
-          # 32418822707 `-A2 | tail -1` read past the value and returned the literal
-          # string "1.3.6.1.4.1.57264.1.9:" as the issuer. Everything else in that run
-          # matched -- cosign printed "Verified OK", the certificate identity was exactly
-          # the expected one, and the recomputed digest equalled the recorded one. The
-          # only broken thing was this grep window.
-          ACTUAL_ISSUER="$(openssl x509 -inform DER -in bundle-out/bundle.cert.der -noout -text \
-            | grep -A1 '1.3.6.1.4.1.57264.1.8' | tail -1 | tr -d ' \t' | sed 's/^\.\.//' || true)"
+
+          # THE ISSUER IS PARSED OUT OF THE DER, NOT SCRAPED FROM PRINTED TEXT.
+          #
+          # This was `openssl x509 -text | grep -A1 <oid> | tail -1`, and the
+          # workflow's own history records it misreading the certificate: on run
+          # 32418822707 an `-A2` window read past the value and returned the
+          # literal string "1.3.6.1.4.1.57264.1.9:" as the issuer, while cosign
+          # printed "Verified OK" and every other check in that run matched.
+          # Narrowing to `-A1` fixed that one symptom of a technique that is
+          # wrong in general: `openssl x509 -text` output is a human rendering,
+          # not a stable interface, and the next release is free to move the
+          # value again. The failure mode is silent and in the dangerous
+          # direction -- a wrong issuer string compared against an expectation.
+          #
+          # So: find the extension by its OID bytes and read its value. Fulcio
+          # writes the OIDC issuer in 1.3.6.1.4.1.57264.1.8, whose DER encoding
+          # is 06 0A 2B 06 01 04 01 83 BF 30 01 08; the extension's OCTET STRING
+          # wraps a UTF8String (tag 0C) holding the issuer. stdlib only, no new
+          # dependency in a signing path.
+          ACTUAL_ISSUER="$(python3 - <<'PYEOF'
+          import pathlib, sys
+
+          der = pathlib.Path("bundle-out/bundle.cert.der").read_bytes()
+          oid = bytes.fromhex("060A2B06010401 83BF30 0108".replace(" ", ""))
+          at = der.find(oid)
+          if at < 0:
+              sys.exit("issuer OID 1.3.6.1.4.1.57264.1.8 not present in certificate")
+          # After the OID: OCTET STRING (04 len) wrapping UTF8String (0C len).
+          i = at + len(oid)
+          if der[i] != 0x04:
+              sys.exit(f"expected OCTET STRING after issuer OID, got 0x{der[i]:02x}")
+          i += 2                      # skip 04 and its (short-form) length
+          if der[i] != 0x0C:
+              sys.exit(f"expected UTF8String inside issuer extension, got 0x{der[i]:02x}")
+          length = der[i + 1]
+          if length & 0x80:
+              sys.exit("issuer value uses long-form length; refusing to guess")
+          print(der[i + 2 : i + 2 + length].decode("utf-8"))
+          PYEOF
+          )"
 
           RECOMPUTED="$(sha256sum "$BUNDLE" | cut -d' ' -f1)"
           RECORDED="$(python3 -c "import json;print(json.load(open('bundle-out/bundle.manifest.json'))['bundle_sha256'])")"
@@ -283,7 +355,16 @@ jobs:
 
           FAILED=0
           [ "$ACTUAL_IDENTITY" = "$EXPECTED_IDENTITY" ] || { echo "MISMATCH: certificate identity" >&2; FAILED=1; }
-          case "$ACTUAL_ISSUER" in *token.actions.githubusercontent.com*) : ;; *) echo "MISMATCH: issuer" >&2; FAILED=1 ;; esac
+          # EXACT, not a wildcard. This was
+          #     case "$ACTUAL_ISSUER" in *token.actions.githubusercontent.com*)
+          # which passes for ANY string containing that text -- one that merely
+          # ends with it, or carries it as a prefix of a longer host. The point
+          # of reading the issuer back out of the certificate is to refuse a
+          # signature whose provenance is not the expected one, and a substring
+          # test asks a strictly weaker question than the one the surrounding
+          # comment claims to be asking. `EXPECTED_ISSUER` is computed six lines
+          # above; comparing against it costs nothing.
+          [ "$ACTUAL_ISSUER" = "$EXPECTED_ISSUER" ] || { echo "MISMATCH: issuer" >&2; FAILED=1; }
           [ "$RECORDED" = "$RECOMPUTED" ] || { echo "MISMATCH: digest" >&2; FAILED=1; }
           if [ "$FAILED" -ne 0 ]; then
             echo "STATUS: FAIL — the certificate does not carry the identity this run expected" >&2

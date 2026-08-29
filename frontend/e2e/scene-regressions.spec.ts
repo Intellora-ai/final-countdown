@@ -3,6 +3,8 @@ import { expect, test, type Page } from '@playwright/test'
 import { gasPressure } from '../src/canvas/lessons/gasPressure'
 import { attribute, attributeFiles } from './util/attribution'
 import {
+  answerBeat,
+  answerBox,
   LESSONS,
   bodyBlocks,
   chromeText,
@@ -226,7 +228,19 @@ test.describe('explanation canvas regressions', () => {
     page.on('pageerror', (e) => errors.push(e.message))
 
     await open(page, testInfo)
-    await settle(page)
+    /*
+     * THE LESSON IS NAMED, NOT ASSUMED.
+     *
+     * These two tests used `open()` alone and read whatever lesson the picker
+     * opens by default. That was Physics until two reference lessons were added
+     * ahead of it in the catalogue, at which point both quietly began measuring
+     * a maths lesson that has no simulation in it — the block locator found
+     * nothing and the failure pointed at the renderer.
+     *
+     * A test whose subject depends on catalogue ORDER is a test that can lose
+     * its subject without anyone editing it. It says which lesson it means now.
+     */
+    await teach(page, physics.label)
 
     const block = page.locator('.lc-block[data-kind="simulation"]').first()
     await expect(block).toBeVisible()
@@ -273,7 +287,8 @@ test.describe('explanation canvas regressions', () => {
   test('one control moves every readout that depends on it', async ({ page }, testInfo) => {
     attribute(testInfo, ['simulation'])
     await open(page, testInfo)
-    await settle(page)
+    /* Named for the reason given above. */
+    await teach(page, physics.label)
 
     /* The architectural claim, checked through the UI rather than the model:
      * move temperature, and every readout derived from it must agree.
@@ -387,7 +402,7 @@ test.describe('the lesson is taught, not printed', () => {
       await expect(page.locator('.lc-teach__more')).toHaveText('There is more after this.')
     })
 
-    test(`${lesson.label}: Continue adds the next beat and keeps the last one`, async ({ page }, testInfo) => {
+    test(`${lesson.label}: answering adds the next beat and keeps the last one`, async ({ page }, testInfo) => {
       attributeFiles(testInfo, ['frontend/src/canvas/teach/TeachView.tsx'])
       await open(page, testInfo)
       await page.getByRole('button', { name: lesson.label, exact: true }).click()
@@ -396,7 +411,10 @@ test.describe('the lesson is taught, not printed', () => {
       const before = await bodyBlocks(page).count()
       const openingTitles = await shownTitles(page)
 
-      await page.getByRole('button', { name: 'Continue', exact: true }).click()
+      /* Answering is what advances the lesson now. The Continue button is gone:
+       * a beat already ends with a question, and a button beside it asked the
+       * learner to answer and then separately confirm that they had. */
+      await answerBeat(page)
       await expect.poll(() => bodyBlocks(page).count(), { timeout: 10_000 })
         .toBeGreaterThan(before)
       await settle(page)
@@ -410,15 +428,17 @@ test.describe('the lesson is taught, not printed', () => {
       }
     })
 
-    test(`${lesson.label}: the end asks what is unclear instead of offering Continue`, async ({ page }, testInfo) => {
+    test(`${lesson.label}: the end asks what is unclear instead of advancing further`, async ({ page }, testInfo) => {
       attributeFiles(testInfo, ['frontend/src/canvas/teach/beats.ts'])
       await open(page, testInfo)
       await teach(page, lesson.label)
 
-      /* There is nothing to continue TO, so there is no button offering it --
-       * a disabled Continue would be a dead control and an enabled one a lie. */
+      /* No Continue button anywhere in the lesson any more, at any beat. */
       await expect(page.getByRole('button', { name: 'Continue', exact: true })).toHaveCount(0)
-      await expect(page.getByRole('button', { name: 'Ask', exact: true })).toBeVisible()
+      /* The box stays, because the last beat asks what is still unclear and the
+       * learner must be able to answer THAT. */
+      await expect(answerBox(page)).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeVisible()
 
       const more = page.locator('.lc-teach__more')
       await expect(more).toHaveAttribute('data-end', 'true')
@@ -442,9 +462,9 @@ test.describe('the lesson is taught, not printed', () => {
     const before = await bodyBlocks(page).count()
     const checkpointBefore = await page.locator('.lc-teach__question').textContent()
 
-    await page.getByRole('textbox', { name: 'Ask about this part of the lesson' })
+    await answerBox(page)
       .fill('what is pressure')
-    await page.getByRole('button', { name: 'Ask', exact: true }).click()
+    await page.getByRole('button', { name: 'Send', exact: true }).click()
 
     const answer = page.locator('.lc-teach__answer')
     await expect(answer).toHaveCount(1, { timeout: 10_000 })
@@ -461,30 +481,61 @@ test.describe('the lesson is taught, not printed', () => {
     expect(await bodyBlocks(page).count(), 'the lesson advanced while answering').toBe(before)
     expect(await page.locator('.lc-teach__question').textContent()).toBe(checkpointBefore)
     await expect(page.locator('.lc-teach__more')).toHaveText('There is more after this.')
-    await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeVisible()
+    await expect(answerBox(page)).toBeVisible()
   })
 
-  test('a question the lesson cannot answer is refused, not invented', async ({ page }, testInfo) => {
+  test('a question the lesson cannot answer ESCALATES, and is never a dead end', async ({ page }, testInfo) => {
     attributeFiles(testInfo, ['frontend/src/canvas/teach/doubt.ts'])
     await open(page, testInfo)
     await settle(page)
 
     const before = await bodyBlocks(page).count()
 
-    await page.getByRole('textbox', { name: 'Ask about this part of the lesson' })
-      .fill('zzzz qqqq wubbleflarp')
-    await page.getByRole('button', { name: 'Ask', exact: true }).click()
+    /* A QUESTION, not gibberish. The old version typed "zzzz qqqq wubbleflarp"
+     * to provoke a refusal, and with one box that string is an ANSWER -- it
+     * carries no question mark and no question word -- so it advanced the beat
+     * and never reached the resolver at all. The input has to express what the
+     * test is about. */
+    await answerBox(page).fill('what is wubbleflarp?')
+    await page.getByRole('button', { name: 'Send', exact: true }).click()
 
-    /* A resolver that always produces something is a resolver that invents
-     * things, and a confident wrong answer to a learner who has just admitted
-     * confusion is the worst output this software can make. */
-    const refusal = page.locator('.lc-teach__answer--refusal')
-    await expect(refusal).toHaveCount(1, { timeout: 10_000 })
-    expect((await refusal.textContent() ?? '').trim().length, 'the refusal says why')
-      .toBeGreaterThan(0)
+    /* NO REFUSAL UI ANY MORE, and that is what this test now pins. The lesson
+     * resolver still refuses -- it answers only out of material the author
+     * wrote, which is why it cannot write a wrong answer -- but a learner who
+     * has just admitted confusion is the worst possible audience for "I cannot
+     * answer that", so the refusal escalates instead of ending the
+     * conversation. */
+    await expect(page.locator('.lc-teach__answer--refusal')).toHaveCount(0)
 
-    expect(await bodyBlocks(page).count(), 'a refusal advanced the lesson').toBe(before)
-    await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeVisible()
+    /* And something was said back. This route mounts the canvas without a
+     * question service, so the escalation cannot complete here -- the learner
+     * is told THAT, which is a different and honest thing from a dead end. */
+    const reply = page.locator('.lc-teach__asked')
+    await expect(reply).toHaveCount(1, { timeout: 15_000 })
+    expect((await reply.textContent() ?? '').trim().length, 'the reply says something')
+      .toBeGreaterThan(20)
+
+    /* A question never advances the lesson. That is the whole point of asking
+     * where you stand. */
+    expect(await bodyBlocks(page).count(), 'a question advanced the lesson').toBe(before)
+    await expect(answerBox(page)).toBeVisible()
+  })
+
+  test('an answer advances the lesson even when it is a poor one', async ({ page }, testInfo) => {
+    /* A DELIBERATE CHOICE, written down so it is not mistaken for an oversight.
+     * The screen does not grade. A learner who types something wrong has still
+     * answered, and the lesson moves on; what notices they are struggling is
+     * how often they ASK, not whether they are right. Refusing to advance would
+     * turn every beat into a gate they can fail. */
+    attributeFiles(testInfo, ['frontend/src/canvas/teach/turn.ts'])
+    await open(page, testInfo)
+    await settle(page)
+
+    const before = await bodyBlocks(page).count()
+    await answerBox(page).fill('zzzz qqqq wubbleflarp')
+    await page.getByRole('button', { name: 'Send', exact: true }).click()
+
+    await expect.poll(() => bodyBlocks(page).count(), { timeout: 10_000 }).toBeGreaterThan(before)
   })
 
   test('switching lessons starts the new one at its beginning', async ({ page }, testInfo) => {
@@ -507,7 +558,7 @@ test.describe('the lesson is taught, not printed', () => {
     expect(titles).toContain(declared[0].title)
     expect(titles).not.toContain(declared[declared.length - 1].title)
 
-    await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeVisible()
+    await expect(answerBox(page)).toBeVisible()
     await expect(page.locator('.lc-teach__more')).toHaveText('There is more after this.')
     await expect(page.locator('h1')).toHaveText(civics.spec.question)
   })
@@ -550,20 +601,22 @@ test.describe('the lesson is taught, not printed', () => {
         const body = await page.evaluate(() => document.body.innerText)
         expect(body, `${lesson.label} page names a step`).not.toMatch(STEPS)
 
-        const go = page.getByRole('button', { name: 'Continue', exact: true })
-        if ((await go.count()) === 0) break
+        if ((await page.locator('.lc-teach__more[data-end="true"]').count()) > 0) break
         const before = await bodyBlocks(page).count()
-        await go.click()
+        await answerBeat(page)
         await expect.poll(() => bodyBlocks(page).count(), { timeout: 10_000 })
           .toBeGreaterThan(before)
       }
 
       /* And once more with an answer on screen, because an answer is chrome
        * that carries a whole rendered lesson inside it. */
-      await page.getByRole('textbox', { name: 'Ask about this part of the lesson' })
+      await answerBox(page)
         .fill('why')
-      await page.getByRole('button', { name: 'Ask', exact: true }).click()
-      await expect(page.locator('.lc-teach__answer')).toHaveCount(1, { timeout: 10_000 })
+      await page.getByRole('button', { name: 'Send', exact: true }).click()
+      /* Either shape of reply counts: the lesson's own answer, or the prose
+         reply an escalation produces. Both are chrome this law must cover. */
+      await expect(page.locator('.lc-teach__answer, .lc-teach__asked'))
+        .toHaveCount(1, { timeout: 10_000 })
       for (const text of await chromeText(page)) {
         expect(text, `${lesson.label} answer chrome names a position`).not.toMatch(COUNTS)
         expect(text, `${lesson.label} answer chrome names a step`).not.toMatch(STEPS)

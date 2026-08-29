@@ -318,7 +318,25 @@ class MemoryStore:
         Choosing here means the thing dropped is the least relevant, rather than
         whatever happened to be last.
         """
-        rank = {Outcome.FAILURE: 0, Outcome.PARTIAL: 1, Outcome.SUCCESS: 2}
+        # DELIVERED is last, and it must be PRESENT. The table listed three of
+        # the four outcomes, so `rank[...]` raised KeyError on every store the
+        # live loop produces -- `runtime/loop.py` writes DELIVERED on the
+        # SUCCESS path, which means the one outcome normal operation generates
+        # was the one outcome missing here.
+        #
+        # 3 rather than 0 follows from this method's own ordering rule and from
+        # `is_repeat`'s note below: attempts are ordered by how much they
+        # CONSTRAIN the next decision, and DELIVERED sits in neither the failed
+        # nor the worked set because content reaching the learner is not
+        # evidence the teaching worked. Something that is not evidence
+        # constrains least, so it sorts after SUCCESS. Ranking it 0 would put
+        # unproven deliveries ahead of real failures and invert the whole order.
+        rank = {
+            Outcome.FAILURE: 0,
+            Outcome.PARTIAL: 1,
+            Outcome.SUCCESS: 2,
+            Outcome.DELIVERED: 3,
+        }
         scored = sorted(
             enumerate(self.attempts_on(skill_id)),
             key=lambda pair: (rank[pair[1].outcome], -pair[0]),

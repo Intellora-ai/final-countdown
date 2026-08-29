@@ -86,6 +86,23 @@ import { defineConfig, devices } from '@playwright/test'
  */
 export default defineConfig({
   testDir: './e2e',
+  /*
+   * THE BOUNDARY BETWEEN THE TWO RUNNERS, STATED IN THIS DIRECTION TOO.
+   *
+   * `vite.config.ts` has always said that vitest must not sweep up
+   * `e2e/*.spec.ts`. The reverse was never said, and it turned out to matter:
+   * adding one vitest unit test beside an e2e helper made Playwright pick it
+   * up, try to run it, and die on `Vitest failed to access its internal state`
+   * -- reported as `Total: 0 tests in 0 files`.
+   *
+   * A collection crash reads exactly like a clean run with nothing to do, and
+   * the repo already has a gate whose whole job is to catch that. It caught
+   * this.
+   *
+   * `.spec.ts` is Playwright's here; `.test.ts` is vitest's. Two runners, two
+   * suffixes, and now both configs say so.
+   */
+  testMatch: '**/*.spec.ts',
   retries: process.env.CI ? 1 : 0,
   forbidOnly: !!process.env.CI,
   workers: 4,
@@ -163,12 +180,39 @@ export default defineConfig({
     },
   ],
 
-  webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 5183 --strictPort',
-    url: 'http://127.0.0.1:5183',
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-    stdout: 'ignore',
-    stderr: 'pipe',
-  },
+  /*
+   * TWO SERVERS, because the product is two servers.
+   *
+   * The browser posts to /api, Vite proxies it to the planner, and the planner
+   * is a separate process. Running only Vite meant every browser test drove a
+   * dashboard whose planner was unreachable -- the deep-qa harness counted 180
+   * console errors from that one cause, and every "the app works" claim was
+   * made against half of it.
+   *
+   * The key is deliberately not a real one. Nothing these tests do reaches the
+   * model: the day and done routes are pure planner, and a lesson request
+   * fails at the network rather than spending anything. A real key here would
+   * be a real key in CI.
+   */
+  webServer: [
+    {
+      command: 'npm run server:build && ANTHROPIC_API_KEY=CANARY-e2e-must-not-leak PORT=8787 node dist-server/index.js',
+      /* The one route that answers a GET. Every other route mutates or costs
+         money, so none of them can be polled -- which is why this endpoint
+         exists at all. */
+      url: 'http://127.0.0.1:8787/api/health',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      stdout: 'ignore',
+      stderr: 'pipe',
+    },
+    {
+      command: 'npm run dev -- --host 127.0.0.1 --port 5183 --strictPort',
+      url: 'http://127.0.0.1:5183',
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+      stdout: 'ignore',
+      stderr: 'pipe',
+    },
+  ],
 })

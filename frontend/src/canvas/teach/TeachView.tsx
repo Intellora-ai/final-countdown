@@ -13,6 +13,8 @@ import { Question } from '../design/primitives'
 import { cssVariables } from '../design/tokens'
 import { checkFrame, plan, type Frame, type Placed } from '../layout/layout'
 import { BlockView } from '../render/BlockView'
+import { classifyTurn, strugglingAfter } from './turn'
+import { createAnswering, type AskPort } from './answering'
 import type { Block, Lesson } from '../spec/spec'
 import { validateLesson, type Issue } from '../spec/validate'
 import { deriveBeats } from './beats'
@@ -22,12 +24,16 @@ import {
   type Beats,
   type Doubt,
   type DoubtAnswer,
-  type DoubtRefusal,
   type Resolution,
 } from './contract'
 import { lessonResolver } from './doubt'
+import type { AnyResolver } from './contract'
+
+/** The offline answer a learner can always be given. */
+const DEFAULT_RESOLVERS: readonly AnyResolver[] = [lessonResolver]
 
 import './teach.css'
+import { shownAlready } from './shownAlready'
 
 /**
  * A lesson, taught one beat at a time.
@@ -63,7 +69,28 @@ import './teach.css'
  * reason and nothing else. A half-taught lesson is indistinguishable from a
  * lesson that ended.
  */
-export function TeachView({ lesson, mode }: { lesson: Lesson; mode: '2d' | '3d' }): JSX.Element {
+export function TeachView({
+  lesson,
+  mode,
+  ask: askPort,
+  resolvers = DEFAULT_RESOLVERS,
+  onStruggling,
+}: {
+  lesson: Lesson
+  mode: '2d' | '3d'
+  /* Reaches the model for questions the lesson itself cannot answer. Absent by
+   * default so the canvas still runs standalone -- and when it is absent the
+   * learner is TOLD the outside answer is unreachable rather than refused. */
+  ask?: AskPort
+  /* The resolver chain. An injection point `CanvasRoute` supplies, and the
+   * reason a web or engine resolver can be added without touching this file. */
+  resolvers?: readonly AnyResolver[]
+  /* Called ONCE, the moment the learner's own turns show they are struggling.
+   * Depth is added when they ask for it and automatically when their answers
+   * show a gap; this is the automatic half. Nothing on screen ever says
+   * "difficulty" -- they are being taught, not graded. */
+  onStruggling?: () => void
+}): JSX.Element {
   const width = useViewportWidth()
 
   /*
@@ -98,6 +125,14 @@ export function TeachView({ lesson, mode }: { lesson: Lesson; mode: '2d' | '3d' 
   const [asked, setAsked] = useState<Asked[]>([])
   const [draft, setDraft] = useState('')
   const [announcement, setAnnouncement] = useState('')
+  /* Watched, never shown. Depth is added when the learner asks for it and
+     automatically when their answers show a gap; nothing on screen ever says
+     "difficulty", because they are being taught, not graded. */
+  const [questionsAsked, setQuestionsAsked] = useState(0)
+  const [emptyAnswers, setEmptyAnswers] = useState(0)
+  /* Fired once. Telling the caller repeatedly would deepen the lesson again on
+     every subsequent turn, which is how "adaptive" becomes "unreadable". */
+  const struggleReported = useRef(false)
 
   /*
    * A different lesson is a different session.
@@ -169,6 +204,15 @@ export function TeachView({ lesson, mode }: { lesson: Lesson; mode: '2d' | '3d' 
     )
   }
 
+  /* The lesson answers what it can, instantly and without inventing anything.
+     Everything else escalates to the model rather than being refused: a learner
+     who has just admitted confusion is the worst possible audience for "I
+     cannot answer that". */
+  const answering = createAnswering({
+    resolvers,
+    ask: askPort ?? (async () => ({ ok: false, reason: 'no question service is configured' })),
+  })
+
   const teaching = validated.lesson
   const shown = beats.slice(0, Math.min(revealed, beats.length))
   const current = shown[shown.length - 1]
@@ -188,26 +232,79 @@ export function TeachView({ lesson, mode }: { lesson: Lesson; mode: '2d' | '3d' 
    */
   const markers = markerNumbers(frame, blockById)
 
-  function ask(text: string): void {
-    const trimmed = text.trim()
-    /* An empty submit is a no-op, not a refusal. Handing the resolver whitespace
-       would produce a perfectly reasoned "I cannot answer that" to a question
-       nobody asked, which teaches the learner that asking is risky. */
-    if (trimmed.length === 0 || current === undefined) return
+  /*
+   * ONE BOX, TWO JOBS, AND NO CONTROL TO CHOOSE BETWEEN THEM.
+   *
+   * A beat already ends with a question. A Continue button beside it asked the
+   * learner to answer and then separately confirm that they answered -- a
+   * control that served the code, not the person. It is gone. The beat now
+   * advances when they ANSWER it.
+   *
+   * So this one submission carries both meanings, and the TEXT decides which:
+   * a question is answered where they stand and never advances the lesson; an
+   * answer moves it on. Nothing was added to the screen to disambiguate them.
+   */
+  function reportStruggle(history: { questionsAsked: number; emptyAnswers: number; beatsSeen: number }): void {
+    if (struggleReported.current) return
+    if (!strugglingAfter(history)) return
+    struggleReported.current = true
+    onStruggling?.()
+  }
 
-    const doubt: Doubt = { text: trimmed, atBeatId: current.id }
-    const resolution = lessonResolver.resolve(doubt, teaching)
+  function submit(text: string): void {
+    const kind = classifyTurn(text)
+    if (current === undefined) return
 
-    /* Appended, never replaced: a second question does not erase the answer to
-       the first. And nothing here touches `revealed` — there is no route from a
-       doubt to the next beat, which is the point of the feature. */
-    setAsked((previous) => [...previous, { at: previous.length, beatId: current.id, doubt, resolution }])
+    if (kind === 'empty') {
+      /* Not a refusal and not an advance. Counted, because pressing Enter on an
+         empty box twice is someone stuck for what to say, and that is one of
+         the signals that deepens the lesson without anyone being graded. */
+      setEmptyAnswers((count) => count + 1)
+      reportStruggle({ questionsAsked, emptyAnswers: emptyAnswers + 1, beatsSeen: revealed })
+      return
+    }
+
+    if (kind === 'answer') {
+      setDraft('')
+      advance()
+      return
+    }
+
+    /* The history this component has always kept, finally handed over. Without
+       it the resolver cannot tell a first ask from a fourth, and answers all
+       four identically -- see `shownAlready` and `Doubt.shown`. */
+    const doubt: Doubt = {
+      text: text.trim(),
+      atBeatId: current.id,
+      shown: shownAlready(asked),
+    }
+    const at = asked.length
     setDraft('')
-    setAnnouncement(
-      resolution.kind === 'answer'
-        ? 'A reply to your question has been added above the checkpoint.'
-        : `A reply to your question has been added above the checkpoint. ${resolution.reason}`,
-    )
+
+    /* Recorded as PENDING first, so the question is visibly received before any
+       answer exists. A learner who sees nothing happen assumes they were
+       ignored, and stops asking. */
+    setAsked((previous) => [...previous, { at, beatId: current.id, doubt, pending: true }])
+    setAnnouncement('Your question was received. Working on it.')
+
+    void answering.answer(doubt, teaching).then((answered) => {
+      setAsked((previous) =>
+        previous.map((record) =>
+          record.at === at
+            ? {
+                ...record,
+                pending: false,
+                ...(answered.from === 'lesson'
+                  ? { resolution: answered.resolution as Resolution }
+                  : { prose: answered.text }),
+              }
+            : record,
+        ),
+      )
+      setQuestionsAsked((count) => count + 1)
+      setAnnouncement('A reply to your question has been added above the checkpoint.')
+      reportStruggle({ questionsAsked: questionsAsked + 1, emptyAnswers, beatsSeen: revealed })
+    })
   }
 
   function advance(): void {
@@ -288,8 +385,7 @@ export function TeachView({ lesson, mode }: { lesson: Lesson; mode: '2d' | '3d' 
           beat={current}
           draft={draft}
           onDraft={setDraft}
-          onAsk={ask}
-          onContinue={advance}
+          onAsk={submit}
           closingRef={closingRef}
         />
       )}
@@ -311,14 +407,12 @@ function Checkpoint({
   draft,
   onDraft,
   onAsk,
-  onContinue,
   closingRef,
 }: {
   beat: Beat
   draft: string
   onDraft: (value: string) => void
   onAsk: (text: string) => void
-  onContinue: () => void
   closingRef: RefObject<HTMLParagraphElement>
 }) {
   return (
@@ -353,21 +447,14 @@ function Checkpoint({
             type="text"
             value={draft}
             onChange={(event) => onDraft(event.target.value)}
-            aria-label="Ask about this part of the lesson"
-            placeholder="Not clear? Ask about it"
+            aria-label="Answer the question, or ask one of your own"
+            placeholder="Answer here — or ask if something is not clear"
           />
           <button className="lc-teach__button" type="submit">
-            Ask
+            Send
           </button>
         </form>
 
-        {/* The last beat asks what is still unclear, so there is nothing to
-            continue TO and no button offering it. */}
-        {!beat.isLast && (
-          <button className="lc-teach__button lc-teach__button--go" type="button" onClick={onContinue}>
-            Continue
-          </button>
-        )}
       </div>
 
       {/*
@@ -393,7 +480,13 @@ interface Asked {
   at: number
   beatId: string
   doubt: Doubt
-  resolution: Resolution
+  /** True until an answer arrives. A learner who sees nothing happen assumes
+   *  they were ignored, and stops asking. */
+  pending: boolean
+  /** The lesson's own answer, when the lesson could give one. */
+  resolution?: Resolution
+  /** An answer from outside the lesson, as prose. */
+  prose?: string
 }
 
 function Outcome({
@@ -407,17 +500,40 @@ function Outcome({
   width: number
   mode: '2d' | '3d'
 }) {
-  if (record.resolution.kind === 'refusal') {
-    return <Refusal asked={record.doubt.text} refusal={record.resolution} lesson={lesson} />
+  if (record.pending) {
+    return (
+      <p className="lc-teach__asked" data-teach-chrome role="status">
+        You asked: “{record.doubt.text}”. Working on it…
+      </p>
+    )
   }
+
+  /* No refusal branch, and that is the point of this phase. A learner who has
+     just admitted confusion is the worst possible audience for "I cannot answer
+     that", so a doubt the lesson cannot resolve escalates to the model instead
+     of ending the conversation. */
+  if (record.resolution !== undefined && record.resolution.kind === 'answer') {
+    return (
+      <Answer
+        asked={record.doubt.text}
+        answer={record.resolution}
+        lesson={lesson}
+        width={width}
+        mode={mode}
+      />
+    )
+  }
+
   return (
-    <Answer
-      asked={record.doubt.text}
-      answer={record.resolution}
-      lesson={lesson}
-      width={width}
-      mode={mode}
-    />
+    /* `data-teach-chrome` is not decoration: it is what the "never show a step
+       count" law scans. A new surface that the view writes and that the law
+       cannot see is a hole in the law, not a tidy-up. */
+    <div className="lc-teach__asked" data-teach-chrome>
+      <p>You asked: “{record.doubt.text}”</p>
+      {(record.prose ?? '').split('\n\n').map((paragraph, index) => (
+        <p key={index}>{paragraph}</p>
+      ))}
+    </div>
   )
 }
 
@@ -509,40 +625,9 @@ function Answer({
  * make. So `reason` is shown as written — it is already phrased for the learner
  * — and the design carries no warning colour, because nothing went wrong.
  */
-function Refusal({
-  asked,
-  refusal,
-  lesson,
-}: {
-  asked: string
-  refusal: DoubtRefusal
-  lesson: Lesson
-}) {
-  const nearest = refusal.nearest
-    .map((id) => lesson.blocks.find((block) => block.id === id)?.title ?? id)
-    .filter((label) => label.length > 0)
-
-  return (
-    <div className="lc-teach__answer lc-teach__answer--refusal" data-teach-chrome>
-      <span className="lc-teach__answer-label">About your question</span>
-      <p className="lc-teach__answer-asked">{asked}</p>
-      <p className="lc-teach__answer-body">{refusal.reason}</p>
-
-      {nearest.length > 0 && (
-        <>
-          <p className="lc-teach__answer-foot">Did you mean:</p>
-          <ul className="lc-teach__nearest">
-            {nearest.map((label) => (
-              <li key={label} className="lc-pill">
-                {label}
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </div>
-  )
-}
+/* The refusal renderer was deleted with this phase. A doubt the lesson
+ * cannot answer no longer ends in a refusal -- it escalates to the model --
+ * so there is nothing left for it to draw. */
 
 /* -------------------------------------------------------------------------- */
 /* Shell and refusal                                                          */

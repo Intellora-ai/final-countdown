@@ -55,7 +55,7 @@ command = [
   "--",
   "bash",
   "-c",
-  "set -e\necho '== preflight gate 1/4: trusted computing base' >&2\npython3 scripts/tcb_gate.py --base origin/main\necho '== preflight gate 2/4: ruleset alignment' >&2\npython3 scripts/check_ruleset.py\necho '== preflight gate 3/4: requirement and assumption registries' >&2\npython3 scripts/registry_gate.py\necho '== preflight gate 4/4: gate integrity' >&2\npython3 scripts/gate_integrity.py\n",
+  "set -e\necho '== preflight gate 1/6: trusted computing base' >&2\npython3 scripts/tcb_gate.py --base origin/main\necho '== preflight gate 2/6: ruleset alignment' >&2\npython3 scripts/check_ruleset.py\necho '== preflight gate 3/6: requirement and assumption registries' >&2\npython3 scripts/registry_gate.py\necho '== preflight gate 4/6: dependency lock consistency' >&2\npython3 scripts/lock_consistency.py\necho '== preflight gate 5/6: coverage scope' >&2\npython3 scripts/coverage_scope_gate.py\necho '== preflight gate 6/6: gate integrity' >&2\npython3 scripts/gate_integrity.py",
 ]
 timeout_seconds = 300
 evidence = "preflight.json"
@@ -273,6 +273,45 @@ required_context = "CodeQL"
 locally_runnable = "no"
 category = "GITHUB_ONLY"
 reason = "A GitHub code-scanning analysis status, not a workflow job. It has no run steps and is created by the platform on pull requests only."
+
+[contexts."chaos"]
+required_context = "chaos"
+locally_runnable = "yes"
+category = "LOCALLY_RUNNABLE"
+reason = "Every fault is injected into an in-process fake dependency -- a rejected promise, a truncated string, an HTML error page -- so nothing reaches a network, a database or a deployment, and the local result is the same result."
+requires_network = false
+command = ["bash", "-c", "cd frontend && npx vitest run src/canvas/chaos --reporter=verbose"]
+timeout_seconds = 300
+evidence = "per-experiment PASS/FAIL from the vitest verbose reporter"
+in_fast = true
+
+[contexts."skills"]
+required_context = "skills"
+locally_runnable = "yes"
+category = "LOCALLY_RUNNABLE"
+reason = "Reads committed markdown under .claude/skills/. No service, no browser, no credential."
+requires_network = false
+command = ["python3", "-m", "pytest", "tests/test_skills_present.py", "-q"]
+timeout_seconds = 120
+evidence = "pytest result per required skill"
+in_fast = true
+
+[contexts."frontend"]
+required_context = "frontend"
+locally_runnable = "yes"
+category = "LOCALLY_RUNNABLE"
+reason = "All four commands are pinned by package-lock.json. The job annotates each outcome rather than stopping at the first, so a local run reproduces the same set of failures rather than only the earliest one."
+requires_network = false
+command = ["bash", "-c", "cd frontend && npm test -- --run && npm run gate:reachability && npm run build"]
+timeout_seconds = 900
+evidence = "vitest json report"
+in_fast = false
+
+[contexts."frontend-verdict"]
+required_context = "frontend-verdict"
+locally_runnable = "no"
+category = "AGGREGATES_A_REMOTE_RUN"
+reason = "Reads `needs.<job>.result` for frontend, frontend-mutation and frontend-scenes from the GitHub run that produced them. There is no local multi-job run to aggregate, and a cached copy of three results would be exactly the stale claim this context exists to prevent."
 
 [contexts."e2e"]
 required_context = "e2e"

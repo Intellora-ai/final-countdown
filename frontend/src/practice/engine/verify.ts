@@ -1,4 +1,6 @@
+import { reasonsSenseless } from './sense'
 import { assessDifficulty, bandDistance } from './difficulty';
+import { GENERATION_VERSION } from './types';
 import { fingerprintOf } from './fingerprint';
 import {
   OPTION_KEYS,
@@ -59,6 +61,7 @@ export function verify(input: VerifyInput): VerificationOutcome {
 
   failures.push(...checkShape(candidate));
   failures.push(...checkTopic(candidate, expectedTopicId));
+  failures.push(...checkSense(candidate));
   failures.push(...checkSingleCorrectAnswer(candidate));
   failures.push(...checkArithmetic(candidate));
   failures.push(...checkSolution(candidate));
@@ -78,6 +81,10 @@ export function verify(input: VerifyInput): VerificationOutcome {
       questionId: candidate.candidateId,
       sessionId,
       topicId: candidate.spec.topicId,
+      chapterId: candidate.spec.chapterId,
+      subjectId: candidate.spec.subjectId,
+      misconceptionTested: candidate.spec.misconceptionTested,
+      generationVersion: GENERATION_VERSION,
       conceptId: candidate.spec.conceptId,
       questionType: candidate.spec.questionType,
       /* The MEASURED band, never the requested one. */
@@ -90,6 +97,7 @@ export function verify(input: VerifyInput): VerificationOutcome {
       prerequisites: candidate.spec.prerequisites,
       generationSource: candidate.generationSource,
       verificationStatus: 'PASSED',
+      figure: candidate.figure,
       similarityStatus: input.similarityStatus ?? 'UNIQUE',
       qualityScore,
       fingerprint: fingerprintOf(candidate),
@@ -176,6 +184,35 @@ function checkTopic(candidate: CandidateQuestion, expected: string): Verificatio
       detail: `Generated for topic ${candidate.spec.topicId}, session is ${expected}.`,
     },
   ];
+}
+
+/**
+ * THE FIRST CHECK IN THIS FILE THAT READS THE QUESTION.
+ *
+ * Every other one compares identifiers or recomputes arithmetic. `checkTopic`
+ * directly above asks whether two id strings are equal, and answers PASS for a
+ * question that says anything at all as long as the label is right.
+ *
+ * Measured on the real Class 10 curriculum, 12 topics, one question each:
+ * TWELVE OF TWELVE were a physics template with a maths heading pasted into the
+ * noun slot, and every check in this file said PASS.
+ *
+ * `sense.ts` judges SHAPE, not meaning -- it cannot tell a good question from a
+ * dull one, and claiming otherwise would be worse than not checking. It rejects
+ * two specific ways of being broken that currently ship every time.
+ */
+function checkSense(candidate: CandidateQuestion): VerificationFailure[] {
+  return reasonsSenseless(
+    candidate.questionText,
+    candidate.spec.conceptName,
+    candidate.spec.subjectId,
+  ).map((reason) => ({
+    check: 'topic_relevance' as const,
+    detail:
+      reason === 'topic-name-pasted'
+        ? `The topic heading "${candidate.spec.conceptName}" is pasted into the question more than once, which is a template slot rather than a sentence.`
+        : `The question carries vocabulary from a subject other than ${candidate.spec.subjectId}.`,
+  }));
 }
 
 /**

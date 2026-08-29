@@ -98,6 +98,23 @@ export interface Doubt {
   text: string
   /** The beat the learner was on. Answering does not change it. */
   atBeatId: string
+  /**
+   * Block ids this learner has already been shown for this doubt.
+   *
+   * WITHOUT IT, ASKING TWICE ANSWERS TWICE THE SAME WAY. `resolve` is a pure
+   * function of `(doubt, lesson)`, so a learner who did not understand and
+   * asks again gets the identical blocks back byte for byte -- and their
+   * asking again is the ONE signal that the first explanation failed, which is
+   * exactly the signal the resolver could not see.
+   *
+   * Repeating an explanation that already did not work is worse than saying
+   * nothing. It costs the learner the same reading twice and teaches them the
+   * system is not listening.
+   *
+   * Optional, and absent means "nothing shown yet" rather than "no history
+   * kept": every existing caller behaves as it did before.
+   */
+  shown?: readonly string[]
 }
 
 /**
@@ -124,6 +141,29 @@ export interface DoubtAnswer {
    * point back at them. Empty when the answer stands alone.
    */
   drawnFrom: readonly string[]
+  /**
+   * Who wrote these sentences, when that is knowable.
+   *
+   * THE RULE THIS SERVES IS ALREADY WRITTEN DOWN TWICE.
+   *
+   * `learning-os/.../llm/client.py`: "A convincing fake is worse than an
+   * obvious one -- it invites judging the system's teaching quality from output
+   * no model produced." And `canvas/CanvasRoute.tsx` labels the hand-written
+   * lesson "so nobody reads it as a model's work" -- the lesson picker already
+   * ships provenance labels. The doubt path was the one place that rule had
+   * lapsed: skeleton prose from the deterministic fake arrived looking exactly
+   * like teaching.
+   *
+   * WHY IT IS HERE AND NOT INSIDE THE LESSON. `spec.ts` parses a lesson with
+   * `.strict()`, so an unknown key is a parse ERROR rather than an ignored
+   * field. Provenance has to travel beside the lesson, which is the shape
+   * `api/ask.py` already returns.
+   *
+   * A semantic name, not a style value -- Law 3 holds. Optional because it is
+   * not always knowable: the lesson resolver quotes the author of the page, and
+   * "who wrote this block" is a question that lesson already answers.
+   */
+  writtenBy?: string
 }
 
 /**
@@ -169,6 +209,62 @@ export interface DoubtResolver {
   resolve(doubt: Doubt, lesson: Lesson): Resolution
 }
 
+/**
+ * The same seam, for a resolver that has to go somewhere to answer.
+ *
+ * WHY THIS EXISTS RATHER THAN LOOSENING THE ONE ABOVE
+ * ---------------------------------------------------
+ * The note on `DoubtResolver` is right and stays right: an async signature
+ * there would let the lesson advance while an answer was in flight. But it
+ * also, unintentionally, made the refusal a DEAD END. The retrieval layer
+ * (`websearch/`) returns a promise and the engine's own catch
+ * (`learning-os/.../session/doubt.py`) needs a network, so neither could ever
+ * be reached from a synchronous method — not because nobody wired them, but
+ * because the types made wiring impossible.
+ *
+ * The pending state that note asks for is `askChain`'s `onTry` hook, and this
+ * is the signature that can sit behind it. The guarantee is unchanged and now
+ * enforced in one place instead of assumed in every implementation: `askChain`
+ * never touches beats, so no resolver can advance the lesson no matter how long
+ * it takes.
+ *
+ * `signal` is not optional politeness. A learner who leaves the lesson while a
+ * search is in flight must not have work continue on their behalf, and a
+ * resolver with no way to be cancelled is one that keeps running.
+ */
+export interface AsyncDoubtResolver {
+  readonly name: string
+  resolve(doubt: Doubt, lesson: Lesson, signal?: AbortSignal): Promise<Resolution>
+}
+
+/**
+ * Either kind. What a chain accepts.
+ *
+ * Deliberately a union rather than "async, and sync ones get wrapped": wrapping
+ * would make every resolver look networked at the call site, and the difference
+ * between "answered from the page you are looking at" and "answered from
+ * somewhere else" is the single most important thing to be able to see.
+ */
+export type AnyResolver = DoubtResolver | AsyncDoubtResolver
+
+/** What one resolver did when the chain asked it. */
+export type TryOutcome = 'answered' | 'refused' | 'failed' | 'skipped'
+
+/**
+ * One rung of the chain, kept whether it helped or not.
+ *
+ * `failed` is separate from `refused` and that separation is the point. "The
+ * web is down" and "the web has no answer to this" both produce no answer and
+ * mean opposite things; collapsing them tells a learner their question is
+ * unanswerable when the truth is that a server is offline.
+ */
+export interface TriedResolver {
+  readonly name: string
+  readonly outcome: TryOutcome
+  /** Present only when `outcome` is `failed`. Never shown to a learner raw. */
+  readonly error?: string
+}
+
 /* -------------------------------------------------------------------------- */
 /* The invariant                                                              */
 /* -------------------------------------------------------------------------- */
@@ -185,7 +281,32 @@ export interface BeatIssue {
  * all, because a lesson silently missing its last block looks exactly like a
  * lesson that ended.
  */
-export function checkBeats(beats: Beats, lesson: Lesson): BeatIssue[] {
+export interface BeatOptions {
+  /**
+   * Whether the teaching requirements apply on top of the structural ones.
+   *
+   * The partition rules below — every block in exactly one beat, in order,
+   * every beat non-empty, no step counting — are INTEGRITY. They hold for
+   * anything cut into beats, and they always run.
+   *
+   * "Every beat shows something" is a TEACHING requirement, and it is held
+   * here for the same reason the arc rules are held in `checkTeaching`: a
+   * caller that cannot build a representation cannot satisfy it. The Python
+   * engine is exactly that caller — `emit` refuses every kind except `prose`
+   * and `callout`, so its output is words by construction. Demanding a chart
+   * from a component with no chart builder refuses honest output and names no
+   * fixable fault.
+   *
+   * True for a lesson being TAUGHT, which is where the rule earns its keep.
+   */
+  teaching: boolean
+}
+
+export function checkBeats(
+  beats: Beats,
+  lesson: Lesson,
+  options: BeatOptions = { teaching: true },
+): BeatIssue[] {
   const issues: BeatIssue[] = []
   const order = lesson.blocks.map((b: Block) => b.id)
 
@@ -221,6 +342,54 @@ export function checkBeats(beats: Beats, lesson: Lesson): BeatIssue[] {
     if (/\b(step|part)\s*\d|\b\d+\s*(of|\/)\s*\d/i.test(beat.checkpoint)) {
       issues.push({
         message: `beat "${beat.id}" tells the learner a step number: "${beat.checkpoint}"`,
+      })
+    }
+  }
+
+  /*
+   * EVERY BEAT SHOWS SOMETHING, AND IT IS SOMETHING THE BEAT REFERS TO.
+   *
+   * "One representation per lesson" was the weaker rule, and it let a learner
+   * meet three beats of solid prose before the single chart arrived. The unit
+   * the learner actually experiences is the BEAT — it is what they are shown
+   * before being asked whether to go on — so it is the unit the rule has to
+   * bind.
+   *
+   * RELEVANT, NOT DECORATIVE. Presence is not enough: the shown block must be
+   * joined by a relation to something else in the same beat. A chart dropped
+   * into a beat it has nothing to do with satisfies a presence check and
+   * teaches nobody, which is the exact failure this is here to stop.
+   */
+  const shows = new Set(['chart', 'table', 'flow', 'figure', 'simulation'])
+  const kindOf = new Map(lesson.blocks.map((b: Block) => [b.id, b.kind]))
+
+  if (!options.teaching) return issues
+
+  for (const beat of beats) {
+    const here = new Set(beat.blockIds)
+    const shown = beat.blockIds.filter((id) => shows.has(kindOf.get(id) ?? ''))
+
+    if (shown.length === 0) {
+      issues.push({
+        message:
+          `beat "${beat.id}" shows the learner nothing — it is all words. Every beat carries one ` +
+          `representation that fits it: a chart, a table, a flow or a figure`,
+      })
+      continue
+    }
+
+    const relevant = shown.some((id) =>
+      lesson.relations.some(
+        (r) =>
+          (r.from === id && here.has(r.to) && r.to !== id) ||
+          (r.to === id && here.has(r.from) && r.from !== id),
+      ),
+    )
+    if (!relevant) {
+      issues.push({
+        message:
+          `beat "${beat.id}" shows something, but nothing else in the beat refers to it. ` +
+          `A representation earns its place by being connected, or it is decoration`,
       })
     }
   }

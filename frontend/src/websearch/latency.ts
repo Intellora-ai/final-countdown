@@ -72,13 +72,7 @@ export interface Summary {
  * `p` is exclusive of 0 because the zeroth percentile is not a thing anyone
  * means; `min` is on the stats object for that.
  */
-export function percentile(values: readonly number[], p: number): number | undefined {
-  if (!Number.isFinite(p) || p <= 0 || p > 100) return undefined
-  if (!values.length) return undefined
-  const sorted = [...values].sort((a, b) => a - b)
-  const rank = Math.ceil((p / 100) * sorted.length)
-  return sorted[Math.min(sorted.length - 1, Math.max(0, rank - 1))]
-}
+
 
 interface Bucket {
   durations: number[]
@@ -99,7 +93,21 @@ const emptyBucket = (): Bucket => ({ durations: [], successes: 0, failures: 0, t
  * — a crash that only appears in production volumes and never in a unit test
  * with five samples in it.
  */
-function fromSorted(sorted: readonly number[], p: number): number | undefined {
+/**
+ * The p-th percentile of an ALREADY SORTED array, by nearest rank.
+ *
+ * This was `fromSorted`, private, sitting beside an exported `percentile` that
+ * sorted a copy on every call. Two implementations of one algorithm, and the
+ * private one was the only thing keeping the public one unreachable. The
+ * private one won because it is the correct shape: `summary` asks for p50, p95
+ * and p99 off one sort, where the exported version sorted the same array three
+ * times — a 200k-sample test failed twice over on exactly that.
+ *
+ * Callers with unsorted data sort first. That is one line at the call site and
+ * it keeps the cost visible where it is paid.
+ */
+export function nearestRank(sorted: readonly number[], p: number): number | undefined {
+  if (!Number.isFinite(p) || p <= 0 || p > 100) return undefined
   if (!sorted.length) return undefined
   const rank = Math.ceil((p / 100) * sorted.length)
   return sorted[Math.min(sorted.length - 1, Math.max(0, rank - 1))]
@@ -112,9 +120,9 @@ function statsOf(b: Bucket): PathStats {
     successes: b.successes,
     failures: b.failures,
     timeouts: b.timeouts,
-    p50: fromSorted(sorted, 50),
-    p95: fromSorted(sorted, 95),
-    p99: fromSorted(sorted, 99),
+    p50: nearestRank(sorted, 50),
+    p95: nearestRank(sorted, 95),
+    p99: nearestRank(sorted, 99),
     min: sorted.length ? sorted[0] : undefined,
     max: sorted.length ? sorted[sorted.length - 1] : undefined,
   }
@@ -128,6 +136,17 @@ export class Latency {
   }
 
   private readonly stages = new Map<string, number[]>()
+
+  /**
+   * Per-host request durations, for §31.
+   *
+   * Separate from `paths` because the question is different: `paths` asks how
+   * long a KIND of request takes, this asks whether the SECOND request to a
+   * given host was cheaper than the first. Connection reuse is invisible in an
+   * aggregate — averaging a cold request with nine warm ones hides exactly the
+   * cost §31 is about.
+   */
+  private readonly hosts = new Map<string, number[]>()
 
   /**
    * One completed request.
@@ -146,6 +165,22 @@ export class Latency {
     else bucket.successes += 1
   }
 
+  /** One request to one host, in arrival order. §31. */
+  request(host: string, ms: number): void {
+    if (!host) return
+    if (!Number.isFinite(ms) || ms < 0) return
+    const list = this.hosts.get(host) ?? []
+    list.push(ms)
+    this.hosts.set(host, list)
+  }
+
+  /** Every request sample, in the order they were recorded. */
+  requestSamples(): readonly { host: string; ms: number }[] {
+    const out: { host: string; ms: number }[] = []
+    for (const [host, times] of this.hosts) for (const ms of times) out.push({ host, ms })
+    return out
+  }
+
   /** One stage of the pipeline, so the budget can be attributed. */
   stage(name: string, ms: number): void {
     if (!name || !Number.isFinite(ms) || ms < 0) return
@@ -161,6 +196,21 @@ export class Latency {
    * mutated by later traffic — a dashboard that changes under a reader is a
    * dashboard nobody can quote.
    */
+  /**
+   * Raw samples for one path, so a different VIEW of the same measurements can
+   * be built without taking them twice. §30 needs the hop breakdown; two
+   * parallel sets of numbers describing the same events eventually drift, and
+   * the one nobody checks is the one that lies.
+   */
+  samples(path: PathKind): readonly number[] {
+    return [...(this.paths[path]?.durations ?? [])]
+  }
+
+  /** The same, for a named stage. Empty when the stage was never recorded. */
+  stageSamples(name: string): readonly number[] {
+    return [...(this.stages.get(name) ?? [])]
+  }
+
   summary(): Summary {
     const cachedCount = this.paths.cached.durations.length
     const liveCount = this.paths.live.durations.length
@@ -171,9 +221,9 @@ export class Latency {
       const sorted = [...values].sort((x, y) => x - y)
       stages[name] = {
         count: sorted.length,
-        p50: fromSorted(sorted, 50),
-        p95: fromSorted(sorted, 95),
-        p99: fromSorted(sorted, 99),
+        p50: nearestRank(sorted, 50),
+        p95: nearestRank(sorted, 95),
+        p99: nearestRank(sorted, 99),
       }
     }
 

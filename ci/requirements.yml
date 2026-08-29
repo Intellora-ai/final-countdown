@@ -427,6 +427,75 @@ requirements:
     evidence: "playwright report, uploaded as an artifact on failure"
     source: README.md "Browser smoke test"; ci/gates.toml [gates.e2e] must_contain
 
+  - id: REQ-041
+    statement: >-
+      The canvas survives its model dependency failing. A refused connection, a
+      503, a proxy returning HTML, a reply truncated mid-JSON, valid JSON of the
+      wrong shape, or an empty reply each produce a refusal the learner can
+      read - never a hang, never a crash, never a lesson built from a broken
+      reply.
+    verification: chaos
+    severity: blocking
+    evidence: "per-experiment PASS/FAIL from the vitest verbose reporter"
+    source: ci/gates.toml [gates.chaos]; frontend/src/canvas/chaos/dependencyChaos.test.ts
+    note: >-
+      Bounded by construction, which is what makes it a PR gate rather than a
+      nightly campaign: every fault is injected into an in-process fake
+      dependency, so nothing reaches a network, a database, or a deployment.
+      Two of these experiments failed on their first run and found a real
+      defect - `authorLesson` threw on a transport failure, so a caller could
+      not tell "the model is down" from "the model wrote a bad lesson".
+
+  - id: REQ-042
+    statement: >-
+      Every skill the automatic fixer is told to read exists in this repository
+      and is not empty, and the fixer's prompt never names a skill that is
+      absent.
+    verification: skills
+    severity: blocking
+    evidence: "pytest result per required skill"
+    source: ci/gates.toml [gates.skills]; .github/workflows/gate.yml claude-fix prompt
+    note: >-
+      `claude-fix` has write access to the branch. `.claude/skills/` is what
+      points it at a root cause rather than at the cheapest green, and a deleted
+      skill file fails silently - the job runs, unguided, and nothing reports
+      it. A prompt naming a skill the repository lacks is an instruction about a
+      file the model cannot open, and a model will invent a process rather than
+      report the gap.
+
+  - id: REQ-043
+    statement: >-
+      The frontend's unit suite passes, no module the product cannot load is
+      counted as tested, and the application compiles for shipping - all three
+      reported together rather than stopping at the first failure.
+    verification: frontend
+    severity: blocking
+    evidence: "the built dist/, uploaded in its own workflow"
+    source: ci/gates.toml [gates.frontend]
+    note: >-
+      Every step in this job carries `continue-on-error` on purpose, so a
+      typecheck failure cannot hide a lint failure. That is why no command is
+      pinned in `must_contain`: `gate_integrity` forbids that shape on a step
+      that carries a pinned token, and it is right to for a gate that DECIDES.
+      This job reports; `frontend-verdict` decides.
+
+  - id: REQ-044
+    statement: >-
+      A failure in any frontend job - unit, mutation, or browser scenes -
+      blocks the merge through one status check, whatever the shard count.
+    verification: frontend-verdict
+    severity: blocking
+    evidence: "the three dependency results, written to a file"
+    source: ci/gates.toml [gates.frontend-verdict]
+    note: >-
+      One required context instead of eight, so the mutation and scenes shard
+      counts can change without a ruleset edit. Requiring `mutation 1/4` by name
+      made a rename into a permanent block: a required check no job produces
+      never reports, and the merge waits forever. `if: always()` is required
+      rather than suspicious - a finalizer that skipped when a dependency failed
+      would report nothing at exactly the moment it matters, and GitHub renders
+      a skipped required check as neutral.
+
   # -------------------------------------------------------------------------
   # verification: none — the rows this file exists for
   #
@@ -448,6 +517,25 @@ requirements:
       needs an admin-scoped token. Until it runs, a gate that is mandatory here
       but not required by GitHub "runs, goes red, and the PR merges anyway",
       caught by nothing. See ASM-008.
+
+  - id: REQ-040
+    statement: >-
+      Every change is read by this repository's own linters - the ones whose
+      configs somebody tuned - before it can merge, and a failure in any of the
+      three stops the merge rather than being reported and scrolled past.
+    verification: none
+    severity: advisory
+    evidence: none
+    source: ci/gates.toml [gates.catch-errors] must_contain
+    note: >-
+      `verification: none` is the honest value and not an omission. The
+      `catch-errors` job exists, runs on every push, and pins
+      `npx tsc --noEmit`, `npm run lint` and `ruff check .` - but ruleset
+      20990225 does not list it, `ci/gates.toml` must equal that ruleset
+      exactly, and a requirement may not cite a gate the merge does not wait
+      for. Adding `catch-errors` to the ruleset turns this row back into
+      `verification: catch-errors, severity: blocking` with nothing else
+      changing.
 
   - id: REQ-035
     statement: >-

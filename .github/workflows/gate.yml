@@ -1,206 +1,331 @@
-# Enforcement gate.
+# THE FIXER GATE — Claude may push, and may not weaken.
 #
-# Three jobs, in increasing cost and decreasing certainty:
+# Two jobs and one rule between them. `catch-errors` runs the repository's OWN
+# linters, the ones with configs somebody tuned, and reports every failure in
+# one pass. `claude-fix` wakes only when that job is red, repairs the cause
+# using the skills committed at `.claude/skills/`, and pushes.
 #
-#   catch-errors  lint + typecheck + tests            free, blocking
-#   chaos-test    Chaos Toolkit resilience probes     free, NON-blocking for now
-#   claude-fix    Claude repairs a failure and pushes  costs tokens, on failure only
+# THE PUSH IS THE DANGEROUS PART, SO IT IS THE PART WITH A CHECK ON IT.
+# An agent optimising for "the check went green" has two moves: repair the
+# defect, or delete whatever noticed it. The second is faster and always works.
+# The prompt says not to; the prompt is not what runs the diff. So the diff is
+# read: `no_weakening_gate.py` refuses a push that adds a suppression comment,
+# skips a test, drops assertions, deletes a test file, or turns a CI step into
+# a suggestion. Its own suite is 23 tests and 7/7 mutants killed, because a
+# guard nobody proved is a guard nobody should trust.
 #
-# NOTE ON SUBMODULES: this repository now carries ~414 MB of pinned knowledge
-# submodules under knowledge/. Every checkout here sets `submodules: false`
-# deliberately. A job that fetches them would add minutes to every run for
-# material no CI job reads.
-name: gate
+# NOT super-linter. It ships its own linters with default settings and would
+# report thousands of complaints from rules nobody here chose, across 535 files
+# that are fine. A gate people learn to scroll past enforces nothing, and this
+# repository already has ESLint and Ruff configured deliberately.
+
+name: Gate
 
 on:
+  pull_request:
+    types: [opened, synchronize, reopened]
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
-# Least privilege by default. Only claude-fix widens this, and only for itself.
 permissions:
   contents: read
 
 concurrency:
   group: gate-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # ---------------------------------------------------------------------------
-  # BLOCKING. If this is red, the change does not merge.
-  # ---------------------------------------------------------------------------
   catch-errors:
     name: catch-errors
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          submodules: false
-          # super-linter diffs against the base commit, so it needs history.
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: '22'
+          node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
+      # `npm ci` installs exactly what the lockfile pins and fails when the
+      # lockfile and package.json disagree. `npm install` would quietly resolve
+      # a different tree and lint code nobody is shipping.
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
 
-      # Typecheck before tests: a type error explains a test failure, and
-      # finding it second means reading the wrong error first.
-      - name: Typecheck
-        working-directory: frontend
-        run: npm run typecheck
+      # HASH-LOCKED, because an unpinned install inside the verification system
+      # is a toolchain nobody verified deciding whether the code is verified.
+      # `test_every_pip_install_requires_hashes_and_a_lock` caught the bare
+      # `pip install ruff` this replaced. requirements.lock already pins
+      # ruff==0.16.4, so this is the same tool with its bytes checked.
+      - name: Install Python tooling
+        run: pip install --quiet --require-hashes -r requirements.lock
 
-      - name: Lint
+      # THREE PLAIN STEPS, AND THE FIRST FAILURE STOPS THE JOB.
+      #
+      # The tempting shape is one step per linter with `continue-on-error: true`
+      # so a TypeScript failure does not hide an ESLint one. `gate_integrity.py`
+      # refuses it, and is right to: from outside, a deliberate collector and a
+      # swallowed error are the same YAML. A rule that cannot tell them apart
+      # must forbid the shape rather than trust the author, so it does.
+      #
+      # Wrapping the three in a shell function to collect exit codes fails the
+      # same gate for a subtler reason -- `executes()` requires the pinned
+      # command to be what decides the step's status, and a wrapper takes that
+      # decision away from it.
+      #
+      # Seeing one failure at a time costs nothing here, because the fixer job
+      # runs all three itself and reads every failure in one pass. The place
+      # that needs the full picture gets it.
+      - name: TypeScript
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: ESLint
         working-directory: frontend
         run: npm run lint
 
-      - name: Frontend tests
-        working-directory: frontend
-        run: npm test -- --run
+      - name: Ruff
+        run: ruff check .
 
-      - name: Install Python test dependencies
-        run: python -m pip install --upgrade pip pytest
-
-      - name: Python tests
-        run: pytest tests/ -q
-
-      # super-linter runs last: it is the broadest and slowest check, and a
-      # failure here is usually style rather than correctness. VALIDATE_ALL_
-      # CODEBASE is false so it judges the diff, not 400 pre-existing files.
-      - name: super-linter
-        uses: super-linter/super-linter/slim@v8.7.0
-        env:
-          DEFAULT_BRANCH: main
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VALIDATE_ALL_CODEBASE: false
-          # knowledge/ is 21 third-party repositories and .claude/skills is
-          # vendored third-party work. Linting either would report other
-          # people's style as our failures.
-          FILTER_REGEX_EXCLUDE: '(knowledge/|\.claude/skills/|node_modules/)'
-
-  # ---------------------------------------------------------------------------
-  # NON-BLOCKING, on purpose, for now.
+  # CHAOS RUNS ON EVERY PUSH, AS ITS OWN NAMED CHECK.
   #
-  # A brand-new chaos suite fails for its own setup reasons before it ever finds
-  # a real weakness, and a gate that cries wolf in week one gets switched off in
-  # week two. It reports loudly and does not block. Promote it to required only
-  # once it has been green on main for a stretch and its failures mean something.
-  # ---------------------------------------------------------------------------
-  chaos-test:
-    name: chaos-test
+  # The experiments already execute inside the `frontend` job, because they are
+  # vitest files and that job runs the suite. Giving them a job of their own is
+  # not duplication for its own sake: a chaos failure buried among 8,654 unit
+  # results reads as "a test broke", and the thing worth knowing is WHICH REAL
+  # OUTAGE the software stopped surviving. A check named `chaos` says that in
+  # the PR list without anyone opening a log.
+  #
+  # These are bounded and safe by construction. Every fault is injected into an
+  # in-process fake dependency -- a rejected promise, a truncated string, an
+  # HTML error page -- so nothing touches a network, a database or a deployed
+  # environment. That is what makes it a PR gate rather than a nightly campaign.
+  chaos:
+    name: chaos
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          submodules: false
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
 
-      - name: Install Chaos Toolkit
-        run: python -m pip install --upgrade pip chaostoolkit chaostoolkit-lib
-
-      - name: Run chaos experiments
-        id: chaos
-        continue-on-error: true
+      # EVIDENCE THAT THE SKILLS ARE IN THE REPOSITORY AND NOT ON A LAPTOP.
+      #
+      # A skill that exists only on one machine cannot be used by CI, and
+      # "we have chaos skills" is unfalsifiable until a runner prints them.
+      # This step reads the committed directory on the runner's own checkout.
+      - name: The skills CI can see
         run: |
-          if [ ! -d chaos ] || [ -z "$(ls -A chaos/*.json 2>/dev/null)" ]; then
-            echo "::notice title=chaos::No experiments in chaos/*.json yet — nothing to run."
-            echo "result=none" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          rc=0
-          for f in chaos/*.json; do
-            echo "::group::$f"
-            chaos run "$f" || rc=1
-            echo "::endgroup::"
-          done
-          echo "result=$([ $rc -eq 0 ] && echo pass || echo fail)" >> "$GITHUB_OUTPUT"
-          exit $rc
+          set -euo pipefail
+          echo "### Repository skills available to this run" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          ls -1 .claude/skills | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          test -f .claude/skills/chaos-engineer/SKILL.md
+          test -f .claude/skills/chaos-engineering/SKILL.md
+          test -f .claude/skills/systematic-debugging/SKILL.md
+          echo "chaos-engineer, chaos-engineering and systematic-debugging are all present."
 
-      # The outcome is REPORTED even though the job does not block. A
-      # continue-on-error step whose result nobody reads is the same as no step.
-      - name: Report chaos outcome
+      - name: Inject faults and check the invariant survives
+        working-directory: frontend
+        run: npx vitest run src/canvas/chaos --reporter=verbose
+
+      - name: Keep the chaos report whatever the verdict
         if: always()
-        run: |
-          case "${{ steps.chaos.outputs.result }}" in
-            pass) echo "::notice title=chaos::All experiments held steady state." ;;
-            fail) echo "::warning title=chaos::An experiment broke steady state. Non-blocking today; read the log." ;;
-            *)    echo "::notice title=chaos::No experiments defined yet." ;;
-          esac
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: chaos-report
+          path: frontend/src/canvas/chaos
+          if-no-files-found: ignore
 
-  # ---------------------------------------------------------------------------
-  # Runs ONLY when catch-errors failed.
+  # THE FIXER'S INSTRUCTIONS ARE THEMSELVES A GATE.
   #
-  # SECURITY: this job holds credentials and can write to the repository, so it
-  # is fenced to changes originating in this repository. A pull request from a
-  # fork must never reach it — that would hand a stranger's branch both the
-  # OAuth token and push access.
-  # ---------------------------------------------------------------------------
+  # `claude-fix` hands a model a red check and write access. What stops it
+  # reaching for the cheapest green is `.claude/skills/` -- `systematic-debugging`
+  # says reproduce before proposing, `verification-before-completion` says run
+  # the command before claiming. Delete either and the job still runs, still has
+  # write access, and is now unguided. Nothing in a workflow notices a missing
+  # markdown file, so the presence of the instructions needs a check of its own.
+  #
+  # Runs in parallel with `catch-errors` and `chaos`: no `needs:`, so all three
+  # start together and the slowest sets the wall clock.
+  skills:
+    name: skills
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+
+      # `hypothesis` IS NOT OPTIONAL HERE, AND THE REASON IS conftest.
+      #
+      # pytest loads `tests/conftest.py` before collecting anything, and that
+      # file imports hypothesis at module scope. Installing pytest alone made
+      # this job die with `ModuleNotFoundError: No module named 'hypothesis'`
+      # and exit 4 -- a collection error, not a test failure, which is the
+      # weakest possible red: it says nothing about the skills at all.
+      #
+      # THE LOCKFILE, NOT TWO NAMED PACKAGES. The first version installed
+      # `pytest hypothesis` unpinned, to keep a job that reads six markdown
+      # files fast. `test_every_pip_install_requires_hashes_and_a_lock` refused
+      # it, and correctly: an unverified toolchain inside the verification
+      # system decides whether everything else is verified. Speed is not worth
+      # that, and the lockfile pins both packages this job needs.
+      - name: Install pytest and hypothesis
+        run: pip install --quiet --require-hashes -r requirements.lock
+
+      - name: Every skill the fixer is told to read exists and says something
+        run: python3 -m pytest tests/test_skills_present.py -q
+
   claude-fix:
     name: claude-fix
     needs: catch-errors
-    if: >-
-      failure() &&
-      github.event.pull_request.head.repo.full_name == github.repository
+    if: failure() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     permissions:
       contents: write
       pull-requests: write
+      issues: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout the pull request branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          submodules: false
-          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
 
-      - name: Refuse to run without credentials
-        # Fail loudly rather than silently doing nothing. A job that skips
-        # quietly when a secret is missing looks identical to one that ran and
-        # found no problem.
-        run: |
-          if [ -z "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}" ]; then
-            echo "::error title=claude-fix::CLAUDE_CODE_OAUTH_TOKEN is not set. See the enforcement steps in the repository README."
-            exit 1
-          fi
-
-      - uses: anthropics/claude-code-action@v1
+      - name: Setup Node
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          node-version: 22
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+
+      # The commit before the fixer touched anything. `no_weakening_gate.py`
+      # reads the range from here to HEAD afterwards, so the guard judges the
+      # fixer's OWN diff and nothing else on the branch.
+      - name: Record the starting commit
+        id: before
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Fix the failures
+        # PINNED TO A COMMIT, NOT A TAG, AND THE REASON IS SITTING IN THIS JOB:
+        # this action receives the account's OAuth tokens, and a tag can be
+        # moved to point at different code without the reference changing.
+        #
+        # `@v1` was wrong and the run said so -- "unable to find version v1".
+        # The tag was recalled rather than looked up, which is the exact failure
+        # `source-driven-development` names. Real tags stop at v0.0.29.
+        #
+        # WORTH KNOWING: the repository was last pushed 2025-07-02. This is an
+        # unmaintained third-party action holding a credential, so the pin is
+        # also a freeze -- it cannot start doing something new without this line
+        # changing in a commit somebody reads.
+        uses: grll/claude-code-base-action@c021fe71647df64674c9cb587fbde168692c55c8 # v0.0.29
+        with:
+          use_oauth: true
+          claude_access_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_refresh_token: ${{ secrets.CLAUDE_OAUTH_REFRESH_TOKEN }}
+          claude_expires_at: ${{ secrets.CLAUDE_OAUTH_EXPIRES_AT }}
+          allowed_tools: "Bash,Read,Edit,Write,Glob,Grep"
+          timeout_minutes: "30"
           prompt: |
-            The `catch-errors` job failed on this branch.
+            The `catch-errors` job on this pull request is red. TypeScript,
+            ESLint or Ruff reported something. Repair the cause.
 
-            Read CLAUDE.md first and obey it, especially LAW 0: the test comes
-            before the fix and must be seen failing. Do not weaken, skip or
-            delete a test to reach green — that is the one move this repository
-            forbids outright.
+            Follow the skills committed at `.claude/skills/`. Read
+            `systematic-debugging` before proposing any fix and
+            `verification-before-completion` before claiming one works. Read
+            `CLAUDE.md` at the repository root; its rules apply to you exactly
+            as they apply to a person.
 
-            1. Reproduce the failure locally with the repository's own commands.
-            2. Name the root cause before changing a line.
-            3. Fix the cause, not the symptom.
-            4. Re-run typecheck, lint, and both test suites.
-            5. If you cannot fix it honestly, stop and say so in the PR. Do not
-               push a change that only makes the red disappear.
+            Reproduce first. Run the failing command yourself and read the real
+            output rather than guessing from the job name:
 
-            Never touch frontend/src/data, frontend/src/components or
-            frontend/src/styles — the dashboard is out of scope, per CLAUDE.md.
-        env:
-          CLAUDE_OAUTH_REFRESH_TOKEN: ${{ secrets.CLAUDE_OAUTH_REFRESH_TOKEN }}
-          CLAUDE_OAUTH_EXPIRES_AT: ${{ secrets.CLAUDE_OAUTH_EXPIRES_AT }}
+              cd frontend && npx tsc --noEmit
+              cd frontend && npm run lint
+              ruff check .
+
+            YOU MAY NOT MAKE THE ERROR DISAPPEAR. You may only make the cause
+            go away. These are refused by `scripts/no_weakening_gate.py`, which
+            runs on your diff in the next step and fails this job:
+
+              - adding `@ts-ignore`, `eslint-disable`, `# noqa`, `# type: ignore`,
+                `istanbul ignore`, `Stryker disable`, `nosemgrep` or `gitleaks:allow`
+              - adding `.skip`, `.todo`, `xit`, or `@pytest.mark.skip`
+              - deleting assertions, or deleting a test file
+              - adding `continue-on-error`, `|| true`, or `--exit-zero`
+
+            If the honest fix needs a test to change, STOP. Change nothing, and
+            say in your final message which test and why. A test moves on
+            mutation evidence read by a person, never to reach green.
+
+            If you cannot find the cause, say so plainly and change nothing. An
+            unexplained edit is worse than a red check, because the red check is
+            at least honest.
+
+      # THE GUARD. Everything above is a request; this is the control.
+      - name: The fix may not weaken anything
+        run: |
+          set -euo pipefail
+          git diff "${{ steps.before.outputs.sha }}..HEAD" > /tmp/fixer.diff
+          if [ ! -s /tmp/fixer.diff ]; then
+            echo "The fixer changed nothing. Nothing to check." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python3 scripts/no_weakening_gate.py < /tmp/fixer.diff | tee /tmp/verdict.txt
+          {
+            echo "### The fixer's diff"
+            echo '```'
+            cat /tmp/verdict.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the diff whatever the verdict
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: claude-fix-diff
+          path: /tmp/fixer.diff
+          if-no-files-found: ignore
+
+      # Only reached when the guard passed. A weakening diff dies in the runner
+      # rather than landing on the branch and being argued about later.
+      - name: Push the fix
+        run: |
+          set -euo pipefail
+          if git diff --quiet "${{ steps.before.outputs.sha }}..HEAD"; then
+            echo "Nothing to push."
+            exit 0
+          fi
+          git push origin HEAD:"${{ github.event.pull_request.head.ref }}"
 
   # ---------------------------------------------------------------------------
   # KNOWLEDGE GATE  --  NON-BLOCKING TODAY.

@@ -102,4 +102,102 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     },
   },
+
+  /* src/tutor is the fourth directory to arrive unlinted for the SAME reason,
+   * and the comment above this one had already named that reason.
+   *
+   * It ships. `App.tsx` routes `/quick-question` to `TutorView`, and that view
+   * is what makes the whole of `src/agent` reachable from the product. It was
+   * absent from both the `files:` list here and the `npm run lint` argument
+   * list, so `npx eslint src/tutor` printed "ignored because no matching
+   * configuration was supplied" and EXITED 0 --- the silent-exemption failure
+   * this repository has now had four times, and the one the note above warns
+   * about in writing.
+   *
+   * `canvas/design-value` IS applied here, and that is the one place this block
+   * differs from the two above it. The reason those exempt it does not hold:
+   * `src/agent` and `src/websearch` never render, so the rule has no true
+   * positive available in either and could only ever produce noise. `src/tutor`
+   * renders --- it is a React view with its own stylesheet --- so Law 4 applies
+   * to it exactly as it applies to the canvas.
+   *
+   * Measured before enabling, not assumed: with the plugin declared in this
+   * same object, `npx eslint src/tutor` reports zero findings. So it costs
+   * nothing today and refuses the first raw hex or px literal somebody adds
+   * tomorrow, which is the cheaper end of that trade by a wide margin.
+   *
+   * (The first version of this comment claimed the rule found nothing and
+   * therefore did not belong. The claim was written before the command ran, and
+   * the run that followed disagreed with the conclusion drawn from it.)
+   *
+   * KNOWN LIMIT, NOT CLOSED HERE: ESLint does not lint standalone `.css`, so
+   * `tutor.css` is unchecked by this or any other rule. CLAUDE.md records that
+   * separately.
+   *
+   * `no-explicit-any` is an ERROR. This directory is new, so there is no
+   * pre-existing `any` for the rule to be buried under, and it sits directly on
+   * the boundary where a model response becomes rendered output.
+   */
+  {
+    files: ['src/tutor/**/*.{ts,tsx}'],
+    extends: [...tseslint.configs.recommended],
+    plugins: { canvas: { rules: { 'design-value': designValue } } },
+    rules: {
+      'canvas/design-value': 'error',
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
+
+  /* src/almanac was unlinted for the same reason src/websearch and src/practice
+   * were: flat config lints only paths with a MATCHING `files:` entry, so a new
+   * directory is silently exempt rather than loudly missing. Adding it to the
+   * lint SCRIPT alone changes nothing without this block.
+   *
+   * `design-value` applies because this area renders: `resolve.ts` decides the
+   * words a student reads on a row, and the backlog label is painted from the
+   * token layer. A colour written here would be a colour the design system does
+   * not know about. */
+  {
+    files: ['src/almanac/**/*.{ts,tsx}'],
+    extends: [...tseslint.configs.recommended],
+    plugins: { canvas: { rules: { 'design-value': designValue } } },
+    rules: {
+      'canvas/design-value': 'error',
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
+
+  /*
+   * `src/api` -- the typed client for the Learning OS HTTP API.
+   *
+   * ADDED IN TWO PLACES, WHICH IS THE ONLY WAY IT WORKS. A flat config lints
+   * only paths with a MATCHING `files:` entry, so adding the directory to the
+   * `npm run lint` argument alone changes nothing -- eslint would be handed the
+   * path, find no block for it, and lint none of it while exiting 0.
+   *
+   * `scripts/lint-coverage.test.mjs` caught this directory the moment it
+   * appeared, which is what it was built for: `src/tutor` was the fourth
+   * directory to ship unlinted, and that test exists to make a fifth
+   * impossible. This is the fifth, and it was refused.
+   *
+   * `no-explicit-any` is an ERROR. The directory is new, so there is no
+   * pre-existing `any` for the rule to be buried under, and this code sits on
+   * the boundary where an untyped JSON response becomes a typed value -- which
+   * is exactly where an `any` does the most damage and is least visible.
+   *
+   * `design-value` is NOT applied here. It forbids raw colours and spacing
+   * outside the token layer, and this directory renders nothing; including it
+   * would be a rule that can never fire, which is worse than no rule because it
+   * reads as coverage.
+   */
+  {
+    files: ['src/api/**/*.{ts,tsx}'],
+    extends: [...tseslint.configs.recommended],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
 )

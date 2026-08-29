@@ -6,6 +6,7 @@ import type {
   TriedResolver,
 } from './contract'
 import type { Lesson } from '../spec/spec'
+import { resolutionBreach } from './contracts'
 
 /**
  * Ask several resolvers in turn, and stop at the first one that can answer.
@@ -208,6 +209,11 @@ export async function askChain(
   const hookErrors: string[] = []
   let firstRefusal: DoubtRefusal | null = null
 
+  /* Computed once. `drawnFrom` points back at the ORIGINAL lesson, so this is
+     the set an answer's citations must be drawn from -- an id outside it points
+     the interface at nothing. */
+  const originalIds = new Set(lesson.blocks.map((block) => block.id))
+
   for (const resolver of resolvers) {
     if (options.signal?.aborted) break
 
@@ -248,6 +254,26 @@ export async function askChain(
     }
 
     if (resolution.kind === 'answer') {
+      /*
+       * THE POSTCONDITION, CHECKED AT THE BOUNDARY THAT CROSSES.
+       *
+       * `contract.ts` promises of `DoubtAnswer.lesson` that it is "Already
+       * validated. Renderers can trust every field." Nothing enforced that: a
+       * rung answering with a document it had not filled in was handed straight
+       * to the renderer, three layers from the rung that produced it, where the
+       * stack trace names the wrong component.
+       *
+       * A BREACH IS `failed`, NEVER `refused`, and the difference reaches the
+       * learner. `refusalFrom` writes one sentence when the rungs had nothing
+       * to say and a different one when a rung broke. A rung that returned a
+       * malformed answer did not decline the question, and recording it as
+       * `refused` would tell a learner their question was the problem.
+       */
+      const breach = resolutionBreach(resolver.name, resolution, originalIds)
+      if (breach !== null) {
+        tried.push({ name: resolver.name, outcome: 'failed', error: breach })
+        continue
+      }
       tried.push({ name: resolver.name, outcome: 'answered' })
       return { resolution, tried, answeredBy: resolver.name, hookErrors }
     }

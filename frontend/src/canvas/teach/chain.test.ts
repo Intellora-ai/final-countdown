@@ -413,3 +413,143 @@ describe('a rung that never answers does not hold the learner forever', () => {
     expect(result.answeredBy).toBe('immediate')
   })
 })
+
+/* -------------------------------------------------------------------------- */
+/* What a rung PROMISES when it answers                                       */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * THE POSTCONDITION THE CHAIN NEVER CHECKED.
+ *
+ * `contract.ts` says of `DoubtAnswer.lesson`: "Already validated. Renderers can
+ * trust every field." That is a promise every rung makes and nothing enforced.
+ * The loop checked `resolution.kind === 'answer'` and returned it -- so a rung
+ * that answered with a lesson it had not filled in handed a broken document
+ * straight to the renderer, three layers from the rung that produced it.
+ *
+ * Hoare's argument is that a component has a precondition and a postcondition
+ * and that they compose. This codebase already does it well twice --
+ * `validateLesson` and `checkFrame` are real postconditions -- and the idea
+ * simply stopped before `chain.ts`.
+ *
+ * A VIOLATION IS `failed`, NEVER `refused`, and the distinction is load-bearing.
+ * `refusalFrom` writes a different sentence to the learner for each: `refused`
+ * means the rungs had nothing to say, `failed` means one of them broke. A rung
+ * that returned a malformed answer did not decline the question -- recording it
+ * as `refused` would tell a learner their question was the problem when the
+ * truth is that a rung is broken.
+ */
+describe('a rung that answers must answer with a lesson', () => {
+  /** A rung that claims an answer while handing back a document with no
+   *  blocks. Cast because the type forbids it -- which is the point: the type
+   *  cannot stop a rung that lies at runtime, and a remote one can. */
+  function liar(name: string): AnyResolver {
+    return {
+      name,
+      resolve: (): Resolution =>
+        ({ kind: 'answer', lesson: { ...LESSON, blocks: [] }, drawnFrom: [] }) as Resolution,
+    }
+  }
+
+  it('does not hand a lesson with no blocks to the renderer', async () => {
+    const result = await askChain(DOUBT, LESSON, [liar('broken')])
+    expect(
+      result.resolution.kind,
+      'a rung answered with an empty lesson and the chain passed it on',
+    ).toBe('refusal')
+  })
+
+  it('records the breach as failed, not refused', async () => {
+    /*
+     * The half that decides what the learner is told. `refused` would say the
+     * question had no answer; `failed` says a rung broke. Only one of those is
+     * true here.
+     */
+    const result = await askChain(DOUBT, LESSON, [liar('broken')])
+    expect(result.tried).toEqual([
+      { name: 'broken', outcome: 'failed', error: expect.stringContaining('blocks') },
+    ])
+  })
+
+  it('falls through to a rung that can actually answer', async () => {
+    /* A broken rung must cost its own turn and nothing else -- the offline
+       answer is the one a learner can always be given. */
+    const result = await askChain(DOUBT, LESSON, [liar('broken'), answerer('offline')])
+    expect(result.answeredBy).toBe('offline')
+  })
+
+  it('still lets a well-formed answer through untouched', async () => {
+    /*
+     * THE PAIR, and it matters more here than anywhere else in this file. A
+     * postcondition that refuses everything stops the product dead while
+     * looking like a passing suite: every test above would still be green.
+     */
+    const result = await askChain(DOUBT, LESSON, [answerer('good')])
+    expect(result.resolution.kind).toBe('answer')
+    expect(result.answeredBy).toBe('good')
+    expect(result.tried).toEqual([{ name: 'good', outcome: 'answered' }])
+  })
+
+  it('refuses an answer whose blocks share an id', async () => {
+    /*
+     * The second postcondition, tested because an untested check is decoration.
+     * React keys on block ids: a duplicate makes one paragraph vanish, and
+     * nothing anywhere reports that a learner lost a piece of their answer.
+     */
+    const twinned: AnyResolver = {
+      name: 'twins',
+      resolve: (): Resolution => {
+        const first = LESSON.blocks[0]
+        if (first === undefined) throw new Error('fixture has no blocks')
+        return { kind: 'answer', lesson: { ...LESSON, blocks: [first, first] }, drawnFrom: [] }
+      },
+    }
+    const result = await askChain(DOUBT, LESSON, [twinned])
+    expect(result.resolution.kind).toBe('refusal')
+    expect(JSON.stringify(result.tried)).toContain('block ids')
+  })
+
+  it('refuses an answer that cites a block the lesson does not have', async () => {
+    /*
+     * The third. `drawnFrom` is what lets the interface point back at what an
+     * answer drew on -- an id outside the original lesson points at nothing,
+     * which is a citation to a source that does not exist.
+     */
+    const miscited: AnyResolver = {
+      name: 'miscites',
+      resolve: (): Resolution => ({
+        kind: 'answer',
+        lesson: LESSON,
+        drawnFrom: ['no-such-block'],
+      }),
+    }
+    const result = await askChain(DOUBT, LESSON, [miscited])
+    expect(result.resolution.kind).toBe('refusal')
+    expect(JSON.stringify(result.tried)).toContain('no-such-block')
+  })
+
+  it('accepts an answer that cites a block the lesson really has', async () => {
+    /* The pair for the citation check: a real citation must pass, or the
+       feature that points back at the lesson stops working entirely. */
+    const firstId = LESSON.blocks[0]?.id
+    expect(firstId, 'fixture has no blocks').toBeDefined()
+    const cited: AnyResolver = {
+      name: 'cites-properly',
+      resolve: (): Resolution => ({
+        kind: 'answer',
+        lesson: LESSON,
+        drawnFrom: firstId === undefined ? [] : [firstId],
+      }),
+    }
+    const result = await askChain(DOUBT, LESSON, [cited])
+    expect(result.answeredBy).toBe('cites-properly')
+  })
+
+  it('leaves a refusal a refusal, not a breach', async () => {
+    /* The other pair. A rung with nothing to say has broken no promise, and
+       recording it as `failed` would make "the web has no answer" read as "the
+       web is down" -- the exact confusion this file already guards. */
+    const result = await askChain(DOUBT, LESSON, [refuser('empty-handed')])
+    expect(result.tried).toEqual([{ name: 'empty-handed', outcome: 'refused' }])
+  })
+})

@@ -251,11 +251,33 @@ const WORKED_EXAMPLE = {
   ],
 }
 
+/**
+ * The default route seed for a question.
+ *
+ * Same topic, same rotation, on every machine and in every session. Exported
+ * so a caller that wants to hold the route still can name the seed it is
+ * holding, rather than reproducing this arithmetic and drifting from it.
+ */
+export function questionSeed(question: string): number {
+  return [...question].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7)
+}
+
 /** What the model is asked for. One concept, and a real one to copy. */
 export function conceptRequest(
   question: string,
   sources: readonly Source[] = [],
   alreadyUsed: readonly string[] = [],
+  /**
+   * The route seed, EXPLICIT so a measurement can hold it still.
+   *
+   * Defaulting it to the question hash was not wrong -- it is what makes one
+   * learner's rotation stable across sessions -- but it was the ONLY way in,
+   * and that made route choice unaddressable from outside. A harness could
+   * then vary code and route together and had no arithmetic to tell the two
+   * apart afterwards. A randomised system that cannot be replayed cannot be
+   * measured, and that is a property of this signature, not of the model.
+   */
+  seed: number = questionSeed(question),
 ): string {
   /*
    * A DIFFERENT WAY IN EACH TIME, and it reaches the model or it is nothing.
@@ -269,7 +291,6 @@ export function conceptRequest(
    * The seed is the question, so the same topic rotates consistently while two
    * different topics do not march in lockstep.
    */
-  const seed = [...question].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7)
   const route = routeDirective(nextRoute({ seed, alreadyUsed }))
   /*
    * SEARCH FIRST, THEN WRITE -- the same order `authorLesson` uses, and for the
@@ -384,6 +405,28 @@ export function conceptRequest(
 /** How many turns a concept gets: the first, and one repair. */
 const ATTEMPTS = 2
 
+/**
+ * Name the block an issue is about by the id the MODEL chose, not only by index.
+ *
+ * `blocks[0]` is an index into a document the model wrote a turn ago and is no
+ * longer looking at. Its own blocks are named -- and every relation, every
+ * `introducedIn`, every reference inside the reply already addresses them that
+ * way. Handing back the index alone leaves locating the fault to the model, and
+ * a model that cannot locate the fault rewrites instead of editing.
+ *
+ * ANNOTATED ONLY WHERE A BLOCK EXISTS. `checkpoint` and `next[0]` name no
+ * block, and an id printed next to a path that has none is worse than no id at
+ * all: the model goes looking for something that is not there. Same for an
+ * index past the end, which is what a structural refusal about a missing block
+ * looks like.
+ */
+function nameBlock(path: string, concept: Concept | null): string {
+  const at = /^blocks\[(\d+)\]/.exec(path)
+  if (at === null || concept === null) return path
+  const id = concept.blocks?.[Number(at[1])]?.id
+  return typeof id === 'string' && id !== '' ? `${path} (id "${id}")` : path
+}
+
 /** Judge one reply. Returns the issues, empty when the concept is sound. */
 function judge(raw: string): { concept: Concept | null; lesson: Lesson | null; issues: Issue[] } {
   const parsed = extractJson(raw) as Concept | null
@@ -446,8 +489,10 @@ export async function authorConcept(
   sources: readonly Source[] = [],
   /** Route ids this learner has already been given for this idea. */
   alreadyUsed: readonly string[] = [],
+  /** The route seed. Defaults to the question, so behaviour is unchanged. */
+  seed: number = questionSeed(question),
 ): Promise<ConceptResult> {
-  const system = conceptRequest(question, sources, alreadyUsed)
+  const system = conceptRequest(question, sources, alreadyUsed, seed)
   let user = question
   let prior: string | undefined
   let last: { raw: string; issues: Issue[] } = { raw: '', issues: [] }
@@ -475,13 +520,42 @@ export async function authorConcept(
 
     last = { raw, issues: verdict.issues }
     prior = raw
-    /* The gate's OWN words, not "that was wrong, try again". A complaint the
-       model cannot act on makes it regenerate and fail the same way. */
+    /*
+     * THE GATE'S OWN WORDS, AND AN ORDER TO EDIT RATHER THAN REDRAFT.
+     *
+     * The words alone were already here, and they were not enough. Measured on
+     * the any-topic matrix against gpt-oss-120b, twice: 14 of 16, and BOTH
+     * refusals in BOTH runs were the same rule and the same size of miss --
+     * "the definition is 32 words, and the cap is 30", then "33 words". Two
+     * words over, on the SECOND attempt. The repair turn ran, carried
+     * `priorAssistant`, and delivered that exact sentence; the model came back
+     * over the cap anyway, and WHICH questions failed moved between runs. A
+     * genuine two-word trim does not wander between topics. A fresh draft does.
+     *
+     * Nothing had ever asked for an edit. The system prompt on this turn is
+     * still the authoring instruction -- "Teach ONE atomic concept", "HOW TO
+     * COME AT IT THIS TIME: <route>", "Copy its shape exactly" -- and "the
+     * corrected JSON object" reads as naturally as "a corrected object" as it
+     * does "your object, corrected". So the model did the thing it was asked
+     * to do, and a fresh definition clears a 30-word cap at the same rate the
+     * first one did.
+     *
+     * This is the third time in this file the same class has been paid for: an
+     * unquoted JSON example, an unstated word cap, and now an unstated
+     * requirement to preserve. Each time, the contract declined to state
+     * itself and the model was blamed for the gap.
+     */
     user = [
-      'That reply was refused. Fix exactly these problems and reply with the',
-      'corrected JSON object, nothing else:',
+      'That reply was refused. Correct the JSON object you just sent, and reply',
+      'with the whole of it again, nothing else.',
       '',
-      ...verdict.issues.map((i) => `- ${i.path}: ${i.message}`),
+      'This is an EDIT, not a rewrite. Change only what is listed below. Every',
+      'other field — every id, every block, every row, every label, every word',
+      'you are not told to change — is copied through exactly as you wrote it. A',
+      'rewrite has to get everything right a second time, and it breaks rules the',
+      'first reply already obeyed.',
+      '',
+      ...verdict.issues.map((i) => `- ${nameBlock(i.path, verdict.concept)}: ${i.message}`),
     ].join('\n')
   }
 

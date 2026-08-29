@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { authorConcept } from './concept'
+import { itemTable, summarise, type ItemVerdict, type SeedRun } from './matrix'
 import type { LessonModel } from './authorLesson'
 
 /*
@@ -73,6 +74,29 @@ const MATRIX: readonly { readonly kind: string; readonly ask: string }[] = [
   { kind: 'curiosity', ask: 'Why is the sky blue at noon and red at sunset?' },
 ]
 
+/**
+ * THE SEEDS, AND WHY THERE IS A LIST RATHER THAN NONE.
+ *
+ * Before this existed, `authorConcept` derived the route seed from the
+ * question and the harness had no way to name it. Two things then moved
+ * between runs -- the change under test, and the route -- and no arithmetic
+ * afterwards separates them. That is why the previous two 14/16 results could
+ * not be compared: one run, asked two questions at once.
+ *
+ * Held still, the comparisons become single-variable:
+ *
+ *   same seed, before vs after   measures the change, nothing else
+ *   different seeds, same code   measures route variance, nothing else
+ *
+ * `VITE_PROBE_SEEDS=1,2,3` runs three. One seed is one sample of a randomised
+ * system, so a run of one reports a standard deviation of 0 and that 0 means
+ * "not measured", never "no variance".
+ */
+const SEEDS: readonly number[] = (env('VITE_PROBE_SEEDS') || '1')
+  .split(',')
+  .map((s) => Number(s.trim()))
+  .filter((n) => Number.isFinite(n))
+
 /** Words that would mean the system refused for the WRONG reason. */
 const CURRICULUM_EXCUSES = /syllabus|curriculum|not supported|unsupported|no lesson|outside the|not in (our|the) (list|catalog|database)|unknown subject/i
 
@@ -103,32 +127,56 @@ describe.skipIf(ENDPOINT === '')('any topic, not six topics', () => {
   it(
     'teaches across the whole matrix, and never refuses for a curriculum reason',
     async () => {
-      const results: { kind: string; ask: string; ok: boolean; why: string }[] = []
+      const runs: SeedRun[] = []
 
-      for (const row of MATRIX) {
-        try {
-          const r = await authorConcept(httpModel(), row.ask)
-          results.push({
-            ...row,
-            ok: r.ok,
-            why: r.ok ? '' : r.issues.map((i) => `${i.path}: ${i.message}`).join(' | '),
-          })
-        } catch (error) {
-          results.push({
-            ...row,
-            ok: false,
-            why: `UNREACHABLE ${error instanceof Error ? error.message : String(error)}`,
-          })
+      for (const seed of SEEDS) {
+        const items: ItemVerdict[] = []
+        for (const row of MATRIX) {
+          try {
+            const r = await authorConcept(httpModel(), row.ask, [], [], seed)
+            items.push({
+              item: `[${row.kind}] ${row.ask}`,
+              ok: r.ok,
+              why: r.ok ? '' : r.issues.map((i) => `${i.path}: ${i.message}`).join(' | '),
+            })
+          } catch (error) {
+            items.push({
+              item: `[${row.kind}] ${row.ask}`,
+              ok: false,
+              why: `UNREACHABLE ${error instanceof Error ? error.message : String(error)}`,
+            })
+          }
         }
+        runs.push({ seed, items })
       }
 
-      const passed = results.filter((r) => r.ok).length
+      /*
+       * THE TABLE IS THE EVIDENCE. THE TOTAL IS A HEADLINE.
+       *
+       * Printed on every run, per seed, because the earlier 2-fixed/2-broken
+       * finding lived only in the per-item detail and the identical ratios
+       * erased it.
+       */
+      const spread = summarise(runs)
       console.log(`\n=== ANY TOPIC (${MODEL}) ===`)
-      console.log(`  taught : ${passed}/${results.length}`)
-      for (const r of results) {
-        console.log(`  ${(r.ok ? 'TAUGHT' : 'REFUSED').padEnd(8)} [${r.kind}] ${r.ask}`)
-        if (r.why) console.log(`      ${r.why.slice(0, 220)}`)
+      for (const run of runs) {
+        console.log(`\n  --- seed ${run.seed} ---`)
+        console.log(
+          itemTable(run.items)
+            .split('\n')
+            .map((line) => `  ${line.slice(0, 260)}`)
+            .join('\n'),
+        )
       }
+      console.log(
+        `\n  taught : ${spread.passes.join(', ')} of ${MATRIX.length}` +
+          ` over ${SEEDS.length} seed(s)` +
+          `  mean ${spread.mean.toFixed(2)} +/- ${spread.std.toFixed(2)}`,
+      )
+
+      const results = runs.flatMap((run) =>
+        run.items.map((item) => ({ ask: item.item, ok: item.ok, why: item.why })),
+      )
 
       /*
        * THE ASSERTION THAT MATTERS, AND IT IS NOT THE SCORE.

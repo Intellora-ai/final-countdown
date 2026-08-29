@@ -176,8 +176,20 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install pytest
-        run: pip install --quiet pytest
+      # `hypothesis` IS NOT OPTIONAL HERE, AND THE REASON IS conftest.
+      #
+      # pytest loads `tests/conftest.py` before collecting anything, and that
+      # file imports hypothesis at module scope. Installing pytest alone made
+      # this job die with `ModuleNotFoundError: No module named 'hypothesis'`
+      # and exit 4 -- a collection error, not a test failure, which is the
+      # weakest possible red: it says nothing about the skills at all.
+      #
+      # Two packages rather than `-r requirements.lock`, deliberately. The
+      # lockfile installs the whole toolchain for a job that reads six markdown
+      # files, and a gate slow enough to resent is a gate that gets switched
+      # off. conftest imports exactly these two.
+      - name: Install pytest and hypothesis
+        run: pip install --quiet pytest hypothesis
 
       - name: Every skill the fixer is told to read exists and says something
         run: python3 -m pytest tests/test_skills_present.py -q

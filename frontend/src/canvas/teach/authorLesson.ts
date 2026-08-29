@@ -81,7 +81,34 @@ export function teachingSystemPrompt(): string {
     'THE SHAPE',
     '{ "id": kebab-case, "question": the question you are answering, "subject": optional,',
     '  "technicalTerms": [{ "term": word, "introducedIn": block id }],',
-    '  "blocks": [...], "relations": [{ "from": id, "to": id, "kind": ... }] }',
+    '  "blocks": [...], "relations": [...] }',
+    '',
+    /*
+     * EVERY ENUM IS WRITTEN OUT, BECAUSE "..." IS AN INVITATION TO INVENT.
+     *
+     * Measured: asked to teach "admission of partners", a local qwen2.5:7b
+     * produced a well-shaped lesson that was refused for THREE schema faults,
+     * none of them about teaching --
+     *
+     *   relations[].kind = "explains"        (not one of the four legal kinds)
+     *   blocks[].columns[] used "id"         (the field is "key")
+     *   the lesson id was not kebab-case
+     *
+     * The first is the instructive one. This prompt used to print
+     * `"kind": ...` and never say what the values were, so the model filled the
+     * gap with a plausible word. That is not the model guessing badly; it is
+     * the contract declining to state itself. A schema the author cannot see
+     * is one the author will invent.
+     */
+    'IDs. Every id -- the lesson id and every block id -- must be lowercase',
+    'kebab-case: a-z, 0-9 and hyphens only. No spaces, no capitals, no underscores.',
+    '',
+    'RELATIONS. `kind` is EXACTLY one of these four words and nothing else:',
+    '  "supports"     B is evidence for A',
+    '  "derives"      A comes FROM B',
+    '  "contrasts"    A and B are the two sides of a difference',
+    '  "exemplifies"  A is an example of B',
+    'There is no "explains", no "relates", no "leads-to". Use the closest of the four.',
     '',
     'Each block: { "id", "kind", "title", "emphasis", "tone", "role", "depth", ...fields }',
     '  emphasis: primary | supporting | aside',
@@ -96,7 +123,10 @@ export function teachingSystemPrompt(): string {
     '  reasoning            mode: "why" | "worked", claim, therefore,',
     '                       steps: [{ expression, latex (optional), because }]  — 2 to 10',
     '  summary              progression: [string, ...] (2+), mentalModel',
-    '  table                columns: [{key,label,type}], rows: [{...}], caption',
+    '  table                columns: [{ key, label, type }], rows, caption',
+    '                       `key` is the field name, NOT `id`. type is one of',
+    '                       "text" | "number" | "percent" | "currency". Every',
+    '                       row is an object whose keys are the column keys.',
     '  chart                chartType, series: [{name,colorIndex,points:[{x,y}]}], caption',
     '  flow                 nodes: [{id,label,tone}], links: [{from,to}], caption',
     '  equation             latex, highlight: [string], caption',

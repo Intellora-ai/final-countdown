@@ -50,7 +50,34 @@ export interface EngineResolverOptions {
   readonly fetchImpl?: typeof fetch
   /** Overridden only if the middleware is mounted somewhere else. */
   readonly endpoint?: string
+  /**
+   * How long the engine gets before the bridge is declared broken.
+   *
+   * There is deliberately no way to ask for "wait forever". That was the
+   * previous behaviour, and it is the defect this closes.
+   */
+  readonly timeoutMs?: number
 }
+
+/**
+ * The deadline, and why there has to be one.
+ *
+ * This rung had none. When the middleware is absent the POST hangs rather than
+ * failing fast, so the doubt chain never reaches the rung behind it and the
+ * learner is shown nothing -- the single outcome the chain exists to prevent.
+ *
+ * It surfaced as `scene-regressions.spec.ts:454` failing on CI and passing on a
+ * re-run, and it was written off as flake. It was never flake. Whether it
+ * passed depended on how quickly the host refused the connection, which is a
+ * property of the machine and not of this code.
+ *
+ * Ten seconds because the engine is a local subprocess answering ONE question,
+ * not a model writing a whole lesson -- `chatOnce` is given 240s for that, and
+ * it is a different kind of wait. A rung slower than this has already failed
+ * whether or not it eventually replies, because the learner has spent that time
+ * looking at nothing.
+ */
+const DEFAULT_TIMEOUT_MS = 10_000
 
 /** What `api/ask.py` returns. Read defensively: it crossed a process boundary. */
 interface EngineReply {
@@ -66,6 +93,7 @@ function refuse(reason: string): Resolution {
 
 export function engineResolver(options: EngineResolverOptions = {}): AsyncDoubtResolver {
   const endpoint = options.endpoint ?? ENDPOINT
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
 
   return {
     name: 'engine',
@@ -78,20 +106,53 @@ export function engineResolver(options: EngineResolverOptions = {}): AsyncDoubtR
         throw new Error('engine: no fetch available in this environment')
       }
 
-      const response = await doFetch(endpoint, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        ...(signal ? { signal } : {}),
-        body: JSON.stringify({
-          text: doubt.text,
-          /* The way back. The engine echoes it, and dropping it here would break
-             the round trip the Python type was shaped to protect. */
-          resume_at: doubt.atBeatId,
-          /* Which lesson this was asked during. The engine uses it only to break
-             a tie toward a nearby skill; it is a nudge, never an override. */
-          lesson_skill: lesson.id,
-        }),
-      })
+      /*
+       * TWO WAYS TO STOP, AND THEY MEAN DIFFERENT THINGS.
+       *
+       * The learner withdrawing is a refusal; the deadline expiring is an
+       * outage. Both abort the same request, and once the fetch has rejected an
+       * `AbortError` looks identical either way -- so which one fired is
+       * recorded here, while it is still known. Collapsing them would tell a
+       * learner who navigated away that the bridge was broken, or a learner
+       * facing a dead subprocess that their question was unanswerable.
+       */
+      const controller = new AbortController()
+      let timedOut = false
+      const timer = setTimeout(() => {
+        timedOut = true
+        controller.abort()
+      }, timeoutMs)
+      /* The caller keeps its own power to stop this. Without this the learner's
+         withdrawal would be ignored for the whole of the timeout. */
+      const stopOnWithdrawal = (): void => controller.abort()
+      signal?.addEventListener('abort', stopOnWithdrawal)
+
+      let response: Response
+      try {
+        response = await doFetch(endpoint, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            text: doubt.text,
+            /* The way back. The engine echoes it, and dropping it here would
+               break the round trip the Python type was shaped to protect. */
+            resume_at: doubt.atBeatId,
+            /* Which lesson this was asked during. The engine uses it only to
+               break a tie toward a nearby skill; a nudge, never an override. */
+            lesson_skill: lesson.id,
+          }),
+        })
+      } catch (error) {
+        /* The deadline is the ONLY failure this rung reinterprets. A refused
+           connection or a DNS failure already carries the honest outage
+           message, and is re-thrown untouched rather than relabelled. */
+        if (timedOut) throw new Error(`engine timed out after ${timeoutMs}ms`)
+        throw error
+      } finally {
+        clearTimeout(timer)
+        signal?.removeEventListener('abort', stopOnWithdrawal)
+      }
 
       if (!response.ok) {
         /* Thrown, not refused. A 503 means the middleware could not start the

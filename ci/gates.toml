@@ -139,6 +139,15 @@ unmeasured = [
   # was trustworthy would have pinned an artefact.
   { path = "scripts", why = "no floor yet; 57% measured 2026-08-25, pending a per-area floor" },
 
+  # Two UserPromptSubmit/Stop hook scripts that shape agent replies. This IS
+  # production tooling -- it runs on every turn and can refuse one -- so it is
+  # `unmeasured` rather than `excluded`, which would claim it is not production
+  # at all. tests/test_reply_style_gate.py drives it through subprocess (37
+  # tests), so the same child-process blindness that held `scripts` at an
+  # untrustworthy number applies here; a floor set before that measurement
+  # would pin an artefact rather than a fact.
+  { path = "skills/writing-accessible-replies/hooks", why = "no floor yet; driven through subprocess by tests/test_reply_style_gate.py, needs its own measurement first" },
+
   # 7,992 lines. `learning-os/pyproject.toml` has no [tool.coverage] section at
   # all, so its 482 tests run unmeasured. Adding a floor here needs its own
   # measurement first, for the same reason as `scripts`.
@@ -159,6 +168,17 @@ unmeasured = [
 ]
 
 excluded = [
+  # 21 pinned third-party repositories, ~414 MB, vendored as submodules for
+  # reference only. None of it is ours, none of it ships, and nothing imports
+  # it -- `knowledge-research` reads it as documentation. Several carry Python
+  # (system-design-primer alone has a dozen solution directories), so without
+  # this row every job that checks out submodules floods this gate with other
+  # people's code. Every checkout in gate.yml sets submodules: false, which is
+  # why CI has not hit it yet; that is a reason to write the rule down, not to
+  # rely on the flag staying set.
+  { path = "knowledge", why = "third-party pinned submodules, reference material, not our production code" },
+
+
   # Test code is not production code. `tests/generated` is covered by this row
   # through longest-prefix ownership rather than needing one of its own.
   { path = "tests", why = "test code, not production code" },

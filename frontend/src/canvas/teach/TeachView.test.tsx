@@ -1,9 +1,16 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 
 import { classifierEvaluation } from '../lessons/classifierEvaluation'
+import {
+  ANSWER_LOST,
+  TEACH_STORAGE_KEY,
+  loadTeachProgress,
+  resetTeachProgress,
+  useTeachStore,
+} from './teachStore'
 import type { Lesson } from '../spec/spec'
 import { validateLesson } from '../spec/validate'
 import { TeachView } from './TeachView'
@@ -31,6 +38,11 @@ import { TeachView } from './TeachView'
  */
 
 afterEach(cleanup)
+/* Persistence is real storage in these tests, so one test's saved lesson must
+   not become the next test's restored one. */
+afterEach(() => {
+  resetTeachProgress()
+})
 
 function fixture(): Lesson {
   const result = validateLesson(classifierEvaluation)
@@ -658,5 +670,421 @@ describe('one submit is one effect', () => {
     send(ALSO_OFF_LESSON)
     await settle()
     expect(port.calls, 'no question could be asked after one failed').toBe(2)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Nothing typed is lost                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A reload must not cost the learner their work — and must not invent any.
+ *
+ * WHAT A "RELOAD" IS HERE, AND WHY IT IS NOT JUST A RE-RENDER
+ * -----------------------------------------------------------
+ * Unmounting and mounting again proves nothing: a module-level store still
+ * holds the values in memory, so the second mount would "restore" from RAM and
+ * the test would pass with `localStorage` never touched. `reload()` below drops
+ * the in-memory copy first and rehydrates from storage, so the only route the
+ * values can travel is the one a real refresh uses.
+ *
+ * THE THREE THINGS A RESTORE MUST NOT DO
+ * --------------------------------------
+ *   1. Come back mid-flight. `answerInFlight` disables the box, and it is
+ *      released by the promise that set it. A persisted `true` has no promise
+ *      coming back for it, so the box would be dead forever — a worse bug than
+ *      the one persistence fixes. The same trap sits on each record's own
+ *      `pending` flag, which is why both are asserted.
+ *   2. Re-fire `strugglingAfter`. `reportStruggle` is fired at most once per
+ *      mount, guarded by a ref that a reload resets. Restore the counters
+ *      without restoring the "already reported" fact and the callback fires a
+ *      second time on the learner's next submit — the exact harm removed in the
+ *      previous task, arriving by a second route.
+ *   3. Blank the page when storage is unavailable. Private mode, a full quota,
+ *      or a `localStorage` that throws on access must cost the learner their
+ *      restore and nothing else.
+ *
+ * WHY THE STORAGE-FAILURE TESTS USE SPIES AND NOT `vi.resetModules()`
+ * -------------------------------------------------------------------
+ * `src/practice/store.test.ts` records the reason, measured: replacing the
+ * global `window` and resetting modules TWICE in one file pushed a latent
+ * echarts/jsdom crash in `FigureView` from never firing to firing about half
+ * the time. This file renders figures. Spying on `Storage.prototype` produces
+ * the same failure without touching the module graph.
+ *
+ * WHY THE FAILURE TESTS ARE NOT VACUOUS
+ * -------------------------------------
+ * "The view survives broken storage" is satisfied completely by never
+ * persisting anything at all. It is only worth something beside the tests that
+ * demand a normal session DOES come back — the pair. Neither half is optional.
+ */
+describe('nothing typed is lost', () => {
+  const HALF_TYPED = 'the model flags too many innoc'
+  const OFF_LESSON = 'who first wrote down the central limit theorem'
+
+  /**
+   * A real `localStorage`, because this environment has none.
+   *
+   * MEASURED, and it is the reason these tests are shaped this way: jsdom 30
+   * here exposes NO `window.localStorage` — it reads `undefined`, and Node
+   * reports `localStorage is not available because --localstorage-file was not
+   * provided`. So a test that simply trusted the environment would exercise the
+   * "storage missing" branch every time while appearing to prove the round
+   * trip, which is the most expensive kind of green.
+   *
+   * It also explains a comment already in `src/practice/store.test.ts`: the
+   * persisted route there had to replace the global `window` and reset the
+   * module graph. This installs a plain in-memory `Storage` on `window`
+   * instead, which needs neither — and so avoids the measured echarts/jsdom
+   * flake that `resetModules` caused in files that render figures. This file
+   * renders figures.
+   */
+  function inMemoryStorage(): Storage {
+    const entries = new Map<string, string>()
+    return {
+      get length() {
+        return entries.size
+      },
+      key: (index: number) => [...entries.keys()][index] ?? null,
+      getItem: (name: string) => entries.get(name) ?? null,
+      setItem: (name: string, value: string) => {
+        entries.set(name, String(value))
+      },
+      removeItem: (name: string) => {
+        entries.delete(name)
+      },
+      clear: () => {
+        entries.clear()
+      },
+    } as Storage
+  }
+
+  let storage: Storage
+
+  beforeEach(() => {
+    storage = inMemoryStorage()
+    Object.defineProperty(window, 'localStorage', {
+      value: storage,
+      configurable: true,
+      writable: true,
+    })
+  })
+
+  afterEach(() => {
+    Reflect.deleteProperty(window as unknown as Record<string, unknown>, 'localStorage')
+  })
+
+  it('is running against a storage this environment does not otherwise provide', () => {
+    /* The harness, asserted rather than assumed. Every test below is a claim
+       about a round trip, and all of them would pass vacuously against a
+       storage that silently dropped everything. */
+    window.localStorage.setItem('probe', 'kept')
+    expect(window.localStorage.getItem('probe'), 'the test storage does not store').toBe('kept')
+  })
+
+  function field(): HTMLInputElement {
+    return screen.getByLabelText('Answer the question, or ask one of your own') as HTMLInputElement
+  }
+
+  function type(text: string): void {
+    fireEvent.change(field(), { target: { value: text } })
+  }
+
+  function send(text: string): void {
+    type(text)
+    fireEvent.submit(field().closest('form') as HTMLFormElement)
+  }
+
+  /**
+   * Close the tab and open it again.
+   *
+   * The in-memory copy is dropped before re-rendering, so anything that comes
+   * back has genuinely been read out of storage. Rendered with the same lesson,
+   * because a different lesson is a different session and is not what this
+   * describes.
+   */
+  async function reload(props: Record<string, unknown> = {}) {
+    await closeTab()
+    const view = render(<TeachView lesson={fixture()} mode="2d" {...props} />)
+    await settle()
+    return view
+  }
+
+  /**
+   * Everything a refresh destroys, destroyed — and nothing it keeps.
+   *
+   * The saved record is snapshotted and written back around the in-memory
+   * clear, and that is not ceremony. `persist` writes on EVERY `setState`, so
+   * clearing the store in order to prove the value comes back from storage
+   * persists the cleared value first and erases the very thing under test.
+   * Measured: storage read back `{"state":{"progress":null}}` and three restore
+   * tests failed for that reason and not the one they were written for.
+   *
+   * This lives in the test and not in `teachStore` on purpose. Production code
+   * has no business carrying a "pretend the tab closed" routine, and a helper
+   * that clears memory while secretly preserving disk is a trap for the next
+   * person to read it.
+   */
+  async function closeTab(): Promise<void> {
+    const onDisk = storage.getItem(TEACH_STORAGE_KEY)
+    cleanup()
+    useTeachStore.setState({ progress: null })
+    if (onDisk !== null) storage.setItem(TEACH_STORAGE_KEY, onDisk)
+    await useTeachStore.persist?.rehydrate()
+  }
+
+  it('brings a half-typed answer back, character for character', async () => {
+    await teach()
+    type(HALF_TYPED)
+    await settle()
+
+    await reload()
+
+    expect(
+      field().value,
+      'the learner reopened the tab and their half-written sentence was gone',
+    ).toBe(HALF_TYPED)
+  })
+
+  it('brings the conversation and the place in the lesson back', async () => {
+    const { container } = await teach()
+    await answerBeat()
+    expect(checkpointText(container), 'the lesson did not advance before the reload').not.toBe('')
+    await askAbout('what is precision recall')
+
+    const before = checkpointText(document.body as HTMLElement)
+    await reload()
+
+    expect(screen.queryByText(SECOND_BEAT), 'the lesson reopened at the beginning').not.toBeNull()
+    /* The bare form, because a doubt the LESSON answered renders through
+       `<Answer>` rather than the "You asked" prose branch — the same form the
+       older tests in this file assert. */
+    expect(
+      screen.queryByText('what is precision recall'),
+      'the answered question was dropped on reload',
+    ).not.toBeNull()
+    /* And the answer's own words, which is the assertion that would catch a
+       `resolution` that did not survive being written to storage and read back:
+       a record whose resolution was lost falls through to the prose branch, so
+       this text disappears while the question text stays. */
+    expect(screen.queryByText(PR_ANSWER), 'the answer itself was dropped on reload').not.toBeNull()
+    expect(checkpointText(document.body as HTMLElement), 'the lesson came back at a different beat').toBe(before)
+  })
+
+  it('never restores an answer as still in flight', async () => {
+    /* Sent, and deliberately never resolved — the shape of closing the tab while
+       the model is still thinking. */
+    const stalled = () => new Promise<{ ok: boolean; text: string }>(() => {})
+    render(<TeachView lesson={fixture()} mode="2d" ask={stalled} />)
+    await settle()
+
+    send(OFF_LESSON)
+    await settle()
+    expect(field().disabled, 'the box was not in flight before the reload').toBe(true)
+
+    await reload({ ask: stalled })
+
+    /* Nothing is coming back to release this. If it restores as busy, the
+       learner has a permanently dead box and no way to know why. */
+    expect(
+      field().disabled,
+      'the box came back disabled with no answer on its way — the learner is locked out',
+    ).toBe(false)
+
+    /* The question is not thrown away, and it is not left claiming to be
+       working either. It says what actually happened. */
+    expect(
+      screen.queryByText('You asked: “' + OFF_LESSON + '”'),
+      'the unanswered question was silently discarded',
+    ).not.toBeNull()
+    expect(
+      screen.queryByText(ANSWER_LOST),
+      'a question stuck mid-flight came back still pretending to be working',
+    ).not.toBeNull()
+  })
+
+  it('does not re-fire the struggle signal for a session that already fired it', async () => {
+    let struggled = 0
+    const answered = async () => ({ ok: true, text: 'An answer from the model.' })
+    render(<TeachView lesson={fixture()} mode="2d" ask={answered} onStruggling={() => { struggled += 1 }} />)
+    await settle()
+
+    /* Three questions on the first beat is over the bar twice over, so the
+       signal fires here, before the reload. */
+    for (const question of [OFF_LESSON, 'when was that theorem proved in general', 'why does accuracy mislead here']) {
+      send(question)
+      await settle()
+    }
+    expect(struggled, 'the signal did not fire before the reload, so the reload proves nothing').toBe(1)
+
+    struggled = 0
+    await reload({ ask: answered, onStruggling: () => { struggled += 1 } })
+
+    /* The restored counters are still over every threshold. A mount that
+       re-fires, or a next submit that re-fires, deepens a lesson that was
+       already deepened. */
+    expect(struggled, 'the restored session deepened the lesson a second time on mount').toBe(0)
+    /* An interrogative opener, so `classifyTurn` reads it as a QUESTION. Worded
+       'and what about recall' this test passed against a mutant that dropped
+       `struggleReported` entirely: 'and' is not an opener, so the submit was
+       classified as an ANSWER, advanced the beat, and never asked anything for
+       the signal to re-fire on. */
+    send('what about recall')
+    await settle()
+    expect(struggled, 'the restored session deepened the lesson again on the next question').toBe(0)
+  })
+
+  it('carries the turn counters across the reload, still counting', async () => {
+    /*
+     * A restore must not re-count what the learner did — and must not forget it
+     * either. Written because a mutant that dropped `questionsAsked` from the
+     * restore SURVIVED everything else here: every other test either had the
+     * signal already fired, or was below the bar both ways round.
+     *
+     * The scenario is chosen so the two answers differ. Three beats in, two
+     * questions is under every threshold, so nothing fires before the reload.
+     * The third question takes `questionsAsked` to 3, which is over the bar —
+     * but only if the first two came back. Forget them and the reloaded session
+     * counts one question and stays silent.
+     */
+    let struggled = 0
+    const answered = async () => ({ ok: true, text: 'An answer from the model.' })
+    const onStruggling = () => {
+      struggled += 1
+    }
+    render(<TeachView lesson={fixture()} mode="2d" ask={answered} onStruggling={onStruggling} />)
+    await settle()
+    await answerBeat()
+    await answerBeat()
+
+    send(OFF_LESSON)
+    await settle()
+    send('when was that theorem proved in general')
+    await settle()
+    expect(struggled, 'the signal fired before the reload, so this proves nothing').toBe(0)
+
+    await reload({ ask: answered, onStruggling })
+
+    send('why does accuracy mislead here')
+    await settle()
+    expect(
+      struggled,
+      'the reloaded session forgot the two questions already asked and stopped counting',
+    ).toBe(1)
+  })
+
+  it('keeps teaching when localStorage refuses to be written', async () => {
+    const write = vi.spyOn(storage, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota exceeded', 'QuotaExceededError')
+    })
+    try {
+      await teach()
+      type(HALF_TYPED)
+      await settle()
+      await answerBeat()
+
+      /* The restore is lost. The lesson is not. */
+      expect(screen.queryByText(SECOND_BEAT), 'a full disk stopped the lesson being taught').not.toBeNull()
+      expect(write, 'the view never even tried to save, so this proves nothing').toHaveBeenCalled()
+    } finally {
+      write.mockRestore()
+    }
+  })
+
+  /**
+   * Read what is on disk, then open the lesson.
+   *
+   * WITHOUT THIS THE TWO TESTS BELOW WERE VACUOUS, and mutation proved it: the
+   * store hydrates once when the module is imported, so a test that merely
+   * wrote to `localStorage` and rendered was served the in-memory copy and
+   * never touched storage at all. Mutants that removed the corrupt-JSON guard
+   * and the read-throws guard both SURVIVED. Forcing the rehydrate is what puts
+   * the failing read on the path the assertion depends on.
+   */
+  /*
+   * TWO SURVIVING MUTANTS ARE RECORDED HERE, NOT PAPERED OVER.
+   *
+   * Removing the corrupt-JSON guard and the read-throws guard from
+   * `teachStore` leaves all 32 tests green. They survive for a real reason
+   * rather than a missing assertion: zustand wraps `storage.getItem` in its own
+   * try/catch (`toThenable`, `zustand/esm/middleware.mjs`), so a throwing read
+   * and a JSON parse error both abort hydration quietly and the view starts
+   * fresh either way. No assertion reachable through this component can tell
+   * our guard from the library's.
+   *
+   * The guards stay. Deleting one because today's version of a dependency also
+   * catches is how a fix evaporates in a version bump. What is NOT claimed is
+   * that these two tests prove our guard runs -- they prove the OUTCOME the
+   * learner needs, which is that a broken read costs a restore and not a
+   * lesson. The write guard is a different story and IS observable: a mutant
+   * that let `setItem` throw fails the quota test.
+   */
+  async function openTabReadingDisk() {
+    useTeachStore.setState({ progress: null })
+    await useTeachStore.persist?.rehydrate()
+    const view = render(<TeachView lesson={fixture()} mode="2d" />)
+    await settle()
+    return view
+  }
+
+  it('keeps teaching when localStorage refuses to be read', async () => {
+    /* Something IS saved, so a guard that works by finding nothing would not be
+       credited for this. */
+    storage.setItem(TEACH_STORAGE_KEY, JSON.stringify({ state: { progress: null }, version: 1 }))
+    const read = vi.spyOn(storage, 'getItem').mockImplementation(() => {
+      throw new DOMException('access denied', 'SecurityError')
+    })
+    try {
+      const view = await openTabReadingDisk()
+      expect(read, 'the failing read was never reached, so this proves nothing').toHaveBeenCalled()
+      expect(
+        screen.queryByText(FIRST_BEAT),
+        'a private-mode storage read blanked the whole lesson',
+      ).not.toBeNull()
+      expect(view.container.querySelector('.lc-teach__input'), 'the box was gone').not.toBeNull()
+    } finally {
+      read.mockRestore()
+    }
+  })
+
+  it('keeps teaching when the saved session is corrupt', async () => {
+    storage.setItem(TEACH_STORAGE_KEY, '{not json at all')
+    const view = await openTabReadingDisk()
+
+    expect(screen.queryByText(FIRST_BEAT), 'a corrupt save blanked the lesson').not.toBeNull()
+    expect(field().value, 'a corrupt save was read as a draft').toBe('')
+    expect(view.container.querySelector('.lc-teach__input'), 'the box was gone').not.toBeNull()
+  })
+
+  it('starts a DIFFERENT lesson clean rather than restoring the last one', async () => {
+    /* The pair for every restore above: a store that hands back whatever it has
+       would open a physics lesson showing a machine-learning conversation. */
+    await teach()
+    type(HALF_TYPED)
+    await settle()
+
+    await closeTab()
+    const other = { ...fixture(), id: 'a-completely-different-lesson' }
+    render(<TeachView lesson={other} mode="2d" />)
+    await settle()
+
+    expect(field().value, "another lesson's draft was restored into this one").toBe('')
+  })
+
+  it('saves under the lesson it belongs to, and nothing more', async () => {
+    await teach()
+    type(HALF_TYPED)
+    await settle()
+
+    const saved = loadTeachProgress(fixture().id)
+    expect(saved, 'nothing was persisted at all').not.toBeNull()
+    expect(saved?.draft, 'the draft was not the thing saved').toBe(HALF_TYPED)
+    /* Asserted on the SAVED record, because this is the field that cannot be
+       allowed to come back true and the view-level test can only see its
+       effect. */
+    expect(
+      Object.prototype.hasOwnProperty.call(saved as object, 'answerInFlight'),
+      'the in-flight latch was written to storage, where it can only do harm',
+    ).toBe(false)
   })
 })

@@ -27,6 +27,7 @@ import {
   type Resolution,
 } from './contract'
 import { lessonResolver } from './doubt'
+import { loadTeachProgress, saveTeachProgress } from './teachStore'
 import type { AnyResolver } from './contract'
 
 /** The offline answer a learner can always be given. */
@@ -119,16 +120,30 @@ export function TeachView({
     [frame],
   )
 
+  /*
+   * The saved session, read ONCE.
+   *
+   * Read here, in the initialisers, rather than in an effect: an effect would
+   * paint the lesson at beat one and then jump, and a learner who saw their
+   * place appear and then move would not trust it again. `useState` takes the
+   * function form so storage is touched on the first render only.
+   *
+   * `loadTeachProgress` returns nothing for a different lesson, for a corrupt
+   * record, and when storage cannot be read -- so every one of those cases
+   * arrives here as a plain fresh start.
+   */
+  const restored = useRef(loadTeachProgress(safe === null ? '' : safe.id))
+
   /* How many beats have been revealed — never rendered, only sliced with. */
-  const [revealed, setRevealed] = useState(1)
-  const [asked, setAsked] = useState<Asked[]>([])
-  const [draft, setDraft] = useState('')
+  const [revealed, setRevealed] = useState(() => restored.current?.revealed ?? 1)
+  const [asked, setAsked] = useState<Asked[]>(() => restored.current?.asked ?? [])
+  const [draft, setDraft] = useState(() => restored.current?.draft ?? '')
   const [announcement, setAnnouncement] = useState('')
   /* Watched, never shown. Depth is added when the learner asks for it and
      automatically when their answers show a gap; nothing on screen ever says
      "difficulty", because they are being taught, not graded. */
-  const [questionsAsked, setQuestionsAsked] = useState(0)
-  const [emptyAnswers, setEmptyAnswers] = useState(0)
+  const [questionsAsked, setQuestionsAsked] = useState(() => restored.current?.questionsAsked ?? 0)
+  const [emptyAnswers, setEmptyAnswers] = useState(() => restored.current?.emptyAnswers ?? 0)
   /*
    * Whether an answer is outstanding. ONE SUBMIT IS ONE EFFECT.
    *
@@ -152,9 +167,16 @@ export function TeachView({
    *   is still waiting on.
    */
   const [answerInFlight, setAnswerInFlight] = useState(false)
-  /* Fired once. Telling the caller repeatedly would deepen the lesson again on
-     every subsequent turn, which is how "adaptive" becomes "unreadable". */
-  const struggleReported = useRef(false)
+  /*
+   * Fired once. Telling the caller repeatedly would deepen the lesson again on
+   * every subsequent turn, which is how "adaptive" becomes "unreadable".
+   *
+   * SEEDED FROM THE RESTORE, and that is the whole point of persisting it. This
+   * is a ref, so a reload resets it -- restore the counters beside it and leave
+   * this `false` and the learner's next submit re-fires a signal that already
+   * fired, deepening a lesson twice for turns they took once.
+   */
+  const struggleReported = useRef(restored.current?.struggleReported ?? false)
 
   /*
    * A different lesson is a different session.
@@ -169,10 +191,21 @@ export function TeachView({
   const taught = useRef(lessonKey)
   if (taught.current !== lessonKey) {
     taught.current = lessonKey
-    setRevealed(1)
-    setAsked([])
-    setDraft('')
+    /* The new lesson's OWN saved session, which is nothing unless this learner
+       has been here before. Read through the same door as the first mount, so a
+       switch and a reload cannot disagree about what "restored" means. */
+    const next = loadTeachProgress(lessonKey)
+    restored.current = next
+    setRevealed(next?.revealed ?? 1)
+    setAsked(next?.asked ?? [])
+    setDraft(next?.draft ?? '')
     setAnnouncement('')
+    /* The counters travel with the lesson too. They were left behind here
+       before, which meant questions asked about one lesson could deepen the
+       next one -- a verdict about a lesson the learner had not yet started. */
+    setQuestionsAsked(next?.questionsAsked ?? 0)
+    setEmptyAnswers(next?.emptyAnswers ?? 0)
+    struggleReported.current = next?.struggleReported ?? false
   }
 
   /*
@@ -185,6 +218,32 @@ export function TeachView({
    * have to tab in from the top of the document to find out what happened. So it
    * lands on the closing question instead, which is the thing that changed.
    */
+  /*
+   * Write through, on every change worth keeping.
+   *
+   * `answerInFlight` is not among the dependencies and not in the record: it is
+   * released by the promise that set it, so a stored `true` comes back with
+   * nothing on its way to release it and the box is disabled for good. The one
+   * flag that could only ever be wrong on the way back is the one flag not
+   * saved.
+   *
+   * `struggleReported` is a ref, so it is read here rather than depended on --
+   * every change that flips it also changes a counter in this list, so the
+   * record is never written without it.
+   */
+  useEffect(() => {
+    if (safe === null) return
+    saveTeachProgress({
+      lessonId: safe.id,
+      revealed,
+      asked,
+      draft,
+      questionsAsked,
+      emptyAnswers,
+      struggleReported: struggleReported.current,
+    })
+  }, [safe, revealed, asked, draft, questionsAsked, emptyAnswers])
+
   const closingRef = useRef<HTMLParagraphElement | null>(null)
   const focusClosing = useRef(false)
   useEffect(() => {

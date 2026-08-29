@@ -23,11 +23,25 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { LearnView } from './LearnView'
+import { resetTeachProgress } from '../teach/teachStore'
 import { gasPressure } from '../lessons/gasPressure'
 import type { AlmanacClient } from '../../almanac/client'
 import type { SubjectLike } from '../../almanac/resolve'
 
 afterEach(cleanup)
+/*
+ * The teaching view now REMEMBERS a lesson across a reload, and the store that
+ * remembers it outlives a single test.
+ *
+ * Both tests below teach `gasPressure`, so without this the first one's
+ * "already deepened once" flag is restored into the second, which then never
+ * asks for a slower lesson and reports one call where it should see two. That
+ * is one test silently answering for another, not a change in what either one
+ * claims -- the assertions are untouched.
+ */
+afterEach(() => {
+  resetTeachProgress()
+})
 
 const SUBJECTS: SubjectLike[] = [
   {

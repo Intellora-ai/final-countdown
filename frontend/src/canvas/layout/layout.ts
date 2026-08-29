@@ -327,14 +327,44 @@ export function plan(spec: Lesson, viewport: Viewport): Frame {
         emphasis: block.emphasis, tone: block.tone,
       })
 
+      /*
+       * THE WALK IS TRANSITIVE, BECAUSE DERIVATION IS.
+       *
+       * A flat loop over `children` placed the source and one generation below
+       * it, and stopped. Anything derived from a DERIVED block was skipped by
+       * `isDerived` at the top of the loop and then never placed by anyone —
+       * so it vanished from the frame entirely. Measured on gas pressure:
+       * `ideal-gas-law` derives from `proportionality`, which derives from
+       * `causal-chain`, and the chart came out with twelve of thirteen blocks
+       * at three of five widths. No invariant caught it — `noCollision` and
+       * `noAccidentalVoid` both check what IS placed, and a block that is
+       * simply absent collides with nothing and leaves no hole.
+       *
+       * Losing content silently is the one outcome the layout may never have.
+       * `seen` guards a cycle: `a derives b, b derives a` is a spec a model can
+       * emit, and it would otherwise spin here forever.
+       */
       let childBand = band + rows
-      for (const child of children) {
+      const seen = new Set<string>([block.id])
+      const pending = [...children]
+      while (pending.length > 0) {
+        const child = pending.shift()
+        if (child === undefined || seen.has(child.id)) continue
+        seen.add(child.id)
+
         const childRows = footprint(child).rows
         blocks.push({
           id: child.id, kind: child.kind, band: childBand, col: 0, span, rows: childRows,
           emphasis: child.emphasis, tone: child.tone,
         })
         childBand += childRows
+
+        /* Depth first: what a child derives belongs directly beneath it, not
+           after its siblings. Reading order is the argument. */
+        const below = (derivedOf.get(child.id) ?? [])
+          .map((id) => byId.get(id))
+          .filter((b): b is Block => b !== undefined)
+        pending.unshift(...below)
       }
 
       band = childBand

@@ -208,8 +208,27 @@ export const billBecomesLaw: LessonInput = {
     { from: 'veto-types', to: 'passage', kind: 'contrasts' },
     { from: 'passage', to: 'the-whole-route', kind: 'exemplifies' },
     /* `chambers` compares the powers of the two Houses and was joined to
-       nothing, so nothing in the lesson pointed at it. It is the evidence for
-       the paragraph that asks why a second House exists at all. */
-    { from: 'chambers', to: 'why-two-houses', kind: 'supports' },
+       nothing, so nothing in the lesson pointed at it.
+       
+       Joined to the ROUTE rather than to `why-two-houses`, and the difference
+       is not cosmetic. The doubt resolver answers a "why" with the block the
+       author said supports it, so `chambers supports why-two-houses` made
+       "why are there two houses" answer with a table of powers instead of the
+       paragraph that actually explains why — a worse answer, produced by a
+       relation written for the gate rather than for the reader. The route is
+       what the powers comparison genuinely supports: the two Houses are
+       separate gates because they are not the same body. */
+    { from: 'chambers', to: 'the-whole-route', kind: 'supports' },
+    /* Withholding assent or returning a bill is one of the ways a bill ends
+       up in the 43 of 100 that never become law, and both blocks sit in the
+       same beat — which is what the rule asks for: a representation earns
+       its place by being referred to from beside it.
+       
+       Pointed at the FIGURE and not at `why-two-houses`, deliberately. The
+       doubt resolver answers a "why" with whatever block points at the one
+       named, so any relation targeting `why-two-houses` makes "why are
+       there two houses" answer with something other than the paragraph that
+       explains why. */
+    { from: 'veto-types', to: 'where-bills-go', kind: 'exemplifies' },
   ],
 }

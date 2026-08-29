@@ -845,13 +845,35 @@ export function checkTeaching(
      arrives as a wall of text is the same failure as a lesson that does. */
   checkMarkedTermsExist(lesson, out)
   checkRunLengths(lesson, out)
-  checkOpensOnTheTopic(lesson, out)
   checkDefinitionCarriesOneThing(lesson, out)
   checkExamplesIsolateOneRule(lesson, out)
   checkChainsAreDrawn(lesson, out)
   checkTechnicalTermsArriveLate(lesson, out)
 
   if (options.arc) {
+    /*
+     * ARC-ONLY, AND THE COUNT IS THE ARGUMENT.
+     *
+     * "Teaching starts on the first word" is a rule about how an AUTHOR opens
+     * a lesson. An assembled reply has no authored opening: it leads with a
+     * block somebody wrote for a different position in a different lesson, and
+     * the only way to satisfy this rule would be to write a new first sentence
+     * — which every builder in this codebase refuses to do on purpose, because
+     * a resolver that cannot write a sentence about the subject cannot write a
+     * wrong one.
+     *
+     * Held as an integrity rule it refused, measured: `buildCheckedAnswer`,
+     * `buildConflictAnswer` and `buildAnswer` in `webResolver.ts`,
+     * `wholeLessonStrategy` in `doubt.ts`, and — the one that shows the real
+     * shape — `aloneStrategy`, which answers by showing a single block the
+     * learner named. That last one fails whenever the block's first sentence
+     * does not happen to repeat the question, which is most of the time.
+     * Five call sites, one cause, and each "fix" was a different way of making
+     * software write an opening sentence.
+     *
+     * Full force on a taught lesson, where an author IS writing the opening.
+     */
+    checkOpensOnTheTopic(lesson, out)
     checkSomethingIsMarked(lesson, out)
     checkArc(lesson, out)
     checkRulesAreEarned(lesson, out)

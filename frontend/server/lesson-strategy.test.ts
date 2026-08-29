@@ -20,8 +20,49 @@ import { STRATEGIES } from './teaching.ts'
 const VALID_LESSON = {
   id: 'photosynthesis',
   question: 'How does a leaf make food?',
-  blocks: [{ id: 'intro', kind: 'prose', emphasis: 'primary', body: 'A leaf turns light into sugar.' }],
-  relations: [],
+  /*
+   * A WHOLE LESSON, BECAUSE `/api/lesson` HOLDS THE MODEL TO ONE.
+   *
+   * This was a single prose block, which the browser gate refuses: a taught
+   * lesson opens with a definition, closes with a summary, and shows something
+   * rather than only telling it. A stub that could not pass the real gate made
+   * this test assert a 200 the product could never produce.
+   */
+  blocks: [
+    {
+      id: 'intro',
+      kind: 'prose',
+      emphasis: 'primary',
+      role: 'definition',
+      body: 'A leaf turns light into sugar.',
+      terms: [{ text: 'sugar', mark: 'key' }],
+    },
+    {
+      id: 'ingredients',
+      kind: 'table',
+      emphasis: 'primary',
+      title: 'What goes in and what comes out',
+      columns: [
+        { key: 'side', label: 'Side', type: 'text' },
+        { key: 'what', label: 'What', type: 'text' },
+      ],
+      rows: [
+        { side: 'In', what: 'Light, water, carbon dioxide' },
+        { side: 'Out', what: 'Sugar, oxygen' },
+      ],
+      caption: 'Read across one row to see one side of the swap.',
+    },
+    {
+      id: 'keep-this',
+      kind: 'summary',
+      emphasis: 'primary',
+      tone: 'result',
+      role: 'summary',
+      progression: ['Light arrives', 'The leaf combines water and carbon dioxide', 'Sugar is stored'],
+      mentalModel: 'A leaf is a kitchen that cooks with light instead of heat.',
+    },
+  ],
+  relations: [{ from: 'ingredients', to: 'intro', kind: 'supports' }],
 }
 
 const search: SearchPort = { search: async () => [] }

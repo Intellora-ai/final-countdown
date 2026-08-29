@@ -307,6 +307,25 @@ def test_only_the_final_message_of_the_turn_is_judged(tmp_path: Path) -> None:
     _assert_allowed(_run(_payload(_transcript(tmp_path, records))))
 
 
+def test_text_in_a_non_assistant_record_is_not_judged(tmp_path: Path) -> None:
+    """Only the assistant's own closing message is the reply.
+
+    A transcript is full of records that carry text-shaped content but are not
+    the assistant speaking -- system notices, tool results, injected context.
+    Judging those would fail a turn for words the assistant never wrote, and
+    the author would have no way to see why. The violating text here sits in a
+    system record, so the gate must ignore it and judge GOOD_REPORT instead.
+    """
+    records = [
+        _rec_user(PROMPT),
+        _rec_last_prompt(PROMPT),
+        _rec_tool_use("Edit"),
+        _rec_other("system", "Me broke everything and wrote no headings."),
+        _rec_text(GOOD_REPORT),
+    ]
+    _assert_allowed(_run(_payload(_transcript(tmp_path, records))))
+
+
 def test_a_previous_turns_violation_is_not_judged(tmp_path: Path) -> None:
     old = "first prompt"
     records = [

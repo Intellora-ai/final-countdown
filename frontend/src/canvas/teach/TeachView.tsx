@@ -270,6 +270,32 @@ export function TeachView({
       return
     }
 
+    if (kind === 'unclear') {
+      /*
+       * THE FOURTH VERDICT, AND THE HALF OF ITS CONTRACT THAT WAS MISSING.
+       *
+       * `turn.ts` promises `unclear` "does not advance the beat and it does not
+       * answer a doubt." Without this branch only the first half held: the
+       * verdict fell past the two checks above into the doubt block, so "hi"
+       * was answered as though it were a question -- and `questionsAsked` grew,
+       * which feeds `strugglingAfter` and can deepen the lesson because
+       * somebody said hello.
+       *
+       * INERT, BUT NOT SILENT. A learner who types and sees nothing happen
+       * assumes they were ignored and stops typing, which is the failure the
+       * pending marker exists to prevent arriving from the other side. So the
+       * beat does not move, no doubt is recorded, and the screen asks again.
+       *
+       * The draft is deliberately NOT cleared: they typed something, it was not
+       * understood, and deleting it would make them retype what may only have
+       * needed a word added.
+       */
+      setAnnouncement(
+        "I didn't catch that. Ask me a question, or answer the one above.",
+      )
+      return
+    }
+
     /* The history this component has always kept, finally handed over. Without
        it the resolver cannot tell a first ask from a fourth, and answers all
        four identically -- see `shownAlready` and `Doubt.shown`. */

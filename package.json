@@ -12,7 +12,8 @@
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
     "test:canvas": "cd frontend && npx playwright test",
-    "test:canvas:headed": "cd frontend && npx playwright test --headed"
+    "test:canvas:headed": "cd frontend && npx playwright test --headed",
+    "test:sauce": "node scripts/sauce-preflight.mjs && saucectl run --config .sauce/config.yml"
   },
   "repository": {
     "type": "git",
@@ -27,6 +28,7 @@
   },
   "homepage": "https://github.com/Intellora-ai/final-countdown#readme",
   "devDependencies": {
-    "@playwright/test": "^1.62.1"
+    "@playwright/test": "^1.62.1",
+    "saucectl": "^0.213.0"
   }
 }

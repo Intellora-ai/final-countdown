@@ -1,0 +1,74 @@
+# What is NOT uploaded to the Sauce Labs VM, for the CANVAS harness.
+#
+# A WHITELIST, NOT A BLACKLIST, AND THE REASON IS SECRETS.
+# A blacklist leaks whatever nobody thought to name. Everything is excluded on
+# the first line and the paths this suite actually needs are added back, so a
+# new directory arriving in this package is excluded by default rather than
+# uploaded by default. The cost of getting a whitelist wrong is a missing file
+# and a loud failure; the cost of getting a blacklist wrong is a credential on
+# someone else's infrastructure.
+#
+# THIS LIST IS LONGER THAN THE ROOT ONE ON PURPOSE. That suite serves a static
+# HTML report. This one BUILDS AND RUNS the product in the VM -- a Vite dev
+# server and the planner -- so it genuinely needs the application source, the
+# server, the build configuration and the specs.
+
+# 1. Everything.
+*
+
+# 2. What the canvas harness genuinely needs in the VM.
+#    A directory has to be un-ignored before anything inside it can be.
+!package.json
+!package-lock.json
+!index.html
+!.nvmrc
+
+!playwright.config.ts
+!playwright.sauce.config.ts
+
+# Build and type configuration. `npm run server:build` and `npm run dev` both
+# read these, and `npm run server:build` type-checks.
+!vite.config.ts
+!vite.server.config.ts
+!vite-plugin-engine.ts
+!vite-plugin-search.ts
+!tsconfig.json
+!tsconfig.canvas.json
+!tsconfig.server.json
+
+# The specs and their helpers.
+!e2e/
+!e2e/**
+
+# The application, the planner, and the scripts the build calls.
+!src/
+!src/**
+!server/
+!server/**
+!scripts/
+!scripts/**
+
+# The planner's on-disk ledger. It is written during a run; shipping the
+# committed file keeps a cloud run starting from the same state as a local one.
+!data/
+!data/**
+
+# 3. Re-excluded even though rule 1 already covers them.
+#    Belt and braces: if a future edit loosens rule 1, or a matcher treats a
+#    pattern differently than expected, these must still never be uploaded.
+.env
+.env.*
+**/.env
+**/.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+.sauce/credentials.yml
+**/credentials.yml
+**/node_modules/
+dist/
+dist-server/
+test-results/
+playwright-report/
+playwright-report-sauce/

@@ -23,7 +23,8 @@
     "exams:build": "node scripts/curriculum/build-exams.mjs",
     "gate:eval": "vitest run src/websearch/evalGate.test.ts",
     "probe:ollama": "vitest run --config vitest.probe.config.ts",
-    "probe:fit": "vitest run --config vitest.probe.config.ts src/practice/topicFit.probe.ts"
+    "probe:fit": "vitest run --config vitest.probe.config.ts src/practice/topicFit.probe.ts",
+    "test:sauce": "node scripts/sauce-preflight.mjs && saucectl run --config .sauce/config.yml"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",
@@ -56,6 +57,7 @@
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "fast-check": "4.4.0",
     "jsdom": "^30.0.1",
+    "saucectl": "^0.213.0",
     "typescript": "^5.5.4",
     "typescript-eslint": "^8.67.0",
     "vite": "^5.4.0",

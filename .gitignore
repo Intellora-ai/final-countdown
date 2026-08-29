@@ -150,3 +150,25 @@ frontend/e2e/*-snapshots/*-win32.png
 *.key
 *.p12
 *.pfx
+
+# Sauce Labs credentials written to disk by `saucectl configure`.
+#
+# The cloud configs themselves (.sauce/config.yml, .sauceignore,
+# playwright.sauce.config.ts) are COMMITTED and hold no secret: saucectl reads
+# SAUCE_USERNAME and SAUCE_ACCESS_KEY from the environment. This file is the
+# one place a key can land locally, and it is the reason the pattern is here
+# rather than only in a comment.
+#
+# `**/` so a per-package .sauce/ directory is covered too, not only the root.
+.sauce/credentials.yml
+**/.sauce/credentials.yml
+# A sourced env file is the alternative to re-typing exports every terminal.
+# It holds a key in plain text, so it is ignored the same way.
+.sauce/env.sh
+**/.sauce/env.sh
+
+# Reports and artefacts from a cloud run. Run products, never source.
+playwright-report-sauce/
+**/playwright-report-sauce/
+artifacts/sauce/
+**/artifacts/sauce/

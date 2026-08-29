@@ -228,17 +228,55 @@ describe('the request it makes', () => {
     expect(String(spy.mock.calls[0]?.[0] ?? '')).toMatch(/^\//)
   })
 
-  it('passes the abort signal through, so leaving stops the work', async () => {
-    const spy = vi.fn(async (_url: string, _init?: RequestInit) =>
-      jsonResponse({ outcome: 'unmappable', resume_at: 'b' }),
-    )
+  it('leaving stops the work: aborting the caller aborts the request', async () => {
+    /*
+     * THIS ASSERTION CHANGED, AND WHY IS PART OF THE TEST.
+     *
+     * It used to require the signal handed to fetch to BE the caller's own
+     * object. That became unsatisfiable when the deadline landed, because there
+     * are now two things that can stop this request -- the learner leaving, and
+     * the engine running out of time -- and one object cannot be both.
+     *
+     * The requirement did not change. The name of this test is the requirement,
+     * and it still holds. What changed is that it is now checked by EFFECT
+     * rather than by identity, which is strictly harder: handing an object to
+     * fetch never proved that aborting it stopped anything. Deleting the
+     * forwarding line in `engineResolver.ts` leaves the old assertion GREEN and
+     * turns this one RED.
+     */
+    /*
+     * WHILE THE REQUEST IS STILL RUNNING, which is the only moment the claim
+     * means anything. Checked after it had already finished, the request is
+     * over and there is nothing left to stop -- and the rung has correctly let
+     * go of the listener by then, so a late abort proves nothing either way.
+     */
+    let seen: AbortSignal | undefined
+    const inFlight = vi.fn((_url: string, init?: RequestInit) => {
+      seen = init?.signal ?? undefined
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new DOMException('The operation was aborted.', 'AbortError'))
+        })
+      })
+    })
     const controller = new AbortController()
-    await engineResolver({ fetchImpl: spy as unknown as typeof fetch }).resolve(
-      DOUBT,
-      LESSON,
-      controller.signal,
-    )
-    expect(spy.mock.calls[0]?.[1]?.signal).toBe(controller.signal)
+    const resolver = engineResolver({
+      fetchImpl: inFlight as unknown as typeof fetch,
+      /* Far longer than this test takes, so the DEADLINE cannot be what stops
+         the request. Only the learner leaving can, which is the claim. */
+      timeoutMs: 60_000,
+    })
+    const pending = resolver.resolve(DOUBT, LESSON, controller.signal)
+
+    /* Not yet. The learner is still reading. A request aborted before they left
+       is the opposite bug, and a one-sided check would never catch it. */
+    expect(seen?.aborted).toBe(false)
+
+    controller.abort()
+    expect(seen?.aborted).toBe(true)
+
+    /* And the withdrawal is not dressed up as a broken bridge. */
+    await expect(pending).rejects.toThrow(/aborted/i)
   })
 
   it('an already-aborted signal means no request at all', async () => {
@@ -326,5 +364,103 @@ describe('an answer says which provider wrote it', () => {
 
     if (r.kind !== 'answer') throw new Error('expected an answer')
     expect(r.writtenBy).toBeUndefined()
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* A hung engine gives up                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * WHY THIS SECTION EXISTS, AND WHAT IT COST TO LEARN.
+ *
+ * `scene-regressions.spec.ts:454` -- "asking a doubt answers it without
+ * advancing the lesson" -- failed on CI, passed on a re-run, and was written
+ * off as flaky. It failed again. It was never flaky: this rung posted to the
+ * engine with NO DEADLINE, so when the middleware is absent the POST hangs
+ * instead of failing fast, the chain never reaches the rung behind it, and no
+ * answer renders. Whether it passed depended on how quickly the host refused
+ * the connection, which is a property of the machine and not of the code.
+ *
+ * A rung that can wait forever is a rung that can stop the whole chain, and the
+ * learner is shown nothing at all -- the one outcome the chain was built to
+ * make impossible.
+ *
+ * A TIMEOUT IS AN OUTAGE, NOT A REFUSAL. This file's own rule: the engine
+ * declining is RETURNED so the chain records `refused`, the bridge being broken
+ * is THROWN so it records `failed`. A hang is the bridge being broken. Telling
+ * a learner their question was unanswerable because a subprocess never replied
+ * would be the confident, wrong sentence this rung already refuses to say.
+ */
+describe('a hung engine does not stall the chain', () => {
+  /** A fetch that never settles on its own -- only the signal can end it. */
+  function hangingFetch(): { fetchImpl: typeof fetch; seenSignal: () => AbortSignal | undefined } {
+    let seen: AbortSignal | undefined
+    const fetchImpl = ((_url: string, init?: RequestInit) => {
+      seen = init?.signal ?? undefined
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new DOMException('The operation was aborted.', 'AbortError'))
+        })
+      })
+    }) as unknown as typeof fetch
+    return { fetchImpl, seenSignal: () => seen }
+  }
+
+  it('gives up on a POST that never answers, and says the engine timed out', async () => {
+    const { fetchImpl } = hangingFetch()
+    const resolver = engineResolver({ fetchImpl, timeoutMs: 20 })
+
+    /* The MESSAGE, not merely that something threw. A rung that threw for any
+       other reason -- a missing export, a typo in the endpoint -- would satisfy
+       a bare `rejects.toThrow()` while leaving the hang entirely in place. */
+    await expect(resolver.resolve(DOUBT, LESSON)).rejects.toThrow(/engine timed out after 20ms/)
+  })
+
+  it('aborts the request itself, so the socket is not left open behind it', async () => {
+    /* Rejecting the promise while the POST runs on would leak a connection per
+       doubt asked. The effect that matters is on the REQUEST, so assert on the
+       signal the rung handed to fetch, not on the promise it handed back. */
+    const { fetchImpl, seenSignal } = hangingFetch()
+    const resolver = engineResolver({ fetchImpl, timeoutMs: 20 })
+
+    await expect(resolver.resolve(DOUBT, LESSON)).rejects.toThrow(/timed out/)
+    expect(seenSignal()?.aborted).toBe(true)
+  })
+
+  it('an engine that answers in time is NOT cut off', async () => {
+    /*
+     * THE PAIRED POSITIVE, AND IT IS LOAD BEARING. A rung that threw
+     * "engine timed out" unconditionally passes both tests above. This is the
+     * one that kills it, and it is the case every real learner hits.
+     */
+    const resolver = engineResolver({
+      fetchImpl: (async () =>
+        jsonResponse({
+          outcome: 'answered',
+          resume_at: 'beat-3',
+          lesson: ANSWER_LESSON,
+        })) as typeof fetch,
+      timeoutMs: 10_000,
+    })
+
+    const r = await resolver.resolve(DOUBT, LESSON)
+    if (r.kind !== 'answer') throw new Error('expected an answer')
+    expect(JSON.stringify(r.lesson)).toContain('stops the recursion')
+  })
+
+  it("the learner's own withdrawal is still a refusal, never an outage", async () => {
+    /*
+     * The two must not collapse into each other. A learner who navigated away
+     * did not suffer a broken bridge, and `askChain` renders the difference.
+     */
+    const { fetchImpl } = hangingFetch()
+    const resolver = engineResolver({ fetchImpl, timeoutMs: 20 })
+    const withdrawn = AbortSignal.abort()
+
+    const r = await resolver.resolve(DOUBT, LESSON, withdrawn)
+    expect(r.kind).toBe('refusal')
+    if (r.kind !== 'refusal') throw new Error('expected a refusal')
+    expect(r.reason).toMatch(/withdrawn/)
   })
 })

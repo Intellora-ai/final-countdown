@@ -128,7 +128,19 @@ jobs:
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Fix the failures
-        uses: grll/claude-code-base-action@v1
+        # PINNED TO A COMMIT, NOT A TAG, AND THE REASON IS SITTING IN THIS JOB:
+        # this action receives the account's OAuth tokens, and a tag can be
+        # moved to point at different code without the reference changing.
+        #
+        # `@v1` was wrong and the run said so -- "unable to find version v1".
+        # The tag was recalled rather than looked up, which is the exact failure
+        # `source-driven-development` names. Real tags stop at v0.0.29.
+        #
+        # WORTH KNOWING: the repository was last pushed 2025-07-02. This is an
+        # unmaintained third-party action holding a credential, so the pin is
+        # also a freeze -- it cannot start doing something new without this line
+        # changing in a commit somebody reads.
+        uses: grll/claude-code-base-action@c021fe71647df64674c9cb587fbde168692c55c8 # v0.0.29
         with:
           use_oauth: true
           claude_access_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

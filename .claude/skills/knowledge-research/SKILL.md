@@ -42,8 +42,12 @@ Fourteen steps. Steps 4 and 5 are what keep this cheap.
    **If no, say so in one line and skip to step 11.**
 5. **Select only the relevant sources.** Usually one, occasionally two.
    Selecting five means step 3 was done badly — go back.
-6. **Search only those.** `rg` inside the chosen directory. Never across all of
-   `knowledge/`.
+6. **Search only those**, inside the chosen directory. Never across all of
+   `knowledge/`. Use whichever search tool this machine actually has --
+   `command -v rg || echo grep`. Measured 2026-08-29: `rg` is NOT installed
+   here, and a routing test that assumed it returned 0 hits on all five
+   tasks against a corpus that plainly contained the material. A skill that
+   names a missing tool fails silently and looks like an empty corpus.
 7. **Retrieve only the relevant section.** Never a whole file, never a whole
    repository.
 8. **Extract the concept**, not the code.
@@ -146,7 +150,7 @@ The corpus is roughly 413 MB across 21 repositories. Reading it carelessly makes
 this system worse than having no system.
 
 - Never read a whole knowledge file into context.
-- Never `rg` across all of `knowledge/`. Scope to the one selected directory.
+- Never search across all of `knowledge/`. Scope to the one selected directory.
 - Search headings first, then read the one section.
 - Most of these repositories are an index in `README.md` — read the index, then
   the single entry you need.

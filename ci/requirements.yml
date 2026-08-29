@@ -470,7 +470,7 @@ requirements:
       reported together rather than stopping at the first failure.
     verification: frontend
     severity: blocking
-    evidence: "the built dist/, uploaded on every run"
+    evidence: "the built dist/, uploaded in its own workflow"
     source: ci/gates.toml [gates.frontend]
     note: >-
       Every step in this job carries `continue-on-error` on purpose, so a

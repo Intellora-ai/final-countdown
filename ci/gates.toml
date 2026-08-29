@@ -501,7 +501,10 @@ artifact = ""
 workflow = "learning-canvas-frontend.yml"
 job = "frontend"
 mandatory = true
-role = "gate"
+# `scanner`, not `gate`. A `gate` must hand `full` a downloadable report, and
+# `full` can only download from its own run -- this job is in another workflow,
+# so the role it can honestly claim is the one `e2e` and `CodeQL` claim.
+role = "scanner"
 # EMPTY, AND THE REASON IS THE JOB'S DESIGN RATHER THAN AN OMISSION.
 #
 # Every step here carries `continue-on-error` on purpose: the battery runs to
@@ -515,8 +518,20 @@ role = "gate"
 # tokens here would force the battery to stop at its first failure and trade
 # one whole class of reporting for a rule that the finalizer already enforces.
 must_contain = []
-evidence = "the built dist/, uploaded on every run"
-artifact = "learning-canvas-frontend-build"
+# ARTIFACT DECLARED EMPTY, AND THE JOB STILL UPLOADS ONE.
+#
+# `full` downloads every declared artifact from ITS OWN run and proves the set
+# it got equals the set declared here. This gate lives in
+# learning-canvas-frontend.yml, a different workflow, so `full` cannot reach
+# its upload at all -- and naming it made `full` report `frontend STATUS
+# UNKNOWN` and refuse the merge for evidence that was produced and simply not
+# fetchable. `e2e` and `CodeQL` are in the same position and carry the same
+# empty value.
+#
+# The upload still happens, `if-no-files-found: error`, and is still how a
+# human reads what this job built.
+evidence = "the built dist/, uploaded in its own workflow"
+artifact = ""
 
 # ---------------------------------------------------------------------------
 # FRONTEND-VERDICT — one name for every frontend job.
@@ -531,15 +546,20 @@ artifact = "learning-canvas-frontend-build"
 workflow = "learning-canvas-frontend.yml"
 job = "frontend-verdict"
 mandatory = true
-role = "finalizer"
+# `scanner` for the same cross-workflow reason as `frontend` above. `full` is
+# this run's finalizer; this job finalises a different workflow and cannot hand
+# `full` anything.
+role = "scanner"
 must_contain = []
 # `if: always()` is REQUIRED here rather than suspicious. A finalizer that
 # skipped when a dependency failed would report nothing at exactly the moment
 # it matters, and GitHub renders a skipped required check as neutral -- the
 # "absence looks like health" failure this whole workflow was built to avoid.
 job_if = "always()"
+# Empty for the same reason as `frontend` above: a different workflow, so
+# `full` cannot download it.
 evidence = "the three dependency results, written to a file"
-artifact = "learning-canvas-frontend-verdict"
+artifact = ""
 
 # ---------------------------------------------------------------------------
 # CHAOS — the software is broken on purpose and has to survive it.

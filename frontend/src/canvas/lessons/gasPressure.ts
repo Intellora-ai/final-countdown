@@ -252,6 +252,10 @@ export const gasPressure: LessonInput = {
   relations: [
     { from: 'pressure-vs-temperature', to: 'proportionality', kind: 'supports' },
     { from: 'ideal-gas-law', to: 'proportionality', kind: 'derives' },
+    /* The proportionality is what the chain establishes, and the two sit in
+       the same beat -- a representation nothing in its own beat refers to is
+       decoration however good it is. */
+    { from: 'proportionality', to: 'causal-chain', kind: 'derives' },
     { from: 'causal-chain', to: 'particle-model', kind: 'exemplifies' },
     { from: 'what-changes', to: 'pressure-vs-temperature', kind: 'supports' },
     { from: 'misconception', to: 'causal-chain', kind: 'contrasts' },

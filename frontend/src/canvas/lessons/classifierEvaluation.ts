@@ -285,6 +285,10 @@ export const classifierEvaluation: LessonInput = {
   relations: [
     { from: 'imbalance', to: 'headline', kind: 'contrasts' },
     { from: 'confusion', to: 'headline', kind: 'supports' },
+    /* Same beat as `confusion`, and the honest reading: an ROC curve is the
+       confusion matrix re-counted at every threshold, which is exactly why it
+       can look respectable while the matrix does not. */
+    { from: 'roc', to: 'confusion', kind: 'contrasts' },
     { from: 'pr', to: 'roc', kind: 'contrasts' },
     { from: 'threshold-cost', to: 'pr', kind: 'supports' },
     { from: 'takeaway', to: 'confusion', kind: 'derives' },

@@ -148,6 +148,21 @@ function cutIntoRuns(lesson: Lesson): Run[] {
   let current: Block[] = []
 
   /*
+   * DOES THIS LESSON SHOW ANYTHING, ANYWHERE?
+   *
+   * Both rules below ask a run to contain a representation. Neither can be
+   * satisfied by a lesson that has none, and when a rule cannot be satisfied it
+   * stops discriminating and starts applying to everything -- so `finished` was
+   * never true, `leadsItsOwn` was never true, emphasis was ignored outright,
+   * and the only surviving cut was the cap.
+   *
+   * A taught lesson cannot get here: `nothing-is-shown` refuses one that shows
+   * nothing. An ANSWER can, and does -- the engine emits prose and callouts
+   * only -- so this is a live path, not a hypothetical.
+   */
+  const showsSomewhere = lesson.blocks.some((b) => SHOWS.has(b.kind))
+
+  /*
    * `const [lead, ...rest] = current` rather than `current.length > 0`.
    *
    * The two are the same test, but only one of them convinces the compiler. A
@@ -168,7 +183,8 @@ function cutIntoRuns(lesson: Lesson): Run[] {
        than interrupts — which is what turns six one-idea beats into three
        complete ones. */
     const finished =
-      current.length >= MIN_BLOCKS_BEFORE_A_BEAT_MAY_END && current.some((b) => SHOWS.has(b.kind))
+      current.length >= MIN_BLOCKS_BEFORE_A_BEAT_MAY_END
+      && (!showsSomewhere || current.some((b) => SHOWS.has(b.kind)))
 
     /* A beat never straddles the boundary between the core answer and the
        material offered beyond it. If it did, the learner would be shown the
@@ -207,6 +223,23 @@ function cutIntoRuns(lesson: Lesson): Run[] {
    * here on purpose — a beat one block over the ceiling is a smaller cost than
    * a beat the learner is asked to stop on with nothing in front of them.
    */
+  /*
+   * NOTHING TO MERGE INTO, SO DO NOT MERGE.
+   *
+   * The merge exists to hand a picture-less run the picture from its
+   * neighbour. When the lesson shows NOTHING ANYWHERE there is no picture to
+   * hand over, and the rule stops being a repair: every run qualifies, each
+   * folds into the one before it, and the whole lesson arrives as a single
+   * beat. That is precisely the failure `deriveBeats` exists to prevent — the
+   * view renders, nothing throws, every block is present, and the feature is
+   * gone.
+   *
+   * A taught lesson cannot reach this state: `nothing-is-shown` refuses one
+   * that shows nothing. An ANSWER can, and does — the engine builds prose and
+   * callouts only — so this is the live path, not a hypothetical one.
+   */
+  if (!showsSomewhere) return runs
+
   for (let i = runs.length - 1; i > 0; i--) {
     const run = runs[i]
     const previous = runs[i - 1]

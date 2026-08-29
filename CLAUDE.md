@@ -497,8 +497,15 @@ Also true today, and not to be papered over:
 
 ## Enforcement — instructions don't enforce, these do
 
+**Read `CONSTRAINTS.md` at the repository root before writing code, and do not
+weaken it to make a change pass.** It does not add rules — it writes the ones
+already enforced next to the command that decides each one, plus the 17 checks
+that block a merge and which reds are pre-existing rather than yours. A number
+argued per-change is a number that was never written down beside its verdict.
+
 | Concern | Mechanism |
 |---|---|
+| Whether a lesson TEACHES, not merely renders | `frontend/src/canvas/teach/teaching.ts` — `checkTeaching`, wired into `validateLesson`, so nothing renders that has not been through it. See `docs/engineering/teaching-shape.md` for the rules and `teaching-patterns.md` for where they came from. |
 | Goal 1 invariance | `frontend/e2e/token-invariance.spec.ts` — renders all three lessons, reads computed CSS per **(block kind, emphasis)** and asserts every style-token property is identical across lessons. Geometry is **excluded**: width, height, margin, position, grid placement. Runs on all five viewport projects. |
 | Law 4 | `design-value` ESLint AST rule with a structural allowlist |
 | Token coverage | every computed colour / spacing / font-size in the DOM traces to `tokens.ts` |

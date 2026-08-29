@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { outlineIssues, type BlockOutline } from './outline'
+import { outlineIssues, type BlockOutline, type Plan } from './outline'
 
 /*
  * WHY AN OUTLINE STAGE EXISTS AT ALL.
@@ -17,19 +17,26 @@ import { outlineIssues, type BlockOutline } from './outline'
  * blocks independently and concurrently cannot satisfy those, because no block
  * can see the others.
  *
- * So the split is plan-then-fill. The model first writes a small skeleton --
- * ids, kinds, roles, no prose -- and the cheap structural facts are checked
- * THERE, on a document small enough for a small model to get right. Bodies are
- * filled afterwards.
+ * So the split is plan-then-fill. The model first writes a small plan --
+ * ids, kinds, roles, relations, no prose -- and the cheap structural facts are
+ * checked THERE, on a document small enough for a small model to get right.
+ * Bodies are filled afterwards.
  *
  * WHAT THIS IS NOT
  * ----------------
- * It is NOT a second copy of the gate. It checks only what is knowable from
- * roles and kinds alone, and `validateLesson` still runs in full on the
- * assembled lesson exactly as before. A rule reimplemented here would be a rule
- * that drifts from the one that actually refuses lessons; the names below match
- * the real rules so a reader can find them, and the real ones remain the
- * authority.
+ * It is NOT a second copy of the gate. It checks only what is knowable without
+ * prose, and `validateLesson` still runs in full on the assembled lesson. A
+ * rule reimplemented here would be a rule that drifts from the one that
+ * actually refuses lessons; the names below match the real rules so a reader
+ * can find them, and the real ones remain the authority.
+ *
+ * WHERE IT MUST NOT DIVERGE
+ * -------------------------
+ * A check that is LOOSER than the real rule is the expensive failure: the plan
+ * passes, every body is paid for, and the assembled lesson is refused anyway --
+ * which is the exact cost this stage exists to avoid. Review found two such
+ * divergences (summaries counted over core only; relations not checked at all)
+ * and the tests below pin both.
  */
 
 const block = (id: string, kind: BlockOutline['kind'], role: BlockOutline['role']): BlockOutline => ({
@@ -48,26 +55,30 @@ const sound = (): BlockOutline[] => [
   block('in-short', 'summary', 'summary'),
 ]
 
+/** A plan whose one representation is joined to the text, as the gate requires. */
+const plan = (blocks: BlockOutline[] = sound()): Plan => ({
+  blocks,
+  relations: [{ from: 'the-numbers', to: 'what-it-is', kind: 'supports' }],
+})
+
 describe('outlineIssues', () => {
-  it('accepts a sound skeleton', () => {
-    expect(outlineIssues(sound())).toEqual([])
+  it('accepts a sound plan', () => {
+    expect(outlineIssues(plan())).toEqual([])
   })
 
   /*
    * The exact fault the one captured reply made. Catching it here means the
-   * retry re-writes a four-line skeleton instead of a whole lesson.
+   * retry re-writes a four-line plan instead of a whole lesson.
    */
   it('catches two blocks claiming the definition role', () => {
     const blocks = sound()
     blocks[2] = block('the-numbers', 'prose', 'definition')
 
-    expect(outlineIssues(blocks)).toContain('many-definitions')
+    expect(outlineIssues(plan(blocks))).toContain('many-definitions')
   })
 
-  it('catches a skeleton with no definition at all', () => {
-    const blocks = sound().filter((b) => b.role !== 'definition')
-
-    expect(outlineIssues(blocks)).toContain('no-definition')
+  it('catches a plan with no definition at all', () => {
+    expect(outlineIssues(plan(sound().filter((b) => b.role !== 'definition')))).toContain('no-definition')
   })
 
   /* R9. A lesson that only talks is the failure the Python engine can never
@@ -75,26 +86,39 @@ describe('outlineIssues', () => {
   it('catches a lesson that shows nothing', () => {
     const blocks = sound().filter((b) => b.kind !== 'table')
 
-    expect(outlineIssues(blocks)).toContain('nothing-is-shown')
+    expect(outlineIssues({ blocks, relations: [] })).toContain('nothing-is-shown')
   })
 
   it('catches a missing summary', () => {
-    const blocks = sound().filter((b) => b.role !== 'summary')
-
-    expect(outlineIssues(blocks)).toContain('no-summary')
+    expect(outlineIssues(plan(sound().filter((b) => b.role !== 'summary')))).toContain('no-summary')
   })
 
   it('catches two summaries', () => {
-    const blocks = [...sound(), block('also-in-short', 'summary', 'summary')]
+    expect(outlineIssues(plan([...sound(), block('also', 'summary', 'summary')]))).toContain(
+      'many-summaries',
+    )
+  })
 
-    expect(outlineIssues(blocks)).toContain('many-summaries')
+  /*
+   * REVIEW FINDING, VERIFIED AGAINST `teaching.ts:463`, WHICH COUNTS
+   * `roleAt.filter(r => r === 'summary')` OVER EVERY BLOCK.
+   *
+   * The first version of this filter counted core blocks only, so a lesson with
+   * a core summary AND a deeper summary passed the plan check and was refused
+   * as `many-summaries` after every body had been written -- the expensive path
+   * the stage exists to prevent.
+   */
+  it('counts a deeper summary too, exactly as the real rule does', () => {
+    const deeperSummary: BlockOutline = { ...block('later', 'summary', 'summary'), depth: 'deeper' }
+
+    expect(outlineIssues(plan([...sound(), deeperSummary]))).toContain('many-summaries')
   })
 
   /* Order is knowable without bodies: the summary is the last CORE block. */
   it('catches a summary that does not close the core', () => {
-    const blocks = [...sound(), block('one-more', 'prose', 'support')]
-
-    expect(outlineIssues(blocks)).toContain('summary-does-not-close-the-core')
+    expect(outlineIssues(plan([...sound(), block('one-more', 'prose', 'support')]))).toContain(
+      'summary-does-not-close-the-core',
+    )
   })
 
   /*
@@ -110,26 +134,54 @@ describe('outlineIssues', () => {
       block('in-short', 'summary', 'summary'),
     ]
 
-    expect(outlineIssues(blocks)).toContain('material-before-the-definition')
+    expect(outlineIssues(plan(blocks))).toContain('material-before-the-definition')
   })
 
   /* The other half of the same rule, and the reason it is not simply
      "definition first": a lesson may open on something the learner already
      knows. An anchor before the definition is legal and must stay legal. */
   it('allows an anchor before the definition', () => {
-    expect(outlineIssues(sound())).not.toContain('material-before-the-definition')
+    expect(outlineIssues(plan())).not.toContain('material-before-the-definition')
+  })
+
+  /*
+   * REVIEW FINDING. The plan carries relations, so this is knowable before any
+   * body is paid for -- and it is the rule that already cost one red test on
+   * this branch: "the table is joined to nothing by a relation".
+   */
+  it('catches a representation that no relation refers to', () => {
+    expect(outlineIssues({ blocks: sound(), relations: [] })).toContain('representation-is-decoration')
+  })
+
+  it('accepts a representation referred to from either end of a relation', () => {
+    const toward: Plan = {
+      blocks: sound(),
+      relations: [{ from: 'what-it-is', to: 'the-numbers', kind: 'supports' }],
+    }
+
+    expect(outlineIssues(toward)).not.toContain('representation-is-decoration')
+  })
+
+  /* Knowable from `depth` order alone: deeper material may not sit inside the
+     core, it continues after it. */
+  it('catches deeper material buried inside the core', () => {
+    const blocks = sound()
+    const buried: BlockOutline = { ...block('aside', 'prose', 'support'), depth: 'deeper' }
+    blocks.splice(2, 0, buried)
+
+    expect(outlineIssues(plan(blocks))).toContain('deeper-material-inside-the-core')
   })
 
   /*
    * NOT VACUOUS IN THE OTHER DIRECTION. Every check above asserts a failure;
    * without this one, `outlineIssues` returning every rule name for every input
-   * would pass them all. The sound skeleton must come back clean, and it does
-   * in the first test -- this pins the stricter claim that a DEEPER block after
-   * the summary is legal, so the order check cannot be a blanket "summary last".
+   * would pass them all. This pins the stricter claim that a DEEPER block AFTER
+   * the summary is legal, so the order checks cannot be a blanket "summary
+   * last".
    */
   it('allows deeper blocks after the summary', () => {
     const deeper: BlockOutline = { ...block('going-further', 'prose', 'support'), depth: 'deeper' }
 
-    expect(outlineIssues([...sound(), deeper])).toEqual([])
+    expect(outlineIssues(plan([...sound(), deeper]))).toEqual([])
   })
 })

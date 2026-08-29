@@ -268,8 +268,8 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
   )
 
   /* An authored lesson has ALREADY been through `validateLesson` inside
-     `authorLesson` — that is what "ok" means there. Re-parsing it would be work
-     whose answer cannot differ. */
+     `authorPiecewise` — that is what "ok" means there. Re-parsing it would be
+     work whose answer cannot differ. */
   const result: typeof picked = authored === null ? picked : { ok: true, lesson: authored }
 
   return (

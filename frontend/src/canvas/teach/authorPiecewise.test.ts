@@ -148,4 +148,130 @@ describe('authorPiecewise', () => {
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.unreachable).toContain('connection refused')
   })
+
+  /*
+   * REVIEW FINDING 1. R6 refuses a lesson where a declared technical term
+   * appears in any block BEFORE the one that earns it. That is a constraint on
+   * a BODY, so a body writer that cannot see the term list has no way to obey
+   * it -- and the whole lesson is then refused after every call is paid for.
+   */
+  it('tells each block which technical terms it may not use yet', async () => {
+    const asked: string[] = []
+    const model: LessonModel = async (_s, user) => {
+      asked.push(user)
+      return user.includes('SKELETON') ? OUTLINE_REPLY : bodyFor(user)
+    }
+
+    await authorPiecewise(model, 'Why does water boil on a mountain?')
+
+    const term = WORKED_EXAMPLE.technicalTerms![0]!.term
+    const earner = WORKED_EXAMPLE.technicalTerms![0]!.introducedIn
+    /* Blocks before the earning one are told to avoid the term. */
+    const anchorAsk = asked.find((a) => a.includes('start-from-the-kettle'))
+    expect(anchorAsk).toContain(term)
+    /* The block that earns it is told it may introduce it. */
+    const earnerAsk = asked.find((a) => a.includes(earner))
+    expect(earnerAsk).toContain(term)
+  })
+
+  /*
+   * REVIEW FINDING 4. `authorLesson` allowed one repair. Without one here, a
+   * single malformed body discards every other reply -- which is worse than the
+   * code this replaces, on the exact axis the split was meant to improve.
+   */
+  it('retries only the block that came back malformed', async () => {
+    /* A real block id from the example, not an invented one -- the first
+       version of this test named a block that does not exist, so the failure
+       branch never fired and the retry looked absent when it was untested. */
+    const flaky = WORKED_EXAMPLE.blocks[3]!.id
+    let bodyCalls = 0
+    let failuresLeft = 1
+    const model: LessonModel = async (_s, user) => {
+      if (user.includes('SKELETON')) return OUTLINE_REPLY
+      bodyCalls += 1
+      if (user.includes(flaky) && failuresLeft > 0) {
+        failuresLeft -= 1
+        return 'sorry, I could not write that one'
+      }
+      return bodyFor(user)
+    }
+
+    const result = await authorPiecewise(model, 'Why does water boil on a mountain?')
+
+    expect(result.ok).toBe(true)
+    /* One extra call, not a whole second pass over every block. */
+    expect(bodyCalls).toBe(WORKED_EXAMPLE.blocks.length + 1)
+  })
+
+  /*
+   * REVIEW FINDING 5. An invented kind must not survive the plan. Left
+   * unchecked it is forced into the assembled block and guarantees a refusal
+   * after every body is written.
+   */
+  it('refuses a plan naming a kind that does not exist', async () => {
+    /*
+     * OTHERWISE SOUND, so only the kind check can refuse it. The first version
+     * of this test used a two-block plan that `nothing-is-shown` refused
+     * anyway, and a mutant deleting the kind check SURVIVED -- the test asserted
+     * the right outcome for the wrong reason.
+     */
+    const invented = JSON.parse(OUTLINE_REPLY) as { blocks: { kind: string }[] }
+    invented.blocks[0]!.kind = 'paragraph'
+    const { model, calls } = recordingModel(() => JSON.stringify(invented))
+
+    const result = await authorPiecewise(model, 'q')
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.issues[0]!.message).toContain('legal kinds and roles')
+    /* Plan attempts only. No body was paid for. */
+    expect(calls()).toBeLessThanOrEqual(2)
+  })
+
+  /* The same plan WITHOUT the invented kind must succeed, or the test above is
+     satisfied by refusing everything. The real question is used because rule 4
+     requires the opening block to name the topic -- "q" names nothing. */
+  it('accepts the same plan when every kind is legal', async () => {
+    const { model } = recordingModel(reply)
+
+    expect((await authorPiecewise(model, 'Why does water boil on a mountain?')).ok).toBe(true)
+  })
+
+  /*
+   * REVIEW FINDING 6. The assembly override exists because a body may rename
+   * its own block, which would break every relation pointing at it. Every other
+   * test replays already-correct blocks, so the override was a no-op and a
+   * mutant deleting it stayed green.
+   */
+  it('keeps the planned id when a body renames itself', async () => {
+    const model: LessonModel = async (_s, user) => {
+      if (user.includes('SKELETON')) return OUTLINE_REPLY
+      const found = WORKED_EXAMPLE.blocks.find((b) => user.includes(b.id))
+      /* The model returns the right content under the wrong id. */
+      return JSON.stringify({ ...found, id: 'renamed-by-the-model' })
+    }
+
+    const result = await authorPiecewise(model, 'Why does water boil on a mountain?')
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.lesson.blocks.map((b) => b.id)).toEqual(WORKED_EXAMPLE.blocks.map((b) => b.id))
+    }
+  })
+
+  /*
+   * REVIEW FINDING 7. On a gate refusal the model's own replies are the
+   * evidence. Reporting only the assembled object throws away what the model
+   * actually said, which is the thing a captured-reply corpus is made of.
+   */
+  it('keeps the raw body replies when the assembled lesson is refused', async () => {
+    const model: LessonModel = async (_s, user) =>
+      user.includes('SKELETON') ? OUTLINE_REPLY : JSON.stringify({ body: '' })
+
+    const result = await authorPiecewise(model, 'Why does water boil on a mountain?')
+
+    expect(result.ok).toBe(false)
+    /* The model's own reply, verbatim, not the object this file assembled from
+       it. `JSON.stringify` without an indent emits no space after the colon. */
+    if (!result.ok) expect(result.raw).toContain('{"body":""}')
+  })
 })

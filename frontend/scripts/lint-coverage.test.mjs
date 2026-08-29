@@ -75,6 +75,35 @@ const EXEMPT = {
   ui: 'Shared with the dashboard, same reason as hooks.',
 }
 
+/**
+ * Directories at the TOP LEVEL of `frontend/` that are deliberately not linted.
+ *
+ * Same contract as `EXEMPT`: a reason is required, and a directory in neither
+ * list fails.
+ */
+const TOP_EXEMPT = {
+  src: 'Handled directory by directory above, which is finer-grained than this check.',
+  reference:
+    'Captured reference material -- a saved HTML page and a domain description ' +
+    'kept for reading, not built, imported or shipped. Linting a snapshot of ' +
+    'somebody else\'s output would report on a document, not on this codebase.',
+  data: 'Data files. No lintable source at all; kept here so its absence is a decision.',
+}
+
+/**
+ * Build products and dependencies. Not exemptions -- these are not source, and
+ * listing them beside real exemptions would dilute what an exemption means.
+ */
+const NOT_SOURCE = new Set([
+  'node_modules',
+  'dist',
+  'dist-server',
+  'coverage',
+  'test-results',
+  'playwright-report',
+  'public',
+])
+
 const lintScript = () => {
   const pkg = JSON.parse(readFileSync(join(FRONTEND, 'package.json'), 'utf8'))
   const script = pkg.scripts?.lint
@@ -82,19 +111,62 @@ const lintScript = () => {
   return script
 }
 
+/**
+ * Every path argument the lint script hands to ESLint.
+ *
+ * Parsed by position rather than by pattern: a flag and the VALUE after it are
+ * both dropped, which is what stops `--max-warnings 0` contributing a directory
+ * called `0`. It did, in the first version of this helper.
+ */
+const lintArgs = () => {
+  const words = lintScript().trim().split(/\s+/).slice(1)
+  return words.filter(
+    (word, index) => !word.startsWith('-') && !(words[index - 1] ?? '').startsWith('-'),
+  )
+}
+
 /** The `src/<dir>` arguments the lint script hands to ESLint. */
 const lintedDirs = () =>
-  [...lintScript().matchAll(/(?:^|\s)src\/([A-Za-z0-9_-]+)/g)].map((m) => m[1]).sort()
+  lintArgs()
+    .filter((arg) => arg.startsWith('src/'))
+    .map((arg) => arg.slice('src/'.length))
+    .sort()
 
-/** The `src/<dir>` prefixes named by a `files:` glob in the flat config. */
-const configuredDirs = () => {
+/** The non-`src` directory arguments. */
+const topLevelLintedDirs = () => lintArgs().filter((arg) => !arg.startsWith('src/')).sort()
+
+/**
+ * Every directory prefix named by a glob anywhere in the flat config.
+ *
+ * Scanned over the WHOLE file rather than anchored to `files:`, because a
+ * `files:` array may hold several globs and an anchored pattern reads only the
+ * first. It did, and three configured directories were reported as unconfigured.
+ */
+const globDirs = () => {
   const config = readFileSync(join(FRONTEND, 'eslint.config.js'), 'utf8')
   const found = new Set()
-  for (const m of config.matchAll(/files:\s*\[\s*'src\/([A-Za-z0-9_-]+)\/\*\*/g)) {
+  for (const m of config.matchAll(/'([A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)?)\/\*\*/g)) {
     found.add(m[1])
   }
-  return [...found].sort()
+  return found
 }
+
+/** The `src/<dir>` prefixes named by a `files:` glob in the flat config. */
+const configuredDirs = () =>
+  [...globDirs()]
+    .filter((dir) => dir.startsWith('src/'))
+    .map((dir) => dir.slice('src/'.length))
+    .sort()
+
+/** Top-level directory prefixes named by a glob in the flat config. */
+const topLevelConfiguredDirs = () => [...globDirs()].filter((dir) => !dir.includes('/')).sort()
+
+/** Top-level directories that hold source ESLint could read. */
+const topLevelSourceDirs = () =>
+  readdirSync(FRONTEND, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && !e.name.startsWith('.') && !NOT_SOURCE.has(e.name))
+    .map((e) => e.name)
+    .sort()
 
 /** Directories directly under `src/`, ignoring anything that is not a directory. */
 const srcDirs = () =>
@@ -154,6 +226,62 @@ describe('every source directory is linted or declared unlinted', () => {
     const present = new Set(srcDirs())
     const stale = Object.keys(EXEMPT).filter((d) => !present.has(d))
     expect(stale, `exemptions for directories that are gone: ${stale.join(', ')}`).toEqual([])
+  })
+
+  /*
+   * THE SCOPE THIS GATE COULD NOT SEE.
+   *
+   * Every check above reads `src/`, and that is where the gate was pointed when
+   * it was written -- five directories were caught there. Meanwhile four whole
+   * trees OUTSIDE `src/` had never been matched by any block at all. Measured
+   * 2026-08-30, before the blocks were added:
+   *
+   *     e2e            19 files   the browser harness, and every gate that
+   *                               depends on it
+   *     server         28 files   holds the API key
+   *     scripts        43 files   every gate, the mutation runner, the
+   *                               curriculum pipeline
+   *     eslint-rules    1 file    the custom rule the canvas lint depends on
+   *
+   * `npx eslint e2e server scripts eslint-rules` answered "ignored because no
+   * matching configuration was supplied" for all ninety-one files. A gate is
+   * scoped by whoever wrote it, and its own scope is the one thing it cannot
+   * report on -- so the scope is now asserted rather than assumed.
+   */
+  it('every top-level directory is either linted or exempt with a reason', () => {
+    const linted = new Set(topLevelLintedDirs())
+    const undeclared = topLevelSourceDirs().filter((d) => !linted.has(d) && !(d in TOP_EXEMPT))
+    expect(
+      undeclared,
+      `these top-level directories are neither linted nor listed as exempt: ` +
+        `${undeclared.join(', ')}. Add a \`files:\` block, put the directory in the ` +
+        `lint script, or add it to TOP_EXEMPT here with the reason.`,
+    ).toEqual([])
+  })
+
+  it('every top-level directory in the lint script has a matching files: block', () => {
+    const configured = new Set(topLevelConfiguredDirs())
+    const missing = topLevelLintedDirs().filter((d) => !configured.has(d))
+    expect(
+      missing,
+      `passed to ESLint with no matching \`files:\` block, so ESLint reads none ` +
+        `of their files and still exits 0: ${missing.join(', ')}`,
+    ).toEqual([])
+  })
+
+  it('no top-level exemption is recorded without a reason', () => {
+    const blank = Object.entries(TOP_EXEMPT)
+      .filter(([, why]) => typeof why !== 'string' || why.trim().length < 20)
+      .map(([dir]) => dir)
+    expect(blank, `these exemptions carry no usable reason: ${blank.join(', ')}`).toEqual([])
+  })
+
+  it('e2e specifically is linted, because every gate rests on it', () => {
+    /* The regression this half of the file was written for. The browser harness
+       decides whether the canvas, the a11y baseline and the scene regressions
+       pass, and nothing had ever read one line of it. */
+    expect(topLevelLintedDirs()).toContain('e2e')
+    expect(topLevelConfiguredDirs()).toContain('e2e')
   })
 
   it('src/tutor specifically is linted, because it ships', () => {

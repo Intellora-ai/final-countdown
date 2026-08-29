@@ -40,7 +40,7 @@ export function memoryStore(initial: LedgerData = { days: {}, done: {} }): Ledge
     },
   }
 }
-import type { DayPlan, SubjectLike } from './plan.ts'
+import type { SubjectLike } from './plan.ts'
 
 function subject(id: string, ids: readonly string[]): SubjectLike {
   return {

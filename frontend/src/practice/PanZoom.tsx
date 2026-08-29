@@ -400,6 +400,16 @@ export function PanZoom({ children, onBackgroundPress }: PanZoomProps) {
   }, [])
 
   return (
+    /*
+     * `no-noninteractive-element-interactions` reads the TAG and treats every
+     * `div` as non-interactive. This one carries `role="application"`, is in the
+     * tab order, has an accessible name and a description, and handles the
+     * keyboard as well as the pointer -- which is the pattern a custom
+     * pannable surface is SUPPOSED to use. The rule cannot see that, so it is
+     * refused here and nowhere else. axe agrees: the practice route passes on
+     * all five projects.
+     */
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       ref={surfaceRef}
       className="pm-surface"

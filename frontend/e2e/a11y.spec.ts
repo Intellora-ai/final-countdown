@@ -33,6 +33,14 @@
  * its own documentation. A green run means "no automatically-detectable
  * violation outside the baseline". It does not mean the route is accessible,
  * and nothing here says otherwise.
+ *
+ * ONE LIMIT WORTH NAMING, BECAUSE IT WAS MEASURED HERE. Removing the input's
+ * `aria-label` from the teaching view did NOT turn this suite red: a
+ * `placeholder` satisfies axe's `label` rule on its own. Placeholder-only
+ * labelling is a real usability problem -- the text disappears the moment
+ * someone types, so anyone who loses their place has nothing to read -- and
+ * this gate cannot see it. Removing BOTH names does fail, on all three states,
+ * which is how the gate was proved able to fail at all.
  */
 
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -62,11 +70,33 @@ const UPDATING = process.env['A11Y_UPDATE_BASELINE'] === '1'
    every route resolved to the SAME page: the accessibility baseline recorded
    one page three times and called it three routes. Measured by probe:
    `page.goto('/canvas')` ended at `http://127.0.0.1:5183/canvas#/today`. */
-/** The routes a learner reaches. Named, so adding one is a visible diff. */
+/**
+ * EVERY ROUTE A LEARNER CAN REACH. Named, so adding one is a visible diff.
+ *
+ * This list was three of eight. The five that were missing are not obscure:
+ * `/learn/:conceptId` is where a planned concept is taught, `/quick-question`
+ * and `/ask` are the two "ask anything" surfaces, `/chapter` is the map, and
+ * `/misconception` is where a learner is sent after getting something wrong --
+ * which is to say, the moment they are least able to absorb a usability
+ * problem. Auditing three routes and reporting "accessibility" was a claim
+ * about 37% of the product.
+ *
+ * The parameterised routes carry ids that were PROBED against the running app,
+ * not invented: each of the eight was visited and confirmed to stay at its own
+ * URL and render its own content. This file's own history is the reason -- an
+ * earlier version used path URLs against a hash router, every route resolved to
+ * the same page, and the baseline recorded one page three times and called it
+ * three routes.
+ */
 const ROUTES: readonly { name: string; path: string }[] = [
   { name: 'canvas', path: '/#/canvas' },
   { name: 'practice', path: '/#/practice' },
   { name: 'today', path: '/#/today' },
+  { name: 'learn', path: '/#/learn/gas-pressure' },
+  { name: 'chapter', path: '/#/chapter/mathematics/number-systems' },
+  { name: 'quick-question', path: '/#/quick-question' },
+  { name: 'ask', path: '/#/ask' },
+  { name: 'misconception', path: '/#/misconception' },
 ]
 
 /**
@@ -163,6 +193,32 @@ async function focused(page: Page): Promise<string> {
  * Waiting on the CONDITION (the lesson toggle exists) rather than on a duration
  * is also what keeps this off the law gate's list of timing races.
  */
+/**
+ * No Suspense fallback still on screen.
+ *
+ * `/learn/:conceptId` and `/ask` are `React.lazy` like the canvas, and their
+ * fallback is a full-viewport panel reading "Opening the canvas...". Scanning
+ * THAT is scanning one div: two elements, no controls, and a clean axe result
+ * that says nothing about the route. `networkidle` does not exclude it, because
+ * the chunk can have arrived while React has not yet re-rendered.
+ *
+ * Deliberately NOT `settle`, which the canvas uses: `settle` waits for
+ * `.lc-block` elements to hold real content, and `/ask` has no blocks at all
+ * until a question is asked, so it would wait its full 30 seconds twice and
+ * then fail on a route that was working.
+ */
+async function pastTheFallback(page: Page): Promise<void> {
+  await page
+    .waitForFunction(() => !/Opening the canvas/.test(document.body.innerText), undefined, {
+      timeout: 15_000,
+    })
+    .catch(() => {
+      /* Left to the assertions. A route stuck on its fallback should be reported
+         by what axe and the focus test find there, not by a timeout here that
+         hides which route it was. */
+    })
+}
+
 async function canvasReady(page: Page): Promise<void> {
   /* `settle`, not a bespoke wait. The first version of this function waited for
      the Lesson toggle, which sits OUTSIDE both Suspense boundaries -- so it was
@@ -185,6 +241,7 @@ test.describe('accessibility across a journey', () => {
       await applyProjectMedia(page, testInfo)
     await page.goto(route.path)
       await page.waitForLoadState('networkidle')
+      await pastTheFallback(page)
       if (route.name === 'canvas') await canvasReady(page)
       const onLoad = await scan(page)
 
@@ -225,6 +282,7 @@ test.describe('accessibility across a journey', () => {
       await applyProjectMedia(page, testInfo)
     await page.goto(route.path)
       await page.waitForLoadState('networkidle')
+      await pastTheFallback(page)
       if (route.name === 'canvas') await canvasReady(page)
 
       const start = await focused(page)
@@ -256,6 +314,7 @@ test.describe('accessibility across a journey', () => {
       await applyProjectMedia(page, testInfo)
     await page.goto(route.path)
       await page.waitForLoadState('networkidle')
+      await pastTheFallback(page)
       if (route.name === 'canvas') await canvasReady(page)
       const found = new Set(await scan(page))
       /*

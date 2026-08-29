@@ -63,11 +63,6 @@ export interface LedgerOptions {
   readonly now?: () => string
 }
 
-function emptyData(): LedgerData {
-  return { days: {}, done: {} }
-}
-
-
 /**
  * The most recent day strictly BEFORE `date`. ISO dates sort correctly as text.
  *

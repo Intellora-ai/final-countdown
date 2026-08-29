@@ -119,8 +119,8 @@ def parse(diff: str) -> list[Finding]:
                     findings.append(Finding(path, "gate-made-advisory", line.strip()[:120]))
 
         if TEST_PATH.search(path) and not deleted_file:
-            gained = sum(len(ASSERTION.findall(l)) for l in added)
-            lost = sum(len(ASSERTION.findall(l)) for l in removed)
+            gained = sum(len(ASSERTION.findall(line)) for line in added)
+            lost = sum(len(ASSERTION.findall(line)) for line in removed)
             if lost > gained:
                 findings.append(
                     Finding(path, "assertions-removed", f"{lost} removed, {gained} added -- a net loss of {lost - gained}")

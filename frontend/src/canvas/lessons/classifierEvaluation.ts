@@ -291,12 +291,30 @@ export const classifierEvaluation: LessonInput = {
     { from: 'roc', to: 'confusion', kind: 'contrasts' },
     { from: 'pr', to: 'roc', kind: 'contrasts' },
     { from: 'threshold-cost', to: 'pr', kind: 'supports' },
-    { from: 'takeaway', to: 'confusion', kind: 'derives' },
+    /*
+     * `supports`, NOT `derives`, AND THE DIFFERENCE IS SPATIAL.
+     *
+     * `spec.ts` defines `supports` as "block B is evidence for block A", which
+     * the layout may honour by placing B beneath A, beside it, or behind a
+     * disclosure. `derives` is stronger and literal: the layout stacks a
+     * derived block DIRECTLY under its source, in the same column, because
+     * `PV = nRT` coming from `P ∝ T` reads as one argument and side-by-side
+     * would read as two facts.
+     *
+     * The confusion matrix does not DERIVE the rule -- it is the evidence a
+     * reader needs before the rule is believable. Declaring `derives` hoisted
+     * this callout six blocks up to sit under `confusion`, so the rendered
+     * order stopped matching the authored order and
+     * `scene-regressions.spec.ts:101` caught it on desktop-1440 and square-900.
+     */
+    { from: 'takeaway', to: 'confusion', kind: 'supports' },
     { from: 'headline', to: 'what-accuracy-is', kind: 'exemplifies' },
     /* `features` was joined to nothing. It shows which inputs the model leans
        on, which is the evidence for the paragraph explaining what accuracy
        hides. */
     { from: 'features', to: 'in-one-paragraph', kind: 'supports' },
-    { from: 'why-the-rule-holds', to: 'imbalance', kind: 'derives' },
+    /* Same correction as `takeaway` above: the imbalance figure is the
+       EVIDENCE this reasoning reads from, not a step it was derived from. */
+    { from: 'why-the-rule-holds', to: 'imbalance', kind: 'supports' },
   ],
 }

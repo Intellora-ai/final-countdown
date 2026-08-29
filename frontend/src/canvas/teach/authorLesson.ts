@@ -1,4 +1,5 @@
 import type { Lesson } from '../spec/spec'
+import { groundingPreamble, type Source } from './grounding'
 import { validateLesson, type Issue } from '../spec/validate'
 import {
   MARK_REQUIRED_ABOVE_WORDS,
@@ -337,10 +338,29 @@ function repairRequest(question: string, issues: Issue[]): string {
 export async function authorLesson(
   model: LessonModel,
   question: string,
+  sources: readonly Source[] = [],
 ): Promise<AuthorResult> {
   const system = teachingSystemPrompt()
 
-  const first = await model(system, `Teach this: ${question}`)
+  /*
+   * THE GATE READS SHAPE. NOTHING HERE READ TRUTH.
+   *
+   * `checkTeaching` has twenty-eight rules and not one is about whether a
+   * sentence is correct, because shape and fact are orthogonal -- a lesson can
+   * open on its topic, define in under thirty words, mark its terms, show a
+   * table, close with a progression, and be entirely invented. Every check in
+   * this repository passes it.
+   *
+   * `groundingPreamble` returns '' for an empty list, so an ungrounded call
+   * behaves exactly as it did before this parameter existed. Grounding is an
+   * improvement offered, never a precondition: search fails for plenty of real
+   * questions, and refusing to teach when it does would turn a silent retrieval
+   * failure into a silent teaching failure.
+   */
+  const grounding = groundingPreamble(sources)
+  const ask = grounding === '' ? `Teach this: ${question}` : `${grounding}\n\nTeach this: ${question}`
+
+  const first = await model(system, ask)
   const firstParsed = dropNulls(extractJson(first))
   const firstResult = validateLesson(firstParsed)
   if (firstResult.ok) return { ok: true, lesson: firstResult.lesson, attempts: 1 }

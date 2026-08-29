@@ -71,13 +71,27 @@ export interface EngineResolverOptions {
  * passed depended on how quickly the host refused the connection, which is a
  * property of the machine and not of this code.
  *
- * Ten seconds because the engine is a local subprocess answering ONE question,
- * not a model writing a whole lesson -- `chatOnce` is given 240s for that, and
- * it is a different kind of wait. A rung slower than this has already failed
- * whether or not it eventually replies, because the learner has spent that time
- * looking at nothing.
+ * THREE seconds, and the number is a fraction of someone else's budget rather
+ * than a guess about the engine.
+ *
+ * It was first set to TEN, which stopped the infinite hang and replaced it with
+ * a deadline that exactly exhausts the caller. `scene-regressions.spec.ts:470`
+ * waits 10_000ms for an answer to appear. A 10_000ms deadline here means that
+ * when the lesson rung cannot answer, this rung burns the ENTIRE budget before
+ * giving up, and the rung behind it never runs at all.
+ *
+ * Measured on `main` after that fix shipped: the same test, the same locator,
+ * `24 x locator resolved to 0 elements`, now on the `square-900` viewport. One
+ * bug with two causes -- the hang, and then the deadline that replaced it --
+ * which is why the symptom looked identical after the first fix.
+ *
+ * A deadline is only useful if something can still happen after it expires.
+ * Three leaves seven for the rungs behind it. The engine is a local subprocess
+ * answering ONE question, not a model writing a whole lesson -- `chatOnce` is
+ * given 240s for that and it is a different kind of wait -- so a rung slower
+ * than three seconds has already failed whether or not it eventually replies.
  */
-const DEFAULT_TIMEOUT_MS = 10_000
+const DEFAULT_TIMEOUT_MS = 3_000
 
 /** What `api/ask.py` returns. Read defensively: it crossed a process boundary. */
 interface EngineReply {

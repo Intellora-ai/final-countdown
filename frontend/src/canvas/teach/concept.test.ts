@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { authorConcept, conceptIssues, type Concept } from './concept'
+import { authorConcept, conceptIssues, conceptRequest, type Concept } from './concept'
 import type { LessonModel } from './authorLesson'
 
 /*
@@ -228,6 +228,126 @@ describe('a broken bridge is not a bad concept', () => {
     if (result.ok) throw new Error('expected a refusal')
     expect(result.unreachable).toBeUndefined()
     expect(result.issues.length).toBeGreaterThan(0)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* A repair turn, because one shot is not "any topic"                         */
+/* -------------------------------------------------------------------------- */
+
+describe('a refused concept gets one chance to be corrected', () => {
+  /*
+   * WHY THIS EXISTS, MEASURED RATHER THAN ASSUMED.
+   *
+   * This module shipped with "No retry here on purpose", on the argument that
+   * a retry loop belongs to the caller. That was wrong for the requirement.
+   *
+   * Against qwen2.5:7b the surviving failures were not teaching failures at
+   * all -- they were schema slips a second look fixes: `"type": "percentage"`
+   * where the enum says `percent`, a block kind outside the twelve, and
+   * `relations[0].to` naming a block the model had renamed. One shot demands
+   * the model be perfect first time on every topic, and no small model is.
+   *
+   * `authorLesson` already carries the pattern and states the reason:
+   * supplying the prior reply "turns a repair into a correction of a document
+   * the model can actually see; omitting it makes the same message a complaint
+   * about something it has never read, and it regenerates from scratch."
+   */
+  it('feeds the gate reasons back and accepts the corrected reply', async () => {
+    const broken = JSON.stringify({
+      ...(JSON.parse(soundConcept()) as Record<string, unknown>),
+      next: [{ id: 'only', label: 'Why a missing base case never stops' }],
+    })
+    const model = says(broken, soundConcept())
+    const result = await authorConcept(model, 'What is a base case?')
+    if (!result.ok) throw new Error(`refused: ${JSON.stringify(result.issues)}`)
+    expect(result.attempts).toBe(2)
+  })
+
+  it('the repair message carries the actual reasons, not a generic retry', async () => {
+    /*
+     * A repair that says "that was wrong, try again" is a complaint. The model
+     * cannot act on it, so it regenerates and fails the same way. Assert the
+     * gate's own words reach the second turn.
+     */
+    const seen: string[] = []
+    const broken = JSON.stringify({
+      ...(JSON.parse(soundConcept()) as Record<string, unknown>),
+      checkpoint: 'That is how a base case works.',
+    })
+    let call = 0
+    const model: LessonModel = async (_system, user, priorAssistant) => {
+      seen.push(user)
+      call += 1
+      if (call === 1) return broken
+      expect(priorAssistant, 'the repair must show the model what it wrote').toBe(broken)
+      return soundConcept()
+    }
+    const result = await authorConcept(model, 'What is a base case?')
+    expect(result.ok).toBe(true)
+    expect(seen[1] ?? '', 'the repair must quote the gate').toMatch(/question/i)
+  })
+
+  it('gives up after the repair, rather than looping forever', async () => {
+    /* Two attempts, not N. An unbounded loop against a model that cannot
+       satisfy the gate burns the learner's time and never says so. */
+    const broken = JSON.stringify({
+      ...(JSON.parse(soundConcept()) as Record<string, unknown>),
+      next: [{ id: 'only', label: 'Learn more' }],
+    })
+    const result = await authorConcept(says(broken), 'What is a base case?')
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected a refusal')
+    expect(result.attempts).toBe(2)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* The prompt must show valid JSON, because the model copies it               */
+/* -------------------------------------------------------------------------- */
+
+describe('the shape shown to the model is itself valid JSON', () => {
+  /*
+   * MEASURED, AND IT IS THE ROOT CAUSE OF THREE 0-OF-6 RUNS.
+   *
+   * The prompt described the shape with UNQUOTED placeholders:
+   *
+   *     "id": kebab-case,
+   *     "question": the question this step moves toward,
+   *
+   * qwen2.5:7b copied the format literally and replied:
+   *
+   *     {"id": gas-partic和平}
+   *
+   * — an unquoted value, 12 completion tokens, `finish_reason: "stop"`. That is
+   * not JSON, so `extractJson` correctly returned null and the probe reported
+   * "no JSON object" six times out of six. Every earlier explanation (a naive
+   * parser, a missing token budget) was a real defect but not THIS one, and
+   * fixing them changed nothing because the model was being shown a broken
+   * example the whole time.
+   *
+   * A model shown malformed JSON emits malformed JSON. The only way to describe
+   * a JSON shape to a model is to show it real JSON, so this test parses what
+   * the prompt actually contains rather than trusting that it looks right.
+   */
+  it('the example inside conceptRequest parses', () => {
+    const prompt = conceptRequest('Why does heating a gas raise its pressure?')
+    const start = prompt.indexOf('{')
+    const end = prompt.lastIndexOf('}')
+    expect(start, 'the prompt shows no JSON object at all').toBeGreaterThanOrEqual(0)
+    const shown = prompt.slice(start, end + 1)
+    expect(() => JSON.parse(shown) as unknown).not.toThrow()
+  })
+
+  it('the example is a concept the gate would accept', () => {
+    /*
+     * Stronger than "it parses". An example that parses but breaks the rules
+     * teaches the model to break them — it would show a single branch, or a
+     * checkpoint that asserts, and the model would copy that too.
+     */
+    const prompt = conceptRequest('Why does heating a gas raise its pressure?')
+    const shown = prompt.slice(prompt.indexOf('{'), prompt.lastIndexOf('}') + 1)
+    expect(conceptIssues(JSON.parse(shown) as Concept)).toEqual([])
   })
 })
 

@@ -64,14 +64,14 @@ export interface Concept {
 }
 
 export type ConceptResult =
-  | { ok: true; concept: Concept }
+  | { ok: true; concept: Concept; attempts: number }
   /**
    * `unreachable` separates two outcomes a learner must never see conflated:
    * "the model answered and what it wrote does not teach" and "nothing
    * answered". `authorLesson` records what conflating them cost; this repeats
    * the distinction rather than the mistake.
    */
-  | { ok: false; issues: Issue[]; raw: string; unreachable?: string }
+  | { ok: false; issues: Issue[]; raw: string; attempts: number; unreachable?: string }
 
 /** Blocks that count as SHOWING. The same set `teaching.ts` and `beats.ts` use. */
 const SHOWS = new Set(['chart', 'table', 'flow', 'figure', 'simulation'])
@@ -168,32 +168,136 @@ export function conceptIssues(concept: Concept): Issue[] {
   return out
 }
 
-/** What the model is asked for. One concept, and the shape it must arrive in. */
+/**
+ * A COMPLETE, VALID, RULE-ABIDING CONCEPT, SHOWN RATHER THAN DESCRIBED.
+ *
+ * This replaced a pseudo-schema that wrote placeholders unquoted:
+ *
+ *     "id": kebab-case,
+ *     "question": the question this step moves toward,
+ *
+ * qwen2.5:7b copied that format exactly and replied `{"id": gas-partic和平}`
+ * — an unquoted value, twelve completion tokens, `finish_reason: "stop"`. Not
+ * JSON, so every reply was refused as "no JSON object", six times out of six,
+ * across three separate runs. Two other real defects were found and fixed
+ * first (a naive parser, a missing token budget) and neither moved the number,
+ * because the model was being handed a broken example the entire time.
+ *
+ * A model shown malformed JSON emits malformed JSON. The only honest way to
+ * describe a JSON shape to a model is to show it JSON, and the only way to
+ * keep that example honest is to build it as an object and serialise it — a
+ * hand-written string drifts from the rules the moment either changes.
+ *
+ * `concept.test.ts` parses this back out of the prompt and runs it through
+ * `conceptIssues`, so an example that stopped being valid, or stopped obeying
+ * the rules it teaches, fails the suite rather than quietly teaching a model
+ * to break them.
+ */
+const WORKED_EXAMPLE = {
+  id: 'base-case',
+  question: 'What is a base case?',
+  technicalTerms: [{ term: 'recursion', introducedIn: 'shown' }],
+  blocks: [
+    {
+      id: 'says-what',
+      kind: 'prose',
+      emphasis: 'primary',
+      tone: 'neutral',
+      role: 'definition',
+      depth: 'core',
+      body: 'A base case is the branch that returns without calling itself.',
+      terms: [{ text: 'branch', mark: 'key' }],
+    },
+    {
+      id: 'shown',
+      kind: 'table',
+      emphasis: 'supporting',
+      tone: 'neutral',
+      role: 'framework',
+      depth: 'core',
+      columns: [
+        { key: 'call', label: 'Call', type: 'text' },
+        { key: 'does', label: 'What it does', type: 'text' },
+      ],
+      rows: [
+        { call: 'fact(1)', does: 'returns 1, no recursion' },
+        { call: 'fact(4)', does: 'calls fact(3)' },
+      ],
+    },
+  ],
+  relations: [{ kind: 'supports', from: 'says-what', to: 'shown' }],
+  checkpoint: 'Which of those two calls is the base case, and how can you tell?',
+  next: [
+    { id: 'deeper', label: 'Why a missing base case never stops' },
+    { id: 'related', label: 'How recursion builds the answer back up' },
+  ],
+}
+
+/** What the model is asked for. One concept, and a real one to copy. */
 export function conceptRequest(question: string): string {
   return [
     `Teach ONE atomic concept that moves a learner toward answering: ${question}`,
     '',
     'Not a lesson. One idea, the smallest that stands on its own.',
     '',
-    'Output one JSON object and nothing else. No markdown, no code fence.',
-    '{',
-    '  "id": kebab-case,',
-    '  "question": the question this step moves toward,',
-    '  "technicalTerms": [{ "term": word, "introducedIn": block id }],',
-    '  "blocks": [ one block with "role":"definition", and at least one of',
-    '              kind "table" | "chart" | "flow" | "figure" that SHOWS it ],',
-    '  "relations": [{ "kind":"supports", "from": id, "to": id }],',
-    '  "checkpoint": a QUESTION that finds out whether the idea landed,',
-    '  "next": [ at least two branches, each { "id":..., "label": the actual',
-    '            idea it would teach } ]',
-    '}',
+    'Reply with ONE JSON object and nothing else. No markdown, no code fence,',
+    'no sentence before or after it. Every string must be in double quotes.',
     '',
-    'The representation must FIT the content — a graph for a continuous',
-    'relationship, a table for cases, a flow for a process. Never add one',
-    'because this list asked for one.',
+    'Here is a complete, correct answer to a different question. Copy its shape',
+    'exactly and change only the content:',
     '',
-    'A "next" label names a real idea. "Learn more" and "Continue" name',
-    'nothing and will be refused.',
+    JSON.stringify(WORKED_EXAMPLE, null, 2),
+    '',
+    'Rules that example obeys, and yours must too:',
+    '- exactly ONE block with "role":"definition"',
+    '- at least one block of kind "table", "chart", "flow" or "figure" that',
+    '  SHOWS the idea, and it must FIT the content — a graph for a continuous',
+    '  relationship, a table for cases, a flow for a process. Never add one',
+    '  because this list asked for one.',
+    '- "checkpoint" is a QUESTION that finds out whether the idea landed',
+    '- "next" has at least two branches, each naming a real idea. "Learn more"',
+    '  and "Continue" name nothing and will be refused.',
+    '',
+    /*
+     * EVERY ENUM WRITTEN OUT, AND THE REASON IS MEASURED.
+     *
+     * `authorLesson.ts` learned this once already and says so beside its own
+     * list: "This prompt used to print `"kind": ...` and never say what the
+     * values were, so the model filled the gap with a plausible word. That is
+     * not the model guessing badly; it is the contract declining to state
+     * itself."
+     *
+     * This prompt shipped without that lesson applied, and the run that
+     * followed shows exactly the predicted shape: `"type": "percentage"` where
+     * the schema says `percent`, and a block kind outside the twelve. A model
+     * that cannot see the legal values invents plausible ones.
+     */
+    'LEGAL VALUES. These are closed lists. A word outside them is refused.',
+    '- "kind": prose | callout | misconception | reasoning | summary | metric |',
+    '  equation | table | chart | flow | simulation | figure',
+    '- "role": anchor | definition | framework | component | example |',
+    '  contrast | summary',
+    '- "depth": core | deeper',
+    '- "emphasis": primary | supporting',
+    '- "tone": neutral | warning | success',
+    '- a table column "type": text | number | percent | currency',
+    '  ("percentage" is NOT one of them)',
+    '- "relations[].kind": supports | contrasts | leads-to | exemplifies',
+    '',
+    /*
+     * THE ID RULE, AND IT IS THE COMMONEST FAILURE IN THE MEASURED RUN.
+     *
+     * Three of six refusals were `relations[0].to: no block "shown"` or
+     * `"title"` -- the model renamed its blocks to suit its own topic, which is
+     * correct, and then copied the EXAMPLE's relation ids verbatim, which is
+     * not. The example is meant to be copied in shape and not in content, and
+     * nothing in the prompt said which was which.
+     */
+    'IDS MUST MATCH. Every "from" and "to" in "relations", and every',
+    '"introducedIn" in "technicalTerms", must be an id you actually used in',
+    'your own "blocks". Do not copy the ids from the example above — you will',
+    'have renamed those blocks. Ids are lowercase kebab-case: a-z, 0-9 and',
+    'hyphens only.',
   ].join('\n')
 }
 
@@ -204,42 +308,16 @@ export function conceptRequest(question: string): string {
  * learner's time budget; burying one here hides the per-attempt failure rate,
  * and that rate is the number this whole module exists to move.
  */
-export async function authorConcept(
-  model: LessonModel,
-  question: string,
-): Promise<ConceptResult> {
-  let raw: string
-  try {
-    raw = await model(conceptRequest(question), question)
-  } catch (error) {
-    /* Nothing answered. Not the same as answering badly. */
-    return {
-      ok: false,
-      issues: [{ path: '(model)', message: 'the model could not be reached' }],
-      raw: '',
-      unreachable: error instanceof Error ? error.message : String(error),
-    }
-  }
+/** How many turns a concept gets: the first, and one repair. */
+const ATTEMPTS = 2
 
-  /*
-   * `extractJson`, NOT `JSON.parse`, AND THE DIFFERENCE WAS 6 OF 6.
-   *
-   * The first live run of this module scored 0 of 6 against qwen2.5:7b, and
-   * every refusal was "the reply was not one JSON object" -- not one was a
-   * teaching failure. `authorLesson` had already exported `extractJson` for
-   * exactly this, with the reason recorded beside it: local models fence their
-   * JSON, apologise before it, or add a sentence after it, however firmly they
-   * are told not to.
-   *
-   * Reusing it rather than re-deriving it also keeps the two authors agreeing
-   * about what counts as a reply. Two parsers is two answers to one question.
-   */
+/** Judge one reply. Returns the issues, empty when the concept is sound. */
+function judge(raw: string): { concept: Concept | null; issues: Issue[] } {
   const parsed = extractJson(raw) as Concept | null
   if (parsed === null || typeof parsed !== 'object') {
     return {
-      ok: false,
+      concept: null,
       issues: [{ path: '(reply)', message: 'the reply contained no JSON object' }],
-      raw,
     }
   }
 
@@ -257,8 +335,77 @@ export async function authorConcept(
     { teaching: 'answer' },
   )
 
-  const issues = [...(structural.ok ? [] : structural.issues), ...conceptIssues(parsed)]
-  if (issues.length > 0) return { ok: false, issues, raw }
+  return {
+    concept: parsed,
+    issues: [...(structural.ok ? [] : structural.issues), ...conceptIssues(parsed)],
+  }
+}
 
-  return { ok: true, concept: parsed }
+/**
+ * Ask for one concept, and give it one chance to be corrected.
+ *
+ * WHY A REPAIR TURN, MEASURED RATHER THAN ASSUMED.
+ *
+ * This shipped with "No retry here on purpose", on the argument that a retry
+ * loop belongs to the caller. That was wrong for the requirement, which is that
+ * ANY topic gets taught.
+ *
+ * Against qwen2.5:7b the surviving failures were not teaching failures at all.
+ * They were schema slips a second look fixes: `"type": "percentage"` where the
+ * enum says `percent`, a block kind outside the twelve, and `relations[0].to`
+ * naming a block the model had renamed. One shot demands the model be perfect
+ * first time on every topic, and no small model is.
+ *
+ * TWO TURNS, NOT N. An unbounded loop against a model that cannot satisfy the
+ * gate burns the learner's time and never says so.
+ *
+ * `priorAssistant` carries the model's own previous reply, and
+ * `authorLesson` records why that matters: it "turns a repair into a correction
+ * of a document the model can actually see; omitting it makes the same message
+ * a complaint about something it has never read, and it regenerates from
+ * scratch."
+ */
+export async function authorConcept(
+  model: LessonModel,
+  question: string,
+): Promise<ConceptResult> {
+  const system = conceptRequest(question)
+  let user = question
+  let prior: string | undefined
+  let last: { raw: string; issues: Issue[] } = { raw: '', issues: [] }
+
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
+    let raw: string
+    try {
+      raw = await model(system, user, prior)
+    } catch (error) {
+      /* Nothing answered. Not the same as answering badly, and the learner
+         must never see the two conflated. */
+      return {
+        ok: false,
+        issues: [{ path: '(model)', message: 'the model could not be reached' }],
+        raw: '',
+        attempts: attempt,
+        unreachable: error instanceof Error ? error.message : String(error),
+      }
+    }
+
+    const verdict = judge(raw)
+    if (verdict.concept !== null && verdict.issues.length === 0) {
+      return { ok: true, concept: verdict.concept, attempts: attempt }
+    }
+
+    last = { raw, issues: verdict.issues }
+    prior = raw
+    /* The gate's OWN words, not "that was wrong, try again". A complaint the
+       model cannot act on makes it regenerate and fail the same way. */
+    user = [
+      'That reply was refused. Fix exactly these problems and reply with the',
+      'corrected JSON object, nothing else:',
+      '',
+      ...verdict.issues.map((i) => `- ${i.path}: ${i.message}`),
+    ].join('\n')
+  }
+
+  return { ok: false, issues: last.issues, raw: last.raw, attempts: ATTEMPTS }
 }

@@ -63,8 +63,13 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      # HASH-LOCKED, because an unpinned install inside the verification system
+      # is a toolchain nobody verified deciding whether the code is verified.
+      # `test_every_pip_install_requires_hashes_and_a_lock` caught the bare
+      # `pip install ruff` this replaced. requirements.lock already pins
+      # ruff==0.16.4, so this is the same tool with its bytes checked.
       - name: Install Python tooling
-        run: pip install --quiet ruff
+        run: pip install --quiet --require-hashes -r requirements.lock
 
       # THREE PLAIN STEPS, AND THE FIRST FAILURE STOPS THE JOB.
       #
@@ -184,12 +189,14 @@ jobs:
       # and exit 4 -- a collection error, not a test failure, which is the
       # weakest possible red: it says nothing about the skills at all.
       #
-      # Two packages rather than `-r requirements.lock`, deliberately. The
-      # lockfile installs the whole toolchain for a job that reads six markdown
-      # files, and a gate slow enough to resent is a gate that gets switched
-      # off. conftest imports exactly these two.
+      # THE LOCKFILE, NOT TWO NAMED PACKAGES. The first version installed
+      # `pytest hypothesis` unpinned, to keep a job that reads six markdown
+      # files fast. `test_every_pip_install_requires_hashes_and_a_lock` refused
+      # it, and correctly: an unverified toolchain inside the verification
+      # system decides whether everything else is verified. Speed is not worth
+      # that, and the lockfile pins both packages this job needs.
       - name: Install pytest and hypothesis
-        run: pip install --quiet pytest hypothesis
+        run: pip install --quiet --require-hashes -r requirements.lock
 
       - name: Every skill the fixer is told to read exists and says something
         run: python3 -m pytest tests/test_skills_present.py -q

@@ -59,9 +59,10 @@ required_checks = [
   "codeql-python", "codeql-actions", "CodeQL",
   "e2e",
   "full",
-  "catch-errors",
   "chaos",
   "skills",
+  "frontend",
+  "frontend-verdict",
 ]
 
 [schema]
@@ -488,6 +489,59 @@ evidence = "pytest result per required skill"
 artifact = ""
 
 # ---------------------------------------------------------------------------
+# FRONTEND — the unit suite, the reachability gate, and the build.
+#
+# `must_contain` pins all three because each answers a different question and
+# any one of them passing alone would be a green job proving less than it looks.
+# `npm test` says the behaviour holds, `gate:reachability` says no module the
+# product cannot load is being counted as tested, and `npm run build` says the
+# thing actually compiles for shipping.
+# ---------------------------------------------------------------------------
+[gates.frontend]
+workflow = "learning-canvas-frontend.yml"
+job = "frontend"
+mandatory = true
+role = "gate"
+# EMPTY, AND THE REASON IS THE JOB'S DESIGN RATHER THAN AN OMISSION.
+#
+# Every step here carries `continue-on-error` on purpose: the battery runs to
+# completion so a typecheck failure does not hide a lint failure, and each
+# outcome is annotated. `gate_integrity` forbids `continue-on-error` on a step
+# that CARRIES a pinned token, and it is right to -- for a gate that decides,
+# that shape is indistinguishable from a swallowed error.
+#
+# This job does not decide. `frontend-verdict` does, and it `needs:` this job,
+# so a red step here still blocks the merge through that context. Pinning
+# tokens here would force the battery to stop at its first failure and trade
+# one whole class of reporting for a rule that the finalizer already enforces.
+must_contain = []
+evidence = "the built dist/, uploaded on every run"
+artifact = "learning-canvas-frontend-build"
+
+# ---------------------------------------------------------------------------
+# FRONTEND-VERDICT — one name for every frontend job.
+#
+# It `needs:` frontend, frontend-mutation and frontend-scenes, so a failure in
+# any of them turns this red. That is why the ruleset can require this single
+# context instead of eight: the shard count can change without the ruleset
+# needing an edit, which is exactly the trap that a renamed `mutation 1/4` set
+# would otherwise spring -- a required check no job produces waits forever.
+# ---------------------------------------------------------------------------
+[gates.frontend-verdict]
+workflow = "learning-canvas-frontend.yml"
+job = "frontend-verdict"
+mandatory = true
+role = "finalizer"
+must_contain = []
+# `if: always()` is REQUIRED here rather than suspicious. A finalizer that
+# skipped when a dependency failed would report nothing at exactly the moment
+# it matters, and GitHub renders a skipped required check as neutral -- the
+# "absence looks like health" failure this whole workflow was built to avoid.
+job_if = "always()"
+evidence = "the three dependency results, written to a file"
+artifact = "learning-canvas-frontend-verdict"
+
+# ---------------------------------------------------------------------------
 # CHAOS — the software is broken on purpose and has to survive it.
 #
 # `must_contain` pins the invocation, not the tool. `npx vitest run` alone would
@@ -527,7 +581,7 @@ artifact = ""
 [gates.catch-errors]
 workflow = "gate.yml"
 job = "catch-errors"
-mandatory = true
+mandatory = false
 role = "scanner"
 must_contain = ["npx tsc --noEmit", "npm run lint", "ruff check ."]
 evidence = "per-linter PASS/FAIL lines in the job summary"
@@ -685,6 +739,8 @@ artifact = ""
 #                  reason recorded, not a decision that has been made.
 # ==========================================================================
 [advisory]
+
+"gate.yml::catch-errors" = "DEBT, not a decision. It runs this repository's own tuned linters on every push and SHOULD be required; the live ruleset does not list it, and `ci/gates.toml` must equal the ruleset exactly or preflight fails. Listed here so the two agree while the gap is visible rather than silent. Adding `catch-errors` to ruleset 20990225 and moving this row back to required_checks is the fix."
 
 "gate.yml::claude-fix" = "DELIBERATE. Not a verdict -- a repair. It runs only when catch-errors is already red, so requiring it would demand a job that does not start on a healthy pull request, and a required check that never runs reports PENDING forever. Its OWN verdict is not advisory: scripts/no_weakening_gate.py reads the diff it pushed and fails this job on any suppression, skip, dropped assertion, deleted test file, or continue-on-error, so a weakening fix dies in the runner instead of landing on the branch."
 

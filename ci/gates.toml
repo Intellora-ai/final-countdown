@@ -61,6 +61,7 @@ required_checks = [
   "full",
   "catch-errors",
   "chaos",
+  "skills",
 ]
 
 [schema]
@@ -466,6 +467,24 @@ mandatory = true
 role = "scanner"
 must_contain = ["npm ci", "npm run test:e2e"]
 evidence = "playwright report, uploaded as an artifact on failure"
+artifact = ""
+
+# ---------------------------------------------------------------------------
+# SKILLS — the fixer's instructions exist, and are not empty.
+#
+# `claude-fix` has write access to the branch. `.claude/skills/` is what points
+# it at a root cause instead of at the cheapest green, and a deleted skill file
+# fails silently: the job runs, unguided, and nothing reports it. Required
+# rather than advisory for that reason -- an advisory check on the thing that
+# constrains an autofixer constrains nothing.
+# ---------------------------------------------------------------------------
+[gates.skills]
+workflow = "gate.yml"
+job = "skills"
+mandatory = true
+role = "scanner"
+must_contain = ["python3 -m pytest tests/test_skills_present.py"]
+evidence = "pytest result per required skill"
 artifact = ""
 
 # ---------------------------------------------------------------------------

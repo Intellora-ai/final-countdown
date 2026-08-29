@@ -153,6 +153,35 @@ jobs:
           path: frontend/src/canvas/chaos
           if-no-files-found: ignore
 
+  # THE FIXER'S INSTRUCTIONS ARE THEMSELVES A GATE.
+  #
+  # `claude-fix` hands a model a red check and write access. What stops it
+  # reaching for the cheapest green is `.claude/skills/` -- `systematic-debugging`
+  # says reproduce before proposing, `verification-before-completion` says run
+  # the command before claiming. Delete either and the job still runs, still has
+  # write access, and is now unguided. Nothing in a workflow notices a missing
+  # markdown file, so the presence of the instructions needs a check of its own.
+  #
+  # Runs in parallel with `catch-errors` and `chaos`: no `needs:`, so all three
+  # start together and the slowest sets the wall clock.
+  skills:
+    name: skills
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+
+      - name: Install pytest
+        run: pip install --quiet pytest
+
+      - name: Every skill the fixer is told to read exists and says something
+        run: python3 -m pytest tests/test_skills_present.py -q
+
   claude-fix:
     name: claude-fix
     needs: catch-errors

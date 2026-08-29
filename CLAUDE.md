@@ -724,3 +724,17 @@ removed rather than softened. The required coverage check in this repository
 measures **38 lines, about 0.05% of the codebase**, so that sentence would have
 asserted a guarantee that does not exist here. Restoring it needs the gate to
 cover something real first.
+
+## Knowledge proof
+
+Every PR/commit you make MUST reference the `knowledge/` or `wiki/` files you
+consulted in its description. If you did not consult any, say so and explain
+why. Never build without checking knowledge first.
+
+"I consulted none, because this was a two-line rename" is a complete and
+correct answer. The rule exists to make the decision *visible*, not to force
+research onto tasks that do not need it — research performed only to satisfy a
+rule is waste, and it teaches everyone to ignore the rule.
+
+Checked by the `knowledge-gate` job in `.github/workflows/gate.yml`, which is
+**non-blocking today**. It reports; it does not yet refuse.

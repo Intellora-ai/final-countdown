@@ -201,3 +201,109 @@ jobs:
         env:
           CLAUDE_OAUTH_REFRESH_TOKEN: ${{ secrets.CLAUDE_OAUTH_REFRESH_TOKEN }}
           CLAUDE_OAUTH_EXPIRES_AT: ${{ secrets.CLAUDE_OAUTH_EXPIRES_AT }}
+
+  # ---------------------------------------------------------------------------
+  # KNOWLEDGE GATE  --  NON-BLOCKING TODAY.
+  #
+  # Checks that the knowledge base is present, non-empty, not stale, and that a
+  # pull request says which knowledge was consulted.
+  #
+  # ===========================================================================
+  # TO MAKE IT BLOCKING, change exactly TWO lines, both marked BLOCKING-SWITCH:
+  #   1. delete or comment out   `continue-on-error: true`   (below)
+  #   2. change the last step's  `exit 0`  to  `exit 1`
+  # Change nothing else. Then add "knowledge-gate" as a required status check
+  # in Settings -> Branches. Do BOTH or neither: leaving continue-on-error on
+  # while exiting 1 produces a job that reports failure and blocks nothing,
+  # which is the worst of the two states because it looks enforced.
+  # ===========================================================================
+  #
+  # WHY THE EMPTY-FOLDER CHECK ONLY LOOKS AT OUR FOLDERS: knowledge/ also holds
+  # 21 third-party submodules. Every checkout in this file sets
+  # submodules: false, so ALL of them are empty directories in CI, and a naive
+  # `find knowledge -type d -empty` would report 21 failures on every run
+  # forever. Measured locally with submodules present, freeCodeCamp alone still
+  # ships 2 empty directories of its own. Judging other people's repository
+  # layout as our failure is how a gate earns its reputation for crying wolf.
+  knowledge-gate:
+    name: knowledge-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true        # BLOCKING-SWITCH 1 of 2: delete this line
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 0           # the staleness check reads git history
+
+      - name: Check the knowledge base
+        id: check
+        run: |
+          fail=0
+          note() { echo "::warning title=knowledge-gate::$1"; fail=1; }
+
+          # --- 1. knowledge/ exists and is not empty -------------------------
+          if [ ! -d knowledge ]; then
+            note "knowledge/ does not exist"
+          elif [ -z "$(ls -A knowledge 2>/dev/null)" ]; then
+            note "knowledge/ exists but is empty"
+          else
+            echo "ok: knowledge/ present"
+          fi
+
+          # --- 2. wiki/index.md exists ---------------------------------------
+          if [ ! -f wiki/index.md ]; then
+            note "wiki/index.md is missing -- the index IS the wiki; without it nothing is findable"
+          else
+            echo "ok: wiki/index.md present"
+          fi
+
+          # --- 3. empty folders, OURS ONLY -----------------------------------
+          # Corpus submodules are excluded on purpose. See the comment above.
+          empty=$(find knowledge/architecture knowledge/decisions knowledge/patterns \
+                       knowledge/api knowledge/references wiki \
+                       -type d -empty 2>/dev/null || true)
+          if [ -n "$empty" ]; then
+            note "empty folders found: $(echo "$empty" | tr '\n' ' ')"
+          else
+            echo "ok: no empty folders in our knowledge or wiki directories"
+          fi
+
+          # --- 4. wiki/index.md updated within 30 days -----------------------
+          # Read from git history, NOT file mtime: a CI checkout sets every
+          # file's mtime to now, so an mtime check would pass on a file that
+          # has not been touched in a year.
+          last=$(git log -1 --format=%ct -- wiki/index.md 2>/dev/null || echo "")
+          if [ -z "$last" ]; then
+            note "wiki/index.md has no commit history -- cannot judge staleness"
+          else
+            age=$(( ( $(date +%s) - last ) / 86400 ))
+            if [ "$age" -gt 30 ]; then
+              note "wiki/index.md last changed ${age} days ago (limit 30) -- the wiki is going stale"
+            else
+              echo "ok: wiki/index.md updated ${age} days ago"
+            fi
+          fi
+
+          # --- 5. pull requests must say what knowledge was consulted --------
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            body=$(cat <<'PRBODY'
+          ${{ github.event.pull_request.body }}
+          PRBODY
+            )
+            if echo "$body" | grep -qiE 'knowledge/|wiki/'; then
+              echo "ok: PR body references knowledge/ or wiki/"
+            else
+              note "PR body does not mention knowledge/ or wiki/. Say which files you consulted, or say plainly that you consulted none and why."
+            fi
+          else
+            echo "skip: not a pull_request event"
+          fi
+
+          echo "fail=$fail" >> "$GITHUB_OUTPUT"
+          if [ "$fail" -eq 1 ]; then
+            echo "::notice title=knowledge-gate::FAILURES ABOVE. Non-blocking today -- this job is reporting, not enforcing."
+          else
+            echo "::notice title=knowledge-gate::All knowledge checks passed."
+          fi
+          exit 0                   # BLOCKING-SWITCH 2 of 2: change to  exit 1

@@ -307,7 +307,44 @@ is not.
 
 Same rule, same reason, for the third-party corpus: see the routing table and
 cost discipline in `.claude/skills/knowledge-research/SKILL.md`. One or two
-sources, never twenty-one.
+sources, never all of them.
+
+### Using the third-party corpus — nine steps
+
+`knowledge/` also carries mirrored third-party repositories. When a task needs
+prior art, this is the order:
+
+1. **Name the task in one sentence.** If you cannot, ask before searching.
+2. **Read our own knowledge and the actual code first.** What is true in this
+   repository beats what is true anywhere else.
+3. **Decide, out loud, whether the corpus would help at all.** "No, this is a
+   two-line rename" is a complete answer, and the usual one.
+4. **Pick one or two sources** from the routing table in
+   `.claude/skills/knowledge-research/SKILL.md`. Picking five means step 1 was
+   too vague.
+5. **Search only inside those directories.** Name the scope before running the
+   query.
+6. **Read the one relevant section.** Never a whole file, never a whole
+   repository.
+7. **Take the idea, not the code.** Adapt it to our structure and conventions.
+8. **Check anything time-sensitive against current official documentation** for
+   the version we pin. The corpus is background; the docs are current truth.
+9. **Say which sources changed the result**, by path — or say none did.
+
+**Two things never to do.**
+
+- **Do not use the corpus for trivial tasks.** A rename, a typo, a one-line
+  config change needs no research. Reading forty pages to satisfy a rule makes
+  the work worse and teaches everyone to ignore the rule.
+- **Never search every repository.** The corpus is now hundreds of megabytes
+  across dozens of mirrors. An unscoped search over `knowledge/` floods the
+  context with material from repositories that were never relevant and buries
+  the answer. Scope first, always.
+
+Some sources were deliberately **not** mirrored, and two that were carry a
+**NonCommercial** licence. Both facts are recorded in
+`knowledge/decisions/corpus-exclusions.md`. Read it before assuming a source is
+present, or that its text may be reused.
 
 
 ---

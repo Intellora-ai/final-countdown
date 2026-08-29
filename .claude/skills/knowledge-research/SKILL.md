@@ -84,6 +84,67 @@ Fourteen steps. Steps 4 and 5 are what keep this cheap.
 | TheAlgorithms | `TheAlgorithms/<Lang>/` | concrete, readable algorithm implementations |
 | freeCodeCamp | `freeCodeCamp/` | programming and web development learning references |
 | free-for-dev | `free-for-dev/` | free developer infrastructure and service tiers |
+| mdn/content | `mdn-content/` | web platform reference · HTML · CSS · JavaScript · browser APIs · what a CSS property actually does |
+| free-programming-books | `free-programming-books/` | finding a book or course on a subject — an index, not content |
+| project-based-learning | `project-based-learning/` | build-a-real-thing tutorials, by language |
+| craftinginterpreters | `craftinginterpreters/` | interpreters · parsers · bytecode VMs · language implementation |
+| huggingface/course | `huggingface-course/` | transformers · tokenisers · training and fine-tuning · datasets |
+| nand2tetris projects | `nand2tetris/` | exercise **skeletons only** — see the warning below |
+| progit | `progit/` | git internals and workflow — **NonCommercial licence** |
+| OpenStax | `openstax/<subject>/` | school and undergraduate textbook content: sciences, maths, humanities, business — **NonCommercial licence** |
+
+
+### Two warnings that belong in the table but do not fit in a cell
+
+**`nand2tetris/` is skeletons, not explanation.** It holds the exercise
+scaffolding for the Nand2Tetris course. The textbook that explains the exercises
+is not on GitHub and is not here. Route a "how does a CPU work" question to
+`ossu` and `papers-we-love`; reach for `nand2tetris/` only when the question is
+about the exercises themselves.
+
+**`progit/` and everything under `openstax/` are CC BY-NC-SA — NonCommercial.**
+Read them, learn from them, cite them. Never lift their text or figures into
+anything this repository ships. The full reasoning is in
+`knowledge/decisions/corpus-exclusions.md`.
+
+### Reference only — asked for, deliberately not mirrored
+
+These three are **not** in `knowledge/`. If a task points at one, do not go
+looking for a local directory; there is none, and the reason is recorded in
+`knowledge/decisions/corpus-exclusions.md`.
+
+| Source | Route instead to | Why it is not here |
+|---|---|---|
+| developer-roadmap | its URL, read directly | moved to `nilbuild/developer-roadmap`; custom licence restricts redistribution |
+| devdocs | `mdn-content/` + current official docs | it is a documentation *browser*; the docs are scraped at runtime and are not in the repo |
+| cs50 | `ossu/`, `freeCodeCamp/` | `cs50/lectures` carries **no licence** — all rights reserved |
+
+### Scope before you search
+
+Step 6 says search only the selected sources. That is a hard requirement now
+that the corpus spans dozens of repositories, several of them hundreds of
+megabytes: an unscoped search over `knowledge/` is slow, floods the context, and
+buries the answer in noise from repositories that were never relevant.
+
+So the search always carries an explicit scope — the one or two directories
+chosen at step 5, named before the query is run:
+
+```
+--only papers-we-love,system-design-primer   "cache invalidation"
+--only openstax/biology-2e                   "mitosis phases"
+```
+
+`scripts/knowledge-search` is being designed to take exactly that `--only`
+scope. **It does not exist yet** — do not invoke it and do not claim you did.
+Until it lands, get the same effect by pointing the search at the chosen
+directory and nothing above it:
+
+```bash
+grep -rn --include='*.md' "cache invalidation" knowledge/system-design-primer
+```
+
+Whichever tool runs, the rule is identical: the scope is decided first, and
+`knowledge/` as a whole is never the search root.
 
 ### Worked examples
 

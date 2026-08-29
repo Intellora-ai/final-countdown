@@ -61,3 +61,46 @@
 [submodule "knowledge/freeCodeCamp"]
 	path = knowledge/freeCodeCamp
 	url = https://github.com/freeCodeCamp/freeCodeCamp.git
+[submodule "knowledge/free-programming-books"]
+	path = knowledge/free-programming-books
+	url = https://github.com/EbookFoundation/free-programming-books.git
+	shallow = true
+[submodule "knowledge/project-based-learning"]
+	path = knowledge/project-based-learning
+	url = https://github.com/practical-tutorials/project-based-learning.git
+	shallow = true
+[submodule "knowledge/craftinginterpreters"]
+	path = knowledge/craftinginterpreters
+	url = https://github.com/munificent/craftinginterpreters.git
+	shallow = true
+[submodule "knowledge/huggingface-course"]
+	path = knowledge/huggingface-course
+	url = https://github.com/huggingface/course.git
+	shallow = true
+[submodule "knowledge/nand2tetris"]
+	path = knowledge/nand2tetris
+	url = https://github.com/nand2tetris/projects.git
+	shallow = true
+[submodule "knowledge/progit"]
+	path = knowledge/progit
+	url = https://github.com/progit/progit2.git
+	shallow = true
+[submodule "knowledge/mdn-content"]
+	path = knowledge/mdn-content
+	url = https://github.com/mdn/content.git
+	shallow = true
+[submodule "knowledge/openstax/additive-manufacturing"]
+	path = knowledge/openstax/additive-manufacturing
+	url = https://github.com/openstax/osbooks-additive-manufacturing.git
+	shallow = true
+[submodule "knowledge/openstax/algebra-1"]
+	path = knowledge/openstax/algebra-1
+	url = https://github.com/openstax/osbooks-algebra-1.git
+	shallow = true
+[submodule "knowledge/openstax/american-government"]
+	path = knowledge/openstax/american-government
+	url = https://github.com/openstax/osbooks-american-government.git
+	shallow = true
+[submodule "knowledge/openstax/anatomy-physiology"]
+	path = knowledge/openstax/anatomy-physiology
+	url = https://github.com/openstax/osbooks-anatomy-physiology.git

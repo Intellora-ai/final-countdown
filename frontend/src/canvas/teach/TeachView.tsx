@@ -35,6 +35,7 @@ const DEFAULT_RESOLVERS: readonly AnyResolver[] = [lessonResolver]
 import './teach.css'
 import { shownAlready } from './shownAlready'
 import { recall, remember, type Remembered } from './remembered'
+import { MOST_CHARACTERS, MOST_QUESTIONS_PER_BEAT, bound } from './bounds'
 
 /**
  * A lesson, taught one beat at a time.
@@ -357,6 +358,30 @@ export function TeachView({
    * a question is answered where they stand and never advances the lesson; an
    * answer moves it on. Nothing was added to the screen to disambiguate them.
    */
+  /*
+   * WHAT THE BOX WILL HOLD, AND WHAT IT SAYS WHEN IT WILL NOT HOLD MORE.
+   *
+   * A 10,000-character paste -- a chapter, a log file, an accident -- used to
+   * reach the model verbatim, at whatever that costs, and come back as an
+   * answer to something nobody asked. It is cut here, at the moment it is
+   * typed, so the learner can SEE what will be sent rather than finding out
+   * from the answer.
+   *
+   * And the cut is said out loud. A silent truncation is the worst of the three
+   * options available: refusing is honest, keeping it is expensive, and
+   * quietly reading half a question is a lie the learner cannot detect.
+   */
+  function changeDraft(value: string): void {
+    const kept = bound(value)
+    setDraft(kept.text)
+    if (kept.clamped) {
+      setAnnouncement(
+        `That is longer than I can send, so I kept the first ${MOST_CHARACTERS} characters. ` +
+          'Trim it and press Enter.',
+      )
+    }
+  }
+
   function reportStruggle(history: { questionsAsked: number; emptyAnswers: number; beatsSeen: number }): void {
     if (struggleReported.current) return
     if (!strugglingAfter(history)) return
@@ -407,6 +432,24 @@ export function TeachView({
       return
     }
 
+    /*
+     * A CEILING ON ONE BEAT.
+     *
+     * Every other bound on this path is a person pressing Enter. A held key, a
+     * stuck page or a script has no such bound, and each question is a paid
+     * call. The cap is far above real use -- `strugglingAfter` already reads
+     * two questions on one beat as a signal the lesson is not landing -- so
+     * meeting it is evidence of a machine rather than of curiosity, and it is
+     * stated rather than enforced in silence.
+     */
+    if (asked.filter((record) => record.beatId === current.id).length >= MOST_QUESTIONS_PER_BEAT) {
+      setAnnouncement(
+        `That is as many questions as I can answer about this part. ` +
+          'Answer the question above and ask again on the next one.',
+      )
+      return
+    }
+
     /* The history this component has always kept, finally handed over. Without
        it the resolver cannot tell a first ask from a fourth, and answers all
        four identically -- see `shownAlready` and `Doubt.shown`. */
@@ -440,7 +483,13 @@ export function TeachView({
     askInFlight.current = true
     setAnnouncement('Your question was received. Working on it.')
 
-    void answering.answer(doubt, teaching).then((answered) => {
+    /* THE ONE PLACE TEXT LEAVES FOR THE MODEL, so this is where the bound is
+       enforced rather than at each call site. The box clamps as it is typed,
+       but a restored question came from storage -- which another version, another
+       tab or a hand edit may have written -- and is re-issued automatically. */
+    const sending: Doubt = { ...doubt, text: bound(doubt.text).text }
+
+    void answering.answer(sending, teaching).then((answered) => {
       setAsked((previous) =>
         previous.map((record) =>
           record.at === at
@@ -582,7 +631,7 @@ export function TeachView({
         <Checkpoint
           beat={current}
           draft={draft}
-          onDraft={setDraft}
+          onDraft={changeDraft}
           onAsk={submit}
           closingRef={closingRef}
         />
@@ -644,6 +693,12 @@ function Checkpoint({
             className="lc-teach__input"
             type="text"
             value={draft}
+            /* The browser enforces this on a paste before any of our code runs,
+               and an assistive technology can announce the limit rather than
+               letting someone type past it and find out afterwards. The clamp in
+               `changeDraft` is the one that actually holds -- jsdom, a script and
+               a programmatic set all ignore this attribute. */
+            maxLength={MOST_CHARACTERS}
             onChange={(event) => onDraft(event.target.value)}
             aria-label="Answer the question, or ask one of your own"
             placeholder="Answer here — or ask if something is not clear"

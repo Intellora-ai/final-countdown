@@ -7,6 +7,9 @@ import { classifierEvaluation } from '../lessons/classifierEvaluation'
 import type { Lesson } from '../spec/spec'
 import { validateLesson } from '../spec/validate'
 import { TeachView } from './TeachView'
+import { MOST_CHARACTERS, MOST_QUESTIONS_PER_BEAT } from './bounds'
+import { deriveBeats } from './beats'
+import { keyFor } from './remembered'
 
 /**
  * The teaching view, exercised the way a learner meets it.
@@ -760,5 +763,120 @@ describe('nothing typed is ever lost', () => {
     await teach()
     expect(screen.queryByText(FIRST_BEAT)).not.toBeNull()
     expect(box().value).toBe('')
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Nothing unbounded reaches the model                                        */
+/* -------------------------------------------------------------------------- */
+
+describe('the box states its own limits', () => {
+  it('declares the character limit on the field itself', async () => {
+    /* So the browser enforces it on a paste before any of our code runs, and so
+       an assistive technology can announce the limit rather than letting
+       someone type past it and find out afterwards. */
+    await teach()
+    expect(box().maxLength).toBe(MOST_CHARACTERS)
+  })
+
+  it('keeps only what it can send, and says that it cut something', async () => {
+    /* A silent truncation is the worst of the three options: the learner watches
+       an answer arrive to half a question with no way to know which half was
+       read. */
+    await teach()
+    fireEvent.change(box(), { target: { value: 'x'.repeat(MOST_CHARACTERS + 500) } })
+    await settle()
+
+    expect(box().value.length, 'the box held more than it can send').toBe(MOST_CHARACTERS)
+    expect(
+      document.querySelector('.lc-teach__announce')?.textContent ?? '',
+      'text was cut and nobody was told',
+    ).toMatch(/kept the first/i)
+  })
+
+  it('sends no more than the bound even when the draft never went through the box', async () => {
+    /*
+     * The restore path does not type. A record written by another version, or
+     * by hand, can hold any length at all, and it is re-issued automatically on
+     * mount -- so the guard cannot live only in the input's onChange.
+     */
+    let sent = ''
+    const first = deriveBeats(fixture())[0]
+    window.localStorage.setItem(
+      keyFor('classifier-evaluation'),
+      JSON.stringify({
+        draft: '',
+        revealed: 1,
+        pending: [{ at: 0, beatId: first?.id ?? '', text: `why ${'y'.repeat(9000)}?`, shown: [] }],
+      }),
+    )
+
+    render(
+      <TeachView
+        lesson={fixture()}
+        mode="2d"
+        ask={async (question) => {
+          sent = question
+          return { ok: true, text: 'an answer' }
+        }}
+      />,
+    )
+    await settle()
+
+    expect(sent.length, 'a stored question reached the model unbounded').toBeLessThanOrEqual(
+      MOST_CHARACTERS,
+    )
+    expect(sent.length, 'the stored question was not sent at all').toBeGreaterThan(0)
+  })
+
+  it('stops answering one beat forever, and says why', async () => {
+    /*
+     * Every other bound on this path is a person pressing Enter. A held key, a
+     * stuck page or a script has no such bound, and each question is a paid
+     * call. The cap is far above real use -- `strugglingAfter` already treats
+     * two questions on one beat as a signal the lesson is not landing -- so a
+     * learner meeting it is evidence of a machine, not of curiosity.
+     */
+    let calls = 0
+    render(
+      <TeachView
+        lesson={fixture()}
+        mode="2d"
+        ask={async () => {
+          calls += 1
+          return { ok: true, text: `answer ${calls}` }
+        }}
+      />,
+    )
+    await settle()
+
+    const attempts = MOST_QUESTIONS_PER_BEAT + 3
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      await submitText(`what is question number ${attempt}?`)
+    }
+
+    /*
+     * THE ORACLE IS QUESTIONS TAKEN, NOT MODEL CALLS.
+     *
+     * Measured while writing this: of twelve questions the lesson's own
+     * resolver answered one out of the material already on screen, so eleven
+     * reached the model. That is the system working -- the fast path costs
+     * nothing and cannot invent -- and an assertion on the call count would
+     * have read it as a lost submit. What the cap governs is how many questions
+     * one beat will TAKE, and the learner sees each one echoed above the
+     * checkpoint, so that is what is counted.
+     */
+    const taken = Array.from({ length: attempts }, (_unused, attempt) =>
+      (document.body.textContent ?? '').includes(`what is question number ${attempt}?`),
+    ).filter(Boolean).length
+
+    expect(taken, 'one beat took questions without limit').toBe(MOST_QUESTIONS_PER_BEAT)
+    expect(calls, 'more questions reached the model than the beat allows').toBeLessThanOrEqual(
+      MOST_QUESTIONS_PER_BEAT,
+    )
+    expect(
+      document.querySelector('.lc-teach__announce')?.textContent ?? '',
+      'the cap was reached in silence',
+    ).toMatch(/as many questions as I can answer/i)
   })
 })

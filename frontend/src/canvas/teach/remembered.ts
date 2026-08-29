@@ -26,6 +26,8 @@
  *   learnt the same lesson first.
  */
 
+import { bound } from './bounds'
+
 /** One question that was still waiting for an answer when the page went away. */
 export interface RememberedDoubt {
   readonly at: number
@@ -87,10 +89,15 @@ function asDoubt(value: unknown): RememberedDoubt | null {
   if (typeof at !== 'number' || !Number.isInteger(at) || at < 0) return null
   if (typeof beatId !== 'string' || beatId === '') return null
   if (typeof text !== 'string' || text.trim() === '') return null
+  /* Storage is untrusted input: another version, another tab, or a hand edit
+     may have written it, and every restored question is re-issued on mount. It
+     is bounded HERE as well as at the send, so an over-long record cannot even
+     be held in memory. */
+  const kept = bound(text).text
   const shown = Array.isArray(record.shown)
     ? record.shown.filter((id): id is string => typeof id === 'string')
     : []
-  return { at, beatId, text, shown }
+  return { at, beatId, text: kept, shown }
 }
 
 /**

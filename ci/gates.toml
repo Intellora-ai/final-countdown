@@ -59,6 +59,7 @@ required_checks = [
   "codeql-python", "codeql-actions", "CodeQL",
   "e2e",
   "full",
+  "catch-errors",
 ]
 
 [schema]
@@ -467,6 +468,30 @@ evidence = "playwright report, uploaded as an artifact on failure"
 artifact = ""
 
 # ---------------------------------------------------------------------------
+# CATCH-ERRORS — the repository's own linters, every one run before any verdict.
+#
+# `must_contain` pins the three commands whose exit codes ARE the verdict. The
+# job runs each with `continue-on-error` so one failure does not hide the other
+# two, then a final step reads all three outcomes and exits non-zero. That last
+# step is the difference between reporting a failure and swallowing one, and
+# removing any of these three commands is the change worth catching -- a job
+# that installs, lints nothing, and exits 0 looks identical to a clean run.
+#
+# The linters are this repository's own, with configs somebody tuned. A
+# general-purpose linter action brings its own defaults, and thousands of
+# complaints about rules nobody chose is noise that teaches people to scroll
+# past a red check.
+# ---------------------------------------------------------------------------
+[gates.catch-errors]
+workflow = "gate.yml"
+job = "catch-errors"
+mandatory = true
+role = "scanner"
+must_contain = ["npx tsc --noEmit", "npm run lint", "ruff check ."]
+evidence = "per-linter PASS/FAIL lines in the job summary"
+artifact = ""
+
+# ---------------------------------------------------------------------------
 # FINALIZER — downloads every gate's artifact from THIS run and proves the
 # evidence set equals the set declared above. Mandatory: it is the only check
 # that can see a job that went green without producing evidence.
@@ -618,6 +643,8 @@ artifact = ""
 #                  reason recorded, not a decision that has been made.
 # ==========================================================================
 [advisory]
+
+"gate.yml::claude-fix" = "DELIBERATE. Not a verdict -- a repair. It runs only when catch-errors is already red, so requiring it would demand a job that does not start on a healthy pull request, and a required check that never runs reports PENDING forever. Its OWN verdict is not advisory: scripts/no_weakening_gate.py reads the diff it pushed and fails this job on any suppression, skip, dropped assertion, deleted test file, or continue-on-error, so a weakening fix dies in the runner instead of landing on the branch."
 
 "ai-review.yml::ai-review" = "DELIBERATE. Review commentary, not a verdict. It also cannot pass today -- the credential is dead and 0 of 36 reviews have run (issue #93) -- so requiring it would block every merge in the repository."
 

@@ -372,3 +372,291 @@ describe('asking a doubt', () => {
     expect(document.querySelector('.lc-teach__question')?.getAttribute('tabindex')).toBe('-1')
   })
 })
+
+/* -------------------------------------------------------------------------- */
+/* One submit, one effect                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A submit that is already in flight may not start a second one.
+ *
+ * WHAT WAS MEASURED FIRST, BEFORE ANY OF THIS WAS WRITTEN
+ * -------------------------------------------------------
+ * The suspected defect was "a double Enter spends two model calls". It does
+ * NOT, and the reason is worth recording so nobody re-adds a guard for it and
+ * believes they fixed something: `submit` clears `draft`, React re-renders
+ * between the two discrete submit events, and the second one therefore carries
+ * an EMPTY string. Measured directly — the field reads `''` between the two
+ * events, and `ask` is called once.
+ *
+ * That accident guards the model call and nothing else. Two real holes were
+ * measured underneath it:
+ *
+ *   1. THE STRAY ENTER IS CHARGED AS AN EMPTY ANSWER. `''` is classified
+ *      `empty`, which increments `emptyAnswers`, and `strugglingAfter` fires at
+ *      two. Measured: two double-Enters called `onStruggling` once. A learner
+ *      who asked two questions and pressed a key too fast is silently moved to
+ *      an easier lesson, and nothing on screen ever says so.
+ *
+ *   2. TWO DIFFERENT QUESTIONS RACE. Ask one, and before it lands ask another:
+ *      measured two concurrent `ask` calls, two answers in flight against one
+ *      beat. This is the hole the `draft` accident cannot cover, because the
+ *      second submit carries real text.
+ *
+ * Both are the same defect — a submit acts while another is still working — so
+ * both are guarded by the same fact: whether an answer is in flight. Not a
+ * timer. A timer is a guess about how fast people press keys; pending is a fact
+ * about whether work is outstanding.
+ *
+ * WHY `ask` IS COUNTED AND NOT A STUBBED `answering`
+ * --------------------------------------------------
+ * `ask` is the port that reaches the model, so one extra call is one extra call
+ * the learner paid for. A stubbed `answering` would prove the component guards
+ * a stub; counting `ask` proves the guard sits on the path a real question
+ * travels — resolver chain first, model second.
+ *
+ * EVERY GUARD HERE IS TESTED IN A PAIR
+ * ------------------------------------
+ * A latch that never releases passes every blocking test perfectly and destroys
+ * the product: the box dies after one question. So each "it must refuse" has an
+ * "and it must still allow" beside it, including when the answer path throws.
+ */
+describe('one submit is one effect', () => {
+  /** Questions the lesson cannot answer out of its own blocks, so they escalate
+   *  past the resolver chain and reach the model port. Both open with an
+   *  interrogative word, so `classifyTurn` reads them as doubts and not as
+   *  answers to the beat's closing question. */
+  const OFF_LESSON = 'who first wrote down the central limit theorem'
+  const ALSO_OFF_LESSON = 'when was that theorem proved in general'
+
+  /** An `ask` port that never settles until told to, so the in-flight window is
+   *  a fact under the test's control rather than a race with a timer. */
+  function deferredAsk(behaviour: 'resolve' | 'reject' = 'resolve') {
+    const waiting: Array<() => void> = []
+    let calls = 0
+    const ask = (_question: string) =>
+      new Promise<{ ok: boolean; text: string }>((resolve, rejectIt) => {
+        calls += 1
+        waiting.push(() =>
+          behaviour === 'resolve'
+            ? resolve({ ok: true, text: 'An answer from the model.' })
+            : rejectIt(new Error('the model service fell over')),
+        )
+      })
+    return {
+      ask,
+      get calls() {
+        return calls
+      },
+      async releaseAll(): Promise<void> {
+        waiting.splice(0).forEach((go) => go())
+        await settle()
+      },
+    }
+  }
+
+  function teachWith(
+    ask: (question: string) => Promise<{ ok: boolean; text: string }>,
+    onStruggling?: () => void,
+  ) {
+    return render(
+      <TeachView lesson={fixture()} mode="2d" ask={ask} onStruggling={onStruggling} />,
+    )
+  }
+
+  function field(): HTMLInputElement {
+    return screen.getByLabelText('Answer the question, or ask one of your own') as HTMLInputElement
+  }
+
+  function send(text: string): void {
+    const box = field()
+    fireEvent.change(box, { target: { value: text } })
+    fireEvent.submit(box.closest('form') as HTMLFormElement)
+  }
+
+  /** Type once, then raise submit twice with nothing awaited between them —
+   *  which is what two fast keypresses are. */
+  function sendTwiceFast(text: string): void {
+    const box = field()
+    fireEvent.change(box, { target: { value: text } })
+    const form = box.closest('form') as HTMLFormElement
+    fireEvent.submit(form)
+    fireEvent.submit(form)
+  }
+
+  it('spends exactly one model call when Enter is pressed twice quickly', async () => {
+    const port = deferredAsk()
+    teachWith(port.ask)
+    await settle()
+
+    sendTwiceFast(OFF_LESSON)
+    await settle()
+    expect(port.calls, 'a double Enter spent two model calls').toBe(1)
+
+    await port.releaseAll()
+    expect(port.calls, 'a second call arrived once the first answer landed').toBe(1)
+  })
+
+  /**
+   * Ask two questions, three beats in — and never trip the struggle signal.
+   *
+   * WHY THE SCENARIO IS SHAPED SO CAREFULLY
+   * `strugglingAfter` fires on ANY of three conditions, so a naive "ask twice
+   * and check" is deepened for a legitimate reason (two questions on one beat
+   * is 2/1, over the ratio) and proves nothing about stray keypresses. This
+   * walks to the third beat first, which puts the learner's REAL behaviour
+   * comfortably under every threshold: two questions over three beats is 0.67,
+   * and two is below the three-question bar.
+   *
+   * That leaves exactly one way for the signal to fire — `emptyAnswers >= 2`,
+   * which only a stray Enter can reach. So a non-zero count here is the stray
+   * keypress and nothing else, and the test cannot pass for another reason.
+   */
+  async function walkToThirdBeat(): Promise<void> {
+    await answerBeat()
+    await answerBeat()
+  }
+
+  it('never deepens the lesson because a key was pressed twice', async () => {
+    const port = deferredAsk()
+    let struggled = 0
+    teachWith(port.ask, () => {
+      struggled += 1
+    })
+    await settle()
+    await walkToThirdBeat()
+
+    sendTwiceFast(OFF_LESSON)
+    await settle()
+    await port.releaseAll()
+    sendTwiceFast(ALSO_OFF_LESSON)
+    await settle()
+    await port.releaseAll()
+
+    expect(struggled, 'a stray Enter nudged the learner toward an easier lesson').toBe(0)
+  })
+
+  it('DOES still deepen the lesson when the learner is genuinely stuck', async () => {
+    /* The pair. A guard that made the struggle signal unreachable would pass
+       the test above perfectly and quietly disable adaptive difficulty for
+       everyone — the signal has to survive the fix, not be silenced by it.
+       Three questions on one beat is over the bar by two separate conditions. */
+    const port = deferredAsk()
+    let struggled = 0
+    teachWith(port.ask, () => {
+      struggled += 1
+    })
+    await settle()
+
+    for (const question of [OFF_LESSON, ALSO_OFF_LESSON, 'why does accuracy mislead here']) {
+      send(question)
+      await settle()
+      await port.releaseAll()
+    }
+
+    expect(struggled, 'the struggle signal was silenced along with the double submit').toBe(1)
+  })
+
+  it('refuses a SECOND question while the first is still in flight', async () => {
+    const port = deferredAsk()
+    teachWith(port.ask)
+    await settle()
+
+    send(OFF_LESSON)
+    await settle()
+    /* Different text, so the cleared-draft accident cannot mask this one. */
+    send(ALSO_OFF_LESSON)
+    await settle()
+
+    expect(port.calls, 'two questions were in flight against one beat').toBe(1)
+  })
+
+  it('still answers a SECOND, different question once the first has landed', async () => {
+    const port = deferredAsk()
+    teachWith(port.ask)
+    await settle()
+
+    sendTwiceFast(OFF_LESSON)
+    await settle()
+    await port.releaseAll()
+
+    send(ALSO_OFF_LESSON)
+    await settle()
+    expect(port.calls, 'the guard latched shut and the learner can never ask again').toBe(2)
+
+    await port.releaseAll()
+    /* Pinned as the learner reads it, quotation marks and all, rather than as a
+       bare substring — the question is echoed back inside a "You asked" line,
+       and an assertion that did not include the echo would still pass if the
+       text leaked onto the page some other way. */
+    expect(
+      screen.queryByText('You asked: \u201c' + ALSO_OFF_LESSON + '\u201d'),
+      'the second question was never recorded on screen',
+    ).not.toBeNull()
+  })
+
+  it('visibly disables the box while an answer is in flight, and frees it after', async () => {
+    const port = deferredAsk()
+    teachWith(port.ask)
+    await settle()
+
+    expect(field().disabled, 'the box started out disabled').toBe(false)
+
+    send(OFF_LESSON)
+    await settle()
+
+    /* A key that does nothing with no feedback reads as a broken app. The guard
+       has to be SEEN, not merely enforced. */
+    expect(field().disabled, 'the box stayed live while a question was in flight').toBe(true)
+
+    await port.releaseAll()
+    expect(field().disabled, 'the box never came back after the answer landed').toBe(false)
+  })
+
+  /**
+   * The model is unreachable — and the learner can still ask again.
+   *
+   * A SURVIVING MUTANT IS RECORDED HERE ON PURPOSE
+   * ----------------------------------------------
+   * The guard is released in a `.finally`. Swapping that for a `.then` — which
+   * would lock the box forever if the answer promise ever rejected — was run as
+   * a mutant and SURVIVED all 21 tests. It survives for a real reason, not a
+   * missing assertion: `answering.answer` catches its own failures and returns
+   * an `unavailable` answer instead (`answering.ts`, the `try/catch` around
+   * `options.ask`), so the promise this component awaits never rejects, and no
+   * test reachable through the component's public surface can tell the two
+   * apart.
+   *
+   * The `.finally` stays because it is correct for a future `answer` that CAN
+   * reject, and this note stays because the alternative is a later session
+   * reading the old test name — "even when the answer path throws" — and
+   * believing that path is covered. It is not. What IS covered, and what this
+   * test now claims, is the failure a learner can actually meet: the model is
+   * unreachable, they are told so, and the box comes back.
+   */
+  it('frees the box when the model cannot be reached, and says so', async () => {
+    const port = deferredAsk('reject')
+    teachWith(port.ask)
+    await settle()
+
+    send(OFF_LESSON)
+    await settle()
+    expect(field().disabled, 'the box stayed live while a question was in flight').toBe(true)
+
+    await port.releaseAll()
+
+    /* The failure mode this pins is a guard released only on the path where an
+       answer arrived: a learner whose question failed would be locked out of
+       asking again, which is strictly worse than the double call the guard was
+       added to prevent. */
+    expect(field().disabled, 'a failed question locked the learner out for good').toBe(false)
+    expect(
+      screen.queryByText(/I could not reach the part of me that answers questions/),
+      'the learner was left with a silent failure instead of being told',
+    ).not.toBeNull()
+
+    send(ALSO_OFF_LESSON)
+    await settle()
+    expect(port.calls, 'no question could be asked after one failed').toBe(2)
+  })
+})

@@ -129,6 +129,29 @@ export function TeachView({
      "difficulty", because they are being taught, not graded. */
   const [questionsAsked, setQuestionsAsked] = useState(0)
   const [emptyAnswers, setEmptyAnswers] = useState(0)
+  /*
+   * Whether an answer is outstanding. ONE SUBMIT IS ONE EFFECT.
+   *
+   * WHY THIS IS A FACT AND NOT A TIMER
+   *   A debounce is a guess about how fast a person presses keys, and it is
+   *   wrong for the slow presser in both directions. This is the actual
+   *   question: is work already in flight.
+   *
+   * WHAT IT GUARDS, MEASURED
+   *   Two DIFFERENT questions sent before the first landed reached the model
+   *   twice, racing two answers against one beat. And the stray second Enter of
+   *   a fast double-press arrived as an EMPTY submit -- because `submit` clears
+   *   the draft -- which was banked as an empty answer, and two of those trip
+   *   `strugglingAfter` and silently deepen the lesson. Same defect, two
+   *   routes: a submit acting while another is still working.
+   *
+   * WHY IT GATES EVERY KIND OF SUBMIT AND NOT JUST QUESTIONS
+   *   `answering.ts` already states the invariant this serves: an async answer
+   *   must not let the lesson advance while it is in flight. Letting an ANSWER
+   *   through here would advance the beat out from under a question the learner
+   *   is still waiting on.
+   */
+  const [answerInFlight, setAnswerInFlight] = useState(false)
   /* Fired once. Telling the caller repeatedly would deepen the lesson again on
      every subsequent turn, which is how "adaptive" becomes "unreadable". */
   const struggleReported = useRef(false)
@@ -251,6 +274,10 @@ export function TeachView({
   }
 
   function submit(text: string): void {
+    /* First, before the text is even classified -- an empty stray Enter must be
+       dropped, not counted. See `answerInFlight`. */
+    if (answerInFlight) return
+
     const kind = classifyTurn(text)
     if (current === undefined) return
 
@@ -278,25 +305,35 @@ export function TeachView({
        ignored, and stops asking. */
     setAsked((previous) => [...previous, { at, beatId: current.id, doubt, pending: true }])
     setAnnouncement('Your question was received. Working on it.')
+    setAnswerInFlight(true)
 
-    void answering.answer(doubt, teaching).then((answered) => {
-      setAsked((previous) =>
-        previous.map((record) =>
-          record.at === at
-            ? {
-                ...record,
-                pending: false,
-                ...(answered.from === 'lesson'
-                  ? { resolution: answered.resolution as Resolution }
-                  : { prose: answered.text }),
-              }
-            : record,
-        ),
-      )
-      setQuestionsAsked((count) => count + 1)
-      setAnnouncement('A reply to your question has been added above the checkpoint.')
-      reportStruggle({ questionsAsked: questionsAsked + 1, emptyAnswers, beatsSeen: revealed })
-    })
+    void answering
+      .answer(doubt, teaching)
+      .then((answered) => {
+        setAsked((previous) =>
+          previous.map((record) =>
+            record.at === at
+              ? {
+                  ...record,
+                  pending: false,
+                  ...(answered.from === 'lesson'
+                    ? { resolution: answered.resolution as Resolution }
+                    : { prose: answered.text }),
+                }
+              : record,
+          ),
+        )
+        setQuestionsAsked((count) => count + 1)
+        setAnnouncement('A reply to your question has been added above the checkpoint.')
+        reportStruggle({ questionsAsked: questionsAsked + 1, emptyAnswers, beatsSeen: revealed })
+      })
+      /* Released on EVERY path, including a rejection. `answering.answer` is
+         written not to throw, and a guard that trusts that is one refactor away
+         from locking a learner out of the box for good -- strictly worse than
+         the double call it was added to prevent. */
+      .finally(() => {
+        setAnswerInFlight(false)
+      })
   }
 
   function advance(): void {
@@ -378,6 +415,7 @@ export function TeachView({
           draft={draft}
           onDraft={setDraft}
           onAsk={submit}
+          busy={answerInFlight}
           closingRef={closingRef}
         />
       )}
@@ -399,12 +437,17 @@ function Checkpoint({
   draft,
   onDraft,
   onAsk,
+  busy,
   closingRef,
 }: {
   beat: Beat
   draft: string
   onDraft: (value: string) => void
   onAsk: (text: string) => void
+  /* Makes the guard VISIBLE. A key that does nothing, with nothing on screen
+     saying why, reads as a broken app -- so the box says it is working rather
+     than silently swallowing the press. */
+  busy: boolean
   closingRef: RefObject<HTMLParagraphElement>
 }) {
   return (
@@ -441,8 +484,9 @@ function Checkpoint({
             onChange={(event) => onDraft(event.target.value)}
             aria-label="Answer the question, or ask one of your own"
             placeholder="Answer here — or ask if something is not clear"
+            disabled={busy}
           />
-          <button className="lc-teach__button" type="submit">
+          <button className="lc-teach__button" type="submit" disabled={busy}>
             Send
           </button>
         </form>

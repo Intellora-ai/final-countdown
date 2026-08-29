@@ -70,6 +70,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 CLEAN = 0
 REFUSE = 2
@@ -97,6 +98,16 @@ EXCLUDED_FILE_RE = re.compile(
 FLAGS = {"DOTALL": re.S, "MULTILINE": re.M, "IGNORECASE": re.I}
 
 
+# One handler rule as it exists after the rule pack is parsed: the rule's name,
+# its compiled pattern, and which capture group holds the handler BODY.
+#
+# This alias is load-bearing for types, not decoration. `json.loads` returns
+# Any, so without a declared shape at this boundary the unknown propagates into
+# every caller -- pyright reported 50 errors here, and all of them were the
+# same unknown arriving from one untyped function. Typing the boundary fixes
+# the class; annotating the call sites would only have moved it.
+Handler = tuple[str, "re.Pattern[str]", int]
+
 class PatternsUnusable(RuntimeError):
     """The rule pack is missing or malformed.
 
@@ -105,13 +116,13 @@ class PatternsUnusable(RuntimeError):
     """
 
 
-def load_patterns(path: Path = PATTERN_FILE):
+def load_patterns(path: Path = PATTERN_FILE) -> tuple[list[Handler], re.Pattern[str]]:
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
+        raw: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise PatternsUnusable(f"cannot read {path}: {exc}") from exc
 
-    handlers = []
+    handlers: list[Handler] = []
     for spec in raw.get("handlers", []):
         flags = 0
         for name in spec.get("flags", []):
@@ -195,7 +206,9 @@ def has_effect(body: str, effect: re.Pattern[str], diverging: set[str]) -> bool:
     return any(re.search(rf"\b{re.escape(n)}\s*\(", body) for n in diverging)
 
 
-def swallowed_handlers(text, handlers, effect) -> list[tuple[int, str]]:
+def swallowed_handlers(
+    text: str, handlers: list[Handler], effect: re.Pattern[str]
+) -> list[tuple[int, str]]:
     """Every handler whose body neither diverts control flow nor binds a value.
 
     Deduplicated by line: a body matched by two patterns is one defect, not
@@ -216,7 +229,9 @@ def swallowed_handlers(text, handlers, effect) -> list[tuple[int, str]]:
     return sorted(found.items())
 
 
-def count_handlers(text, handlers, per_rule: dict[str, int]) -> int:
+def count_handlers(
+    text: str, handlers: list[Handler], per_rule: dict[str, int]
+) -> int:
     """Every handler examined, swallowing or not, plus per-rule hit counts.
 
     The receipt needs these numbers. Without them a parser that matched nothing
@@ -239,7 +254,7 @@ def is_excluded(rel: Path) -> bool:
     return bool(EXCLUDED_FILE_RE.search(rel.name))
 
 
-def sweep(root: Path, handlers, effect) -> int:
+def sweep(root: Path, handlers: list[Handler], effect: re.Pattern[str]) -> int:
     scanned = excluded = handlers_seen = total_bytes = 0
     per_rule: dict[str, int] = {name: 0 for name, _p, _g in handlers}
     violations: list[tuple[str, int, str]] = []

@@ -538,6 +538,31 @@ function checkTechnicalTermsArriveLate(lesson: Lesson, out: TeachingIssue[]): vo
     }
 
     const needle = declared.term.toLowerCase()
+
+    /*
+     * A WORD THE LEARNER USED IS ALREADY INTRODUCED — BY THEM.
+     *
+     * MEASURED. Against `openai/gpt-oss-120b`, five of six subjects produced a
+     * passing concept. The single refusal was "How does a BILL become a law in
+     * India?", refused because "bill" appeared before the block that introduced
+     * it. The learner typed that word. They cannot have been confused by it —
+     * it is how they asked.
+     *
+     * The message below states this rule's purpose: "Define in the simplest
+     * correct words first; the technical word comes after the idea lands." That
+     * is about a word the learner does NOT know yet. Their own vocabulary is
+     * not that word.
+     *
+     * Without this exemption the rule fires on every correct lesson for any
+     * topic whose NAME is the technical term — photosynthesis, inflation,
+     * recursion, a bill — which is not a strict rule but a wrong one, and it
+     * cost a whole subject.
+     *
+     * Word-boundary matched, not substring: "a bill" must not exempt "billion".
+     */
+    const askedWith = new RegExp(`\\b${needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i')
+    if (askedWith.test(lesson.question)) continue
+
     lesson.blocks.forEach((block, i) => {
       if (i >= earnedAt) return
       const haystack = `${block.title ?? ''} ${readableText(block)}`.toLowerCase()
@@ -629,6 +654,62 @@ function checkRepresentations(lesson: Lesson, out: TeachingIssue[]): void {
         `lesson refers to it. A representation earns its place or it is decoration`,
     })
   })
+}
+
+/**
+ * A CHART THAT MISREPRESENTS ITS DATA IS WRONG AT EVERY LEVEL.
+ *
+ * A CHUNK rule, not an arc rule, and the placement is the argument. This was
+ * first written inside `checkRepresentations`, which only runs when a full
+ * lesson arc is required -- so a doubt answer could carry a bar chart of a
+ * curve and nothing would say so. Whether bars claim the gaps between values
+ * carry no meaning is a fact about ONE BLOCK and its own numbers. It does not
+ * become true because the surrounding blocks form an arc.
+ *
+ * Its former neighbours are arc-gated for real reasons: `nothing-is-shown`
+ * counts blocks across a whole lesson, and `representation-is-decoration`
+ * reads the relation graph. Both are statements about a COMPOSED lesson. This
+ * one is a statement about a chart.
+ */
+function checkChartFitsItsData(lesson: Lesson, out: TeachingIssue[]): void {
+/*
+ * R9b — THE CHART MUST FIT THE DATA, NOT SATISFY R9.
+ *
+ * `nothing-is-shown` demands a representation and its own message says one
+ * "chosen because it fits". Nothing enforced the fitting half, so the
+ * cheapest way to satisfy R9 was to bolt on whatever chart came to mind --
+ * and a rule satisfiable by the wrong answer teaches a model to give the
+ * wrong answer.
+ *
+ * The registry already records when a type is the wrong choice.
+ * `REPRESENTATIONS.bar.avoidWhen` reads "the x axis is continuous — use a
+ * line", and that is the case checked here. It is the one `avoidWhen` that
+ * is mechanically decidable: `points.x` is `number | string`, so numbers ARE
+ * the continuous axis. The rest of the registry's advice is prose aimed at a
+ * human, and a gate that guessed at it would cry wolf.
+ *
+ * Why it matters to a learner: bars claim the gaps between them carry no
+ * meaning. On a continuous axis the gaps are the whole point, so a bar chart
+ * of a curve states something false about the data while passing every other
+ * check in this file.
+ */
+lesson.blocks.forEach((block, i) => {
+  if (block.kind !== 'chart') return
+  const chart = block as { chartType?: string; series?: { points?: { x?: unknown }[] }[] }
+  if (chart.chartType !== 'bar') return
+  const points = (chart.series ?? []).flatMap((s) => s.points ?? [])
+  /* EVERY x numeric, not merely one. A single numeric label among categories
+     is a category that happens to be a number ("2024"), and refusing that
+     would be the false positive that gets a gate switched off. */
+  if (points.length === 0 || !points.every((p) => typeof p.x === 'number')) return
+  out.push({
+    path: `blocks[${i}]`,
+    rule: 'chart-fights-its-data',
+    message:
+      `the chart "${block.id}" draws bars over a continuous axis. Bars say the gaps between ` +
+      'values carry no meaning; on a numeric axis they carry all of it. Use a line',
+  })
+})
 }
 
 /** R10 — confusable things are put side by side, not described apart. */
@@ -849,6 +930,7 @@ export function checkTeaching(
   checkExamplesIsolateOneRule(lesson, out)
   checkChainsAreDrawn(lesson, out)
   checkTechnicalTermsArriveLate(lesson, out)
+  checkChartFitsItsData(lesson, out)
 
   if (options.arc) {
     /*

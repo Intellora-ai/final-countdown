@@ -137,3 +137,26 @@ frontend/e2e/*-snapshots/*-win32.png
 # which is per-clone and never committed -- the same trap this file already
 # documents for .venv. Moved here so it travels.
 learning-os/src/*.egg-info/
+# SECRETS. Nothing here ignored a `.env` file until 2026-08-29, and this
+# repository is PUBLIC -- so a key written to `frontend/.env.local` and picked
+# up by any `git add -A` would have been published the moment it was pushed.
+#
+# Found while wiring a free-tier model key for the authoring probe: the file
+# was about to be created, `git check-ignore` reported it UNPROTECTED, and
+# neither `.gitignore` nor `frontend/.gitignore` carried a single env pattern.
+#
+# `.env.example` is deliberately exempted. It is the template that tells a new
+# contributor WHICH variables exist, carries no values, and is useless if it is
+# not committed.
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Private keys and certificates, for the same reason and by the same accident.
+*.pem
+*.key
+*.p12
+*.pfx

@@ -11,8 +11,6 @@ wanted back.
 ---
 ## How to talk to Tanveer — read this first
 
-Tanveer asked for this rule on 2026-08-24:
-
 > **Use simple language. Explain technical things in plain words.**
 
 This is an accessibility requirement, not a style preference. It applies to
@@ -48,7 +46,7 @@ Actions, Lean, Rust, APIs, databases and security tools. **Simplify the
 explanation, never the technical quality of the work.** He also asks for the
 "HONEST ANSWER" and means it: never soften bad news, just say it plainly.
 
-wins**. Fragments are harder to read, not easier. Write full simple sentences.
+**Full, simple sentences win.** Fragments are harder to read, not easier.
 
 ### How to run a task
 
@@ -74,10 +72,6 @@ End with these four headings, in this order:
 - **Problems** — what failed, what the error means, what you did about it.
 - **Next step** — the single most important next action.
 - **Status** — complete, in progress, blocked, or awaiting approval.
-
-This does not replace the STEP COMPLETE stop protocol further down. When a reply
-finishes a numbered step, use the stop protocol. Use these four headings for
-everything else.
 
 ### Scope — chat only
 

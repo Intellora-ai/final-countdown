@@ -11,6 +11,7 @@
  * remembering to update a list.
  */
 import { describe, expect, it } from 'vitest'
+import type { Lesson } from '../spec/spec'
 import { checkTeaching } from './teaching'
 import { declaredRules } from './ruleCensus'
 import { RULE_PAIRS } from './rulePairs'
@@ -33,6 +34,111 @@ describe('the rule census', () => {
     const declared = new Set(declaredRules())
     const orphans = Object.keys(RULE_PAIRS).filter((r) => !declared.has(r))
     expect(orphans).toEqual([])
+  })
+})
+
+describe('a chart that misrepresents its data is wrong at every level', () => {
+  /*
+   * `checkTeaching` splits its rules in two: chunk rules that hold everywhere,
+   * and arc rules that only apply when an AUTHOR is writing a whole lesson.
+   * The file states the reason -- an assembled doubt answer has no authored
+   * opening, so demanding one refused five real call sites.
+   *
+   * `chart-fights-its-data` was first written inside `checkRepresentations`,
+   * which is arc-gated, and that was wrong. Whether bars claim the gaps
+   * between values carry no meaning is a fact about ONE BLOCK and its numbers.
+   * It does not become true because the surrounding blocks form an arc, and a
+   * learner reading a doubt answer is misled by exactly the same chart.
+   *
+   * Its neighbours in that function are arc-gated for real reasons:
+   * `nothing-is-shown` counts blocks across the whole lesson, and
+   * `representation-is-decoration` reads the relation graph. Both are
+   * statements about a composed lesson. This one is not.
+   */
+  it('fires on a doubt answer, where the arc rules are off', () => {
+    const fired = checkTeaching(RULE_PAIRS['chart-fights-its-data']!.refuses.lesson, {
+      arc: false,
+    })
+    expect(fired.map((i) => i.rule)).toContain('chart-fights-its-data')
+  })
+
+  it('still stays silent on the line chart at that level', () => {
+    /* The paired positive at the same level. A rule that fired on every chart
+       would pass the test above and be useless. */
+    const fired = checkTeaching(RULE_PAIRS['chart-fights-its-data']!.accepts.lesson, {
+      arc: false,
+    })
+    expect(fired.map((i) => i.rule)).not.toContain('chart-fights-its-data')
+  })
+})
+
+describe('a word the learner used is already introduced — by them', () => {
+  /*
+   * MEASURED, AND IT IS THE SIXTH QUESTION.
+   *
+   * Against `openai/gpt-oss-120b`, five of six subjects produced a concept that
+   * passed. The one refusal was "How does a BILL become a law in India?", and
+   * the reason was:
+   *
+   *   blocks[0]: "bill" is used before the block that introduces it
+   *
+   * The learner typed the word "bill". They cannot have been confused by it --
+   * it is how they asked the question. The rule's own message says what it is
+   * for: "Define in the simplest correct words first; the technical word comes
+   * after the idea lands." That is about a word the learner does NOT know. A
+   * word from their own question is one they already know well enough to ask
+   * with.
+   *
+   * So the rule was refusing lessons for using the learner's own vocabulary,
+   * and on any topic whose name IS the technical term -- photosynthesis,
+   * inflation, recursion, a bill -- it fires on every correct lesson. That is
+   * not a strict rule, it is a wrong one, and it costs a whole subject.
+   */
+  const withQuestion = (question: string): Lesson =>
+    ({
+      id: 'x',
+      question,
+      technicalTerms: [{ term: 'bill', introducedIn: 'later' }],
+      blocks: [
+        {
+          id: 'opening',
+          kind: 'prose',
+          emphasis: 'primary',
+          tone: 'neutral',
+          role: 'definition',
+          depth: 'core',
+          body: 'A bill is a written proposal for a new law.',
+          terms: [{ text: 'proposal', mark: 'key' }],
+        },
+        {
+          id: 'later',
+          kind: 'prose',
+          emphasis: 'supporting',
+          tone: 'neutral',
+          role: 'component',
+          depth: 'core',
+          body: 'Each house debates the bill before voting on it.',
+          terms: [{ text: 'debates', mark: 'key' }],
+        },
+      ],
+      relations: [],
+    }) as unknown as Lesson
+
+  it('accepts the term when the learner put it in the question', () => {
+    const fired = checkTeaching(withQuestion('How does a bill become a law in India?'), {
+      arc: false,
+    })
+    expect(fired.map((i) => i.rule)).not.toContain('technical-term-in-definition')
+  })
+
+  it('still refuses it when the learner never used the word', () => {
+    /*
+     * THE PAIRED NEGATIVE, and it is what stops the fix from gutting the rule.
+     * Exempting every term would delete the protection entirely; only the
+     * learner's OWN words are exempt.
+     */
+    const fired = checkTeaching(withQuestion('How is a law made in India?'), { arc: false })
+    expect(fired.map((i) => i.rule)).toContain('technical-term-in-definition')
   })
 })
 

@@ -48,7 +48,6 @@ Actions, Lean, Rust, APIs, databases and security tools. **Simplify the
 explanation, never the technical quality of the work.** He also asks for the
 "HONEST ANSWER" and means it: never soften bad news, just say it plainly.
 
-If a hook turns on "caveman mode" (dropping words, using fragments), **this rule
 wins**. Fragments are harder to read, not easier. Write full simple sentences.
 
 ### How to run a task
@@ -315,3 +314,36 @@ is not.
 Same rule, same reason, for the third-party corpus: see the routing table and
 cost discipline in `.claude/skills/knowledge-research/SKILL.md`. One or two
 sources, never twenty-one.
+
+
+---
+
+## rtk — cut command output before it costs tokens
+
+`rtk` runs a command and filters the output before it reaches me. Same
+information, fewer tokens. Prefix it on any command whose output will be long.
+
+**Measured on this machine, 2026-08-29, with `wc -c`:**
+
+| Command | Raw | Through rtk | Saved |
+|---|---|---|---|
+| `find ~/.claude/skills -maxdepth 1 -type d` | 78,937 B | 892 B | **98%** |
+| `ls -la ~/.claude/skills/` | 112,099 B | 35,426 B | **68%** |
+| `git status` | 179 B | 83 B | **53%** |
+| `git log --oneline -20` | 1,471 B | 1,471 B | 0% |
+| `git diff --stat` | 163 B | 162 B | 0% |
+| `cat <file>` | 13,760 B | 13,760 B | 0% |
+
+**Use it for** listings and status: `ls`, `find`, `git status`, test runs,
+builds, installs. That `find` line alone would have cost ~19,700 tokens raw
+and cost ~220 through rtk.
+
+**Do not use it for** file contents or already-terse output — `cat`,
+`git log`, `git diff`. It saves nothing there and only adds a wrapper.
+
+**Never write down whether it is installed.** That is runtime state, and a
+file recording it stays correct until it does not. Check, never recall:
+
+```bash
+command -v rtk && rtk --version || echo "NOT INSTALLED"
+```

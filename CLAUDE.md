@@ -792,3 +792,50 @@ failing. "Every bug becomes a permanent fix" still applies **to the bug the
 task is about** — root cause, a guard, and every copy of that same defect. A
 variant of the bug you are fixing is in scope by definition; an unrelated bug
 in the next file is not.
+
+---
+
+## Read only the knowledge that is relevant
+
+`knowledge/architecture`, `decisions`, `patterns`, `api` and `references` will
+grow. Every page added makes "read the knowledge folder" a worse instruction,
+because most of it has nothing to do with the task in front of you.
+
+**Read what the task needs. Skip the rest, deliberately, and say you skipped it.**
+
+Reading a document about payments while building a lesson renderer does not
+make the renderer better. It fills the context window with material that
+competes for attention with the code that actually matters, and a model that
+has read forty irrelevant pages reasons worse than one that has read the three
+relevant ones.
+
+### How to choose
+
+1. **Name the task in one sentence** before opening anything.
+2. **Read the index first** — `knowledge/README.md` and `wiki/index.md` exist so
+   that you can find the right page without reading the wrong ones.
+3. **Open only the pages whose subject overlaps the task.** Usually one or two.
+   If you are opening five, the task was not named precisely enough — go back
+   to step 1.
+4. **Read the section, not the file.** Search for the heading, read that part.
+5. **Say what you skipped and why**, in one line. "Read
+   `knowledge/architecture/lesson-pipeline.md`; skipped everything else as
+   unrelated" is a complete and correct answer.
+
+### The one exception
+
+`knowledge/decisions/` is checked more widely than the others, because a past
+decision can bind work that looks unrelated to it. Scan the decision *titles*
+before starting; open only the ones the task might contradict. A decision you
+reverse without noticing is worse than a page you failed to read.
+
+### What this is not
+
+This is not permission to skip knowledge that IS relevant. "I didn't check"
+and "I checked and it did not apply" are different claims, and only the second
+one is honest when nothing was opened. Both are fine to report. Confusing them
+is not.
+
+Same rule, same reason, for the third-party corpus: see the routing table and
+cost discipline in `.claude/skills/knowledge-research/SKILL.md`. One or two
+sources, never twenty-one.

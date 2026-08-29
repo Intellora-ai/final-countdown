@@ -135,6 +135,41 @@ text.** A future session looking at `du -sh knowledge` and concluding the corpus
 is enormous is reading a picture library, not a reading list. The owner was
 shown the 9-11 GB figure and approved it.
 
+### The option that exists if the corpus ever needs to shrink
+
+**`git sparse-checkout` excluding `media/` would retrieve the same searchable
+text at roughly 1% of the disk.** All the text lives in `modules/`; `media/` is
+images the search layer never reads.
+
+Measured across the first 15 OpenStax books to land, 2026-08-29:
+
+| | Measured |
+|---|---|
+| All 15 books | **3,497 MB** |
+| Their `media/` directories | **3,358 MB** — 96% |
+| Everything else, text included | **139 MB** — 4% |
+
+Roughly:
+
+```bash
+git -C knowledge/openstax/<book> sparse-checkout set --no-cone '/*' '!/media'
+```
+
+**This has deliberately NOT been done.** The owner chose full clones knowingly,
+after being shown the size. Nothing here reverses that.
+
+It is written down so that a future decision to shrink the corpus starts from a
+**measured 96%**, not from a guess. Two things to weigh before acting on it: the
+images are part of a textbook and dropping them makes figures unviewable, and
+sparse-checkout is per-clone local state, so it would not shrink the repository
+for anyone else.
+
+For contrast, and to show that this ratio is specific to OpenStax rather than
+general: `progit` reported 183 MB upstream and is **21 MB** on disk, and
+`mdn/content` reported 493 MB and is **138 MB**. Those are history-heavy code
+repositories, so shallow cloning did the work there and sparse-checkout is not
+needed.
+
 ---
 
 ## Flagged for removal

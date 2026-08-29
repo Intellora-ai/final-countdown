@@ -132,3 +132,23 @@
 [submodule "knowledge/openstax/chemistry-bundle"]
 	path = knowledge/openstax/chemistry-bundle
 	url = https://github.com/openstax/osbooks-chemistry-bundle.git
+	shallow = true
+[submodule "knowledge/openstax/college-algebra-bundle"]
+	path = knowledge/openstax/college-algebra-bundle
+	url = https://github.com/openstax/osbooks-college-algebra-bundle.git
+	shallow = true
+[submodule "knowledge/openstax/college-physics-bundle"]
+	path = knowledge/openstax/college-physics-bundle
+	url = https://github.com/openstax/osbooks-college-physics-bundle.git
+	shallow = true
+[submodule "knowledge/openstax/college-success-bundle"]
+	path = knowledge/openstax/college-success-bundle
+	url = https://github.com/openstax/osbooks-college-success-bundle.git
+	shallow = true
+[submodule "knowledge/openstax/contemporary-mathematics"]
+	path = knowledge/openstax/contemporary-mathematics
+	url = https://github.com/openstax/osbooks-contemporary-mathematics.git
+	shallow = true
+[submodule "knowledge/openstax/entrepreneurship"]
+	path = knowledge/openstax/entrepreneurship
+	url = https://github.com/openstax/osbooks-entrepreneurship.git

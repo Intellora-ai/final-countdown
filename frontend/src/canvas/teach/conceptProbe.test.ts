@@ -66,7 +66,25 @@ const RATE_LIMIT_RETRIES = 3
 
 /** An OpenAI-compatible chat call. Groq, Cerebras, OpenRouter and Mistral all speak it. */
 function httpModel(): LessonModel {
-  return async (system, user) => {
+  /*
+   * `prior` IS FORWARDED, AND IT WAS BEING DROPPED.
+   *
+   * This probe measured `authorConcept`, which has a repair turn that hands the
+   * model its own previous reply -- `authorLesson` states why: it "turns a
+   * repair into a correction of a document the model can actually see; omitting
+   * it makes the same message a complaint about something it has never read,
+   * and it regenerates from scratch." This client took `(system, user)` and
+   * threw the third argument away, so every repair it measured was that
+   * complaint. `anyTopic.test.ts` forwards it; this one did not, which means the
+   * two probes were measuring different code paths while reporting the same
+   * number.
+   */
+  return async (system, user, prior) => {
+    const messages = [
+      { role: 'system', content: system },
+      ...(prior === undefined ? [] : [{ role: 'assistant', content: prior }]),
+      { role: 'user', content: user },
+    ]
     const call = async (waited: number): Promise<string> => {
     const response = await fetch(ENDPOINT, {
       method: 'POST',
@@ -76,10 +94,7 @@ function httpModel(): LessonModel {
       },
       body: JSON.stringify({
         model: MODEL,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
+        messages,
         /* Temperature 0 so two runs differ because the CODE changed, not
            because the sampler did. */
         temperature: 0,

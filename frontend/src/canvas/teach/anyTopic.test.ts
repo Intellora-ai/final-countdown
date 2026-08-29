@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { authorConcept } from './concept'
-import { itemTable, summarise, type ItemVerdict, type SeedRun } from './matrix'
+import { itemTable, neverReached, summarise, type ItemVerdict, type SeedRun } from './matrix'
 import type { LessonModel } from './authorLesson'
 
 /*
@@ -138,12 +138,18 @@ describe.skipIf(ENDPOINT === '')('any topic, not six topics', () => {
               item: `[${row.kind}] ${row.ask}`,
               ok: r.ok,
               why: r.ok ? '' : r.issues.map((i) => `${i.path}: ${i.message}`).join(' | '),
+              // `authorConcept` already distinguishes "nothing answered" from
+              // "the answer was refused" and carries the provider's own message
+              // here. Dropping it is what turned `HTTP 404: that model does not
+              // exist` into `the model could not be reached`.
+              unreachable: r.ok ? undefined : r.unreachable,
             })
           } catch (error) {
             items.push({
               item: `[${row.kind}] ${row.ask}`,
               ok: false,
-              why: `UNREACHABLE ${error instanceof Error ? error.message : String(error)}`,
+              why: '',
+              unreachable: error instanceof Error ? error.message : String(error),
             })
           }
         }
@@ -190,6 +196,24 @@ describe.skipIf(ENDPOINT === '')('any topic, not six topics', () => {
       expect(
         curriculumRefusals.map((r) => `${r.ask} -> ${r.why}`),
         'a valid educational request was refused for a curriculum reason',
+      ).toEqual([])
+
+      /*
+       * AND THE RUN HAS TO HAVE HAPPENED.
+       *
+       * This is NOT the score creeping back in. The check above can only fire
+       * on words in a refusal, and "the model could not be reached" has none of
+       * them -- so a run where nothing answered satisfied it completely. That
+       * is what happened: sixteen items, sixteen `HTTP 404`s because the model
+       * id in the config had been withdrawn, and a green suite.
+       *
+       * A shape refusal still passes, as it must. Only the ABSENCE of an answer
+       * fails, because a run that measured nothing is not evidence either way.
+       */
+      const unreached = neverReached(runs)
+      expect(
+        unreached.map((v) => `${v.item} -> ${v.unreachable ?? ''}`),
+        'the model was never reached, so this run measured nothing at all',
       ).toEqual([])
     },
     45 * 60 * 1000,

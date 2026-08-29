@@ -191,3 +191,72 @@ describe('paths that would be dropped', () => {
     expect(out).toContain('col=9')
   })
 })
+
+/*
+ * A SKIPPED TEST IS NOT A FAILING TEST.
+ *
+ * Found on `main`, in the GitHub annotations rather than in any local run.
+ * Commit 06f78c3: the `frontend` job finished `success` with `8773 passed |
+ * 2 skipped`, and carried two FAILURE annotations:
+ *
+ *   [failure] frontend/src/canvas/teach/anyTopic.test.ts      vitest: any topic -- failed
+ *   [failure] frontend/src/canvas/teach/conceptProbe.test.ts  vitest: the per-concept unit -- failed
+ *
+ * Neither test failed. Both are `describe.skipIf(...)` blocks that correctly
+ * skip when no model endpoint is configured, which is every CI run.
+ *
+ * The cause is one line: the loop skipped `passed` and `pending` and annotated
+ * EVERYTHING ELSE. Vitest reports a skipped test as `skipped`, not `pending`,
+ * so it fell through to the failure branch -- and with no `failureMessages` to
+ * quote, the annotation's whole message was the word `failed`, with no line
+ * number. `ci_findings.reconcile` then flagged both as
+ * `unlocatable failure: annotation-without-a-line`.
+ *
+ * A denylist of "states that are fine" fails silently every time a new state
+ * appears. Exactly one status means a test failed, so that is what is matched.
+ */
+describe('states that are not failures', () => {
+  /** A vitest report holding a single test in `status`. */
+  function reportWithStatus(status) {
+    return JSON.stringify({
+      numTotalTests: 1,
+      numFailedTests: 0,
+      testResults: [
+        {
+          name: '/w/final-countdown/frontend/src/canvas/teach/anyTopic.test.ts',
+          assertionResults: [
+            {
+              status,
+              title: 'teaches across the whole matrix',
+              ancestorTitles: ['any topic, not six topics'],
+              failureMessages: [],
+            },
+          ],
+        },
+      ],
+    })
+  }
+
+  it('does not annotate a skipped test as a failure', () => {
+    const out = annotate('vitest', reportWithStatus('skipped'))
+    expect(out, 'a skipped test was reported to GitHub as a failure').not.toContain('::error')
+  })
+
+  it('does not annotate a todo test as a failure', () => {
+    /* Same class, different spelling. A denylist that learned `skipped` and
+       not `todo` would still be a denylist. */
+    const out = annotate('vitest', reportWithStatus('todo'))
+    expect(out, 'a todo test was reported to GitHub as a failure').not.toContain('::error')
+  })
+
+  it('still annotates a genuinely failed test', () => {
+    /*
+     * THE PAIR. Without this, `return` satisfies the two above and the
+     * annotator stops reporting anything at all -- which is worse than the bug,
+     * because a real failure would then reach nobody.
+     */
+    const out = annotate('vitest', reportWithStatus('failed'))
+    expect(out, 'a real failure stopped being annotated').toContain('::error')
+    expect(out).toContain('anyTopic.test.ts')
+  })
+})

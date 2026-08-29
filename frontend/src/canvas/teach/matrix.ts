@@ -29,6 +29,15 @@ export interface ItemVerdict {
   readonly ok: boolean
   /** Why it failed. Empty when it passed. */
   readonly why: string
+  /**
+   * The transport failure, verbatim from the provider, when the model was
+   * never reached at all.
+   *
+   * SEPARATE FROM `why` ON PURPOSE. `why` is the GATE's verdict on an answer;
+   * this is the absence of an answer. Collapsing them is what let sixteen
+   * `HTTP 404`s read as sixteen teaching refusals and a passing suite.
+   */
+  readonly unreachable?: string
 }
 
 export interface SeedRun {
@@ -54,6 +63,13 @@ export interface Spread {
 export function itemTable(items: readonly ItemVerdict[]): string {
   return items
     .map((v) => {
+      /* UNREACHABLE is its own word, and the provider's own message follows
+         it. `REFUSED ... the model could not be reached` reads as a judgement
+         about the lesson; it was a dead model id in a config file, and the
+         provider had already said so. */
+      if (v.unreachable !== undefined && v.unreachable !== '') {
+        return `${'UNREACHED'.padEnd(8)} ${v.item} -- ${v.unreachable}`
+      }
       const head = `${(v.ok ? 'TAUGHT' : 'REFUSED').padEnd(8)} ${v.item}`
       return v.why === '' ? head : `${head} -- ${v.why}`
     })
@@ -75,4 +91,24 @@ export function summarise(runs: readonly SeedRun[]): Spread {
   const mean = passes.reduce((a, b) => a + b, 0) / passes.length
   const variance = passes.reduce((a, b) => a + (b - mean) ** 2, 0) / passes.length
   return { passes, mean, std: Math.sqrt(variance) }
+}
+
+/**
+ * Every item where the model was never reached.
+ *
+ * WHY A RUN NEEDS THIS AND A SCORE DOES NOT COVER IT.
+ *
+ * The matrix deliberately does NOT assert its score: a shape refusal is the
+ * gate working, and failing the build on it would make the gate the enemy. But
+ * "the instrument ran at all" is not a score, and it was never checked -- so a
+ * run in which nothing answered passed, sixteen times over, in under a second.
+ *
+ * A shape refusal IS a measurement: the model answered and the answer was
+ * refused. Only a transport failure is the absence of one, which is why this
+ * reads `unreachable` and never `ok`.
+ */
+export function neverReached(runs: readonly SeedRun[]): readonly ItemVerdict[] {
+  return runs.flatMap((run) =>
+    run.items.filter((item) => item.unreachable !== undefined && item.unreachable !== ''),
+  )
 }

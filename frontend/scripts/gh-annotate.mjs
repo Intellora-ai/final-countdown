@@ -154,7 +154,21 @@ function annotateVitest(text) {
   let n = 0
   for (const suite of report.testResults ?? []) {
     for (const t of suite.assertionResults ?? []) {
-      if (t.status === 'passed' || t.status === 'pending') continue
+      /*
+       * EXACTLY ONE STATUS MEANS A TEST FAILED, SO THAT IS WHAT IS MATCHED.
+       *
+       * This was `status === 'passed' || status === 'pending'` -- a DENYLIST of
+       * states that are fine, annotating everything else. Vitest reports a
+       * skipped test as `skipped`, not `pending`, so every `describe.skipIf`
+       * fell through to the failure branch. On commit 06f78c3 the frontend job
+       * finished green with `8773 passed | 2 skipped` and still posted two
+       * failure annotations whose entire message was the word `failed`, with no
+       * line -- `ci_findings.reconcile` flagged both as unlocatable.
+       *
+       * A denylist fails SILENTLY every time a new state appears: `todo` would
+       * have been the next one. An allowlist of the failing state cannot.
+       */
+      if (t.status !== 'failed') continue
       const first = (t.failureMessages ?? [])[0] ?? 'failed'
       /* Recover a source location from the stack when vitest supplies one. */
       const at = pickFrame(first)

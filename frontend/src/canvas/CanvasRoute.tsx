@@ -22,7 +22,7 @@ import learnerB from './lessons/generated/learner-b-preferred-mechanism-failed.j
    cannot show what the contract does to real sentences. Labelled as
    hand-written wherever it appears, so nobody reads it as a model's work. */
 import byHand from './lessons/handwritten/contract-honoured-by-hand.json'
-import { validateLesson, type Issue } from './spec/validate'
+import { validateLesson, type Issue, type TeachingLevel } from './spec/validate'
 import { chatOnce } from '../agent/ports/httpModel'
 import { authorLesson } from './teach/authorLesson'
 import type { Lesson } from './spec/spec'
@@ -55,19 +55,32 @@ import './route.css'
  * have no idea they are inside a study app.
  */
 
+/**
+ * WHY EACH ENTRY CARRIES ITS OWN TEACHING LEVEL
+ * ---------------------------------------------
+ * The first five are authored LESSONS and owe the whole arc — a definition
+ * first, a summary last, something shown rather than told.
+ *
+ * The last three are the engine's contract, and they are ANSWERS. Held at
+ * `'lesson'` alongside the rest, all three rendered the refusal panel instead
+ * of a lesson: the engine's `emit` builds only `prose` and `callout`, so it
+ * cannot open with a definition, cannot close with a progression and cannot
+ * show anything at all. The level is a property of what a thing IS, so it is
+ * recorded here beside the thing rather than assumed at the call site.
+ */
 const LESSONS = [
-  { id: 'logs', label: 'Maths', spec: logarithms },
-  { id: 'tenses', label: 'English', spec: tenses },
-  { id: 'gas', label: 'Physics', spec: gasPressure },
-  { id: 'bill', label: 'Civics', spec: billBecomesLaw },
-  { id: 'ml', label: 'Machine learning', spec: classifierEvaluation },
+  { id: 'logs', label: 'Maths', spec: logarithms, teaching: 'lesson' },
+  { id: 'tenses', label: 'English', spec: tenses, teaching: 'lesson' },
+  { id: 'gas', label: 'Physics', spec: gasPressure, teaching: 'lesson' },
+  { id: 'bill', label: 'Civics', spec: billBecomesLaw, teaching: 'lesson' },
+  { id: 'ml', label: 'Machine learning', spec: classifierEvaluation, teaching: 'lesson' },
   // The last three are the engine's, not an author's. A and B share a knowledge
   // state and differ only in what has already been tried on them, so the two
   // sitting side by side is the adaptation claim rendered rather than asserted.
-  { id: 'engine-a', label: 'Engine: first attempt', spec: learnerA },
-  { id: 'engine-b', label: 'Engine: preferred mechanism failed', spec: learnerB },
-  { id: 'by-hand', label: 'Same contract, written by hand', spec: byHand },
-] as const
+  { id: 'engine-a', label: 'Engine: first attempt', spec: learnerA, teaching: 'answer' },
+  { id: 'engine-b', label: 'Engine: preferred mechanism failed', spec: learnerB, teaching: 'answer' },
+  { id: 'by-hand', label: 'Same contract, written by hand', spec: byHand, teaching: 'answer' },
+] as const satisfies readonly { id: string; label: string; spec: unknown; teaching: TeachingLevel }[]
 
 /**
  * How the canvas reaches a source outside the lesson, if it has one.
@@ -216,7 +229,10 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
    * work whose result cannot have changed, since the lesson is a module
    * constant.
    */
-  const picked = useMemo(() => validateLesson(chosen.spec), [chosen])
+  const picked = useMemo(
+    () => validateLesson(chosen.spec, { teaching: chosen.teaching }),
+    [chosen],
+  )
 
   /* An authored lesson has ALREADY been through `validateLesson` inside
      `authorLesson` — that is what "ok" means there. Re-parsing it would be work

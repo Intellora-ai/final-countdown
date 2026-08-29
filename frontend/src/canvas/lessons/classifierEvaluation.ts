@@ -18,10 +18,26 @@ export const classifierEvaluation: LessonInput = {
 
   blocks: [
     {
+      id: 'what-accuracy-is',
+      kind: 'prose',
+      title: 'What accuracy is',
+      emphasis: 'primary',
+      tone: 'neutral',
+      role: 'definition',
+      body: 'Accuracy is the share of predictions a model gets correct. It counts every prediction the same way.',
+      terms: [{ text: 'accuracy', mark: 'key' }],
+    },
+
+    {
       id: 'headline',
       kind: 'metric',
       title: 'Reported accuracy',
-      emphasis: 'primary',
+      /* `supporting`, not `primary`, and the lesson's own argument is the
+         reason: this number is the thing being taken apart, not the thing
+         being taught. Its caption already says so. As `primary` it also sat
+         alone in a band five columns wide, which `noAccidentalVoid` reports —
+         the definition and the flattering number belong side by side. */
+      emphasis: 'supporting',
       tone: 'result',
       value: 97.1,
       unit: '%',
@@ -193,21 +209,76 @@ export const classifierEvaluation: LessonInput = {
     },
 
     {
+      id: 'why-the-rule-holds',
+      kind: 'reasoning',
+      title: 'Why the rule holds',
+      emphasis: 'primary',
+      tone: 'insight',
+      role: 'rule',
+      /* The rule below was stated and never earned, which is the definition of
+         something to be memorised. Each step here follows from a number the
+         learner has already been shown on this page. */
+      mode: 'why',
+      claim: 'Accuracy alone cannot tell you whether this model learned anything.',
+      steps: [
+        {
+          expression: 'Only 300 of the 10,000 transactions are fraudulent.',
+          because: 'The donut above counts them.',
+        },
+        {
+          expression: 'Answering "legitimate" every time therefore scores 97%.',
+          because: 'It is correct on all 9,700 legitimate transactions and wrong on the 300.',
+        },
+        {
+          expression: 'The model reports 97.1%.',
+          because: 'That is the headline figure it was given.',
+        },
+        {
+          expression: 'So the model is worth about a tenth of a point over guessing.',
+          because: 'Its score and the always-guess score differ by 0.1 percentage points.',
+        },
+      ],
+      therefore: 'Without the baseline printed beside it, 97% reads as success and is very nearly nothing.',
+    },
+
+    {
       id: 'takeaway',
       kind: 'callout',
       title: 'The rule',
       emphasis: 'primary',
       tone: 'warning',
-      body: 'Never report accuracy on an imbalanced dataset without reporting the majority-class baseline beside it. A model that cannot beat "always guess the common class" has learned nothing, and accuracy alone will never say so.',
+      role: 'rule',
+      body: 'Never report accuracy on an imbalanced dataset without reporting the majority-class baseline beside it.\n\nA model that cannot beat "always guess the common class" has learned nothing, and accuracy alone will never say so.',
+      terms: [{ text: 'majority-class baseline', mark: 'key' }],
     },
 
     {
-      id: 'summary',
+      id: 'in-one-paragraph',
       kind: 'prose',
       title: 'In one paragraph',
       emphasis: 'supporting',
       tone: 'neutral',
-      body: 'Accuracy counts every prediction equally, which is only reasonable when every error costs the same and every class is equally common. Here neither holds: fraud is 3% of the data and a missed fraud costs far more than a false alarm. The confusion matrix shows where the errors fall, precision-recall shows the tradeoff you are actually buying, and the cost curves say where to put the threshold.',
+      role: 'component',
+      /* Four runs. The 67-word original is intact, split where the argument
+         turns rather than trimmed to fit a limit. */
+      body: 'Accuracy counts every prediction equally, which is only reasonable when every error costs the same and every class is equally common.\n\nHere neither holds: fraud is 3% of the data, and a missed fraud costs far more than a false alarm.\n\nThe confusion matrix shows where the errors fall, and precision-recall shows the tradeoff you are actually buying.\n\nThe cost curves say where to put the threshold.',
+      terms: [{ text: 'a missed fraud costs far more than a false alarm', mark: 'key' }],
+    },
+
+    {
+      id: 'keep-this',
+      kind: 'summary',
+      title: 'Keep this',
+      emphasis: 'primary',
+      tone: 'result',
+      role: 'summary',
+      progression: [
+        'Check how rare the positive class is',
+        'Compare against always guessing the common class',
+        'Read the confusion matrix',
+        'Pick the threshold from the cost curve',
+      ],
+      mentalModel: 'Accuracy answers a question nobody asked when the classes are lopsided. Ask what each error costs.',
     },
   ],
 
@@ -217,5 +288,11 @@ export const classifierEvaluation: LessonInput = {
     { from: 'pr', to: 'roc', kind: 'contrasts' },
     { from: 'threshold-cost', to: 'pr', kind: 'supports' },
     { from: 'takeaway', to: 'confusion', kind: 'derives' },
+    { from: 'headline', to: 'what-accuracy-is', kind: 'exemplifies' },
+    /* `features` was joined to nothing. It shows which inputs the model leans
+       on, which is the evidence for the paragraph explaining what accuracy
+       hides. */
+    { from: 'features', to: 'in-one-paragraph', kind: 'supports' },
+    { from: 'why-the-rule-holds', to: 'imbalance', kind: 'derives' },
   ],
 }

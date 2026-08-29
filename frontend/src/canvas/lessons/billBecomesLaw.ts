@@ -22,6 +22,28 @@ export const billBecomesLaw: LessonInput = {
 
   blocks: [
     {
+      id: 'what-a-bill-is',
+      kind: 'prose',
+      title: 'What a bill is',
+      emphasis: 'primary',
+      tone: 'neutral',
+      role: 'definition',
+      body: 'A bill is a written proposal for a new law. It becomes law only after both Houses agree to it.',
+      terms: [{ text: 'bill', mark: 'key' }],
+    },
+
+    {
+      id: 'the-whole-route',
+      kind: 'prose',
+      title: 'The whole route',
+      emphasis: 'primary',
+      tone: 'insight',
+      role: 'framework',
+      body: 'Every bill takes the same road: one House, then the other, then the President. Any of the three can stop it.',
+      terms: [{ text: 'Any of the three can stop it', mark: 'distinction' }],
+    },
+
+    {
       id: 'passage',
       kind: 'figure',
       title: 'The passage of a bill',
@@ -144,7 +166,9 @@ export const billBecomesLaw: LessonInput = {
       title: 'The President has three options, not two',
       emphasis: 'supporting',
       tone: 'warning',
-      body: 'Assent, withhold assent, or return the bill for reconsideration. The third is the one students forget — and if the House passes it again, assent can no longer be withheld.',
+      role: 'restriction',
+      body: 'Assent, withhold assent, or return the bill for reconsideration.\n\nThe third is the one students forget — and if the House passes it again, assent can no longer be withheld.',
+      terms: [{ text: 'return the bill for reconsideration', mark: 'key' }],
     },
 
     {
@@ -153,7 +177,28 @@ export const billBecomesLaw: LessonInput = {
       title: 'Why two Houses at all',
       emphasis: 'supporting',
       tone: 'neutral',
-      body: 'A single chamber can pass a law in an afternoon. The second House exists to make that harder: it forces a bill to survive a different set of members, elected on a different cycle, answering to states rather than constituencies. Most of the delay in the timeline above is that friction working as designed.',
+      role: 'component',
+      /* Four runs, not one 54-word paragraph. Every clause of the original is
+         still here; only the breathing spaces are new. */
+      body: 'A single chamber can pass a law in an afternoon.\n\nThe second House exists to make that harder: it forces a bill to survive a different set of members, elected on a different cycle.\n\nThose members answer to states rather than constituencies.\n\nMost of the delay in the timeline above is that friction working as designed.',
+      terms: [{ text: 'friction working as designed', mark: 'key' }],
+    },
+
+    {
+      id: 'keep-this',
+      kind: 'summary',
+      title: 'Keep this',
+      emphasis: 'primary',
+      tone: 'result',
+      role: 'summary',
+      progression: [
+        'A bill is introduced',
+        'One House passes it',
+        'The other House passes it',
+        'The President assents',
+        'It is law',
+      ],
+      mentalModel: 'Three gates, any one of which can stop a bill. The delay is the design, not a fault.',
     },
   ],
 
@@ -161,5 +206,10 @@ export const billBecomesLaw: LessonInput = {
     { from: 'where-bills-go', to: 'passage', kind: 'supports' },
     { from: 'session-timeline', to: 'passage', kind: 'exemplifies' },
     { from: 'veto-types', to: 'passage', kind: 'contrasts' },
+    { from: 'passage', to: 'the-whole-route', kind: 'exemplifies' },
+    /* `chambers` compares the powers of the two Houses and was joined to
+       nothing, so nothing in the lesson pointed at it. It is the evidence for
+       the paragraph that asks why a second House exists at all. */
+    { from: 'chambers', to: 'why-two-houses', kind: 'supports' },
   ],
 }

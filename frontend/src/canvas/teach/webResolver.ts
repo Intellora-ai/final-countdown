@@ -488,8 +488,32 @@ function buildCheckedAnswer(
     {
       id: 'web-note',
       kind: 'callout',
+      /*
+       * IT OPENS ON THE QUESTION, AND THAT IS LOAD-BEARING.
+       *
+       * This block leads the answer, and its body was a pure provenance
+       * banner: "This is not from this lesson. It is quoted from a page found
+       * on the web." Those words name nothing the learner asked about, so
+       * `checkOpensOnTheTopic` refused it -- and because the banner is
+       * identical every time, it refused EVERY web answer this file built, for
+       * every question. The builder returned null and the learner was told "I
+       * found sources for that but could not render them safely" about a page
+       * that had been retrieved, judged clean, and was on topic.
+       *
+       * The rule reads the first block's FIRST SENTENCE. Adding a title does
+       * not satisfy it -- the title only widens the set of words that count,
+       * and the banner contained none of them either way. The body has to say
+       * the topic, which is also what the rule asks for in words: "state the
+       * topic, the doubt or the question".
+       *
+       * The break after it is the other half: the banner ran to 31 words in
+       * one go against a 30-word limit. All three builders in this file had
+       * both faults, and none was visible until these tests could run at all.
+       */
+      title: clamp(doubt.text.trim(), MAX_TITLE),
       body:
-        `This is not from this lesson. It is quoted from a page found on the web. ` +
+        `Your question: ${clamp(doubt.text.trim(), 120)}\n\n` +
+        `This answer is not from this lesson. It is quoted from a page found on the web.\n\n` +
         `${STATUS_NOTE[status as 'supported' | 'single-source']}${freshnessNote(freshness)}` +
         `${fallbackNote(fallback)}`,
       emphasis: 'aside',
@@ -548,8 +572,11 @@ function buildConflictAnswer(
     {
       id: 'web-note',
       kind: 'callout',
+      /* Opens on the question, for the reason given in `buildCheckedAnswer`. */
+      title: clamp(doubt.text.trim(), MAX_TITLE),
       body:
-        `This is not from this lesson. ${STATUS_NOTE.conflicting}` +
+        `Your question: ${clamp(doubt.text.trim(), 120)}\n\n` +
+        `This answer is not from this lesson.\n\n${STATUS_NOTE.conflicting}` +
         `${freshnessNote(freshness)}${fallbackNote(fallback)}`,
       emphasis: 'aside',
       tone: 'warning',
@@ -592,9 +619,12 @@ function buildAnswer(doubt: Doubt, pages: readonly RetrievedPage[]): Lesson | nu
          subject. Without it an answer appears in the lesson's own styling,
          sourced from elsewhere, and teaches the learner that the lesson said
          something it never said. */
+      title: clamp(doubt.text.trim(), MAX_TITLE),
       body:
-        'This is not from this lesson. It is quoted from pages found on the web, ' +
-        'with the address of each one, so you can judge them yourself.',
+        `Your question: ${clamp(doubt.text.trim(), 120)}\n\n` +
+        'This answer is not from this lesson.\n\n' +
+        'It is quoted from pages found on the web, with the address of each one, ' +
+        'so you can judge them yourself.',
       emphasis: 'aside',
       tone: 'insight',
     },

@@ -47,7 +47,11 @@ const LESSON: Lesson = (() => {
       },
     ],
     relations: [],
-  })
+  /* `'off'`. This fixture is the lesson a doubt is asked ABOUT. What the
+     file tests is which resolver answers, what it cites and how it falls
+     through -- never whether this stub teaches. Structure is still fully
+     checked, so a malformed fixture still fails here. */
+  }, { teaching: 'off' })
   if (!result.ok) throw new Error('fixture invalid')
   return result.lesson
 })()

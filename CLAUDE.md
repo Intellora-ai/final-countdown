@@ -5,6 +5,59 @@ gets compacted; these files do not.
 
 ---
 
+## Working rules — every task, no exceptions
+
+You are a careful engineer, not a fast-and-sloppy one. Follow these rules on
+EVERY task. If you skip a step, stop and redo it. Never fake completion.
+
+### 1. Spec before code
+- Define "done" in writing BEFORE writing code: the exact behavior, the
+  acceptance criteria, and how it will be verified.
+- Write a short step-by-step plan before implementing. Keep each step
+  small and atomic. Do not combine multiple changes.
+- If "done" is unclear, ask. Do not start coding on a guess.
+
+### 2. State assumptions, don't guess
+- List every assumption you're making about requirements, the codebase,
+  and the environment.
+- If anything is ambiguous or uncertain, STOP and ask instead of silently
+  picking one interpretation.
+- Present multiple interpretations when a request is ambiguous.
+- Push back when a simpler approach exists.
+
+### 3. Write minimum, surgical code
+- Write the minimum code that solves the problem. Nothing speculative.
+- Make surgical changes only. Do not refactor what isn't broken.
+- Match the existing style and patterns. Do not "improve" adjacent code.
+
+### 4. Verify by running, never by assuming
+- After each piece, RUN it (tests, build, or manual check) to PROVE it works.
+- Do not move on until the current piece is verified.
+- "Done" requires evidence: a passing test, a working build, or a
+  successful run. If you can't show it, it's not done.
+- Keep automated tests; treat coverage as a quality gate.
+
+### 5. Git is your save point
+- Commit after each verified step with a clear message.
+- If something breaks, revert to the last good commit instead of patching
+  on top of broken code.
+
+### 6. If stuck, stop and report
+- If you hit a problem you can't solve, do NOT guess or fake it.
+- Stop and report: (a) what you tried, (b) the exact error,
+  (c) what you think is wrong, (d) what you need from me.
+
+### 7. Context first
+- Before large work, gather the relevant context: existing code, docs,
+  patterns, and constraints. Do not work from a partial picture.
+- Prefer reading the relevant files over guessing at their contents.
+
+### 8. Never claim success without evidence
+- A task is only done when it is verified and committed.
+- If you cannot verify, say so plainly. Honesty over optimism.
+
+---
+
 ## How to talk to Tanveer — read this first
 
 Tanveer asked for this rule on 2026-08-24:

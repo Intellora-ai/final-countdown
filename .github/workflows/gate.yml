@@ -1,0 +1,203 @@
+# Enforcement gate.
+#
+# Three jobs, in increasing cost and decreasing certainty:
+#
+#   catch-errors  lint + typecheck + tests            free, blocking
+#   chaos-test    Chaos Toolkit resilience probes     free, NON-blocking for now
+#   claude-fix    Claude repairs a failure and pushes  costs tokens, on failure only
+#
+# NOTE ON SUBMODULES: this repository now carries ~414 MB of pinned knowledge
+# submodules under knowledge/. Every checkout here sets `submodules: false`
+# deliberately. A job that fetches them would add minutes to every run for
+# material no CI job reads.
+name: gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Least privilege by default. Only claude-fix widens this, and only for itself.
+permissions:
+  contents: read
+
+concurrency:
+  group: gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # BLOCKING. If this is red, the change does not merge.
+  # ---------------------------------------------------------------------------
+  catch-errors:
+    name: catch-errors
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+          # super-linter diffs against the base commit, so it needs history.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # Typecheck before tests: a type error explains a test failure, and
+      # finding it second means reading the wrong error first.
+      - name: Typecheck
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Frontend tests
+        working-directory: frontend
+        run: npm test -- --run
+
+      - name: Install Python test dependencies
+        run: python -m pip install --upgrade pip pytest
+
+      - name: Python tests
+        run: pytest tests/ -q
+
+      # super-linter runs last: it is the broadest and slowest check, and a
+      # failure here is usually style rather than correctness. VALIDATE_ALL_
+      # CODEBASE is false so it judges the diff, not 400 pre-existing files.
+      - name: super-linter
+        uses: super-linter/super-linter/slim@v8.7.0
+        env:
+          DEFAULT_BRANCH: main
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VALIDATE_ALL_CODEBASE: false
+          # knowledge/ is 21 third-party repositories and .claude/skills is
+          # vendored third-party work. Linting either would report other
+          # people's style as our failures.
+          FILTER_REGEX_EXCLUDE: '(knowledge/|\.claude/skills/|node_modules/)'
+
+  # ---------------------------------------------------------------------------
+  # NON-BLOCKING, on purpose, for now.
+  #
+  # A brand-new chaos suite fails for its own setup reasons before it ever finds
+  # a real weakness, and a gate that cries wolf in week one gets switched off in
+  # week two. It reports loudly and does not block. Promote it to required only
+  # once it has been green on main for a stretch and its failures mean something.
+  # ---------------------------------------------------------------------------
+  chaos-test:
+    name: chaos-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Chaos Toolkit
+        run: python -m pip install --upgrade pip chaostoolkit chaostoolkit-lib
+
+      - name: Run chaos experiments
+        id: chaos
+        continue-on-error: true
+        run: |
+          if [ ! -d chaos ] || [ -z "$(ls -A chaos/*.json 2>/dev/null)" ]; then
+            echo "::notice title=chaos::No experiments in chaos/*.json yet — nothing to run."
+            echo "result=none" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          rc=0
+          for f in chaos/*.json; do
+            echo "::group::$f"
+            chaos run "$f" || rc=1
+            echo "::endgroup::"
+          done
+          echo "result=$([ $rc -eq 0 ] && echo pass || echo fail)" >> "$GITHUB_OUTPUT"
+          exit $rc
+
+      # The outcome is REPORTED even though the job does not block. A
+      # continue-on-error step whose result nobody reads is the same as no step.
+      - name: Report chaos outcome
+        if: always()
+        run: |
+          case "${{ steps.chaos.outputs.result }}" in
+            pass) echo "::notice title=chaos::All experiments held steady state." ;;
+            fail) echo "::warning title=chaos::An experiment broke steady state. Non-blocking today; read the log." ;;
+            *)    echo "::notice title=chaos::No experiments defined yet." ;;
+          esac
+
+  # ---------------------------------------------------------------------------
+  # Runs ONLY when catch-errors failed.
+  #
+  # SECURITY: this job holds credentials and can write to the repository, so it
+  # is fenced to changes originating in this repository. A pull request from a
+  # fork must never reach it — that would hand a stranger's branch both the
+  # OAuth token and push access.
+  # ---------------------------------------------------------------------------
+  claude-fix:
+    name: claude-fix
+    needs: catch-errors
+    if: >-
+      failure() &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Refuse to run without credentials
+        # Fail loudly rather than silently doing nothing. A job that skips
+        # quietly when a secret is missing looks identical to one that ran and
+        # found no problem.
+        run: |
+          if [ -z "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}" ]; then
+            echo "::error title=claude-fix::CLAUDE_CODE_OAUTH_TOKEN is not set. See the enforcement steps in the repository README."
+            exit 1
+          fi
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            The `catch-errors` job failed on this branch.
+
+            Read CLAUDE.md first and obey it, especially LAW 0: the test comes
+            before the fix and must be seen failing. Do not weaken, skip or
+            delete a test to reach green — that is the one move this repository
+            forbids outright.
+
+            1. Reproduce the failure locally with the repository's own commands.
+            2. Name the root cause before changing a line.
+            3. Fix the cause, not the symptom.
+            4. Re-run typecheck, lint, and both test suites.
+            5. If you cannot fix it honestly, stop and say so in the PR. Do not
+               push a change that only makes the red disappear.
+
+            Never touch frontend/src/data, frontend/src/components or
+            frontend/src/styles — the dashboard is out of scope, per CLAUDE.md.
+        env:
+          CLAUDE_OAUTH_REFRESH_TOKEN: ${{ secrets.CLAUDE_OAUTH_REFRESH_TOKEN }}
+          CLAUDE_OAUTH_EXPIRES_AT: ${{ secrets.CLAUDE_OAUTH_EXPIRES_AT }}

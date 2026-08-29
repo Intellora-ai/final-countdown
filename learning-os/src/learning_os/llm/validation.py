@@ -63,7 +63,7 @@ class Violation:
     repairable: bool = True
 
 
-#: The canvas's eight block kinds, from `frontend/src/canvas/spec/spec.ts`.
+#: The canvas's twelve block kinds, from `frontend/src/canvas/spec/spec.ts`.
 #:
 #: Duplicated across a language boundary, which is a real cost and is why it is
 #: checked rather than assumed: an unknown kind fails HERE with a clear message
@@ -95,6 +95,12 @@ BLOCK_KINDS = frozenset(
         "misconception",
         "summary",
         "reasoning",
+        # `figure` reaches the other ~130 named representations through the
+        # registry (`spec/figure.ts`). It was missing from the first version of
+        # this set, which made the omission WORSE than the three above: a model
+        # emitting the single most general block kind was told "no renderer",
+        # which is false and points the reader at the canvas instead of here.
+        "figure",
     }
 )
 

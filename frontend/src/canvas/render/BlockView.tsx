@@ -296,6 +296,47 @@ function MisconceptionView({ block }: { block: Extract<Block, { kind: 'misconcep
 }
 
 /* -------------------------------------------------------------------------- */
+/* KaTeX trust                                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The one KaTeX command this canvas allows, and nothing else.
+ *
+ * WHY THIS EXISTS: `trust: true` WAS A SCRIPT-INJECTION PATH.
+ *
+ * Verified against the installed KaTeX 0.18.4 types rather than from memory.
+ * `trust` defaults to `false`; setting it to `true` enables the whole trusted
+ * set — `\href`, `\url`, `\includegraphics`, `\htmlClass`, `\htmlId`,
+ * `\htmlStyle`, `\htmlData`. This renderer had `trust: true`.
+ *
+ * That was survivable while every equation was hand-written in this repository.
+ * It stopped being survivable when `authorLesson` began accepting a `latex`
+ * string from a local model, and I widened it further by giving each
+ * `reasoning` step its own `latex` field. A model-authored
+ * `\href{javascript:…}{x}` is executable, and `\htmlStyle` is arbitrary CSS.
+ * Model output is untrusted input (OWASP LLM05), and this was the one place in
+ * the lesson path not treating it that way — the prose path is safe because it
+ * renders as React children rather than HTML.
+ *
+ * A HANDLER RATHER THAN `false`, AND THAT IS THE POINT.
+ *
+ * `trust` also accepts `(context) => boolean`. Turning it off outright would
+ * have taken `highlight` with it — the author names a term and the design
+ * system draws it, which is a feature worth keeping. So exactly one command is
+ * allowed, with exactly the one class this file emits. Everything else is
+ * refused and KaTeX renders it inertly in `errorColor`.
+ *
+ * `strict` is deliberately left alone. It governs warnings about non-standard
+ * LaTeX, not what may execute; tightening it here would change how existing
+ * equations render without closing anything.
+ */
+const HIGHLIGHT_CLASS = 'lc-hl'
+
+function trustOnlyOurHighlight(context: { command: string; class?: string }): boolean {
+  return context.command === '\\htmlClass' && context.class === HIGHLIGHT_CLASS
+}
+
+/* -------------------------------------------------------------------------- */
 /* Reasoning                                                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -324,7 +365,7 @@ function ReasoningStep({
     katex.render(step.latex, host, {
       displayMode: false,
       throwOnError: false,
-      trust: true,
+      trust: trustOnlyOurHighlight,
       strict: false,
       output: 'html',
     })
@@ -499,13 +540,13 @@ function EquationView({ block }: { block: Extract<Block, { kind: 'equation' }> }
        * corrupt the formula. That is a pre-existing limit worth fixing
        * separately; this change removes the case that actually fires.
        */
-      latex = latex.split(term).join(`{\\htmlClass{lc-hl}{${term}}}`)
+      latex = latex.split(term).join(`{\\htmlClass{${HIGHLIGHT_CLASS}}{${term}}}`)
     }
 
     katex.render(latex, host, {
       displayMode: true,
       throwOnError: false,
-      trust: true,
+      trust: trustOnlyOurHighlight,
       strict: false,
       output: 'html',
     })

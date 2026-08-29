@@ -93,6 +93,12 @@ export type WebSearch = (query: string, options: Record<string, unknown>) => Pro
  * machine configured for the tutor still could not author a lesson, and the
  * learner would have no way to tell which half they had missed.
  */
+/** Shown instead of a refusal when there is no model to refuse anything. */
+const NO_MODEL_NOTE =
+  'Set VITE_TUTOR_ENDPOINT to a chat-completions URL to author lessons on any topic — '
+  + 'for a local runner that is usually http://localhost:11434/v1/chat/completions (Ollama) '
+  + 'or http://localhost:1234/v1/chat/completions (LM Studio).'
+
 function readEnv(name: string): string {
   const v = (import.meta.env as Record<string, string | undefined>)[name]
   return typeof v === 'string' ? v : ''
@@ -110,6 +116,22 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
   const [authored, setAuthored] = useState<Lesson | null>(null)
   const [authoring, setAuthoring] = useState(false)
   const [authorFailed, setAuthorFailed] = useState<Issue[] | null>(null)
+
+  /*
+   * WHETHER THERE IS A MODEL TO ASK, KNOWN BEFORE ANYONE ASKS.
+   *
+   * Without this the button stayed enabled, `chatOnce` threw "no model endpoint
+   * is configured", and that arrived under the heading "That lesson was refused
+   * — the model answered, and what it produced does not teach". The model was
+   * never contacted. Telling a learner their question produced bad teaching
+   * when nothing was asked is the worst kind of wrong: it is confident, and it
+   * blames the wrong thing.
+   *
+   * `TutorView` already gets this right by checking up front. This is the same
+   * check, in the one place that was missing it.
+   */
+  const modelEndpoint = readEnv('VITE_TUTOR_ENDPOINT')
+  const hasModel = modelEndpoint.trim() !== ''
 
   /*
    * The chain, in trust order: the page the learner is looking at first, then
@@ -246,11 +268,12 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
             type="text"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="Teach me anything…"
+            placeholder={hasModel ? 'Teach me anything…' : 'No model configured'}
             aria-label="A topic to be taught"
-            disabled={authoring}
+            title={hasModel ? undefined : NO_MODEL_NOTE}
+            disabled={authoring || !hasModel}
           />
-          <button type="submit" disabled={authoring || topic.trim() === ''}>
+          <button type="submit" disabled={authoring || !hasModel || topic.trim() === ''}>
             {authoring ? 'Writing…' : 'Teach me'}
           </button>
         </form>
@@ -281,7 +304,12 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
         <div className="lc-refusal" role="alert">
           <h2>That lesson was refused</h2>
           <p className="lc-caption">
-            The model answered, and what it produced does not teach. It is not being shown.
+            {/* Two different failures wore one sentence. A model that was never
+                reached did not "produce" anything, and saying it did sends the
+                reader looking for a teaching problem that does not exist. */}
+            {authorFailed.some((i) => i.path === '(model)')
+              ? 'The model could not be reached, so nothing was written.'
+              : 'The model answered, and what it produced does not teach. It is not being shown.'}
           </p>
           <ul>
             {authorFailed.slice(0, 8).map((issue, i) => (

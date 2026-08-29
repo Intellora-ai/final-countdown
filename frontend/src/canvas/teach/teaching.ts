@@ -155,44 +155,16 @@ function readableText(block: Block): string {
  */
 export const MARK_REQUIRED_ABOVE_WORDS = 10
 
-/** R1 — a marked term the reader never sees marked, and a block that marks none. */
-function checkMarkedTerms(lesson: Lesson, out: TeachingIssue[]): void {
+/**
+ * R1a — INTEGRITY. A term marked but absent from the body it belongs to.
+ *
+ * ALWAYS RUNS, at every level. This is not a judgement about teaching quality:
+ * a term named and missing is a defect in the block itself, and it is one the
+ * author can always fix by editing the text they wrote.
+ */
+function checkMarkedTermsExist(lesson: Lesson, out: TeachingIssue[]): void {
   lesson.blocks.forEach((block, i) => {
     if (block.kind !== 'prose' && block.kind !== 'callout') return
-
-    /*
-     * THE LAW: A BLOCK WORTH READING HAS A WORD WORTH REMEMBERING.
-     *
-     * Marking was optional, and optional meant absent — the first draft of the
-     * logarithms lesson left four of its six text blocks with no mark at all,
-     * so the page was a uniform grey wall exactly where it claimed to be
-     * teaching. Making it a rule rather than a habit is the difference between
-     * a page that can be skimmed for its important words and one that cannot.
-     *
-     * Graded by length, not applied blindly: see `MARK_REQUIRED_ABOVE_WORDS`.
-     * A gate that demands a bold word in a four-word example is a gate authors
-     * work around.
-     */
-    const exempt =
-      /* An example is the illustration, not new vocabulary. Its important word
-         is the whole of it, and demanding a bold term inside "log₁₀ 1000 = 3"
-         would have the author bolding a number to satisfy a checker. */
-      block.role === 'example'
-
-    if (
-      !exempt &&
-      block.terms.length === 0 &&
-      words(block.body).length > MARK_REQUIRED_ABOVE_WORDS
-    ) {
-      out.push({
-        path: `blocks[${i}]`,
-        rule: 'nothing-marked',
-        message:
-          `this block marks no important word, so nothing in it survives a skim. ` +
-          `Mark the term worth remembering as "key", or the one that separates two ` +
-          `confusable things as "distinction"`,
-      })
-    }
 
     const body = block.body.toLowerCase()
     block.terms.forEach((term, t) => {
@@ -205,6 +177,52 @@ function checkMarkedTerms(lesson: Lesson, out: TeachingIssue[]): void {
             `body, so the reader will never see it marked while the author believes they marked it`,
         })
       }
+    })
+  })
+}
+
+/**
+ * R1b — QUALITY. A block worth reading has a word worth remembering.
+ *
+ * Marking was optional, and optional meant absent: the first draft of the
+ * logarithms lesson left four of its six text blocks unmarked, so the page was
+ * a uniform grey wall exactly where it claimed to be teaching.
+ *
+ * ARC-ONLY, AND THIS SPLIT IS A BUG FIX, NOT A RELAXATION.
+ *
+ * This rule and `marked-term-absent` used to live in one function, so both ran
+ * at every level — including `'answer'`. That broke the doubt feature in the
+ * product, not merely in tests. `doubt.ts`'s `captionNote` assembles a block
+ * out of the author's caption and **never invents text**, so it cannot add a
+ * marked term at all; any caption over ten words made `buildAnswer` return
+ * null and the resolver refuse. Measured on live content: three captions of
+ * 23, 17 and 13 words.
+ *
+ * A rule an honest caller is structurally unable to satisfy is not a standard,
+ * it is a trap. Demanding a bold word is a judgement about a lesson someone
+ * WROTE; it has no business being applied to a reply the software ASSEMBLED.
+ *
+ * Graded by length, not applied blindly — see `MARK_REQUIRED_ABOVE_WORDS`.
+ */
+function checkSomethingIsMarked(lesson: Lesson, out: TeachingIssue[]): void {
+  lesson.blocks.forEach((block, i) => {
+    if (block.kind !== 'prose' && block.kind !== 'callout') return
+
+    /* An example is the illustration, not new vocabulary. Its important word is
+       the whole of it, and demanding a bold term inside "log₁₀ 1000 = 3" would
+       have the author bolding a number to satisfy a checker. */
+    if (block.role === 'example') return
+
+    if (block.terms.length > 0) return
+    if (words(block.body).length <= MARK_REQUIRED_ABOVE_WORDS) return
+
+    out.push({
+      path: `blocks[${i}]`,
+      rule: 'nothing-marked',
+      message:
+        `this block marks no important word, so nothing in it survives a skim. ` +
+        `Mark the term worth remembering as "key", or the one that separates two ` +
+        `confusable things as "distinction"`,
     })
   })
 }
@@ -567,8 +585,22 @@ function checkContrastsSitSideBySide(lesson: Lesson, out: TeachingIssue[]): void
   const contrasts = lesson.relations.filter((r) => r.kind === 'contrasts')
   if (contrasts.length === 0) return
 
+  /*
+   * `tabular` BELONGS HERE, AND LEAVING IT OUT WAS A BUG IN THIS RULE.
+   *
+   * `billBecomesLaw` ships `chambers` — `as: 'comparisonTable'`, whose payload
+   * shape is `tabular`. That is a side-by-side comparison by construction, and
+   * this rule refused the lesson for not comparing two things while it was
+   * visibly comparing them.
+   *
+   * The failure mode worth naming: a narrow rule does not merely miss a case,
+   * it pushes the author to rewrite good content around the checker. The rule
+   * moved, not the lesson.
+   */
   const sideBySide = lesson.blocks.some(
-    (b) => b.kind === 'table' || (b.kind === 'figure' && b.data.shape === 'matrix'),
+    (b) =>
+      b.kind === 'table' ||
+      (b.kind === 'figure' && (b.data.shape === 'matrix' || b.data.shape === 'tabular')),
   )
   if (sideBySide) return
 
@@ -772,6 +804,17 @@ function checkBodyOutweighsHeadings(lesson: Lesson, out: TeachingIssue[]): void 
     body += words(readableText(block)).length
     if (block.title !== undefined) heading += words(block.title).length
   }
+
+  /*
+   * A lesson made only of diagrams has no headings AND no body, and `0 > 0` is
+   * false — so this rule reported "the headings outweigh the body" about a
+   * lesson with neither. Nothing was wrong with it and the message was
+   * nonsense.
+   *
+   * Nothing to weigh is not an imbalance. The rule fires when headings actually
+   * win, which needs at least one heading word to exist.
+   */
+  if (heading === 0) return
   if (body > heading) return
 
   out.push({
@@ -817,7 +860,7 @@ export function checkTeaching(
 
   /* Chunk rules hold everywhere, including in a doubt answer. A reply that
      arrives as a wall of text is the same failure as a lesson that does. */
-  checkMarkedTerms(lesson, out)
+  checkMarkedTermsExist(lesson, out)
   checkRunLengths(lesson, out)
   checkOpensOnTheTopic(lesson, out)
   checkDefinitionCarriesOneThing(lesson, out)
@@ -827,6 +870,7 @@ export function checkTeaching(
   checkAmbiguousWords(lesson, out)
 
   if (options.arc) {
+    checkSomethingIsMarked(lesson, out)
     checkArc(lesson, out)
     checkRulesAreEarned(lesson, out)
     checkRepresentations(lesson, out)

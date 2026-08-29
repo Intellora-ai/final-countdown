@@ -1,4 +1,4 @@
-import type { Lesson } from '../spec/spec'
+import type { Lesson, LessonInput } from '../spec/spec'
 import { groundingPreamble, type Source } from './grounding'
 import { validateLesson, type Issue } from '../spec/validate'
 import {
@@ -83,6 +83,126 @@ export type AuthorResult =
  * content word with the question", which is a true statement about the check
  * and useless as guidance.
  */
+/**
+ * One correct lesson, shown to the model rather than described to it.
+ *
+ * WHY THIS EXISTS, IN THE CORPUS'S OWN WORDS
+ * ------------------------------------------
+ * The one captured reply was refused four times for two rules -- three prose
+ * blocks with no marked term, and two blocks both claiming the definition role.
+ * `repliesExpected.ts` names the cause: "Both rules are stated in
+ * `teachingSystemPrompt` and the model ignored both, so the gap is that the
+ * prompt TELLS without SHOWING -- there is no worked example of a prose block
+ * with its terms filled in."
+ *
+ * A 7B model copies a shape it can see far more reliably than one it is told
+ * about in a numbered list.
+ *
+ * IT IS A VALUE, NOT A STRING IN THE PROMPT
+ * -----------------------------------------
+ * `teachingSystemPrompt` serialises THIS object. A second copy pasted into the
+ * prompt text would be a copy that drifts, and the drift would be invisible:
+ * the test keeps checking the object while the model keeps reading the stale
+ * paste. Same reason every word budget below is interpolated from its constant.
+ *
+ * `workedExample.test.ts` puts it through `validateLesson` -- the same gate the
+ * model's output faces. An example the gate would refuse is worse than no
+ * example, because the model would copy the failure faithfully.
+ */
+export const WORKED_EXAMPLE: LessonInput = {
+  id: 'worked-example-boiling',
+  question: 'Why does water boil faster on a mountain?',
+  /* Introduced in the block that earns it, and absent from every block before
+     that one -- rule 6, demonstrated rather than asserted. */
+  technicalTerms: [{ term: 'atmospheric pressure', introducedIn: 'why-height-changes-it' }],
+  blocks: [
+    {
+      id: 'start-from-the-kettle',
+      kind: 'prose',
+      title: 'Start from the kettle',
+      emphasis: 'supporting',
+      tone: 'neutral',
+      role: 'anchor',
+      depth: 'core',
+      /* Rule 4: the first sentence names the topic. No greeting, no praise. */
+      body: 'Water boils sooner high on a mountain than it does down at the coast.',
+      terms: [{ text: 'boils', mark: 'key' }],
+    },
+    {
+      id: 'what-boiling-is',
+      kind: 'prose',
+      title: 'What boiling is',
+      emphasis: 'primary',
+      tone: 'neutral',
+      role: 'definition',
+      depth: 'core',
+      /* Rule 2: ONE run, no blank line, and none of `technicalTerms` appears
+         here. The technical words are earned later, not assumed now. */
+      body: 'Boiling is a liquid turning to gas throughout it, not only at its surface.',
+      /* Over MARK_REQUIRED_ABOVE_WORDS, so rule 5 applies here too. Marked
+         `distinction` because that one word is what separates boiling from
+         evaporation, which is the confusion this block exists to prevent. */
+      terms: [{ text: 'throughout', mark: 'distinction' }],
+    },
+    {
+      id: 'why-height-changes-it',
+      kind: 'prose',
+      title: 'Why height changes it',
+      emphasis: 'primary',
+      tone: 'insight',
+      role: 'support',
+      depth: 'core',
+      /* The rule-5 demonstration the corpus said was missing: a long prose
+         block whose marked term actually appears in its body. */
+      body: 'Air above you pushes down on the liquid. That push is atmospheric pressure, and it holds the gas in.\n\nHigher up there is less air, so the push is weaker and the liquid escapes at a lower temperature.',
+      terms: [{ text: 'atmospheric pressure', mark: 'key' }],
+    },
+    {
+      id: 'pressure-against-boiling-point',
+      kind: 'table',
+      title: 'What the numbers do',
+      emphasis: 'supporting',
+      tone: 'result',
+      role: 'support',
+      depth: 'core',
+      /* Rule 7: something is SHOWN, and it is tied by a relation to the text
+         block it belongs to. `key` is the field name -- not `id`, the mistake
+         the captured reply made. */
+      columns: [
+        { key: 'place', label: 'Place', type: 'text' },
+        { key: 'height', label: 'Height (m)', type: 'number' },
+        { key: 'boils', label: 'Water boils at (°C)', type: 'number' },
+      ],
+      rows: [
+        { place: 'Sea level', height: 0, boils: 100 },
+        { place: 'Shimla', height: 2200, boils: 93 },
+        { place: 'Everest base camp', height: 5364, boils: 83 },
+      ],
+      caption: 'Higher ground, weaker push, lower boiling point.',
+    },
+    {
+      id: 'in-short',
+      kind: 'summary',
+      title: 'In short',
+      emphasis: 'primary',
+      tone: 'neutral',
+      role: 'summary',
+      depth: 'core',
+      /* Rule 12: the core ends here, with an ordered progression and one
+         sentence a learner can carry away. */
+      progression: [
+        'Air pushes down on the liquid.',
+        'Higher up, there is less air to push.',
+        'A weaker push lets the liquid boil sooner.',
+      ],
+      mentalModel: 'Boiling is a race between the liquid escaping and the air holding it down.',
+    },
+  ],
+  relations: [
+    { from: 'pressure-against-boiling-point', to: 'why-height-changes-it', kind: 'supports' },
+  ],
+}
+
 export function teachingSystemPrompt(): string {
   return [
     'You write LESSONS as strict JSON. You never write prose replies, never use markdown,',
@@ -200,6 +320,20 @@ export function teachingSystemPrompt(): string {
     '',
     'NEVER include colour, size, spacing, position, width, height, alignment or CSS in',
     'any field. You decide what exists and what it means. The software decides how it looks.',
+    '',
+    /*
+     * SHOWN LAST, BECAUSE IT IS WHAT THE MODEL COPIES.
+     *
+     * The rules above are the specification; this is the demonstration. It sits
+     * at the end because the nearest thing to the output is what a small model
+     * imitates most closely, and every rule it breaks is a rule this example
+     * would have to break first -- which `workedExample.test.ts` forbids.
+     */
+    'A COMPLETE, CORRECT LESSON. Copy this SHAPE exactly. Do not copy its subject.',
+    'Note especially: exactly ONE block has role "definition", and every prose block',
+    `over ${MARK_REQUIRED_ABOVE_WORDS} words marks a term that really appears in its body.`,
+    '',
+    JSON.stringify(WORKED_EXAMPLE, null, 2),
   ].join('\n')
 }
 

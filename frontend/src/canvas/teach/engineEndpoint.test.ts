@@ -15,7 +15,12 @@
 import { describe, expect, it } from 'vitest'
 
 import { engineResolver } from './engineResolver'
-import type { Doubt, Lesson } from './contract'
+import type { Doubt } from './contract'
+/* `Lesson` belongs to the spec, and `contract.ts` only IMPORTS it -- it does
+   not re-export it, so `from './contract'` never type-checked and the frontend
+   build could not produce a dist/. Taken from where it is actually declared,
+   rather than widening the contract's surface to suit one test. */
+import type { Lesson } from '../spec/spec'
 
 const DOUBT = { text: 'why does recursion need a base case', atBeatId: 'beat-1' } as unknown as Doubt
 const LESSON = { id: 'python-recursion' } as unknown as Lesson

@@ -170,3 +170,9 @@ learning-os/src/*.egg-info/
 # Ignored so a stray `git add` cannot commit half a gigabyte of somebody else's
 # repository. Convert it to a submodule and delete this line.
 knowledge/playwright/
+
+# Work in progress, untracked at the time it was written: these import
+# modules that do not exist yet and break `npm run build`.
+frontend/src/tutor/backendModel.test.ts
+frontend/src/canvas/api/envPolicy.test.ts
+frontend/src/tutor/TutorView.no-credential.test.tsx

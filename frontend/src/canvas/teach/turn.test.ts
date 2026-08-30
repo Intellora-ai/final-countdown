@@ -101,6 +101,60 @@ describe('telling a question from an answer', () => {
   })
 })
 
+describe('the reply the checkpoint asked for', () => {
+  /*
+   * THE CHECKPOINT IS A YES/NO QUESTION. EVERY ONE OF THEM.
+   *
+   * `beats.ts` writes the question itself, and all fifteen strings it can
+   * produce are closed:
+   *
+   *     ASK_BY_TONE   "Did that land?"  "That is the result -- is it clear?"
+   *     ASK_BY_FORM   "Does that follow?"  "Making sense so far?"
+   *                   "Can you see that in the numbers?"
+   *     UNNAMED_NEXT  "There is a bit more -- shall we carry on?"
+   *
+   * So "yes" and "no" are not noise. They are the answer the screen asked for,
+   * and `beats.ts:444` says as much of the depth offer: "Saying no here loses
+   * them nothing." A classifier that refuses them tells a learner who answered
+   * correctly that they did not answer at all, and the beat never moves.
+   *
+   * That is worse than the defect it was written to fix. Noise advancing wastes
+   * one beat and the learner can still ask; a refused answer strands them with
+   * no way forward.
+   */
+  it('accepts the yes and no a yes/no question asks for', () => {
+    for (const text of ['yes', 'no', 'yeah', 'yep', 'nope', 'sure', 'ok', 'okay']) {
+      expect(classifyTurn(text), text).toBe('answer')
+    }
+  })
+
+  /*
+   * A SHORT WORD IS NOT AN EMPTY ONE.
+   *
+   * The length rule refused every two-letter token that was not a digit, which
+   * is most of the notation a science lesson asks about by name.
+   */
+  it('accepts a short answer that is a real one', () => {
+    for (const text of ['pi', 'pH', 'Na', 'eV', 'up', 'CO']) {
+      expect(classifyTurn(text), text).toBe('answer')
+    }
+  })
+
+  /*
+   * WHAT IS STILL REFUSED, AND WHY IT NEEDS NO VOCABULARY.
+   *
+   * "The learner typed no word at all" is a fact about the string -- it holds
+   * for every language, every alphabet and every emoji nobody has thought of.
+   * A list of greetings is a guess about English maintained by hand, and the
+   * same guess cannot separate "hi" from "yes" because nothing lexical does.
+   */
+  it('refuses a submit that contains no word at all', () => {
+    for (const text of ['...', '!!!', '---', '???'.replace(/\?/g, '.'), '\u{1F44B}', '\u{1F600}\u{1F600}']) {
+      expect(classifyTurn(text), JSON.stringify(text)).toBe('unclear')
+    }
+  })
+})
+
 describe('noticing that a learner is struggling', () => {
   /* THE POINT: depth is added when the student ASKS for it and automatically
    * when their answers show a gap. Nothing on screen says "difficulty"; this

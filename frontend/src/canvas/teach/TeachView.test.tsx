@@ -445,3 +445,101 @@ describe('asking a doubt', () => {
     expect(document.querySelector('.lc-teach__question')?.getAttribute('tabindex')).toBe('-1')
   })
 })
+
+/* -------------------------------------------------------------------------- */
+/* What a person actually types                                               */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * "hi" IS NOT A QUESTION, AND IT IS NOT AN ANSWER.
+ *
+ * `classifyTurn` gained a fourth verdict, `unclear`, precisely so that input it
+ * does not recognise stops claiming to be one of the other three. `turn.ts`
+ * states the contract in two halves: it "does not advance the beat and it does
+ * not answer a doubt."
+ *
+ * Only the first half was true. There is no `'unclear'` branch in `submit`, so
+ * the verdict falls past the `'empty'` and `'answer'` checks into the doubt
+ * block -- and "hi" is answered as though it were a question, which also
+ * increments `questionsAsked` and feeds `strugglingAfter`, silently deepening
+ * the lesson because somebody said hello.
+ *
+ * WHY THESE ASSERT THE DOM AND NOT A PORT COUNT. The first draft counted calls
+ * to `askPort` and PASSED before any fix -- not because the behaviour was
+ * right, but because `lessonResolver` answers first and the escalation port is
+ * never reached at all, for "hi" or for a real question. A test that passes for
+ * a reason unrelated to its name is worse than no test. What a learner can
+ * actually see is the reply, so that is what is asserted.
+ */
+describe('input the view does not recognise', () => {
+  it('does not answer "hi" as though it were a question', async () => {
+    const { container } = render(<TeachView lesson={fixture()} mode="2d" />)
+    await settle()
+    await submitText('hi')
+    expect(
+      container.textContent ?? '',
+      '"hi" was answered as a doubt',
+    ).not.toMatch(/A reply to your question/i)
+  })
+
+  it('says something back rather than swallowing it', async () => {
+    /*
+     * Inert must not mean silent. A learner who types and sees nothing happen
+     * assumes they were ignored and stops typing -- the failure the pending
+     * marker was added to prevent, arriving from the other side.
+     */
+    const { container } = render(<TeachView lesson={fixture()} mode="2d" />)
+    await settle()
+    await submitText('hi')
+    expect(container.textContent ?? '').toMatch(/didn't catch|did not catch|not sure what/i)
+  })
+
+  it('still answers a real question', async () => {
+    /*
+     * THE PAIR, and it is what stops the fix being "never answer anything". A
+     * learner asking a genuine question must still get a reply, or the doubt
+     * feature is gone.
+     */
+    const { container } = render(<TeachView lesson={fixture()} mode="2d" />)
+    await settle()
+    await askAbout('what is a false positive rate?')
+    expect(
+      container.textContent ?? '',
+      'a real question stopped being answered',
+    ).toMatch(/A reply to your question/i)
+  })
+
+  it('advances the beat on "yes", which is the reply it asked for', async () => {
+    /*
+     * THE CHECKPOINT IS A YES/NO QUESTION, SO "yes" IS THE ANSWER, NOT NOISE.
+     *
+     * Every string `beats.ts` can put here is closed -- "Did that land?",
+     * "Does that follow?", "Making sense so far?". The filler list used to hold
+     * `yes`, `no`, `yeah`, `yep`, `nope`, `sure`, `ok`, `okay`, `k` and `kk`, so
+     * the learner answered the question exactly as asked and the screen replied
+     * "I didn't catch that." The lesson could not be finished by anyone who
+     * answered it in one word.
+     *
+     * ASSERTED HERE AND NOT ONLY IN `turn.test.ts` FOR THE REASON THIS FILE
+     * ALREADY GIVES ABOVE: a classifier returning the right verdict proves
+     * nothing if `submit` does not act on it. What a learner can see is whether
+     * the question on screen changed, so that is what is checked.
+     */
+    const { container } = await teach()
+    const before = checkpointText(container)
+    await submitText('yes')
+    expect(
+      checkpointText(container),
+      '"yes" answered a yes/no checkpoint and the lesson refused to move',
+    ).not.toBe(before)
+  })
+
+  it('still advances the beat on a real answer', async () => {
+    /* The other pair: `unclear` must not swallow answers either, or the lesson
+       can never move. */
+    const { container } = await teach()
+    const before = checkpointText(container)
+    await answerBeat()
+    expect(checkpointText(container), 'a real answer stopped advancing the beat').not.toBe(before)
+  })
+})

@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json --pretty false && tsc --noEmit -p tsconfig.canvas.json --pretty false && tsc --noEmit -p tsconfig.server.json --pretty false",
     "test": "vitest",
     "test:mutation": "node scripts/mutation-gate.mjs",
+    "test:e2e": "playwright test",
+    "test:journey": "playwright test e2e/journey.spec.ts",
     "budget": "node scripts/canvas-bundle-budget.mjs",
     "gate:reachability": "node scripts/reachability-gate.mjs --product",
     "lint": "eslint src/canvas src/practice src/agent src/websearch src/tutor src/almanac src/api --max-warnings 0",

@@ -138,6 +138,23 @@ function annotateEslint(text) {
 }
 
 /* ── vitest --reporter=json ─────────────────────────────────────────────── */
+/*
+ * EVERY STATUS A RUNNER CAN EMIT, SPLIT ONCE.
+ *
+ * Declared together, and deliberately adjacent: the failure of both previous
+ * versions of this check was that one half was written down and the other half
+ * was assumed. A status belonging to neither set is annotated as an unknown
+ * rather than folded into either.
+ */
+
+/** Statuses that mean the test did not pass. `timedOut` and `interrupted` are
+    failures as surely as `failed` -- a test the runner had to kill did not pass. */
+const FAILURE = new Set(['failed', 'timedOut', 'interrupted'])
+
+/** Statuses that mean the test was not run, or ran and passed. Not failures.
+    `skipped` is the one that was missing and caused the false annotations. */
+const NOT_FAILURE = new Set(['passed', 'pending', 'skipped', 'todo', 'disabled'])
+
 function annotateVitest(text) {
   let report
   try {
@@ -154,7 +171,46 @@ function annotateVitest(text) {
   let n = 0
   for (const suite of report.testResults ?? []) {
     for (const t of suite.assertionResults ?? []) {
-      if (t.status === 'passed' || t.status === 'pending') continue
+      /*
+       * BOTH SETS ARE NAMED, AND A STATUS IN NEITHER IS REPORTED AS ITSELF.
+       *
+       * This line has now been wrong twice, in mirrored ways, and both are
+       * worth recording because the second was introduced while fixing the
+       * first.
+       *
+       *   was: status === 'passed' || status === 'pending'  -> skip
+       *        A DENYLIST. Vitest emits `skipped`, not `pending`, so every
+       *        `describe.skipIf` fell through and was annotated as a failure
+       *        whose whole message was the word `failed`. Commit 06f78c3 went
+       *        green with `8773 passed | 2 skipped` and two failure
+       *        annotations attached.
+       *
+       *   then: status !== 'failed'                          -> skip
+       *        A ONE-ITEM ALLOWLIST, and the same bug facing the other way:
+       *        `timedOut` and `interrupted` are failures, and both were
+       *        dropped without a word.
+       *
+       * Ptacek & Newsham 1998 states the class: a detector that enumerates what
+       * it knows misses everything it did not enumerate. The answer is not a
+       * better list -- it is refusing to guess when the list runs out.
+       */
+      if (NOT_FAILURE.has(t.status)) continue
+      if (!FAILURE.has(t.status)) {
+        /* An unknown status is a finding in its own right. Guessing "fine"
+           is the bug above; guessing "failure" cries wolf and gets the
+           annotator switched off. Naming it does neither. */
+        emit('error', {
+          file: prefix(suite.name),
+          title: `gh-annotate: unrecognised test status ${JSON.stringify(t.status)}`,
+          message:
+            `The runner reported status ${JSON.stringify(t.status)}, which this ` +
+            `annotator classifies neither as a failure nor as a non-failure. ` +
+            `Add it to FAILURE or NOT_FAILURE in scripts/gh-annotate.mjs. ` +
+            `Until then no verdict is being reported for this test.`,
+        })
+        n++
+        continue
+      }
       const first = (t.failureMessages ?? [])[0] ?? 'failed'
       /* Recover a source location from the stack when vitest supplies one. */
       const at = pickFrame(first)

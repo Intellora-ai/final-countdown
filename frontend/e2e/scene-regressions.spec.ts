@@ -467,7 +467,30 @@ test.describe('the lesson is taught, not printed', () => {
     await page.getByRole('button', { name: 'Send', exact: true }).click()
 
     const answer = page.locator('.lc-teach__answer')
-    await expect(answer).toHaveCount(1, { timeout: 10_000 })
+    /*
+     * THIRTY SECONDS, AND THE NUMBER IS NOT A TOLERANCE FOR FLAKINESS.
+     *
+     * This test asserts that an answer RENDERS. It does not assert how fast,
+     * and it must not: a 10s wait on a ~2s operation is a performance
+     * assertion smuggled into a correctness test, and the timing half is the
+     * one that fails.
+     *
+     * Measured on one CI run, commit 6b21f69: mobile-375 2.4s, reduced-motion
+     * 1.9s, keyboard 10.9s (this timeout), keyboard on retry 2.2s. The path
+     * takes about two seconds. It is not slow; it is occasionally starved.
+     *
+     * WHY IT IS STARVED, so nobody optimises this back down: the CI runner
+     * reports cpu_count=4 and `playwright.config.ts` sets `workers: 4`. Four
+     * workers plus four browser processes on four cores. That config's own
+     * comment already records the spread it produces -- 77s / 87s / 115s over
+     * three runs -- and a 2s path with 5x headroom does not survive it.
+     *
+     * `--fail-on-flaky-tests` stays exactly as it is. The retry buys the
+     * DIAGNOSIS, not tolerance, and deleting that information would weaken a
+     * gate to hide a number. Speed belongs in its own budget, in its own test,
+     * where a failure means something.
+     */
+    await expect(answer).toHaveCount(1, { timeout: 30_000 })
     await expect(answer).not.toHaveClass(/lc-teach__answer--refusal/)
     /* An answer is a lesson, so it renders through the same machinery. If it
      * came out empty the feature would be a label with nothing under it. */

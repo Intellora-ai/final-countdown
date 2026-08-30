@@ -36,13 +36,13 @@ import { createHandler, type DoubtPort, type ModelPort, type SearchPort } from '
 import { createServer, DEFAULT_HOST } from './index.ts'
 
 const model: ModelPort = {
-  async complete() {
+  async lesson() {
     throw new Error('the doubt route must not reach the lesson model')
   },
 }
 
 const search: SearchPort = {
-  async find() {
+  async search() {
     return []
   },
 }

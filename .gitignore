@@ -31,6 +31,8 @@ reports/
 node_modules
 playwright-report/
 test-results/
+blob-report/
+playwright/.cache/
 
 # Scratch git worktrees created for isolated agent runs. They are full
 # checkouts of this repository living inside it; committing one would nest the
@@ -160,3 +162,11 @@ learning-os/src/*.egg-info/
 *.key
 *.p12
 *.pfx
+
+# A PLAIN CLONE, NOT A SUBMODULE, AND THEREFORE 476 MB OF UNTRACKED FILES.
+# Every other mirror under knowledge/ is a submodule, which git stores as a
+# pointer. This one was cloned plainly because `.gitmodules` was being edited by
+# another session at the time and adding an entry would have clobbered it.
+# Ignored so a stray `git add` cannot commit half a gigabyte of somebody else's
+# repository. Convert it to a submodule and delete this line.
+knowledge/playwright/

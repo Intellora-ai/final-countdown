@@ -1,13 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { plannedSubjects } from '../almanac/plannedCurriculum'
+import { plannedSubjects, isPlannedCurriculumReady } from '../almanac/plannedCurriculum'
 import { useParams } from 'react-router-dom'
-import CURRICULUM from '../data/curriculum'
+import CURRICULUM, { type LayoutResult } from '../data/curriculum'
 import { store } from '../data/store'
 import { Button } from '../ui/Button'
 import { nodeStyle, stateLabel } from '../lib/format'
 import type { Chapter, Concept } from '../types'
 
 const NODEW = 176, CARDW = 244, CARDH = 62, CHROME = 36
+
+/** A layout of nothing, so the hooks below this component's guard can still
+ *  run on a render where the curriculum has not arrived. Calling
+ *  `CURRICULUM.layout([])` instead would be asking a real function for the
+ *  shape of no chapter, which is a question it was never written to answer. */
+const EMPTY_LAYOUT: LayoutResult = { pos: {}, width: 0, height: 0, levels: 0 }
 
 export function ChapterView() {
   const { subjectId, chapterId } = useParams()
@@ -78,10 +84,28 @@ export function ChapterView() {
     }
   }, [chapterId])
 
-  if (!ch || !sub) return null
-  const concepts = ch.concepts
-  const lay = CURRICULUM.layout(concepts)
-  const cstate = (cId: string) => store.stateOf(ch.id, cId)
+  /* THERE IS NO EARLY RETURN HERE ANY MORE, AND THAT IS THE WHOLE FIX.
+   *
+   * WHAT IT DID. `if (!ch || !sub) return null` stood on this line, above the
+   * `card` useMemo below. `plannedSubjects` answers from a cache that a lazy
+   * 300 KB chunk fills, so it returns [] until that chunk lands -- which means
+   * the FIRST render of a chapter opened directly (a shared link, a bookmark,
+   * a refresh) found no subject, returned here, and ran nine hooks. The chunk
+   * then arrived, the second render got past this line and ran ten, and React
+   * threw:
+   *
+   *     Rendered more hooks than during the previous render.
+   *
+   * The student saw "Something went wrong. This screen stopped working."
+   * Measured in a fresh browser on 2026-08-31 at #/chapter/mathematics/
+   * real-numbers -- and ONLY on a direct open, because reaching the chapter
+   * from /today primed the cache first and hid it completely.
+   *
+   * So every hook now runs on every render, and the decision about what to
+   * SHOW moved below the last one. Nothing here may return before it. */
+  const concepts = ch ? ch.concepts : []
+  const lay = ch ? CURRICULUM.layout(concepts) : EMPTY_LAYOUT
+  const cstate = (cId: string) => (ch ? store.stateOf(ch.id, cId) : 'notStarted')
 
   /* the concept the learner is actually on */
   const currentConcept = (): Concept | null => {
@@ -90,7 +114,7 @@ export function ChapterView() {
     const ready = concepts.find((c) => {
       const v = cstate(c.id)
       if (v === 'completed' || v === 'mastered') return false
-      return store.prereqsMet(ch, c)
+      return ch !== null && store.prereqsMet(ch, c)
     })
     if (ready) return ready
     return concepts.find((c) => { const v = cstate(c.id); return v !== 'completed' && v !== 'mastered' }) || concepts[concepts.length - 1]
@@ -98,6 +122,7 @@ export function ChapterView() {
   const cur = currentConcept()
 
   const begin = (cId: string) => {
+    if (ch === null) return
     const v = cstate(cId)
     /* The write stays; the navigation to the learning canvas does not, while
      * that canvas is disconnected. Beginning a concept marks it in progress
@@ -147,6 +172,29 @@ export function ChapterView() {
     return { left: Math.round(pick.px), top: Math.round(pick.py), edge: ns2.stroke, stateCol: ns2.sub,
       lead: { x1: ncx, y1: ncy, x2: ex, y2: ey } }
   }, [sel, zoom, pan.x, pan.y, box.w, box.h, chapterId, store.rev])
+
+  /* EVERY HOOK HAS NOW RUN, which is the only reason it is safe to return
+   * here. The guard reads more naturally two hundred lines further up, and
+   * that is exactly where it was, and that is what crashed the screen.
+   *
+   * IT ALSO DOES NOT RETURN null ANY MORE. A student who followed a chapter
+   * link is owed a sentence either way -- the curriculum is still coming down
+   * the wire, or this device genuinely has no such chapter. `null` paints an
+   * empty page that is indistinguishable from a finished one, and a page that
+   * looks finished when it failed is the lie this codebase exists to refuse. */
+  if (!ch || !sub) {
+    const loading = !isPlannedCurriculumReady(st.cls)
+    return (
+      <div className="chp-head" data-shell="pad" role={loading ? 'status' : 'alert'}>
+        <h1 className="chp-h1">{loading ? 'Opening this chapter' : 'Chapter not found'}</h1>
+        <p className="td-sub">
+          {loading
+            ? `Fetching the ${st.cls} curriculum for this device.`
+            : `This device does not know a chapter called "${String(chapterId)}" in ${String(subjectId)}.`}
+        </p>
+      </div>
+    )
+  }
 
   const selC = sel ? concepts.find((c) => c.id === sel) || null : null
   const selSt = selC ? cstate(selC.id) : 'notStarted'

@@ -163,6 +163,45 @@ function nonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
+/**
+ * Upper bounds on every string this server persists or forwards.
+ *
+ * WHY AN UNBOUNDED FIELD IS A DEFECT AND NOT A LOOSE END
+ *     `studentId` becomes a KEY in the ledger, one JSON file that is loaded
+ *     whole on every read. Probing the running container wrote a
+ *     60,000-character student key with a single anonymous request, and nothing
+ *     in the product ever removes one. `concept`, `question` and `query` go to
+ *     a model that charges by the token, so an unbounded field is an unbounded
+ *     bill.
+ *
+ * WHERE THE NUMBERS COME FROM
+ *     Measured over the generated CBSE curriculum on 2026-08-30, not guessed:
+ *     the longest real concept id is 162 characters and the longest real name
+ *     is 160. Every bound below clears that with room, because a limit that
+ *     refuses a legitimate lesson is worse than the leak it closes.
+ *
+ *     `studentId` is the exception and is deliberately tight: it is an opaque
+ *     device-generated id, and no honest one is long.
+ */
+const LIMITS = {
+  studentId: 64,
+  conceptId: 256,
+  concept: 256,
+  subject: 128,
+  carriedFrom: 256,
+  question: 4096,
+  query: 512,
+} as const
+
+/**
+ * The bound only. Presence is still `nonEmptyString`, checked first, so the
+ * "is required" messages that callers already depend on are unchanged and a
+ * missing field never reports as an over-long one.
+ */
+function overLimit(value: string, name: string, max: number): string | null {
+  return value.length > max ? `${name} must be at most ${max} characters` : null
+}
+
 export function createHandler(options: HandlerOptions): (req: ServerRequest) => Promise<ServerResponse> {
   const secrets = options.secrets ?? []
   const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES
@@ -197,28 +236,63 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
      * shipped a trace that claimed capabilities were used when they had done
      * nothing at all. */
     const decided = request.strategy === undefined ? {} : { strategy: request.strategy }
-    let produced: unknown
-    try {
-      produced = await options.model.lesson(request)
-    } catch {
-      /* The upstream message is deliberately dropped rather than forwarded: it
-       * routinely contains the credential that was rejected. The failure is
-       * reported; its text is not. */
-      return reply(502, { ...decided, error: 'the model could not be reached' })
+
+    /* ONE RETRY, CARRYING THE REASON IT WAS REFUSED.
+     *
+     * THE PROBLEM THIS SOLVES. There are 29 teaching rules. A model that has
+     * not memorised them breaks one or two per lesson -- measured 2026-08-31
+     * against gpt-oss-120b, five different rules across six attempts, no two
+     * the same. Every one of those was a 502 the student reads as "the app is
+     * broken", for a lesson that was one edit away from correct.
+     *
+     * WHY A RETRY RATHER THAN A BIGGER PROMPT. Listing all 29 rules up front
+     * costs every request for every provider and still misses the thirtieth.
+     * Handing back the ACTUAL refusal is exact, small, and covers a rule added
+     * next month without anyone touching this file.
+     *
+     * WHY EXACTLY ONE. Each attempt is a paid model call. A loop that keeps
+     * going until it passes spends without a ceiling, and a model that broke
+     * the same rule twice is not going to be talked out of it on the fifth try.
+     * Bounded, and the second refusal is reported exactly as the first was.
+     *
+     * THE VALIDATOR IS NOT WEAKENED ANYWHERE HERE. A lesson that still fails
+     * after the retry is still refused; nothing is repaired, and no rule is
+     * relaxed to let one through. */
+    const MAX_ATTEMPTS = 2
+    let lastIssues: readonly { path: string; message: string }[] = []
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+      let produced: unknown
+      try {
+        produced = await options.model.lesson({
+          ...request,
+          ...(lastIssues.length === 0
+            ? {}
+            : { corrections: lastIssues.map((issue) => `${issue.path}: ${issue.message}`) }),
+        })
+      } catch {
+        /* The upstream message is deliberately dropped rather than forwarded:
+         * it routinely contains the credential that was rejected. The failure
+         * is reported; its text is not. */
+        return reply(502, { ...decided, error: 'the model could not be reached' })
+      }
+
+      const result = validateLesson(produced, { teaching })
+      if (result.ok) return reply(200, { ...decided, lesson: result.lesson })
+      lastIssues = result.issues.map((issue) => ({
+        path: issue.path,
+        message: issue.message,
+      }))
     }
 
-    const result = validateLesson(produced, { teaching })
-    if (!result.ok) {
-      return reply(502, {
-        ...decided,
-        error: 'the model returned a lesson that failed validation',
-        issues: result.issues.map((issue) => ({
-          path: issue.path,
-          message: safeMessage(issue.message),
-        })),
-      })
-    }
-    return reply(200, { ...decided, lesson: result.lesson })
+    return reply(502, {
+      ...decided,
+      error: 'the model returned a lesson that failed validation',
+      issues: lastIssues.map((issue) => ({
+        path: issue.path,
+        message: safeMessage(issue.message),
+      })),
+    })
   }
 
   return async function handle(req: ServerRequest): Promise<ServerResponse> {
@@ -231,10 +305,35 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     if (req.path === HEALTH && req.method === 'GET') {
       /* Enough to diagnose, and nothing more. A health endpoint is the most
          public thing a server has and the most tempting place to leak from, so
-         it names CAPABILITIES and never values: no key, no path, no student. */
-      return reply(200, {
-        ok: true,
-        planner: options.almanac !== undefined,
+         it names CAPABILITIES and never values: no key, no path, no student.
+
+         THE LEDGER IS ASKED, NOT ASSUMED. This read
+         `planner: options.almanac !== undefined`, which answers whether the
+         object was constructed. Stopping PostgreSQL under a running replica
+         left every write returning 500 while this went on reporting
+         `{"ok":true,"planner":true}` -- so the load balancer kept routing
+         students to a copy that failed all of them.
+
+         NO LEDGER AT ALL IS NOT A FAILURE. That is an API-only deployment, a
+         different server rather than a broken one, and reporting it unhealthy
+         would restart it for ever. */
+      let planner = false
+      let reachable = true
+      if (options.almanac !== undefined) {
+        try {
+          planner = await options.almanac.ready()
+        } catch {
+          /* Deliberately unread. A dependency's message routinely names a host,
+             a user or a credential, and this is the most public route there is.
+             The FACT is reported; the text is not, and the operator gets it
+             from the process log instead. */
+          planner = false
+        }
+        reachable = planner
+      }
+      return reply(reachable ? 200 : 503, {
+        ok: reachable,
+        planner,
         model: true,
       })
     }
@@ -252,6 +351,8 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       if (!nonEmptyString(body['concept'])) {
         return reply(400, { error: 'concept is required' })
       }
+      const conceptLength = overLimit(body['concept'], 'concept', LIMITS.concept)
+      if (conceptLength !== null) return reply(400, { error: conceptLength })
       /* The teaching decision is made HERE, from what the browser reports
        * about the student. `body['strategy']` is deliberately not read: a page
        * must not be able to pick "transfer_challenge" for a student meeting a
@@ -260,10 +361,15 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
        * strategy from the vocabulary for any input at all. */
       return lessonFrom({
         concept: body['concept'],
-        subject: nonEmptyString(body['subject']) ? body['subject'] : undefined,
+        subject: nonEmptyString(body['subject']) && body['subject'].length <= LIMITS.subject
+          ? body['subject']
+          : undefined,
         strategy: chooseStrategy({
           attempts: typeof body['attempts'] === 'number' ? body['attempts'] : 0,
-          carriedFrom: nonEmptyString(body['carriedFrom']) ? body['carriedFrom'] : undefined,
+          carriedFrom:
+            nonEmptyString(body['carriedFrom']) && body['carriedFrom'].length <= LIMITS.carriedFrom
+              ? body['carriedFrom']
+              : undefined,
           diagnosis: typeof body['diagnosis'] === 'string' ? body['diagnosis'] : undefined,
         }),
       }, 'lesson')
@@ -273,6 +379,8 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       if (!nonEmptyString(body['question'])) {
         return reply(400, { error: 'question is required' })
       }
+      const questionLength = overLimit(body['question'], 'question', LIMITS.question)
+      if (questionLength !== null) return reply(400, { error: questionLength })
       return lessonFrom({ question: body['question'] }, 'answer')
     }
 
@@ -332,6 +440,8 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         return reply(503, { error: 'the planner is not configured on this server' })
       }
       if (!nonEmptyString(body['studentId'])) return reply(400, { error: 'studentId is required' })
+      const dayIdLength = overLimit(body['studentId'], 'studentId', LIMITS.studentId)
+      if (dayIdLength !== null) return reply(400, { error: dayIdLength })
       if (!isCalendarDate(body['date'])) return reply(400, { error: 'date must be a real date, written YYYY-MM-DD' })
       if (!isSchoolClass(body['schoolClass'])) return reply(400, { error: 'schoolClass must be 9, 10, 11 or 12' })
       if (!isPositiveNumber(body['dailyMinutes'])) return reply(400, { error: 'dailyMinutes must be a positive number' })
@@ -361,6 +471,10 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       }
       if (!nonEmptyString(body['studentId'])) return reply(400, { error: 'studentId is required' })
       if (!nonEmptyString(body['conceptId'])) return reply(400, { error: 'conceptId is required' })
+      const doneLength =
+        overLimit(body['studentId'], 'studentId', LIMITS.studentId) ??
+        overLimit(body['conceptId'], 'conceptId', LIMITS.conceptId)
+      if (doneLength !== null) return reply(400, { error: doneLength })
 
       /* The ONLY thing in this server that marks work finished. */
       await options.almanac.markDone(body['studentId'], body['conceptId'])
@@ -371,6 +485,8 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     if (!nonEmptyString(body['query'])) {
       return reply(400, { error: 'query is required' })
     }
+    const queryLength = overLimit(body['query'], 'query', LIMITS.query)
+    if (queryLength !== null) return reply(400, { error: queryLength })
     /* Held in a const: the narrowing above does not survive into the callback
      * below, and re-reading body['query'] there is `unknown` again. */
     const query = body['query']

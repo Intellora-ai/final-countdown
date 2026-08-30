@@ -53,6 +53,21 @@ export interface DayRequest {
 }
 
 export interface Ledger {
+  /**
+   * Can this ledger actually be reached right now?
+   *
+   * SEPARATE FROM EXISTING, and the difference is the whole point. `/api/health`
+   * used to report `planner: options.almanac !== undefined`, which asks whether
+   * the object was CONSTRUCTED. Measured on 2026-08-30 by stopping PostgreSQL
+   * under a running replica: every write returned 500 while health went on
+   * answering `{"ok":true,"planner":true}`, so a load balancer kept sending
+   * students to a copy that failed all of them and the container healthcheck
+   * never restarted it.
+   *
+   * Must be CHEAP: this is called on every healthcheck, every few seconds, by
+   * every replica.
+   */
+  ready(): Promise<boolean>
   dayFor(request: DayRequest): Promise<StoredDay>
   read(studentId: string, date: string): Promise<StoredDay | undefined>
   markDone(studentId: string, conceptId: string): Promise<void>
@@ -118,6 +133,13 @@ export function createLedger(store: LedgerStore, options: LedgerOptions = {}): L
   }
 
   return {
+    async ready() {
+      /* A local file, so reaching it is reading it. `load` already refuses a
+       * corrupt one loudly, which is exactly the state health should report. */
+      await store.load()
+      return true
+    },
+
     async read(studentId, date) {
       const data = await store.load()
       return data.days[studentId]?.[date]

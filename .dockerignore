@@ -1,0 +1,78 @@
+# WHAT DOCKER IS ALLOWED TO SEE.
+#
+# Everything listed here is excluded from the build context -- the tarball the
+# CLI uploads to the daemon before the first instruction runs. This file is not
+# an optimisation. Without the `knowledge/` line the build sends 11 GB of
+# mirrored submodules across a socket before printing anything, on every build,
+# and then throws all of it away.
+#
+# Measured on 2026-08-29 with `du -sh`:
+#     knowledge/                11 G
+#     frontend/node_modules/   484 M
+#
+# The rule for adding a line: if the image does not need it AT RUNTIME and the
+# build does not need it to PRODUCE the image, it does not belong in the
+# context.
+
+# ---------------------------------------------------------------- the big one
+# Mirrored third-party corpora, as git submodules. Nothing in the server reads
+# them; they exist for research. 11 GB.
+knowledge/
+
+# ------------------------------------------------------- installed dependencies
+# `npm ci` runs INSIDE the build from package-lock.json. Copying a host
+# node_modules in would be slower AND wrong: it holds binaries compiled for
+# macOS/arm64 that cannot execute in a Linux image, and they would silently
+# shadow the correct ones npm installs.
+node_modules/
+**/node_modules/
+.venv/
+**/.venv/
+**/__pycache__/
+**/*.pyc
+
+# ------------------------------------------------------------- build artefacts
+# `dist-server/` is REBUILT in the image. Copying the host's copy in would let a
+# stale local build ship as if it were the committed source -- the deployment
+# would not be of the code in git.
+frontend/dist/
+frontend/dist-server/
+
+# ------------------------------------------------------------------ git and CI
+.git/
+.gitmodules
+.github/
+.claude/
+.agents/
+
+# ------------------------------------------------ tests, reports, scratch work
+# None of this runs in the image. Left in the context it would invalidate the
+# build cache every time a report was regenerated.
+**/*.test.ts
+**/*.spec.ts
+**/e2e/
+frontend/test-results/
+playwright-report/
+playwright.config.ts
+tests/
+learning-os/tests/
+reports/
+diagnostics/
+evidence.md
+proofs/
+pacts/
+practice-map/
+semantics/
+technology-universe/
+
+# ------------------------------------------------------------------ local junk
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+
+# ------------------------------------------------------- never build itself in
+Dockerfile
+.dockerignore
+docker-compose.yml

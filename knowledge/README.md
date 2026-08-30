@@ -47,7 +47,7 @@ current official documentation both outrank the corpus.
 git submodule update --init --recursive
 ```
 
-## Sources (83)
+## Sources (86)
 
 | Source | Upstream | Pinned revision | Licence |
 |---|---|---|---|
@@ -62,6 +62,9 @@ git submodule update --init --recursive
 | `awesome-selfhosted` | https://github.com/awesome-selfhosted/awesome-selfhosted.git | `ccea91291c7b` | SEE LICENSE FILE |
 | `build-your-own-x` | https://github.com/codecrafters-io/build-your-own-x.git | `aa17439b62f3` | UNLICENSED |
 | `craftinginterpreters` | https://github.com/munificent/craftinginterpreters.git | `4a840f70f69c` | MIT |
+| `cs50` | https://github.com/cs50/lectures.git | `c218da65901a` | UNLICENSED |
+| `devdocs` | https://github.com/freeCodeCamp/devdocs.git | `aed106cd6848` | SEE LICENSE FILE |
+| `developer-roadmap` | https://github.com/nilbuild/developer-roadmap.git | `9a38345ec296` | SEE LICENSE FILE |
 | `free-for-dev` | https://github.com/ripienaar/free-for-dev.git | `9e2b400f663b` | UNLICENSED |
 | `free-programming-books` | https://github.com/EbookFoundation/free-programming-books.git | `a0894b14eaf3` | CC-BY-4.0 |
 | `freeCodeCamp` | https://github.com/freeCodeCamp/freeCodeCamp.git | `50f93e9e80a6` | BSD-3-Clause |

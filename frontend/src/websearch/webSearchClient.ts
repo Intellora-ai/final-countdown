@@ -153,6 +153,31 @@ function toRetrieved(page: RoutePage, retrievedAt: string): Retrieved {
  * Unknown values are DROPPED, not mapped to a default. An unrecognised origin
  * is not evidence of freshness in either direction, and `live` is carried
  * separately anyway.
+ *
+ * CHECKED AGAINST `provenance.MAX_ORIGINS`, WHICH IS THE ONLY DECLARATION.
+ * This function used to hold its own copy of the three values. The type system
+ * could not see the duplication -- a `readonly Origin[]` holding three of four
+ * union members is perfectly legal -- so declaring a fourth origin would have
+ * typechecked everywhere and then been silently dropped here, on every answer.
+ * Measured: adding a fourth origin produced ONE typecheck error, in
+ * `canvasContract.test.ts`, and NONE in this file. `freshness.origins` is what
+ * §32 renders to say where an answer came from, so a filter that quietly
+ * shortens it tells the same class of lie §32 exists to stop.
+ *
+ * THE RULE FOR WHOEVER ADDS THE FOURTH ORIGIN. This is the validation boundary
+ * for text the server sent, so deriving the allowlist means a new `Origin` is
+ * network-trusted the moment it is declared, with nobody deciding that
+ * separately. If an origin is ever added that must NOT be assertable by the
+ * route -- something only this browser may conclude -- do NOT re-copy a
+ * hand-written list here; that is the defect this comment replaced, and it
+ * fails silently. SPLIT THE TYPE instead, so the narrower set is a thing the
+ * compiler checks rather than a thing somebody remembered.
+ *
+ * The predicate below is sound because `canvasContract.test.ts` asserts a real
+ * `provenance.Freshness` is assignable to the canvas's declared copy, which is
+ * what makes provenance's `Origin` a subset of the canvas's. That guard is a
+ * TEST, not the type system: delete it and this narrowing becomes a cast no
+ * compiler will object to. It was watched failing on the fourth-origin mutant.
  */
 function originsFrom(value: unknown): readonly Origin[] {
   if (!Array.isArray(value)) return []

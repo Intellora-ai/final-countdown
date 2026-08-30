@@ -44,7 +44,7 @@ export const ENGINE_PYTHON_ENV = 'LEARNING_OS_PYTHON'
 const TIMEOUT_MS = 60_000
 
 /** A question is a sentence. Anything larger is not a question. */
-const MAX_BODY_BYTES = 8_000
+const MAX_DOUBT_BODY_BYTES = 8_000
 
 export interface DoubtEngineOptions {
   /** Repository root, so the engine can be found relative to it. */
@@ -127,7 +127,7 @@ export async function askEngine(
   const python = interpreterFor(root, options.python)
   const engineRoot = resolvePath(root, 'learning-os')
 
-  if (Buffer.byteLength(requestBody) > MAX_BODY_BYTES) {
+  if (Buffer.byteLength(requestBody) > MAX_DOUBT_BODY_BYTES) {
     return {
       status: 413,
       body: JSON.stringify({ outcome: 'bad_request', refusal: 'that question is too long' }),

@@ -518,8 +518,12 @@ describe('property-based — rules that must hold for inputs nobody would write'
           maxLength: 4,
         }),
         (allSeries) => {
+          /* Destructured rather than indexed: `allSeries.length === 1` does not
+             narrow `allSeries[0]` for TypeScript, so the index access is
+             possibly-undefined and the canvas typecheck refused the build. */
+          const [only] = allSeries
           const shouldPass =
-            allSeries.length === 1 && allSeries[0].every((y) => y >= 0)
+            allSeries.length === 1 && only !== undefined && only.every((y) => y >= 0)
           const result = validateLesson(
             lesson([chart('pie', allSeries.map((ys, i) => series(`s${i}`, ys)))]),
             structural,

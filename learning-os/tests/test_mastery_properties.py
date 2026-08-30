@@ -41,13 +41,6 @@ from datetime import UTC, datetime
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from tests.strategies import (
-    beliefs,
-    evidences,
-    representations,
-    skill_estimates,
-    unit_floats,
-)
 
 from learning_os.mastery.estimate import (
     DEFAULT_GATES,
@@ -61,6 +54,13 @@ from learning_os.mastery.estimate import (
     update,
 )
 from learning_os.models.contracts import Evidence, EvidenceStrength, SkillEstimate
+from tests.strategies import (
+    beliefs,
+    evidences,
+    representations,
+    skill_estimates,
+    unit_floats,
+)
 
 FIXED_NOW = datetime(2026, 1, 1, tzinfo=UTC)
 

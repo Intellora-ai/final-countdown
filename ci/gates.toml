@@ -525,6 +525,27 @@ mandatory = true
 # `full` can only download from its own run -- this job is in another workflow,
 # so the role it can honestly claim is the one `e2e` and `CodeQL` claim.
 role = "scanner"
+# DECLARED, BECAUSE THE ALTERNATIVE WAS A JOB THAT NEVER REPORTED AT ALL.
+#
+# This job used to be unconditional, and the skipping was done a level up by a
+# `paths:` filter on the workflow's `pull_request` trigger. That is strictly
+# worse than a job-level condition and it is not a matter of taste:
+#
+#   workflow filtered out by `paths:`  ->  NO check-run exists
+#   job skipped by `if:`               ->  check-run exists, conclusion `skipped`
+#
+# `frontend` is a required context. Branch protection accepts a `skipped`
+# check-run and waits forever on a missing one, so with the filter in place any
+# pull request that did not touch `frontend/**` could never merge -- every
+# runnable context green, this one and `frontend-verdict` permanently
+# "Expected", and ruleset 20990225 carries no bypass actor, so not even the
+# owner could override it. That is the condition this line removes.
+#
+# The condition fails OPEN: `changes` answers `true` for every non-pull_request
+# event and on every path other than a clean empty diff, so a broken router
+# runs the full battery rather than silently skipping it. The verification lost
+# when this is `false` is verification of a tree the pull request did not touch.
+job_if = "needs.changes.outputs.frontend == 'true'"
 # EMPTY, AND THE REASON IS THE JOB'S DESIGN RATHER THAN AN OMISSION.
 #
 # Every step here carries `continue-on-error` on purpose: the battery runs to
@@ -797,6 +818,8 @@ artifact = ""
 "deep-verify.yml::deep-verify" = "DELIBERATE. The lane behind the gate above."
 
 "codeql.yml::codeql-javascript-typescript" = "DEBT. codeql-python and codeql-actions ARE required and this one is not, which is an inconsistency rather than a decision. The aggregate `CodeQL` context is required, so JavaScript findings are not wholly unguarded, but the per-language job should match its two siblings."
+
+"learning-canvas-frontend.yml::changes" = "DELIBERATE. Not a verdict -- a router. One checkout and one `git diff --name-only`, whose entire output is a boolean telling the four jobs below whether `frontend/**` was touched. It replaces the `paths:` filter that used to sit on the workflow's `pull_request` trigger, because a workflow filtered out by `paths:` creates NO check-run and a required context with no check-run blocks its pull request indefinitely -- while a job skipped by `if:` does create one, conclusion `skipped`, which branch protection accepts. Requiring this job would gate merges on a path calculation rather than on any property of the code, and it fails open by construction: every non-pull_request event and every error path answers `true`, so a broken router runs the full battery instead of silently skipping it."
 
 "learning-canvas-frontend.yml::frontend" = "DEBT. This is the P0 that check 9b was written to expose. The mutation gate, the reachability gate, the bundle budget and the lint over four directories all run in this job and none of them can fail a merge."
 "learning-canvas-frontend.yml::frontend-mutation" = "DEBT. The mutation gate. It runs, it reports, it blocks nothing."

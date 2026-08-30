@@ -40,3 +40,40 @@ Not fixed here because fixing it is AUTHORING -- rewriting a human's prose --
 not a change to `learning_os/api/emit.py`, which is what Batch 4 is about. The
 two engine-GENERATED lessons now pass the same gate, which is the claim Batch 4
 makes. See `frontend/src/canvas/lessons/engineTeaches.test.ts`.
+
+## `verify` cannot pass on this branch: knowledge_search tests need submodules CI never checks out
+
+Found 2026-08-29 while doing the deployed-backend work. NOT caused by it.
+
+`tests/test_knowledge_search.py` arrived in `33ce6f5`. It has 29 tests, and the
+ones that search the corpus assert a real property: a search over an empty
+directory is a CORPUS FAULT, not a zero-result answer. That assertion is right.
+
+`.github/workflows/verify.yml` contains no `submodules:` key on any checkout, so
+the default applies and no submodule is fetched. The corpus directories are
+therefore empty on every run, and the `coverage` gate fails with
+
+    corpus fault: system-design-primer: .../knowledge/system-design-primer is
+    empty -- submodule not initialised.
+
+Run 33265701199 on `claude/hi-54e935`.
+
+This blocks the branch: `coverage` is a required context, so nothing merges and
+nothing deploys until it is resolved.
+
+TWO OPTIONS, AND THEY ARE NOT EQUIVALENT:
+
+1. Check out submodules in the jobs that run this suite. The corpus is 86
+   pinned repositories; `ci/gates.toml` records that every checkout in gate.yml
+   sets `submodules: false` deliberately, so this is a real cost and a real
+   decision, not an oversight to reverse quietly.
+2. Give the corpus tests a marker and deselect them in CI, the way `axle` and
+   `slow` already work. The tests keep their strength locally; CI stops
+   asserting a corpus it does not have.
+
+Option 2 looks right, because the tests are about the corpus being READABLE and
+CI has deliberately chosen not to carry it. But it is a decision about what CI
+certifies, so it needs to be made deliberately and written down, not patched.
+
+Do NOT weaken the assertions. They are correct: a search of an empty directory
+returning nothing is exactly the lie the module was written to refuse.

@@ -309,3 +309,12 @@
 	path = knowledge/openstax/writing-guide
 	url = https://github.com/openstax/osbooks-writing-guide.git
 	shallow = true
+[submodule "knowledge/developer-roadmap"]
+	path = knowledge/developer-roadmap
+	url = https://github.com/nilbuild/developer-roadmap.git
+[submodule "knowledge/devdocs"]
+	path = knowledge/devdocs
+	url = https://github.com/freeCodeCamp/devdocs.git
+[submodule "knowledge/cs50"]
+	path = knowledge/cs50
+	url = https://github.com/cs50/lectures.git

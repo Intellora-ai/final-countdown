@@ -120,6 +120,35 @@ function safeMessage(message: string): string {
 }
 
 /** Last line of defence: no known secret leaves in any response, ever. */
+/**
+ * What to tell the browser about a model failure.
+ *
+ * AN ALLOWLIST OF OUTCOMES, AND EVERY STRING IS AUTHORED HERE. The upstream
+ * message is matched against, never included -- so a credential inside it
+ * cannot escape even when this process has never seen that credential and
+ * `scrub` therefore cannot remove it.
+ *
+ * The default is deliberately the vaguest one. An unrecognised failure is not
+ * evidence of anything in particular, and guessing would put a confident wrong
+ * sentence in front of the operator -- which is worse than an honest vague one.
+ */
+export function classifyModelFailure(raw: string): string {
+  const m = raw.toLowerCase()
+  if (m.includes('does not exist') || m.includes('model_not_found')) {
+    return 'the model named in this server\'s configuration does not exist at its endpoint'
+  }
+  if (m.includes('rejected the credential') || m.includes('401') || m.includes('403')) {
+    return 'the model endpoint rejected this server\'s credential'
+  }
+  if (m.includes('rate limit') || m.includes('429')) {
+    return 'the model endpoint is rate limiting this server'
+  }
+  if (m.includes('not json') || m.includes('no content')) {
+    return 'the model replied with something that is not a lesson'
+  }
+  return 'the model could not be reached'
+}
+
 function scrub(value: unknown, secrets: readonly string[]): unknown {
   if (secrets.length === 0) return value
   const json = JSON.stringify(value)
@@ -177,11 +206,31 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     let produced: unknown
     try {
       produced = await options.model.lesson(request)
-    } catch {
-      /* The upstream message is deliberately dropped rather than forwarded: it
-       * routinely contains the credential that was rejected. The failure is
-       * reported; its text is not. */
-      return reply(502, { ...decided, error: 'the model could not be reached' })
+    } catch (error) {
+      /*
+       * THE FAILURE IS CLASSIFIED, NOT FORWARDED.
+       *
+       * Two requirements that look opposed and are not:
+       *
+       *   - The upstream text must never reach the browser. It routinely
+       *     carries the credential that was rejected, and `scrub` only removes
+       *     secrets this process KNOWS -- a key the server has never seen walks
+       *     straight through it. `does not leak an upstream error message`
+       *     pins this, and it is right.
+       *   - The reason must survive. Dropping every failure into one sentence
+       *     cost hours: a withdrawn model id read exactly like a network fault,
+       *     and the two have nothing in common as fixes. One is a config edit,
+       *     the other is waiting out an outage.
+       *
+       * So the message is READ and thrown away, and this server says something
+       * of its own choosing about what it read. Every string below is authored
+       * here. No upstream bytes are echoed.
+       */
+      const raw = error instanceof Error ? error.message : String(error)
+      /* Logged, scrubbed, so an operator can explain a 502 from this process's
+         own output instead of reproducing it first. */
+      console.error(`lesson failed: ${scrub(raw, secrets) as string}`)
+      return reply(502, { ...decided, error: classifyModelFailure(raw) })
     }
 
     const result = validateLesson(produced, { teaching })

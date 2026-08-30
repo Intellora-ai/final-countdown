@@ -46,12 +46,31 @@ const answering = (resolver: DoubtResolver, ask = vi.fn()) => ({
   ask,
 })
 
+/*
+ * A STALE FIXTURE, CORRECTED -- and the double cast is why it rotted unseen.
+ *
+ * This returned `{ kind: 'answer', blocks: [...], source: 'lesson' }`, which is
+ * the shape `DoubtAnswer` had before it became `{ kind, lesson, drawnFrom }`.
+ * `as unknown as DoubtResolver` silenced the type error, so the fixture went on
+ * describing a shape the product no longer has and every assertion below was
+ * made against a rung that could not exist.
+ *
+ * Nothing asserted here changes. The two `it`s still say the lesson answers
+ * immediately and adds no come-back line; only the input now matches the
+ * contract the resolvers actually implement. It surfaced when `chain.ts` began
+ * checking its rungs' postconditions and this one failed them --
+ * `resolution.lesson` was `undefined`.
+ */
 const RESOLVER = (kind: 'answer' | 'refusal'): DoubtResolver => ({
   name: 'test',
   resolve: () =>
     kind === 'answer'
-      ? { kind: 'answer', blocks: [LESSON.blocks[0]!], source: 'lesson' }
-      : { kind: 'refusal', reason: 'nothing in this lesson names that' },
+      ? {
+          kind: 'answer',
+          lesson: { ...LESSON, blocks: [LESSON.blocks[0]!] },
+          drawnFrom: [LESSON.blocks[0]!.id],
+        }
+      : { kind: 'refusal', reason: 'nothing in this lesson names that', nearest: [] },
 } as unknown as DoubtResolver)
 
 const doubt = { text: 'why does that happen?', atBeatId: 'b1' }

@@ -29,6 +29,15 @@ export interface ItemVerdict {
   readonly ok: boolean
   /** Why it failed. Empty when it passed. */
   readonly why: string
+  /**
+   * The transport failure, verbatim from the provider, when the model was
+   * never reached at all.
+   *
+   * SEPARATE FROM `why` ON PURPOSE. `why` is the GATE's verdict on an answer;
+   * this is the absence of an answer. Collapsing them is what let sixteen
+   * `HTTP 404`s read as sixteen teaching refusals and a passing suite.
+   */
+  readonly unreachable?: string
 }
 
 export interface SeedRun {
@@ -54,6 +63,13 @@ export interface Spread {
 export function itemTable(items: readonly ItemVerdict[]): string {
   return items
     .map((v) => {
+      /* UNREACHABLE is its own word, and the provider's own message follows
+         it. `REFUSED ... the model could not be reached` reads as a judgement
+         about the lesson; it was a dead model id in a config file, and the
+         provider had already said so. */
+      if (v.unreachable !== undefined && v.unreachable !== '') {
+        return `${'UNREACHED'.padEnd(8)} ${v.item} -- ${v.unreachable}`
+      }
       const head = `${(v.ok ? 'TAUGHT' : 'REFUSED').padEnd(8)} ${v.item}`
       return v.why === '' ? head : `${head} -- ${v.why}`
     })
@@ -75,4 +91,57 @@ export function summarise(runs: readonly SeedRun[]): Spread {
   const mean = passes.reduce((a, b) => a + b, 0) / passes.length
   const variance = passes.reduce((a, b) => a + (b - mean) ** 2, 0) / passes.length
   return { passes, mean, std: Math.sqrt(variance) }
+}
+
+/**
+ * Every item where the model was never reached.
+ *
+ * WHY A RUN NEEDS THIS AND A SCORE DOES NOT COVER IT.
+ *
+ * The matrix deliberately does NOT assert its score: a shape refusal is the
+ * gate working, and failing the build on it would make the gate the enemy. But
+ * "the instrument ran at all" is not a score, and it was never checked -- so a
+ * run in which nothing answered passed, sixteen times over, in under a second.
+ *
+ * A shape refusal IS a measurement: the model answered and the answer was
+ * refused. Only a transport failure is the absence of one, which is why this
+ * reads `unreachable` and never `ok`.
+ */
+export function neverReached(runs: readonly SeedRun[]): readonly ItemVerdict[] {
+  return runs.flatMap((run) =>
+    run.items.filter((item) => item.unreachable !== undefined && item.unreachable !== ''),
+  )
+}
+
+/**
+ * The floor below which a generation cannot have happened, per item.
+ *
+ * Deliberately far under any real figure. The measured means on this matrix
+ * have run 12s to 223s per item; 250ms is not a performance expectation, it is
+ * a statement about physics. Setting it near the real mean would make the check
+ * fire on a fast provider and get it deleted, and a check that has been deleted
+ * enforces nothing.
+ */
+export const MIN_MS_PER_GENERATION = 250
+
+/**
+ * Whether a run finished too fast to have generated what it claims.
+ *
+ * WHY THE PROCESS IS CHECKED AND NOT ONLY THE OUTPUT.
+ *
+ * `neverReached` catches the failure already seen -- the provider answered 404
+ * and said so. It cannot catch the next way a run goes hollow, because that one
+ * will not announce itself: a cache returning stubs, a fake left wired in, a
+ * mock that answers instantly. Every one of those produces individually
+ * plausible outputs, so no assertion on the output can separate them.
+ *
+ * What they share is arithmetic. The run that prompted this took 972ms for
+ * sixteen items and reported PASS.
+ *
+ * An empty run is not judged: zero items in zero time is not evidence of
+ * anything, and refusing it would fire on a legitimately empty matrix.
+ */
+export function implausiblyFast(items: readonly ItemVerdict[], elapsedMs: number): boolean {
+  if (items.length === 0) return false
+  return elapsedMs < items.length * MIN_MS_PER_GENERATION
 }

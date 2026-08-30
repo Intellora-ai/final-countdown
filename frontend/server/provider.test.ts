@@ -66,3 +66,72 @@ describe('choosing a provider', () => {
     expect(message).toMatch(/ollama/i)
   })
 })
+
+/*
+ * AN OPENAI-COMPATIBLE PROVIDER, AND WHY AMBIGUITY REFUSES INSTEAD OF PICKING.
+ *
+ * The lesson route returned 502 for a reason that had nothing to do with
+ * teaching: the server accepted `ANTHROPIC_API_KEY` or `OLLAMA_MODEL` and
+ * nothing else, so a Groq key -- the only working credential on this machine --
+ * could not reach it at all. The frontend had a model; the server did not.
+ *
+ * The law being applied here, verbatim: no branch may produce a verdict it has
+ * no evidence for, and a default arm is a guess wearing a decision's clothes.
+ * Two keys set at once is exactly that case. Silently preferring one would mean
+ * a student is taught by a model nobody chose, which is the same quiet
+ * degradation this file already refuses for the local-vs-key case.
+ *
+ * So: local wins when named, because naming it is deliberate. Otherwise exactly
+ * one key may be set. Two is not a tie to be broken -- it is a question only
+ * the operator can answer, and it is asked rather than guessed.
+ */
+describe('an OpenAI-compatible provider', () => {
+  it('is chosen from GROQ_API_KEY', () => {
+    expect(chooseProvider({ GROQ_API_KEY: 'gsk-x' })).toEqual({
+      kind: 'openai',
+      apiKey: 'gsk-x',
+      model: 'openai/gpt-oss-120b',
+      endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+    })
+  })
+
+  it('takes the model and endpoint when they are named', () => {
+    expect(
+      chooseProvider({
+        GROQ_API_KEY: 'gsk-x',
+        GROQ_MODEL: 'qwen/qwen3.8-27b',
+        GROQ_ENDPOINT: 'https://example.invalid/v1/chat/completions',
+      }),
+    ).toEqual({
+      kind: 'openai',
+      apiKey: 'gsk-x',
+      model: 'qwen/qwen3.8-27b',
+      endpoint: 'https://example.invalid/v1/chat/completions',
+    })
+  })
+
+  it('still lets a named local model win, and does not read the key', () => {
+    /* The rule this file already states: naming a local model is deliberate,
+       and a key can sit exported in a shell for months. */
+    const chosen = chooseProvider({ OLLAMA_MODEL: 'qwen2.5:7b', GROQ_API_KEY: 'gsk-SECRET' })
+    expect(chosen.kind).toBe('ollama')
+    expect(JSON.stringify(chosen)).not.toContain('SECRET')
+  })
+
+  it('refuses when two keys are set, instead of picking one', () => {
+    /*
+     * THE LOAD-BEARING CASE. A default arm here would teach a student with a
+     * model nobody selected and report success -- a component that looks fine
+     * while being wrong, which is the hardest class to find.
+     */
+    expect(() => chooseProvider({ GROQ_API_KEY: 'gsk-x', ANTHROPIC_API_KEY: 'sk-ant-y' })).toThrow(
+      /GROQ_API_KEY.*ANTHROPIC_API_KEY|ANTHROPIC_API_KEY.*GROQ_API_KEY/s,
+    )
+  })
+
+  it('names GROQ_API_KEY when nothing at all is configured', () => {
+    /* The pair for the refusal above: the error has to be actionable, and an
+       option the operator cannot discover is not an option. */
+    expect(() => chooseProvider({})).toThrow(/GROQ_API_KEY/)
+  })
+})

@@ -471,3 +471,116 @@ describe('conceptIssues is usable without a model', () => {
     expect(conceptIssues(concept)).toEqual([])
   })
 })
+
+/* -------------------------------------------------------------------------- */
+/* A repair is an EDIT of the reply the model sent, never a re-authoring       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * THE DEFECT THESE PIN, MEASURED RATHER THAN GUESSED.
+ *
+ * The any-topic matrix scored 14 of 16 against gpt-oss-120b, twice. BOTH
+ * refusals, in BOTH runs, were the same rule and the same size of miss: "the
+ * definition is 32 words, and the cap is 30", and "33 words". Two words over,
+ * on the SECOND attempt -- so the repair turn ran, was handed the gate's own
+ * sentence, and still came back over the cap. WHICH two questions failed
+ * varied run to run, which is the signature of a fresh draft rather than a
+ * failed correction: a genuine two-word trim does not wander between topics.
+ *
+ * The plumbing was checked before the prompt was blamed. Against a fake model
+ * the loop makes exactly two calls, and the second carries `priorAssistant`
+ * and the gate's message verbatim. So nothing was lost in transit.
+ *
+ * What was missing is that nothing ever asked for an EDIT. The system prompt
+ * on the repair turn is the original authoring instruction, still carrying
+ * "Teach ONE atomic concept" and "HOW TO COME AT IT THIS TIME: <route>", and
+ * the user turn asked for "the corrected JSON object" -- which reads just as
+ * naturally as "a corrected object" as it does "your object, corrected". A
+ * model handed that re-authors, and a fresh definition clears a 30-word cap at
+ * the same rate the first one did. Same class as the unstated cap and the
+ * unquoted JSON example before it: the contract declining to state itself.
+ */
+describe('the repair turn asks for an edit, not another draft', () => {
+  /** A definition two words over the cap: the exact measured failure. */
+  function overLongDefinition(): string {
+    const doc = JSON.parse(soundConcept()) as {
+      blocks: { id: string; body?: string }[]
+    }
+    /* Padded, not replaced: the sound body carries the term marked `key`, and
+       a definition that dropped it would be refused for a SECOND reason and
+       stop measuring the cap. Exactly two words over, as measured. */
+    const body = doc.blocks[0]!.body ?? ''
+    const short = body.split(/\s+/).length
+    const filler = Array.from({ length: MAX_DEFINITION_WORDS + 2 - short }, (_, i) => `padding${i}`)
+    doc.blocks[0]!.body = `${body} ${filler.join(' ')}`
+    return JSON.stringify(doc)
+  }
+
+  it('names the failing block by the id the model itself used', async () => {
+    /*
+     * `blocks[0]` is an index into a document the model wrote minutes ago and
+     * is not looking at. Its own blocks are named -- `says-what` here -- and
+     * the ids are what every other part of the reply refers to them by.
+     * Handing back the index alone makes locating the fault the model's
+     * problem, and a model that cannot locate the fault rewrites instead.
+     */
+    const seen: string[] = []
+    const model: LessonModel = async (_system, user) => {
+      seen.push(user)
+      return overLongDefinition()
+    }
+    await authorConcept(model, 'What is a base case?')
+
+    expect(seen).toHaveLength(2)
+    expect(
+      seen[1] ?? '',
+      'the repair must name the failing block by the id the model used',
+    ).toContain('blocks[0] (id "says-what")')
+  })
+
+  it('a model that only edits its prior reply passes the gate', async () => {
+    /*
+     * The whole point of the repair turn, asserted as an EFFECT rather than as
+     * wording. This model never authors anything: on the repair it parses what
+     * it sent, finds the block the message names, trims exactly what the
+     * message says is over, and returns the rest byte for byte. That is the
+     * cheapest possible correct behaviour, and if the loop cannot be satisfied
+     * by it then the repair turn is asking for something else.
+     */
+    const model: LessonModel = async (_system, user, prior) => {
+      if (prior === undefined) return overLongDefinition()
+      const doc = JSON.parse(prior) as { blocks: { id: string; body?: string }[] }
+      const named = /id "([a-z0-9-]+)"/.exec(user)
+      if (named === null) return prior
+      const block = doc.blocks.find((b) => b.id === named[1])
+      if (block?.body === undefined) return prior
+      block.body = block.body.split(/\s+/).slice(0, MAX_DEFINITION_WORDS).join(' ')
+      return JSON.stringify(doc)
+    }
+
+    const result = await authorConcept(model, 'What is a base case?')
+    if (!result.ok) throw new Error(`refused: ${JSON.stringify(result.issues)}`)
+    expect(result.attempts).toBe(2)
+  })
+
+  it('does not invent a block id for an issue that is not about a block', async () => {
+    /*
+     * The PAIR. A rule that annotated every path would start writing ids next
+     * to `checkpoint` and `next[0]`, which name no block -- and an id that does
+     * not exist in the reply is worse than no id at all, because the model goes
+     * looking for it.
+     */
+    const seen: string[] = []
+    const model: LessonModel = async (_system, user) => {
+      seen.push(user)
+      return soundConcept({ checkpoint: 'That is how a base case works.' })
+    }
+    await authorConcept(model, 'What is a base case?')
+
+    expect(seen).toHaveLength(2)
+    expect(seen[1] ?? '').toContain('- checkpoint: ')
+    expect(seen[1] ?? '', 'no id may be attached to a path that names no block').not.toMatch(
+      /checkpoint \(id/,
+    )
+  })
+})

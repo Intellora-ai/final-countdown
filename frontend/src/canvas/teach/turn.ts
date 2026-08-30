@@ -15,7 +15,24 @@
  *   send it to the doubt resolver and the beat would never move.
  */
 
-export type Turn = 'question' | 'answer' | 'empty'
+export type Turn = 'question' | 'answer' | 'empty' | 'unclear'
+
+/**
+ * Tokens people type instead of answering. Greetings, acknowledgement, noise.
+ *
+ * A LIST, AND SAID TO BE ONE. A list is exactly as good as the imagination of
+ * whoever last edited it, so it does not carry this alone -- the length and
+ * shape rule beside it catches the ones nobody thought of, and both feed the
+ * INERT outcome rather than an active one. A spelling that escapes this set and
+ * is longer than two characters is treated as an answer, which is the same
+ * behaviour as before; nothing regresses when the list is incomplete.
+ */
+const FILLER = new Set([
+  'hi', 'hey', 'hello', 'yo', 'sup', 'hiya',
+  'ok', 'okay', 'k', 'kk', 'sure', 'yeah', 'yep', 'yes', 'no', 'nope',
+  'lol', 'haha', 'hmm', 'hm', 'huh', 'oh', 'ah', 'wow', 'nice', 'cool',
+  'idk', 'dunno', 'asdf', 'test', 'testing', 'thanks', 'thank', 'ty', 'please',
+])
 
 /** Words that open a question. Modals included: "can you explain that again"
  *  carries no question word but is plainly a question. */
@@ -43,6 +60,38 @@ export function classifyTurn(text: string): Turn {
 
   const first = lower.split(/[^a-z']+/).filter(Boolean)[0]
   if (first !== undefined && OPENERS.includes(first)) return 'question'
+
+  /*
+   * THE FOURTH OUTCOME, AND WHY IT HAD TO EXIST.
+   *
+   * This function used to end `return 'answer'`. It recognised a question three
+   * ways and called EVERYTHING ELSE an answer -- so "hi" advanced the lesson,
+   * and so did "ok", "lol" and "asdf". The learner had said nothing and the
+   * lecture moved on. No gate could see it: the type was satisfied ('answer' is
+   * a valid Turn), the pixels were correct, and the mutation gate cannot flip a
+   * branch that was never written.
+   *
+   * A default arm is not a decision. It is a guess wearing a decision's
+   * clothes, and this one guessed wrong every time somebody said hello.
+   *
+   * `unclear` is INERT by contract: it does not advance the beat and it does
+   * not answer a doubt. The screen asks again instead of pretending.
+   *
+   * WHICH WAY THE REMAINING DOUBT FALLS, DELIBERATELY. Multi-word text is
+   * treated as an answer, because refusing a genuine answer strands the learner
+   * -- a cure worse than the defect. Only a SINGLE contentless token goes to
+   * `unclear`. A number is content whatever its length: "8" answers a question,
+   * "k" does not.
+   */
+  const words = lower.split(/\s+/).filter(Boolean)
+  if (words.length === 0) return 'unclear'
+  if (words.length === 1) {
+    const only = words[0] ?? ''
+    const bare = only.replace(/[^a-z0-9']/g, '')
+    if (bare === '') return 'unclear'
+    if (/[0-9]/.test(bare)) return 'answer'
+    if (FILLER.has(bare) || bare.length <= 2) return 'unclear'
+  }
 
   return 'answer'
 }

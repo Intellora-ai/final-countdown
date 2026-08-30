@@ -5,6 +5,7 @@ import type { AnyResolver } from './teach/contract'
 import { lessonResolver } from './teach/doubt'
 import { engineResolver } from './teach/engineResolver'
 import { webResolver, type SearchResult } from './teach/webResolver'
+import { createAlmanacClient } from '../almanac/client'
 import { cssVariables } from './design/tokens'
 import { billBecomesLaw } from './lessons/billBecomesLaw'
 import { classifierEvaluation } from './lessons/classifierEvaluation'
@@ -208,6 +209,11 @@ export default function CanvasRoute({
    * supplied; with none, this is exactly the single-resolver behaviour that
    * shipped before, and the refusal stays the honest one.
    */
+  /* One client per mount. `LearnView` builds its own the same way; sharing the
+     construction rather than the instance keeps the two routes independent
+     while giving a learner the same answer on both. */
+  const almanac = useMemo(() => createAlmanacClient(), [])
+
   const resolvers = useMemo<readonly AnyResolver[]>(() => {
     const chain: AnyResolver[] = [lessonResolver]
 
@@ -480,7 +486,26 @@ export default function CanvasRoute({
            * learner lands three beats into a lesson they have not begun —
            * position is state, and state must not survive a change of subject.
            */
-          <TeachView key={chosen.id} lesson={result.lesson} mode={mode} resolvers={resolvers} />
+          <TeachView
+            key={chosen.id}
+            lesson={result.lesson}
+            mode={mode}
+            resolvers={resolvers}
+            /*
+             * THE LAST RUNG, WIRED. Without this prop `TeachView` falls back to
+             * `no question service is configured`, so a learner on `/canvas`
+             * who asked something the lesson does not cover reached a dead end
+             * -- while the identical question on `/learn/:conceptId` was
+             * answered, because `LearnView` passes the same port.
+             *
+             * `/canvas` is a real route, not an internal one: `App.tsx:177`
+             * intercepts the path before the router and renders this
+             * full-screen, and `/canvas/gas` and `/canvas/lessons` redirect
+             * into it. The same product answering differently depending on
+             * which door a learner came in is the bug, not the missing prop.
+             */
+            ask={(question) => almanac.ask(question)}
+          />
         ) : (
           <Refusal title="This lesson was refused" issues={result.issues} />
         )}

@@ -39,7 +39,7 @@ import { STOPWORDS as SHARED } from '../kernel/text'
 /* Evidence                                                                   */
 /* -------------------------------------------------------------------------- */
 
-interface Pattern {
+export interface Pattern {
   kind: IntentKind
   test: RegExp
   /** How much this pattern is worth. Strong = the phrase is near-decisive. */
@@ -52,7 +52,18 @@ interface Pattern {
  * "Read this PDF and summarise it" is a file request AND an information
  * request, and a classifier that picks one has thrown away half the sentence.
  */
-const PATTERNS: readonly Pattern[] = [
+/*
+ * EXPORTED SO TESTS IMPORT THE VOCABULARY RATHER THAN COPYING IT.
+ *
+ * `understand.property.test.ts` composes its generator out of these patterns.
+ * A pasted copy of the token lists would be a dead map: the words here change,
+ * the copy does not, and the test goes on passing against vocabulary nothing
+ * uses -- the same failure as a stale fixture, and silent in exactly the same
+ * way.
+ *
+ * A test may IMPORT the code's vocabulary. It may never CONTAIN a copy of it.
+ */
+export const PATTERNS: readonly Pattern[] = [
   /* Memory. Placed first in the file because these are the highest-weight
      signals in the system: "remember that ..." is an instruction about the
      agent's own state, and misreading it as a question loses the fact. */

@@ -806,6 +806,7 @@ artifact = ""
 
 "learning-os.yml::learning-os" = "DELIBERATE for now. learning-os v1 is an unmerged draft (PR #48, marked DRAFT -- do not merge). Requiring a draft subsystem would block unrelated work."
 "learning-os.yml::deployed-layout" = "DELIBERATE for now. Same draft subsystem as above."
+"learning-os.yml::real-life" = "DELIBERATE for now. Same draft subsystem as the two above -- it runs the Given/When/Then human scenarios in learning-os/tests/human/ and cannot be required while learning-os v1 is an unmerged draft. Worth saying what is therefore NOT blocking: this is the only job that asks whether a person can sign up, answer, be told what to do next, and have a dropped-connection retry not counted twice. Its own scenario-count gate is not advisory -- scripts/property_gate.py --suite human fails this job if the suite shrinks, so a silently deleted scenario dies in the runner rather than landing green."
 
 "verify.yml::merge-evidence" = "DEBT. It checks the PR's measured claims against the run's evidence, which is exactly the kind of thing that should be able to fail a merge. It runs `if: always()` after `full` on pull_request only and is not a required check."
 

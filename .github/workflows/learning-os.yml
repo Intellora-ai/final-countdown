@@ -19,14 +19,31 @@ on:
       # until the next unrelated learning-os change happened to run it.
       - "scripts/openapi_drift.py"
       # Same reasoning: this job is the only one that runs the learning-os
-      # property gate, so a change to the gate must trigger it.
+      # property gate AND the human-scenario gate, so a change to the gate must
+      # trigger it.
       - "scripts/property_gate.py"
+      # THE HUMAN SCENARIOS NEED NO LINE OF THEIR OWN, and adding one would be
+      # a mistake worth explaining rather than a harmless extra.
+      #
+      # They live in `learning-os/tests/human/`, which `learning-os/**` already
+      # matches -- `**` crosses directory separators, so every feature file and
+      # every step definition under it already triggers this workflow. A second
+      # entry reading `learning-os/tests/human/**` would filter nothing and
+      # change no behaviour, and a repository-root-relative `tests/human/**`
+      # would be worse: it names the ROOT suite's directory, matches nothing
+      # that exists, and would read to the next person as the thing keeping the
+      # human job triggered.
+      #
+      # The two `scripts/` entries above are here precisely because they are
+      # NOT covered by the globs. That is the test for whether a path belongs
+      # in this list.
   pull_request:
     paths:
       - "learning-os/**"
       - ".github/workflows/learning-os.yml"
       - "scripts/openapi_drift.py"
       - "scripts/property_gate.py"
+      # Same as above: `learning-os/tests/human/**` is inside `learning-os/**`.
 
 # Supersede only within the same pull request, matching the convention the other
 # workflows in this repository already follow: a newer commit on the SAME PR
@@ -233,3 +250,104 @@ jobs:
             -k "site_packages_is_not_on_the_child_path or \
                 the_child_cannot_import_an_installed_dependency or \
                 learner_code_cannot_import_the_engine"
+
+  # REAL-LIFE HUMAN SCENARIOS, WHICH THE TWO JOBS ABOVE DO NOT COVER.
+  #
+  # Those jobs prove the engine is correct, typed, offline and -- for the one
+  # property that has one -- sandboxed. They do NOT prove that a person can do
+  # the things a person does, and the gap is not a small one:
+  #
+  #   tests/http      does each route return the shape its own schema declares?
+  #   tests/api       what does a caller's mistake look like?
+  #   tests/contract  does one named consumer still get what it reads?
+  #   schemathesis    can any generated input break a published promise?
+  #
+  # Every one of those is a question about ONE call. None of them asks whether
+  # somebody can sign up, answer a question, be told what to do next, and have
+  # the retry their phone sent not counted twice -- and all of them stay green
+  # while that sequence is broken, because each call is right on its own and the
+  # ORDER is what carries the meaning.
+  #
+  # So this job runs `learning-os/tests/human/`: Given/When/Then scenarios bound
+  # by pytest-bdd to real calls against the app in-process. Same lock, same
+  # pinned actions, same timeout, same offline rule. Nothing new is trusted.
+  real-life:
+    name: real-life
+    runs-on: ubuntu-latest
+    # Measured: 24 scenarios in under two seconds locally, plus the install.
+    # 15 minutes matches its two siblings for the same reason theirs do -- it
+    # removes GitHub's six-hour default, which is what a hung pip resolve would
+    # otherwise hold a runner for.
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: learning-os
+
+    # THE SAME OFFLINE, NO-API-KEY RULE AS THE JOB ABOVE.
+    #
+    # Not restated as a courtesy: it is enforced the same way, by the autouse
+    # socket guard in `learning-os/tests/conftest.py`, which is the parent of
+    # `tests/human/` and therefore already refuses a connection from any
+    # scenario here. The lesson scenarios run the deterministic FakeLLMClient,
+    # so there is nothing for a key to unlock. No step below may read
+    # LEARNING_OS_LLM_API_KEY.
+    env:
+      PYTHONHASHSEED: "0"
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: learning-os/requirements-learning-os.lock
+
+      # The same single hash-locked install as both jobs above, for the same
+      # reason: tests/test_supply_chain.py rejects any pip install that is not
+      # `--require-hashes -r <lock>`. pytest-bdd and its four transitive
+      # packages are IN that lock, pinned and hashed, rather than installed on
+      # top of it -- an unverified tool inside the verification system is the
+      # thing the rule exists to refuse.
+      - name: Install
+        run: pip install --quiet --require-hashes -r requirements-learning-os.lock
+
+      - name: Human scenarios
+        # Written as behaviour in tests/human/features/*.feature, bound to real
+        # calls in tests/human/test_*.py. The binding is what makes this worth
+        # running: a step with no definition is an ERROR, so a scenario cannot
+        # quietly do less than it says.
+        run: pytest tests/human -q
+        env:
+          PYTHONPATH: src
+
+      # Same reasoning as the property gate above, applied to the thing this
+      # suite would actually lose. A passing line count says nothing about
+      # whether the scenarios ran: delete a `.feature` file, or let a
+      # `scenarios()` call stop matching after an upgrade, and pytest reports a
+      # SMALLER GREEN NUMBER with nothing red anywhere.
+      #
+      # Demonstrated rather than assumed -- removing one scenario from one
+      # feature file leaves the suite green at 23 and turns this step red.
+      - name: Human scenarios actually executed
+        run: python3 ../scripts/property_gate.py --suite human --root ..
+        env:
+          PYTHONPATH: src
+
+      - name: Upload report on failure
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: human-report
+          # Relative to the workspace, NOT to `working-directory` above --
+          # upload-artifact does not read `defaults.run`. Written by
+          # tests/human/conftest.py at session finish, so it exists whenever the
+          # suite ran at all, and it names which scenario failed rather than
+          # only how many did.
+          path: learning-os/reports/
+          retention-days: 5
+          # `warn`, not `error`. The report is absent exactly when the failure
+          # happened BEFORE the suite started -- a bad install, say -- and that
+          # failure is already red on its own step. Erroring here would add a
+          # second red pointing at the wrong place.
+          if-no-files-found: warn

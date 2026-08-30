@@ -120,6 +120,25 @@ def test_no_floor_is_zero() -> None:
         assert floor > 0, f"{suite} has a floor of {floor}"
 
 
+def test_every_suite_says_what_its_ledger_counts() -> None:
+    """A suite with no noun crashes the gate instead of failing it.
+
+    `COUNTS` exists because the suites do not all count the same thing: two
+    count Hypothesis properties and `human` counts pytest-bdd scenarios, and
+    "executed only 3 property tests" would send a reader hunting for a `@given`
+    nobody ever wrote.
+
+    The failure without this test is worse than a wrong word. `main` reads
+    `COUNTS[suite]` unguarded, so a fourth suite added to `SUITES` alone raises
+    KeyError in CI -- and a gate that crashes reads as a broken gate rather than
+    as the missing floor it actually is.
+    """
+    assert GATE.SUITES.keys() == GATE.COUNTS.keys(), (
+        "every suite must say what its ledger counts: "
+        f"{sorted(GATE.SUITES.keys() ^ GATE.COUNTS.keys())} appear in one and not the other"
+    )
+
+
 def test_only_the_controller_writes_a_ledger(tmp_path: Path) -> None:
     """The xdist double-count, pinned so it cannot come back.
 

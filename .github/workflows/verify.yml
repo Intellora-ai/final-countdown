@@ -242,9 +242,7 @@ jobs:
         run: |
           python3 scripts/run_gate.py --name axle-verify -- bash -c '
             set -e
-            echo "== axle-verify gate 1/2: syntactic spec rules" >&2
-            python3 scripts/enforce_spec.py specs/*_spec.lean
-            echo "== axle-verify gate 2/2: AXLE proof verification" >&2
+            echo "== axle-verify gate 1/1: AXLE proof verification" >&2
             python3 scripts/axle_gate.py
           '
       - name: Upload evidence

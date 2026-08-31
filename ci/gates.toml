@@ -178,6 +178,17 @@ excluded = [
   # rely on the flag staying set.
   { path = "knowledge", why = "third-party pinned submodules, reference material, not our production code" },
 
+  # The real-life scenario suite, and it arrived untracked so this gate had
+  # never seen it. `features/` holds the Gherkin file and `features/steps/` the
+  # Python that drives the RUNNING product over HTTP. It is the suite the Stop
+  # hook uses to prove the product; it is not part of the product.
+  #
+  # `excluded` rather than `unmeasured`: line coverage OF a test suite measures
+  # how much of the harness ran, which says nothing about the product it
+  # exercises. A floor here would pin an artefact.
+  { path = "features", why = "behave scenario suite -- test code driving the product over HTTP, never shipped" },
+  { path = "features/steps", why = "behave step definitions -- test code driving the product over HTTP, never shipped" },
+
 
   # Test code is not production code. `tests/generated` is covered by this row
   # through longest-prefix ownership rather than needing one of its own.
@@ -248,11 +259,19 @@ job = "axle-verify"
 mandatory = true
 role = "gate"
 # The wrapper is pinned as its own token; see the preflight entry above.
-# enforce_spec.py owned no report until it moved inside this chain, so a spec
-# that broke a syntactic rule turned the job red with every detail of which
-# spec and which rule living only in the job log.
+#
+# `scripts/enforce_spec.py` was pinned here too and has been DELETED at the
+# owner's instruction. A must_contain naming a script that no longer exists is
+# a gate that can only ever fail: `gate_integrity.py` reported
+#
+#     axle-verify: invokes scripts/enforce_spec.py: FAIL  0 step(s)
+#
+# and that failure was the whole `verify` check going red. The syntactic spec
+# rules it enforced are gone with it; `axle_gate.py` still proves
+# SPEC_SET == PROOF_SET and owns the verdict, which is the part that decides
+# whether a proof was actually checked.
 must_contain = ["run_gate.py --name axle-verify -- bash -c",
-                "scripts/axle_gate.py", "scripts/enforce_spec.py"]
+                "scripts/axle_gate.py"]
 evidence = "reports/axle-verify.json"
 artifact = "reports-axle-verify"
 

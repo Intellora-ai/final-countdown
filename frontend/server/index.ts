@@ -20,9 +20,14 @@
 import { createServer as createNodeServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { chooseProvider } from './provider.ts'
 import { createOllamaModel, DEFAULT_OLLAMA_ENDPOINT } from './ollama.ts'
+import { createGroqModel, DEFAULT_GROQ_MODEL } from './groq.ts'
+import { pgStore } from './almanac/pgStore.ts'
+import { sqliteMemoryStore } from './memory/sqliteStore.ts'
+import { canvasMemory, type CanvasMemory } from './memory/store.ts'
 import type { Readable } from 'node:stream'
 
 import { createHandler, type ModelPort, type SearchPort } from './handler.ts'
+import { resolveIdentitySecret } from './identity.ts'
 import { createModel } from './model.ts'
 import { createLedger, type Ledger } from './almanac/ledger.ts'
 import { fileStore } from './almanac/fileStore.ts'
@@ -48,10 +53,17 @@ export async function readJsonBody(stream: Readable, maxBytes: number): Promise<
     const buffer: Buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk))
     bytes += buffer.length
     if (bytes > maxBytes) {
-      /* Stop pulling. Everything already read is dropped unparsed. */
-      if (typeof (stream as { destroy?: unknown }).destroy === 'function') {
-        (stream as unknown as { destroy(): void }).destroy()
-      }
+      /* STOP PULLING, BUT DO NOT TEAR DOWN THE CONNECTION HERE.
+       *
+       * This used to call `stream.destroy()`, and destroying the REQUEST
+       * destroys the socket the RESPONSE has to travel back on -- so the 413
+       * the caller is about to send could never arrive. Measured: a save just
+       * over the limit came back as "the connection was dropped: Remote end
+       * closed connection without response". A person who saved too much was
+       * told nothing at all, which is the worst of both outcomes.
+       *
+       * Returning is enough to stop reading. The caller answers in words and
+       * closes the socket afterwards -- see where this is called. */
       return { ok: false, reason: 'too-large', bytes }
     }
     chunks.push(buffer)
@@ -75,6 +87,10 @@ export interface ServerOptions {
   readonly model: ModelPort
   readonly search: SearchPort
   readonly almanac?: Ledger
+  /** The canvas's memory. Absent means /api/memory answers 503, never a guess. */
+  readonly memory?: CanvasMemory
+  /** The key identities are signed with. No default; see `identity.ts`. */
+  readonly identitySecret: string
   readonly secrets?: readonly string[]
 }
 
@@ -83,29 +99,63 @@ export function createServer(options: ServerOptions): Server {
     model: options.model,
     search: options.search,
     ...(options.almanac === undefined ? {} : { almanac: options.almanac }),
+    ...(options.memory === undefined ? {} : { memory: options.memory }),
+    identitySecret: options.identitySecret,
     secrets: options.secrets,
     maxBodyBytes: MAX_BODY_BYTES,
   })
 
-  const send = (res: ServerResponse, status: number, body: unknown): void => {
+  const send = (res: ServerResponse, status: number, body: unknown, setCookie?: string): void => {
     const payload = JSON.stringify(body)
     res.writeHead(status, {
       'content-type': 'application/json; charset=utf-8',
       'content-length': Buffer.byteLength(payload),
       /* Nothing here is ever a document, so nothing here should be sniffed. */
       'x-content-type-options': 'nosniff',
+      /* Sent only when the handler minted an identity. Spread rather than set
+       * to undefined: `writeHead` renders an undefined value as the string
+       * "undefined", which would plant a cookie header that means nothing. */
+      ...(setCookie === undefined ? {} : { 'set-cookie': setCookie }),
     })
     res.end(payload)
   }
 
   return createNodeServer((req: IncomingMessage, res: ServerResponse) => {
     void (async () => {
-      const path = (req.url ?? '/').split('?')[0]
+      const asked = req.url ?? '/'
+      const cut = asked.indexOf('?')
+      const path = cut === -1 ? asked : asked.slice(0, cut)
+      /* Carried rather than discarded: a memory read names what it wants in the
+       * query, and this line used to throw that away. */
+      const query = cut === -1 ? '' : asked.slice(cut + 1)
       const method = req.method ?? 'GET'
 
-      if (method !== 'POST') {
-        const response = await handle({ method, path })
-        send(res, response.status, response.body)
+      /* WHICH VERBS CARRY A BODY, ASKED OF THE VERB RATHER THAN HARDCODED TO
+       * POST.
+       *
+       * This read a body only for POST, so the first PUT this server ever
+       * received arrived with nothing attached and was refused with "body must
+       * be a JSON object" -- a message that blames the caller for a body it did
+       * send. Measured: every memory write failed that way.
+       *
+       * PUT carries a body by definition; GET and HEAD do not. Naming the verbs
+       * that DO is the version of this line that does not have to be revisited
+       * the next time a route needs one. */
+      const carriesABody = method === 'POST' || method === 'PUT' || method === 'PATCH'
+
+      /* The raw Cookie header, carried through untouched. `identity.ts` parses
+       * it, because parsing a header is not the transport's job and doing it in
+       * two places is how the two disagree. */
+      /* JOINED RATHER THAN INDEXED. Node types a header as `string | string[]`
+       * because some headers legally repeat. Taking `[0]` would silently drop
+       * every cookie after the first, so a student whose browser also holds an
+       * unrelated cookie could lose her identity depending on ordering. */
+      const rawCookie = req.headers['cookie']
+      const cookie = Array.isArray(rawCookie) ? rawCookie.join('; ') : rawCookie
+
+      if (!carriesABody) {
+        const response = await handle({ method, path, query, cookie })
+        send(res, response.status, response.body, response.setCookie)
         return
       }
 
@@ -115,11 +165,18 @@ export function createServer(options: ServerOptions): Server {
         send(res, status, {
           error: body.reason === 'too-large' ? 'request too large' : 'body must be a JSON object',
         })
+        /* ANSWER FIRST, THEN CUT THE FLOOD OFF. The rest of an oversized body
+         * is still arriving and nothing will read it, so the socket is closed
+         * once the reply is written -- in that order, because closing first is
+         * what stopped the reply being delivered at all. */
+        if (body.reason === 'too-large' && typeof req.destroy === 'function') {
+          req.destroy()
+        }
         return
       }
 
-      const response = await handle({ method, path, body: body.value, rawLength: body.bytes })
-      send(res, response.status, response.body)
+      const response = await handle({ method, path, query, cookie, body: body.value, rawLength: body.bytes })
+      send(res, response.status, response.body, response.setCookie)
     })().catch((error: unknown) => {
       /* TWO HALVES, AND BOTH ARE REQUIRED.
        *
@@ -147,15 +204,30 @@ function main(): void {
      student with a 3B model on a laptop while everyone believed the key was
      working. */
   const provider = chooseProvider(process.env as Record<string, string | undefined>)
-  const model =
-    provider.kind === 'ollama'
-      ? createOllamaModel({ model: provider.model, ...(provider.endpoint === undefined ? {} : { endpoint: provider.endpoint }) })
-      : createModel({ apiKey: provider.apiKey })
+  /* One branch per provider, spelled out. A ternary chain here would be the
+     one place where a wrong branch sends a credential to the wrong host. */
+  let model
+  if (provider.kind === 'ollama') {
+    model = createOllamaModel({
+      model: provider.model,
+      ...(provider.endpoint === undefined ? {} : { endpoint: provider.endpoint }),
+    })
+  } else if (provider.kind === 'groq') {
+    model = createGroqModel({
+      apiKey: provider.apiKey,
+      ...(provider.model === undefined ? {} : { model: provider.model }),
+    })
+  } else {
+    model = createModel({ apiKey: provider.apiKey })
+  }
 
   /* Only a real credential is worth scrubbing from responses. There is none in
      local mode, and listing an empty string would make `scrub` match
      everywhere. */
-  const secrets = provider.kind === 'anthropic' ? [provider.apiKey] : []
+  /* Every real credential is scrubbed from responses. Listing an empty string
+     would make `scrub` match everywhere, so local mode contributes none. */
+  const secrets =
+    provider.kind === 'anthropic' || provider.kind === 'groq' ? [provider.apiKey] : []
   const search: SearchPort = {
     /* Wired in Phase 4. Until then the route answers honestly rather than
      * pretending to have searched. */
@@ -164,22 +236,78 @@ function main(): void {
     },
   }
 
-  /* Almanac's memory. One JSON file beside the curriculum it plans against. */
+  /* ALMANAC'S MEMORY. A shared database when one is named, a file otherwise.
+   *
+   * The file is correct for ONE server and wrong for two, and it fails loudly
+   * rather than quietly: measured through the real product, two replicas
+   * sharing one ledger file answered FIFTEEN of twenty concurrent "mark done"
+   * requests with 500, because both wrote the whole file at once. See
+   * `pgStore.ts`.
+   *
+   * Explicit, never clever -- the same rule `provider.ts` follows for models. A
+   * server that silently fell back to a file when the database was unreachable
+   * would lose a class's work while every check stayed green. */
+  const databaseUrl = process.env['ALMANAC_DATABASE_URL']
   const ledgerPath = process.env['ALMANAC_LEDGER'] ?? 'data/almanac-ledger.json'
-  const almanac = createLedger(fileStore(ledgerPath))
+  const store = databaseUrl === undefined || databaseUrl.trim() === ''
+    ? fileStore(ledgerPath)
+    : pgStore({ connectionString: databaseUrl.trim() })
+  const almanac = createLedger(store)
 
-  const server = createServer({ model, search, almanac, secrets })
+  /* THE CANVAS'S MEMORY. One SQLite file beside the ledger.
+   *
+   * Named rather than defaulted to `:memory:`: a server that silently forgot
+   * everything on restart, while answering every save with "saved", is exactly
+   * the quiet failure this project keeps guarding against. */
+  const memoryPath = process.env['CANVAS_MEMORY_DB'] ?? 'data/canvas-memory.db'
+  const memory = canvasMemory({ store: sqliteMemoryStore(memoryPath) })
+
+  /* THE IDENTITY SECRET. REQUIRED, AND THE SERVER REFUSES TO START WITHOUT IT.
+   *
+   * NO GENERATED DEFAULT, WHICH IS THE TEMPTING VERSION AND IS WRONG TWICE.
+   * A secret invented at boot changes on every restart, so every student's
+   * cookie stops verifying and everyone silently becomes a new person with an
+   * empty memory -- the exact "it forgot everything" failure the line above
+   * refuses for the database. And with two replicas, each would invent its own,
+   * so a student would be a different person depending on which one answered.
+   *
+   * Refusing to boot is louder than either, and loud is the point. */
+  const configuredSecret = (process.env['ALMANAC_IDENTITY_SECRET'] ?? '').trim()
+  const secretPath = process.env['ALMANAC_IDENTITY_SECRET_FILE'] ?? 'data/identity-secret'
+  const resolved = configuredSecret === ''
+    ? resolveIdentitySecret(secretPath)
+    : { secret: configuredSecret, generated: false }
+  const identitySecret = resolved.secret
+
+  const server = createServer({ model, search, almanac, memory, identitySecret, secrets })
   server.listen(port, host, () => {
     console.log(`almanac server listening on http://${host}:${port}`)
-    console.log(`  ledger: ${ledgerPath}`)
+    console.log(`  memory: ${memoryPath} (sqlite, safe for many servers)`)
+    /* SAID AT STARTUP, NOT LEFT TO BE DISCOVERED. The file-backed secret is
+     * correct on one machine and silently wrong on two: each would generate its
+     * own, and a student would be a different person depending on which replica
+     * answered. Naming the limit is the difference between a documented
+     * boundary and an outage nobody can explain. */
+    console.log(
+      configuredSecret !== ''
+        ? '  identity: ALMANAC_IDENTITY_SECRET (shared — safe for many servers)'
+        : `  identity: ${secretPath} (${resolved.generated ? 'generated just now' : 'reused'} — safe for ONE machine only)`,
+    )
+    console.log(
+      databaseUrl === undefined || databaseUrl.trim() === ''
+        ? `  ledger: ${ledgerPath} (one file — safe for ONE server only)`
+        : '  ledger: postgres (shared, safe for many servers)',
+    )
     console.log(
       provider.kind === 'ollama'
         ? `  model:  ${provider.model} via ollama at ${provider.endpoint ?? DEFAULT_OLLAMA_ENDPOINT}`
-        : '  model:  anthropic',
+        : provider.kind === 'groq'
+          ? `  model:  ${provider.model ?? DEFAULT_GROQ_MODEL} via groq`
+          : '  model:  anthropic',
     )
     if (host !== DEFAULT_HOST) {
       console.log(
-        provider.kind === 'anthropic'
+        provider.kind === 'anthropic' || provider.kind === 'groq'
           ? `WARNING: bound to ${host}, not loopback. This process holds an API key.`
           : `WARNING: bound to ${host}, not loopback.`,
       )

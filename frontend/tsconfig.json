@@ -49,6 +49,13 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": [
-    "src"
+    "src",
+    /* A test under `src` imports `server/handler.ts`, so TypeScript follows the
+       chain into `server/` and typechecks files this project does not list.
+       Those files depend on the ambient Node declarations that live beside
+       them, and without this line the src project reports "Cannot find module
+       'node:crypto'" for code it was never asked to own. Declaring the types
+       file is smaller and truer than widening the project to all of `server`. */
+    "server/node.d.ts"
   ]
 }

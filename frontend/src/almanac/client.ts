@@ -34,7 +34,11 @@ export interface DayPlan {
 }
 
 export interface DayRequest {
-  readonly studentId: string
+  /* NO `studentId`. THIS IS THE WIRE SHAPE, and the wire no longer carries one:
+   * the server identifies the student from a signed cookie and refuses a body
+   * that names one (403). The LEDGER still keys by student — see
+   * `server/almanac/ledger.ts` — but that id is the server's, not the caller's.
+   * See `server/identity.ts`. */
   readonly date: string
   readonly schoolClass: number
   readonly dailyMinutes: number
@@ -226,7 +230,22 @@ export function createAlmanacClient(options: { fetchImpl?: FetchLike; baseUrl?: 
     },
 
     async markDone(studentId, conceptId) {
-      const sent = await post('/api/done', { studentId, conceptId })
+      /* `studentId` IS ACCEPTED AND DELIBERATELY NOT SENT.
+       *
+       * The server assigns identity and signs it into a cookie, so a body that
+       * names a student is refused with 403 once the browser holds one. This
+       * client used to send it, and the effect was worse than useless: the
+       * FIRST request had no cookie and was fine, the SECOND arrived with the
+       * cookie AND the old claim, disagreed with itself, and was refused. A
+       * dashboard that works once and then stops is the hardest kind of bug to
+       * report.
+       *
+       * The parameter stays on the interface because callers legitimately know
+       * who they think they are, and taking it away would be a wider change
+       * than this fix needs. It is simply not the server's source of truth any
+       * more -- `server/identity.ts` is. */
+      void studentId
+      const sent = await post('/api/done', { conceptId })
       return sent.ok ? { ok: true } : { ok: false, reason: sent.reason }
     },
   }
@@ -300,7 +319,9 @@ export function dayRequestFor(
   return {
     ok: true,
     request: {
-      studentId: student.id,
+      /* NO `studentId`. The server identifies the student from a signed cookie;
+       * sending one here would be refused with 403 as soon as the browser held
+       * that cookie. See `markDone` above and `server/identity.ts`. */
       date,
       schoolClass,
       dailyMinutes: student.minutes ?? DEFAULT_DAILY_MINUTES,

@@ -30,11 +30,35 @@ import { injectionSignals, stripInvisible } from '../src/websearch/guard.ts'
 import { citationSupports } from '../src/websearch/quality.ts'
 import { subjectsFor, SUPPORTED_CLASSES, type SchoolClass } from './almanac/curriculum.ts'
 import type { Ledger } from './almanac/ledger.ts'
+import {
+  IDENTITY_COOKIE,
+  identityCookie,
+  newStudentId,
+  readCookie,
+  signIdentity,
+  verifyIdentity,
+} from './identity.ts'
+import { BadMemoryKey } from './memory/key.ts'
+import { NotConsistent } from './memory/progress.ts'
+import { NotStorable } from './memory/record.ts'
+import type { CanvasMemory } from './memory/store.ts'
 
 export interface LessonRequest {
   readonly concept?: string
   readonly subject?: string
   readonly question?: string
+  /** The lesson she was reading when she asked, so the model can judge fit. */
+  readonly askedInside?: string
+  /**
+   * What has already been taught, and what she just said back.
+   *
+   * DECLARED HERE RATHER THAN SPREAD IN SILENTLY. A spread skips TypeScript's
+   * excess-property check, so these reached the model at runtime while this
+   * type said they did not exist -- and a type that under-reports what it
+   * carries is how the next person deletes a field nothing appears to use.
+   */
+  readonly taught?: string
+  readonly justSaid?: string
   /** How to teach it. Chosen here, never accepted from the request. */
   readonly strategy?: Strategy
 }
@@ -55,6 +79,20 @@ export interface SearchPort {
 export interface ServerRequest {
   readonly method: string
   readonly path: string
+  /**
+   * The raw query string, without the leading "?".
+   *
+   * Carried because a memory READ names what it wants and changes nothing, so
+   * it is a GET -- the same rule this file already states for `/api/health`.
+   * `index.ts` used to drop the query on the floor while splitting the path.
+   */
+  readonly query?: string
+  /**
+   * The raw `Cookie` header, which is where the only trustworthy `studentId`
+   * lives. See `identity.ts`: everything else the caller sends about who they
+   * are is a claim, not a fact.
+   */
+  readonly cookie?: string
   readonly body?: unknown
   /** Byte length of the raw body, when the transport knows it. */
   readonly rawLength?: number
@@ -63,6 +101,15 @@ export interface ServerRequest {
 export interface ServerResponse {
   readonly status: number
   readonly body: Record<string, unknown>
+  /**
+   * A `Set-Cookie` value the transport must send, when this request had no
+   * valid identity and one was minted for it.
+   *
+   * Carried on the response rather than written by the handler because the
+   * handler does not own the socket -- the same reason `status` is a number
+   * here instead of a call to `res.writeHead`.
+   */
+  readonly setCookie?: string
 }
 
 export interface HandlerOptions {
@@ -70,15 +117,44 @@ export interface HandlerOptions {
   readonly search: SearchPort
   /** Almanac's memory. Absent means the day routes answer 503, never a guess. */
   readonly almanac?: Ledger
+  /** The canvas's memory. Absent means /api/memory answers 503, never a guess. */
+  readonly memory?: CanvasMemory
+  /**
+   * The key this server signs identities with.
+   *
+   * REQUIRED, WITH NO DEFAULT. A fallback would live in the source, and a
+   * signature every reader can reproduce is not a signature -- it would restore
+   * the exact hole this closes while looking like it was closed. A server
+   * without one must refuse to start; see `index.ts`.
+   */
+  readonly identitySecret: string
   /** Strings that must never appear in a response, whatever produced them. */
   readonly secrets?: readonly string[]
   readonly maxBodyBytes?: number
 }
 
+/**
+ * How long the server may spend re-asking for a lesson our own gate refused.
+ *
+ * A ceiling on WAITING, not on attempts. Past this the honest answer is the
+ * error, because a learner staring at a spinner has already been failed.
+ */
+const REVALIDATE_BUDGET_MS = 30_000
+
+/**
+ * How many times the model may be re-asked for a lesson our own gate refused.
+ *
+ * TWO, so the model gets three goes in total. Enough to ride out the occasional
+ * bad roll this retry exists for, and few enough that a model which is
+ * confidently and consistently wrong costs three calls rather than however many
+ * fit inside thirty seconds.
+ */
+const MOST_REVALIDATION_ATTEMPTS = 2
+
 /** 256 KB is far above any real request and far below anything that hurts. */
 const DEFAULT_MAX_BODY_BYTES = 256 * 1024
 
-const ROUTES = new Set(['/api/lesson', '/api/ask', '/api/search', '/api/day', '/api/done', '/api/health'])
+const ROUTES = new Set(['/api/lesson', '/api/ask', '/api/search', '/api/day', '/api/done', '/api/health', '/api/memory'])
 
 /* The one route that answers a GET.
  *
@@ -159,15 +235,94 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     let produced: unknown
     try {
       produced = await options.model.lesson(request)
-    } catch {
-      /* The upstream message is deliberately dropped rather than forwarded: it
-       * routinely contains the credential that was rejected. The failure is
-       * reported; its text is not. */
-      return reply(502, { ...decided, error: 'the model could not be reached' })
+    } catch (thrown) {
+      /* THE VENDOR'S MESSAGE IS STILL DROPPED. Its text routinely quotes the
+       * request, and sometimes the credential that was rejected.
+       *
+       * What is forwarded is OUR client's own sentence, which now carries the
+       * status and the vendor's short error code and nothing else. Measured
+       * before that change: a working key with a schema the vendor refused
+       * produced the identical message to an outage, and there was no way to
+       * tell them apart from outside. A failure nobody can diagnose is a
+       * failure that gets blamed on the wrong thing for a week. */
+      const reason = thrown instanceof Error && thrown.message.startsWith('the model could not be reached')
+        ? thrown.message
+        : 'the model could not be reached'
+      return reply(502, { ...decided, error: reason })
     }
 
-    const result = validateLesson(produced)
+    let result = validateLesson(produced)
+
+    /* A LESSON THAT FAILS OUR OWN GATE IS WORTH ASKING FOR AGAIN.
+     *
+     * MEASURED. Asked the same question three times in a row, the third came
+     * back as a lesson the validator refused, and the learner was handed a 502.
+     * The model is not broken and the request is not wrong -- it wrote one bad
+     * lesson, the way it occasionally writes one bad piece of JSON. The vendor
+     * client already retries THAT (see `worthAnotherTry` in `groq.ts`); this is
+     * the same failure one layer up, and it was not retried at all because
+     * validation happens here, after the client has returned successfully.
+     *
+     * Invariant I1 says every question gets an answer. A child who asked
+     * something reasonable and got an error because of one bad roll has been
+     * failed by us, not by the model.
+     *
+     * The gate itself does NOT soften. A lesson that fails twice more is still
+     * refused, and nothing invalid ever reaches a browser. */
+    /* BOUNDED BY A CLOCK, NOT A COUNT, AND THE REASON IS MEASURED.
+     *
+     * The client already retries transport failures, and waits up to 14s for a
+     * rate limit to reset. Stacking three validation retries on top of that
+     * made the worst case nine HTTP calls and over two hundred seconds -- long
+     * enough that the request timed out and the learner got NOTHING, which is
+     * worse than the single error this retry was added to prevent.
+     *
+     * A count cannot express "do not keep a child waiting". A deadline can.
+     *
+     * BUT A DEADLINE ALONE CANNOT EXPRESS "DO NOT SPEND HER SCHOOL'S MONEY
+     * EITHER", AND THAT WAS THE BUG. With only a clock, a model that answers
+     * instantly and wrongly is re-asked as fast as the network allows for a
+     * full thirty seconds. Every one of those is a paid vendor call, so ONE
+     * badly-rendered concept could burn an unbounded number of them per
+     * learner request -- and the request itself never returned inside any
+     * reasonable client timeout. MEASURED: five tests in `handler.test.ts` sit
+     * in this loop until vitest kills them at five seconds.
+     *
+     * So BOTH bounds, because they answer different questions:
+     *   the clock  -- do not keep a child waiting
+     *   the count  -- do not spend without limit, and do not spin
+     * Whichever comes first ends it. Neither alone is enough, which is the
+     * whole lesson of the paragraph above this one. */
+    const giveUpAt = Date.now() + REVALIDATE_BUDGET_MS
+    let attemptsLeft = MOST_REVALIDATION_ATTEMPTS
+    while (!result.ok && attemptsLeft > 0 && Date.now() < giveUpAt) {
+      attemptsLeft -= 1
+      let again: unknown
+      try {
+        again = await options.model.lesson(request)
+      } catch {
+        break
+      }
+      result = validateLesson(again)
+    }
+
     if (!result.ok) {
+      /* THE OPERATOR SEES WHAT THE BROWSER MUST NOT.
+       *
+       * The response keeps its redaction: `safeMessage` strips quoted content
+       * because a validator message can quote model output, and reflecting that
+       * to a browser hands anyone who can steer the model a way to bounce text
+       * off this server.
+       *
+       * But redacting it EVERYWHERE made a real failure undiagnosable. Every
+       * next-part request was refused with `Unrecognized key(s) in object: …`
+       * and the one fact needed to fix it -- WHICH key -- was the part being
+       * replaced by an ellipsis. This log is not in the response and never
+       * reaches a learner; it goes to the process that an operator can read. */
+      console.error(
+        'lesson refused by validation:',
+        result.issues.map((issue) => `${issue.path}: ${issue.message}`).join(' | '),
+      )
       return reply(502, {
         ...decided,
         error: 'the model returned a lesson that failed validation',
@@ -180,7 +335,59 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     return reply(200, { ...decided, lesson: result.lesson })
   }
 
-  return async function handle(req: ServerRequest): Promise<ServerResponse> {
+  /** Who the server believes is asking, and whether it had to decide for itself. */
+  interface Identified {
+    /** The only student id any route may act on. */
+    readonly studentId: string
+    /** True when a valid signed cookie arrived; false when this was just minted. */
+    readonly proven: boolean
+    /** Set only when an identity was minted, so the browser keeps it. */
+    readonly setCookie?: string
+  }
+
+  /* RESOLVED ONCE, AT THE DOOR, SO NO ROUTE CAN FORGET TO.
+   *
+   * The previous shape let each route read `studentId` out of the payload. That
+   * is not a design that can be audited: correctness depended on every current
+   * and future route remembering, and `/api/memory`, `/api/day` and `/api/done`
+   * each remembered to trust the caller. Resolving here means a new route
+   * receives an id it cannot influence, which is the difference between a rule
+   * and a structure. */
+  function resolveIdentity(req: ServerRequest): Identified {
+    const offered = readCookie(req.cookie, IDENTITY_COOKIE)
+    const proven = offered === undefined ? undefined : verifyIdentity(offered, options.identitySecret)
+    if (proven !== undefined) return { studentId: proven, proven: true }
+
+    /* No cookie, or one that proves nothing. A first visit and a forged cookie
+     * are answered identically and deliberately: telling the two apart would
+     * report whether a guessed id exists, which is the question an attacker is
+     * asking. */
+    const minted = newStudentId()
+    return {
+      studentId: minted,
+      proven: false,
+      setCookie: identityCookie(signIdentity(minted, options.identitySecret)),
+    }
+  }
+
+  /**
+   * The student id the CALLER named, if it named one at all.
+   *
+   * Gathered from every place a caller can put it -- the query for a GET, the
+   * body for a write -- because a check that only covers one of them is not a
+   * check.
+   */
+  function claimedStudentId(req: ServerRequest): string | undefined {
+    if (req.method === 'GET') {
+      const asked = new URLSearchParams(req.query ?? '').get('studentId')
+      return asked === null ? undefined : asked
+    }
+    if (!isPlainObject(req.body)) return undefined
+    const named = req.body['studentId']
+    return typeof named === 'string' ? named : undefined
+  }
+
+  async function route(req: ServerRequest, who: Identified): Promise<ServerResponse> {
     if (typeof req.rawLength === 'number' && req.rawLength > maxBodyBytes) {
       return reply(413, { error: 'request too large' })
     }
@@ -196,6 +403,77 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         planner: options.almanac !== undefined,
         model: true,
       })
+    }
+
+    /* THE CANVAS'S MEMORY. Read with GET, written with PUT, and both named by
+     * the same three parts -- student, tab, lesson. Placed before the POST gate
+     * because neither verb is POST: a read changes nothing, and a write to a
+     * named key is a PUT by definition.
+     *
+     * Every refusal below says what was wrong. A memory that will not save and
+     * will not say why is how a student loses an afternoon and never finds out. */
+    if (req.path === '/api/memory') {
+      if (options.memory === undefined) {
+        return reply(503, { error: 'memory is not configured on this server' })
+      }
+
+      if (req.method === 'GET') {
+        const asked = new URLSearchParams(req.query ?? '')
+        try {
+          const record = options.memory.read({
+            /* NOT `asked.get('studentId')`. The caller does not get a say in
+             * whose memory it reads; `who` came from a signature this server
+             * produced. This single substitution is the whole of the fix. */
+            studentId: who.studentId,
+            tabId: asked.get('tabId') ?? '',
+            lessonId: asked.get('lessonId') ?? '',
+          })
+          /* Nothing stored is `null`, not an error and not an empty object. She
+           * has simply never studied this, which is an answer. */
+          return reply(200, { record: record ?? null })
+        } catch (thrown) {
+          if (thrown instanceof BadMemoryKey) return reply(400, { error: thrown.message })
+          throw thrown
+        }
+      }
+
+      if (req.method === 'PUT') {
+        if (!isPlainObject(req.body)) {
+          return reply(400, { error: 'body must be a JSON object' })
+        }
+        const asked = req.body
+        try {
+          options.memory.write(
+            {
+              /* The signed identity, never the one in the body. See the GET
+               * above and `identity.ts`. */
+              studentId: who.studentId,
+              tabId: typeof asked['tabId'] === 'string' ? asked['tabId'] : '',
+              lessonId: typeof asked['lessonId'] === 'string' ? asked['lessonId'] : '',
+            },
+            asked['record'],
+          )
+          return reply(200, { saved: true })
+        } catch (thrown) {
+          /* Both are the caller's mistake, not ours, and both are said plainly.
+           * Anything else is a real failure and must not be reported as a bad
+           * request -- that would tell a student her work was wrong when the
+           * disk was full. */
+          if (thrown instanceof BadMemoryKey) return reply(400, { error: thrown.message })
+          if (thrown instanceof NotStorable) return reply(400, { error: thrown.message })
+          /* 409 CONFLICT, NOT 400. The record is well formed and storable; it
+           * disagrees with what is ALREADY stored -- progress that goes
+           * backwards, events out of order, a lesson id that contradicts the
+           * key. 400 would tell the caller its request was malformed and send
+           * it away to fix the wrong thing. 409 says "you are out of step with
+           * the current state", which is exactly true and is what a client
+           * needs in order to re-read and try again. */
+          if (thrown instanceof NotConsistent) return reply(409, { error: thrown.message })
+          throw thrown
+        }
+      }
+
+      return reply(405, { error: 'memory is read with GET and written with PUT' })
     }
 
     if (req.method !== 'POST') {
@@ -232,14 +510,33 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       if (!nonEmptyString(body['question'])) {
         return reply(400, { error: 'question is required' })
       }
-      return lessonFrom({ question: body['question'] })
+      /* `askedInside` is the lesson she was reading. It is what lets the model
+       * judge whether her question belongs here, which is the judgement the
+       * software used to make for it by counting shared words. Optional: the
+       * tutor page asks with no lesson around it and is answered as before. */
+      return lessonFrom({
+        question: body['question'],
+        ...(nonEmptyString(body['askedInside']) ? { askedInside: body['askedInside'] } : {}),
+        /* THE NEXT PART OF A LESSON IN PROGRESS, when the browser sends what
+         * has already been taught. Without these the model writes a whole
+         * lesson in one go and the learner is handed a chapter she did not ask
+         * for; with them it writes ONE step, after reading what she just said.
+         * See `briefFor` and invariant I3. */
+        ...(nonEmptyString(body['taught']) ? { taught: body['taught'] } : {}),
+        ...(nonEmptyString(body['justSaid']) ? { justSaid: body['justSaid'] } : {}),
+      })
     }
 
     if (req.path === '/api/day') {
       if (options.almanac === undefined) {
         return reply(503, { error: 'the planner is not configured on this server' })
       }
-      if (!nonEmptyString(body['studentId'])) return reply(400, { error: 'studentId is required' })
+      /* `studentId` is NO LONGER READ FROM THE BODY, and is no longer required
+       * in it. It was both, and that was the same defect `/api/memory` had: a
+       * caller with no cookie at all could name any student and plan -- or
+       * finish -- that student's day. The id now comes from `who`, which came
+       * from a signature. A body that still carries one is checked against it
+       * in `handle` and refused if it disagrees. */
       if (!isCalendarDate(body['date'])) return reply(400, { error: 'date must be a real date, written YYYY-MM-DD' })
       if (!isSchoolClass(body['schoolClass'])) return reply(400, { error: 'schoolClass must be 9, 10, 11 or 12' })
       if (!isPositiveNumber(body['dailyMinutes'])) return reply(400, { error: 'dailyMinutes must be a positive number' })
@@ -255,7 +552,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       }
 
       const day = await options.almanac.dayFor({
-        studentId: body['studentId'],
+        studentId: who.studentId,
         date: body['date'],
         dailyMinutes: body['dailyMinutes'],
         subjects,
@@ -267,11 +564,12 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       if (options.almanac === undefined) {
         return reply(503, { error: 'the planner is not configured on this server' })
       }
-      if (!nonEmptyString(body['studentId'])) return reply(400, { error: 'studentId is required' })
+      /* Same substitution as `/api/day`: the student who finished the work is
+       * the student holding the signed cookie, never the one named in the body. */
       if (!nonEmptyString(body['conceptId'])) return reply(400, { error: 'conceptId is required' })
 
       /* The ONLY thing in this server that marks work finished. */
-      await options.almanac.markDone(body['studentId'], body['conceptId'])
+      await options.almanac.markDone(who.studentId, body['conceptId'])
       return reply(200, { done: true })
     }
 
@@ -308,5 +606,48 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     })
 
     return reply(200, { results })
+  }
+
+  return async function handle(req: ServerRequest): Promise<ServerResponse> {
+    const who = resolveIdentity(req)
+
+    /* NAMING SOMEONE ELSE IS REFUSED OUT LOUD, NOT IGNORED QUIETLY.
+     *
+     * Only when the caller HAS a proven identity and names a different one.
+     * That is the forgery case exactly, and nothing else is:
+     *
+     *   - A first visit has no proven identity, so there is nothing for a
+     *     claim to contradict. Refusing there would 403 every new student on
+     *     their first request, which is a broken product, not a secure one.
+     *   - A caller naming its OWN id is simply agreeing with the server, and
+     *     agreement is not an error.
+     *
+     * IGNORING A MISMATCH WOULD BE WORSE THAN REFUSING IT. Silently writing to
+     * the trusted id after being asked for another one tells the caller its
+     * write landed where it asked, when it did not -- and a store that reports
+     * a save to the wrong place is the corruption this whole phase exists to
+     * prevent. */
+    /* AN EXPLICITLY EMPTY CLAIM IS A MALFORMED REQUEST, NOT AN ABSENT ONE.
+     *
+     * `studentId: ""` is not the same as omitting the field. The caller meant to
+     * say who this was and said nothing, which is the shape a missing variable
+     * takes in real code. Minting a fresh identity for it would answer 200 and
+     * store the work somewhere the caller will never look again.
+     *
+     * `key.ts` already refuses an empty tab or lesson for exactly this reason
+     * and says so in its own header: "REJECT, NEVER COERCE. A missing student id
+     * quietly becoming `""` is how every student in a school ends up sharing one
+     * row." Student is now server-assigned, so that check had nowhere left to
+     * live -- this is where it moved to, not where it was dropped. */
+    const claimed = claimedStudentId(req)
+    if (claimed !== undefined && claimed.trim() === '') {
+      return reply(400, { error: 'studentId was sent but is empty' })
+    }
+
+    const response = who.proven && claimed !== undefined && claimed !== who.studentId
+      ? reply(403, { error: 'that student id is not yours' })
+      : await route(req, who)
+
+    return who.setCookie === undefined ? response : { ...response, setCookie: who.setCookie }
   }
 }

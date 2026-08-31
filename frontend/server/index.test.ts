@@ -22,6 +22,16 @@ import type { Server } from 'node:http'
 
 import { readJsonBody, DEFAULT_HOST, createServer } from './index.ts'
 
+/* The key this server signs identities with.
+ *
+ * `createServer` REQUIRES one and has no default, on purpose -- see
+ * `server/identity.ts`: a fallback in the source would be a signature every
+ * reader can reproduce. These proofs are not about identity, so the value is
+ * arbitrary; it is a fixture and protects nothing.
+ */
+const A_TEST_SECRET = 'test-secret-not-used-anywhere-real'
+
+
 function streamOf(text: string, headers: Record<string, string> = {}) {
   const stream = Readable.from([Buffer.from(text, 'utf8')]) as Readable & {
     headers: Record<string, string>
@@ -108,6 +118,7 @@ describe('over a real socket', () => {
       }) },
       search: { search: async () => [] },
       secrets: [],
+      identitySecret: A_TEST_SECRET,
     })
     await new Promise<void>((resolve) => server!.listen(0, DEFAULT_HOST, resolve))
     const address = server!.address()
@@ -179,6 +190,7 @@ describe('when serving a request throws unexpectedly', () => {
         model: { lesson: async () => { throw new Error('LEDGER-DIR-MISSING-9999') } },
         search: { search: async () => [] },
         secrets: [],
+        identitySecret: A_TEST_SECRET,
       })
       await new Promise<void>((resolve) => server!.listen(0, DEFAULT_HOST, resolve))
       const address = server!.address()
@@ -215,6 +227,7 @@ describe('when serving a request throws unexpectedly', () => {
           search: () => { throw new Error('SEARCH-EXPLODED-9999') },
         },
         secrets: [],
+        identitySecret: A_TEST_SECRET,
       })
       await new Promise<void>((resolve) => server!.listen(0, DEFAULT_HOST, resolve))
       const address = server!.address()

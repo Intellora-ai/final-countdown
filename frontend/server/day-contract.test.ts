@@ -25,24 +25,60 @@ import { createAlmanacClient, type DayRequest } from '../src/almanac/client.ts'
 const model: ModelPort = { lesson: async () => ({}) }
 const search: SearchPort = { search: async () => [] }
 
+/* The key this server signs identities with.
+ *
+ * `createHandler` REQUIRES one and has no default, on purpose -- see
+ * `server/identity.ts`: a fallback in the source would be a signature every
+ * reader can reproduce. These proofs are not about identity, so the value is
+ * arbitrary; it is a fixture and protects nothing.
+ */
+const A_TEST_SECRET = 'test-secret-not-used-anywhere-real'
+
+
 let store: LedgerStore
 beforeEach(() => {
   store = memoryStore()
 })
 
-/** The real client talking to the real handler, with the network taken out. */
-function connected(almanac = createLedger(store)) {
-  const handle = createHandler({ model, search, almanac })
+/** The real client talking to the real handler, with the network taken out.
+ *
+ * THE COOKIE IS CARRIED, AND THAT IS WHAT MAKES THIS ONE STUDENT.
+ *
+ * The server assigns identity and signs it, so a caller can no longer name a
+ * student (see `server/identity.ts`). A wrapper that dropped the cookie would
+ * hand every request a BRAND-NEW identity — a day planned by one student and
+ * marked done by another — and the failures would look like the ledger losing
+ * work when nothing of the sort had happened. The network is taken out here;
+ * the browser's memory must not be.
+ */
+function connected(almanac = createLedger(store), identity?: { value?: string }) {
+  const handle = createHandler({ model, search, almanac, identitySecret: A_TEST_SECRET })
+  /* SHARED WHEN THE CALLER PASSES ONE, so a SECOND client can be the SAME
+   * student. Several proofs below build a fresh client on purpose — to show a
+   * change is really in the ledger and not in one client's memory. That is
+   * still exactly what they show; what a fresh client must NOT accidentally
+   * become is a different person, which is what happens when the jar starts
+   * empty and the server mints a new identity. */
+  const jarHolder = identity ?? { value: undefined as string | undefined }
   return createAlmanacClient({
     fetchImpl: async (url, init) => {
-      const res = await handle({ method: init.method, path: url, body: JSON.parse(init.body) })
+      const res = await handle({
+        method: init.method,
+        path: url,
+        body: JSON.parse(init.body),
+        ...(jarHolder.value === undefined ? {} : { cookie: jarHolder.value }),
+      })
+      if (res.setCookie !== undefined) jarHolder.value = res.setCookie.split(';')[0]
       return { ok: res.status >= 200 && res.status < 300, status: res.status, json: async () => res.body }
     },
   })
 }
 
 const REQUEST: DayRequest = {
-  studentId: 'stu_1',
+  /* NO `studentId` HERE, AND ITS ABSENCE IS THE POINT.
+   * The server assigns identity and signs it; a body that names a student is
+   * refused with 403 once the caller holds a cookie. See `server/identity.ts`,
+   * and the forgery proof in `server/almanac/routes.test.ts`. */
   date: '2026-08-25',
   schoolClass: 10,
   dailyMinutes: 120,
@@ -91,7 +127,8 @@ describe('Done is the only thing that removes work', () => {
     /* The effect, not the call. A test that asserts markDone returned ok is
      * satisfied by a server that discards the request. */
     const almanac = createLedger(store)
-    const client = connected(almanac)
+    const her = { value: undefined as string | undefined }
+    const client = connected(almanac, her)
 
     const today = await client.day(REQUEST)
     expect(today.ok).toBe(true)
@@ -100,7 +137,7 @@ describe('Done is the only thing that removes work', () => {
 
     expect(await client.markDone('stu_1', finished)).toEqual({ ok: true })
 
-    const tomorrow = await connected(almanac).day({ ...REQUEST, date: '2026-08-26' })
+    const tomorrow = await connected(almanac, her).day({ ...REQUEST, date: '2026-08-26' })
     expect(tomorrow.ok).toBe(true)
     if (!tomorrow.ok) return
 
@@ -109,7 +146,8 @@ describe('Done is the only thing that removes work', () => {
 
   it('asking for a day does not mark anything, however many times it is asked', async () => {
     const almanac = createLedger(store)
-    const client = connected(almanac)
+    const her = { value: undefined as string | undefined }
+    const client = connected(almanac, her)
 
     const first = await client.day(REQUEST)
     await client.day(REQUEST)
@@ -124,11 +162,15 @@ describe('Done is the only thing that removes work', () => {
      * dropped anywhere along the wire, yesterday's unfinished work would show
      * up looking like a fresh assignment. */
     const almanac = createLedger(store)
-    const today = await connected(almanac).day(REQUEST)
+    /* ONE STUDENT ACROSS BOTH DAYS. Two clients prove the carry-over lives in
+     * the ledger rather than in one client's memory; a shared jar keeps them
+     * the same person, which is what makes yesterday HERS to carry. */
+    const her = { value: undefined as string | undefined }
+    const today = await connected(almanac, her).day(REQUEST)
     expect(today.ok).toBe(true)
     if (!today.ok) return
 
-    const tomorrow = await connected(almanac).day({ ...REQUEST, date: '2026-08-26' })
+    const tomorrow = await connected(almanac, her).day({ ...REQUEST, date: '2026-08-26' })
     expect(tomorrow.ok).toBe(true)
     if (!tomorrow.ok) return
 
@@ -143,7 +185,7 @@ describe('Done is the only thing that removes work', () => {
 
 describe('a server with no planner', () => {
   it('is reported with the server\'s own explanation, and no day', async () => {
-    const handle = createHandler({ model, search })
+    const handle = createHandler({ model, search, identitySecret: A_TEST_SECRET })
     const client = createAlmanacClient({
       fetchImpl: async (url, init) => {
         const res = await handle({ method: init.method, path: url, body: JSON.parse(init.body) })

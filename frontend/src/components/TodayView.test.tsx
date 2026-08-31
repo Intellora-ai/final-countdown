@@ -146,15 +146,25 @@ function renderToday(almanac: AlmanacClient) {
 }
 
 describe('the day on screen is the day Almanac wrote', () => {
-  it('asks the planner for today, for this student', async () => {
+  it('asks the planner for today, and does NOT say who is asking', async () => {
+    /* THE `studentId` ASSERTION WAS REMOVED, AND ITS ABSENCE IS NOW THE POINT.
+     *
+     * This used to require the request to carry `studentId`. That requirement
+     * was the defect: a browser that names its own student is a browser that
+     * can name someone else's. The server assigns identity and signs it into a
+     * cookie, and refuses a body that disagrees with it (403).
+     *
+     * So the assertion flips from "it says who she is" to "it does not, and it
+     * still asks for the right day". The negative half is the load-bearing one
+     * — without it a regression that re-added the field would pass unnoticed. */
     const items = realItems()
     const almanac = fakeAlmanac(dayOf(items))
     renderToday(almanac)
 
     await waitFor(() => expect(almanac.day).toHaveBeenCalled())
-    expect(vi.mocked(almanac.day).mock.calls[0][0]).toMatchObject({
-      studentId: STUDENT_ID, date: TODAY, schoolClass: 9, dailyMinutes: 120,
-    })
+    const asked = vi.mocked(almanac.day).mock.calls[0][0]
+    expect(asked).toMatchObject({ date: TODAY, schoolClass: 9, dailyMinutes: 120 })
+    expect(asked).not.toHaveProperty('studentId')
   })
 
   it('shows the planner\'s concepts, and ONLY those', async () => {

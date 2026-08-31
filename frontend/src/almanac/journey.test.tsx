@@ -47,11 +47,24 @@ const model: ModelPort = { lesson: async () => ({}) }
 const search: SearchPort = { search: async () => [] }
 
 /** The real client speaking to the real handler. Only the socket is missing. */
+/* The key this server signs identities with. `createHandler` requires one and
+ * has no default on purpose — a fallback in the source would be a signature
+ * every reader could reproduce. This journey is not about identity, so the
+ * value is a fixture and protects nothing. */
+const A_TEST_SECRET = 'test-secret-not-used-anywhere-real'
+
 function wired(almanac: ReturnType<typeof createLedger>) {
-  const handle = createHandler({ model, search, almanac })
+  const handle = createHandler({ model, search, almanac, identitySecret: A_TEST_SECRET })
+  let jar: string | undefined
   return createAlmanacClient({
     fetchImpl: async (url, init) => {
-      const res = await handle({ method: init.method, path: url, body: JSON.parse(init.body) })
+      /* The cookie is carried, which is what makes this ONE student. Without it
+       * every request mints a new identity and a journey cannot be a journey. */
+      const res = await handle({
+        method: init.method, path: url, body: JSON.parse(init.body),
+        ...(jar === undefined ? {} : { cookie: jar }),
+      })
+      if (res.setCookie !== undefined) jar = res.setCookie.split(';')[0]
       return { ok: res.status >= 200 && res.status < 300, status: res.status, json: async () => res.body }
     },
   })

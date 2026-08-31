@@ -33,7 +33,7 @@ describe('asking Almanac for the day', () => {
     const client = createAlmanacClient({ fetchImpl })
 
     await client.day({
-      studentId: 's1', date: '2026-08-25', schoolClass: 9,
+      date: '2026-08-25', schoolClass: 9,
       dailyMinutes: 120, subjectIds: ['maths', 'science'],
     })
 
@@ -41,7 +41,7 @@ describe('asking Almanac for the day', () => {
     expect(url).toBe('/api/day')
     expect(init.method).toBe('POST')
     expect(JSON.parse(init.body)).toEqual({
-      studentId: 's1', date: '2026-08-25', schoolClass: 9,
+      date: '2026-08-25', schoolClass: 9,
       dailyMinutes: 120, subjectIds: ['maths', 'science'],
     })
   })
@@ -49,7 +49,7 @@ describe('asking Almanac for the day', () => {
   it('returns the written day, carriedFrom included', async () => {
     const client = createAlmanacClient({ fetchImpl: vi.fn().mockResolvedValue(ok({ day: DAY })) })
     const result = await client.day({
-      studentId: 's1', date: '2026-08-25', schoolClass: 9, dailyMinutes: 120, subjectIds: ['maths'],
+      date: '2026-08-25', schoolClass: 9, dailyMinutes: 120, subjectIds: ['maths'],
     })
 
     expect(result).toEqual({ ok: true, day: DAY })
@@ -65,14 +65,14 @@ describe('asking Almanac for the day', () => {
     const client = createAlmanacClient({ fetchImpl: vi.fn().mockResolvedValue(ok({ day: empty })) })
 
     expect(await client.day({
-      studentId: 's1', date: '2026-08-25', schoolClass: 9, dailyMinutes: 120, subjectIds: ['maths'],
+      date: '2026-08-25', schoolClass: 9, dailyMinutes: 120, subjectIds: ['maths'],
     })).toEqual({ ok: true, day: empty })
   })
 })
 
 describe('when the planner cannot answer', () => {
   const request = {
-    studentId: 's1', date: '2026-08-25', schoolClass: 9 as const,
+    date: '2026-08-25', schoolClass: 9 as const,
     dailyMinutes: 120, subjectIds: ['maths'],
   }
 
@@ -122,7 +122,7 @@ describe('when the planner cannot answer', () => {
     const client = createAlmanacClient({ fetchImpl: vi.fn().mockResolvedValue(ok({ day: bad })) })
 
     expect(await client.day({
-      studentId: 's1', date: '2026-08-25', schoolClass: 9, dailyMinutes: 120, subjectIds: ['maths'],
+      date: '2026-08-25', schoolClass: 9, dailyMinutes: 120, subjectIds: ['maths'],
     })).toEqual({ ok: false, reason: 'the planner returned something that is not a day' })
   })
 
@@ -144,7 +144,16 @@ describe('marking a concept done', () => {
 
     const [url, init] = fetchImpl.mock.calls[0]
     expect(url).toBe('/api/done')
-    expect(JSON.parse(init.body)).toEqual({ studentId: 's1', conceptId: 'c1' })
+    /* FLIPPED, AND THE OLD VERSION PINNED A DEFECT.
+     *
+     * It asserted the client SENDS `studentId`. That is exactly what broke the
+     * product: the server now assigns identity and signs it into a cookie, so
+     * the first request (no cookie) was fine and the SECOND arrived carrying
+     * both the cookie AND the stale claim, disagreed with itself, and was
+     * refused with 403. A dashboard that works once and then stops.
+     *
+     * The body must now carry the concept and nothing about who she is. */
+    expect(JSON.parse(init.body)).toEqual({ conceptId: 'c1' })
   })
 
   it('reports failure rather than pretending the work was recorded', async () => {
@@ -165,7 +174,7 @@ describe('turning a student record into a day request', () => {
     expect(dayRequestFor(student, '2026-08-25')).toEqual({
       ok: true,
       request: {
-        studentId: 's1', date: '2026-08-25', schoolClass: 9,
+        date: '2026-08-25', schoolClass: 9,
         dailyMinutes: 120, subjectIds: ['maths', 'science'],
       },
     })

@@ -40,9 +40,18 @@ function modelReturning(value: unknown): ModelPort {
 }
 
 const failingSearch: SearchPort = { search: async () => [] }
+/* The key this server signs identities with.
+ *
+ * `createHandler` REQUIRES one and has no default, on purpose -- see
+ * `server/identity.ts`: a fallback in the source would be a signature every
+ * reader can reproduce. These proofs are not about identity, so the value is
+ * arbitrary; it is a fixture and protects nothing.
+ */
+const A_TEST_SECRET = 'test-secret-not-used-anywhere-real'
+
 
 function handlerWith(model: ModelPort, search: SearchPort = failingSearch) {
-  return createHandler({ model, search })
+  return createHandler({ model, search, identitySecret: A_TEST_SECRET })
 }
 
 const LESSON_REQUEST = {
@@ -213,7 +222,7 @@ describe('routing and input limits', () => {
   })
 
   it('answers 413 when the body is larger than the limit', async () => {
-    const handler = createHandler({ model: modelReturning(VALID_LESSON), search: failingSearch, maxBodyBytes: 64 })
+    const handler = createHandler({ model: modelReturning(VALID_LESSON), search: failingSearch, maxBodyBytes: 64, identitySecret: A_TEST_SECRET })
     const res = await handler({
       method: 'POST', path: '/api/lesson', body: { concept: 'x'.repeat(500) }, rawLength: 5000,
     })
@@ -241,7 +250,7 @@ describe('the API key never leaves this process', () => {
     const leaky: ModelPort = {
       async lesson() { throw new Error(`auth failed for ${SENTINEL}`) },
     }
-    const handler = createHandler({ model: leaky, search: failingSearch, secrets: [SENTINEL] })
+    const handler = createHandler({ model: leaky, search: failingSearch, secrets: [SENTINEL], identitySecret: A_TEST_SECRET })
 
     for (const request of everyRoute) {
       const res = await handler(request)
@@ -254,7 +263,7 @@ describe('the API key never leaves this process', () => {
     /* The handler is told what the secret IS, purely so it can refuse to emit
      * it. That is the last line of defence: whatever produced the string —
      * the model, an error, a search result — it does not get out. */
-    const handler = createHandler({ model: modelReturning(echoed), search: failingSearch, secrets: [SENTINEL] })
+    const handler = createHandler({ model: modelReturning(echoed), search: failingSearch, secrets: [SENTINEL], identitySecret: A_TEST_SECRET })
     const res = await handler(LESSON_REQUEST)
     expect(JSON.stringify(res)).not.toContain(SENTINEL)
   })

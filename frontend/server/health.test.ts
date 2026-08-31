@@ -23,26 +23,35 @@ import { memoryStore } from './almanac/ledger.test.ts'
 const model: ModelPort = { lesson: async () => ({}) }
 const search: SearchPort = { search: async () => [] }
 const GET = { method: 'GET', path: '/api/health', body: {} }
+/* The key this server signs identities with.
+ *
+ * `createHandler` REQUIRES one and has no default, on purpose -- see
+ * `server/identity.ts`: a fallback in the source would be a signature every
+ * reader can reproduce. These proofs are not about identity, so the value is
+ * arbitrary; it is a fixture and protects nothing.
+ */
+const A_TEST_SECRET = 'test-secret-not-used-anywhere-real'
+
 
 describe('GET /api/health', () => {
   it('answers 200 to a plain GET, which is what a waiting process can ask', async () => {
-    const res = await createHandler({ model, search })(GET)
+    const res = await createHandler({ model, search, identitySecret: A_TEST_SECRET })(GET)
     expect(res.status).toBe(200)
     expect(res.body['ok']).toBe(true)
   })
 
   it('says whether the planner is configured, because that changes what works', async () => {
-    const without = await createHandler({ model, search })(GET)
+    const without = await createHandler({ model, search, identitySecret: A_TEST_SECRET })(GET)
     expect(without.body['planner']).toBe(false)
 
-    const with_ = await createHandler({ model, search, almanac: createLedger(memoryStore()) })(GET)
+    const with_ = await createHandler({ model, search, almanac: createLedger(memoryStore()), identitySecret: A_TEST_SECRET })(GET)
     expect(with_.body['planner']).toBe(true)
   })
 
   it('leaks no credential, path, or student, whatever it is holding', async () => {
     const secret = 'CANARY-health-must-not-leak-9999'
     const res = await createHandler({
-      model, search, almanac: createLedger(memoryStore()), secrets: [secret],
+      model, search, almanac: createLedger(memoryStore()), secrets: [secret], identitySecret: A_TEST_SECRET,
     })(GET)
 
     const text = JSON.stringify(res.body)
@@ -54,13 +63,13 @@ describe('GET /api/health', () => {
     /* Everything else stays POST-only. A GET that mutates is a link a browser
      * can prefetch. */
     for (const path of ['/api/day', '/api/done', '/api/lesson', '/api/ask', '/api/search']) {
-      const res = await createHandler({ model, search })({ method: 'GET', path, body: {} })
+      const res = await createHandler({ model, search, identitySecret: A_TEST_SECRET })({ method: 'GET', path, body: {} })
       expect(res.status, path).toBe(405)
     }
   })
 
   it('still refuses an unknown path', async () => {
-    const res = await createHandler({ model, search })({ method: 'GET', path: '/api/nope', body: {} })
+    const res = await createHandler({ model, search, identitySecret: A_TEST_SECRET })({ method: 'GET', path: '/api/nope', body: {} })
     expect(res.status).toBe(404)
   })
 })

@@ -4,19 +4,70 @@
       "body": "Here is one worked case of identify base case, start to finish.",
       "emphasis": "primary",
       "id": "prose-0",
-      "kind": "prose"
+      "kind": "prose",
+      "role": "definition",
+      "terms": [
+        {
+          "mark": "key",
+          "text": "identify base case"
+        }
+      ]
     },
     {
-      "body": "Each step follows from the one before it.",
+      "body": "Each step follows from the one before it. Terms that stay: base case, recursive case, call stack, frame, stack depth.",
       "emphasis": "supporting",
       "id": "prose-1",
-      "kind": "prose"
+      "kind": "prose",
+      "role": "support",
+      "terms": [
+        {
+          "mark": "key",
+          "text": "base case"
+        }
+      ]
     },
     {
-      "body": "Terms that stay: base case, recursive case, call stack, frame, stack depth",
+      "caption": "The same three steps, laid out rather than described.",
       "emphasis": "supporting",
-      "id": "prose-2",
-      "kind": "prose"
+      "id": "flow-2",
+      "kind": "flow",
+      "links": [
+        {
+          "from": "start",
+          "to": "check"
+        },
+        {
+          "from": "check",
+          "to": "done"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "label": "the case you are given"
+        },
+        {
+          "id": "check",
+          "label": "the question that decides"
+        },
+        {
+          "id": "done",
+          "label": "the case that stops"
+        }
+      ],
+      "role": "framework"
+    },
+    {
+      "emphasis": "supporting",
+      "id": "summary-3",
+      "kind": "summary",
+      "mentalModel": "One case that stops is what keeps the rest finite.",
+      "progression": [
+        "take the case you are given",
+        "ask the question that decides",
+        "stop at the case that needs no further work"
+      ],
+      "role": "summary"
     }
   ],
   "id": "python-recursion-identify-base-case",
@@ -28,7 +79,12 @@
       "to": "prose-0"
     },
     {
-      "from": "prose-2",
+      "from": "flow-2",
+      "kind": "supports",
+      "to": "prose-0"
+    },
+    {
+      "from": "summary-3",
       "kind": "supports",
       "to": "prose-0"
     }

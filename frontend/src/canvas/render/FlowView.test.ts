@@ -11,6 +11,8 @@ const chain = (count: number): FlowBlock => ({
   id: 'c',
   emphasis: 'primary',
   tone: 'neutral',
+  role: 'support',
+  depth: 'core',
   nodes: Array.from({ length: count }, (_, i) => ({
     id: `n${i}`,
     label: `Step ${i}`,

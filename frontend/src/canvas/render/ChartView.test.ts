@@ -39,6 +39,8 @@ function chart(
     kind: 'chart',
     emphasis: 'supporting',
     tone: 'neutral',
+    role: 'support',
+    depth: 'core',
     ...parts,
   }
 }

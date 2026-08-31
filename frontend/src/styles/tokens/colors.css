@@ -51,6 +51,7 @@
 
   /* Semantic — Red */
   --agabi-red-50:  #FDEAEA;
+  --agabi-red-400: #E4645F;
   --agabi-red-500: #D93B3B;
   --agabi-red-700: #B02E2E;
 
@@ -121,7 +122,11 @@
   --card-foreground: var(--agabi-neutral-25);
   --popover: var(--agabi-neutral-800);
   --popover-foreground: var(--agabi-neutral-25);
-  --primary: var(--agabi-indigo-400);
+  /* MEASURED, NOT CHOSEN. White on indigo-400 is 4.19:1 and WCAG 1.4.3 wants
+     4.5:1 for body text, so the Start button read as a smudge on dark. indigo-500
+     takes white to 6.11:1 and still stands 3.15:1 clear of the page, over the
+     3:1 that WCAG 1.4.11 asks of a control's own edge. */
+  --primary: var(--agabi-indigo-500);
   --primary-foreground: #FFFFFF;
   --secondary: var(--agabi-neutral-700);
   --secondary-foreground: var(--agabi-neutral-200);
@@ -131,7 +136,10 @@
   --accent-foreground: var(--agabi-teal-900);
   --success: var(--agabi-green-500);
   --warning: var(--agabi-amber-500);
-  --destructive: var(--agabi-red-500);
+  /* red-500 is 4.26:1 on this background -- under the 4.5:1 body-text floor,
+     so "Backlog -- set on ..." was unreadable for anyone it was written for.
+     red-400 is 5.77:1 on the page and 5.19:1 on a card. */
+  --destructive: var(--agabi-red-400);
   --border: rgba(255, 255, 255, 0.10);
   --input-background: var(--agabi-neutral-800);
   --switch-background: var(--agabi-neutral-600);

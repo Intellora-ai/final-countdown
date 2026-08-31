@@ -70,13 +70,27 @@ export interface Profile {
   dataHeavy: number
 }
 
+/**
+ * What counts as SHOWING rather than telling.
+ *
+ * Deliberately the same set `teaching.ts` and `beats.ts` use: a block that
+ * counts as a representation in one file and not in another is a rule that
+ * depends on which file you asked.
+ */
+const REPRESENTATION_KINDS = new Set<string>(['chart', 'table', 'flow', 'figure', 'simulation'])
+
 const VISUAL: BlockKind[] = ['chart', 'simulation', 'flow', 'equation']
-const TEXTUAL: BlockKind[] = ['prose', 'callout']
+/* `misconception`, `summary` and `reasoning` are read like prose — they are
+   sentences the learner works through, not data to scan. Leaving them out of
+   this list made a lesson of eight text blocks profile as having one, and the
+   selector picked a dense reference grid for something meant to be read. */
+const TEXTUAL: BlockKind[] = ['prose', 'callout', 'misconception', 'summary', 'reasoning']
 
 export function profile(spec: Lesson): Profile {
   const counts = {
     prose: 0, callout: 0, metric: 0, equation: 0,
     table: 0, chart: 0, flow: 0, simulation: 0, figure: 0,
+    misconception: 0, summary: 0, reasoning: 0,
   } as Record<BlockKind, number>
 
   for (const block of spec.blocks) counts[block.kind] += 1
@@ -132,10 +146,48 @@ export function selectArchetype(p: Profile): { archetype: Archetype; explain: st
       explain: `${p.dataHeavy} data blocks against ${p.textual} of prose — this is material to scan, so it lays out as a dense grid rather than a reading column`,
     }
 
-  if (p.hasSequence && p.counts.flow >= 1 && p.visual >= p.textual)
+  /*
+   * A CHAIN IS A CHAIN WHETHER IT IS DRAWN OR DERIVED.
+   *
+   * This branch used to read `p.hasSequence && p.counts.flow >= 1 && p.visual
+   * >= p.textual`, and BOTH extra conditions were wrong.
+   *
+   * `visual >= textual` punished teaching: explaining each step in prose is
+   * what teaching a process looks like, so the prose counted against the flow
+   * and disqualified the lesson from the archetype built for it.
+   *
+   * `counts.flow >= 1` was a DEAD CONDITION. `hasSequence` is already
+   * `counts.flow > 0 || figureSequence > 0` (line ~124), so re-requiring a flow
+   * block here meant the `figureSequence` half could never contribute to
+   * anything. `bill` draws its legislative process as four `figure` blocks with
+   * a sequence intent, so it was a chain this selector structurally could not
+   * see, and it landed on `evidence` beside a grammar table.
+   *
+   * `hasSequence` on its own is the whole question. Nothing further needed
+   * proving, and the two conditions that looked like extra rigour were each
+   * hiding a lesson from the composition built for it.
+   */
+  if (p.hasSequence)
     return {
       archetype: 'sequence',
-      explain: `a flow drives the lesson, so blocks run in reading order along the chain rather than competing for the centre`,
+      explain:
+        `${p.counts.flow} flow block(s) and ${p.counts.figure} figure(s) over ${p.total} blocks — ` +
+        `a chain is walked end to end, so the blocks run in reading order rather than competing for the centre`,
+    }
+
+  /*
+   * A DERIVATION IS A CHAIN TOO, and nothing here used to look at `equation`,
+   * so every derivation fell through to `evidence` -- which is how `logs`
+   * landed on the same composition as a grammar table.
+   *
+   * TWO, not one. A lone formula beside prose is a claim and its statement,
+   * which is exactly what `evidence` means. The chain only exists once one line
+   * follows from the line above it, and that takes a second equation.
+   */
+  if (p.counts.equation >= 2)
+    return {
+      archetype: 'sequence',
+      explain: `${p.counts.equation} equations follow one from the next — a derivation is walked end to end, so the steps run in reading order rather than competing for the centre`,
     }
 
   if (p.dataHeavy >= 1 && p.textual >= 1)
@@ -158,12 +210,28 @@ export function selectArchetype(p: Profile): { archetype: Archetype; explain: st
 const NATURAL_SPAN: Record<BlockKind, number> = {
   simulation: 6, chart: 6, table: 8, flow: 12,
   equation: 5, prose: 6, callout: 4, metric: 3, figure: 6,
+  /* A misconception is two short lines set against each other. It needs the
+     width to put them side by side rather than stacked, which is the entire
+     point of showing the wrong form next to the right one. */
+  misconception: 8,
+  /* A summary is the widest thing on the page: the progression reads as one
+     left-to-right run, and wrapping it back onto a second line breaks the
+     sense of an order. */
+  summary: 12,
+  /* A justification is read down the page, one step per line, with the reason
+     beside each step. It needs the width for that second column. */
+  reasoning: 10,
 }
 
 /** How many grid rows a kind needs. Height is derived from kind, never authored. */
 const NATURAL_ROWS: Record<BlockKind, number> = {
   simulation: 4, chart: 3, table: 3, flow: 2,
   equation: 2, prose: 2, callout: 2, metric: 1, figure: 3,
+  /* Wrong, right, and the reason: three short rows. */
+  misconception: 2,
+  summary: 2,
+  /* Taller than anything else: every step gets its own line. */
+  reasoning: 4,
 }
 
 /**
@@ -219,13 +287,33 @@ export function plan(spec: Lesson, viewport: Viewport): Frame {
   let band = 0
   let cursor = 0
 
-  /* Centrepiece hoists its simulation to the first band alone, so nothing
-     shares a row with the thing the lesson is about. */
+  /*
+   * Centrepiece hoists its simulation to the first band alone, so nothing
+   * shares a row with the thing the lesson is about.
+   *
+   * BUT NEVER ABOVE THE OPENING. The hoist used to sort over every block, so
+   * a lesson that opens with a definition — which the teaching gate now
+   * REQUIRES — had the simulation lifted over it and met the learner with a
+   * control panel for a word they had not been given yet. The gate and the
+   * layout would have been asking for opposite things, and the layout would
+   * have won silently.
+   *
+   * So the opening run is pinned: every block before the first representation
+   * keeps its place, and the hoist reorders only what follows. A lesson with
+   * no such opening is unaffected, which is every lesson written before this.
+   */
+  const firstShown = spec.blocks.findIndex((b) => REPRESENTATION_KINDS.has(b.kind))
+  const opening = firstShown <= 0 ? [] : spec.blocks.slice(0, firstShown)
+  const rest = firstShown <= 0 ? [...spec.blocks] : spec.blocks.slice(firstShown)
+
   const ordered =
     archetype === 'centrepiece'
-      ? [...spec.blocks].sort((a, b) =>
-          a.kind === 'simulation' ? -1 : b.kind === 'simulation' ? 1 : 0,
-        )
+      ? [
+          ...opening,
+          ...rest.sort((a, b) =>
+            a.kind === 'simulation' ? -1 : b.kind === 'simulation' ? 1 : 0,
+          ),
+        ]
       : spec.blocks
 
   /*
@@ -306,14 +394,44 @@ export function plan(spec: Lesson, viewport: Viewport): Frame {
         emphasis: block.emphasis, tone: block.tone,
       })
 
+      /*
+       * THE WALK IS TRANSITIVE, BECAUSE DERIVATION IS.
+       *
+       * A flat loop over `children` placed the source and one generation below
+       * it, and stopped. Anything derived from a DERIVED block was skipped by
+       * `isDerived` at the top of the loop and then never placed by anyone —
+       * so it vanished from the frame entirely. Measured on gas pressure:
+       * `ideal-gas-law` derives from `proportionality`, which derives from
+       * `causal-chain`, and the chart came out with twelve of thirteen blocks
+       * at three of five widths. No invariant caught it — `noCollision` and
+       * `noAccidentalVoid` both check what IS placed, and a block that is
+       * simply absent collides with nothing and leaves no hole.
+       *
+       * Losing content silently is the one outcome the layout may never have.
+       * `seen` guards a cycle: `a derives b, b derives a` is a spec a model can
+       * emit, and it would otherwise spin here forever.
+       */
       let childBand = band + rows
-      for (const child of children) {
+      const seen = new Set<string>([block.id])
+      const pending = [...children]
+      while (pending.length > 0) {
+        const child = pending.shift()
+        if (child === undefined || seen.has(child.id)) continue
+        seen.add(child.id)
+
         const childRows = footprint(child).rows
         blocks.push({
           id: child.id, kind: child.kind, band: childBand, col: 0, span, rows: childRows,
           emphasis: child.emphasis, tone: child.tone,
         })
         childBand += childRows
+
+        /* Depth first: what a child derives belongs directly beneath it, not
+           after its siblings. Reading order is the argument. */
+        const below = (derivedOf.get(child.id) ?? [])
+          .map((id) => byId.get(id))
+          .filter((b): b is Block => b !== undefined)
+        pending.unshift(...below)
       }
 
       band = childBand

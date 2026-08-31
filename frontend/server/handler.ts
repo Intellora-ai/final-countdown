@@ -24,7 +24,7 @@
  *    off this server, so refusals carry paths and fixed wording only.
  */
 
-import { validateLesson } from '../src/canvas/spec/validate.ts'
+import { validateLesson, type TeachingLevel } from '../src/canvas/spec/validate.ts'
 import { chooseStrategy, type Strategy } from './teaching.ts'
 import { injectionSignals, stripInvisible } from '../src/websearch/guard.ts'
 import { citationSupports } from '../src/websearch/quality.ts'
@@ -280,8 +280,26 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     body: scrub(body, secrets) as Record<string, unknown>,
   })
 
-  /** Ask the model, then put its answer through the browser's own gate. */
-  async function lessonFrom(request: LessonRequest): Promise<ServerResponse> {
+  /**
+   * Ask the model, then put its answer through the browser's own gate.
+   *
+   * WHY THE TEACHING LEVEL IS A PARAMETER AND NOT A CONSTANT
+   * -------------------------------------------------------
+   * This one function serves two routes that owe the reader different things.
+   * `/api/lesson` teaches a named concept, so it owes the whole arc: a
+   * definition first, a summary last, something shown rather than told.
+   * `/api/ask` answers one free question, and owes none of that -- demanding
+   * an opening definition and a closing progression from a reply would refuse
+   * every honest answer the model can give.
+   *
+   * Held at `'lesson'` for both, `/api/ask` returned 502 for every question
+   * ever asked. That is the same defect already found and fixed in the doubt
+   * resolver, reached by a second path; this is the other copy.
+   */
+  async function lessonFrom(
+    request: LessonRequest,
+    teaching: TeachingLevel,
+  ): Promise<ServerResponse> {
     /* Reported on EVERY outcome, including failure. A decision nobody can
      * observe is a decision nobody can debug, and this repo has already
      * shipped a trace that claimed capabilities were used when they had done
@@ -306,7 +324,12 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       return reply(502, { ...decided, error: reason })
     }
 
-    let result = validateLesson(produced)
+    /* `{ teaching }` came from main, which added it on a SECOND
+     * `const result = validateLesson(produced, { teaching })` placed after
+     * the revalidation loop. That loop already reads and reassigns `result`,
+     * so the second declaration could not compile -- the option was right and
+     * its position was not. It belongs on the one declaration, before the loop. */
+    let result = validateLesson(produced, { teaching })
 
     /* A LESSON THAT FAILS OUR OWN GATE IS WORTH ASKING FOR AGAIN.
      *
@@ -358,7 +381,13 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       } catch {
         break
       }
-      result = validateLesson(again)
+      /* THE SAME RULES AS THE FIRST CHECK, and the merge is why this needs
+         saying. codex added this retry loop while main added `{ teaching }` to
+         the one validation it had. Carrying the option onto the first check but
+         not onto the retry meant a lesson was judged by `answer` rules, then
+         re-judged by `lesson` rules on the next attempt -- a retry that can fail
+         what the first attempt passed, for no reason the caller can see. */
+      result = validateLesson(again, { teaching })
     }
 
     if (!result.ok) {
@@ -558,7 +587,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
           carriedFrom: nonEmptyString(body['carriedFrom']) ? body['carriedFrom'] : undefined,
           diagnosis: typeof body['diagnosis'] === 'string' ? body['diagnosis'] : undefined,
         }),
-      })
+      }, 'lesson')
     }
 
     if (req.path === '/api/ask') {
@@ -579,7 +608,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
          * See `briefFor` and invariant I3. */
         ...(nonEmptyString(body['taught']) ? { taught: body['taught'] } : {}),
         ...(nonEmptyString(body['justSaid']) ? { justSaid: body['justSaid'] } : {}),
-      })
+      }, 'answer')
     }
 
     if (req.path === '/api/day') {

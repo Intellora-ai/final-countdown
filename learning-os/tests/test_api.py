@@ -244,7 +244,31 @@ def test_every_canvas_block_kind_is_built_or_refused_but_never_faked() -> None:
     # Named explicitly rather than derived, so ADDING a real builder for one of
     # these has to come here and delete it from the list -- which is the moment
     # to notice the capability arrived.
-    assert refused == ["chart", "equation", "flow", "metric", "simulation", "table"], refused
+    #
+    # Four kinds joined this list rather than the one above, and that is the
+    # test working rather than the test being loosened. `figure`,
+    # `misconception`, `reasoning` and `summary` became renderable on the canvas
+    # and were added to `BLOCK_KINDS`; the emitter cannot build any of them,
+    # because `emit` produces `{id, kind, emphasis, body}` and none of the four
+    # is a body-carrying block. `misconception` needs wrong/correct/why,
+    # `reasoning` needs justified steps, `summary` needs a progression, and
+    # `figure` needs a shape payload.
+    #
+    # So each is REFUSED loudly instead of mis-built -- which is the exact
+    # property this test exists to hold, and the growth of this list is the
+    # honest record of four capabilities the engine does not yet have.
+    assert refused == [
+        "chart",
+        "equation",
+        "figure",
+        "flow",
+        "metric",
+        "misconception",
+        "reasoning",
+        "simulation",
+        "summary",
+        "table",
+    ], refused
 
 
 def test_the_lesson_is_frozen() -> None:

@@ -9,7 +9,7 @@ import { classifierEvaluation } from '../lessons/classifierEvaluation'
 import { gasPressure } from '../lessons/gasPressure'
 import type { FigureBlock } from '../spec/figure'
 import type { Lesson, LessonInput } from '../spec/spec'
-import { validateLesson } from '../spec/validate'
+import { validateLesson, type TeachingLevel } from '../spec/validate'
 import { BlockView } from './BlockView'
 import { FigureView } from './FigureView'
 
@@ -143,8 +143,19 @@ async function settled(ui: ReactElement): Promise<HTMLElement> {
   throw new Error(`a lazy renderer never arrived: ${container.textContent ?? ''}`)
 }
 
-function validated(input: LessonInput, name: string): Lesson {
-  const result = validateLesson(input)
+/**
+ * @param teaching Which rules apply. The three real lessons are checked at
+ * `'lesson'`, the full arc, because they are lessons and this file is one of
+ * the places that would notice if they stopped teaching. The single-figure
+ * fixtures below are checked at `'off'`: their subject is whether a SHAPE
+ * reaches its renderer, and a one-block fixture cannot open with a definition
+ * or close with a summary without becoming a different test. `'off'` is
+ * documented in `validate.ts` for exactly this -- "a fixture round-trip, a
+ * shape test" -- and it still runs every structural check, so the figure's own
+ * invariants are as strictly enforced here as anywhere.
+ */
+function validated(input: LessonInput, name: string, teaching: TeachingLevel): Lesson {
+  const result = validateLesson(input, { teaching })
   if (!result.ok) throw new Error(`${name} does not validate: ${JSON.stringify(result.issues)}`)
   return result.lesson
 }
@@ -162,7 +173,7 @@ const LESSONS: [string, LessonInput][] = [
 describe('the three real lessons render with no holes in them', () => {
   for (const [name, input] of LESSONS) {
     it(`${name}: every block renders, and none of them is a placeholder`, async () => {
-      const lesson = validated(input, name)
+      const lesson = validated(input, name, 'lesson')
 
       /* Through `BlockView`, not `FigureView` directly. A figure reaches a
          learner through the block dispatch, and a placeholder that only appears
@@ -218,6 +229,7 @@ function figure(block: BlockInput): FigureBlock {
   const lesson = validated(
     { id: 'fixture', question: 'Does this figure reach a renderer?', blocks: [block] },
     'the fixture',
+    'off',
   )
   const only = lesson.blocks[0]
   if (only === undefined || only.kind !== 'figure')

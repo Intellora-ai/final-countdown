@@ -1,15 +1,41 @@
 # LEARNING CANVAS FRONTEND — the browser-side verification contract.
 #
-# NOT A REQUIRED CONTEXT. `ci/gates.toml` keeps `required_checks` at seventeen, and this workflow
-# adds none of them. It is a second verification domain inside one repository, not a second
-# project: Python and Lean prove what they can prove, and TypeScript in a browser proves what they
-# cannot. Forcing frontend code through `axle_gate.py` would mean claiming a Lean proof for a React
-# component, and pointing `pyright` at a `.tsx` file proves nothing about either.
+# TWO OF THESE JOBS ARE REQUIRED CONTEXTS. `frontend` and `frontend-verdict` are both listed in
+# `ci/gates.toml` `required_checks` and both sit in live ruleset 20990225. The paragraph that stood
+# here said the opposite -- "NOT A REQUIRED CONTEXT ... required_checks at seventeen" -- and it was
+# simply out of date: the promotion happened, the comment did not follow. This is still a second
+# verification domain inside one repository, not a second project: Python and Lean prove what they
+# can prove, and TypeScript in a browser proves what they cannot. Forcing frontend code through
+# `axle_gate.py` would mean claiming a Lean proof for a React component, and pointing `pyright` at
+# a `.tsx` file proves nothing about either.
 #
-# WHY PATH FILTERS. The frontend lives at `frontend/`. A Python-only commit has nothing here to
-# verify, so running Node for it would burn minutes to re-prove an untouched tree. `verify.yml`
-# deliberately has NO path filter and therefore still runs for a frontend-only pull request --
-# that is the existing design, not an oversight, and it is not modified here.
+# WHY THE PATH FILTER MOVED OFF `pull_request`, AND WHY THAT WAS A BUG NOT A PREFERENCE.
+#
+# The frontend lives at `frontend/`. A Python-only commit has nothing here to verify, so running
+# Node for it would burn minutes re-proving an untouched tree. That reasoning is still correct and
+# is still enforced -- but it cannot be enforced with a workflow-level `paths:` filter on
+# `pull_request`, because of how GitHub reports a workflow that never starts:
+#
+#   workflow skipped by `paths:`  ->  NO check-run is created at all
+#   job skipped by `if:`          ->  a check-run IS created, conclusion `skipped`
+#
+# Branch protection treats a `skipped` check-run as satisfied. It treats a MISSING one as
+# "Expected -- waiting for status to be reported", indefinitely. So while `frontend` and
+# `frontend-verdict` were required AND filtered by path, every pull request that did not touch
+# `frontend/**` was structurally unmergeable: every runnable required context green, two contexts
+# that could never exist, and no bypass actor on the ruleset to override it. `gh pr merge --admin`
+# was refused as well -- a ruleset with no bypass actors cannot be overridden by anyone, the
+# repository owner included.
+#
+# The fix keeps the cost saving and drops the reporting gap: the workflow now starts on every pull
+# request, a cheap `changes` job decides whether `frontend/**` was touched, and each expensive job
+# carries `if: needs.changes.outputs.frontend == 'true'`. A Python-only pull request still runs no
+# Node -- those jobs skip in seconds -- but they skip VISIBLY, so the required contexts report.
+#
+# `push:` keeps its `paths:` filter. Required contexts are evaluated on pull requests, so the
+# reporting gap does not arise there, and a main-branch push touching no frontend file has nothing
+# to verify. `verify.yml` deliberately has NO path filter and therefore still runs for a
+# frontend-only pull request -- that is the existing design, not an oversight, and it is unchanged.
 #
 # WHY EVERY ACTION IS A 40-CHARACTER SHA. A tag is a pointer somebody else can move. Every SHA
 # below is already in use elsewhere in this repository, so this workflow introduces no new
@@ -29,12 +55,12 @@ on:
       - "frontend/**"
       - ".github/workflows/learning-canvas-frontend.yml"
 
+  # NO `paths:` HERE, DELIBERATELY. See the header. A workflow filtered out by `paths:` creates no
+  # check-run at all, and a required context with no check-run blocks its pull request for good.
+  # The path decision moved down onto the jobs, where a skip is still reported.
   pull_request:
     branches:
       - main
-    paths:
-      - "frontend/**"
-      - ".github/workflows/learning-canvas-frontend.yml"
 
 # Read-only. This workflow verifies; it does not publish, sign, deploy, or comment.
 permissions:
@@ -58,9 +84,68 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # THE CHEAP HALF OF THE OLD PATH FILTER.
+  #
+  # This job does what `paths:` used to do on `pull_request`, and it is deliberately tiny: one
+  # checkout and one `git diff --name-only`. It exists so the expensive jobs below can decide to
+  # skip WITHOUT the workflow itself being filtered out -- the distinction the header explains, and
+  # the whole reason this job is here rather than a `paths:` line.
+  #
+  # Anything that is not a pull request answers `true` unconditionally. `push:` still carries its
+  # own `paths:` filter, so a push reaching this workflow has already been shown to touch the
+  # frontend, and answering `false` there could only ever skip work that should have run.
+  #
+  # NO `${{ }}` INSIDE `run:`, per this file's standing rule -- every value arrives through `env:`.
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      frontend: ${{ steps.detect.outputs.frontend }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Both endpoints of the diff have to exist locally. A shallow clone has the head but not
+          # the merge base, and `git diff` against a commit the runner does not have does not fail
+          # quietly -- it reports every file as changed, which would run the full battery on every
+          # pull request and hide this regression behind a green result.
+          fetch-depth: 0
+
+      - name: Detect frontend changes
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            echo "not a pull_request: running the full battery"
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed="$(
+            git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- \
+              frontend \
+              .github/workflows/learning-canvas-frontend.yml
+          )"
+          if [ -n "$changed" ]; then
+            echo "frontend files changed:"
+            echo "$changed"
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "no frontend file changed: the verification jobs will skip, and report the skip"
+            echo "frontend=false" >> "$GITHUB_OUTPUT"
+          fi
+
   frontend:
     name: frontend
     runs-on: ubuntu-latest
+    needs: [changes]
+    # A SKIP HERE IS REPORTED. The `paths:` filter this replaces was not.
+    if: needs.changes.outputs.frontend == 'true'
     # 15 was sized for a job that ran 1.2-2.1 min. Two checks have since been
     # added that trade wall clock for defect-finding: the mutation gate reruns
     # the unit suite once per mutant (115s measured on a runner) and the
@@ -210,6 +295,26 @@ jobs:
       #
       # It runs before Build because it needs no build output, and its outcome
       # is read by the Verification gate below like every other step here.
+      # `--product` IS NOW ARMED, and this is the decision the gate's own
+      # comment said belonged to the repository owner rather than to the file.
+      #
+      # It reported three UNREACHED findings before Phase 10 and now reports
+      # none, but NOT because the check was loosened. Two of the three were
+      # artefacts of type erasure: `agent/kernel/contracts.ts` and
+      # `websearch/port.ts` export only types, so no import could ever reach
+      # them and the workaround was to declare them MANIFEST entries -- an
+      # exemption with paperwork for a rule they could never satisfy. The gate
+      # now follows a type-only edge into a types-only module, and both are
+      # genuinely live.
+      #
+      # The third, `websearch/bench.ts`, is a benchmark harness. It is declared
+      # a TOOL entry with a written reason, so the area walk still measures its
+      # internals while the meaningless "does the browser reach it" question is
+      # not asked.
+      #
+      # Proven not to be a switch-off: a types-only module nothing imports is
+      # still reported ORPHAN, and the fixture tests keep the failing direction
+      # under the suite's control rather than the repository's.
       - name: Reachability
         id: reachability
         continue-on-error: true
@@ -350,7 +455,11 @@ jobs:
         with:
           name: learning-canvas-frontend-build
           path: frontend/dist
-          if-no-files-found: ignore
+          # `error`, not `ignore`. This gate is required, and a required check
+          # that goes green while producing nothing is exactly the shape the
+          # finalizer exists to catch -- a build that emitted no dist is a build
+          # that did not happen, and `ignore` would report that as success.
+          if-no-files-found: error
 
   # THE MUTATION GATE, FOUR SHARDS WIDE.
   #
@@ -409,6 +518,8 @@ jobs:
   frontend-mutation:
     name: mutation ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
+    needs: [changes]
+    if: needs.changes.outputs.frontend == 'true'
     timeout-minutes: 20
     defaults:
       run:
@@ -495,6 +606,8 @@ jobs:
     # becomes the faster shape again.
     name: scenes ${{ matrix.shard }}/2
     runs-on: ubuntu-latest
+    needs: [changes]
+    if: needs.changes.outputs.frontend == 'true'
     timeout-minutes: 15
     defaults:
       run:
@@ -565,6 +678,7 @@ jobs:
           npx playwright test -c playwright.config.ts
           e2e/scene-regressions.spec.ts e2e/composed-renderer.spec.ts
           e2e/token-invariance.spec.ts
+          e2e/a11y.spec.ts
           --project=desktop-1440
           --project=square-900
           --project=mobile-375
@@ -595,6 +709,69 @@ jobs:
           path: frontend/ci-findings.json
           if-no-files-found: error
 
+  # ---------------------------------------------------------------------------
+  # VISUAL REGRESSION — its own job, and one project.
+  #
+  # NOT folded into `frontend-scenes`. That job runs five Playwright projects
+  # and shards across two runners; a screenshot suite there would capture five
+  # baselines per lesson, four of which nobody asked for, and shard them
+  # unpredictably across machines.
+  #
+  # `reduced-motion` only, because animation is the single largest source of
+  # screenshot flake and that project settles the page by construction rather
+  # than by a timeout somebody tuned.
+  #
+  # THE UPLOAD IS PART OF THE FEATURE, NOT DEBUGGING SCAFFOLD.
+  # docs/visual-review.md requires that a changed image is looked at by a human
+  # before any baseline moves. That is impossible without the diff, so the
+  # artefact carrying it is uploaded on failure. A gate whose evidence cannot be
+  # retrieved is a gate whose verdict has to be taken on trust.
+  # ---------------------------------------------------------------------------
+  frontend-visual:
+    name: visual
+    runs-on: ubuntu-latest
+    needs: [changes]
+    if: needs.changes.outputs.frontend == 'true'
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install chromium
+
+      # Playwright REFUSES to create a missing baseline under CI and fails
+      # instead. That is the behaviour this job depends on: a first run that
+      # silently wrote its own expected images and went green would be the
+      # vacuous pass this repository keeps finding elsewhere.
+      - name: Visual regression
+        run: >-
+          npx playwright test -c playwright.config.ts
+          e2e/visual.spec.ts
+          --project=reduced-motion
+          --fail-on-flaky-tests
+
+      - name: Upload the diff so a human can review it
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: learning-canvas-frontend-visual-diff
+          path: frontend/test-results/
+          if-no-files-found: error
+
   # THE RUN'S SINGLE VERDICT.
   #
   # Splitting one job into three split the verdict with it: three jobs can fail
@@ -613,7 +790,7 @@ jobs:
   frontend-verdict:
     name: frontend-verdict
     runs-on: ubuntu-latest
-    needs: [frontend, frontend-mutation, frontend-scenes]
+    needs: [changes, frontend, frontend-mutation, frontend-scenes]
     if: always()
     # A checkout, one artifact download and one Node script. Measured at 2-3s.
     # Ten minutes is generous; GitHub's undeclared default is six hours, and
@@ -622,14 +799,56 @@ jobs:
     # waiting on it.
     timeout-minutes: 10
     steps:
+      # THE VERDICT IS WRITTEN DOWN, NOT ONLY EXITED.
+      #
+      # This is a required check, and `gate_integrity` refuses a mandatory gate
+      # that preserves no evidence -- correctly: a check whose only output is an
+      # exit code cannot be audited after the run, and "it was green" becomes
+      # unfalsifiable the moment the logs age out. The three results are the
+      # whole verdict, so the file is three lines.
+      - name: Record the three results
+        if: always()
+        env:
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          MUTATION_RESULT: ${{ needs.frontend-mutation.result }}
+          SCENES_RESULT: ${{ needs.frontend-scenes.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p verdict
+          {
+            echo "frontend=$FRONTEND_RESULT"
+            echo "mutation=$MUTATION_RESULT"
+            echo "scenes=$SCENES_RESULT"
+          } > verdict/frontend-verdict.txt
+          cat verdict/frontend-verdict.txt
+
+      - name: Upload the verdict
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: learning-canvas-frontend-verdict
+          path: verdict/frontend-verdict.txt
+          if-no-files-found: error
+
       - name: Aggregate verdict
         # `!= 'success'` rather than `== 'failure'`: a cancelled or skipped
         # dependency is also not a pass, and treating either as one is how a
         # run with no evidence behind it reports green.
+        #
+        # GUARDED ON `changes` FIRST, AND THE GUARD IS NOT A WEAKENING.
+        #
+        # When the frontend was touched, the rule above is unchanged: a
+        # cancelled or skipped dependency is still not a pass, for exactly the
+        # reason given. When it was NOT touched, all three dependencies are
+        # `skipped` BY DESIGN, and failing on that would convert the reporting
+        # fix into a permanent red -- the same block, one step further along.
         if: >-
-          needs.frontend.result != 'success' ||
-          needs.frontend-mutation.result != 'success' ||
-          needs.frontend-scenes.result != 'success'
+          needs.changes.outputs.frontend == 'true' && (
+            needs.frontend.result != 'success' ||
+            needs.frontend-mutation.result != 'success' ||
+            needs.frontend-scenes.result != 'success'
+          )
         # Through `env:`, for the reason given on the Verification gate above:
         # this file forbids `${{ }}` in a shell body and then used it here.
         env:

@@ -86,6 +86,23 @@ import { defineConfig, devices } from '@playwright/test'
  */
 export default defineConfig({
   testDir: './e2e',
+  /*
+   * THE BOUNDARY BETWEEN THE TWO RUNNERS, STATED IN THIS DIRECTION TOO.
+   *
+   * `vite.config.ts` has always said that vitest must not sweep up
+   * `e2e/*.spec.ts`. The reverse was never said, and it turned out to matter:
+   * adding one vitest unit test beside an e2e helper made Playwright pick it
+   * up, try to run it, and die on `Vitest failed to access its internal state`
+   * -- reported as `Total: 0 tests in 0 files`.
+   *
+   * A collection crash reads exactly like a clean run with nothing to do, and
+   * the repo already has a gate whose whole job is to catch that. It caught
+   * this.
+   *
+   * `.spec.ts` is Playwright's here; `.test.ts` is vitest's. Two runners, two
+   * suffixes, and now both configs say so.
+   */
+  testMatch: '**/*.spec.ts',
   retries: process.env.CI ? 1 : 0,
   forbidOnly: !!process.env.CI,
   workers: 4,

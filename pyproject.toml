@@ -74,7 +74,20 @@ reportMissingImports = true
 # own AST mutation scorer, not a reference to the package.
 
 [tool.bandit]
-exclude_dirs = ["tests"]
+# `.claude/skills` holds 131 Python files from three third-party skill
+# repositories. They are vendored, not authored here, and scanning them reports
+# on other people's code while saying nothing about this product -- the same
+# reason `node_modules` is never linted. They are still COMMITTED and therefore
+# reviewable and diffable; excluding them from the scanners is about scope, not
+# about trust.
+exclude_dirs = ["tests", ".claude"]
+
+[tool.ruff]
+# See the note on `[tool.bandit]` above: vendored third-party skills, excluded
+# from linting for the same reason `node_modules` is. `scripts/` and `tests/`
+# and `src/` -- the code this repository actually writes -- are unaffected, and
+# `ruff check scripts tests` is clean at the moment this line was added.
+exclude = [".claude/skills"]
 
 [tool.ruff.lint]
 # THE RULE SET IS PINNED, AND LEAVING IT IMPLICIT WAS THE REAL RISK.

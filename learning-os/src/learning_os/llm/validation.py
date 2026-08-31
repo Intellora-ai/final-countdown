@@ -63,14 +63,45 @@ class Violation:
     repairable: bool = True
 
 
-#: The canvas's eight block kinds, from `frontend/src/canvas/spec/spec.ts`.
+#: The canvas's twelve block kinds, from `frontend/src/canvas/spec/spec.ts`.
 #:
 #: Duplicated across a language boundary, which is a real cost and is why it is
 #: checked rather than assumed: an unknown kind fails HERE with a clear message
 #: instead of at `validateLesson` in the browser, where the engine is no longer
 #: in the stack and the payload is all anyone can see.
 BLOCK_KINDS = frozenset(
-    {"prose", "callout", "metric", "equation", "table", "chart", "flow", "simulation"}
+    {
+        "prose",
+        "callout",
+        "metric",
+        "equation",
+        "table",
+        "chart",
+        "flow",
+        "simulation",
+        # The teaching-shape kinds. See `docs/engineering/teaching-patterns.md`.
+        #
+        # Absent from this set, they were a LIVE BUG rather than a gap: the
+        # canvas accepts them, so a model emitting a correction or a derivation
+        # would have had its lesson rejected here with "no renderer" -- a
+        # message that is false, and that points the reader at the canvas
+        # instead of at this list.
+        #
+        # None of the three is subject-specific. `misconception` is the error a
+        # learner actually makes, in any subject; `reasoning` is an ordered
+        # chain where every step names what licenses it, which is a proof in
+        # mathematics and a causal chain in geography; `summary` is the
+        # progression plus the one sentence worth keeping.
+        "misconception",
+        "summary",
+        "reasoning",
+        # `figure` reaches the other ~130 named representations through the
+        # registry (`spec/figure.ts`). It was missing from the first version of
+        # this set, which made the omission WORSE than the three above: a model
+        # emitting the single most general block kind was told "no renderer",
+        # which is false and points the reader at the canvas instead of here.
+        "figure",
+    }
 )
 
 #: Text telling the learner where they are in a sequence.
@@ -158,7 +189,12 @@ def validate(contract: InstructionContract, content: GeneratedContent) -> list[V
             )
         )
 
-    for kind, _ in content.blocks:
+    # Indexed rather than unpacked: a block may carry an optional third slot of
+    # structured fields (see `GeneratedContent`), and a two-name unpack would
+    # raise ValueError on it -- turning a richer lesson into a crash here rather
+    # than a validation result.
+    for block in content.blocks:
+        kind = block[0]
         if kind not in BLOCK_KINDS:
             out.append(
                 Violation(

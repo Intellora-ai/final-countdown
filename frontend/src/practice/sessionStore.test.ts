@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { asChapterId, asSubjectId, asTopicId } from './engine/ids';
 
 import { fixtureProvider } from './engine/provider';
 import type { TopicProfile } from './engine/plan';
@@ -19,15 +20,16 @@ import {
  */
 
 const PROFILE: TopicProfile = {
-  topicId: 'rotational-motion',
-  chapterId: 'mechanics',
+  topicId: asTopicId('rotational-motion'),
+  chapterId: asChapterId('mechanics'),
+  subjectId: asSubjectId('subject'),
   quantitative: 0.8,
   concepts: [
-    { id: 'moment-of-inertia', name: 'Moment of inertia', topicId: 'rotational-motion', numeric: true, prerequisites: ['mass'], commonMisconception: 'treats it as mass' },
-    { id: 'angular-momentum', name: 'Angular momentum', topicId: 'rotational-motion', numeric: true, prerequisites: [], commonMisconception: 'ignores the axis' },
-    { id: 'torque', name: 'Torque', topicId: 'rotational-motion', numeric: true, prerequisites: ['force'], commonMisconception: 'ignores the lever arm' },
-    { id: 'rolling', name: 'Rolling', topicId: 'rotational-motion', numeric: true, prerequisites: [], commonMisconception: 'adds the speeds' },
-    { id: 'rotational-ke', name: 'Rotational KE', topicId: 'rotational-motion', numeric: true, prerequisites: [], commonMisconception: 'forgets the half' },
+    { id: 'moment-of-inertia', name: 'Moment of inertia', topicId: asTopicId('rotational-motion'), numeric: true, prerequisites: ['mass'], commonMisconception: 'treats it as mass' },
+    { id: 'angular-momentum', name: 'Angular momentum', topicId: asTopicId('rotational-motion'), numeric: true, prerequisites: [], commonMisconception: 'ignores the axis' },
+    { id: 'torque', name: 'Torque', topicId: asTopicId('rotational-motion'), numeric: true, prerequisites: ['force'], commonMisconception: 'ignores the lever arm' },
+    { id: 'rolling', name: 'Rolling', topicId: asTopicId('rotational-motion'), numeric: true, prerequisites: [], commonMisconception: 'adds the speeds' },
+    { id: 'rotational-ke', name: 'Rotational KE', topicId: asTopicId('rotational-motion'), numeric: true, prerequisites: [], commonMisconception: 'forgets the half' },
   ],
 };
 

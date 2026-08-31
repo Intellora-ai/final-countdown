@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { asChapterId, asTopicId, asSubjectId } from './ids';
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path';
 
@@ -45,7 +46,11 @@ function question(index: number, correct: OptionKey = 'A'): VerifiedQuestion {
   return {
     questionId: `q${index}`,
     sessionId: 's1',
-    topicId: 't1',
+    topicId: asTopicId('t1'),
+    chapterId: asChapterId('ch'),
+    subjectId: asSubjectId('subject'),
+    misconceptionTested: null,
+    generationVersion: '1.0',
     conceptId: `c${index}`,
     questionType: 'standard',
     difficulty: 'medium',
@@ -57,6 +62,7 @@ function question(index: number, correct: OptionKey = 'A'): VerifiedQuestion {
     prerequisites: [],
     generationSource: 'fixture',
     verificationStatus: 'PASSED',
+    figure: null,
     similarityStatus: 'UNIQUE',
     qualityScore: 0.9,
     fingerprint: `fp${index}`,
@@ -71,8 +77,8 @@ function newSession(overrides: Partial<Parameters<typeof createSession>[0]> = {}
   const created = createSession({
     sessionId: 's1',
     userId: 'u1',
-    topicId: 't1',
-    chapterId: 'ch1',
+    topicId: asTopicId('t1'),
+    chapterId: asChapterId('ch1'),
     questions: FIVE,
     timerEnabled: false,
     timerMinutes: 10,
@@ -95,8 +101,8 @@ describe('creating a session', () => {
     const created = createSession({
       sessionId: 's1',
       userId: 'u1',
-      topicId: 't1',
-      chapterId: 'ch1',
+      topicId: asTopicId('t1'),
+      chapterId: asChapterId('ch1'),
       questions: [question(1), question(2), question(3)],
       timerEnabled: false,
       timerMinutes: 10,
@@ -110,8 +116,8 @@ describe('creating a session', () => {
     const created = createSession({
       sessionId: 's1',
       userId: 'u1',
-      topicId: 't1',
-      chapterId: 'ch1',
+      topicId: asTopicId('t1'),
+      chapterId: asChapterId('ch1'),
       questions: sixteen,
       timerEnabled: false,
       timerMinutes: 10,
@@ -125,8 +131,8 @@ describe('creating a session', () => {
       const created = createSession({
         sessionId: 's1',
         userId: 'u1',
-        topicId: 't1',
-        chapterId: 'ch1',
+        topicId: asTopicId('t1'),
+        chapterId: asChapterId('ch1'),
         questions: FIVE,
         timerEnabled: true,
         timerMinutes: minutes,
@@ -147,12 +153,12 @@ describe('creating a session', () => {
   });
 
   it('refuses a question that is not from the session topic', () => {
-    const foreign = { ...question(6), topicId: 'somewhere-else' };
+    const foreign = { ...question(6), topicId: asTopicId('somewhere-else') };
     const created = createSession({
       sessionId: 's1',
       userId: 'u1',
-      topicId: 't1',
-      chapterId: 'ch1',
+      topicId: asTopicId('t1'),
+      chapterId: asChapterId('ch1'),
       questions: [...FIVE.slice(0, 4), foreign],
       timerEnabled: false,
       timerMinutes: 10,

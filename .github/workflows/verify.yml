@@ -389,6 +389,19 @@ jobs:
       # format every other tool understands, and keeping it means the gate's
       # decision path and the interchange format are not the same dependency.
         run: python3 scripts/run_gate.py --name coverage -- pytest -n auto --dist loadfile --cov=src --cov-branch --cov-fail-under=95 -m "not axle" --junitxml=test-results/pytest.xml
+      # GENERATED COVERAGE STILL EXISTS.
+      #
+      # The step above reports a line-coverage percentage. It says nothing about
+      # whether the property tests RAN: remove a `@given` in a refactor, or let
+      # a collection error take out the file holding most of them, and the suite
+      # still reports a large green number while generated coverage silently
+      # stops existing.
+      #
+      # The ledger this reads is written by tests/conftest.py during the run
+      # above -- from the CONTROLLER only, because under `-n auto` the hook also
+      # fires in every worker and summing both double-counts.
+      - name: Property tests actually executed
+        run: python3 scripts/property_gate.py --suite root
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

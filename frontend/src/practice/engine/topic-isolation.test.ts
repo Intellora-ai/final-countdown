@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { asChapterId, asSubjectId, asTopicId } from './ids';
 
 import { buildPlan, type Concept, type TopicProfile } from './plan';
 import { QUESTION_COUNTS, type QuestionCount } from './types';
@@ -40,7 +41,7 @@ function concept(id: string, over: Partial<Concept> = {}): Concept {
     /* A concept named `chapter--topic--idea` belongs to `chapter--topic`; a
        concept that IS a topic belongs to itself. Derived rather than passed so
        a fixture cannot quietly disagree with its own id. */
-    topicId: id.split('--').slice(0, 2).join('--'),
+    topicId: asTopicId(id.split('--').slice(0, 2).join('--')),
     numeric: false,
     prerequisites: [],
     commonMisconception: null,
@@ -56,8 +57,9 @@ function concept(id: string, over: Partial<Concept> = {}): Concept {
  */
 function chapterScope(): TopicProfile {
   return {
-    topicId: 'functions',
-    chapterId: 'functions',
+    topicId: asTopicId('functions'),
+    chapterId: asChapterId('functions'),
+    subjectId: asSubjectId('subject'),
     quantitative: 0.5,
     concepts: [
       concept('functions--domain-and-range'),
@@ -70,8 +72,9 @@ function chapterScope(): TopicProfile {
 
 function topicScope(topicId: string, chapterId: string): TopicProfile {
   return {
-    topicId,
-    chapterId,
+    topicId: asTopicId(topicId),
+    chapterId: asChapterId(chapterId),
+    subjectId: asSubjectId('subject'),
     quantitative: 0.5,
     concepts: [concept(`${topicId}--a`), concept(`${topicId}--b`), concept(`${topicId}--c`)],
   };
@@ -166,8 +169,9 @@ describe('a prerequisite is not a target topic', () => {
      * fields precisely so one can never quietly become the other.
      */
     const profile: TopicProfile = {
-      topicId: 'functions--quadratic-graphs',
-      chapterId: 'functions',
+      topicId: asTopicId('functions--quadratic-graphs'),
+      chapterId: asChapterId('functions'),
+      subjectId: asSubjectId('subject'),
       quantitative: 0.8,
       concepts: [
         concept('functions--quadratic-graphs--vertex', {

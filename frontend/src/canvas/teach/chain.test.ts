@@ -27,6 +27,8 @@ import { validateLesson } from '../spec/validate'
  */
 
 const LESSON: Lesson = (() => {
+  /* `'off'`. What this file tests is which resolver answers and whether the
+     chain falls through -- not whether the fixture teaches. */
   const result = validateLesson({
     id: 'chain-fixture',
     question: 'Why does heating a gas raise its pressure?',
@@ -41,7 +43,11 @@ const LESSON: Lesson = (() => {
       },
     ],
     relations: [],
-  })
+  /* `'off'`. This fixture is the lesson a doubt is asked ABOUT. What the
+     file tests is which resolver answers, what it cites and how it falls
+     through -- never whether this stub teaches. Structure is still fully
+     checked, so a malformed fixture still fails here. */
+  }, { teaching: 'off' })
   if (!result.ok) throw new Error('fixture lesson is invalid: ' + JSON.stringify(result.issues))
   return result.lesson
 })()

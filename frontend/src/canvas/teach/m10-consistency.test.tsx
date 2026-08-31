@@ -330,7 +330,7 @@ function transcript(root: ParentNode): string[] {
     const text = node.textContent ?? ''
     if (node.classList.contains('lc-teach__answer-asked')) return text
     const quoted = /“([\s\S]*?)”/.exec(text)
-    return quoted === null ? text : quoted[1]
+    return quoted === null ? text : (quoted[1] ?? text)
   })
 }
 
@@ -377,7 +377,7 @@ const ANSWERS = [
   'the model flags too many innocent transactions',
   'it scores well by always guessing the common class',
   'that number hides the rare cases entirely',
-]
+] as const
 
 /**
  * Questions no lesson here can answer out of its own blocks, so each escalates
@@ -394,12 +394,12 @@ const OFF_LESSON = [
   'where does the river danube begin',
   'which planet has the shortest day',
   'how deep is the mariana trench',
-]
+] as const
 
 /** Questions the MACHINE-LEARNING lesson answers out of its own blocks, so
  *  they come back as a structured resolution and render through `<Answer>`.
  *  Both shapes of entry are exercised, never just the easy one. */
-const ON_LESSON_ML = ['what is precision recall', 'what is feature importance']
+const ON_LESSON_ML = ['what is precision recall', 'what is feature importance'] as const
 
 /** Half-written sentences a learner would be furious to lose. Varied on
  *  purpose: one is an ordinary answer in progress, one would classify as a
@@ -410,7 +410,7 @@ const DRAFTS = [
   'why does the accuracy number',
   'i',
   "it's the rare class — surely? no",
-]
+] as const
 
 /** A model that always answers, with the question echoed back so an answer can
  *  be told from every other answer on the page. */
@@ -886,7 +886,7 @@ describe('no lost answers', () => {
          survive being spread across beats as well as accumulating within
          one — answers are grouped by beat when rendered
          (`TeachView.tsx:518`), which is exactly where an ordering bug hides. */
-      if (index > 0 && index % 2 === 0) await sendAndSettle(ANSWERS[index % ANSWERS.length])
+      if (index > 0 && index % 2 === 0) await sendAndSettle(ANSWERS[index % ANSWERS.length] ?? ANSWERS[0])
       await sendAndSettle(question)
       expected.push(question)
       expect(transcript(container), `the history was wrong after question ${index + 1}`).toEqual(

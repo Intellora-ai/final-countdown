@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { asChapterId, asSubjectId, asTopicId } from './ids';
 
 import { evaluate, parseNumeric, verify } from './verify';
 import type { CandidateQuestion, NumericComputation, QuestionSpec } from './types';
@@ -14,8 +15,9 @@ import type { CandidateQuestion, NumericComputation, QuestionSpec } from './type
 
 const SPEC: QuestionSpec = {
   specId: 'spec-1',
-  topicId: 't1',
-  chapterId: 'ch1',
+  topicId: asTopicId('t1'),
+  chapterId: asChapterId('ch1'),
+    subjectId: asSubjectId('subject'),
   conceptId: 'ideal-gas-pressure',
   conceptName: 'ideal gas pressure',
   questionType: 'standard',
@@ -57,6 +59,7 @@ function candidate(overrides: Partial<CandidateQuestion> = {}): CandidateQuestio
     fullSolution: SOLUTION,
     generationSource: 'fixture-v1',
     computation: null,
+    figure: null,
     ...overrides,
   };
 }
@@ -337,7 +340,7 @@ describe('distractors', () => {
 describe('topic binding', () => {
   it('refuses a question generated for another topic', () => {
     const outcome = verify({
-      candidate: candidate({ spec: { ...SPEC, topicId: 'elsewhere' } }),
+      candidate: candidate({ spec: { ...SPEC, topicId: asTopicId('elsewhere') } }),
       sessionId: 's1',
       expectedTopicId: 't1',
     });

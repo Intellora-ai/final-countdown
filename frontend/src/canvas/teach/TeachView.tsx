@@ -34,6 +34,7 @@ import type { AnyResolver } from './contract'
 const DEFAULT_RESOLVERS: readonly AnyResolver[] = [lessonResolver]
 
 import './teach.css'
+import { shownAlready } from './shownAlready'
 
 /**
  * A lesson, taught one beat at a time.
@@ -380,7 +381,14 @@ export function TeachView({
       return
     }
 
-    const doubt: Doubt = { text: text.trim(), atBeatId: current.id }
+    /* The history this component has always kept, finally handed over. Without
+       it the resolver cannot tell a first ask from a fourth, and answers all
+       four identically -- see `shownAlready` and `Doubt.shown`. */
+    const doubt: Doubt = {
+      text: text.trim(),
+      atBeatId: current.id,
+      shown: shownAlready(asked),
+    }
     const at = asked.length
     setDraft('')
 
@@ -428,6 +436,48 @@ export function TeachView({
         setQuestionsAsked((count) => count + 1)
         setAnnouncement('A reply to your question has been added above the checkpoint.')
         reportStruggle({ questionsAsked: questionsAsked + 1, emptyAnswers, beatsSeen: revealed })
+      })
+      .catch((error: unknown) => {
+      /*
+       * WITHOUT THIS THE LEARNER WAITS FOREVER.
+       *
+       * `answer` returning a refusal is handled above. `answer` THROWING was
+       * not handled at all: the rejection was dropped, `setAsked` never ran,
+       * the record stayed `pending: true`, and the screen kept saying "Working
+       * on it…" with no answer and no explanation.
+       *
+       * MEASURED ON CI. `scene-regressions.spec.ts:454` reported
+       * `24 x locator resolved to 0 elements` waiting for `.lc-teach__answer`
+       * -- ZERO elements, not a refusal element, because the component never
+       * left the pending branch. It failed on `desktop-1440`, then
+       * `square-900`, then `mobile-375`: three viewports across three runs,
+       * which is what a timing-dependent dropped rejection looks like rather
+       * than a layout bug.
+       *
+       * It became reachable when `engineResolver` gained a deadline. A dead
+       * middleware used to hang forever; now it throws after 3s, and the throw
+       * landed here. The deadline was right. The missing catch is what turned
+       * it into a permanent spinner.
+       *
+       * A rung failing is ordinary and the chain is built for it. SILENCE is
+       * not ordinary. The learner is told, in the same place the answer would
+       * have appeared, and the record leaves `pending` either way.
+       */
+      const why = error instanceof Error ? error.message : String(error)
+      setAsked((previous) =>
+        previous.map((record) =>
+          record.at === at
+            ? {
+                ...record,
+                pending: false,
+                prose:
+                  'That question could not be answered just now — ' +
+                  `${why}. Ask it again, or carry on and come back to it.`,
+              }
+            : record,
+        ),
+      )
+      setAnnouncement('Your question could not be answered. The reason is above the checkpoint.')
       })
       /* Released on EVERY path, including a rejection. `answering.answer` is
          written not to throw, and a guard that trusts that is one refactor away

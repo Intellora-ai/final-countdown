@@ -44,7 +44,7 @@ export const ENGINE_PYTHON_ENV = 'LEARNING_OS_PYTHON'
 const TIMEOUT_MS = 60_000
 
 /** A question is a sentence. Anything larger is not a question. */
-const MAX_DOUBT_BODY_BYTES = 8_000
+export const MAX_DOUBT_BODY_BYTES = 8_000
 
 export interface DoubtEngineOptions {
   /** Repository root, so the engine can be found relative to it. */

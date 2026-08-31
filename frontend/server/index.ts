@@ -26,6 +26,7 @@ import type { Readable } from 'node:stream'
 import { createHandler, type DoubtPort, type ModelPort, type SearchPort } from './handler.ts'
 import { doubtPort } from './doubtEngine.ts'
 import { createSearchPort } from './searchPort.ts'
+import { ENDPOINT as SEARCH_ROUTE } from './searchWeb.ts'
 import { createModel } from './model.ts'
 import { createLedger, type Ledger } from './almanac/ledger.ts'
 import { serveStatic } from './static.ts'
@@ -116,8 +117,17 @@ export interface ServerOptions {
   readonly trustProxy?: boolean
 }
 
-/** The routes that reach a paid model or a paid search. */
-const PAID = new Set(['/api/lesson', '/api/ask', '/api/doubt', '/api/search'])
+/**
+ * The routes that reach a paid model or a paid search.
+ *
+ * The search route is taken from `searchWeb.ts`, which declares it, rather than
+ * spelled again here. It was spelled again here, and the copy was the only
+ * reason the declaration had no reader: the reachability gate reported
+ * `server/searchWeb.ts exports ENDPOINT, and no shipping file imports it` while
+ * this process served that exact path. A constant nothing imports is a constant
+ * that can be renamed without anyone finding out.
+ */
+const PAID = new Set(['/api/lesson', '/api/ask', '/api/doubt', SEARCH_ROUTE])
 
 /**
  * Who to count this request against.

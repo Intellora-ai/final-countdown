@@ -97,7 +97,7 @@ export const ENDPOINT_ENV = 'WEB_SEARCH_ENDPOINT'
 const ASK_FOR = 10
 
 /** A question is a sentence. Anything larger is not a question. */
-const MAX_SEARCH_BODY_BYTES = 8_000
+export const MAX_SEARCH_BODY_BYTES = 8_000
 
 /** Long enough for a search plus five page reads, short enough to not hang a learner. */
 const TIMEOUT_MS = 20_000

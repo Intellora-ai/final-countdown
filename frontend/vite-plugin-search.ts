@@ -6,7 +6,8 @@ import {
   ENDPOINT,
   API_KEY_ENV,
   ENDPOINT_ENV,
-  MAX_BODY_BYTES,
+  failed,
+  MAX_SEARCH_BODY_BYTES,
   searchTheOpenWeb,
   type FetchJson,
   type SearchDeps,
@@ -26,7 +27,7 @@ export {
   ENDPOINT,
   API_KEY_ENV,
   ENDPOINT_ENV,
-  MAX_BODY_BYTES,
+  MAX_SEARCH_BODY_BYTES,
   searchTheOpenWeb,
 }
 export type { FetchJson, SearchDeps, SearchReply, SearchReplyBody, SearchedPage }
@@ -58,7 +59,7 @@ export function searchPlugin(): Plugin {
 
         request.on('data', (chunk: Buffer) => {
           size += chunk.length
-          if (size > MAX_BODY_BYTES) {
+          if (size > MAX_SEARCH_BODY_BYTES) {
             aborted = true
             const tooLong = failed(413, 'that question is too long', '')
             response.statusCode = tooLong.status

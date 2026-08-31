@@ -6,7 +6,7 @@ import {
   ENGINE_PYTHON_ENV,
   explainStderr,
   interpreterFor,
-  MAX_BODY_BYTES,
+  MAX_DOUBT_BODY_BYTES,
   type DoubtEngineOptions,
   type EngineReply,
 } from './server/doubtEngine'
@@ -26,7 +26,7 @@ import {
  */
 
 /** Re-exported so existing callers and tests keep one import site. */
-export { askEngine, ENGINE_PYTHON_ENV, explainStderr, interpreterFor, MAX_BODY_BYTES }
+export { askEngine, ENGINE_PYTHON_ENV, explainStderr, interpreterFor, MAX_DOUBT_BODY_BYTES }
 export type { DoubtEngineOptions, EngineReply }
 
 /** Kept for source compatibility with callers that named the old type. */
@@ -59,7 +59,7 @@ export function enginePlugin(options: EnginePluginOptions = {}): Plugin {
 
         request.on('data', (chunk: Buffer) => {
           size += chunk.length
-          if (size > MAX_BODY_BYTES) {
+          if (size > MAX_DOUBT_BODY_BYTES) {
             aborted = true
             response.statusCode = 413
             response.setHeader('content-type', 'application/json')

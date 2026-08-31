@@ -54,6 +54,15 @@ export interface FetchResponse {
   readonly ok: boolean
   readonly status: number
   json(): Promise<unknown>
+  /**
+   * Response headers, when the caller has them.
+   *
+   * OPTIONAL SO EVERY EXISTING DOUBLE STAYS VALID. Only the Groq client reads
+   * them, and only to obey the service's own rate-limit reset instead of
+   * guessing a wait. A double that does not supply headers simply falls back
+   * to the fixed waits, which is what it did before this existed.
+   */
+  readonly headers?: { get(name: string): string | null }
 }
 
 export type FetchLike = (

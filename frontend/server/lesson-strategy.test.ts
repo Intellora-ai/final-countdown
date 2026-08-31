@@ -25,6 +25,15 @@ const VALID_LESSON = {
 }
 
 const search: SearchPort = { search: async () => [] }
+/* The key this server signs identities with.
+ *
+ * `createHandler` REQUIRES one and has no default, on purpose -- see
+ * `server/identity.ts`: a fallback in the source would be a signature every
+ * reader can reproduce. These proofs are not about identity, so the value is
+ * arbitrary; it is a fixture and protects nothing.
+ */
+const A_TEST_SECRET = 'test-secret-not-used-anywhere-real'
+
 
 /** Captures the brief the handler hands the model. */
 function recordingModel() {
@@ -43,7 +52,7 @@ const ask = (body: Record<string, unknown>) => ({ method: 'POST', path: '/api/le
 describe('the server decides how to teach', () => {
   it('chooses a worked example the first time, and says so in the reply', async () => {
     const { port } = recordingModel()
-    const res = await createHandler({ model: port, search })(ask({ concept: 'Photosynthesis' }))
+    const res = await createHandler({ model: port, search, identitySecret: A_TEST_SECRET })(ask({ concept: 'Photosynthesis' }))
 
     expect(res.status).toBe(200)
     expect(res.body['strategy']).toBe('worked_example')
@@ -51,7 +60,7 @@ describe('the server decides how to teach', () => {
 
   it('changes tactics when the concept has already been attempted twice', async () => {
     const { port } = recordingModel()
-    const res = await createHandler({ model: port, search })(
+    const res = await createHandler({ model: port, search, identitySecret: A_TEST_SECRET })(
       ask({ concept: 'Photosynthesis', attempts: 2 }),
     )
     expect(res.body['strategy']).toBe('change_representation')
@@ -59,7 +68,7 @@ describe('the server decides how to teach', () => {
 
   it('breaks a carried-over concept down instead of repeating it', async () => {
     const { port } = recordingModel()
-    const res = await createHandler({ model: port, search })(
+    const res = await createHandler({ model: port, search, identitySecret: A_TEST_SECRET })(
       ask({ concept: 'Photosynthesis', attempts: 1, carriedFrom: '2026-08-24' }),
     )
     expect(res.body['strategy']).toBe('decomposition')
@@ -67,7 +76,7 @@ describe('the server decides how to teach', () => {
 
   it('repairs a named misconception rather than reteaching', async () => {
     const { port } = recordingModel()
-    const res = await createHandler({ model: port, search })(
+    const res = await createHandler({ model: port, search, identitySecret: A_TEST_SECRET })(
       ask({ concept: 'Photosynthesis', diagnosis: 'misconception' }),
     )
     expect(res.body['strategy']).toBe('misconception_repair')
@@ -77,7 +86,7 @@ describe('the server decides how to teach', () => {
     /* The effect, not the call. A handler that recorded the strategy in its
      * reply and told the model nothing would satisfy every check above. */
     const { port, seen } = recordingModel()
-    await createHandler({ model: port, search })(ask({ concept: 'Photosynthesis', attempts: 3 }))
+    await createHandler({ model: port, search, identitySecret: A_TEST_SECRET })(ask({ concept: 'Photosynthesis', attempts: 3 }))
 
     const brief = seen[0] as { strategy?: string }
     expect(brief.strategy).toBe('analogy')
@@ -88,7 +97,7 @@ describe('the server decides how to teach', () => {
      * a page pick "transfer_challenge" for a student meeting a topic for the
      * first time. */
     const { port } = recordingModel()
-    const res = await createHandler({ model: port, search })(
+    const res = await createHandler({ model: port, search, identitySecret: A_TEST_SECRET })(
       ask({ concept: 'Photosynthesis', strategy: 'transfer_challenge' }),
     )
     expect(res.body['strategy']).toBe('worked_example')
@@ -96,7 +105,7 @@ describe('the server decides how to teach', () => {
 
   it('survives junk in every history field, and still teaches', async () => {
     const { port } = recordingModel()
-    const handle = createHandler({ model: port, search })
+    const handle = createHandler({ model: port, search, identitySecret: A_TEST_SECRET })
     for (const history of [
       { attempts: 'lots' }, { attempts: -5 }, { attempts: null }, { attempts: Infinity },
       { diagnosis: 'marmalade' }, { diagnosis: 42 }, { carriedFrom: 999 },
@@ -110,13 +119,13 @@ describe('the server decides how to teach', () => {
 
   it('still refuses a request with no concept', async () => {
     const { port } = recordingModel()
-    const res = await createHandler({ model: port, search })(ask({ attempts: 2 }))
+    const res = await createHandler({ model: port, search, identitySecret: A_TEST_SECRET })(ask({ attempts: 2 }))
     expect(res.status).toBe(400)
   })
 
   it('reports the strategy even when the model fails, so the decision is not lost', async () => {
     const failing: ModelPort = { lesson: async () => { throw new Error('upstream down') } }
-    const res = await createHandler({ model: failing, search })(ask({ concept: 'X', attempts: 2 }))
+    const res = await createHandler({ model: failing, search, identitySecret: A_TEST_SECRET })(ask({ concept: 'X', attempts: 2 }))
 
     expect(res.status).toBe(502)
     expect(res.body['strategy']).toBe('change_representation')
@@ -129,7 +138,7 @@ describe('the server decides how to teach', () => {
 describe('/api/ask is a question, not a taught concept', () => {
   it('carries no strategy, because there is no concept being taught', async () => {
     const { port } = recordingModel()
-    const res = await createHandler({ model: port, search })({
+    const res = await createHandler({ model: port, search, identitySecret: A_TEST_SECRET })({
       method: 'POST', path: '/api/ask', body: { question: 'why is the sky blue?' },
     })
     expect(res.status).toBe(200)

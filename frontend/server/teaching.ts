@@ -60,6 +60,26 @@ export interface TeachingState {
   readonly carriedFrom?: string
   /** A named failure, when something has identified one. */
   readonly diagnosis?: Diagnosis | string
+  /**
+   * Every approach this learner has ALREADY been taught this concept with.
+   *
+   * WHY A COUNT WAS NOT ENOUGH, AND THIS IS.
+   *   Selection used to be `attempts` alone, so every attempt from the third
+   *   onwards returned `analogy` -- ask four times, be taught by analogy four
+   *   times. "Never repeat" is not a claim about how many times she asked; it
+   *   is a claim about what she has already been shown, and no count can carry
+   *   that.
+   *
+   * OPTIONAL, SO NOTHING THAT EXISTS CHANGES. A caller that does not know the
+   * history gets exactly the answer it always got -- with nothing known about
+   * what was tried, the count really is the only signal there is. Only a
+   * caller that knows can do better, and now it can.
+   *
+   * Typed as plain strings because it arrives from stored data, which outlives
+   * the code that wrote it. Anything unrecognised is ignored rather than
+   * trusted; see `alreadyTried`.
+   */
+  readonly alreadyUsed?: readonly string[]
 }
 
 /**
@@ -95,7 +115,54 @@ function isDiagnosis(value: unknown): value is Diagnosis {
  *   twice and still not landing the words are not working; change the form
  *   three or more              reach outside the topic for something familiar
  */
-export function chooseStrategy(state: TeachingState): Strategy {
+function isStrategy(value: unknown): value is Strategy {
+  return typeof value === 'string' && (STRATEGIES as readonly string[]).includes(value)
+}
+
+/**
+ * What she has really been taught with, out of whatever was handed in.
+ *
+ * ANYTHING UNRECOGNISED IS DROPPED, NOT TRUSTED. This history comes from stored
+ * data, and stored data outlives the code that wrote it: a strategy that was
+ * renamed, or a half-written record, must never stop a learner being taught.
+ */
+function alreadyTried(state: TeachingState): ReadonlySet<Strategy> {
+  return new Set((state.alreadyUsed ?? []).filter(isStrategy))
+}
+
+/**
+ * The order to reach for a fresh approach in, once the obvious one is spent.
+ *
+ * IT IS A TEACHING ORDER, NOT AN ARBITRARY ONE. It walks from showing, through
+ * changing the form, to reaching outside the topic altogether -- the same
+ * progression the count-based rules already encode, extended past where they
+ * stopped. The two diagnosis-driven repairs sit last because they answer a
+ * NAMED failure; reaching for them with no diagnosis is a guess.
+ *
+ * EVERY STRATEGY APPEARS HERE EXACTLY ONCE, AND THAT IS PROVEN RATHER THAN
+ * PROMISED. `teaching.test.ts` "gives a genuinely new approach every time"
+ * feeds each choice back as history for as many turns as there are strategies
+ * and asserts the set of answers is the WHOLE vocabulary. A name missing from
+ * this list would be a strategy the product could never reach, and the count
+ * would come up short; a name listed twice would be a repeat wearing a
+ * disguise, and the no-repeat assertion would catch it on the second visit.
+ */
+const WHEN_THE_OBVIOUS_ONE_IS_SPENT: readonly Strategy[] = [
+  'worked_example',
+  'decomposition',
+  'change_representation',
+  'guided_reasoning',
+  'contrast',
+  'analogy',
+  'new_context',
+  'broken_example_repair',
+  'transfer_challenge',
+  'prerequisite_repair',
+  'misconception_repair',
+]
+
+/** The choice that ignores history — the rules exactly as they always were. */
+function withoutHistory(state: TeachingState): Strategy {
   if (isDiagnosis(state.diagnosis)) {
     const named = FOR_DIAGNOSIS[state.diagnosis]
     if (named !== undefined) return named
@@ -110,6 +177,34 @@ export function chooseStrategy(state: TeachingState): Strategy {
   if (attempts >= 3) return 'analogy'
   if (attempts === 2) return 'change_representation'
   return 'worked_example'
+}
+
+export function chooseStrategy(state: TeachingState): Strategy {
+  const spent = alreadyTried(state)
+
+  /* THE BEST ANSWER FIRST, AND ONLY REPLACED IF SHE HAS HAD IT.
+   *
+   * A named diagnosis still outranks everything, because it is the most
+   * specific thing anyone knows. History only overrules it once that exact
+   * repair has been given -- repairing the same misconception the same way
+   * twice is precisely the repeat this rule exists to prevent. */
+  const best = withoutHistory(state)
+  if (!spent.has(best)) return best
+
+  for (const candidate of WHEN_THE_OBVIOUS_ONE_IS_SPENT) {
+    if (!spent.has(candidate)) return candidate
+  }
+
+  /* EVERY APPROACH HAS BEEN USED, AND SAYING SO HONESTLY MATTERS.
+   *
+   * There are eleven. A twelfth ask cannot have a new one, and inventing a
+   * value outside the vocabulary would hand the model an instruction that does
+   * not exist -- a lesson with no teaching shape at all.
+   *
+   * Past this point variation has to come from the WORDING rather than the
+   * approach, which is a different mechanism and not this function's job. What
+   * this function must never do is fail. */
+  return best
 }
 
 /**

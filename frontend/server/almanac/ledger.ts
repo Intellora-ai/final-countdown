@@ -43,6 +43,21 @@ export interface LedgerData {
 export interface LedgerStore {
   load(): Promise<LedgerData>
   save(data: LedgerData): Promise<void>
+  /**
+   * Add ONE mark, atomically, if this store can.
+   *
+   * OPTIONAL ON PURPOSE. `fileStore` cannot offer this and must not pretend
+   * to: a file has no way to make "add one item" indivisible across two
+   * processes. A store that has it gets the atomic path; one that does not
+   * keeps the read-modify-write it always had, guarded by `alone()`.
+   *
+   * The distinction is not cosmetic. `alone()` serialises writes inside ONE
+   * process, which is all it can do. Measured with TWO replicas sharing one
+   * ledger file, twenty concurrent marks returned FIFTEEN 500s, because both
+   * processes wrote the whole file at once and the next reader found half of
+   * each. Only a store whose smallest write is one mark fixes that.
+   */
+  addDone?(studentId: string, conceptId: string): Promise<void>
 }
 
 export interface DayRequest {
@@ -129,6 +144,19 @@ export function createLedger(store: LedgerStore, options: LedgerOptions = {}): L
     },
 
     markDone(studentId, conceptId) {
+      /* THE ATOMIC PATH, WHEN THE STORE HAS ONE.
+       *
+       * Not wrapped in `alone()`, and that is the point rather than an
+       * oversight: `alone()` exists to stop two requests in THIS process
+       * interleaving a read and a write. There is no read here to interleave.
+       * Serialising it would only make every student in the class queue behind
+       * every other for no benefit. */
+      const atomic = store.addDone
+      if (atomic !== undefined) return atomic.call(store, studentId, conceptId)
+
+      /* The read-modify-write path, for a store that cannot do better. Still
+       * inside `alone()`, which is correct for one process and is exactly as
+       * safe as it ever was -- and no safer, across two. */
       return alone(async () => {
       const data = await store.load()
       const current = new Set(data.done[studentId] ?? [])

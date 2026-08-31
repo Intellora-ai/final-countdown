@@ -23,21 +23,56 @@ import { memoryStore } from './ledger.test.ts'
 const model: ModelPort = { lesson: async () => ({}) }
 const search: SearchPort = { search: async () => [] }
 
+/* The key this server signs identities with.
+ *
+ * `createHandler` REQUIRES one and has no default, on purpose -- see
+ * `server/identity.ts`: a fallback in the source would be a signature every
+ * reader can reproduce. These proofs are not about identity, so the value is
+ * arbitrary; it is a fixture and protects nothing.
+ */
+const A_TEST_SECRET = 'test-secret-not-used-anywhere-real'
+
+
 let store: LedgerStore
 
 beforeEach(() => {
   store = memoryStore()
 })
 
+/**
+ * One handler, driven as ONE BROWSER — the cookie is carried between calls.
+ *
+ * WHY THIS WRAPPER HAD TO EXIST. These proofs used to send
+ * `body: { studentId: 'stu_1' }` and the server believed it. It no longer can:
+ * identity is assigned by the server and signed, precisely so a caller cannot
+ * name a student (see `server/identity.ts`). Without a cookie jar every single
+ * request arrives as a BRAND-NEW student, so a day fetched by one and marked
+ * done by another can never agree — which is exactly how these read after the
+ * change, and it was the harness at fault, not the product.
+ *
+ * A real browser keeps its cookie. So does this.
+ */
 function handler() {
-  return createHandler({ model, search, almanac: createLedger(store) })
+  const handle = createHandler({
+    model, search, almanac: createLedger(store), identitySecret: A_TEST_SECRET,
+  })
+  let jar: string | undefined
+  return async (req: Parameters<typeof handle>[0]) => {
+    const response = await handle(jar === undefined ? req : { ...req, cookie: jar })
+    /* Remember the identity the server issued, exactly as a browser does. */
+    if (response.setCookie !== undefined) jar = response.setCookie.split(';')[0]
+    return response
+  }
 }
 
 const DAY = {
   method: 'POST',
   path: '/api/day',
   body: {
-    studentId: 'stu_1',
+    /* NO `studentId` HERE, AND ITS ABSENCE IS THE POINT.
+   * The server assigns identity and signs it; a body that names a student is
+   * refused with 403 once the caller holds a cookie. See `server/identity.ts`
+   * and the forgery proof below. */
     date: '2026-08-25',
     schoolClass: 10,
     subjectIds: ['science', 'mathematics'],
@@ -107,7 +142,7 @@ describe('POST /api/day', () => {
   })
 
   it('answers 503 when no ledger is configured, rather than pretending', async () => {
-    const res = await createHandler({ model, search })(DAY)
+    const res = await createHandler({ model, search, identitySecret: A_TEST_SECRET })(DAY)
     expect(res.status).toBe(503)
   })
 })
@@ -118,7 +153,7 @@ describe('POST /api/done', () => {
     const day = (await h(DAY)).body['day'] as { items: Array<{ conceptId: string }> }
     const finished = day.items[0].conceptId
 
-    const res = await h({ method: 'POST', path: '/api/done', body: { studentId: 'stu_1', conceptId: finished } })
+    const res = await h({ method: 'POST', path: '/api/done', body: { conceptId: finished } })
     expect(res.status).toBe(200)
 
     const tomorrow = (await h({ ...DAY, body: { ...DAY.body, date: '2026-08-26' } })).body['day'] as {
@@ -131,18 +166,38 @@ describe('POST /api/done', () => {
     const h = handler()
     const before = (await h(DAY)).body['day']
     const day = before as { items: Array<{ conceptId: string }> }
-    await h({ method: 'POST', path: '/api/done', body: { studentId: 'stu_1', conceptId: day.items[0].conceptId } })
+    await h({ method: 'POST', path: '/api/done', body: { conceptId: day.items[0].conceptId } })
     expect((await h(DAY)).body['day']).toEqual(before)
   })
 
   it('refuses a request with no concept', async () => {
-    const res = await handler()({ method: 'POST', path: '/api/done', body: { studentId: 'stu_1' } })
+    const res = await handler()({ method: 'POST', path: '/api/done', body: {} })
     expect(res.status).toBe(400)
   })
 
-  it('refuses a request with no student', async () => {
-    const res = await handler()({ method: 'POST', path: '/api/done', body: { conceptId: 'x' } })
-    expect(res.status).toBe(400)
+  it('files the work under the student the SERVER identified, not one the caller named', async () => {
+    /* THIS TEST WAS REVERSED, AND THE OLD VERSION PINNED A DEFECT.
+     *
+     * It used to post `{ conceptId: 'x' }` with no student and expect 400,
+     * because the caller was required to say who it was. That requirement was
+     * the hole: anyone could name any student and mark THEIR work done. The
+     * server now assigns identity and signs it, so "no student" is impossible
+     * rather than refused, and a caller naming someone else is turned away.
+     *
+     * Closing the hole is what makes this expectation change; the assertion is
+     * stronger than the one it replaces, not weaker. */
+    const h = handler()
+    const first = await h({ method: 'POST', path: '/api/done', body: { conceptId: 'x' } })
+    expect(first.status).toBe(200)
+
+    /* And the identity was issued by the server, not taken from the request. */
+    expect(first.setCookie).toBeDefined()
+
+    /* A caller that now HAS an identity may not claim a different one. */
+    const forged = await h({
+      method: 'POST', path: '/api/done', body: { studentId: 'somebody-else', conceptId: 'x' },
+    })
+    expect(forged.status).toBe(403)
   })
 
   it('is the only thing that marks work finished', async () => {

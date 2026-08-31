@@ -109,28 +109,48 @@ function refusalFrom(
     }
   }
 
+  /* THE LEARNER IS NOT TOLD THE NAMES OF THE PARTS.
+   *
+   * These sentences used to end "I asked: lesson, engine, web." -- the internal
+   * names of the resolver rungs, printed to a child. Measured in a browser: a
+   * learner who asked about baking a cake read "This lesson is about: Why does
+   * increasing temperature increase pressure in a gas? I asked: lesson, engine,
+   * web." She has no idea what any of those three words mean here, and one of
+   * them is actively misleading, because the web rung DECLINED rather than
+   * searched.
+   *
+   * The intent behind it was right and is kept: say honestly whether something
+   * was unreachable, so a learner knows the difference between "there is no
+   * answer" and "I could not go and look". That is a fact about her question.
+   * The component that failed is a fact about us. */
   if (refused.length === 0 && failed.length > 0) {
-    const names = failed.map((t) => t.name).join(', ')
     return {
       kind: 'refusal',
+      /* "COULD NOT BE REACHED", MATCHING THE OTHER BRANCH BELOW.
+       *
+       * This said "nothing I use to look things up could be reached". That
+       * parses correctly and reads as its own opposite at a glance — and the
+       * sibling sentence twenty lines down already says "could not be reached"
+       * for the very same event. One product, two phrasings for one fact, and
+       * the more confusing one was on the path a learner hits when EVERYTHING
+       * failed. */
       reason:
-        `I could not answer that because every source I can ask could not be reached ` +
-        `(${names}). That is a problem on this end, not with your question — it is ` +
-        `worth asking again in a moment.`,
+        `I could not answer that, because the things I use to look things up could ` +
+        `not be reached just now. That is a problem on this end, not with your ` +
+        `question — it is worth asking again in a moment.`,
       nearest,
     }
   }
 
-  const asked = tried.map((t) => t.name).join(', ')
   const base = first?.reason ?? 'I could not find an answer to that.'
   const failedNote =
     failed.length > 0
-      ? ` ${failed.map((t) => t.name).join(', ')} could not be reached, so there may be an answer I did not get to see.`
+      ? ` Some of what I use to look things up could not be reached, so there may be an answer I did not get to see.`
       : ''
 
   return {
     kind: 'refusal',
-    reason: `${base} I asked: ${asked}.${failedNote}`,
+    reason: `${base}${failedNote}`,
     nearest,
   }
 }

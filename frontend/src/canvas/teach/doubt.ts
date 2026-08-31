@@ -198,6 +198,7 @@ function tokenVariants(text: string): string[][] {
  */
 export const HALF = 0.5
 
+
 function accepts(nameTokens: readonly string[], typed: ReadonlySet<string>): number {
   let matched = 0
   for (const token of nameTokens) if (typed.has(token)) matched += 1
@@ -254,6 +255,17 @@ interface Indexed {
   question: Set<string>
   /** Every word each block uses anywhere, captions and bodies included. */
   vocabulary: Map<string, Set<string>>
+  /**
+   * For each block, the words it uses to say what it is ABOUT — its title, its
+   * caption, its body. Never a label.
+   *
+   * This is a NARROWER set than `vocabulary`, and the narrowing is the whole
+   * point. A label is a name painted on one part of the block; a title and a
+   * caption are the author writing about the block itself. Only
+   * `answersADefinition` reads this, and the distinction is the one thing it
+   * decides on.
+   */
+  describes: Map<string, Set<string>>
   /** The union of all of it — the lesson's whole vocabulary. */
   known: Set<string>
 }
@@ -277,6 +289,25 @@ function captionOf(block: Block): string | undefined {
 
 function bodyOf(block: Block): string | undefined {
   return block.kind === 'prose' || block.kind === 'callout' ? block.body : undefined
+}
+
+/**
+ * The representation's own name, spaced out, and only when it is more than one
+ * word.
+ *
+ * "confusionMatrix" and "precisionRecall" are things a lesson is teaching and a
+ * learner will type them. "line", "bar" and "table" are drawing words that
+ * would match half the questions ever asked.
+ *
+ * ONE COPY, READ TWICE. `mentionsOf` uses it to decide what can be MATCHED;
+ * `buildIndex` uses it to decide what a block SAYS ABOUT ITSELF. Those are two
+ * different decisions and they must agree on which names are real, or a doubt
+ * could match a name that the same block is then judged never to have used.
+ */
+function representationName(block: Block): string | null {
+  if (block.kind !== 'figure') return null
+  const spaced = block.as.replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+  return spaced.includes(' ') ? spaced : null
 }
 
 function payloadLabels(data: Payload, add: (text: string) => void): void {
@@ -378,14 +409,9 @@ function mentionsOf(block: Block, blockIndex: number, out: Mention[]): void {
       for (const readout of block.readouts) add(readout)
       break
     case 'figure': {
-      /*
-       * The representation's own name, but only when it is more than one word.
-       * "confusionMatrix" and "precisionRecall" are things this lesson is
-       * teaching and a learner will type them. "line", "bar" and "table" are
-       * drawing words that would match half the questions ever asked.
-       */
-      const spaced = block.as.replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-      if (spaced.includes(' ')) add(spaced)
+      /* See `representationName` for why a one-word `as` is not a name. */
+      const named = representationName(block)
+      if (named) add(named)
       payloadLabels(block.data, add)
       break
     }
@@ -396,6 +422,7 @@ function buildIndex(lesson: Lesson): Indexed {
   const mentions: Mention[] = []
   const sentences: Sentence[] = []
   const vocabulary = new Map<string, Set<string>>()
+  const describes = new Map<string, Set<string>>()
   const known = new Set<string>()
 
   lesson.blocks.forEach((block, blockIndex) => {
@@ -412,12 +439,33 @@ function buildIndex(lesson: Lesson): Indexed {
     for (const token of contentTokens(bodyOf(block) ?? '')) prose.add(token)
     if (prose.size > 0) sentences.push({ blockId: block.id, blockIndex, tokens: prose })
 
+    /* What the block calls ITSELF, as a whole: its title, the representation it
+       declares itself to be, and the prose it carries. A node label, a pie
+       slice, a table row and an axis tick all name PARTS, and none of them is
+       the block saying what it is.
+
+       A COPY, and the two extra sources go on the copy only. `sentences` above
+       holds `prose` by reference and must never gain a title: the sentence rule
+       is far looser than the name rule, and letting it reach titles would undo
+       the ordering in `resolve` that keeps a name match ahead of a caption. */
+    const said = new Set(prose)
+    for (const token of contentTokens(block.title ?? '')) said.add(token)
+    for (const token of contentTokens(representationName(block) ?? '')) said.add(token)
+    describes.set(block.id, said)
+
     for (const token of prose) vocab.add(token)
     vocabulary.set(block.id, vocab)
     for (const token of vocab) known.add(token)
   })
 
-  return { mentions, sentences, question: new Set(contentTokens(lesson.question)), vocabulary, known }
+  return {
+    mentions,
+    sentences,
+    question: new Set(contentTokens(lesson.question)),
+    vocabulary,
+    describes,
+    known,
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -853,6 +901,124 @@ function isWhy(raw: readonly string[]): boolean {
 }
 
 /**
+ * Is this a request for a DEFINITION -- "what is X", "what does X mean"?
+ *
+ * It matters because a definition is the one question shape a name on its own
+ * cannot answer. See `answersADefinition` below.
+ *
+ * "WHAT DOES" IS NOT A DEFINITION FRAME. THE VERB ON THE END IS.
+ * -------------------------------------------------------------
+ * `does` used to sit beside `is` and `are` in the loop below, which made "what
+ * does the confusion matrix SHOW" a definition ask. MEASURED, on the classifier
+ * lesson: that doubt was then refused an answer the lesson plainly had.
+ * `bestMatch` found the block whose representation is literally named
+ * `confusionMatrix`; the definition gate threw the match away for not being a
+ * title; and the doubt fell through to the summary PARAGRAPH. A learner asked
+ * what a picture shows and was handed prose about something else. Three tests
+ * fell with it, two of them the ones asserting that an answer about a chart is
+ * a chart rather than a wall of text.
+ *
+ * "what does X mean" is still caught, by the `what` + `mean` clause below,
+ * because the word that makes it a definition ask is `mean` and never `does`.
+ * "what does X show", "what does X do", "what does X happen" carry no such
+ * word. They ask what the thing DOES, and a picture answers that.
+ */
+function isWhatIs(raw: readonly string[]): boolean {
+  for (let i = 0; i < raw.length - 1; i++) {
+    const here = raw[i]
+    const next = raw[i + 1]
+    if ((here === 'what' || here === 'whats') && (next === 'is' || next === 'are')) return true
+  }
+  return raw.includes('define') || raw.includes('definition') || raw.includes('meaning')
+    || raw.includes('whats') || (raw.includes('what') && raw.includes('mean'))
+}
+
+/**
+ * A LABEL IS NOT A DEFINITION OF ITSELF.
+ *
+ * MEASURED, IN A BROWSER, BEFORE THIS FUNCTION EXISTED. A learner on the gas
+ * lesson typed "what is kinetic energy? i dont understand it". The words
+ * `kinetic` and `energy` both occur in the causal chain, as the text of one
+ * node: "Increased kinetic energy". `bestMatch` found that node, `isGuess`
+ * cleared it because two words had matched, and `aloneStrategy` handed back the
+ * whole chain -- the diagram she was already looking at -- under the heading
+ * "IN ANSWER TO YOUR QUESTION". She learned nothing and was told she had been
+ * answered. Words gained: zero.
+ *
+ * `relationStrategy` above already draws exactly this distinction for "why",
+ * and its comment states the principle: naming something INSIDE a block is
+ * asking about a part. The rule was simply never applied to "what is", which is
+ * the one question shape where the distinction decides between an explanation
+ * and an echo.
+ *
+ * WHAT DECIDES IS NOT THE ROLE. IT IS WHETHER THE BLOCK SAYS THE WORD ITSELF.
+ * ---------------------------------------------------------------------------
+ * The first version of this rule asked `role === 'title'`, and that was blunt
+ * in a way that was MEASURED too, in the opposite direction. On the classifier
+ * lesson "what does precision mean" was REFUSED. `Precision` is the y axis of
+ * the precision-recall figure, so the match carries role `label`; but that
+ * block is TITLED "Precision-recall tells the truth" and captioned with a
+ * sentence about the tradeoff precision buys. The author HAD written about
+ * precision, in prose, on the very block that matched -- and the rule threw it
+ * away because the word the learner typed happened to be painted on an axis
+ * rather than in the heading. Same refusal for "what is precision recall",
+ * which took three tests in `TeachView.test.tsx` down with it.
+ *
+ * So the question is not what ROLE the match carries. It is whether the block
+ * SAYS the words the learner asked about when it is describing ITSELF -- in its
+ * title, in the representation it declares itself to be, or in the prose it
+ * carries. `buildIndex` collects exactly that, per block, as `describes`. That
+ * is what separates the measured cases, and it is the same thing as asking
+ * whether the learner gains any words she did not already have on screen:
+ *
+ *   pr            titled "Precision-recall tells the truth" + a caption  -> yes
+ *   features      declares itself `as: 'featureImportance'`              -> yes
+ *   causal-chain  titled "What actually happens", caption "Each step .." -> no
+ *
+ * `kinetic` and `energy` appear NOWHERE in what the causal chain says about
+ * itself. They are painted on one node of the diagram she was already looking
+ * at, which is precisely the echo this function exists to stop. A node, a pie
+ * slice, a table row and an axis tick all name PARTS; the three sources above
+ * are the only places a block speaks for the whole of itself.
+ *
+ * A TITLE MATCH STILL PASSES, BY CONSTRUCTION AND UNCONDITIONALLY: a title's
+ * tokens are a subset of what the block says about itself, in both spellings of
+ * it (`tokenVariants` only ever drops words). This rule is therefore a strict
+ * WIDENING of the old one -- nothing the old one allowed is now refused -- and
+ * the widening is held down at the other end by
+ * "refuses a definition ask that only echoes a label back" in the tests, which
+ * goes red the moment any block is allowed to answer a definition ask.
+ *
+ * WHAT THIS DELIBERATELY DOES NOT DO. It does not try to write a definition,
+ * and it does not lower the bar so something comes back. The doubt falls
+ * through to the looser sentence strategies, and if the author never explained
+ * the term anywhere, to `refuse` -- which says so, and says what the lesson IS
+ * about. Being told the truth is worth more to a stuck child than being handed
+ * her own screen back.
+ */
+function answersADefinition(
+  best: Match,
+  raw: readonly string[],
+  typed: ReadonlySet<string>,
+  describes: ReadonlyMap<string, ReadonlySet<string>>,
+): boolean {
+  if (!isWhatIs(raw)) return true
+
+  const said = describes.get(best.mention.blockId)
+  if (!said) return false
+
+  /* Only the words the learner actually typed are asked for. A mention of
+     "Increased kinetic energy" answering a doubt about kinetic energy must not
+     be held to the word "increased", which the learner never used and which
+     says nothing about whether the block explains the term. */
+  for (const token of best.mention.tokens) {
+    if (!typed.has(token)) continue
+    if (!said.has(token)) return false
+  }
+  return true
+}
+
+/**
  * Answer a "why" about a whole block with the block the author linked to it.
  *
  * TITLE MATCHES ONLY, AND THAT IS THE INTERESTING PART
@@ -1068,7 +1234,12 @@ export const lessonResolver: DoubtResolver = {
        carries on to the looser strategies, because "the one name it hit was a
        coincidence" is not the same as "the lesson does not cover this". */
     const named = bestMatch(index.mentions, typed)
-    const best = named && !isGuess(named, typed, index.known) ? named : null
+    const solid = named && !isGuess(named, typed, index.known) ? named : null
+    /* A name match that cannot answer the SHAPE of the question is discarded
+       here for the same reason a guessy one is discarded above: the doubt
+       carries on to the looser strategies, because "this block names the thing"
+       is not the same as "this block explains the thing". */
+    const best = solid && answersADefinition(solid, raw, typed, index.describes) ? solid : null
     const asked = best ? lesson.blocks[best.mention.blockIndex] : undefined
 
     if (best && asked) {

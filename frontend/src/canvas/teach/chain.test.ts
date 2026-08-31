@@ -59,10 +59,23 @@ function answerer(name: string): AnyResolver {
   }
 }
 
-function refuser(name: string, nearest: readonly string[] = []): AnyResolver {
+/**
+ * A rung that declines.
+ *
+ * `reason` DEFAULTS to `"<name> has nothing"` because most proofs here need to
+ * tell one refusal from another, and the rung's name is the cheapest way. It is
+ * overridable because that default is unlike production: a real resolver writes
+ * a sentence for a LEARNER, which never contains the rung's internal name. A
+ * proof about what she reads must not be measuring this fixture's shorthand.
+ */
+function refuser(
+  name: string,
+  nearest: readonly string[] = [],
+  reason = `${name} has nothing`,
+): AnyResolver {
   return {
     name,
-    resolve: (): Resolution => ({ kind: 'refusal', reason: `${name} has nothing`, nearest }),
+    resolve: (): Resolution => ({ kind: 'refusal', reason, nearest }),
   }
 }
 
@@ -149,11 +162,48 @@ describe('a chain that cannot answer refuses rather than inventing', () => {
     expect(result.resolution.nearest).toEqual(['intro'])
   })
 
-  it('names every resolver that was asked, so the learner is not told a half-truth', async () => {
-    const result = await askChain(DOUBT, LESSON, [refuser('lesson'), refuser('web')])
+  it('records every resolver that was asked — for the operator, not in her sentence', async () => {
+    /* THIS TEST'S MECHANISM CHANGED. ITS INTENT DID NOT. SAID OUT LOUD.
+     *
+     * It used to require the refusal SENTENCE to contain "lesson" and "web" —
+     * the internal names of the rungs. `chain.ts` removed them and records why,
+     * measured in a browser: a learner who asked about baking a cake read
+     * "...I asked: lesson, engine, web." Three words that mean nothing to her,
+     * and one of them a lie, because the web rung DECLINED rather than searched.
+     *
+     * The intent — "the learner is not told a half-truth" — is exactly right and
+     * is kept. What changed is WHERE the names live. Which parts were asked is a
+     * fact about US and belongs in `tried`, where an operator can read it. What
+     * she reads is a fact about HER QUESTION.
+     *
+     * This is the one licence this repository grants for changing a passing
+     * expectation, and it is being used deliberately rather than quietly: the
+     * assertion below is STRONGER, because it pins both halves — every rung is
+     * still accounted for, AND none of their names is shown to her. The old
+     * version could not have caught a regression that started printing them
+     * again, since that was what it demanded. */
+    /* LEARNER-FACING REASONS, as real resolvers write. The default fixture
+     * reason embeds the rung's name, which would make the assertion below
+     * measure this file's shorthand instead of the product. */
+    const result = await askChain(DOUBT, LESSON, [
+      refuser('lesson', [], 'I could not find an answer to that in what you are reading.'),
+      refuser('web', [], 'I did not find anything usable when I went looking.'),
+    ])
     if (result.resolution.kind !== 'refusal') throw new Error('expected a refusal')
-    expect(result.resolution.reason).toContain('lesson')
-    expect(result.resolution.reason).toContain('web')
+
+    /* Every rung is accounted for, in the machine-readable record. */
+    expect(result.tried.map((t) => t.name)).toEqual(['lesson', 'web'])
+
+    /* And not one of those names is in what she reads. */
+    for (const internalName of ['lesson', 'web', 'engine', 'model', 'resolver']) {
+      expect(
+        result.resolution.reason.toLowerCase(),
+        `the learner was shown the internal name "${internalName}"`,
+      ).not.toContain(internalName)
+    }
+
+    /* She is still told something she can act on. */
+    expect(result.resolution.reason.length).toBeGreaterThan(20)
   })
 })
 

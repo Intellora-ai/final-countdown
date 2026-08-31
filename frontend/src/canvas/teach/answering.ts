@@ -55,6 +55,35 @@ const UNAVAILABLE = [
   'again in a moment and I will come back to it.',
 ].join(' ')
 
+/**
+ * The chain's "did you mean" list, turned into something a learner can read.
+ *
+ * `DoubtRefusal.nearest` holds BLOCK IDS -- `pr`, `features`, `threshold-cost`
+ * -- which are names for us and noise for her. Titled the same way
+ * `TeachView`'s answer footer titles `drawnFrom`, and by id only where a block
+ * has no title, because an id is worse to read than a title and far better than
+ * a silent gap.
+ *
+ * WHY THIS IS WORTH CARRYING AT ALL. It is the only CONCRETE help a refusal
+ * contains. Measured on the machine-learning lesson: "what is feature
+ * importance" refuses with `nearest: ['features']` -- the block whose caption
+ * is the answer she wanted. Until now that list was computed on every refusal
+ * and read by nobody.
+ */
+function nearestLine(nearest: readonly string[], lesson: Lesson): string {
+  const titles = nearest
+    .map((id) => lesson.blocks.find((block) => block.id === id)?.title ?? id)
+    .filter((title) => title.trim() !== '')
+  if (titles.length === 0) return ''
+  return `The closest parts of this lesson are: ${titles.join(' · ')}.`
+}
+
+/** Paragraphs, joined the way `TeachView` splits them again. Blank parts are
+ *  dropped so an absent "did you mean" list cannot leave a trailing gap. */
+function paragraphs(...parts: readonly string[]): string {
+  return parts.map((part) => part.trim()).filter((part) => part !== '').join('\n\n')
+}
+
 export function createAnswering(options: { resolvers: readonly AnyResolver[]; ask: AskPort }) {
   return {
     async answer(doubt: Doubt, lesson: Lesson): Promise<Answered> {
@@ -69,7 +98,24 @@ export function createAnswering(options: { resolvers: readonly AnyResolver[]; as
        *
        * Neither idea was discarded to settle a merge. */
       const chained = await askChain(doubt, lesson, options.resolvers)
-      const resolution = chained.resolution as { kind?: string; text?: string }
+      /*
+       * THE RESOLUTION IS READ, NOT STEPPED OVER.
+       *
+       * This line used to be `chained.resolution as { kind?: string; text?:
+       * string }`, and that cast is where the defect lived. `Resolution` is
+       * `DoubtAnswer | DoubtRefusal`; the cast flattened it to a shape with no
+       * `reason` and no `nearest`, so the only branch the rest of this function
+       * could see was `kind === 'answer'`. Everything the chain writes when it
+       * CANNOT answer became unreadable one line after it arrived -- every
+       * `refuse(...)` in `chain.ts`, `modelResolver.ts` and `webResolver.ts`,
+       * dead the moment it was written.
+       *
+       * The union is used as declared instead. `kind` narrows it, so the
+       * refusal branch below has `reason` and `nearest` without a cast, and a
+       * future third member of the union becomes a type error here rather than
+       * another silently discarded sentence.
+       */
+      const resolution = chained.resolution
 
       /* Something in the chain answered it. No come-back line: we never left. */
       if (resolution.kind === 'answer') {
@@ -81,18 +127,70 @@ export function createAnswering(options: { resolvers: readonly AnyResolver[]; as
         }
       }
 
+      /* The chain refused. It already wrote the sentence for this -- phrased
+       * for the learner, and composed from what actually happened to every rung
+       * (`chain.ts`'s `refusalFrom` tells "nothing was reachable" apart from
+       * "nothing had an answer"). Below, that sentence is USED. */
+      const closest = nearestLine(resolution.nearest, lesson)
+
+      /*
+       * WHY A REFUSAL IS RETURNED AS `text` AND NEVER AS `resolution`.
+       *
+       * `TeachView`'s `Outcome` renders `record.resolution` only when it is an
+       * ANSWER, and the record it builds is
+       * `resolution !== undefined ? { resolution } : { prose }` -- so handing
+       * back a refusal here would set `resolution`, suppress `prose`, and paint
+       * the learner's own question with nothing under it. That exact screen was
+       * measured in a browser and is written up at `TeachView.tsx`'s
+       * "RENDER WHAT CAME BACK, NOT WHO SENT IT". Carrying the sentence in
+       * `text` is what makes it reach her.
+       */
       let reply: Awaited<ReturnType<AskPort>>
       try {
         reply = await options.ask(doubt.text)
       } catch {
         /* Assigns a result and returns: the failure changes what the learner
          * sees rather than being noted and stepped over. */
-        return { from: 'unavailable', text: UNAVAILABLE }
+        return { from: 'unavailable', text: paragraphs(UNAVAILABLE, closest) }
       }
 
       const text = typeof reply?.text === 'string' ? reply.text.trim() : ''
-      if (reply?.ok !== true || text === '') {
-        return { from: 'unavailable', text: UNAVAILABLE }
+
+      /*
+       * NOTHING OUTSIDE THE LESSON WAS REACHED, AND `UNAVAILABLE` SAYS SO.
+       *
+       * Kept for exactly this case, because here it is TRUE: the port threw, or
+       * came back not-ok, so the escalation never happened. What is added is
+       * the "did you mean" list, which is the one concrete thing a refusal
+       * carries and which nothing has ever shown her.
+       */
+      if (reply?.ok !== true) {
+        return { from: 'unavailable', text: paragraphs(UNAVAILABLE, closest) }
+      }
+
+      if (text === '') {
+        /*
+         * REACHED, AND STILL NO ANSWER -- SO IT IS NOT AN "I COULD NOT REACH".
+         *
+         * `ok: true` means the port answered. Saying "I could not reach the
+         * part of me that answers questions outside this lesson" here tells the
+         * learner a network failure happened when none did, which is worse than
+         * saying nothing: it points her at a cause she cannot check and invites
+         * her to retry something that will fail the same way. The chain's own
+         * sentence is the true one, so it is the one she gets.
+         *
+         * `from: 'lesson'` because that sentence was written by the resolver
+         * chain, which is what `'lesson'` already means on the answer branch
+         * above. It is not `'unavailable'`, because nothing was unavailable.
+         *
+         * A blank reason falls back to `UNAVAILABLE` rather than to silence --
+         * a blank answer is a refusal wearing better manners, and the rule that
+         * `text` is never empty is older than this branch.
+         */
+        const said = paragraphs(resolution.reason, closest)
+        return said === ''
+          ? { from: 'unavailable', text: UNAVAILABLE }
+          : { from: 'lesson', text: said }
       }
 
       /* Exactly one come-back line, appended rather than woven in, so it can

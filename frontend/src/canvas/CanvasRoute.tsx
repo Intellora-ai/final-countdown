@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import type { AnyResolver } from './teach/contract'
 import { lessonResolver } from './teach/doubt'
 import { engineResolver } from './teach/engineResolver'
 import { webResolver, type SearchResult } from './teach/webResolver'
+import { modelResolver } from './teach/modelResolver'
 import { cssVariables } from './design/tokens'
 import { billBecomesLaw } from './lessons/billBecomesLaw'
 import { classifierEvaluation } from './lessons/classifierEvaluation'
@@ -112,7 +113,41 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
      */
     chain.push(engineResolver())
 
-    if (search) chain.push(webResolver({ search }))
+    /*
+     * THE MODEL THIRD, AND AHEAD OF THE WEB. This rung is where the judgements
+     * live: whether the question belongs to this lesson, whether naming a thing
+     * counted as explaining it, whether it knows the answer at all. Those were
+     * four branches of code until now, and code cannot make them -- it compared
+     * words, and refused fair questions while answering unfair ones. See
+     * `server/prompt.ts`.
+     *
+     * Ahead of the web because a model that knows the subject can answer from
+     * what it knows, and can decline in its own words. Going out to the open
+     * web is what happens when that fails, not before it is tried.
+     */
+    /* Set by the model rung on every question, read by the web rung below.
+     * Starts false: before anything has asked, nothing has judged. */
+    let judgementRan = false
+    chain.push(modelResolver({ onReached: (reached) => { judgementRan = reached } }))
+
+    /*
+     * THE WEB LAST, AND ONLY BEHIND THE MODEL.
+     *
+     * It used to carry a word-overlap gate: refuse any question with no
+     * vocabulary in common with the lesson. That gate is gone, because it is
+     * exactly the generic rule this reordering exists to remove -- it would
+     * refuse "how do I bake a cake" inside a chemistry lesson on heat, which is
+     * a fair question, and it was software deciding something only judgement
+     * can decide.
+     *
+     * What replaces it is structural rather than generic: the web is reachable
+     * only AFTER a rung that can judge has had the question and declined it.
+     * The chain stops at the first answer, so a model that answers -- including
+     * one that answers "that is not what we are doing here" -- means the web is
+     * never asked. No topic filter, no word counting, and no way for a fetched
+     * page to be the first thing a learner gets.
+     */
+    if (search) chain.push(webResolver({ search, judgementRan: () => judgementRan }))
     return chain
   }, [search])
 
@@ -127,7 +162,69 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
    * work whose result cannot have changed, since the lesson is a module
    * constant.
    */
-  const result = useMemo(() => validateLesson(chosen.spec), [chosen])
+  /*
+   * PARTS THE MODEL HAS WRITTEN SINCE THIS LESSON OPENED.
+   *
+   * The authored lesson is a module constant and stays one. What the model
+   * adds lives here, beside it, and is thrown away when she switches lessons --
+   * keyed by `chosen.id` so part three of physics can never appear inside
+   * civics.
+   */
+  const [grown, setGrown] = useState<{ id: string; blocks: readonly unknown[] }>(
+    { id: chosen.id, blocks: [] },
+  )
+  const added = grown.id === chosen.id ? grown.blocks : []
+
+  const result = useMemo(() => {
+    const base = chosen.spec as { blocks: readonly unknown[] }
+    /* Re-validated WITH the new blocks in place, by the same gate as everything
+     * else. A part the model wrote is not trusted further than an authored one:
+     * if it carries appearance, or a dangling relation, the whole thing is
+     * refused and she is told, rather than a bad block being painted because it
+     * arrived late. */
+    return validateLesson(
+      added.length === 0 ? chosen.spec : { ...base, blocks: [...base.blocks, ...added] },
+    )
+  }, [chosen, added])
+
+  /*
+   * WRITE THE NEXT PART NOW, KNOWING WHAT SHE HAS READ AND JUST SAID.
+   *
+   * This is the injection point that stops the lecture being decided in
+   * advance. `TeachView` calls it when she asks to carry on and no authored
+   * beat is left; before it existed, that press did nothing at all.
+   */
+  const needNextPart = useCallback(
+    async ({ taught, justSaid }: { taught: string; justSaid: string }): Promise<boolean> => {
+      const asked = chosen.spec as { question?: string }
+      try {
+        const response = await fetch('/api/ask', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            question: asked.question ?? 'this lesson',
+            askedInside: asked.question ?? '',
+            taught,
+            justSaid,
+          }),
+        })
+        if (!response.ok) return false
+        const body = (await response.json()) as { lesson?: { blocks?: readonly unknown[] } }
+        const blocks = body.lesson?.blocks
+        if (!Array.isArray(blocks) || blocks.length === 0) return false
+        setGrown((previous) => ({
+          id: chosen.id,
+          blocks: [...(previous.id === chosen.id ? previous.blocks : []), ...blocks],
+        }))
+        return true
+      } catch {
+        /* She is told by the caller. A thrown error here would take the whole
+         * view down for a part that simply did not arrive. */
+        return false
+      }
+    },
+    [chosen],
+  )
 
   return (
     <div className="lc-root lc-route" style={cssVariables() as React.CSSProperties}>
@@ -179,7 +276,13 @@ export default function CanvasRoute({ search }: { search?: WebSearch } = {}) {
            * learner lands three beats into a lesson they have not begun —
            * position is state, and state must not survive a change of subject.
            */
-          <TeachView key={chosen.id} lesson={result.lesson} mode={mode} resolvers={resolvers} />
+          <TeachView
+            key={chosen.id}
+            lesson={result.lesson}
+            mode={mode}
+            resolvers={resolvers}
+            onNeedNextPart={needNextPart}
+          />
         ) : (
           <Refusal title="This lesson was refused" issues={result.issues} />
         )}

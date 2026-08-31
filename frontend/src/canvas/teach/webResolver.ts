@@ -620,14 +620,60 @@ function buildAnswer(doubt: Doubt, pages: readonly RetrievedPage[]): Lesson | nu
   return result.ok ? result.lesson : null
 }
 
-export function webResolver(deps: WebResolverDeps): AsyncDoubtResolver {
+export function webResolver(
+  deps: WebResolverDeps & {
+    /**
+     * Whether anything that can JUDGE has seen this question first.
+     *
+     * WHY THIS IS NOT THE WORD-OVERLAP GATE COMING BACK. That gate asked "does
+     * this question share vocabulary with the lesson" -- a rule about the
+     * TOPIC, applied by software that cannot judge topics, and it refused fair
+     * questions like "how do i bake a cake" inside a chemistry lesson on heat.
+     *
+     * This asks something structural instead: has a rung that can judge already
+     * had this question and declined it? If the model was unreachable, nothing
+     * has judged anything, and fetching a stranger's page is then the FIRST
+     * thing a learner gets rather than the last. That is how a physics lesson
+     * answered a baking question with an article on Malaysian fridge cake.
+     *
+     * No topic is examined here. Absent, it defaults to allowing the search, so
+     * a caller that has no model in the chain behaves exactly as before.
+     */
+    judgementRan?: () => boolean
+  },
+): AsyncDoubtResolver {
   return {
     name: 'web',
 
-    async resolve(doubt: Doubt, _lesson: Lesson, signal?: AbortSignal): Promise<Resolution> {
+    async resolve(doubt: Doubt, lesson: Lesson, signal?: AbortSignal): Promise<Resolution> {
       if (signal?.aborted) {
         return refuse('The search was stopped before it started.')
       }
+
+      if (deps.judgementRan !== undefined && !deps.judgementRan()) {
+        return refuse(
+          `I could not reach the part of me that answers questions beyond this ` +
+          `lesson, so I am not going to go looking things up on my own. Ask me ` +
+          `again in a moment.`,
+        )
+      }
+
+      /* THE TOPIC GATE THAT USED TO BE HERE IS GONE, AND ITS REMOVAL IS THE POINT.
+       *
+       * For one afternoon this rung refused any question with no word in
+       * common with the lesson. It did stop a physics lesson answering "how do
+       * i bake a chocolate cake?" with a Wikipedia article on Malaysian fridge
+       * cake, which was real. But it was software deciding a thing only
+       * judgement can decide, and the same rule refuses "how do i bake a cake"
+       * inside a chemistry lesson about heat, where the question is a good one.
+       *
+       * The judgement moved to the model rung, which now runs BEFORE this one
+       * and answers -- or declines in its own words -- first. The chain stops
+       * at the first answer, so a fetched page can no longer be the first
+       * thing a learner sees. The protection is the ORDER, not a word count.
+       *
+       * `lesson` stays named rather than `_lesson` because it is used below.
+       */
 
       /*
        * THE QUESTION, STRIPPED OF FILLER, IS WHAT GETS SEARCHED.
@@ -754,15 +800,15 @@ export function webResolver(deps: WebResolverDeps): AsyncDoubtResolver {
         return { kind: 'answer', lesson: verified, drawnFrom: [] }
       }
 
-      const lesson = buildAnswer(doubt, usable.slice(0, MAX_SOURCES))
-      if (!lesson) {
+      const answerLesson = buildAnswer(doubt, usable.slice(0, MAX_SOURCES))
+      if (!answerLesson) {
         return refuse('I found sources for that but could not render them safely.')
       }
 
       /* Empty on purpose: this answer drew on nothing in the lesson the learner
          is looking at, and claiming otherwise would point them at a block that
          has nothing to do with it. */
-      return { kind: 'answer', lesson, drawnFrom: [] }
+      return { kind: 'answer', lesson: answerLesson, drawnFrom: [] }
     },
   }
 }

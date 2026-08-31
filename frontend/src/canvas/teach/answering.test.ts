@@ -149,3 +149,106 @@ describe('what it will not do', () => {
     }
   })
 })
+
+/* -------------------------------------------------------------------------- */
+/* The sentence the chain wrote is the sentence she reads                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * WHAT WAS MEASURED, BEFORE ANY OF THIS WAS WRITTEN.
+ *
+ * `askChain` composes a refusal for every case it cannot answer -- and every
+ * one of those sentences was thrown away one line after it arrived. `answer`
+ * cast the chain's `Resolution` down to `{ kind?, text? }`, which has no
+ * `reason` and no `nearest`, read only `kind === 'answer'`, and substituted a
+ * constant for everything else. Measured in the browser build: `CanvasRoute`
+ * passes no `ask` port, so EVERY refusal a learner could ever meet -- from
+ * `chain.ts`, from `modelResolver.ts`, from `webResolver.ts` -- was replaced
+ * with "I could not reach the part of me that answers questions outside this
+ * lesson".
+ *
+ * These tests are PAIRED on purpose, because the interesting half of this is
+ * not "say more". It is knowing WHICH of the two sentences is true. An
+ * assertion that only ever demands the chain's sentence is satisfied by
+ * deleting the constant, and that would put a network lie back on the other
+ * side of the branch.
+ */
+describe('a refusal is not reported as a network failure', () => {
+  const refusing = (nearest: readonly string[] = []): DoubtResolver => ({
+    name: 'lesson',
+    resolve: () => ({
+      kind: 'refusal',
+      reason: 'This lesson does not cover that.',
+      nearest,
+    }),
+  })
+
+  it('does NOT claim it could not reach, when the port answered and had nothing', async () => {
+    /* `ok: true` means the port was REACHED. It answered; it simply had nothing
+       to say. Telling the learner a network failure happened here points her at
+       a cause she cannot check and invites her to retry something that will
+       fail identically. She gets the chain's own true sentence instead. */
+    const ask = vi.fn().mockResolvedValue({ ok: true, text: '' })
+    const a = createAnswering({ resolvers: [refusing()], ask })
+
+    const result = await a.answer(doubt, LESSON)
+
+    expect(result.text).toContain('This lesson does not cover that.')
+    expect(
+      result.text,
+      'a network failure was reported to the learner that did not happen',
+    ).not.toMatch(/could not reach/i)
+  })
+
+  it('DOES say it could not reach, when nothing outside the lesson was reached', async () => {
+    /* The other half of the pair, and the reason the constant is kept. Here the
+       port really was not reached -- this is the shape `CanvasRoute` ships,
+       where no `ask` port is configured at all -- so the sentence about
+       reaching is the true one and must survive. */
+    const ask = vi.fn().mockResolvedValue({ ok: false, reason: 'no question service is configured' })
+    const a = createAnswering({ resolvers: [refusing()], ask })
+
+    const result = await a.answer(doubt, LESSON)
+
+    expect(result.text, 'the learner was not told the outside was unreachable').toMatch(
+      /could not reach/i,
+    )
+  })
+
+  it('offers the "did you mean" blocks, named the way she sees them on the page', async () => {
+    /* `nearest` is the only CONCRETE help a refusal carries, and it was
+       computed on every refusal and read by nobody. It holds block IDS, so it
+       is titled the way `TeachView` titles `drawnFrom` -- and by id where a
+       block has no title, because an id reads worse than a title and far
+       better than a silent gap. `ideal-gas-law` is the untitled block of the
+       stored lesson, which is why it is in this list. */
+    const ask = vi.fn().mockResolvedValue({ ok: false, reason: 'unreachable' })
+    const a = createAnswering({
+      resolvers: [refusing(['pressure-vs-temperature', 'ideal-gas-law'])],
+      ask,
+    })
+
+    const result = await a.answer(doubt, LESSON)
+
+    expect(result.text, 'the "did you mean" list never reached the learner').toContain(
+      'Pressure vs temperature',
+    )
+    expect(result.text, 'an untitled block vanished instead of being named by id').toContain(
+      'ideal-gas-law',
+    )
+  })
+
+  it('does not promise closest parts when the refusal named none', async () => {
+    /* The pair for the test above. A lead-in with nothing after it is worse
+       than no lead-in: it reads as a list that failed to render. */
+    const ask = vi.fn().mockResolvedValue({ ok: false, reason: 'unreachable' })
+    const a = createAnswering({ resolvers: [refusing([])], ask })
+
+    const result = await a.answer(doubt, LESSON)
+
+    expect(result.text, 'a "closest parts" line was written with nothing in it').not.toMatch(
+      /closest parts/i,
+    )
+    expect(result.text.trim().endsWith('come back to it.')).toBe(true)
+  })
+})

@@ -336,6 +336,61 @@ describe('refusing a plausible term the lesson does not contain', () => {
 })
 
 /* -------------------------------------------------------------------------- */
+/* A definition ask, from both sides                                          */
+/* -------------------------------------------------------------------------- */
+
+describe('a definition ask is answered only by a block that says the word itself', () => {
+  /*
+   * THE PAIR, AND WHY IT HAD TO BE WRITTEN.
+   *
+   * `answersADefinition` in `doubt.ts` was carrying this rule with NOTHING
+   * holding its loose end. MEASURED: replacing its whole body with `return
+   * true` -- letting any block at all answer a definition ask -- turned not one
+   * test in `src/canvas` red. The rule could have been deleted and the suite
+   * would have called it an improvement, because deleting it also fixes the
+   * five tests its over-application was breaking.
+   *
+   * Both halves below are the same rule seen from opposite sides, and either
+   * one alone is vacuous. A resolver that refuses every definition ask passes
+   * the first. A resolver that answers every definition ask passes the second.
+   *
+   * THE FIRST HALF WAS MEASURED IN A BROWSER, and is recorded in
+   * `answersADefinition`: a learner on the gas lesson typed "what is kinetic
+   * energy? i dont understand it" and was handed the causal chain -- the
+   * diagram already on her screen -- under the heading "IN ANSWER TO YOUR
+   * QUESTION". `kinetic` and `energy` are the text of ONE NODE of it. The chain
+   * calls itself "What actually happens" and its caption says "Each step is a
+   * consequence of the one before it". Neither says anything about what kinetic
+   * energy IS. Words gained: zero.
+   */
+
+  it('refuses a definition ask that only echoes a label back', () => {
+    const answer = answerTo(GAS, 'what is kinetic energy i dont understand it')
+
+    // Not the diagram she was already looking at.
+    expect(answer.drawnFrom).not.toContain('causal-chain')
+
+    // The one paragraph in the lesson that says what the words mean:
+    // "Temperature is a measure of the average kinetic energy of the particles."
+    expect(answer.drawnFrom).toEqual(['summary'])
+    const prose = answer.lesson.blocks.find((block: Block) => block.kind === 'prose')
+    expect(prose && prose.kind === 'prose' ? prose.body : '').toContain('average kinetic energy')
+  })
+
+  it('answers when the block itself is what the author wrote about the term', () => {
+    /* `Precision` is only an AXIS LABEL on `pr` -- not a title. What makes it
+       answerable is that the block is TITLED "Precision-recall tells the truth"
+       and captioned with a sentence about the tradeoff precision buys. */
+    expect(answerTo(ML, 'what does precision mean').drawnFrom).toEqual(['pr'])
+
+    /* And here the block declares itself to BE the thing asked about: the
+       author chose `as: 'featureImportance'`. Its title says "What the model is
+       leaning on" and never uses either word. */
+    expect(answerTo(ML, 'what is feature importance').drawnFrom).toEqual(['features'])
+  })
+})
+
+/* -------------------------------------------------------------------------- */
 /* Properties that hold across everything                                     */
 /* -------------------------------------------------------------------------- */
 

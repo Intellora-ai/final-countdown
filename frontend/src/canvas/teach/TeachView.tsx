@@ -75,6 +75,7 @@ export function TeachView({
   ask: askPort,
   resolvers = DEFAULT_RESOLVERS,
   onStruggling,
+  onNeedNextPart,
 }: {
   lesson: Lesson
   mode: '2d' | '3d'
@@ -90,6 +91,16 @@ export function TeachView({
    * show a gap; this is the automatic half. Nothing on screen ever says
    * "difficulty" -- they are being taught, not graded. */
   onStruggling?: () => void
+  /**
+   * Fetch the NEXT part of this lesson, written now, knowing what she has read
+   * and what she just said. Resolves true when a part was added.
+   *
+   * AN INJECTION POINT, LIKE `resolvers` AND `ask`, for the same reason: this
+   * view must keep working with no network at all. Absent, a lesson simply
+   * ends when its authored beats end, which is exactly what happened before
+   * and is still the right behaviour for a hand-written lesson.
+   */
+  onNeedNextPart?: (context: { taught: string; justSaid: string }) => Promise<boolean>
 }): JSX.Element {
   const width = useViewportWidth()
 
@@ -167,6 +178,14 @@ export function TeachView({
    *   is still waiting on.
    */
   const [answerInFlight, setAnswerInFlight] = useState(false)
+  /* A part is being written. Separate from `answerInFlight` because they are
+   * different waits: one is her question being answered, one is the lesson
+   * carrying on, and showing the wrong message for either is confusing. */
+  const [nextPartInFlight, setNextPartInFlight] = useState(false)
+  /* The last thing she typed, so the next part can respond to it. A ref, not
+   * state: nothing renders from it, and re-rendering on every keystroke to
+   * store something only the network reads is waste. */
+  const lastSaid = useRef('')
   /*
    * Fired once. Telling the caller repeatedly would deepen the lesson again on
    * every subsequent turn, which is how "adaptive" becomes "unreadable".
@@ -340,6 +359,12 @@ export function TeachView({
     const kind = classifyTurn(text)
     if (current === undefined) return
 
+    /* Kept for the NEXT part to read. Set before the branch so it holds an
+     * answer and a doubt alike -- both tell the model something about where
+     * she is, and only recording one of them would make the lesson adapt to
+     * half of what she said. */
+    lastSaid.current = text.trim()
+
     if (kind === 'empty') {
       /* Not a refusal and not an advance. Counted, because pressing Enter on an
          empty box twice is someone stuck for what to say, and that is one of
@@ -375,7 +400,25 @@ export function TeachView({
               ? {
                   ...record,
                   pending: false,
-                  ...(answered.from === 'lesson'
+                  /* RENDER WHAT CAME BACK, NOT WHO SENT IT.
+                   *
+                   * This branched on `answered.from`, so anything labelled
+                   * 'lesson' was rendered as a structured resolution and
+                   * everything else as prose. A reply that is from the lesson
+                   * AND is a sentence -- "that is not something this lesson
+                   * covers, it is about X" -- fell down the gap between them:
+                   * `resolution` was undefined, the prose was discarded unread,
+                   * and the learner saw her own question echoed with nothing
+                   * under it.
+                   *
+                   * Measured in a browser: asked how to bake a cake, the screen
+                   * showed `You asked: "how do i bake a chocolate cake?"` and
+                   * then silence. The refusal sentence existed the whole time
+                   * and was thrown away one line from being displayed.
+                   *
+                   * The source label is for telling her WHO answered. It was
+                   * never the right thing to pick a renderer with. */
+                  ...(answered.resolution !== undefined
                     ? { resolution: answered.resolution as Resolution }
                     : { prose: answered.text }),
                 }
@@ -395,12 +438,68 @@ export function TeachView({
       })
   }
 
+  /**
+   * The words already on her screen, in order, for the model to read.
+   *
+   * Only what has actually been REVEALED. Sending the whole lesson would tell
+   * the model things she has not seen, and it would then write a part that
+   * follows from something she never read.
+   */
+  function whatSheHasBeenTaught(): string {
+    const lines: string[] = []
+    for (const beat of shown) {
+      for (const id of beat.blockIds) {
+        const block = blockById.get(id) as Record<string, unknown> | undefined
+        if (block === undefined) continue
+        const said = [block['title'], block['body'], block['caption']]
+          .filter((part): part is string => typeof part === 'string' && part.trim() !== '')
+          .join(' — ')
+        if (said !== '') lines.push(said)
+      }
+    }
+    return lines.join('\n')
+  }
+
   function advance(): void {
     const next = beats[revealed]
-    if (next === undefined) return
-    focusClosing.current = next.isLast
-    setRevealed((count) => count + 1)
-    setAnnouncement(revealedAnnouncement(next, blockById))
+    if (next !== undefined) {
+      focusClosing.current = next.isLast
+      setRevealed((count) => count + 1)
+      setAnnouncement(revealedAnnouncement(next, blockById))
+      return
+    }
+
+    /* NO PART IS WAITING, SO ASK FOR ONE. THIS IS THE WHOLE FEATURE.
+     *
+     * Until now this line was `if (next === undefined) return` -- the lesson
+     * simply stopped, and pressing continue did nothing at all.
+     *
+     * It stopped because the WHOLE lecture had been written before she read a
+     * word of it: `authorLesson.ts` asks the model to "Output one JSON object"
+     * with every block filled, and `deriveBeats` slices that finished article
+     * into beats. She watched it arrive in pieces, but no piece could respond
+     * to her, because all of them were decided in advance.
+     *
+     * Now the next part is written when she asks for it, and it is told what
+     * she has already been shown and what she last said. Part two of a lesson
+     * on function graphs is composed after her answer to part one. That is
+     * invariant I3 -- one thing at a time -- made real rather than simulated
+     * by slicing. */
+    if (onNeedNextPart === undefined || nextPartInFlight) return
+    setNextPartInFlight(true)
+    setAnnouncement('Working on the next part…')
+    void onNeedNextPart({ taught: whatSheHasBeenTaught(), justSaid: lastSaid.current })
+      .then((arrived) => {
+        /* `false` means there genuinely is no more, which is an ending and not
+         * a failure. Anything else and she is told plainly, because a button
+         * that quietly does nothing is how she learns to stop pressing it. */
+        setAnnouncement(
+          arrived ? 'The next part has been added.' : 'That is the end of this one.',
+        )
+      })
+      .finally(() => {
+        setNextPartInFlight(false)
+      })
   }
 
   return (

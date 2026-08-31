@@ -151,6 +151,61 @@ const REVALIDATE_BUDGET_MS = 30_000
  */
 const MOST_REVALIDATION_ATTEMPTS = 2
 
+/**
+ * How long ONE call to the model may take before the learner is told instead.
+ *
+ * A VENDOR THAT NEVER ANSWERS IS A REAL STATE, AND IT WAS UNHANDLED.
+ *   `REVALIDATE_BUDGET_MS` and the attempt cap both bound the RETRY loop. They
+ *   cannot bound the FIRST call, because a promise that never settles never
+ *   reaches the loop at all -- `await options.model.lesson(request)` simply
+ *   waits forever and the socket is held open behind it.
+ *
+ *   MEASURED with a model that never resolves: the request produced NO REPLY
+ *   for sixty seconds, at which point the test gave up. Not a slow answer -- no
+ *   answer. Invariant I1 says every question gets an answer, and a reply that
+ *   arrives after the browser has given up is not one.
+ *
+ * TWENTY SECONDS, and the number is chosen against the other clock in this
+ * file, not picked. `groq.ts` already waits up to fourteen seconds for a rate
+ * limit to reset, so a ceiling below that would cut off a call that was going
+ * to succeed. Twenty leaves room for that and still answers a child inside the
+ * time she will wait.
+ */
+const LONGEST_ONE_MODEL_CALL_MAY_TAKE_MS = 20_000
+
+/** Why the model was abandoned, said in the sentence the learner's reply uses. */
+class ModelTookTooLong extends Error {}
+
+/**
+ * Ask the model, but never wait forever.
+ *
+ * THE PENDING CALL IS ABANDONED, NOT CANCELLED, and that is worth saying out
+ * loud: `ModelPort` has no abort signal, so the underlying request may still be
+ * in flight when this rejects. What changes is that the LEARNER stops waiting
+ * on it. Adding cancellation means changing every vendor client, which is a
+ * wider change than this defect needs -- and answering her is the part that
+ * cannot wait for that.
+ */
+async function askWithinBudget(model: ModelPort, request: LessonRequest): Promise<unknown> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      model.lesson(request),
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () => { reject(new ModelTookTooLong('the model could not be reached in time')) },
+          LONGEST_ONE_MODEL_CALL_MAY_TAKE_MS,
+        )
+      }),
+    ])
+  } finally {
+    /* CLEARED ON EVERY PATH. A timer left pending keeps the process alive after
+     * the reply has gone, which turns a fast answer into a server that will not
+     * shut down. */
+    if (timer !== undefined) clearTimeout(timer)
+  }
+}
+
 /** 256 KB is far above any real request and far below anything that hurts. */
 const DEFAULT_MAX_BODY_BYTES = 256 * 1024
 
@@ -234,7 +289,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     const decided = request.strategy === undefined ? {} : { strategy: request.strategy }
     let produced: unknown
     try {
-      produced = await options.model.lesson(request)
+      produced = await askWithinBudget(options.model, request)
     } catch (thrown) {
       /* THE VENDOR'S MESSAGE IS STILL DROPPED. Its text routinely quotes the
        * request, and sometimes the credential that was rejected.
@@ -299,7 +354,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       attemptsLeft -= 1
       let again: unknown
       try {
-        again = await options.model.lesson(request)
+        again = await askWithinBudget(options.model, request)
       } catch {
         break
       }

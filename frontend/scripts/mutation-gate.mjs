@@ -899,6 +899,108 @@ const MUTANTS = [
     to: "  'continues', 'continuing', 'carry', 'keep', 'keeps', 'going',",
     breaks: 'asking to carry on is read as changing the subject, so the lesson pushes a detour that never happened and the position the student wanted resumed is buried one frame deeper each time they say it',
   },
+
+  /* ------------------------------------------------------------------ *
+   * MEMORY — M1 persistence, M2 isolation, M3 retrieval, M4 consistency,
+   * M5 correctness.
+   *
+   * WHY THESE DID NOT EXIST UNTIL NOW, AND WHY THAT MATTERED.
+   *   Measured 2026-09-01: `grep -c "server/memory" scripts/mutation-gate.mjs`
+   *   returned 0. Every mutant in this file targeted src/agent, src/websearch
+   *   or src/canvas. So the gate reported "87/87 killed (100%)" while the
+   *   entire storage layer — the thing the product is FOR — had never had a
+   *   single behaviour deliberately broken to see whether a test noticed.
+   *
+   *   That is the same defect this repository keeps finding in itself: a gate
+   *   pinned to a threshold with nothing pinning its SCOPE. `coverage` said
+   *   95% of 38 lines; this said 100% of a set that excluded memory. A number
+   *   is only as good as the set it is computed over, and neither number was
+   *   ever wrong — both were answers to a question nobody meant to ask.
+   *
+   *   The memory suites are also the least defended by construction: m1 and m4
+   *   use 2 and 3 drawn inputs respectively, against 56 in m7-control and 31
+   *   in m9-truth. Example-shaped tests are exactly the ones a mutant slips
+   *   past, which is why these ten exist rather than more canvas mutants.
+   * ------------------------------------------------------------------ */
+
+  /* M2 — ISOLATION. Each of these collapses two different owners into one row,
+   * which is the failure key.ts's own header was written to prevent. */
+  {
+    id: 'memory-trimmed-ids-share-one-box',
+    file: 'server/memory/key.ts',
+    from: '  if (value !== value.trim()) {',
+    to: '  if (false) {',
+    breaks: 'tab "x" and tab "x " become ONE drawer again, so a second tab silently overwrites the first tab\'s work and both writes answer 200 with nothing reporting a loss',
+  },
+  {
+    id: 'memory-empty-id-is-accepted',
+    file: 'server/memory/key.ts',
+    from: "  if (typeof value !== 'string' || value.trim() === '') {",
+    to: "  if (typeof value !== 'string') {",
+    breaks: 'a missing studentId becomes the empty string instead of a refusal, so every student on one machine shares a single row — the exact "anonymous default" the file forbids',
+  },
+  {
+    id: 'memory-key-forgets-the-tab',
+    file: 'server/memory/key.ts',
+    from: '  return `${student}:${tab}:${lesson}`',
+    to: '  return `${student}:${lesson}`',
+    breaks: 'two tabs open on the same lesson address the same memory, so answering in one tab overwrites what was written in the other',
+  },
+  {
+    id: 'memory-key-parts-not-encoded',
+    file: 'server/memory/key.ts',
+    from: "  const tab = encodeURIComponent(part(owner.tabId, 'tabId'))",
+    to: "  const tab = part(owner.tabId, 'tabId')",
+    breaks: 'a tab id containing ":" lets one student/tab/lesson triple collide with a different one, which is the many-to-one mapping the percent-encoding exists to rule out',
+  },
+
+  /* M4 + M5 — CONSISTENCY AND CORRECTNESS. */
+  {
+    id: 'memory-write-skips-every-rule',
+    file: 'server/memory/store.ts',
+    from: '        const allowed = reconcile(owner.lessonId, previous, record)',
+    to: '        const allowed = record',
+    breaks: 'every consistency rule is bypassed at once: progress may run backwards, a mastered concept un-masters, and a record may be stored under a lesson it says it does not belong to',
+  },
+  {
+    id: 'memory-lesson-id-disagreement-allowed',
+    file: 'server/memory/progress.ts',
+    from: '  if (proposed.lessonId !== lessonIdFromKey) {',
+    to: '  if (false) {',
+    breaks: 'a record claiming lesson A is written under lesson B, so the one fact that has two homes is allowed to disagree with itself and can never be found by the id it claims',
+  },
+  {
+    id: 'memory-progress-replaced-by-non-progress',
+    file: 'server/memory/progress.ts',
+    from: '    if (before !== undefined) {',
+    to: '    if (false) {',
+    breaks: 'a lesson already holding progress accepts a record with no progress in it, reopening the measured hole where revealed:9 then a shapeless save then revealed:0 all returned 200 and mastery ended at nothing',
+  },
+
+  /* M3 — RETRIEVAL. What comes out must equal what went in, or nothing does. */
+  {
+    id: 'memory-roundtrip-never-checked',
+    file: 'server/memory/record.ts',
+    from: '  if (back !== text) {',
+    to: '  if (false) {',
+    breaks: 'a value that changes on the way through — a Date flattened to a string, a NaN to null — is written anyway, so the store breaks its byte-for-byte promise and the learner is shown a different record than the one saved',
+  },
+
+  /* M1 + M4 — DURABILITY AND ATOMICITY. */
+  {
+    id: 'memory-transaction-takes-no-write-lock',
+    file: 'server/memory/sqliteStore.ts',
+    from: "      db.exec('BEGIN IMMEDIATE')",
+    to: "      db.exec('BEGIN')",
+    breaks: 'a plain BEGIN takes no lock until the first write, so a second server can slip between the read and the write of one save and undo progress that was already acknowledged',
+  },
+  {
+    id: 'memory-journal-does-not-survive-a-crash',
+    file: 'server/memory/sqliteStore.ts',
+    from: "    db.exec('PRAGMA journal_mode = WAL')",
+    to: "    db.exec('PRAGMA journal_mode = MEMORY')",
+    breaks: 'the rollback journal lives only in RAM, so a crash or power loss leaves the database torn — the one thing "memory survives restart and crash" names explicitly',
+  },
 ]
 
 /*

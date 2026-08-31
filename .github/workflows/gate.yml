@@ -248,7 +248,7 @@ jobs:
         # unmaintained third-party action holding a credential, so the pin is
         # also a freeze -- it cannot start doing something new without this line
         # changing in a commit somebody reads.
-        uses: grll/claude-code-base-action@c021fe71647df64674c9cb587fbde168692c55c8 # v0.0.29
+        uses: grll/claude-code-base-action@b3679ddae1203efdad9431c743e29bc2a161e7c5 # v0.0.29
         with:
           use_oauth: true
           claude_access_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

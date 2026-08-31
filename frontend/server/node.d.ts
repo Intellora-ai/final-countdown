@@ -62,6 +62,8 @@ declare const process: {
   env: Record<string, string | undefined>
   argv: string[]
   execPath: string
+  /** This process's id. Used to make a scratch filename private to one writer. */
+  pid: number
   exit(code?: number): never
 }
 
@@ -87,6 +89,13 @@ declare module 'node:child_process' {
     stderr: { on(event: 'data', listener: (chunk: unknown) => void): void }
     exitCode: number | null
     kill(signal?: string): void
+    /* Needed to prove a CRASH rather than a shutdown: the M1 proof kills a real
+     * child with SIGKILL and must wait for the real death, and the signal that
+     * killed it is the difference between "closed cleanly" and "crashed". */
+    on(
+      event: 'exit',
+      listener: (code: number | null, signal: string | null) => void,
+    ): void
   }
   export function execFile(
     file: string,
@@ -140,8 +149,110 @@ declare module 'node:fs/promises' {
   export function mkdtemp(prefix: string): Promise<string>
   export function mkdir(path: string, options?: { recursive?: boolean }): Promise<string | undefined>
   export function readdir(path: string): Promise<string[]>
+  /** Needed for the `wx` flag: create, or fail if it already exists. That
+   *  failure IS the lock — see `fileStore.addDone`. */
+  export function open(path: string, flags: string): Promise<{ close(): Promise<void> }>
 }
 
 declare module 'node:os' {
   export function tmpdir(): string
+}
+
+/**
+ * The slice of `pg` this server uses, declared rather than imported.
+ *
+ * SAME REASON `webResolver.ts` DECLARES ITS SEARCH SHAPES. Installing
+ * `@types/pg` pulls in `@types/node`, and this project deliberately does not
+ * use it -- the file you are reading is a hand-written minimal node typing.
+ * Measured: adding `@types/pg` brought `@types/node@26` with it and broke
+ * `server/index.ts:113` on an `IncomingMessage`/`Readable` mismatch in code
+ * this change never touched.
+ *
+ * Declaring the three members actually called keeps the checking real and the
+ * dependency graph the shape this project chose. `pg` itself stays a real
+ * runtime dependency; only its types are local.
+ */
+declare module 'pg' {
+  export interface QueryResult<Row> {
+    readonly rows: Row[]
+    readonly rowCount: number | null
+  }
+  export interface PoolClient {
+    query<Row = unknown>(text: string, values?: unknown[]): Promise<QueryResult<Row>>
+    release(): void
+  }
+  export class Pool {
+    constructor(config: { connectionString: string; max?: number })
+    query<Row = unknown>(text: string, values?: unknown[]): Promise<QueryResult<Row>>
+    connect(): Promise<PoolClient>
+    end(): Promise<void>
+  }
+  const pg: { Pool: typeof Pool }
+  export default pg
+}
+
+/**
+ * The slice of `node:sqlite` this server uses, declared rather than imported.
+ *
+ * SAME REASON AS `pg` ABOVE AND `webResolver.ts`'s search shapes. This project
+ * deliberately does not use `@types/node` -- the file you are reading is a
+ * hand-written minimal node typing -- and `node:sqlite`'s types live there.
+ * Measured earlier in this same file's history: pulling `@types/node` in via a
+ * types package broke `server/index.ts` on an unrelated `IncomingMessage`
+ * mismatch.
+ *
+ * `node:sqlite` is built into Node 26 and needs no install. Verified by running
+ * it: `DatabaseSync` present, `INSERT .. ON CONFLICT DO NOTHING` atomic.
+ */
+/* The synchronous file calls. `node:fs/promises` below is the async surface and
+ * does not cover these: the identity secret must be resolved BEFORE the server
+ * binds a port, and the memory proofs create and remove real temp directories
+ * around a synchronous SQLite store. */
+declare module 'node:fs' {
+  export function readFileSync(path: string, encoding: 'utf8'): string
+  export function writeFileSync(
+    path: string,
+    data: string,
+    options?: { encoding?: 'utf8'; mode?: number },
+  ): void
+  export function existsSync(path: string): boolean
+  export function mkdirSync(path: string, options?: { recursive?: boolean }): void
+  export function mkdtempSync(prefix: string): string
+  export function rmSync(path: string, options?: { recursive?: boolean; force?: boolean }): void
+}
+
+declare module 'node:os' {
+  export function tmpdir(): string
+}
+
+/**
+ * Only what `identity.ts` uses to sign and check a student's cookie.
+ *
+ * Declared narrowly for the reason this whole file states: the surface is what
+ * this server actually calls, so an unused corner of the platform cannot drift
+ * in unnoticed and cannot be reached by accident.
+ */
+declare module 'node:crypto' {
+  export interface Hmac {
+    update(data: string): Hmac
+    digest(encoding: 'hex'): string
+  }
+  export function createHmac(algorithm: string, key: string): Hmac
+  export function randomBytes(size: number): Buffer
+  /** Throws when the two differ in length, which is why callers check first. */
+  export function timingSafeEqual(a: Buffer, b: Buffer): boolean
+}
+
+declare module 'node:sqlite' {
+  export interface StatementSync {
+    get(...params: unknown[]): unknown
+    run(...params: unknown[]): { changes: number; lastInsertRowid: number }
+    all(...params: unknown[]): unknown[]
+  }
+  export class DatabaseSync {
+    constructor(path: string)
+    exec(sql: string): void
+    prepare(sql: string): StatementSync
+    close(): void
+  }
 }

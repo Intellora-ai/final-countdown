@@ -1,0 +1,68 @@
+{
+  "summary": "Building the Almanac learning canvas in numbered phases. This session covered Phase 1 (memory storage), Phase 2 (memory correctness), part of Phase 3 (never repeat an explanation), and Phase 4 step 2 (response guarantees). The work is mostly a new server-side memory layer plus fixes to real defects found while proving it.",
+
+  "what_changed_and_why": [
+    {
+      "area": "server/identity.ts (new) + server/handler.ts",
+      "intent": "Close a real hole: the server read `studentId` out of the request body and believed it, so anyone could read another student's work by changing one word. Identity is now assigned by the server and signed with HMAC into an HttpOnly cookie. Routes use the verified id; a caller that names a different student gets 403.",
+      "note_for_reviewer": "This is identity, NOT authentication, and the module says so. Whoever holds the cookie is that student. There is no password. That is a deliberate, stated limit."
+    },
+    {
+      "area": "server/memory/* (new)",
+      "intent": "Store one memory per student, per browser tab, per lesson, durably. SQLite with WAL. `key.ts` percent-encodes each part so student `a` + tab `b:c` cannot collide with student `a:b` + tab `c`. `record.ts` proves a value survives the JSON round trip before storing it, so a half-written record can never be read back.",
+      "note_for_reviewer": "`record.ts` deliberately takes NO view on what a memory contains. That is why the content rules live one layer up in `progress.ts`."
+    },
+    {
+      "area": "server/memory/progress.ts (new)",
+      "intent": "Decide whether a save is a sensible NEXT state: events non-decreasing by timestamp, counters that can never go backwards, and one authoritative lessonId (it is written in both the key and the record, and they must agree). Violations answer 409, not 400 — the record is well formed, it disagrees with what is stored.",
+      "note_for_reviewer": "Equal timestamps are ALLOWED on purpose. `at` is milliseconds and two questions can genuinely land in one; refusing that would reject a true history."
+    },
+    {
+      "area": "server/memory/sqliteStore.ts",
+      "intent": "Added a transactional `update()` using BEGIN IMMEDIATE so read-decide-write is one indivisible step across processes. Also fixed pragma order: `journal_mode = WAL` was set BEFORE `busy_timeout`, so two servers booting together collided and one died with 'database is locked' before binding its port."
+    },
+    {
+      "area": "server/almanac/fileStore.ts",
+      "intent": "Two replicas sharing one JSON ledger used a FIXED temp filename, so they clobbered each other mid-write and returned 500s. Now a unique temp name plus a cross-process lock file, with `addDone` doing an indivisible single-mark append."
+    },
+    {
+      "area": "server/teaching.ts",
+      "intent": "`chooseStrategy` picked by attempt COUNT, so attempts 3, 4, 5 and 6 all returned `analogy` — ask four times, taught the same way four times. It now takes the history of approaches already used and picks a genuinely new one. Additive: with no history supplied, every existing caller gets the exact answer it always got.",
+      "note_for_reviewer": "This also made three strategies reachable that no input could previously select: broken_example_repair, transfer_challenge, contrast."
+    },
+    {
+      "area": "src/almanac/client.ts",
+      "intent": "The browser still sent `studentId`. After the identity change that meant the FIRST request worked and the SECOND was refused as a forgery — a dashboard that works once and then stops. The client no longer names the student."
+    }
+  ],
+
+  "defects_found_and_fixed": [
+    "Monotonic progress could be laundered by OMITTING a counter instead of lowering it: revealed 9 -> a save with no `revealed` -> revealed 0, all three answered 200. Found by driving the real server over HTTP.",
+    "A malformed Cookie header returned 500. `decodeURIComponent('%')` throws and nothing caught it, so a stray percent sign in a header the learner never typed produced 'internal error'.",
+    "The revalidation loop had a 30-second deadline but no attempt cap, so a fast-and-wrong model was re-asked as quickly as the network allowed — every one a paid vendor call.",
+    "A model that never settles meant the learner got NO reply at all. The retry loop could not help because the FIRST call never returned. There was no timeout around the model call anywhere.",
+    "key.ts silently trimmed ids, so tab \"x\" and tab \"x \" were one box and the first tab's work was lost."
+  ],
+
+  "known_gaps_deliberately_left": [
+    "record.ts round-trip assertion is dead code: it claims to catch Date, NaN and Map, and catches none of them. Pinned by a test rather than hidden.",
+    "MAX_RECORD_BYTES's friendly 400 can never reach a browser — MAX_BODY_BYTES is the same 256 KB, so 413 always fires first.",
+    "One mutant survives on handler.ts: the revalidation timer never being cleared. Not equivalent, small bounded cost (delayed process exit), named rather than papered over.",
+    "/api/search in production is wired to a port that always throws — 'Wired in Phase 4'. Every request answers 502 today."
+  ],
+
+  "how_this_repo_wants_to_be_reviewed": {
+    "tests": "Tests must fail before the code is written, and must be mutation-tested. A test edited to go green is treated as destroying evidence. Comments in tests explain WHY, including measurements taken by hand.",
+    "no_hardcoding": "Inputs are generated, not hand-picked. A guarantee proven with one string is a guarantee about that string.",
+    "honesty": "Never record a value the software cannot detect. Mastery, confidence scores and 'how well she understood' are explicitly NOT stored — only what observably happened.",
+    "audience": "The product teaches a child. Any message she can read must be plain words she can act on, never a status code, a stack trace, or an internal component name."
+  },
+
+  "verification_state": {
+    "vitest": "162 files, 8531 tests passing",
+    "behave": "37 scenarios, 150 steps passing, driving the built server over real HTTP with the model deliberately unreachable",
+    "typecheck": "clean on both tsconfig.json and tsconfig.server.json",
+    "reachability_gate": "PASS",
+    "not_verified": "PostgreSQL. Docker's image store is corrupt on this machine, so the suite runs on the JSON ledger and says so in its receipt rather than pretending."
+  }
+}

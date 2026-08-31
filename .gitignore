@@ -123,3 +123,24 @@ data/identity-secret
 **/canvas-memory.db-wal
 **/canvas-memory.db-shm
 **/almanac-ledger.json
+
+# ── Per-run receipts and machine-local tool state. ─────────────────────────
+#
+# These are OUTPUTS of running the suite, not source. `.real-infra-proof` is
+# rewritten on every behave run and is timestamped, so committing it means a
+# diff on every run and a file that reads as evidence while being stale. The
+# `features/.*-under-test.*` files are a scratch database and pid/exchange
+# ledgers that `environment.py` creates and deletes around each run — a reviewer
+# was reading them as unreadable binary.
+#
+# `.serena/` is machine-local MCP tool config, the same category as `.claude/`.
+.real-infra-proof
+frontend/.real-infra-proof
+.serena/
+frontend/features/.exchanges-this-run
+frontend/features/.servers-this-run
+frontend/features/.memory-under-test.db
+frontend/features/.memory-under-test.db-shm
+frontend/features/.memory-under-test.db-wal
+frontend/features/.ledger-under-test.json
+frontend/features/.shared-ledger-under-test.json

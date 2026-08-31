@@ -1,0 +1,43 @@
+# The real store behind the almanac.
+#
+# WHY THIS FILE EXISTS, AND WHAT IT REPLACES.
+#
+# The almanac kept every student's finished work in ONE JSON file, read whole
+# and written whole on every change. That is fine with one server and silently
+# wrong with two, which is how it shipped: `run-real-tests.sh` records the
+# result in a single line -- "390 were green while two replicas lost 28 of 60
+# students' marks."
+#
+# Measured here, through the real product over real HTTP, before this file
+# existed: twenty concepts marked done at the same moment across two replicas
+# sharing one ledger file returned **fifteen 500s**. Not quiet data loss --
+# outright failure. A child pressing "done" during a busy lesson was told the
+# server had broken.
+#
+# A shared database with an atomic insert is the fix, because the operation a
+# student performs is "add ONE mark", and that is what the store should do. The
+# old interface could only "replace EVERYTHING", so two students always raced.
+#
+# ONE SERVICE, NOT A STACK. There is nothing else to run: no queue, no cache,
+# no worker. A compose file that starts things this product does not use would
+# be a slower test and a longer list of ways to be broken.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: almanac
+      POSTGRES_PASSWORD: almanac
+      POSTGRES_DB: almanac
+    ports:
+      # Fixed, and deliberately not 5432: a developer's own PostgreSQL is
+      # usually already on 5432, and a suite that silently connected to it
+      # would write test rows into real data.
+      - "55432:5432"
+    healthcheck:
+      # The gate and the suite both wait on this. `pg_isready` answers only
+      # when the server will actually accept a connection, which "the container
+      # is up" does not.
+      test: ["CMD-SHELL", "pg_isready -U almanac -d almanac"]
+      interval: 1s
+      timeout: 3s
+      retries: 30

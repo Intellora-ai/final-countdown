@@ -15,6 +15,7 @@
  */
 
 import { schoolClassOf } from './school-class'
+import { apiBase } from '../canvas/api/config'
 
 /** One thing to study. `carriedFrom` present means it is backlog: it first
  *  appeared on an earlier day and was never marked done. */
@@ -139,9 +140,25 @@ async function reasonFrom(response: { status: number; json(): Promise<unknown> }
   return `the planner answered ${response.status}`
 }
 
-export function createAlmanacClient(options: { fetchImpl?: FetchLike; baseUrl?: string } = {}): AlmanacClient {
+export function createAlmanacClient(options: { fetchImpl?: FetchLike; baseUrl?: string; env?: Record<string, string | undefined> } = {}): AlmanacClient {
   const call = options.fetchImpl ?? (globalThis.fetch as unknown as FetchLike)
-  const base = options.baseUrl ?? ''
+  /*
+   * WHERE THE PLANNER IS, AND WHY THE DEFAULT CHANGED.
+   *
+   * This was `?? ''` -- same origin. Under `vite dev` that is correct:
+   * `vite.config.ts` proxies /api/day, /api/lesson, /api/done and /api/ask to
+   * the planner on 127.0.0.1:8787. That is `server.proxy`, so it exists in the
+   * dev server and nowhere else.
+   *
+   * Deployed, same origin is a CDN serving static files, so every planner call
+   * 404s and `post()` reports "the planner answered 404" -- an honest sentence
+   * about a request that never reached a planner.
+   *
+   * `apiBase()` is null when unset, so development is unchanged and needs no
+   * configuration. An explicit `baseUrl` still wins: the existing tests pass
+   * one, and a caller that names a host means it.
+   */
+  const base = options.baseUrl ?? apiBase(options.env) ?? ''
 
   async function post(path: string, body: unknown): Promise<{ ok: true; body: unknown } | { ok: false; reason: string }> {
     let response

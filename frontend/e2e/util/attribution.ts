@@ -119,3 +119,33 @@ export function attributeFiles(testInfo: TestInfo, files: readonly string[]): vo
     testInfo.annotations.push({ type: SOURCE_ANNOTATION, description: file })
   }
 }
+
+/** One error the PAGE raised, as the reporter reads it. */
+export const CAUSE_ANNOTATION = 'canvas-cause'
+
+/**
+ * Carry the browser's own error out to the annotation.
+ *
+ * THE GAP THIS CLOSES. Two specs already listened for `pageerror` and console
+ * errors and pushed them into local arrays, used only for in-test assertions.
+ * So when React threw and unmounted a subtree, the assertion that ran next
+ * reported a perfectly truthful `Received: 0`, GitHub printed that, and the
+ * actual `TypeError` sat in an array inside a runner that had already exited.
+ *
+ * The reader was shown the consequence and never the cause.
+ *
+ * Deliberately separate from `attribute()` and `attributeFiles()`. Those answer
+ * WHERE to look; this answers WHAT WENT WRONG, and merging them would let a
+ * cause be mistaken for a file path by anything reading the annotations.
+ */
+export function attachCause(
+  testInfo: TestInfo,
+  kind: 'pageerror' | 'console' | 'network',
+  text: string,
+): void {
+  const trimmed = text.trim()
+  /* An empty cause would print `WHY crashed — ` and claim a crash it cannot
+     describe. Nothing is better than a label with no evidence under it. */
+  if (trimmed === '') return
+  testInfo.annotations.push({ type: CAUSE_ANNOTATION, description: `${kind}: ${trimmed}` })
+}

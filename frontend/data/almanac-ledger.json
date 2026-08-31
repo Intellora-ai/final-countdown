@@ -14,8 +14,27 @@
         "allocated": 25,
         "capacity": 120,
         "plannedAt": "2026-08-25T10:41:52.512Z"
+      },
+      "2026-08-31": {
+        "date": "2026-08-31",
+        "items": [
+          {
+            "conceptId": "real-numbers--fundamental-theorem-of-arithmetic-statements-after-reviewing-work-done-earlier-a",
+            "subjectId": "mathematics",
+            "chapterId": "real-numbers",
+            "minutes": 25,
+            "carriedFrom": "2026-08-25"
+          }
+        ],
+        "allocated": 25,
+        "capacity": 120,
+        "plannedAt": "2026-08-30T19:24:50.201Z"
       }
     }
   },
-  "done": {}
+  "done": {
+    "stu_arya": [
+      "real-numbers--fundamental-theorem-of-arithmetic-statements-after-reviewing-work-done-earlier-a"
+    ]
+  }
 }

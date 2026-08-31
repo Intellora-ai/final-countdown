@@ -139,6 +139,15 @@ unmeasured = [
   # was trustworthy would have pinned an artefact.
   { path = "scripts", why = "no floor yet; 57% measured 2026-08-25, pending a per-area floor" },
 
+  # Two UserPromptSubmit/Stop hook scripts that shape agent replies. This IS
+  # production tooling -- it runs on every turn and can refuse one -- so it is
+  # `unmeasured` rather than `excluded`, which would claim it is not production
+  # at all. tests/test_reply_style_gate.py drives it through subprocess (37
+  # tests), so the same child-process blindness that held `scripts` at an
+  # untrustworthy number applies here; a floor set before that measurement
+  # would pin an artefact rather than a fact.
+  { path = "skills/writing-accessible-replies/hooks", why = "no floor yet; driven through subprocess by tests/test_reply_style_gate.py, needs its own measurement first" },
+
   # 7,992 lines. `learning-os/pyproject.toml` has no [tool.coverage] section at
   # all, so its 482 tests run unmeasured. Adding a floor here needs its own
   # measurement first, for the same reason as `scripts`.
@@ -159,6 +168,28 @@ unmeasured = [
 ]
 
 excluded = [
+  # 21 pinned third-party repositories, ~414 MB, vendored as submodules for
+  # reference only. None of it is ours, none of it ships, and nothing imports
+  # it -- `knowledge-research` reads it as documentation. Several carry Python
+  # (system-design-primer alone has a dozen solution directories), so without
+  # this row every job that checks out submodules floods this gate with other
+  # people's code. Every checkout in gate.yml sets submodules: false, which is
+  # why CI has not hit it yet; that is a reason to write the rule down, not to
+  # rely on the flag staying set.
+  { path = "knowledge", why = "third-party pinned submodules, reference material, not our production code" },
+
+  # The real-life scenario suite, and it arrived untracked so this gate had
+  # never seen it. `features/` holds the Gherkin file and `features/steps/` the
+  # Python that drives the RUNNING product over HTTP. It is the suite the Stop
+  # hook uses to prove the product; it is not part of the product.
+  #
+  # `excluded` rather than `unmeasured`: line coverage OF a test suite measures
+  # how much of the harness ran, which says nothing about the product it
+  # exercises. A floor here would pin an artefact.
+  { path = "features", why = "behave scenario suite -- test code driving the product over HTTP, never shipped" },
+  { path = "features/steps", why = "behave step definitions -- test code driving the product over HTTP, never shipped" },
+
+
   # Test code is not production code. `tests/generated` is covered by this row
   # through longest-prefix ownership rather than needing one of its own.
   { path = "tests", why = "test code, not production code" },
@@ -228,11 +259,19 @@ job = "axle-verify"
 mandatory = true
 role = "gate"
 # The wrapper is pinned as its own token; see the preflight entry above.
-# enforce_spec.py owned no report until it moved inside this chain, so a spec
-# that broke a syntactic rule turned the job red with every detail of which
-# spec and which rule living only in the job log.
+#
+# `scripts/enforce_spec.py` was pinned here too and has been DELETED at the
+# owner's instruction. A must_contain naming a script that no longer exists is
+# a gate that can only ever fail: `gate_integrity.py` reported
+#
+#     axle-verify: invokes scripts/enforce_spec.py: FAIL  0 step(s)
+#
+# and that failure was the whole `verify` check going red. The syntactic spec
+# rules it enforced are gone with it; `axle_gate.py` still proves
+# SPEC_SET == PROOF_SET and owns the verdict, which is the part that decides
+# whether a proof was actually checked.
 must_contain = ["run_gate.py --name axle-verify -- bash -c",
-                "scripts/axle_gate.py", "scripts/enforce_spec.py"]
+                "scripts/axle_gate.py"]
 evidence = "reports/axle-verify.json"
 artifact = "reports-axle-verify"
 
@@ -782,6 +821,8 @@ artifact = ""
 [advisory]
 
 "gate.yml::catch-errors" = "DEBT, not a decision. It runs this repository's own tuned linters on every push and SHOULD be required; the live ruleset does not list it, and `ci/gates.toml` must equal the ruleset exactly or preflight fails. Listed here so the two agree while the gap is visible rather than silent. Adding `catch-errors` to ruleset 20990225 and moving this row back to required_checks is the fix."
+
+"gate.yml::knowledge-gate" = "DELIBERATE, and TIME-BOXED. A new gate that has never run against real pull requests fails for its own setup reasons long before it finds a real defect, and a gate that cries wolf in week one is switched off in week two. It reports and blocks nothing while its false-positive rate is measured. Promotion is two lines, both marked BLOCKING-SWITCH in gate.yml: delete continue-on-error and change exit 0 to exit 1. Both together -- continue-on-error left on while exiting 1 gives a job that reports failure and blocks nothing, which looks enforced and is not. Move this row to required_checks at the same time."
 
 "gate.yml::claude-fix" = "DELIBERATE. Not a verdict -- a repair. It runs only when catch-errors is already red, so requiring it would demand a job that does not start on a healthy pull request, and a required check that never runs reports PENDING forever. Its OWN verdict is not advisory: scripts/no_weakening_gate.py reads the diff it pushed and fails this job on any suppression, skip, dropped assertion, deleted test file, or continue-on-error, so a weakening fix dies in the runner instead of landing on the branch."
 

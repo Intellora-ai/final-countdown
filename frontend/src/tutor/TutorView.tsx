@@ -19,7 +19,8 @@
  * words and this renders those words rather than an empty bubble.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createAgent, httpModel, type Agent, type AskResult } from '../agent'
+import { createAgent, escapeHatchKey, type Agent, type AskResult } from '../agent'
+import { backendModel } from './backendModel'
 import { researchPort, searchPort } from '../websearch'
 import './tutor.css'
 
@@ -60,7 +61,6 @@ export default function TutorView(): JSX.Element {
   const inFlight = useRef(false)
   const endRef = useRef<HTMLDivElement>(null)
 
-  const endpoint = readEnv('VITE_TUTOR_ENDPOINT')
   const searchEndpoint = readEnv('VITE_SEARCH_ENDPOINT')
   const deepSearch = readEnv('VITE_SEARCH_DEPTH') === 'research'
 
@@ -86,11 +86,11 @@ export default function TutorView(): JSX.Element {
   const agent: Agent = useMemo(
     () =>
       createAgent({
-        model: httpModel({
-          endpoint,
-          model: readEnv('VITE_TUTOR_MODEL') || undefined,
-          apiKey: readEnv('VITE_TUTOR_KEY') || undefined,
-        }),
+        /* THE BACKEND, ALWAYS. The browser has no key and needs none: the
+           server holds it. Anyone who still has `VITE_TUTOR_KEY` in a `.env` is
+           told on the console that they have published it — the value is read
+           only to warn about it, and goes nowhere near the wire. */
+        model: backendModel({}),
         /* SPREAD, NOT `search: maybeNull`. `AgentOptions.search` is optional,
            and an EXPLICIT `undefined` is not the same as absent to the agent:
            absent means the capability is reported UNMET ("I cannot look things
@@ -99,8 +99,14 @@ export default function TutorView(): JSX.Element {
            distinction has to survive the last three lines that carry it. */
         ...(build ? { search: build } : {}),
       }),
-    [endpoint, build],
+    [build],
   )
+
+  /* Once per mount, not once per question: a warning repeated on every turn is
+     a warning nobody reads. */
+  useEffect(() => {
+    escapeHatchKey(import.meta.env as unknown as Record<string, string | undefined>, console.warn)
+  }, [])
 
   useEffect(() => {
     const saved = window.localStorage.getItem(SAVE_KEY)
@@ -172,13 +178,6 @@ export default function TutorView(): JSX.Element {
     <div className="tutor">
       <header className="tutor-head">
         <div className="tutor-eyebrow">Tutor</div>
-        {!endpoint && (
-          <p className="tutor-warn" role="status">
-            No model is configured, so every answer below will say it could not be produced.
-            Set <code>VITE_TUTOR_ENDPOINT</code> to a chat-completions URL and{' '}
-            <code>VITE_TUTOR_MODEL</code> to the model it serves, then reload.
-          </p>
-        )}
         {restoreNote && <p className="tutor-warn" role="status">{restoreNote}</p>}
       </header>
 

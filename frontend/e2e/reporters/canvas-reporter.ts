@@ -1,10 +1,11 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type {
   FullConfig, FullResult, Reporter, Suite, TestCase, TestResult,
 } from '@playwright/test/reporter'
-import { SOURCE_ANNOTATION, RENDERER_FALLBACK } from '../util/attribution'
+import { SOURCE_ANNOTATION, CAUSE_ANNOTATION, RENDERER_FALLBACK } from '../util/attribution'
+import { classify, remedy } from '../util/remedy'
 
 /* THE REPORTER THAT MAKES A CI LOG WORTH READING.
  *
@@ -39,7 +40,7 @@ import { SOURCE_ANNOTATION, RENDERER_FALLBACK } from '../util/attribution'
  * fix; deleting the information is not.
  */
 
-interface Finding {
+export interface Finding {
   tool: 'playwright'
   status: 'failed' | 'timedOut' | 'interrupted' | 'flaky'
   project: string
@@ -51,6 +52,9 @@ interface Finding {
   sources: string[]
   attempts: number
   message: string
+  causes: string[]
+  attachments: string[]
+  unverifiedSources: string[]
   durationMs: number
 }
 
@@ -62,12 +66,38 @@ function esc(s: string): string {
 /** Playwright wraps failure text in ANSI colour even when piped. */
 const ANSI = new RegExp('\\[[0-9;]*m', 'g')
 
+/**
+ * The lines of an error that carry evidence, and only those.
+ *
+ * THE THREE-LINE WINDOW WAS WRONG, AND IT WAS MEASURED WRONG. It kept
+ * `clean.split('\n').slice(0, 3)`, which against Playwright 1.62.1 is the
+ * matcher, a BLANK LINE, and the locator -- so `Expected:` and `Received:`,
+ * the only two lines that say what actually happened, fell outside it.
+ *
+ * That is not merely untidy. `classify()` reads those lines, so trimming them
+ * off silently starved it: a forced failure printed `WHY unknown` about a
+ * `toHaveCount` mismatch the rules handle perfectly well.
+ *
+ * Selected by SHAPE rather than by position, so a change in how Playwright
+ * formats an error cannot quietly re-open the same hole.
+ */
+const EVIDENCE = /^(Expected|Received|Timed out|Test timeout|Error|Locator|Timeout)\b/
+const MAX_PARTS = 8
+
+export function usefulMessage(raw: string): string {
+  const lines = raw.replace(ANSI, '').split('\n').map((l) => l.trim()).filter((l) => l !== '')
+  /* The call log names the spec and the node_modules frame under it. That is
+     where the assertion lives and never where the defect lives -- the whole
+     reason this reporter exists. */
+  const stop = lines.findIndex((l) => l.startsWith('Call log:'))
+  const body = stop >= 0 ? lines.slice(0, stop) : lines
+  const kept = body.filter((l) => EVIDENCE.test(l)).slice(0, MAX_PARTS)
+  const parts = kept.length > 0 ? kept : body.slice(0, MAX_PARTS)
+  return parts.join(' | ').slice(0, 600) || 'failed with no message'
+}
+
 function firstUsefulLine(result: TestResult): string {
-  const raw = result.error?.message ?? result.errors[0]?.message ?? 'failed with no message'
-  const clean = raw.replace(ANSI, '').trim()
-  /* The first three lines carry the matcher, the expected and the received.
-   * The rest is a stack through node_modules that helps nobody. */
-  return clean.split('\n').slice(0, 3).join(' | ').slice(0, 600)
+  return usefulMessage(result.error?.message ?? result.errors[0]?.message ?? '')
 }
 
 export default class CanvasReporter implements Reporter {
@@ -107,6 +137,20 @@ export default class CanvasReporter implements Reporter {
       ),
     ].sort()
 
+    const causes = [
+      ...new Set(
+        test.annotations
+          .filter((a) => a.type === CAUSE_ANNOTATION && a.description)
+          .map((a) => a.description as string),
+      ),
+    ]
+
+    /* The artifacts Playwright already wrote. Naming them costs nothing and
+       saves a reader guessing whether a screenshot exists. */
+    const attachments = [...new Set(result.attachments.map((a) => a.name))].sort()
+
+    const resolved = sources.length ? sources : [RENDERER_FALLBACK]
+
     this.findings.set(test.id, {
       tool: 'playwright',
       status: result.status,
@@ -114,9 +158,14 @@ export default class CanvasReporter implements Reporter {
       title: test.titlePath().slice(1).filter(Boolean).join(' > '),
       spec: this.repoPath(test.location.file),
       specLine: test.location.line,
-      sources: sources.length ? sources : [RENDERER_FALLBACK],
+      sources: resolved,
+      /* Checked, not trusted. An attribution is a claim about a file, and this
+         is the only place that can test the claim before it is printed. */
+      unverifiedSources: resolved.filter((p) => !this.pathExists(p)),
       attempts: (prior?.attempts ?? 0) + 1,
       message: firstUsefulLine(result),
+      causes: causes.length > 0 ? causes : (prior?.causes ?? []),
+      attachments,
       durationMs: result.duration,
     })
   }
@@ -126,18 +175,9 @@ export default class CanvasReporter implements Reporter {
       .sort((a, b) => a.project.localeCompare(b.project) || a.title.localeCompare(b.title))
 
     /* ONE ANNOTATION PER TEST, ON THE SOURCE. The spec location rides along in
-     * the message so provenance is never lost -- what changes is which file
+     * the body so provenance is never lost -- what changes is which file
      * GitHub opens when the annotation is clicked. */
-    for (const f of all) {
-      for (const source of f.sources) {
-        const detail =
-          `${f.message}  ::  found by ${f.spec}:${f.specLine} `
-          + `[${f.project}]${f.attempts > 1 ? ` after ${f.attempts} attempts` : ''}`
-        process.stdout.write(
-          `::error file=${source},title=${esc(`${f.status}: ${f.title}`)}::${esc(detail)}\n`,
-        )
-      }
-    }
+    for (const line of annotationsFor(all)) process.stdout.write(`${line}\n`)
 
     try {
       mkdirSync(dirname(this.outFile), { recursive: true })
@@ -157,6 +197,19 @@ export default class CanvasReporter implements Reporter {
     }
   }
 
+  /**
+   * Does a repo-relative attributed path exist on disk?
+   *
+   * Resolved from this file's own location, like `outFile` above and for the
+   * same measured reason: the reporter's working directory is not knowable
+   * from inside it, and a check that silently answers "no" for every path
+   * would mark every attribution stale.
+   */
+  private pathExists(repoRelative: string): boolean {
+    const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
+    return existsSync(resolve(root, repoRelative))
+  }
+
   private repoPath(abs: string): string {
     const s = abs.replace(/\\/g, '/')
     const i = s.indexOf('/frontend/')
@@ -166,4 +219,90 @@ export default class CanvasReporter implements Reporter {
   printsToStdio(): boolean {
     return true
   }
+}
+
+/* ------------------------------------------------------------------------ */
+/* The annotation itself                                                     */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Six labelled fields, so a reader never has to open an artifact to know what
+ * happened.
+ *
+ * The old annotation was one line: the assertion, and a filename somebody had
+ * typed by hand. Everything a reader actually needed next -- had the page
+ * crashed, was it a flake, is the blamed file even capable of this failure --
+ * was rediscovered by hand, every time, from the same run that already knew.
+ *
+ * Every field below is COPIED from the run or LOOKED UP in a rule table.
+ * Nothing here composes a sentence about the failure, which is why nothing here
+ * can compose a wrong one. A field with no evidence behind it is omitted rather
+ * than filled: no cause, no `WHY` detail; no matching rule, no `NEXT`; no
+ * attachments, no `ALSO`.
+ */
+export function detailFor(f: Finding): string {
+  const shape = {
+    message: f.message,
+    status: f.status,
+    attempts: f.attempts,
+    causes: f.causes,
+    where: f.sources[0] ?? RENDERER_FALLBACK,
+  }
+  const why = classify(shape)
+  const next = remedy(shape, why)
+
+  const lines: string[] = [
+    `[${f.project}${f.attempts > 1 ? `, ${f.attempts} attempts` : ''}]`,
+    '',
+    `WHAT     ${f.message}`,
+    /* The page's own error, when there is one. This is the field that was
+       missing entirely: a React throw unmounts the subtree, so the assertion
+       reports a truthful `Received: 0` about a page that no longer exists, and
+       the real error sat in the test's local array and never left the runner. */
+    `WHY      ${why}${f.causes.length > 0 ? ` — ${f.causes.join(' ; ')}` : ''}`,
+  ]
+
+  if (next !== '') lines.push(`NEXT     ${next}`)
+
+  /* ATTRIBUTED, NOT PROVEN, and the word is chosen. `attribute()` resolves a
+     renderer from a `data-kind` the DOM actually emitted; `attributeFiles()`
+     takes whatever a human typed. Printing both as bare fact is how a reader
+     ends up in `doubt.ts` -- a pure text matcher with no viewport and no clock
+     -- looking for a bug that only appears at one viewport.
+
+     A path that does not exist is called out IN THE ANNOTATION rather than
+     quietly used, because the previous stale map in this repo failed silently:
+     six of six paths pointed at nothing and every attribution degraded without
+     saying so. */
+  for (const source of f.sources) {
+    const stale = f.unverifiedSources.includes(source)
+    lines.push(
+      `WHERE    ${source}   ${stale ? '(ATTRIBUTION STALE: this path does not exist)' : '(attributed)'}`,
+    )
+  }
+
+  lines.push(`FOUND BY ${f.spec}:${f.specLine}`)
+
+  if (f.attachments.length > 0) {
+    lines.push(`ALSO     ${f.attachments.join(', ')} in the run artifacts`)
+  }
+
+  return lines.join('\n')
+}
+
+/**
+ * One `::error` per source file.
+ *
+ * Still one annotation per test per source -- the deduplication in `onTestEnd`
+ * is what stopped 13 annotations describing 5 failures -- but each one now
+ * carries the whole picture instead of a single line.
+ */
+export function annotationsFor(all: readonly Finding[]): string[] {
+  const out: string[] = []
+  for (const f of all) {
+    for (const source of f.sources) {
+      out.push(`::error file=${source},title=${esc(`${f.status}: ${f.title}`)}::${esc(detailFor(f))}`)
+    }
+  }
+  return out
 }

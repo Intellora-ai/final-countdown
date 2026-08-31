@@ -24,6 +24,21 @@ export interface LessonBrief {
   readonly concept?: string
   readonly subject?: string
   readonly question?: string
+  /**
+   * Why the previous attempt was refused, verbatim from `validateLesson`.
+   *
+   * WHY THIS EXISTS RATHER THAN A LONGER SYSTEM PROMPT.
+   *     There are 29 teaching rules. A model that has never seen them breaks
+   *     one or two per lesson, and each one is a refusal the student reads as
+   *     "the app is broken". Measured 2026-08-31 against gpt-oss-120b: five
+   *     different rules broken across six attempts, no two the same.
+   *
+   *     Naming all 29 in the prompt is the obvious move and it is the wrong
+   *     one: it makes every request larger and slower for every provider, and
+   *     it still misses the thirtieth. Handing back the ACTUAL failure is
+   *     smaller, exact, and covers a rule added next month for free.
+   */
+  readonly corrections?: readonly string[]
 }
 
 /**
@@ -236,9 +251,19 @@ export const SYSTEM = [
   '     text must appear in that block word for word.',
 ].join('\n')
 
+/** What the previous attempt broke, phrased as work to do rather than blame. */
+function corrective(brief: LessonBrief): string {
+  const notes = brief.corrections ?? []
+  if (notes.length === 0) return ''
+  return (
+    `\n\nYOUR PREVIOUS ATTEMPT WAS REFUSED. Fix every one of these and return ` +
+    `the whole lesson again:\n${notes.map((note) => `- ${note}`).join('\n')}`
+  )
+}
+
 export function briefFor(brief: LessonBrief): string {
   if (typeof brief.question === 'string' && brief.question.trim() !== '') {
-    return `A student asked: ${brief.question}\n\nAnswer it directly and plainly.`
+    return `A student asked: ${brief.question}\n\nAnswer it directly and plainly.${corrective(brief)}`
   }
   const subject = brief.subject ? ` (${brief.subject})` : ''
   /* The strategy arrives as an INSTRUCTION, never as its own name. "Use the
@@ -247,5 +272,5 @@ export function briefFor(brief: LessonBrief): string {
    * away. */
   const how =
     brief.strategy === undefined ? '' : `\n\nTeach it this way: ${instructionFor(brief.strategy)}`
-  return `Teach this one concept${subject}: ${brief.concept}\n\nAssume nothing beyond it has been taught yet.${how}`
+  return `Teach this one concept${subject}: ${brief.concept}\n\nAssume nothing beyond it has been taught yet.${how}${corrective(brief)}`
 }

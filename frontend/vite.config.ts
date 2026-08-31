@@ -149,6 +149,12 @@ export default defineConfig({
        * a second, not one that needs five browsers. The include is narrowed to
        * `util/` so it can never reach a spec. */
       'e2e/util/**/*.test.ts',
+      /* AND A SEVENTH: `e2e/reporters/`, for the same reason and with a worse
+       * history. `canvas-reporter.ts` decides what EVERY CI failure looks like
+       * to a reader, and it shipped with no test of any kind -- so the one
+       * module whose job is making failures legible was itself unproven. It is
+       * a pure function of a Playwright result, so it tests in milliseconds. */
+      'e2e/reporters/**/*.test.ts',
     ],
     exclude: ['e2e/**/*.spec.ts', 'node_modules/**', 'dist/**'],
 

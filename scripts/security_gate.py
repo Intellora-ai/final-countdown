@@ -105,6 +105,11 @@ def check_no_sql(path: str, line_no: int) -> tuple[bool, str]:
 
 
 ELIGIBLE = {
+    # knowledge_manifest.py reads pinned submodule revisions from
+    # `git submodule status`. Eligible only; the four call-site conditions
+    # above are still re-derived from its AST on every run.
+    ("B404", "scripts/knowledge_manifest.py"),
+    ("B603", "scripts/knowledge_manifest.py"),
     ("B404", "scripts/proof_gate.py"),
     ("B603", "scripts/proof_gate.py"),
     ("B404", "scripts/security_gate.py"),
@@ -168,6 +173,15 @@ ELIGIBLE = {
     # covering it in the same run that removed them.
     ("B404", "scripts/build_bundle.py"),
     ("B603", "scripts/build_bundle.py"),
+    # knowledge_search.py runs `grep` once per query term and `pdftotext` once
+    # per PDF. Both argvs are list literals whose argv[0] is bound in the same
+    # scope from shutil.which, both pass a timeout, and neither joins a caller
+    # string: the query reaches grep after `-e` and the directories after `--`,
+    # so nothing from the command line can be read as an option. As with every
+    # entry here, this line is re-proven from the file's AST by
+    # check_subprocess_safety on each run rather than remembered.
+    ("B404", "scripts/knowledge_search.py"),
+    ("B603", "scripts/knowledge_search.py"),
 }
 
 

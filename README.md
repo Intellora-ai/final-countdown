@@ -65,7 +65,6 @@ authentication.
 
 ```bash
 pytest --cov=src --cov-branch --cov-fail-under=95   # tests + coverage
-python3 scripts/enforce_spec.py specs/*_spec.lean   # spec strength
 python3 scripts/axle_gate.py                        # AXLE proof check
 pyright                                             # strict types
 bandit -r src scripts --severity-level low --confidence-level low
@@ -130,9 +129,9 @@ AXLE checks one thing precisely: **does the proof in `proofs/` prove the theorem
 `specs/`.** That check is real — a wrong proof is rejected by the Lean kernel.
 
 AXLE does not read Python. Nothing mechanically checks that the Lean spec describes
-the Python function beside it. `scripts/enforce_spec.py` rejects the obvious
-degenerate forms (`a = a`, `a + b = a + b`), but a spec can still be true, non-trivial,
-and unrelated to the code.
+the Python function beside it, and since `scripts/enforce_spec.py` was removed
+nothing rejects the degenerate forms either (`a = a`, `a + b = a + b`). A spec can
+be true, non-trivial, and unrelated to the code.
 
 So the specs in this repo are written and reviewed by a human, deliberately. The proof
 is the part that is automated. Treat "verified" as "this contract holds", not "this

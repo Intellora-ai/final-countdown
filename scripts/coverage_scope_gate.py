@@ -31,13 +31,29 @@ Every directory holding production Python appears in exactly one list under
     unmeasured  production code with no coverage gate --- `why` REQUIRED
     excluded    not production code --- `why` REQUIRED
 
-Five findings, each one blocking:
+Six findings, each one blocking:
 
     1. a directory holding .py files that is in no list
     2. an `unmeasured` or `excluded` row with no `why`
     3. one path claimed by two lists
     4. a declared path that does not exist on disk
-    5. a `measured` row with no `scope`
+    5. a `measured` row with no `scope` or no integer `floor`
+    6. a `measured` row whose floor NO gate enforces
+
+FINDING 6 IS THE SAME DEFECT ONE LEVEL UP.
+
+The original bug was a threshold pinned with nothing pinning its scope. A
+`measured` row is the mirror image: a scope and a floor declared with nothing
+running them. `{ path = "scripts", scope = "scripts", floor = 57 }` satisfied
+every check above while no job anywhere passed `--cov=scripts`, so the manifest
+would have read as "scripts is measured" and the number would have been a
+sentence in a TOML file.
+
+So a `measured` row is only accepted when ONE gate in `[gates.*]` pins BOTH
+`--cov=<scope>` and `--cov-fail-under=<floor>`. One gate, because a job
+measuring with no threshold never fails and a threshold over another scope
+measures other code; added together they look like enforcement and enforce
+nothing.
 
 WHY `unmeasured` EXISTS, AND WHY IT IS NOT A LOOPHOLE
 
@@ -127,6 +143,73 @@ def _owner(directory: str, declared: set[str]) -> str | None:
     return best
 
 
+def _gate_pins(parsed: dict[str, Any]) -> dict[str, list[str]]:
+    """Every `[gates.*]` name mapped to the tokens its command is pinned to.
+
+    `must_contain` entries are pinned fragments of the command a gate runs, so
+    a fragment may be one flag (`--cov=src`) or a whole invocation. Splitting
+    on whitespace makes both read the same way, and makes the match exact:
+    without it, `--cov=src` would also be satisfied by `--cov=srcfoo`.
+    """
+    raw: object = parsed.get("gates")
+    if not isinstance(raw, dict):
+        return {}
+    gates: dict[str, Any] = raw  # pyright: ignore[reportUnknownVariableType]
+
+    out: dict[str, list[str]] = {}
+    for name, body in gates.items():
+        if not isinstance(body, dict):
+            continue
+        section: dict[str, Any] = body  # pyright: ignore[reportUnknownVariableType]
+        pinned: object = section.get("must_contain", [])
+        tokens: list[str] = []
+        if isinstance(pinned, list):
+            entries: list[Any] = pinned  # pyright: ignore[reportUnknownVariableType]
+            for entry in entries:
+                if isinstance(entry, str):
+                    tokens.extend(entry.split())
+        out[name] = tokens
+    return out
+
+
+def _enforcement(
+    path: str, scope: str, row: dict[str, Any], gate_pins: dict[str, list[str]]
+) -> list[str]:
+    """Problems with a `measured` row whose floor nothing actually enforces.
+
+    A floor is a claim. `must_contain` on some gate is the evidence that a job
+    runs the measurement and fails below it. Without this the remaining work on
+    the coverage gate --- moving rows from `unmeasured` to `measured` --- could
+    be done by editing one line of TOML while nothing new ever ran.
+
+    BOTH pins must live in ONE gate. `--cov=<scope>` with no threshold never
+    fails, and `--cov-fail-under=<floor>` on another scope measures other code;
+    counting them together would accept exactly the split that enforces
+    nothing.
+    """
+    floor: object = row.get("floor")
+    if not isinstance(floor, int) or isinstance(floor, bool):
+        return [
+            f"{path}: listed as `measured` with no integer `floor`. A scope "
+            "with no floor declares a measurement and no standard, so there "
+            "is nothing for a gate to enforce."
+        ]
+
+    want_scope = f"--cov={scope}"
+    want_floor = f"--cov-fail-under={floor}"
+    for tokens in gate_pins.values():
+        if want_scope in tokens and want_floor in tokens:
+            return []
+
+    return [
+        f"{path}: declared `measured` at floor {floor} over scope {scope!r}, "
+        f"but no gate in `[gates.*]` pins both `{want_scope}` and "
+        f"`{want_floor}`. A floor no job enforces is a number in a file. Pin "
+        "them on the gate that runs it, or move the row back to `unmeasured` "
+        "and say why."
+    ]
+
+
 def check(root: Path, manifest_path: Path) -> list[str]:
     """Every problem found, as printable lines. Empty means consistent."""
     problems: list[str] = []
@@ -143,6 +226,7 @@ def check(root: Path, manifest_path: Path) -> list[str]:
             "docstring for the three lists."
         ]
     section: dict[str, Any] = raw_section  # pyright: ignore[reportUnknownVariableType]
+    gate_pins = _gate_pins(parsed)
 
     # ---- read the declarations, and refuse the malformed ones --------------
     claimed: dict[str, str] = {}
@@ -183,6 +267,8 @@ def check(root: Path, manifest_path: Path) -> list[str]:
                         "coverage scope that measures it, or move it to "
                         "`unmeasured` and say why."
                     )
+                else:
+                    problems.extend(_enforcement(path, scope.strip(), row, gate_pins))
 
             if not (root / path).is_dir():
                 problems.append(

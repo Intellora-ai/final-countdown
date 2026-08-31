@@ -12,9 +12,42 @@ const CHAN = 'learning-os-sync'
 const now = () => Date.now()
 const clone = <T,>(o: T): T => JSON.parse(JSON.stringify(o))
 
+/* Every way the storage layer can fail underneath the app.
+ *
+ * These operations sit between the user and their data and all four of them
+ * can fail for reasons the app cannot prevent: another tab writing a corrupt
+ * payload, a full or blocked localStorage, a closed channel. What the app CAN
+ * do is know. Until 2026-08-25 it could not: three handlers here had a comment
+ * for a body, so a failed cross-tab sync and a failed save were both
+ * indistinguishable from success. */
+export type DataOp = 'load' | 'commit' | 'broadcast' | 'storage-event'
+
+export interface DataLayerFailure {
+  op: DataOp
+  cause: Error
+  at: number
+}
+
+const asError = (e: unknown): Error => (e instanceof Error ? e : new Error(String(e)))
+
 export class LocalAdapter implements Adapter {
   private chan: BroadcastChannel | null
   private subs: Array<(db: DB) => void> = []
+  private errs: Array<(f: DataLayerFailure) => void> = []
+
+  /* The last failure, readable by anything that arrives after it happened.
+   * A callback only reaches listeners already subscribed; a component that
+   * mounts later still needs a way to discover that sync is broken. */
+  lastError: DataLayerFailure | null = null
+
+  /* A listener that throws must not take the other listeners down with it,
+   * and its own failure must not vanish either. */
+  lastListenerError: Error | null = null
+
+  /* Empty after a save that fully landed. Non-empty means part of the last
+   * commit did not, which is the question `Promise<void>` cannot answer. */
+  lastCommitFailures: DataLayerFailure[] = []
+
   constructor() {
     this.chan = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(CHAN) : null
     if (this.chan) this.chan.onmessage = (e) => {
@@ -23,20 +56,49 @@ export class LocalAdapter implements Adapter {
     }
     window.addEventListener('storage', (e) => {
       if (e.key !== KEY || !e.newValue) return
-      try { const db = JSON.parse(e.newValue); this.subs.forEach((cb) => cb(db)) } catch { /* ignore */ }
+      try { const db = JSON.parse(e.newValue); this.subs.forEach((cb) => cb(db)) }
+      catch (cause) { this.report('storage-event', cause); return }
     })
   }
+
+  /* Subscribe to failures. Returns an unsubscribe, matching subscribe(). */
+  onError(cb: (f: DataLayerFailure) => void) {
+    this.errs.push(cb)
+    return () => { this.errs = this.errs.filter((f) => f !== cb) }
+  }
+
+  private report(op: DataOp, cause: unknown) {
+    const failure: DataLayerFailure = { op, cause: asError(cause), at: now() }
+    this.lastError = failure
+    for (const cb of this.errs) {
+      try { cb(failure) }
+      catch (listenerFailure) { this.lastListenerError = asError(listenerFailure); continue }
+    }
+    return failure
+  }
+
   load() {
     try { const raw = localStorage.getItem(KEY); return Promise.resolve(raw ? JSON.parse(raw) as DB : null) }
-    catch { return Promise.resolve(null) }
+    catch (cause) { this.report('load', cause); return Promise.resolve(null) }
   }
   subscribe(cb: (db: DB) => void) {
     this.subs.push(cb)
     return () => { this.subs = this.subs.filter((f) => f !== cb) }
   }
+  /* Resolves either way, deliberately. store.ts commitPath/commit call this
+   * fire-and-forget and nothing awaits the promise, so rejecting here would
+   * trade a silent swallow for an unhandled rejection — the same defect in a
+   * different hat. The failure goes down the error channel instead, where
+   * something can act on it. */
   commit(db: DB) {
-    try { localStorage.setItem(KEY, JSON.stringify(db)) } catch { /* storage full/blocked */ }
-    if (this.chan) { try { this.chan.postMessage({ k: KEY, db }) } catch { /* closed */ } }
+    const failures: DataLayerFailure[] = []
+    try { localStorage.setItem(KEY, JSON.stringify(db)) }
+    catch (cause) { const f = this.report('commit', cause); failures.push(f) }
+    if (this.chan) {
+      try { this.chan.postMessage({ k: KEY, db }) }
+      catch (cause) { const f = this.report('broadcast', cause); failures.push(f) }
+    }
+    this.lastCommitFailures = failures
     return Promise.resolve()
   }
   close() { if (this.chan) this.chan.close() }

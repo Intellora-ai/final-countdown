@@ -202,8 +202,15 @@ export default function PracticeView() {
     [select],
   )
 
+  /* A SECTION, NOT A `main`. The app shell in App.tsx already renders the
+     page's one `<main role="main">`, and this sat inside it -- so every
+     practice screen exposed TWO main landmarks. HTML allows exactly one, and
+     a screen reader offered "main" twice with no way to tell which held the
+     map. Measured 2026-08-31: `getByRole('main')` matched two elements on
+     #/practice. The class carries all the styling; nothing selects on the
+     tag, so only the tag changed. */
   return (
-    <main ref={rootRef} className="practice-map">
+    <section ref={rootRef} className="practice-map">
       <div aria-hidden className="pm-ground" />
 
       <div
@@ -234,7 +241,7 @@ export default function PracticeView() {
           Reset view
         </button>
       </div>
-    </main>
+    </section>
   )
 }
 

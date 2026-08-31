@@ -31,6 +31,8 @@ reports/
 node_modules
 playwright-report/
 test-results/
+blob-report/
+playwright/.cache/
 
 # Scratch git worktrees created for isolated agent runs. They are full
 # checkouts of this repository living inside it; committing one would nest the
@@ -127,6 +129,16 @@ diagnostics/
 frontend/e2e/*-snapshots/*-darwin.png
 frontend/e2e/*-snapshots/*-win32.png
 
+# Agent scan and sweep output. Generated on demand, carries timestamps and
+# machine-local paths; `git add -A` would sweep them into history and a
+# findings file committed once is later read as if it were current.
+.repo-oracle/
+.root-sweep/
+
+# setuptools build metadata for learning-os. Existed only in .git/info/exclude,
+# which is per-clone and never committed -- the same trap this file already
+# documents for .venv. Moved here so it travels.
+learning-os/src/*.egg-info/
 # SECRETS. Nothing here ignored a `.env` file until 2026-08-29, and this
 # repository is PUBLIC -- so a key written to `frontend/.env.local` and picked
 # up by any `git add -A` would have been published the moment it was pushed.
@@ -135,18 +147,40 @@ frontend/e2e/*-snapshots/*-win32.png
 # was about to be created, `git check-ignore` reported it UNPROTECTED, and
 # neither `.gitignore` nor `frontend/.gitignore` carried a single env pattern.
 #
-# `.env.example` is deliberately exempted. It is the template that tells a new
-# contributor WHICH variables exist, carries no values, and is useless if it is
-# not committed.
+# TEMPLATES are deliberately exempted. They tell a new contributor WHICH
+# variables exist, carry no values, and are useless if they are not committed.
+#
+# THE NEGATION IS BY SUFFIX, NOT BY EXACT NAME. It used to read
+# `!**/.env.example`, which exempted that one filename and nothing else --- so
+# `.env.production.example`, a template with no values in it, was silently
+# ignored and could not be committed at all. `src/canvas/api/envPolicy.test.ts`
+# requires both files to exist, and a policy that scans a file git refuses to
+# keep is a policy that scans nothing.
 .env
 .env.*
 **/.env
 **/.env.*
 !.env.example
 !**/.env.example
+!.env.*.example
+!**/.env.*.example
 
 # Private keys and certificates, for the same reason and by the same accident.
 *.pem
 *.key
 *.p12
 *.pfx
+
+# A PLAIN CLONE, NOT A SUBMODULE, AND THEREFORE 476 MB OF UNTRACKED FILES.
+# Every other mirror under knowledge/ is a submodule, which git stores as a
+# pointer. This one was cloned plainly because `.gitmodules` was being edited by
+# another session at the time and adding an entry would have clobbered it.
+# Ignored so a stray `git add` cannot commit half a gigabyte of somebody else's
+# repository. Convert it to a submodule and delete this line.
+knowledge/playwright/
+
+# Work in progress, untracked at the time it was written: these import
+# modules that do not exist yet and break `npm run build`.
+frontend/src/tutor/backendModel.test.ts
+frontend/src/canvas/api/envPolicy.test.ts
+frontend/src/tutor/TutorView.no-credential.test.tsx

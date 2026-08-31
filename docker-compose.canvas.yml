@@ -1,0 +1,62 @@
+# TWO REPLICAS AND ONE DATABASE — the shape a cloud deployment actually has.
+#
+# This file exists to be RUN, not to document an intention. The scenario
+# "Progress survives the app running on more than one server" starts it, marks
+# topics through both replicas at once, and reads back what survived. Against a
+# shared file that scenario loses 28 of 60 marks and refuses 10 of 20 with 500.
+#
+# Separate from `docker-compose.yml`, which is the PostgreSQL that
+# `learning-os/tests/db` uses and says in its own header that CI does not read
+# it. Two unrelated jobs in one file is how a version drifts between them.
+
+name: learning-canvas
+
+services:
+  postgres:
+    # PINNED TO A MINOR, matching docker-compose.yml exactly. Two definitions of
+    # one dependency drift, so they are pinned identically and both say why.
+    image: postgres:16.10-alpine
+    environment:
+      POSTGRES_USER: almanac
+      # A DEVELOPMENT PASSWORD FOR A THROWAWAY CONTAINER, committed on purpose.
+      # It grants access to nothing but a local scratch database. A placeholder
+      # that LOOKED like a secret would invite somebody to put a real one here.
+      POSTGRES_PASSWORD: almanac
+      POSTGRES_DB: almanac
+    # No published port. Nothing outside this network needs to reach it, and a
+    # published one would clash with whatever the developer already runs.
+    healthcheck:
+      # The replicas below wait on THIS, not on a sleep. A fixed wait is a guess
+      # about a machine's speed and is wrong on both sides.
+      test: ["CMD-SHELL", "pg_isready -U almanac -d almanac"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  canvas-a: &canvas
+    image: ${CANVAS_IMAGE:-learning-canvas:test}
+    # NEVER REACH FOR A REGISTRY. This image is built locally and exists on no
+    # registry at all, so a pull can only fail -- and it fails with "pull access
+    # denied ... may require 'docker login'", which sends whoever ran this to
+    # Docker Hub instead of to `docker build`. Refusing to pull makes the error
+    # say the image is missing, which is the truth.
+    pull_policy: never
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ALMANAC_DATABASE_URL: postgresql://almanac:almanac@postgres:5432/almanac
+      # Unreachable on purpose: every scenario about the planner and the ledger
+      # must pass without a paid model, and one that quietly needed it would be
+      # hiding a cost.
+      OLLAMA_MODEL: unreachable-on-purpose
+      HOST: 0.0.0.0
+    ports:
+      - "8921:8787"
+
+  # IDENTICAL, which is the entire point. A load balancer does not care which
+  # copy answers, so neither may the student's progress.
+  canvas-b:
+    <<: *canvas
+    ports:
+      - "8922:8787"

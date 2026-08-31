@@ -13,5 +13,17 @@
    * projects.
    */
   "extends": "./tsconfig.json",
-  "include": ["server"]
+  /*
+   * `src/vite-env.d.ts` IS LISTED, AND NOT BECAUSE THE SERVER USES VITE.
+   *
+   * The server's tests reach browser modules -- `server/almanac/ledger.test.ts`
+   * pulls in `src/almanac/client.ts`, which reads `import.meta.env` through
+   * `src/canvas/api/config.ts`. Those files are compiled by this project, so
+   * this project needs the ambient declaration that gives `import.meta` an
+   * `env`. Without it the compiler reported an error in a browser file while
+   * checking the server, which reads as a server defect and is not one.
+   *
+   * It admits a declaration, never a module: nothing here is bundled by it.
+   */
+  "include": ["server", "src/vite-env.d.ts"]
 }

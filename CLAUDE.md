@@ -51,6 +51,21 @@ workflow or skill unless the user asked for it.
   boundaries. You are not a yes-machine.
 
 ### 9. Test the human, not your own code
+- TESTS ARE FOR HUMAN USERS, NOT FOR CODE. A test aimed at your code only
+  proves the code agrees with itself. Aim it at the person using the thing.
+- THE ORDER, AND IT IS NOT NEGOTIABLE:
+    1. Write the human test first.
+    2. Run it. It MUST fail, and it must fail for the right reason: the thing
+       it asks for does not exist or does not work yet. A test that fails on a
+       typo, a bad import or a wrong filename proves nothing — fix that and
+       run it again until the failure is the real one.
+    3. Only then write code.
+    4. When it fails, change the CODE. Never the test.
+  Code gets better. Tests never get weaker. A test written after the code
+  passes the first time it runs, so it has proved nothing.
+- If the code already exists and a new test passes immediately, you have not
+  proved it works. Break the code on purpose and check the test catches it.
+  That is the only proof a test has teeth.
 - Tests must be UNIVERSAL and about REAL LIFE. Real life does not depend on
   your code, so a test written against your code proves your code agrees with
   itself and nothing else.

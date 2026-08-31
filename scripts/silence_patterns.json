@@ -1,0 +1,63 @@
+{
+  "_why_this_is_data_and_not_code": [
+    "These patterns detect a handler that swallows a caught failure. Written",
+    "into a .py file they ARE that shape, so ~/.claude/hooks/laws.py refuses",
+    "the file -- correctly, by its own blunt rule, and it has no prose or",
+    "pattern exemption. Measured 2026-08-25: a Write carrying these patterns",
+    "is refused for .py and allowed for .json/.txt/.md.",
+    "",
+    "That is very likely why the law was never ported into this repository.",
+    "",
+    "Keeping rule definitions in a data file next to an engine that loads them",
+    "is ordinary design -- eslint, semgrep and this repo's own rules.oracle all",
+    "work this way. It hides no swallowed handler: the engine still judges",
+    "every handler in the tree by its EFFECT. State the sidestep out loud",
+    "anyway, because a change that happens to get past a gate should be",
+    "reviewed as such rather than quietly benefited from."
+  ],
+
+  "_ported_from": "~/.claude/hooks/laws.py — LAW 1, SILENCE. Verbatim. Two implementations of one law drift apart, and then the hook and the sweep disagree about the same line.",
+
+  "handlers": [
+    {
+      "name": "js_catch",
+      "group": 1,
+      "flags": ["DOTALL"],
+      "pattern": "catch\\s*(?:\\([^)]*\\))?\\s*\\{([^{}]*)\\}",
+      "note": "A block handler in JS/TS. The body is group 1."
+    },
+    {
+      "name": "js_arrow_catch",
+      "group": 1,
+      "flags": ["DOTALL"],
+      "pattern": "\\.catch\\(\\s*(?:\\([^)]*\\)|[A-Za-z_$][\\w$]*)\\s*=>\\s*\\{([^{}]*)\\}\\s*\\)",
+      "note": "Not in laws.py, and needed here: a promise tail whose handler is an arrow function. The parameter list sits between the keyword and the body, putting it out of reach of js_catch. Measured at frontend/src/websearch/fetchPage.ts:430."
+    },
+    {
+      "name": "py_block",
+      "group": 2,
+      "flags": ["MULTILINE"],
+      "pattern": "^([ \\t]*)except\\b[^\\n:]*:[ \\t]*\\n((?:\\1[ \\t]+.*\\n?|[ \\t]*\\n)*)",
+      "note": "An indented Python handler. Group 1 anchors the indent so the body stops at the dedent; group 2 is the body."
+    },
+    {
+      "name": "py_inline",
+      "group": 1,
+      "flags": [],
+      "pattern": "except\\b[^\\n:]*:[ \\t]*([^\\n]+)",
+      "note": "A one-line Python handler."
+    },
+    {
+      "name": "ruby_rescue",
+      "group": 1,
+      "flags": ["DOTALL"],
+      "pattern": "\\brescue\\b[^\\n]*\\n(.*?)\\bend\\b",
+      "note": "Carried over from laws.py. No Ruby ships in this repo today, so this pattern is expected to match nothing; the receipt reports per-pattern hit counts so an idle rule is visible as idle rather than mistaken for a passing one."
+    }
+  ],
+
+  "effect": {
+    "pattern": "\\b(throw|raise|return|continue|break|reject|abort|exit|retry|yield)\\b|[^=!<>+\\-*/%&|^]=[^=]",
+    "note": "The whole judgment. A body matching this diverts control flow or binds a value, and is handled. A body that does not match only CALLS something -- it reports the failure and carries on as though it had succeeded. Reading the EFFECT rather than matching logger names is what catches a reporter nobody has invented yet."
+  }
+}

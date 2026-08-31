@@ -165,6 +165,19 @@ excluded = [
   # scanning for the same reason.
   { path = "technology-universe/registry", why = "version-measurement catalogue, not shipped code" },
   { path = "technology-universe/runtimes", why = "version-measurement catalogue, not shipped code" },
+
+  # BDD suites. `environment.py` and `steps/*.py` are behave's own harness --
+  # hooks and step definitions -- so they are test code by the same rule that
+  # excludes `tests`. The `.feature` files beside them are the scenarios.
+  #
+  # These four went undeclared until 2026-09-01 for a measurable reason: under
+  # Python 3.14.7 `behave` hangs on import (parse_type/cfparse.py:11), so the
+  # suite had never executed once and nothing ever walked these directories.
+  # The local venv is 3.12 as of that date, which is why they surface now.
+  { path = "features", why = "behave scenarios and harness; test code, not production code" },
+  { path = "features/steps", why = "behave step definitions; test code, not production code" },
+  { path = "frontend/features", why = "behave scenarios and harness; test code, not production code" },
+  { path = "frontend/features/steps", why = "behave step definitions; test code, not production code" },
 ]
 
 # ---------------------------------------------------------------------------

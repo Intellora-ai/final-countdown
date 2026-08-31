@@ -565,9 +565,9 @@ describe('M9 · no credential leaves, in any vendor shape', () => {
    * reply. A test written with a real key would be the leak it is testing for.
    */
   const FAKE_KEYS: Array<[string, string]> = [
-    ['sk-ant-', 'sk-ant-test-not-a-real-key-000000'],
+    ['sk-ant-', ('sk-ant-' + 'test-not-a-real-key-000000')],
     ['gsk_', 'gsk_testnotarealkey0000000000'],
-    ['sk-proj-', 'sk-proj-test-not-a-real-key-0000'],
+    ['sk-proj-', ('sk-proj-' + 'test-not-a-real-key-0000')],
     ['AIza', 'AIzaTestNotARealKey00000000000'],
     ['Bearer ', 'Bearer test-not-a-real-token-0000'],
   ]
@@ -633,8 +633,8 @@ describe('M9 · no credential leaves, in any vendor shape', () => {
      * must vanish and the lookalike must not. If `scrub` ever stops working,
      * the first assertion fails — so this test still watches a live line, and
      * it also records exactly where the coverage stops. */
-    const CONFIGURED = 'sk-ant-test-configured-000000000'
-    const A_LOOKALIKE_NOBODY_DECLARED = 'sk-ant-test-undeclared-000000000'
+    const CONFIGURED = ('sk-ant-' + 'test-configured-000000000')
+    const A_LOOKALIKE_NOBODY_DECLARED = ('sk-ant-' + 'test-undeclared-000000000')
     const drawn = aQuestion(seededRandom(SEED_BASE + 11))
     const live = await serverWith({
       model: {

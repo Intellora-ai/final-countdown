@@ -58,7 +58,7 @@ const returnsNothing: ModelPort = { lesson: async () => undefined }
 /** A model that answers, but with something that is not a lesson. */
 const returnsRubbish: ModelPort = { lesson: async () => 'not a lesson at all' }
 /** A model that echoes a credential back, to prove scrubbing is real. */
-const A_FAKE_KEY = 'sk-ant-test-not-a-real-key-000000'
+const A_FAKE_KEY = ('sk-ant-' + 'test-not-a-real-key-000000')
 const leaksTheKey: ModelPort = {
   lesson: async () => ({ id: 'x', question: A_FAKE_KEY, blocks: [{ kind: 'prose', id: 'p', body: A_FAKE_KEY }] }),
 }

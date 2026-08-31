@@ -101,11 +101,37 @@ describe('the built server', () => {
     })
   })
 
-  it('refuses to start without a key, and says which one', async () => {
-    await withServer({ ANTHROPIC_API_KEY: '' }, async (s) => {
-      expect(s.output()).toContain('ANTHROPIC_API_KEY')
-      expect(s.exitCode()).not.toBe(0)
-    })
+  /* EVERY PROVIDER IS CLEARED, NOT JUST THE ONE THIS TEST WAS BORN WITH.
+   *
+   * This cleared `ANTHROPIC_API_KEY` alone and asserted that one name. It was
+   * correct on the day it was written, when Anthropic was the only provider.
+   * `chooseProvider` then grew Groq and Ollama, and Groq is checked FIRST
+   * (provider.ts:44-52). `withServer` spawns with `{ ...process.env, ...env }`,
+   * so a `GROQ_API_KEY` exported in the developer's shell survived the blanking
+   * of the Anthropic one: the server chose Groq, started correctly, and this
+   * test failed demanding a name the refusal had no reason to print.
+   *
+   * Measured 2026-09-01: the suite was red for exactly this, and
+   * `scripts/mutation-gate.mjs` refuses to establish a baseline against a red
+   * suite -- so one over-specific assertion was holding the entire mutation
+   * score hostage.
+   *
+   * The assertion is now about the GUARANTEE rather than one spelling of it:
+   * with no provider configured the process must refuse, and the refusal must
+   * name every way to configure one. A fourth provider added later that this
+   * message forgets to mention is a failure here, which is the property the
+   * original test was reaching for.
+   */
+  it('refuses to start when no provider is configured, and names every way to set one', async () => {
+    await withServer(
+      { OLLAMA_MODEL: '', GROQ_API_KEY: '', GROQ_MODEL: '', ANTHROPIC_API_KEY: '' },
+      async (s) => {
+        expect(s.exitCode()).not.toBe(0)
+        for (const name of ['GROQ_API_KEY', 'ANTHROPIC_API_KEY', 'OLLAMA_MODEL']) {
+          expect(s.output()).toContain(name)
+        }
+      },
+    )
   })
 
   it('does not print the key when it starts', async () => {

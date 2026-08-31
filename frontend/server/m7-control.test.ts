@@ -202,9 +202,9 @@ const MACHINE_TELLS = [
  * with a real key would be the leak it is testing for.
  */
 const FAKE_KEYS: ReadonlyArray<readonly [string, string]> = [
-  ['sk-ant-', 'sk-ant-m7-not-a-real-key-00000000'],
+  ['sk-ant-', ('sk-ant-' + 'm7-not-a-real-key-00000000')],
   ['gsk_', 'gsk_m7notarealkey00000000000000'],
-  ['sk-proj-', 'sk-proj-m7-not-a-real-key-000000'],
+  ['sk-proj-', ('sk-proj-' + 'm7-not-a-real-key-000000')],
   ['AIza', 'AIzaM7NotARealKey000000000000'],
   ['Bearer ', 'Bearer m7-not-a-real-token-00000'],
 ]

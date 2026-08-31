@@ -10,7 +10,6 @@ planner answered 500".
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import urllib.error
 import urllib.parse
@@ -20,7 +19,7 @@ from concurrent.futures import ThreadPoolExecutor
 from behave import given, then, when  # pyright: ignore[reportMissingImports]
 
 from environment import (  # pyright: ignore[reportMissingImports]
-    BASE, COMPOSE_FILE, DATABASE_URL, FRONTEND, TRACEBACK_TELLS,
+    BASE, COMPOSE_FILE, FRONTEND, TRACEBACK_TELLS,
     _env_without_keys, record_exchange,
 )
 
@@ -352,7 +351,6 @@ SECOND_PORT = 8796
 @given("two servers are running against the same shared store")
 def step_two_servers(context) -> None:
     import time
-    from environment import _wait_for_health  # pyright: ignore[reportMissingImports]
 
     shared = FRONTEND / "features" / ".shared-ledger-under-test.json"
     if shared.exists():
@@ -392,8 +390,10 @@ def step_two_servers(context) -> None:
     #: The FIRST server is the suite's own, pointed at the shared ledger. A
     #: second process is started beside it -- two replicas, one store, exactly
     #: how this runs in production behind a load balancer.
-    first = dict(env); first["PORT"] = str(SECOND_PORT + 1)
-    second = dict(env); second["PORT"] = str(SECOND_PORT)
+    first = dict(env)
+    first["PORT"] = str(SECOND_PORT + 1)
+    second = dict(env)
+    second["PORT"] = str(SECOND_PORT)
 
     context.replicas = [
         subprocess.Popen(["node", "dist-server/index.js"], cwd=str(FRONTEND), env=e,

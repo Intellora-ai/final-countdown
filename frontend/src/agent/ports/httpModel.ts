@@ -72,6 +72,37 @@ function assertLocalOrKeyless(endpoint: string, apiKey?: string): void {
 }
 
 /**
+ * What anyone who still sets `VITE_TUTOR_KEY` is told, once, on the console.
+ *
+ * It names the variable, because "a key is public" sends people looking through
+ * every file they have. It does NOT contain the key: a warning that prints the
+ * secret has published it a second time, into whatever collects browser logs.
+ */
+export const PUBLIC_ENV_WARNING =
+  'VITE_TUTOR_KEY is set. Every VITE_ value is compiled into the bundle a browser '
+  + 'downloads, so this key is published to anyone who opens it and can only be '
+  + 'repaired by rotating it. The tutor does not need one: it asks this project\'s '
+  + 'own backend, which holds the key server-side. Unset it, or point it at a local '
+  + 'model where it cannot leave the machine.'
+
+/**
+ * The escape hatch, kept honest.
+ *
+ * Someone running a local model against a keyed local runner has a real reason
+ * to set this, so it still works. Everyone else gets told exactly what they have
+ * done. Removing the hatch outright would only push the same key into a fork.
+ */
+export function escapeHatchKey(
+  env: Record<string, string | undefined>,
+  warn: (message: string) => void,
+): string | undefined {
+  const key = (env['VITE_TUTOR_KEY'] ?? '').trim()
+  if (!key) return undefined
+  warn(PUBLIC_ENV_WARNING)
+  return key
+}
+
+/**
  * The prompt.
  *
  * IT RESTATES DECISIONS RATHER THAN MAKING THEM. Routing, memory, research,

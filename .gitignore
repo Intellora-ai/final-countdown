@@ -147,15 +147,23 @@ learning-os/src/*.egg-info/
 # was about to be created, `git check-ignore` reported it UNPROTECTED, and
 # neither `.gitignore` nor `frontend/.gitignore` carried a single env pattern.
 #
-# `.env.example` is deliberately exempted. It is the template that tells a new
-# contributor WHICH variables exist, carries no values, and is useless if it is
-# not committed.
+# TEMPLATES are deliberately exempted. They tell a new contributor WHICH
+# variables exist, carry no values, and are useless if they are not committed.
+#
+# THE NEGATION IS BY SUFFIX, NOT BY EXACT NAME. It used to read
+# `!**/.env.example`, which exempted that one filename and nothing else --- so
+# `.env.production.example`, a template with no values in it, was silently
+# ignored and could not be committed at all. `src/canvas/api/envPolicy.test.ts`
+# requires both files to exist, and a policy that scans a file git refuses to
+# keep is a policy that scans nothing.
 .env
 .env.*
 **/.env
 **/.env.*
 !.env.example
 !**/.env.example
+!.env.*.example
+!**/.env.*.example
 
 # Private keys and certificates, for the same reason and by the same accident.
 *.pem

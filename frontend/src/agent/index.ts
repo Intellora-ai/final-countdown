@@ -306,6 +306,12 @@ export function textTurn(text: string, at: string): Turn {
    correctly, because the gate cannot see outside the area. Routing it through
    the one surface keeps `createAgent()` the single way in and keeps the gate
    measuring something true. */
-export { httpModel, buildPrompt, type HttpModelOptions } from './ports/httpModel'
+export {
+  httpModel,
+  buildPrompt,
+  escapeHatchKey,
+  PUBLIC_ENV_WARNING,
+  type HttpModelOptions,
+} from './ports/httpModel'
 
 export type { LoopResult, ModelPort, Ports, Session, TaskState }

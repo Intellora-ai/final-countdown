@@ -120,11 +120,122 @@ export type WebSearch = (query: string, options: Record<string, unknown>) => Pro
  * machine configured for the tutor still could not author a lesson, and the
  * learner would have no way to tell which half they had missed.
  */
-/** Shown instead of a refusal when there is no model to refuse anything. */
-const NO_MODEL_NOTE =
-  'Set VITE_TUTOR_ENDPOINT to a chat-completions URL to author lessons on any topic — '
-  + 'for a local runner that is usually http://localhost:11434/v1/chat/completions (Ollama) '
+/**
+ * Offered as a CHOICE, not as a refusal.
+ *
+ * This used to be shown "instead of a refusal when there is no model to refuse
+ * anything", on a control that was disabled. Nothing was refused because
+ * nothing was asked, and nothing could be asked. The server writes lessons
+ * whether or not she has a model of her own, so the only thing setting this
+ * variable changes is WHERE the writing happens -- and the wording says that
+ * rather than implying the canvas is broken until she edits a dotfile.
+ */
+const OWN_MODEL_NOTE =
+  'Lessons are written by the server. To have them written by a model you run '
+  + 'yourself instead, set VITE_TUTOR_ENDPOINT to a chat-completions URL — usually '
+  + 'http://localhost:11434/v1/chat/completions (Ollama) '
   + 'or http://localhost:1234/v1/chat/completions (LM Studio).'
+
+/**
+ * A LESSON FROM THE SERVER, FOR A LEARNER WHO HAS NO MODEL OF HER OWN.
+ *
+ * `/api/ask` is not new and is not a fallback bolted on here: it is the route
+ * `needNextPart` below has been posting to all along, and `server/handler.ts`
+ * already picks a provider, validates what comes back against THIS SAME
+ * `validateLesson`, and refuses with the gate's own issues. So this adds a
+ * caller, not a mechanism.
+ *
+ * WHY IT IS VALIDATED AGAIN HERE. The server validated it, and this file's own
+ * rule is that a block the model wrote is not trusted further than an authored
+ * one -- `picked` re-validates the grown blocks for exactly that reason. A
+ * second check costs one pass over a small object and means nothing reaches the
+ * screen that this build's gate has not read.
+ *
+ * EVERY FAILURE ARRIVES AS ISSUES, NEVER AS A THROW. `authorFailed` is what the
+ * canvas renders when a lesson cannot be written, and it renders `Issue[]`. A
+ * network error that arrived as an exception would be reported by the caller's
+ * catch as `(model)`, blaming a model that was never asked -- the same wrong
+ * blame that disabling this control was originally meant to avoid.
+ */
+async function askTheServer(
+  question: string,
+): Promise<{ ok: true; lesson: Lesson } | { ok: false; issues: Issue[] }> {
+  let body: { lesson?: unknown; error?: unknown }
+  try {
+    const response = await fetch('/api/ask', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ question }),
+    })
+    body = (await response.json()) as { lesson?: unknown; error?: unknown }
+    if (!response.ok) {
+      /* The server's own words where it gave them. Replacing them with a status
+         code would throw away the only description of what went wrong. */
+      const said = typeof body?.error === 'string' && body.error.trim() !== ''
+        ? body.error
+        : `the server answered ${response.status} and said nothing more`
+
+      /*
+       * THREE FAILURES THAT MUST NOT WEAR EACH OTHER'S SENTENCE.
+       *
+       * The `path` is what the banner branches on, so it is where the
+       * difference has to survive. Collapsing these is not a wording problem:
+       * each wrong sentence sends her to do a different wrong thing. Told her
+       * question does not teach, she rewrites a question that was fine. Told
+       * the server is down, she gives up instead of waiting a minute. Told to
+       * wait, she waits for a server that is not coming back.
+       */
+
+      /* BUSY IS NOT BROKEN. A 429 means it answered, promptly, that it has too
+         much on. The only useful thing to tell her is to come back. */
+      if (response.status === 429) {
+        return { ok: false, issues: [{ path: '(busy)', message: said }] }
+      }
+
+      /* THE GATE'S OWN REASONS WHERE IT GAVE THEM, NOT A SUMMARY OF THEM.
+         `server/handler.ts` refuses with 502 and the issue list `validateLesson`
+         produced. Those are the specific, per-rule sentences; replacing them
+         with "the server said 502" would throw away the only description of
+         what was actually wrong with the lesson. */
+      const fromTheGate = Array.isArray((body as { issues?: unknown })?.issues)
+        ? ((body as { issues?: Issue[] }).issues as Issue[])
+        : []
+      if (fromTheGate.length > 0) return { ok: false, issues: fromTheGate }
+
+      return { ok: false, issues: [{ path: '(server)', message: said }] }
+    }
+  } catch (thrown) {
+    return {
+      ok: false,
+      issues: [{
+        path: '(server)',
+        message: thrown instanceof Error ? thrown.message : String(thrown),
+      }],
+    }
+  }
+
+  /*
+   * AT `'lesson'` -- THE DEFAULT, AND THE STRICT ONE. OUR OWN SERVER BUYS IT
+   * NOTHING.
+   *
+   * The tempting reading is that the server already validated this, so the
+   * browser should defer and re-check only the shape at `'answer'` level. That
+   * is wrong, and `CanvasRoute.test.tsx` says why in a case rather than an
+   * argument: a lesson that is structurally perfect and all words -- one prose
+   * block, no representation, no summary -- clears `'answer'` exactly because
+   * `'answer'` turns the arc rules off (`validate.ts:240`). It would have been
+   * painted, and the learner would have been handed a paragraph under a heading
+   * that promised to teach her.
+   *
+   * `'answer'` is right for a DOUBT, which owes no arc. What arrives here is a
+   * whole lesson, so it owes the whole arc, and it is judged as one. That is
+   * also the level `TeachView` re-checks at, so passing here means the next
+   * gate agrees rather than refusing it a moment later with a different
+   * sentence and no explanation.
+   */
+  const checked = validateLesson(body?.lesson)
+  return checked.ok ? { ok: true, lesson: checked.lesson } : { ok: false, issues: [...checked.issues] }
+}
 
 function readEnv(name: string): string {
   const v = (import.meta.env as Record<string, string | undefined>)[name]
@@ -183,20 +294,34 @@ export default function CanvasRoute({
   const alreadyTaught = useRef(new Map<string, Remembered>())
 
   /*
-   * WHETHER THERE IS A MODEL TO ASK, KNOWN BEFORE ANYONE ASKS.
+   * WHETHER SHE HAS A MODEL OF HER OWN — WHICH IS NOT THE SAME AS WHETHER
+   * THERE IS ANYTHING TO ASK.
    *
-   * Without this the button stayed enabled, `chatOnce` threw "no model endpoint
-   * is configured", and that arrived under the heading "That lesson was refused
-   * — the model answered, and what it produced does not teach". The model was
-   * never contacted. Telling a learner their question produced bad teaching
-   * when nothing was asked is the worst kind of wrong: it is confident, and it
-   * blames the wrong thing.
+   * This used to be `hasModel`, and it disabled the box. The reasoning was
+   * sound at the time: `chatOnce` threw "no model endpoint is configured", and
+   * that arrived under "the model answered, and what it produced does not
+   * teach" — blaming her question for a call nobody made. Checking up front was
+   * the right correction to THAT.
    *
-   * `TutorView` already gets this right by checking up front. This is the same
-   * check, in the one place that was missing it.
+   * It was the wrong answer to the real question. There is no `.env` in this
+   * repository and `readEnv` returns '' for anything unset, so for every person
+   * who has ever cloned it this read '' — and the one control that promises to
+   * teach anything was disabled, permanently, with the placeholder "No model
+   * configured". The canvas looked dead because for them it WAS.
+   *
+   * And it could not be fixed by pasting in a key. `assertLocalOrKeyless`
+   * refuses to send one from a browser to anything but localhost, and it is
+   * right to: a `VITE_*` value is compiled into the bundle and a key in a bundle
+   * is a published key. So the browser can only ever reach a model the learner
+   * is running herself.
+   *
+   * The server can hold a key. It already writes lessons — `/api/ask` in
+   * `server/handler.ts`, through `chooseProvider`, and `needNextPart` below has
+   * been posting to it all along. So there is ALWAYS somewhere to ask, and the
+   * variable below decides WHICH, never WHETHER.
    */
   const modelEndpoint = readEnv('VITE_TUTOR_ENDPOINT')
-  const hasModel = modelEndpoint.trim() !== ''
+  const herOwnModel = modelEndpoint.trim() !== ''
 
   /*
    * The chain, in trust order: the page the learner is looking at first, then
@@ -279,6 +404,27 @@ export default function CanvasRoute({
     setAuthoring(true)
     setAuthorFailed(null)
     try {
+      /*
+       * WHICH MODEL, NEVER WHETHER. See `herOwnModel` above for why this is not
+       * a guard that disables the control.
+       *
+       * Her own model is tried first when she has one, because a browser can
+       * only reach a model she is running herself -- `assertLocalOrKeyless`
+       * refuses to send a key from a bundle, and it is right to, since a
+       * `VITE_*` value is compiled in and a key in a bundle is a published key.
+       * Everyone else reaches the server, which can hold a key safely.
+       */
+      if (!herOwnModel) {
+        const written = await askTheServer(question)
+        if (written.ok) {
+          setAuthored(written.lesson)
+        } else {
+          setAuthored(null)
+          setAuthorFailed(written.issues)
+        }
+        return
+      }
+
       const chat = chatOnce({
         endpoint: readEnv('VITE_TUTOR_ENDPOINT'),
         model: readEnv('VITE_TUTOR_MODEL') || undefined,
@@ -511,12 +657,23 @@ export default function CanvasRoute({
             type="text"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder={hasModel ? 'Teach me anything…' : 'No model configured'}
+            /* ALWAYS THE INVITATION, BECAUSE THERE IS ALWAYS SOMEWHERE TO ASK.
+               This read 'No model configured' and the control was `disabled`
+               for every person who has ever cloned this repository, because
+               there is no `.env` in it and `readEnv` returns '' for anything
+               unset. The one control that promises to teach anything was dead
+               on arrival, and it looked like a product with nothing behind it.
+               `askForALesson` routes to the server when she has no model of her
+               own, so the only thing missing was ever the route, not the
+               ability. */
+            placeholder="Teach me anything…"
             aria-label="A topic to be taught"
-            title={hasModel ? undefined : NO_MODEL_NOTE}
-            disabled={authoring || !hasModel}
+            /* Kept as a hint, not a blocker: it now says where lessons come
+               from and how to change that, rather than what is broken. */
+            title={herOwnModel ? undefined : OWN_MODEL_NOTE}
+            disabled={authoring}
           />
-          <button type="submit" disabled={authoring || !hasModel || topic.trim() === ''}>
+          <button type="submit" disabled={authoring || topic.trim() === ''}>
             {authoring ? 'Writing…' : 'Teach me'}
           </button>
         </form>
@@ -550,9 +707,11 @@ export default function CanvasRoute({
             {/* Two different failures wore one sentence. A model that was never
                 reached did not "produce" anything, and saying it did sends the
                 reader looking for a teaching problem that does not exist. */}
-            {authorFailed.some((i) => i.path === '(model)')
-              ? 'The model could not be reached, so nothing was written.'
-              : 'The model answered, and what it produced does not teach. It is not being shown.'}
+            {authorFailed.some((i) => i.path === '(busy)')
+              ? 'Our server is busy right now, so the lesson was not written. Try again in a minute.'
+              : authorFailed.some((i) => i.path === '(model)' || i.path === '(server)')
+                ? 'The model could not be reached, so nothing was written.'
+                : 'The model answered, and what it produced does not teach. It is not being shown.'}
           </p>
           <ul>
             {authorFailed.slice(0, 8).map((issue, i) => (

@@ -37,6 +37,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from datetime import timedelta
+from itertools import pairwise
 
 import pytest
 from sqlalchemy import Engine, create_engine, event, select
@@ -307,7 +308,7 @@ def test_a_child_whose_device_clock_is_wrong_is_in_the_data(
     backwards = any(
         later.at < earlier.at
         for attempts in per_learner.values()
-        for earlier, later in zip(attempts, attempts[1:], strict=False)
+        for earlier, later in pairwise(attempts)
     )
     assert backwards, "every log was in order; out-of-order arrival is untested"
 
@@ -499,7 +500,7 @@ def test_the_class_is_the_size_the_generator_promises(session: Session) -> None:
     _seeded(session)
 
     assert session.query(Learner).count() == LEARNER_COUNT
-    assert LEARNER_COUNT >= len(PROFILES), "the class is too small to contain every shape"
+    assert len(PROFILES) <= LEARNER_COUNT, "the class is too small to contain every shape"
 
     shapes = {
         learner.id.rsplit("-", 1)[-1]

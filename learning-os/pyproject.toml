@@ -41,6 +41,15 @@ live = [
 # regenerated lock from silently crossing a major boundary.
 dev = [
     "pytest>=8,<10",
+    # THE COVERAGE PLUGIN, AND IT GATES, WHICH IS WHY IT IS BOUNDED LIKE THE REST.
+    #
+    # `.github/workflows/learning-os.yml` runs `pytest ... --cov=learning_os
+    # --cov-branch --cov-fail-under=97`. Those are pytest-cov's flags, not
+    # pytest's: without the plugin installed, pytest exits 4 with "unrecognized
+    # arguments: --cov=learning_os", which is what run 33475717869 was heading
+    # for once ruff stopped failing first. A gate whose tool is not installed is
+    # not a lower gate, it is a broken job.
+    "pytest-cov>=5,<8",
     "ruff>=0.6,<1",
     "mypy>=1.11,<3",
 ]

@@ -354,6 +354,67 @@ tier = "fast"
 requires_network = false
 tier_reason = "Measured at 3.2s for the comparable tests/test_local_execution_manifest.py file on the declared machine, against a 60s fast-tier budget. It reads files and calls no network and no subprocess-heavy fixture, so it is cheap enough to run before every push -- which is the only place it can catch a registry row that stopped resolving."
 
+# ---------------------------------------------------------------------------
+# THE FRONTEND CHECKS THAT RAN ONLY BY MEMORY.
+#
+# `.githooks/pre-push` runs `make sandbox-fast`, which runs exactly what this
+# file declares. Four commands that GitHub treats as blocking were declared
+# NOWHERE here, so before this block they ran on a developer machine only when
+# somebody remembered to type them:
+#
+#   npm run lint         gate.yml:96 and learning-canvas-frontend.yml:247
+#   npm run typecheck    learning-canvas-frontend.yml:208
+#   npm run test:laws    real-life.yml:452
+#   npm run test:mutation  learning-canvas-frontend.yml:550 (four shards)
+#
+# That is the same omission `pyright` produced on 2026-08-20, which is the
+# failure this whole manifest exists to prevent, reached from the other half of
+# the repository. They are declared as LOCAL CHECKS rather than as contexts
+# because `frontend` and `frontend-verdict` are the required GitHub contexts and
+# `test_no_context_is_invented` correctly refuses anything here that GitHub does
+# not require -- `lint`, `typecheck`, `test:laws` and `test:mutation` are STEPS
+# inside those jobs, not contexts of their own.
+#
+# EVERY DURATION BELOW WAS TIMED ON THE DECLARED MACHINE ON 2026-09-01, with
+# `time <command>` in `frontend/`, and the number is the wall clock that printed.
+# ---------------------------------------------------------------------------
+
+[local_checks."frontend-lint"]
+requirement = "ESLint at --max-warnings 0 over the seven product directories, which is the command gate.yml:96 and learning-canvas-frontend.yml:247 run. A warning is a failure there, so a local run that tolerates one is not the same check."
+command = ["bash", "-c", "cd frontend && [ -d node_modules ] || { echo 'frontend/node_modules is absent, so this check ran nothing. Run: cd frontend && npm ci' >&2; exit 1; }; npm run lint"]
+timeout_seconds = 300
+evidence = "frontend-lint.json"
+tier = "fast"
+requires_network = false
+tier_reason = "MEASURED twice on 2026-09-01, and both numbers are here because one of them is the honest worst case: 1.8s on an idle machine (`time npm run lint` in frontend/, printed `1.845 total`), and 8.7s inside `make sandbox-fast` with a Playwright suite running on the same cores. Against a 60s fast-tier budget. It reads the tree and starts no server, no browser and no network call, so it is cheap enough to run before every push -- which is the only place it can catch a lint failure before GitHub does."
+
+[local_checks."frontend-typecheck"]
+requirement = "tsc --noEmit over all three TypeScript projects -- tsconfig.json, tsconfig.canvas.json and tsconfig.server.json -- which is the command learning-canvas-frontend.yml:208 runs. The canvas project is checked under noUncheckedIndexedAccess and the other two are not, so checking one is not checking the others."
+command = ["bash", "-c", "cd frontend && [ -d node_modules ] || { echo 'frontend/node_modules is absent, so this check ran nothing. Run: cd frontend && npm ci' >&2; exit 1; }; npm run typecheck"]
+timeout_seconds = 600
+evidence = "frontend-typecheck.json"
+tier = "fast"
+requires_network = false
+tier_reason = "MEASURED twice on 2026-09-01, for the same reason as frontend-lint: 8.6s on an idle machine (`time npm run typecheck` in frontend/, printed `8.556 total`) for all three projects, and 30.4s inside `make sandbox-fast` with a Playwright suite running on the same cores -- which is the number that has to fit, and it does, against a 60s fast-tier budget. Three tsc passes over an already-installed tree; no server, no browser, no network."
+
+[local_checks."frontend-mutation"]
+requirement = "The curated mutation catalogue in frontend/scripts/mutation-gate.mjs, which learning-canvas-frontend.yml:550 runs as four shards. Every mutant re-creates a defect that actually reached a user on this branch, so a survivor -- or a mutant whose target has moved and cannot be applied -- is a regression in the suite's ability to see it."
+command = ["bash", "-c", "cd frontend && npm run test:mutation"]
+timeout_seconds = 7200
+evidence = "frontend-mutation.json"
+tier = "full"
+requires_network = false
+tier_reason = "MEASURED on the declared machine on 2026-09-01: `npm run test:mutation -- --shard=1/4` established its baseline and scored 8 mutants in 9 minutes, which is roughly 68s per mutant, and the catalogue holds 97. GitHub run 33475717825 agrees from the other side -- its shard 1/4 took 8m33s for 25 mutants on a runner. An unsharded local run is therefore well over an hour, which is not a pre-push cost; it is a `make sandbox-test` cost, and the tier says so rather than a comment saying `remember to run this`."
+
+[local_checks."frontend-laws"]
+requirement = "The six laws under frontend/tests/integration/, which real-life.yml:452 runs. They are the only suite that measures the LEARNER rather than the code, and they run deliberately WITHOUT an API server because that is the state everyone who clones this repository is in -- see the header of playwright.reallife.config.ts. Starting a server for them would remove the entire class of defect they exist to find."
+command = ["bash", "-c", "cd frontend && npm run test:laws"]
+timeout_seconds = 3600
+evidence = "frontend-laws.json"
+requires_network = false
+tier = "full"
+tier_reason = "MEASURED on the declared machine on 2026-09-01. `npx playwright test --config=playwright.reallife.config.ts --project=a-person-on-firefox --project=a-person-on-safari` printed `22 passed (8.4m)`, and the wrapper around it timed 505 seconds of wall clock. The config declares four projects of eleven tests each and runs `workers: 1` and `fullyParallel: false` on purpose, so the whole of `npm run test:laws` is about twice that -- seventeen minutes, against a 60s fast-tier budget. It also downloads nothing but does start a dev server and three browser engines, which is a heavier prerequisite than anything else in the fast tier. `full`, therefore, and `make sandbox-test` is where it runs. Sharding it into the fast tier was considered and refused: Law A walks EVERY lesson the app offers and asks three questions of each, so a shard of it stops being the law it claims to be."
+
 [local_checks."regression-push-chain"]
 requirement = "G1. The production chain from a real type error to a rejected push: real type error -> real manifest parser -> the exact pyright argv the manifest selects -> real make sandbox-fast -> real copied .githooks/pre-push -> real `git push` rejected against a real bare remote. tests/test_local_execution_manifest.py:294 proves only the hook half, using a fake Makefile that returns a synthetic exit code; nothing proved that a real pyright error reaches that exit code."
 command = ["python3", "-m", "pytest", "-q", "tests/test_pre_push_chain.py"]

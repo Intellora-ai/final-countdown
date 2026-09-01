@@ -38,6 +38,109 @@ CREATE TABLE IF NOT EXISTS canvas_memory (
 );
 `
 
+/**
+ * How long a replica keeps trying to put the journal into WAL before it gives
+ * up and reports the failure it kept meeting.
+ *
+ * The same five seconds `busy_timeout` gives every other contended operation,
+ * because it is the same promise made at a different moment.
+ */
+const A_WAL_SWITCH_IS_RETRIED_FOR_MS = 5000
+
+/**
+ * The two SQLite result codes that mean "somebody else has this, come back".
+ *
+ * Anything else -- a corrupt file, a directory that cannot be written -- is a
+ * real failure, and waiting cannot turn it into a success. Retrying those would
+ * only deliver the same error five seconds later than it was known.
+ */
+const SQLITE_BUSY = 5
+const SQLITE_LOCKED = 6
+
+/** The longest a single pause between attempts is allowed to grow to. */
+const A_RETRY_WAITS_AT_MOST_MS = 32
+
+/**
+ * Sleep without handing control back to the event loop.
+ *
+ * Everything in this file is synchronous by design, and this runs once, while
+ * the database is being opened and before the server has bound its port. A
+ * timer here would let the loop run other work in the middle of an open.
+ */
+function rest(milliseconds: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds)
+}
+
+/**
+ * Put the file into WAL, waiting out any other process trying to do the same.
+ *
+ * WHY `busy_timeout` IS NOT ENOUGH FOR THIS ONE STATEMENT.
+ *
+ *   Setting `busy_timeout` before this call was a real fix and is still the
+ *   line above it: it is what makes every WRITE queue instead of failing. It
+ *   does not cover the journal switch, and SQLite says why in its own
+ *   documentation of the busy handler -- "If SQLite determines that invoking
+ *   the busy handler could result in a deadlock, it will go ahead and return
+ *   SQLITE_BUSY."
+ *
+ *   Switching a rollback-journal database to WAL means promoting a SHARED lock
+ *   to an EXCLUSIVE one. Two replicas doing that in the same instant are each
+ *   holding the lock the other is waiting for, so a busy handler could only
+ *   make both wait forever. SQLite refuses to call it and fails one of them at
+ *   once -- with the timeout set, honoured, and beside the point.
+ *
+ *   MEASURED, with `busy_timeout = 5000` already in force: eight processes
+ *   opening one brand-new file on a shared instant, and one to four of them
+ *   died with "database is locked" on this exact statement, errcode 5. Three
+ *   runs in five. The header of this file promises a store that is safe for
+ *   many servers; that was true of every write and false of the first
+ *   millisecond of startup, which is the one moment nobody tests.
+ *   `m4-startup-contention.test.ts` is where it is tested now.
+ *
+ *   Backing off and returning is exactly what that SQLITE_BUSY is asking for,
+ *   and it converges at once rather than grinding: the winner's switch makes
+ *   the question moot, because once the file IS in WAL this statement is a
+ *   no-op that needs no exclusive lock from anybody. MEASURED at sixteen
+ *   processes over eight runs: every one of them opened, and not one ever
+ *   needed a third attempt.
+ *
+ * THE RESULTING MODE IS READ BACK RATHER THAN ASSUMED.
+ *
+ *   `PRAGMA journal_mode = WAL` answers with the mode the database ended up in,
+ *   and a switch that could not be made is reported by that answer rather than
+ *   by an error. Reading "it did not throw" as "it worked" would leave a replica
+ *   running contentedly on the single-writer journal this whole file exists to
+ *   escape -- which is the original defect, restored quietly.
+ */
+function switchTheJournalToWal(db: DatabaseSync): void {
+  const giveUpAt = Date.now() + A_WAL_SWITCH_IS_RETRIED_FOR_MS
+  let pause = 1
+  let whatItKeptMeeting: unknown
+
+  for (;;) {
+    try {
+      const answered = db.prepare('PRAGMA journal_mode = WAL').get() as
+        | { journal_mode?: unknown }
+        | undefined
+      if (answered?.journal_mode === 'wal') return
+      whatItKeptMeeting = new Error(
+        `the journal stayed in ${String(answered?.journal_mode)} mode instead of switching to WAL`,
+      )
+    } catch (thrown) {
+      /* Only contention is worth coming back for. See `SQLITE_BUSY`. */
+      const code = (thrown as { errcode?: unknown }).errcode
+      if (code !== SQLITE_BUSY && code !== SQLITE_LOCKED) throw thrown
+      whatItKeptMeeting = thrown
+    }
+
+    /* THE DEADLINE IS CHECKED BEFORE THE PAUSE, so the last attempt is followed
+     * by the error rather than by one more sleep nobody is waiting through. */
+    if (Date.now() >= giveUpAt) throw whatItKeptMeeting
+    rest(pause)
+    pause = Math.min(pause * 2, A_RETRY_WAITS_AT_MOST_MS)
+  }
+}
+
 export interface MemoryStore {
   /** The stored text for this key, or undefined if nothing was ever written. */
   read(key: string): string | undefined
@@ -114,28 +217,36 @@ export function sqliteMemoryStore(path: string): MemoryStore {
    * corrupt. That is precisely the failure the JSON file had. `:memory:` has no
    * file to journal, so it is skipped there rather than failing to open. */
   if (path !== ':memory:') {
-    /* BUSY_TIMEOUT FIRST, AND THE ORDER IS THE WHOLE FIX.
+    /* BUSY_TIMEOUT FIRST, BECAUSE EVERYTHING AFTER IT DEPENDS ON IT.
      *
-     * These two lines were the other way round, and the WAL switch itself is
-     * the operation that needed the timeout most: changing journal mode takes a
-     * brief EXCLUSIVE lock, so two servers opening this file in the same moment
-     * collide, and with no busy timeout set yet the loser does not wait -- it
-     * fails instantly.
-     *
-     * MEASURED, through the real product: starting two replicas together, one
-     * died at boot with "database is locked" before it ever bound its port,
-     * while the other ran perfectly. The header of this file promises "safe for
-     * many servers"; that was true of every write and false of the first
-     * millisecond of startup, which is the one moment nobody tests.
-     *
-     * `busy_timeout` is a connection setting and needs no lock, so it can
-     * always be set first. Afterwards the WAL switch queues instead of
-     * throwing, which is what a busy database deserves. */
-    db.exec('PRAGMA busy_timeout = 5000')
-    /* Wait for another process's write instead of failing instantly. A busy
+     * It is a connection setting and needs no lock, so it can always be set
+     * first and nothing can make setting it fail. From here on every statement
+     * that meets another process QUEUES rather than failing -- the schema
+     * creation below, and every save for the life of this connection. A busy
      * database is a queue, not an error, and reporting it as an error is how a
-     * student is told her work did not save when it was merely a moment late. */
-    db.exec('PRAGMA journal_mode = WAL')
+     * student is told her work did not save when it was merely a moment late.
+     * `m4-consistency.test.ts` is where that is proven, with real processes.
+     *
+     * WHAT THIS LINE WAS ONCE BELIEVED TO DO, AND DOES NOT.
+     *
+     *   These two lines were originally the other way round, and swapping them
+     *   was recorded here as "the whole fix" for a measured boot failure: two
+     *   replicas started together and one died with "database is locked" before
+     *   it ever bound its port. The swap helped, and the sentence was wrong.
+     *   Measured afterwards, with the timeout set and in force, replicas still
+     *   died on the WAL switch alone -- SQLite will not run a busy handler for
+     *   the lock promotion that switch needs. `switchTheJournalToWal` is what
+     *   actually covers it, and it carries that measurement.
+     *
+     *   SO THE ORDER OF THESE TWO LINES IS NO LONGER OBSERVABLE, and the next
+     *   person to run mutation testing on this file should know it rather than
+     *   spend an afternoon on it: putting the switch first still works, because
+     *   the retry inside it does not depend on the timeout. It survives as an
+     *   equivalent mutant. The order stays this way round because it is the one
+     *   that states the intent, and because the schema creation below is not
+     *   covered by anything else. */
+    db.exec('PRAGMA busy_timeout = 5000')
+    switchTheJournalToWal(db)
   }
   db.exec(SCHEMA)
 

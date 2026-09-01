@@ -691,7 +691,7 @@ must_contain = [
   "npm run typecheck",
   "npx vitest run server src/canvas",
 ]
-evidence = "per-linter PASS/FAIL lines in the job summary"
+evidence = "per-linter and per-suite PASS/FAIL, annotated to file and line"
 artifact = ""
 
 # ---------------------------------------------------------------------------

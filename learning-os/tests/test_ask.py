@@ -401,3 +401,69 @@ def test_doctor_refuses_an_unknown_provider_rather_than_calling_it_ready(
     assert report["ready"] is False
     assert "gemeni" in report["fix"]
     assert code != 0
+
+
+# --------------------------------------------------------------------------
+# The failure paths a learner actually meets.
+#
+# Everything below was unexercised: the engine raising mid-resolution, the
+# structurally-unreachable ANSWERED-with-no-turn guard, and the per-outcome
+# wording of `_explain`. Each one crosses a process boundary as stdout, so a
+# path that leaked an exception would reach the canvas as unparseable text and
+# the learner would get a blank panel with no reason in it -- which is exactly
+# what these paths exist to prevent.
+# --------------------------------------------------------------------------
+
+
+def test_an_engine_crash_arrives_as_a_document_not_a_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _explodes(*_args: Any, **_kwargs: Any) -> Any:
+        raise RuntimeError("the graph ate itself")
+
+    monkeypatch.setattr(ask, "resolve", _explodes)
+    result = run(DOUBT, monkeypatch)
+    assert result["outcome"] == "engine_error"
+    assert "the graph ate itself" in result["refusal"]
+    assert result["resume_at"] == "beat-0", "a crash must not cost the learner their place"
+
+
+def test_an_answer_with_nothing_in_it_is_reported_not_crashed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from learning_os.session.doubt import DoubtOutcome, Resolution
+
+    def _hollow(*_args: Any, **_kwargs: Any) -> Resolution:
+        return Resolution(outcome=DoubtOutcome.ANSWERED, resume_at="beat-0", turn=None)
+
+    monkeypatch.setattr(ask, "resolve", _hollow)
+    result = run(DOUBT, monkeypatch)
+    assert result["outcome"] == "engine_error"
+    assert "nothing in it" in result["refusal"]
+
+
+def test_an_unavailable_engine_speaks_about_itself_not_the_learner(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from learning_os.session.doubt import DoubtOutcome, Resolution
+
+    def _down(*_args: Any, **_kwargs: Any) -> Resolution:
+        return Resolution(outcome=DoubtOutcome.UNAVAILABLE, resume_at="beat-0", turn=None)
+
+    monkeypatch.setattr(ask, "resolve", _down)
+    result = run(DOUBT, monkeypatch)
+    assert "problem on this end" in result["refusal"]
+    assert "your question" in result["refusal"]
+
+
+def test_a_failed_generation_is_worded_as_a_refusal_to_show(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from learning_os.session.doubt import DoubtOutcome, Resolution
+
+    def _failed(*_args: Any, **_kwargs: Any) -> Resolution:
+        return Resolution(outcome=DoubtOutcome.GENERATION_FAILED, resume_at="beat-0", turn=None)
+
+    monkeypatch.setattr(ask, "resolve", _failed)
+    result = run(DOUBT, monkeypatch)
+    assert "willing" in result["refusal"]

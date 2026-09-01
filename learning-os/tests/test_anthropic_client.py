@@ -238,3 +238,104 @@ def test_the_response_schema_only_admits_buildable_kinds() -> None:
     in prose is what produced a `table` built from a sentence."""
     kinds = RESPONSE_SCHEMA["properties"]["blocks"]["items"]["properties"]["kind"]["enum"]
     assert sorted(kinds) == sorted(BUILDABLE)
+
+
+# --------------------------------------------------------------------------
+# The live call itself, against a stand-in SDK.
+#
+# Everything past the import in `generate` was unexercised: refusal handling,
+# transport failure, empty replies and the text-join all ran for the first
+# time in production. The stand-in is installed in `sys.modules` before the
+# lazy `import anthropic` inside `generate` runs, so the real SDK -- an
+# optional dependency CI does not install -- is never needed and nothing can
+# reach a network. Every path below is a behaviour a caller depends on:
+# `LLMUnavailable` is the router's signal to fall back, so a path that raised
+# anything else would strand the learner instead of rerouting them.
+# --------------------------------------------------------------------------
+
+
+class _Block:
+    def __init__(self, type_: str, text: str = "") -> None:
+        self.type = type_
+        self.text = text
+
+
+class _Response:
+    def __init__(self, blocks: list[_Block], stop_reason: str | None = None) -> None:
+        self.content = blocks
+        self.stop_reason = stop_reason
+
+
+def _sdk(monkeypatch: pytest.MonkeyPatch, outcome: object) -> None:
+    """Install a stand-in `anthropic` whose `messages.create` yields `outcome`."""
+    import sys
+    import types
+
+    module = types.ModuleType("anthropic")
+
+    class _Messages:
+        def create(self, **_kwargs: object) -> _Response:
+            if isinstance(outcome, Exception):
+                raise outcome
+            assert isinstance(outcome, _Response)
+            return outcome
+
+    class _Anthropic:
+        def __init__(self, api_key: str) -> None:
+            self.messages = _Messages()
+
+    module.Anthropic = _Anthropic  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "anthropic", module)
+    monkeypatch.setenv(API_KEY_ENV, "test-key-never-sent-anywhere")
+
+
+def test_a_missing_key_is_an_outage_not_a_crash(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The engine runs on FakeLLMClient without a key; this client is opt-in."""
+    monkeypatch.delenv(API_KEY_ENV, raising=False)
+    with pytest.raises(LLMUnavailable, match=API_KEY_ENV):
+        AnthropicClient().generate(_contract())
+
+
+def test_a_refusal_is_an_outage_and_names_itself(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A safety decline must not be retried as if the wire had dropped -- but it
+    must still be `LLMUnavailable`, or the router cannot fall back."""
+    _sdk(monkeypatch, _Response([], stop_reason="refusal"))
+    with pytest.raises(LLMUnavailable, match="declined"):
+        AnthropicClient().generate(_contract())
+
+
+def test_a_transport_failure_is_wrapped_not_leaked(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The caller distinguishes outage from bad contract by TYPE. A raw SDK
+    exception would make that distinction unavailable."""
+    _sdk(monkeypatch, RuntimeError("connection reset by peer"))
+    with pytest.raises(LLMUnavailable, match="could not be reached"):
+        AnthropicClient().generate(_contract())
+
+
+def test_a_reply_with_no_text_blocks_is_an_outage(monkeypatch: pytest.MonkeyPatch) -> None:
+    _sdk(monkeypatch, _Response([_Block("tool_use")]))
+    with pytest.raises(LLMUnavailable, match="no text"):
+        AnthropicClient().generate(_contract())
+
+
+def test_text_blocks_are_joined_and_parsed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The success path end to end: two text blocks, one JSON document, and the
+    same `parse_blocks` gate every other reply goes through."""
+    reply = json.dumps(
+        {"blocks": [{"kind": "prose", "text": "A base case ends the recursion."}]}
+    )
+    _sdk(monkeypatch, _Response([_Block("text", reply[:20]), _Block("text", reply[20:])]))
+    produced = AnthropicClient().generate(_contract())
+    assert produced.blocks[0] == ("prose", "A base case ends the recursion.")
+
+
+def test_weak_subskills_reach_the_prompt() -> None:
+    prompt = build_prompt(_contract(weak_subskills=("python.loops.termination",)))
+    assert "DO NOT LEAN ON THESE" in prompt
+    assert "python.loops.termination" in prompt
+
+
+def test_what_has_worked_before_reaches_the_prompt() -> None:
+    prompt = build_prompt(_contract(preferred_representations=("number_line",)))
+    assert "HAS WORKED BEFORE" in prompt
+    assert "number_line" in prompt

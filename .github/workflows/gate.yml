@@ -87,6 +87,18 @@ jobs:
       # Seeing one failure at a time costs nothing here, because the fixer job
       # runs all three itself and reads every failure in one pass. The place
       # that needs the full picture gets it.
+      # ANNOTATED WITHOUT WRAPPING. The first version piped tsc through `tee`
+      # to feed an annotator, and `gate_integrity.py` refused it -- correctly,
+      # by its own stated rule: the pinned command must be the thing that
+      # decides the step's status, and a pipe takes that decision away. A
+      # PROBLEM MATCHER annotates from the log as the runner streams it, so the
+      # command stays bare, its exit code stays the verdict, and every tsc
+      # error still lands on its exact file and line in the PR view. Ruff needs
+      # no matcher: `--output-format=github` speaks the annotation syntax
+      # itself, and the flag does not change the exit code.
+      - name: Teach the runner to read tsc findings
+        run: echo "::add-matcher::.github/matchers/tsc.json"
+
       - name: TypeScript
         working-directory: frontend
         run: npx tsc --noEmit
@@ -96,7 +108,7 @@ jobs:
         run: npm run lint
 
       - name: Ruff
-        run: ruff check .
+        run: ruff check . --output-format=github
 
       # THE SERVER TYPES, WHICH `tsc -p tsconfig.json` NEVER LOOKED AT.
       #

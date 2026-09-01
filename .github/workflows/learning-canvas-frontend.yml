@@ -604,7 +604,7 @@ jobs:
     # because parallel workers poison every p95 they touch. At workers=1 the
     # unit-starvation argument above disappears and one-project-per-runner
     # becomes the faster shape again.
-    name: scenes ${{ matrix.shard }}/4
+    name: scenes ${{ matrix.shard }}/8
     runs-on: ubuntu-latest
     needs: [changes]
     if: needs.changes.outputs.frontend == 'true'
@@ -637,7 +637,12 @@ jobs:
         # 2 -> 4: each shard was MEASURED at ~15 minutes, the second-longest
         # wall in the repository. Same tests, same five projects per shard --
         # twice the machines, roughly half the wait.
-        shard: [1, 2, 3, 4]
+        # 2 -> 4 -> 8: each of two shards was MEASURED at ~15 minutes and was
+        # the second-tallest wall in the repository; the per-shard fixed cost
+        # (cached npm ci + cached chromium + server build) is ~1.5 minutes, so
+        # eight machines put the wall near 1.5m setup + ~2m of tests. Same five
+        # projects, same ~290 tests -- Playwright's --shard splits, never skips.
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -700,7 +705,7 @@ jobs:
           --project=mobile-375
           --project=reduced-motion
           --project=keyboard
-          --shard="$SHARD/4"
+          --shard="$SHARD/8"
           --fail-on-flaky-tests
 
       # ONE DOWNLOAD INSTEAD OF A LOG CRAWL.

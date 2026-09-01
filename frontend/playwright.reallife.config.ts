@@ -26,7 +26,17 @@ import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
   testDir: './tests/integration',
   retries: 0,
-  workers: 1,
+  /*
+   * TWO WORKERS ON CI, ONE ON A LAPTOP -- AND WHY THIS IS SAFE WHERE THE PERF
+   * CONFIG'S CAP IS NOT. playwright.config.ts pins workers only to protect CDP
+   * frame-interval measurement; NOTHING in these laws measures time -- they
+   * measure TEXT DELTAS, and every context's state is its own localStorage,
+   * which Playwright isolates per test. `fullyParallel` stays false: the unit
+   * of parallelism is the FILE, so tests within a law keep their order and two
+   * law files simply run side by side. Measured serially at ~4.6 minutes per
+   * browser project; two workers halve the wall on a 4-vCPU runner.
+   */
+  workers: process.env.CI ? 2 : 1,
   fullyParallel: false,
 
   /* GENEROUS ON PURPOSE, AND NOT THE SAME THING AS A SLOW APP.

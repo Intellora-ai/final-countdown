@@ -445,12 +445,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - engine: chrome
+          # chrome was one leg carrying TWO projects (laptop + phone) and was
+          # the tallest leg of the three at ~9 minutes; each project is its own
+          # runner now, so the wall is one project, not two.
+          - engine: laptop
             browsers: chromium
+            project: a-person-on-a-laptop
+          - engine: phone
+            browsers: chromium
+            project: a-person-on-a-phone
           - engine: firefox
             browsers: firefox
+            project: a-person-on-firefox
           - engine: safari
             browsers: webkit
+            project: a-person-on-safari
     defaults:
       run:
         working-directory: frontend
@@ -488,7 +497,7 @@ jobs:
 
       # NO MODEL CREDENTIAL IS SET HERE. See the block above this job.
       - name: The six laws
-        run: npm run test:laws:${{ matrix.engine }}
+        run: npm run test:laws -- --project="${{ matrix.project }}"
 
       - name: Upload the traces so a failed law can be watched
         if: failure()

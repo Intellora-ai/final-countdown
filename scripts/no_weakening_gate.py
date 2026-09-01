@@ -74,6 +74,45 @@ ASSERTION = re.compile(
     r"|\.should\b|\bshould\.|\brequire\.\w+\(",
 )
 
+# THE INTENT ABOVE WAS DOCUMENTED AND NOT IMPLEMENTED, MEASURED 2026-09-01.
+#
+# `ASSERTION` matches `expect(` and stops there, so it counted a hollow
+# assertion exactly like a real one. That left the cheapest weakening of all
+# invisible to a count: leave the `expect(` where it is, swap the matcher for
+# one that cannot fail on a wrong value, and `lost > gained` never fires.
+# Measured before this existed:
+#
+#     expect(a).toBe(1)  ->  expect(a).toBeDefined()      exit 0, allowed
+#
+# These are the matchers that assert a value EXISTS rather than saying what it
+# is. Each is subtracted from the count on its line, so a real assertion traded
+# for one of them reads as the loss it is.
+#
+# DELIBERATELY SHORT. Every entry passes for an unbounded set of wrong values.
+# `toEqual({ n: 1 })` and `toBeGreaterThan(3)` are NOT here and must not be:
+# they name a value, they are ordinary rewrites, and `test_allows_an_assertion_
+# being_rewritten_one_for_one` exists to keep them allowed. A guard that
+# refuses honest rewrites is switched off within a day, which is the failure
+# mode the whole module docstring is about.
+NAMES_NO_VALUE = re.compile(
+    r"\.(?:toBeDefined|toBeTruthy|toBeFalsy|toBeUndefined|toBeNull|toExist)\s*\(\s*\)"
+    r"|\.(?:to\.exist|to\.be\.ok)\b"
+    r"|\bassert\s+[A-Za-z_][\w.\[\]']*\s+is\s+not\s+None\s*$"
+    r"|\bassert\s+[A-Za-z_][\w.\[\]']*\s*$"
+    r"|\bassertIsNotNone\b",
+)
+
+
+def evidence_in(line: str) -> int:
+    """Assertions on this line that name an expected value.
+
+    An `expect(` whose matcher only proves existence is not evidence, so it is
+    counted and then taken back off. The floor at zero matters: a line may
+    carry more hollow matchers than `ASSERTION` found openings on it, and a
+    negative would let one line pay for another's real assertion.
+    """
+    return max(0, len(ASSERTION.findall(line)) - len(NAMES_NO_VALUE.findall(line)))
+
 TEST_PATH = re.compile(r"(?:^|/)(?:tests?|__tests__|e2e|spec)/|\.(?:test|spec)\.[jt]sx?$|(?:^|/)test_[^/]+\.py$|_test\.py$")
 WORKFLOW_PATH = re.compile(r"^\.github/workflows/.*\.ya?ml$")
 # Prose cannot switch a checker off, so a suppression-looking string in a
@@ -119,8 +158,8 @@ def parse(diff: str) -> list[Finding]:
                     findings.append(Finding(path, "gate-made-advisory", line.strip()[:120]))
 
         if TEST_PATH.search(path) and not deleted_file:
-            gained = sum(len(ASSERTION.findall(line)) for line in added)
-            lost = sum(len(ASSERTION.findall(line)) for line in removed)
+            gained = sum(evidence_in(line) for line in added)
+            lost = sum(evidence_in(line) for line in removed)
             if lost > gained:
                 findings.append(
                     Finding(path, "assertions-removed", f"{lost} removed, {gained} added -- a net loss of {lost - gained}")

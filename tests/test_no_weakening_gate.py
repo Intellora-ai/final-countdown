@@ -101,6 +101,64 @@ def test_allows_an_assertion_being_rewritten_one_for_one():
 
 
 # --------------------------------------------------------------------------
+# HOLLOWING AN ASSERTION OUT WITHOUT REMOVING IT
+#
+# The cheapest weakening of all, and it is invisible to a count: leave the
+# `expect(` exactly where it is and swap the matcher for one that cannot fail
+# on a wrong value. The count is unchanged, so `lost > gained` never fires.
+#
+# The module docstring already names this as the intent -- "an assertion is
+# only evidence if it names an expected VALUE. `toBeDefined` passes for the
+# wrong value, so it is not counted here and swapping a real assertion for one
+# is therefore a loss, which is the intent" -- and the pattern counted every
+# `expect(` regardless, so the intent was documented and not implemented.
+# Measured before these tests existed: the swap below exited 0.
+#
+# Paired both ways on purpose. Refusing the hollowing is half a control; the
+# other half is that STRENGTHENING a hollow assertion into a real one must stay
+# allowed, or the guard punishes the fix it exists to encourage.
+# --------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "hollow",
+    [
+        "expect(a).toBeDefined()",
+        "expect(a).toBeTruthy()",
+        "expect(a).toBeFalsy()",
+        "expect(a).not.toBeUndefined()",
+        "assert a is not None",
+    ],
+)
+def test_refuses_a_real_assertion_swapped_for_one_that_names_no_value(hollow: str) -> None:
+    code, out = run(diff_for("src/thing.test.ts", ["expect(a).toBe(1)"], [hollow]))
+    assert code == 1, out
+    assert "assertion" in out.lower(), out
+
+
+def test_allows_a_hollow_assertion_being_strengthened_into_a_real_one():
+    code, out = run(
+        diff_for("src/thing.test.ts", ["expect(a).toBeDefined()"], ["expect(a).toBe(1)"])
+    )
+    assert code == 0, out
+
+
+def test_allows_a_hollow_assertion_kept_alongside_a_real_one():
+    """Existence checks are legitimate BESIDE evidence, only not INSTEAD of it.
+
+    `expect(x).toBeDefined()` before reading `x.y` is a guard that makes the
+    next failure legible. Refusing it would make the guard cost an argument.
+    """
+    code, out = run(
+        diff_for(
+            "src/thing.test.ts",
+            ["expect(a).toBe(1)"],
+            ["expect(a).toBeDefined()", "expect(a).toBe(1)"],
+        )
+    )
+    assert code == 0, out
+
+
+# --------------------------------------------------------------------------
 # SILENCING A CHECKER
 # --------------------------------------------------------------------------
 

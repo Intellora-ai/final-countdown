@@ -51,11 +51,41 @@ const BUNDLE = join(FRONTEND, 'dist-server', 'index.js')
  * proxy that usually precedes it. A test that waits for the wrong event does
  * not become correct by waiting longer.
  */
+/**
+ * Every environment variable that can configure a model, per `provider.ts`.
+ *
+ * WHY THE INHERITED ENVIRONMENT IS EMPTIED OF THESE FIRST.
+ *
+ * `withServer` used to spread `process.env` and let each test override the one
+ * key it cared about. That makes every assertion about model configuration
+ * depend on the shell the suite happens to run in, and it failed in both
+ * directions at once:
+ *
+ *   - "refuses to start without a key" passed only on a machine with NO model
+ *     keys exported. It cleared `ANTHROPIC_API_KEY` and inherited the rest, so
+ *     on a developer machine with `GROQ_API_KEY` set the server booted
+ *     correctly and the test read that correct boot as a defect. Measured:
+ *     green in CI, red locally, with the product identical in both.
+ *   - The four tests that set `ANTHROPIC_API_KEY: 'CANARY-...'` inherited
+ *     `GROQ_API_KEY` too, and `provider.ts:48` reads Groq BEFORE Anthropic.
+ *     So on that same machine they booted the Groq provider while claiming to
+ *     prove something about the Anthropic one. Both were green, which is the
+ *     worse half: a test that silently exercises the wrong provider reports
+ *     success for code it never ran.
+ *
+ * Emptying the list makes each test state its own model configuration and
+ * makes the result identical everywhere. It is not a carve-out for the failing
+ * case — it removes a dependency the tests were never entitled to.
+ */
+const EVERY_MODEL_KEY = ['ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'OLLAMA_MODEL'] as const
+
 async function withServer(env, body, until = 'listening on') {
   const port = 8900 + Math.floor(Math.random() * 90)
+  const withoutAnyModel = { ...process.env }
+  for (const name of EVERY_MODEL_KEY) delete withoutAnyModel[name]
   const child = spawn(process.execPath, [BUNDLE], {
     cwd: FRONTEND,
-    env: { ...process.env, PORT: String(port), ...env },
+    env: { ...withoutAnyModel, PORT: String(port), ...env },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
 

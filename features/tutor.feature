@@ -75,3 +75,18 @@ Feature: A student uses the tutor
     When she asks "why does recursion need a base case?"
     Then she still gets a lesson she can read
     And the answer says which provider produced it
+
+  Scenario: The same question the tutor refuses becomes answerable when the web is configured
+    Given a student called "ada"
+    And a search engine that knows about baking
+    When she asks "how do I bake a chocolate cake?"
+    Then she gets a lesson she can read
+    And the lesson names where the answer came from
+    And she is never shown the inside of the program
+
+  Scenario: The web is configured but has nothing to say
+    Given a student called "ada"
+    And a search engine that knows nothing
+    When she asks "how do I bake a chocolate cake?"
+    Then the tutor says it does not cover that
+    And no lesson is invented

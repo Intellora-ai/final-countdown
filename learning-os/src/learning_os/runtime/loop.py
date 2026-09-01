@@ -152,17 +152,50 @@ def teach_once(
         _record(memory, contract, Outcome.FAILURE)
         return Turn(status=TurnStatus.EXHAUSTED, decision=decision, at=now())
 
+    turn = generate_validated(client, decision, now=now)
+
+    if turn.status is TurnStatus.TAUGHT:
+        # DELIVERED, not SUCCESS. What just happened is that the model
+        # honoured its contract -- which says nothing about whether the
+        # learner understood. `observe` writes the real outcome when they
+        # answer. Recording SUCCESS here made every mechanism permanently
+        # un-burnable; see `Outcome.DELIVERED`.
+        _record(memory, contract, Outcome.DELIVERED, content=turn.content)
+    elif turn.status is TurnStatus.CONTRACT_UNSATISFIABLE:
+        _record(memory, contract, Outcome.FAILURE)
+    # UNAVAILABLE records nothing: nothing was taught, so counting it against
+    # this strategy would burn a mechanism for a reason that has nothing to do
+    # with whether it teaches -- and the fallback engine would then avoid it
+    # forever on the strength of one outage.
+    return turn
+
+
+def generate_validated(
+    client: LLMClient,
+    decision: Decision,
+    *,
+    now: Callable[[], datetime],
+) -> Turn:
+    """Generate under a decision's contract until valid, exhausted, or down.
+
+    THE ONE PLACE CONTENT IS PRODUCED AND CHECKED. `teach_once` above wraps
+    this with the graph, the policy and the memory; `session/doubt.py`'s
+    grounded path wraps it with retrieved sources and nothing else. Both go
+    through this function, which is what keeps `resolve`'s promise -- "giving
+    it its own generator would mean two places where content is produced and
+    only one of them validated" -- true now that there are two callers.
+
+    Writes NOTHING to memory. Recording outcomes against a learner's mechanisms
+    is the policy loop's business, and the grounded path has no mechanism to
+    burn -- so the recording stays with the caller that owns the reasons.
+    """
+    contract = decision.contract
     violations: list[Violation] = []
     attempt = 0
     for attempt in range(1, MAX_GENERATION_ATTEMPTS + 1):
         try:
             content = client.generate(contract)
         except LLMUnavailable:
-            # Not recorded as a failed teaching attempt. Nothing was taught, so
-            # counting it against this strategy would burn a mechanism for a
-            # reason that has nothing to do with whether it teaches -- and the
-            # fallback engine would then avoid it forever on the strength of one
-            # outage.
             return Turn(
                 status=TurnStatus.UNAVAILABLE,
                 decision=decision,
@@ -172,12 +205,6 @@ def teach_once(
 
         violations = validate(contract, content)
         if is_usable(violations):
-            # DELIVERED, not SUCCESS. What just happened is that the model
-            # honoured its contract -- which says nothing about whether the
-            # learner understood. `observe` writes the real outcome when they
-            # answer. Recording SUCCESS here made every mechanism permanently
-            # un-burnable; see `Outcome.DELIVERED`.
-            _record(memory, contract, Outcome.DELIVERED, content=content)
             return Turn(
                 status=TurnStatus.TAUGHT,
                 decision=decision,
@@ -192,7 +219,6 @@ def teach_once(
             # blind repeat, just faster.
             break
 
-    _record(memory, contract, Outcome.FAILURE)
     return Turn(
         status=TurnStatus.CONTRACT_UNSATISFIABLE,
         decision=decision,

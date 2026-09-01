@@ -13,6 +13,8 @@ import json
 import os
 import sys
 import subprocess
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -47,7 +49,8 @@ TRACEBACK_TELLS = ("Traceback (most recent call last)", 'File "', "  at ")
 
 
 def _ask(question: str | None, *, learner: str, raw: str | None = None,
-         drop_keys: bool = True) -> tuple[int, str, str]:
+         drop_keys: bool = True,
+         extra_env: dict[str, str] | None = None) -> tuple[int, str, str]:
     payload = raw if raw is not None else json.dumps(
         {"text": question, "learner_id": learner, "session_id": f"session-{learner}"}
     )
@@ -57,6 +60,8 @@ def _ask(question: str | None, *, learner: str, raw: str | None = None,
         for key in ("ANTHROPIC_API_KEY", "GEMINI_API_KEY",
                     "GOOGLE_API_KEY", "OPENAI_API_KEY"):
             env.pop(key, None)
+    if extra_env:
+        env.update(extra_env)
 
     result = subprocess.run(
         [str(PYTHON), "-m", "learning_os.api.ask"],
@@ -91,6 +96,67 @@ def step_no_api_key(context) -> None:
     context.drop_keys = True
 
 
+def _an_engine_serving(context, results: list[dict[str, str]]) -> None:
+    """A real search engine on a loopback socket, for the life of one scenario.
+
+    As real as the tutor can tell: the child process reaches it through
+    `urllib` over an actual socket, exactly as it would reach Brave or a
+    SearxNG. The scenario owns the server and behave's cleanup closes it.
+
+    A HARD FAILURE WHEN THE SOCKET CANNOT BIND, never a skip -- the same rule
+    `tests/db/conftest.py` states: the absence of an environment must not
+    masquerade as a passing suite. Sandboxed dev shells forbid binding; the CI
+    runner that this suite exists for does not.
+    """
+    body = json.dumps({"results": results}).encode("utf-8")
+
+    class Engine(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:  # noqa: N802 -- the stdlib names this method
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *_args) -> None:
+            """Silence: request lines on stderr read as tracebacks to a step."""
+
+    try:
+        server = HTTPServer(("127.0.0.1", 0), Engine)
+    except PermissionError as denied:
+        raise RuntimeError(
+            "this environment forbids binding a loopback socket, so there is "
+            "no engine for this scenario; run where sockets are permitted "
+            "(the CI runner is)"
+        ) from denied
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    context.add_cleanup(server.shutdown)
+    # The literal spelling of `learning_os.websearch.ENDPOINT_ENV`, which the
+    # child process reads. A literal, because this steps file runs OUTSIDE the
+    # engine's package path and an import here would be a second installation
+    # requirement for the suite.
+    context.search_env = {
+        "LEARNING_OS_SEARCH_ENDPOINT":
+            f"http://127.0.0.1:{server.server_port}/search?q={{query}}&n={{limit}}"
+    }
+
+
+@given("a search engine that knows about baking")
+def step_engine_with_baking(context) -> None:
+    _an_engine_serving(context, [{
+        "url": "https://cooking.example/cake",
+        "title": "Baking a chocolate cake",
+        "snippet": ("Cream the butter and sugar, add eggs, fold in flour and "
+                    "cocoa, bake at 180C for thirty minutes."),
+    }])
+
+
+@given("a search engine that knows nothing")
+def step_engine_with_nothing(context) -> None:
+    _an_engine_serving(context, [])
+
+
 @given("a class of {count:d} students")
 def step_a_class(context, count: int) -> None:
     questions = [
@@ -110,7 +176,8 @@ def step_a_class(context, count: int) -> None:
 def step_she_asks(context, question: str) -> None:
     context.question = question
     context.returncode, context.stdout, context.stderr = _ask(
-        question, learner=getattr(context, "learner", "ada")
+        question, learner=getattr(context, "learner", "ada"),
+        extra_env=getattr(context, "search_env", None),
     )
     context.answers.append(context.stdout)
 
@@ -187,6 +254,24 @@ def step_says_it_does_not_know(context) -> None:
         f"the tutor invented a lesson for {context.question!r}"
     )
     assert document.get("refusal", "").strip(), "a refusal with no reason teaches nothing"
+
+
+@then("the lesson names where the answer came from")
+def step_names_its_source(context) -> None:
+    """A grounded answer a learner cannot check is a guess wearing a citation.
+
+    Two assertions on purpose: `sources` is the machine-readable claim, and the
+    URL inside the lesson text is what the learner actually sees. Either alone
+    can lie -- a sources list nothing displays, or a URL the document does not
+    stand behind.
+    """
+    document = _document(context)
+    sources = document.get("sources")
+    assert sources, "an answer from the web arrived with no sources listed"
+    lesson_text = json.dumps(document.get("lesson", {}))
+    assert any(url in lesson_text for url in sources), (
+        f"none of {sources} appears in the lesson a learner reads"
+    )
 
 
 @then("no lesson is invented")

@@ -47,6 +47,7 @@ import sys
 from datetime import UTC, datetime
 from typing import Any
 
+from learning_os import websearch
 from learning_os.api.emit import emit
 from learning_os.domain.python_recursion import GRAPH
 from learning_os.llm.client import LLMUnavailable
@@ -254,6 +255,10 @@ def answer(raw: str) -> dict[str, Any]:
             client,
             doubt,
             now=lambda: datetime.now(UTC),
+            # None when LEARNING_OS_SEARCH_ENDPOINT is unset, and the refusal
+            # path is then byte-identical to what it always was. See
+            # `websearch.from_env`.
+            search=websearch.from_env(),
         )
     except Exception as failure:
         # Returned, not swallowed. The engine raising is a real defect and the
@@ -288,6 +293,11 @@ def answer(raw: str) -> dict[str, Any]:
     # The same emitter as the committed fixtures, so what crosses the bridge is a
     # payload the canvas already knows how to validate and render.
     base["lesson"] = emit(turn.contract, turn.content).as_payload()
+    if turn.contract.sources:
+        # URLs only: the snippet already did its work inside the contract, and
+        # the caller's job is to let a learner follow the citation, not to
+        # re-serve the web. Present exactly when the answer was grounded.
+        base["sources"] = [source.url for source in turn.contract.sources]
     return base
 
 

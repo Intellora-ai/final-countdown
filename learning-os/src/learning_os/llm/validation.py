@@ -49,6 +49,8 @@ class ViolationKind(StrEnum):
     TOO_MANY_BLOCKS = "too_many_blocks"
     UNKNOWN_BLOCK_KIND = "unknown_block_kind"
     STEP_COUNT_LEAKED = "step_count_leaked"
+    MISSING_CITATION = "missing_citation"
+    INVENTED_CITATION = "invented_citation"
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,6 +113,20 @@ BLOCK_KINDS = frozenset(
 #: the next intervention depends on evidence that does not exist yet. Saying
 #: "step 2 of 5" is a promise about a decision not yet made.
 _STEP_COUNT = re.compile(r"\b(step|part)\s*\d|\b\d+\s*(of|/)\s*\d", re.IGNORECASE)
+
+#: A URL as prose carries it. Trailing sentence punctuation is stripped by the
+#: matcher below rather than matched, so "see https://a.test/p." cites
+#: `https://a.test/p` and not a page with a full stop in its name.
+#:
+#: IGNORECASE, and it is the invention net that needs it: `HTTPS://Fake.example`
+#: is a URL to every browser, and a matcher that only reads lowercase would let
+#: an invented citation through by capitalisation. Cited-source matching stays
+#: exact -- the prompt shows the URL verbatim and verbatim is what is checked.
+_URL = re.compile(r"https?://[^\s\"'<>)\]]+", re.IGNORECASE)
+
+
+def _urls_in(text: str) -> list[str]:
+    return [match.rstrip(".,;:!?") for match in _URL.findall(text)]
 
 
 def validate(contract: InstructionContract, content: GeneratedContent) -> list[Violation]:
@@ -212,6 +228,37 @@ def validate(contract: InstructionContract, content: GeneratedContent) -> list[V
                 ViolationKind.STEP_COUNT_LEAKED,
                 f"{match.group(0)!r} tells the learner how many steps remain, "
                 f"which is a promise about a decision the engine has not made yet",
+            )
+        )
+
+    # THE CITATION RULES. Both run on every contract, because an invented URL
+    # is an invention whether or not sources were supplied -- a curriculum
+    # lesson that cites a page nobody retrieved is a fabricated statistic
+    # wearing a hyperlink.
+    written = _urls_in(text)
+    allowed = {source.url for source in contract.sources}
+
+    for url in written:
+        if url not in allowed:
+            out.append(
+                Violation(
+                    ViolationKind.INVENTED_CITATION,
+                    f"the lesson cites {url!r}, which is not among the "
+                    f"{len(allowed)} retrieved source(s); a citation nobody can "
+                    f"check is worse than no citation",
+                    # Not repairable: the model reached outside its sources, and
+                    # the same contract will let it reach again.
+                    repairable=False,
+                )
+            )
+
+    if contract.sources and not any(url in allowed for url in written):
+        out.append(
+            Violation(
+                ViolationKind.MISSING_CITATION,
+                "the contract carries sources but the lesson names none of "
+                "them; a grounded answer that hides its ground cannot be "
+                "checked by the learner it is for",
             )
         )
 

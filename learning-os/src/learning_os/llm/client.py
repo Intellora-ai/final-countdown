@@ -376,6 +376,30 @@ class FakeLLMClient:
 
         blocks.extend(arc)
 
+        # A SOURCED CONTRACT IS OBEYED THE WAY THE VALIDATOR CHECKS IT.
+        #
+        # The fake's job is to honour contracts, and a contract carrying
+        # `sources` is honoured by citing one: the citation rules refuse a
+        # grounded lesson that names no source, and refuse ANY lesson naming a
+        # URL outside its sources. So the first source's own words and its URL
+        # -- verbatim, which is what the check matches -- are appended as a
+        # callout, the same shape a real model is instructed to produce.
+        # Deterministic like everything else here: same contract, same lesson.
+        if contract.sources:
+            cited = contract.sources[0]
+            said = cited.snippet or cited.title or "the source states this directly"
+            line = f"According to {cited.url} — {said}"
+            if len(blocks) < budget:
+                blocks.append(("callout", line, {"role": "summary"}))
+            else:
+                # No slot left: merged into the last block, exactly as
+                # required_terms are, so the citation never busts the budget it
+                # was generated under.
+                last = blocks[-1]
+                tail: dict[str, object] = dict(last[2]) if len(last) > 2 else {}
+                merged = f"{last[1]} {line}"
+                blocks[-1] = (last[0], merged, tail) if tail else (last[0], merged)
+
         if self.failure is FailureMode.CONSTRAINT_VIOLATION:
             # Well-formed, and breaks the contract two ways at once: it omits
             # every required term and introduces more concepts than the budget.

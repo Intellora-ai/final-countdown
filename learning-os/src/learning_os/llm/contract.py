@@ -136,6 +136,23 @@ class SimplicityConstraints(_Frozen):
     max_blocks: int = Field(ge=1, le=8, default=4)
 
 
+class SourceRef(_Frozen):
+    """One retrieved source the contract binds the model to.
+
+    Three fields and no fourth: the URL is the citation, the title is how a
+    learner recognises where they are being sent, and the snippet is the only
+    text the model may state facts from. Nothing here is fetched page HTML --
+    what enters a contract has already been through whatever retrieval chose
+    it, and a contract must be small enough to be read whole.
+    """
+
+    url: str = Field(min_length=8, max_length=500, pattern=r"^https?://")
+    title: str = Field(max_length=300, default="")
+    #: Bounded hard: a snippet is grounding, not a document. An unbounded field
+    #: here is an unbounded prompt, charged per token.
+    snippet: str = Field(max_length=1_000, default="")
+
+
 #: The longest question a lesson can be built around, and the real ceiling on
 #: every question in this system.
 #:
@@ -226,6 +243,18 @@ class InstructionContract(_Frozen):
     #: and `ForbiddenSimplification.tells` is min_length=1, so a rule with no
     #: detector cannot be written down at all.
     forbidden_tells: tuple[str, ...] = ()
+
+    #: Retrieved sources the answer must be grounded in, or empty for the
+    #: ordinary curriculum lesson that needs none.
+    #:
+    #: NON-EMPTY CHANGES WHAT "VALID" MEANS, and the validator is where that
+    #: bites -- this module's own rule is that a constraint nothing checks is a
+    #: comment. With sources present, generated content must cite at least one
+    #: of these URLs verbatim, and any URL it writes that is NOT in this tuple
+    #: is refused outright: an invented citation is a fabricated statistic
+    #: wearing a hyperlink, and it is the exact failure a grounded answer
+    #: exists to remove.
+    sources: tuple[SourceRef, ...] = ()
 
     #: What the learner must do for this intervention to count as having worked.
     #: Fixed HERE, before generation, which is invariant 2: deciding what counts

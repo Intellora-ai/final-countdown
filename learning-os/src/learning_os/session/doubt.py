@@ -47,10 +47,18 @@ from enum import StrEnum
 
 from learning_os.domain.knowledge import KnowledgeGraph
 from learning_os.llm.client import LLMClient
-from learning_os.llm.contract import MAX_LESSON_QUESTION, DiagnosisKind
+from learning_os.llm.contract import (
+    MAX_LESSON_QUESTION,
+    DiagnosisKind,
+    InstructionContract,
+    SourceRef,
+    Strategy,
+)
 from learning_os.mastery.estimate import Belief
 from learning_os.memory.store import MemoryStore
-from learning_os.runtime.loop import Turn, TurnStatus, teach_once
+from learning_os.models.contracts import ActionKind
+from learning_os.policy.select import Decision
+from learning_os.runtime.loop import Turn, TurnStatus, generate_validated, teach_once
 
 
 class DoubtOutcome(StrEnum):
@@ -210,6 +218,69 @@ def map_to_skill(graph: KnowledgeGraph, doubt: Doubt) -> str | None:
     return None if best is None else best[1]
 
 
+def _grounded(
+    client: LLMClient,
+    doubt: Doubt,
+    search: Callable[[str], tuple[SourceRef, ...]] | None,
+    *,
+    now: Callable[[], datetime],
+) -> Resolution | None:
+    """A sourced answer to an unmappable doubt, or None when the refusal stands.
+
+    NOT A SECOND GENERATOR. The content comes from `generate_validated` -- the
+    same function `teach_once` answers through -- under a real contract whose
+    `sources` field arms the citation rules: the lesson must name one of the
+    retrieved URLs and may name no other. What is different here is only the
+    AUTHOR of the contract, and `Decision(reasons=())` says so honestly: this
+    was not a policy decision, and there are no policy reasons to record.
+
+    Nothing is written to memory. The learner asked about something outside the
+    graph; there is no mechanism to burn and no skill to record against.
+
+    `UNAVAILABLE` propagates -- "I could not reach the part of me that writes
+    explanations" is true and the learner should hear it -- but a model that
+    cannot satisfy the citation rules falls back to None, because the standing
+    refusal ("I would rather not guess") is still true and is a better sentence
+    than any status report.
+    """
+    if search is None:
+        return None
+    try:
+        sources = search(doubt.text)
+    except Exception:
+        sources = ()
+    if not sources:
+        return None
+
+    contract = InstructionContract(
+        # A real id under a reserved prefix no curriculum uses: `graph.concepts`
+        # ids are filed under their subject (`python.recursion.*`), so `web.*`
+        # cannot collide with a skill a learner is actually studying.
+        target_skill="web.grounded_answer",
+        question=_shortened(doubt.text),
+        # The one honest diagnosis available: the learner lacks the concept and
+        # said so by asking. Nothing here inspected their history.
+        diagnosis=DiagnosisKind.CONCEPT_GAP,
+        strategy=Strategy.GUIDED_REASONING,
+        action=ActionKind.TEACH_BY_EXAMPLE,
+        sources=sources,
+        success_evidence_required=(
+            "the learner can restate the answer and name the source it came from"
+        ),
+    )
+    turn = generate_validated(client, Decision(contract=contract, reasons=()), now=now)
+
+    if turn.status is TurnStatus.TAUGHT:
+        return Resolution(
+            outcome=DoubtOutcome.ANSWERED, resume_at=doubt.resume_at, turn=turn
+        )
+    if turn.status is TurnStatus.UNAVAILABLE:
+        return Resolution(
+            outcome=DoubtOutcome.UNAVAILABLE, resume_at=doubt.resume_at, turn=turn
+        )
+    return None
+
+
 def _shortened(text: str) -> str:
     """The doubt, short enough for the contract, and never silently cut.
 
@@ -248,6 +319,7 @@ def resolve(
     *,
     now: Callable[[], datetime],
     belief: Belief | None = None,
+    search: Callable[[str], tuple[SourceRef, ...]] | None = None,
 ) -> Resolution:
     """Answer a doubt, or say plainly that it cannot be answered here.
 
@@ -264,6 +336,17 @@ def resolve(
     """
     skill_id = map_to_skill(graph, doubt)
     if skill_id is None:
+        # ONE CHANCE TO BECOME A GROUNDED ANSWER BEFORE THE REFUSAL STANDS.
+        #
+        # The refusal below was never the principle -- "never guess" is. A
+        # question outside the curriculum answered ONLY from retrieved sources,
+        # citing them, through the same `generate_validated` every lesson goes
+        # through, is not a guess. No search configured, engine unreachable,
+        # nothing retrieved, or the model unable to satisfy the citation rules:
+        # the refusal stands, in exactly the words it has always used.
+        grounded = _grounded(client, doubt, search, now=now)
+        if grounded is not None:
+            return grounded
         return Resolution(
             outcome=DoubtOutcome.UNMAPPABLE,
             resume_at=doubt.resume_at,

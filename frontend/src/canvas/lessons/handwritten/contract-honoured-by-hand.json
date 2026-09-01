@@ -1,28 +1,111 @@
 {
   "blocks": [
     {
-      "body": "Every time a function calls itself, Python sets aside a new frame to hold that call's own variables. \n\nThe frames pile onto the call stack, one per call still waiting to finish. Nothing has returned yet, so nothing is cleared away.",
+      "body": "The base case is the branch that returns a value without calling itself again.",
       "emphasis": "primary",
       "id": "prose-0",
-      "kind": "prose"
+      "kind": "prose",
+      "role": "definition",
+      "terms": [
+        {
+          "mark": "key",
+          "text": "base case"
+        }
+      ]
     },
     {
-      "body": "The base case is the branch that returns a value WITHOUT calling itself again. It is what lets the pile start unwinding.\n\n The recursive case is the other branch, the one that adds another frame. \n\nA function needs both: the recursive case makes progress toward the base case, and the base case stops it.",
+      "body": "Every time a function calls itself, Python sets aside a new frame to hold that call's own variables.\n\nThe frames pile onto the call stack, one per call still waiting to finish, and nothing is cleared away until something returns.",
       "emphasis": "supporting",
       "id": "prose-1",
-      "kind": "prose"
+      "kind": "prose",
+      "role": "support",
+      "terms": [
+        {
+          "mark": "key",
+          "text": "call stack"
+        }
+      ]
+    },
+    {
+      "body": "The recursive case is the other branch, the one that adds another frame.\n\nA function needs both: the recursive case makes progress toward the base case, and the base case stops it.",
+      "emphasis": "supporting",
+      "id": "callout-2",
+      "kind": "callout",
+      "role": "support",
+      "terms": [
+        {
+          "mark": "distinction",
+          "text": "recursive case"
+        }
+      ]
+    },
+    {
+      "caption": "The same two branches, laid out rather than described.",
+      "emphasis": "supporting",
+      "id": "flow-3",
+      "kind": "flow",
+      "links": [
+        {
+          "from": "call",
+          "to": "decide"
+        },
+        {
+          "from": "decide",
+          "to": "deeper"
+        },
+        {
+          "from": "decide",
+          "to": "stop"
+        },
+        {
+          "from": "deeper",
+          "to": "decide"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "call",
+          "label": "the function is called"
+        },
+        {
+          "id": "decide",
+          "label": "is this the branch that needs no further call?"
+        },
+        {
+          "id": "deeper",
+          "label": "recursive case: another frame"
+        },
+        {
+          "id": "stop",
+          "label": "base case: return a value"
+        }
+      ],
+      "role": "framework"
     },
     {
       "body": "Without a base case the stack depth just grows. Python stops you at its recursion limit and raises RecursionError, so the failure is a crash rather than a hang.",
       "emphasis": "supporting",
-      "id": "callout-2",
-      "kind": "callout"
+      "id": "prose-4",
+      "kind": "prose",
+      "role": "support",
+      "terms": [
+        {
+          "mark": "key",
+          "text": "recursion limit"
+        }
+      ]
     },
     {
-      "body": "So when you read a recursive function, find the branch with no self-call first. That is the base case. If you cannot find one, the function cannot terminate.",
       "emphasis": "supporting",
-      "id": "prose-3",
-      "kind": "prose"
+      "id": "summary-5",
+      "kind": "summary",
+      "mentalModel": "The recursive case gets you closer; the base case is the only thing that stops.",
+      "progression": [
+        "read the function and find the branch with no self-call",
+        "that branch is the base case",
+        "if there is no such branch, the function cannot terminate"
+      ],
+      "role": "summary"
     }
   ],
   "id": "engine-real-lesson",
@@ -39,7 +122,17 @@
       "to": "prose-0"
     },
     {
-      "from": "prose-3",
+      "from": "flow-3",
+      "kind": "supports",
+      "to": "prose-0"
+    },
+    {
+      "from": "prose-4",
+      "kind": "supports",
+      "to": "callout-2"
+    },
+    {
+      "from": "summary-5",
       "kind": "supports",
       "to": "prose-0"
     }

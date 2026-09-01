@@ -80,7 +80,15 @@ describe('when the lesson does not contain the answer', () => {
 
     const result = await a.answer(doubt, LESSON)
 
-    expect(ask).toHaveBeenCalledWith('why does that happen?')
+    /* THE LESSON GOES WITH THE QUESTION, and this asserts it rather than
+       allowing it. `answering.ts` forwards the context so the model can answer
+       a doubt INSIDE the lesson the learner is reading; asserting the question
+       alone passed while that context was being dropped, which is how it came
+       to be dropped. */
+    expect(ask).toHaveBeenCalledWith(
+      'why does that happen?',
+      expect.objectContaining({ askedInside: LESSON.question }),
+    )
     expect(result.from).toBe('model')
     expect(result.text).toContain('particles move faster')
   })

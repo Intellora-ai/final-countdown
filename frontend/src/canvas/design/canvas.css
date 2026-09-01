@@ -826,3 +826,41 @@
 }
 
 .lc-blank .lc-caption { margin: 0; }
+
+/* THE TUTOR'S FOLLOW-UP. See `TutorTurn` in `CanvasRoute.tsx`.
+   Separated from the lesson by a rule rather than by a card: it is the same
+   voice continuing, not a different component talking. */
+.lc-turn {
+  margin: var(--space-6, 32px) auto 0;
+  max-width: 62ch;
+  padding-top: var(--space-4, 16px);
+  border-top: 1px solid var(--c-line, #24323a);
+  display: grid;
+  gap: var(--space-3, 12px);
+}
+
+.lc-turn-check {
+  margin: 0;
+  color: var(--c-ink, #e7eef2);
+  font-size: var(--type-body, 15px);
+}
+
+.lc-turn-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}
+
+.lc-turn-next button {
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  border: 1px solid var(--c-line, #24323a);
+  border-radius: var(--radius-pill, 999px);
+  background: transparent;
+  color: var(--c-ink, #e7eef2);
+  font: inherit;
+  cursor: pointer;
+}
+
+.lc-turn-next button:hover:not(:disabled) { border-color: var(--c-accent, #5eead4); }
+.lc-turn-next button:disabled { opacity: 0.5; cursor: default; }

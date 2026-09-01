@@ -57,6 +57,7 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from learning_os.api.ask import MAX_QUESTION, answer
+from learning_os.domain.python_recursion import GRAPH
 
 #: Enough examples to find the shapes a hand-written case never contains --
 #: lone surrogates, control characters, nested quotes -- without turning the
@@ -73,11 +74,71 @@ PROPERTY_SETTINGS = settings(
 #: Taken from `features/steps/tutor_steps.py`, which asserts the same thing for
 #: a handful of chosen questions. The difference is the quantifier: there, for
 #: four questions somebody thought of; here, for any text hypothesis can build.
-TRACEBACK_TELLS = ("Traceback (most recent call last)", 'File "', "  at ")
+TRACEBACK_TELLS = (
+    "Traceback (most recent call last)",
+    'File "',
+    "  at ",
+    # THE NAMES OF THINGS INSIDE THE PROGRAM.
+    #
+    # Found by running this suite against a real defect rather than reasoned
+    # about: a question the endpoint accepted but the contract rejected came
+    # back to the learner as `engine_error` carrying the literal text
+    # "ValidationError: 1 validation error for InstructionContract". No
+    # traceback, no path, so every tell above missed it -- and it is worse than
+    # either, because it is the shape of a document the learner is supposed to
+    # read. A leak does not need a stack to be a leak.
+    "ValidationError",
+    "validation error for",
+    "pydantic",
+    "InstructionContract",
+    "Traceback",
+)
 
 #: An absolute path in an answer tells a stranger the layout of the machine, and
 #: is the other half of what a leaked traceback gives away.
 PATH_TELL = re.compile(r"(/Users/|/home/|[A-Za-z]:\\\\)")
+
+
+# --------------------------------------------------------------------------
+# THE VACUITY FIX.
+#
+# P4, P5 and P6 below all guard on `if isinstance(lesson, dict)`. Fed
+# `st.text()`, every generated question failed `map_to_skill` and came back
+# `unmappable` -- so the guard was never true, the interesting half of each
+# property never executed, and three tests passed by never running. Measured,
+# not assumed: `answer` was called for 24 real questions and the branch was
+# reached 24 times, and for arbitrary text it was reached zero times.
+#
+# Questions are derived from the graph's own subskill names rather than
+# hard-coded here. A subskill renamed in the domain renames the question that
+# reaches it, so this cannot rot into a list of strings that no longer map.
+# --------------------------------------------------------------------------
+ASKABLE: tuple[str, ...] = tuple(
+    sub.name
+    for concept in GRAPH.concepts
+    for sub in concept.subskills
+)
+
+#: A question the engine can actually answer.
+MAPPABLE = st.sampled_from(ASKABLE).flatmap(
+    lambda name: st.sampled_from((name, f"{name}?", f"How do I {name[0].lower()}{name[1:]}?"))
+)
+
+#: Over `MAX_QUESTION` characters, still mappable, and NOT periodic.
+#:
+#: THE PADDING IS THE POINT, AND THE FIRST VERSION OF IT WAS WRONG. Padding by
+#: repeating the question made a periodic string, and the front `[:200]` of a
+#: periodic string can equal its back `[-200:]`. A mutant that truncated from
+#: the wrong end therefore passed: the test could not tell the two apart
+#: because its own input could not.
+#:
+#: `_words` keeps only tokens longer than two characters, so a two-character
+#: filler is invisible to `map_to_skill` -- the match score is identical with
+#: any amount of it. That buys length without dilution, and puts the real
+#: question at the FRONT only, where a wrong-end cut loses it entirely.
+OVERSIZED_MAPPABLE = st.sampled_from(ASKABLE).map(
+    lambda name: name + " " + "xy " * MAX_QUESTION
+)
 
 
 def _strings(document: Any) -> list[str]:
@@ -161,7 +222,7 @@ def test_never_leaks_internals(raw: str) -> None:
 # P4  Answered or refused. Never both, never neither.
 # --------------------------------------------------------------------------
 @PROPERTY_SETTINGS
-@given(st.text(min_size=1).filter(lambda s: s.strip()))
+@given(st.one_of(MAPPABLE, st.text(min_size=1).filter(lambda s: s.strip())))
 def test_answered_xor_refused(question: str) -> None:
     """A refusal carrying a lesson is an invention wearing a refusal.
 
@@ -190,7 +251,7 @@ def test_answered_xor_refused(question: str) -> None:
 # P5  A huge question cannot become a huge prompt.
 # --------------------------------------------------------------------------
 @PROPERTY_SETTINGS
-@given(st.text(min_size=MAX_QUESTION + 1, max_size=MAX_QUESTION * 4))
+@given(st.one_of(OVERSIZED_MAPPABLE, st.text(min_size=MAX_QUESTION + 1, max_size=MAX_QUESTION * 4)))
 def test_an_oversized_question_is_capped_not_refused(question: str) -> None:
     """`MAX_QUESTION` exists because the engine is charged per token.
 
@@ -206,13 +267,22 @@ def test_an_oversized_question_is_capped_not_refused(question: str) -> None:
             f"a {len(question)}-character question reached the model as "
             f"{len(lesson['question'])} characters; MAX_QUESTION is {MAX_QUESTION}"
         )
+        # A cap that only has to make the text SHORTER is satisfied by any
+        # truncation, including one that drops the beginning or cuts to a
+        # different length elsewhere. What it must actually produce is the
+        # front of what was asked.
+        assert lesson["question"] == question.strip()[:MAX_QUESTION].strip(), (
+            f"capping changed the question rather than shortening it:\n"
+            f"  asked   {question.strip()[:MAX_QUESTION].strip()[-60:]!r}\n"
+            f"  became  {lesson['question'][-60:]!r}"
+        )
 
 
 # --------------------------------------------------------------------------
 # P6  The answer is to the question that was asked.
 # --------------------------------------------------------------------------
 @PROPERTY_SETTINGS
-@given(st.text(min_size=1, max_size=MAX_QUESTION).filter(lambda s: s.strip()))
+@given(st.one_of(MAPPABLE, OVERSIZED_MAPPABLE, st.text(min_size=1, max_size=MAX_QUESTION).filter(lambda s: s.strip())))
 def test_a_lesson_answers_the_question_it_was_given(question: str) -> None:
     """One learner must never receive another's lesson.
 
@@ -224,7 +294,47 @@ def test_a_lesson_answers_the_question_it_was_given(question: str) -> None:
     document = answer(json.dumps({"text": question, "learner_id": "prop"}))
     lesson = document.get("lesson")
     if isinstance(lesson, dict) and isinstance(lesson.get("question"), str):
-        assert lesson["question"] == question.strip()[:MAX_QUESTION], (
+        # `.strip()` on the RIGHT only, and only at the end: slicing at the cap
+        # can land on a space, and a lesson title with a trailing space is not
+        # a wrong answer. Nothing else about the text may differ.
+        assert lesson["question"] == question.strip()[:MAX_QUESTION].strip(), (
             f"asked {question.strip()[:80]!r} and was answered "
             f"{lesson['question'][:80]!r}"
         )
+
+
+# --------------------------------------------------------------------------
+# P7  The guard that stops P4-P6 from ever passing vacuously again.
+# --------------------------------------------------------------------------
+def test_the_answered_branch_is_reachable() -> None:
+    """At least one question must actually produce a lesson.
+
+    THE BUG THIS EXISTS FOR, WHICH WAS REAL AND SHIPPED GREEN. P4, P5 and P6
+    each do their real work inside `if isinstance(lesson, dict)`. Fed only
+    `st.text()`, not one generated question ever mapped to a subskill, so every
+    one of them returned `unmappable`, the guard was never entered, and three
+    property tests reported success having asserted nothing at all. The suite
+    was green and the branch had never executed.
+
+    A test that CAN only pass is worth less than no test, because it also
+    occupies the place where a real one would go. This one cannot pass
+    vacuously: it fails if the engine stops being able to answer anything,
+    which is the exact condition that made the others hollow.
+
+    It is deliberately not a hypothesis test. The claim is about this
+    environment -- can the engine, as configured here, answer at all -- and it
+    should cost one call and fail on the first CI run where the answer is no.
+    """
+    answered = [
+        question
+        for question in ASKABLE
+        if isinstance(answer(json.dumps({"text": question, "learner_id": "canary"})).get("lesson"), dict)
+    ]
+
+    assert answered, (
+        "no question derived from the graph's own subskill names produced a "
+        "lesson, so every `if lesson:` in this file is dead and the properties "
+        "guarded by it are asserting nothing. Either map_to_skill no longer "
+        "matches its own vocabulary, or the provider cannot teach here.\n"
+        f"tried {len(ASKABLE)} questions: {list(ASKABLE)}"
+    )

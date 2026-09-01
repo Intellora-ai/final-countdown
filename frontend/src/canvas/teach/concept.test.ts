@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { authorConcept, conceptIssues, conceptRequest, type Concept } from './concept'
+import { authorConcept, conceptIssues, conceptRequest, EXAMPLE_FOR_ROUTE, type Concept } from './concept'
 import type { LessonModel } from './authorLesson'
-import { AXES } from './route'
+import { AXES, nextRoute } from './route'
 import { MAX_DEFINITION_WORDS, MAX_RUN_WORDS } from './teaching'
 
 /*
@@ -459,6 +459,80 @@ describe('the shape shown to the model is itself valid JSON', () => {
     const shown = prompt.slice(prompt.indexOf('{'), prompt.lastIndexOf('}') + 1)
     expect(conceptIssues(JSON.parse(shown) as Concept)).toEqual([])
   })
+
+  /*
+   * THE EXAMPLE IS WHAT THE MODEL ACTUALLY COPIES, AND ONE EXAMPLE MEANS ONE
+   * SHAPE OF LESSON FOREVER.
+   *
+   * MEASURED against the real server, ten real questions across ten subjects:
+   *
+   *   real lessons examined: 10
+   *   block kinds produced : table 12, prose 10
+   *   shapes               : 10 x  prose + table
+   *
+   * Ten out of ten. `BlockView` paints twelve kinds -- callout, chart,
+   * equation, figure, flow, metric, misconception, prose, reasoning,
+   * simulation, summary, table -- and TEN of them have never been reached by a
+   * real lesson. They are built, they are unit-tested against hand-written
+   * fixtures, and no learner has ever seen one.
+   *
+   * The prompt does list all twelve as legal. The model ignores the list and
+   * copies the example, which is what models do, and the example was `prose` +
+   * `table`. That is the whole mechanism -- not the model, not the schema, not
+   * the renderer.
+   *
+   * `CLAUDE.md` Goal 1 asks that "different semantic profiles produce different
+   * compositions". `route.ts` already rotates over twelve ways in and the route
+   * already reaches the prompt. Only the example failed to move with it, so
+   * physics, civics and economics all came out as a paragraph and a table.
+   *
+   * FIVE, NOT TWELVE. A route implies how to OPEN, not which representation the
+   * content deserves -- `conceptIssues` is explicit that "WHICH representation
+   * fits is `teaching.ts`'s job", and demanding a different kind per route
+   * would be this file telling the model to show a chart for something with
+   * nothing to plot. Five distinct kinds across twelve routes is enough to
+   * prove the example moves, and little enough that no route is forced to lie.
+   */
+  const EVERY_ROUTE_QUESTION = 'Why does heating a gas raise its pressure?'
+  const HELD_SEED = 1
+
+  /** The example each route shows, in route order, for one held seed. */
+  function examplePerRoute(): { route: string; example: Concept }[] {
+    const used: string[] = []
+    const out: { route: string; example: Concept }[] = []
+    for (let step = 0; step < AXES.length; step += 1) {
+      const taken = nextRoute({ seed: HELD_SEED, alreadyUsed: used })
+      const prompt = conceptRequest(EVERY_ROUTE_QUESTION, [], [...used], HELD_SEED)
+      const shown = prompt.slice(prompt.indexOf('{'), prompt.lastIndexOf('}') + 1)
+      out.push({ route: taken.id, example: JSON.parse(shown) as Concept })
+      used.push(taken.id)
+    }
+    return out
+  }
+
+  it('shows a different worked example depending on the route', () => {
+    const kinds = new Set<string>()
+    for (const { example } of examplePerRoute()) {
+      for (const block of example.blocks) kinds.add(String(block.kind))
+    }
+    expect(
+      kinds.size,
+      `every route shows the same shape, so every lesson comes out the same: ${[...kinds].sort().join(' + ')}`,
+    ).toBeGreaterThanOrEqual(5)
+  })
+
+  it('every route’s example is one the gate would accept', () => {
+    /*
+     * The pair. A dozen varied examples that break the rules teach a model to
+     * break them twelve different ways, which is worse than one example that
+     * does not vary. Every one is held to the identical standard the single
+     * example was held to above.
+     */
+    for (const { route, example } of examplePerRoute()) {
+      expect(conceptIssues(example), `the example shown for route "${route}" breaks the rules it teaches`)
+        .toEqual([])
+    }
+  })
 })
 
 /* -------------------------------------------------------------------------- */
@@ -469,5 +543,45 @@ describe('conceptIssues is usable without a model', () => {
   it('says nothing about a sound concept', () => {
     const concept = JSON.parse(soundConcept()) as Concept
     expect(conceptIssues(concept)).toEqual([])
+  })
+})
+
+/*
+ * EVERY WAY IN HAS ITS OWN EXAMPLE, AND NOTHING CHECKED THAT.
+ *
+ * `EXAMPLE_FOR_ROUTE` is keyed by `route.ts` axis id with no compile-time tie
+ * to `AXES` -- `Axis.id` is a `string`, so the two cannot be joined by the
+ * type system -- and `exampleFor` falls back to the table example for any id
+ * it does not hold.
+ *
+ * That fallback is right for robustness and silent as a defect: renaming an
+ * axis, or adding a thirteenth, leaves the map untouched and the prompt then
+ * shows a TABLE example beside a directive that says "walk through what
+ * happens step by step". The result is a duller lesson, never an error, so
+ * nothing reports it -- and the ten-out-of-ten prose+table monoculture this
+ * mapping exists to break quietly comes back one route at a time.
+ *
+ * This is the tie the types cannot make.
+ */
+describe('every route has an example written for it', () => {
+  it('maps all twelve axes, so none falls back silently', () => {
+    const unmapped = AXES.filter((axis) => EXAMPLE_FOR_ROUTE[axis.id] === undefined)
+    expect(unmapped.map((axis) => axis.id)).toEqual([])
+  })
+
+  it('maps nothing that is not an axis, so a rename cannot leave a dead key', () => {
+    const ids = new Set(AXES.map((axis) => axis.id))
+    expect(Object.keys(EXAMPLE_FOR_ROUTE).filter((id) => !ids.has(id))).toEqual([])
+  })
+
+  it('gives every example something shown, which is what the gate demands', () => {
+    const SHOWS = new Set(['chart', 'table', 'flow', 'figure', 'simulation'])
+    for (const axis of AXES) {
+      const example = EXAMPLE_FOR_ROUTE[axis.id] as { blocks: { kind: string }[] }
+      expect(
+        example.blocks.some((block) => SHOWS.has(block.kind)),
+        `${axis.id} shows nothing`,
+      ).toBe(true)
+    }
   })
 })

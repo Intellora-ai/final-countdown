@@ -255,3 +255,119 @@ def test_the_question_can_be_supplied_on_the_command_line(
     asked = "What stops a recursive call from going forever?"
     _, out, _ = _run(capsys, monkeypatch, "fake", ["--question", asked])
     assert asked in json.dumps(json.loads(out))
+
+
+# --------------------------------------------------------------------------
+# WHAT THE COMMAND PRINTS FOR EACH WAY A TURN CAN END
+#
+# `main` has four outcome branches and one success path, and NOTHING had run any
+# of them: every test above stops at the pre-flight -- an unknown provider, a
+# missing key, a missing SDK -- and returns before `teach_once` is ever called.
+# Measured before this block: `api/speak.py` at 81%, with lines 217-248 -- every
+# outcome branch and the success print -- uncovered.
+#
+# THE DECISION IS REAL AND ONLY THE OUTCOME IS SUBSTITUTED. The stub calls the
+# genuine `teach_once` against the deterministic fake client and then replaces
+# `status`, so `turn.contract`, `turn.attempts` and the strategy in the messages
+# are the ones the engine actually produced. Constructing a `Decision` by hand
+# would make these tests agree with a fixture rather than with the loop.
+#
+# WHY EACH SENTENCE MATTERS, and it is not tidiness: this is the command someone
+# runs in their first ten minutes with the repository, and each exit code sends
+# them somewhere different. UNAVAILABLE says wait; EXHAUSTED says a human is
+# needed; UNSATISFIABLE says the content was wrong, not the connection. Reading
+# the wrong one costs an afternoon.
+# --------------------------------------------------------------------------
+from dataclasses import replace as _replace
+
+from learning_os.llm.validation import Violation, ViolationKind
+from learning_os.runtime.loop import TurnStatus
+
+
+def _turn_that_ends(
+    monkeypatch: pytest.MonkeyPatch, status: TurnStatus, **over: Any
+) -> None:
+    """Run the real loop, then report a different ending."""
+    real = speak.teach_once
+
+    def _stub(*args: Any, **kwargs: Any) -> Any:
+        return _replace(real(*args, **kwargs), status=status, **over)
+
+    monkeypatch.setattr(speak, "teach_once", _stub)
+
+
+def test_the_fake_provider_teaches_and_prints_a_payload_the_canvas_would_accept(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The success path, end to end, with no credential anywhere."""
+    code, out, err = _run(capsys, monkeypatch, None)
+
+    assert code == 0
+    payload = json.loads(out)
+    assert payload["blocks"], "the command printed a lesson with no blocks in it"
+    assert "attempts:" in err
+
+
+def test_an_outage_says_the_credential_is_fine_so_nobody_goes_looking_at_config(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _turn_that_ends(monkeypatch, TurnStatus.UNAVAILABLE)
+
+    code, out, err = _run(capsys, monkeypatch, None)
+
+    assert code == speak.EXIT_UNAVAILABLE
+    assert out == "", "an unreachable provider still printed a lesson"
+    assert "could not be reached" in err
+    assert "credential is set" in err, (
+        "an outage was reported in words that send the reader to check configuration"
+    )
+
+
+def test_exhaustion_says_a_human_belongs_here_rather_than_suggesting_a_retry(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """EXHAUSTED means every mechanism for this diagnosis has already failed.
+    Telling the reader to try again would be telling them to repeat it."""
+    _turn_that_ends(monkeypatch, TurnStatus.EXHAUSTED)
+
+    code, out, err = _run(capsys, monkeypatch, None)
+
+    assert code == speak.EXIT_EXHAUSTED
+    assert out == ""
+    assert "a human belongs" in err
+
+
+def test_content_that_broke_its_contract_prints_every_violation_by_name(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A count with no names leaves the reader with nothing to act on."""
+    _turn_that_ends(
+        monkeypatch,
+        TurnStatus.CONTRACT_UNSATISFIABLE,
+        content=None,
+        violations=(
+            Violation(kind=ViolationKind.MISSING_REQUIRED_TERM, detail="never said 'base case'"),
+        ),
+    )
+
+    code, out, err = _run(capsys, monkeypatch, None)
+
+    assert code == speak.EXIT_UNSATISFIABLE
+    assert out == "", "content that failed validation was printed anyway"
+    assert "never said 'base case'" in err
+    assert "contract not satisfied" in err
+
+
+def test_taught_with_no_content_is_treated_as_unsatisfied_rather_than_printed(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`Turn` says content is None unless status is TAUGHT, and the command does
+    not trust that: a caller that rendered None would crash in front of the
+    reader instead of exiting with a code they can act on."""
+    _turn_that_ends(monkeypatch, TurnStatus.TAUGHT, content=None)
+
+    code, out, err = _run(capsys, monkeypatch, None)
+
+    assert code == speak.EXIT_UNSATISFIABLE
+    assert out == ""
+    assert "contract not satisfied" in err

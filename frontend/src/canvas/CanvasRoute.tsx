@@ -161,8 +161,18 @@ async function askTheServer(
   question: string,
   /** Routes already spent on this topic, so the server can pick a fresh one. */
   alreadyUsed: readonly string[],
-): Promise<{ ok: true; lesson: Lesson; route: string } | { ok: false; issues: Issue[] }> {
-  let body: { lesson?: unknown; error?: unknown; route?: unknown }
+): Promise<
+  | {
+      ok: true
+      lesson: Lesson
+      route: string
+      teaching: TeachingLevel
+      /** See `TutorTurn`. Absent when the whole-lesson path answered. */
+      turn: TutorTurn | null
+    }
+  | { ok: false; issues: Issue[] }
+> {
+  let body: { lesson?: unknown; error?: unknown; route?: unknown; checkpoint?: unknown; next?: unknown }
   try {
     const response = await fetch('/api/ask', {
       method: 'POST',
@@ -217,25 +227,46 @@ async function askTheServer(
   }
 
   /*
-   * AT `'lesson'` -- THE DEFAULT, AND THE STRICT ONE. OUR OWN SERVER BUYS IT
-   * NOTHING.
+   * AT THE LEVEL THE SERVER ACTUALLY WROTE IT AT, WHICH IS NO LONGER ALWAYS
+   * `'lesson'`.
    *
-   * The tempting reading is that the server already validated this, so the
-   * browser should defer and re-check only the shape at `'answer'` level. That
-   * is wrong, and `CanvasRoute.test.tsx` says why in a case rather than an
-   * argument: a lesson that is structurally perfect and all words -- one prose
-   * block, no representation, no summary -- clears `'answer'` exactly because
-   * `'answer'` turns the arc rules off (`validate.ts:240`). It would have been
-   * painted, and the learner would have been handed a paragraph under a heading
-   * that promised to teach her.
+   * What this said before, and why it was right when it was written: a lesson
+   * that is structurally perfect and all words -- one prose block, no
+   * representation, no summary -- clears `'answer'` exactly because `'answer'`
+   * turns the arc rules off (`validate.ts:240`), so judging a WHOLE LESSON at
+   * `'answer'` would hand the learner a paragraph under a heading that promised
+   * to teach. That argument stands, and it is why this is not simply pinned to
+   * `'answer'`.
    *
-   * `'answer'` is right for a DOUBT, which owes no arc. What arrives here is a
-   * whole lesson, so it owes the whole arc, and it is judged as one. That is
-   * also the level `TeachView` re-checks at, so passing here means the next
-   * gate agrees rather than refusing it a moment later with a different
-   * sentence and no explanation.
+   * ITS PREMISE STOPPED BEING TRUE. `/api/ask` was moved onto `authorConcept`
+   * -- see `handler.ts`, `conceptFor` -- and a CONCEPT is one idea, not a
+   * lesson. It owes no closing progression, and `authorConcept` says so by
+   * validating at `'answer'` itself (`concept.ts:754`). So this line judged an
+   * answer by a lesson's arc and refused every concept the server has written
+   * since.
+   *
+   * MEASURED, in the browser, on this build: `/api/ask` answered 200 in 5.1s
+   * with a real photosynthesis concept, and this gate refused it with "the
+   * lesson stops rather than ending. After the full system, close with the
+   * progression and the one sentence worth keeping" -- a rule about lessons,
+   * applied to something that is not one. Every topic typed into the box died
+   * here, after the model had already answered.
+   *
+   * `route` IS THE SIGNAL, NOT A NEW FLAG. Only `authorConcept` returns one, so
+   * its presence is the server saying "this is a concept". Absent means the
+   * whole-lesson path answered -- `handler.ts` still falls through to
+   * `authorLesson` for a provider with no `chat` -- and that owes the full arc
+   * and is still judged as one. `LearnView` reads exactly this signal for
+   * exactly this reason, and `AskView` records paying for the same mistake.
+   *
+   * RETURNED, NOT JUST USED. `TeachView` re-validates whatever it is handed and
+   * defaults to `'lesson'`, so a level decided here and forgotten would clear
+   * this gate and be refused by the identical gate one component later. The
+   * caller carries it through so the two gates are one gate.
    */
-  const checked = validateLesson(body?.lesson)
+  const level: TeachingLevel =
+    typeof body?.route === 'string' && body.route.trim() !== '' ? 'answer' : 'lesson'
+  const checked = validateLesson(body?.lesson, { teaching: level })
   if (!checked.ok) return { ok: false, issues: [...checked.issues] }
 
   /* '' rather than a throw when the server did not name a route: an unnamed
@@ -246,7 +277,53 @@ async function askTheServer(
     ok: true,
     lesson: checked.lesson,
     route: typeof body?.route === 'string' ? body.route : '',
+    teaching: level,
+    turn: tutorTurnFrom(body),
   }
+}
+
+/**
+ * WHAT THE TUTOR ASKS AFTER IT HAS EXPLAINED.
+ *
+ * `conceptIssues` refuses a concept with no `checkpoint` and no two named
+ * branches -- "the step ends by asserting, not by asking", "only N branches
+ * offered. Give at least two, so what comes next is a choice". Both were
+ * therefore written on every request and REQUIRED by the gate, and then
+ * dropped by `validateLesson`, which is right to: a `Lesson` has no such
+ * fields. `handler.ts` now sends them beside the lesson instead of inside it.
+ *
+ * Without this the canvas explained and then stopped dead. A real tutor
+ * finishes by finding out whether it landed and offering somewhere to go, and
+ * the model had been writing exactly that, unread, all along.
+ */
+export interface TutorTurn {
+  /** The question that finds out whether the idea landed. */
+  readonly checkpoint: string
+  /** Named ways on from here. At least two, or the gate refused the concept. */
+  readonly next: readonly { readonly id: string; readonly label: string }[]
+}
+
+/**
+ * Read the tutor turn off a reply, or decide there is not one.
+ *
+ * PARSED DEFENSIVELY AND NEVER THROWN OVER. This is the last thing on the page
+ * and the lesson above it is already correct; a malformed `next` must cost the
+ * follow-up question, never the explanation. A turn with no checkpoint and no
+ * branches is `null` rather than an empty box.
+ */
+function tutorTurnFrom(body: { checkpoint?: unknown; next?: unknown } | undefined): TutorTurn | null {
+  const checkpoint = typeof body?.checkpoint === 'string' ? body.checkpoint.trim() : ''
+  const branches = Array.isArray(body?.next)
+    ? body.next.flatMap((one) => {
+        if (typeof one !== 'object' || one === null) return []
+        const it = one as { id?: unknown; label?: unknown }
+        if (typeof it.id !== 'string' || typeof it.label !== 'string') return []
+        if (it.label.trim() === '') return []
+        return [{ id: it.id, label: it.label.trim() }]
+      })
+    : []
+  if (checkpoint === '' && branches.length === 0) return null
+  return { checkpoint, next: branches }
 }
 
 function readEnv(name: string): string {
@@ -296,11 +373,57 @@ export default function CanvasRoute({
    */
   const [opened, setOpened] = useState(false)
 
+  /*
+   * WHETHER THE THING ON THE STAGE IS HERS OR THE PICKER'S.
+   *
+   * `opened` was one flag doing two jobs and it could not tell these apart:
+   * pressing "Teach me" set it BEFORE the await (correctly -- a refusal has to
+   * land on the stage), and until the model answered `authored` was still
+   * null, so `result` fell through to `picked` -- which is `LESSONS[0]`, the
+   * logarithm lesson. A learner who typed "how photosynthesis works" watched a
+   * maths lesson render while the button beside it said "Writing...", and the
+   * only reading available to them was that the product had ignored them.
+   *
+   * The same hole swallowed refusals: on failure `authored` stays null, so the
+   * logarithm lesson painted itself UNDER the banner explaining that their
+   * lesson had been refused.
+   *
+   * True from the moment the learner asks until they pick a subject from the
+   * bar. While it is true the stage shows THEIR lesson or nothing at all --
+   * never a lesson nobody asked for.
+   */
+  const [askedForATopic, setAskedForATopic] = useState(false)
+
   /* A lesson written for THIS learner, on a topic nobody authored in advance.
      Null until they ask for one; once set it replaces the picked lesson, and
      clearing it hands the picker back. */
   const [topic, setTopic] = useState('')
   const [authored, setAuthored] = useState<Lesson | null>(null)
+  /*
+   * AT WHAT LEVEL THE AUTHORED LESSON WAS JUDGED, CARRIED RATHER THAN GUESSED.
+   *
+   * Both authoring paths end in `authorConcept` -- the server's through
+   * `conceptFor`, this file's through `explainAgain` -- and `concept.ts:754`
+   * validates at `'answer'`, because a concept is one idea and owes no closing
+   * progression. `TeachView` re-validates whatever it is handed and defaults to
+   * `'lesson'`, so a concept that cleared its own gate was refused by the next
+   * one with a rule it was never written to meet.
+   *
+   * Stored rather than assumed because it is not always the same answer: with
+   * no `chat` on the provider, `handler.ts` still falls through to
+   * `authorLesson`, and THAT owes the full arc. `askTheServer` reads which one
+   * answered off the presence of `route` and reports it here.
+   */
+  const [authoredLevel, setAuthoredLevel] = useState<TeachingLevel>('answer')
+
+  /*
+   * THE TUTOR'S FOLLOW-UP, HELD BESIDE THE LESSON.
+   *
+   * Not merged into the lesson: `validateLesson` is `.strict()` and a `Lesson`
+   * has no `checkpoint` or `next`, so folding them in would mean loosening the
+   * gate to let a tutor ask a question. See `TutorTurn`.
+   */
+  const [turn, setTurn] = useState<TutorTurn | null>(null)
   const [authoring, setAuthoring] = useState(false)
   const [authorFailed, setAuthorFailed] = useState<Issue[] | null>(null)
 
@@ -424,16 +547,43 @@ export default function CanvasRoute({
    * verbatim. A canvas that quietly fell back to a picked lesson would tell the
    * learner their question had been answered when it had not.
    */
-  const askForALesson = async (): Promise<void> => {
-    const question = topic.trim()
+  const askForALesson = async (asked?: string): Promise<void> => {
+    /*
+     * THE QUESTION IS A PARAMETER, AND `topic` IS ONLY THE DEFAULT.
+     *
+     * A `next` branch calls `setTopic(label)` and then asks, and `setTopic` is
+     * asynchronous -- React batches it, so reading `topic` here would read the
+     * value from BEFORE the click and re-teach the topic the learner just
+     * finished. Passing the label explicitly makes the branch press and the
+     * request name the same thing.
+     */
+    const question = (asked ?? topic).trim()
     if (question === '' || authoring) return
 
     setAuthoring(true)
     setAuthorFailed(null)
+    /* The previous topic's follow-up must not sit under the next topic's
+       lesson. Cleared as the question is asked, not when the answer lands. */
+    setTurn(null)
+    /*
+     * THE LAST ANSWER GOES BEFORE THE NEXT QUESTION IS ASKED.
+     *
+     * This was left standing, and `authored` is what the stage renders. So
+     * asking a SECOND topic showed the FIRST lesson for the whole of the write
+     * -- photosynthesis still on screen while the button said "Writing..." and
+     * the learner waited for logarithms -- and, if the second ask was refused,
+     * left it there underneath a banner about a question it did not answer.
+     *
+     * The empty-stage branch below is written to catch exactly this and cannot
+     * fire while a stale lesson is still held: its condition is
+     * `authored === null`.
+     */
+    setAuthored(null)
     /* Set BEFORE the await, not after. A refusal is something she asked for and
        must land on the stage; leaving this until success would put the
        invitation back over the top of the reason her question failed. */
     setOpened(true)
+    setAskedForATopic(true)
     try {
       /*
        * WHICH MODEL, NEVER WHETHER. See `herOwnModel` above for why this is not
@@ -469,6 +619,8 @@ export default function CanvasRoute({
             routes: written.route === '' ? before.routes : [...before.routes, written.route],
             shown: [...before.shown, written.lesson],
           })
+          setAuthoredLevel(written.teaching)
+          setTurn(written.turn)
           setAuthored(written.lesson)
         } else {
           setAuthored(null)
@@ -558,6 +710,21 @@ export default function CanvasRoute({
       const { written, memory } = await explainAgain(chat, question, sources, remembered)
       alreadyTaught.current.set(topicKey, memory)
       if (written.ok) {
+        /* `explainAgain` calls `authorConcept`, which validates at `'answer'`.
+           See `authoredLevel`. */
+        setAuthoredLevel('answer')
+        /*
+         * THE SAME TURN THE SERVER PATH GIVES, FROM THE SAME PLACE.
+         *
+         * This threw the turn away, so a learner running their OWN model got
+         * the lesson and then a dead end -- no checkpoint, no branches -- while
+         * everybody on the server path got both. `explainAgain` returns the
+         * whole `ConceptResult`, and `written.concept` carries exactly the
+         * `checkpoint` and `next` that `handler.ts` forwards for the other
+         * half of the product. Read through the same parser, so a malformed
+         * branch list costs the turn and never the lesson.
+         */
+        setTurn(tutorTurnFrom({ checkpoint: written.concept.checkpoint, next: written.concept.next }))
         setAuthored(written.lesson)
       } else {
         setAuthored(null)
@@ -572,6 +739,34 @@ export default function CanvasRoute({
   }
 
   const chosen = LESSONS.find((l) => l.id === lessonId) ?? LESSONS[0]
+
+  /*
+   * THE LESSON THE LEARNER IS ACTUALLY LOOKING AT — WHICH WAS NOT `chosen`.
+   *
+   * `chosen` is the PICKER's answer, and it always has one: `lessonId` has to
+   * start somewhere and it starts at `LESSONS[0]`, logarithms. Everything below
+   * used to be keyed to it, including the two places that decide what is on
+   * screen after the model answers — so an authored lesson lived on the stage
+   * while the merge, the validator and `needNextPart` all still believed the
+   * subject was maths.
+   *
+   * That was not cosmetic. Pressing continue on a lesson about photosynthesis
+   * sent `chosen.spec.question` ("What is a logarithm, and how do I use one?")
+   * to `/api/ask`, filed the returned blocks under `logs`, and flipped `result`
+   * to `picked` — replacing the learner's lesson with the logarithm one, mid
+   * session, as the reward for asking to carry on.
+   *
+   * One value now names the lesson on the stage, and the merge, the validation
+   * and the next-part request all read it. `teaching: 'lesson'` for an authored
+   * one because `authorLesson` already held it to a lesson's arc to return ok.
+   */
+  const onStage: { id: string; spec: unknown; teaching: TeachingLevel } = useMemo(
+    () =>
+      askedForATopic && authored !== null
+        ? { id: authored.id, spec: authored, teaching: authoredLevel }
+        : chosen,
+    [askedForATopic, authored, authoredLevel, chosen],
+  )
 
   /*
    * Validated once per lesson, not per render.
@@ -591,25 +786,25 @@ export default function CanvasRoute({
    * civics.
    */
   const [grown, setGrown] = useState<{ id: string; blocks: readonly unknown[] }>(
-    { id: chosen.id, blocks: [] },
+    { id: onStage.id, blocks: [] },
   )
-  const added = grown.id === chosen.id ? grown.blocks : []
+  const added = grown.id === onStage.id ? grown.blocks : []
 
   const picked = useMemo(() => {
-    const base = chosen.spec as { blocks: readonly unknown[] }
+    const base = onStage.spec as { blocks: readonly unknown[] }
     /* Re-validated WITH the new blocks in place, by the same gate as everything
      * else. A part the model wrote is not trusted further than an authored one:
      * if it carries appearance, or a dangling relation, the whole thing is
      * refused and she is told, rather than a bad block being painted because it
      * arrived late. */
     return validateLesson(
-      added.length === 0 ? chosen.spec : { ...base, blocks: [...base.blocks, ...added] },
+      added.length === 0 ? onStage.spec : { ...base, blocks: [...base.blocks, ...added] },
       /* `{ teaching }` is main's, and it is not decoration: `validateLesson`
          applies a different shape to a lesson than to an answer, so validating
          without it judges an authored lesson by the wrong rules. */
-      { teaching: chosen.teaching },
+      { teaching: onStage.teaching },
     )
-  }, [chosen, added])
+  }, [onStage, added])
 
   /* An authored lesson has ALREADY been through `validateLesson` inside
      `authorLesson` -- that is what "ok" means there. Re-parsing it would be work
@@ -623,7 +818,9 @@ export default function CanvasRoute({
      vanish from the screen mid-session -- the shortcut has to yield the moment
      there is something it does not know about. */
   const result: typeof picked =
-    authored === null || added.length > 0 ? picked : { ok: true, lesson: authored }
+    authored === null || added.length > 0 || !askedForATopic
+      ? picked
+      : { ok: true, lesson: authored }
 
   /*
    * WRITE THE NEXT PART NOW, KNOWING WHAT SHE HAS READ AND JUST SAID.
@@ -634,7 +831,7 @@ export default function CanvasRoute({
    */
   const needNextPart = useCallback(
     async ({ taught, justSaid }: { taught: string; justSaid: string }): Promise<boolean> => {
-      const asked = chosen.spec as { question?: string }
+      const asked = onStage.spec as { question?: string }
       try {
         const response = await fetch('/api/ask', {
           method: 'POST',
@@ -651,8 +848,8 @@ export default function CanvasRoute({
         const blocks = body.lesson?.blocks
         if (!Array.isArray(blocks) || blocks.length === 0) return false
         setGrown((previous) => ({
-          id: chosen.id,
-          blocks: [...(previous.id === chosen.id ? previous.blocks : []), ...blocks],
+          id: onStage.id,
+          blocks: [...(previous.id === onStage.id ? previous.blocks : []), ...blocks],
         }))
         return true
       } catch {
@@ -661,8 +858,26 @@ export default function CanvasRoute({
         return false
       }
     },
-    [chosen],
+    [onStage],
   )
+
+  /*
+   * WHICH OF THE THREE SCREENS IS UP, AS ONE VALUE.
+   *
+   * The render branched on `opened`, `askedForATopic` and `authored` in
+   * separate conditions, and the invariant that matters -- NEVER SHOW A PICKED
+   * LESSON AFTER SOMEBODY HAS ASKED FOR ONE -- held only while all three stayed
+   * in agreement across four call sites. It had already failed twice: once
+   * while the model was writing, once after a refusal.
+   *
+   * Named here, the three screens are mutually exclusive by construction and a
+   * reader checks one value instead of reconstructing an update order. The old
+   * first branch also carried `authored === null`, which could never be false
+   * where it was tested -- `setOpened(true)` runs before anything that can set
+   * `authored` -- so it read as a condition and was dead weight.
+   */
+  const stage: 'inviting' | 'writing' | 'showing' =
+    !opened ? 'inviting' : askedForATopic && authored === null ? 'writing' : 'showing'
 
   const askBox = (
   <form
@@ -700,6 +915,24 @@ export default function CanvasRoute({
 
   return (
     <div className="lc-root lc-route" style={cssVariables() as React.CSSProperties}>
+      {/*
+        THE LIVE REGION IS MOUNTED ONCE, AND THAT IS THE WHOLE POINT.
+        It sat inside the writing branch, so the region and its text entered
+        the DOM in the same commit -- and assistive technology only announces
+        CHANGES to a region it was already watching. A screen-reader user
+        pressed "Teach me" and got silence over a deliberately empty stage,
+        with the only other cue being a button label they cannot see.
+        Rendered here it exists from the first paint, so every later change to
+        the sentence inside it is an announcement.
+      */}
+      <div className="lc-sr-only" role="status" aria-live="polite" aria-busy={authoring}>
+        {authoring
+          ? 'Writing your lesson.'
+          : stage === 'writing'
+            ? 'No lesson is being shown. See the reason above.'
+            : ''}
+      </div>
+
       <div className="lc-route-bar">
         <button type="button" className="lc-back" onClick={() => navigate('/today')}>
           Back
@@ -710,12 +943,16 @@ export default function CanvasRoute({
             <button
               key={lesson.id}
               type="button"
-              aria-pressed={opened && authored === null && lessonId === lesson.id}
+              aria-pressed={opened && !askedForATopic && lessonId === lesson.id}
               onClick={() => {
                 setAuthored(null)
                 setAuthorFailed(null)
+                setTurn(null)
                 setLessonId(lesson.id)
                 setOpened(true)
+                /* Their question is over; this lesson IS the picker's, so the
+                   stage is allowed to show a hand-authored one again. */
+                setAskedForATopic(false)
               }}
             >
               {lesson.label}
@@ -801,7 +1038,7 @@ export default function CanvasRoute({
         the screenshot baselines taken before it are still valid.
       */}
       <main className="lc-stage">
-        {!opened && authored === null ? (
+        {stage === 'inviting' ? (
           /*
            * NOTHING, AND SAYING SO IN WORDS.
            *
@@ -818,6 +1055,28 @@ export default function CanvasRoute({
               Anything at all — it is written for you when you ask, not chosen in advance.
             </p>
           </div>
+        ) : stage === 'writing' ? (
+          /*
+           * THEY ASKED, AND THEIR LESSON IS NOT HERE YET. SHOW NOTHING.
+           *
+           * The stage is deliberately empty here, and this is the one place in
+           * the canvas where that is right. Every other empty state in this
+           * file is filled with words because an empty box reads as a page that
+           * failed to load -- but the alternative here was not words, it was
+           * THE WRONG LESSON: `result` falls back to `picked`, and `picked` is
+           * `LESSONS[0]`, logarithms. A maths lesson appearing after a question
+           * about photosynthesis is not a weaker answer than a blank stage, it
+           * is a false one, and the learner has no way to tell it apart from a
+           * product that ignored what they typed.
+           *
+           * Nothing is lost by being empty, because the state is already stated
+           * somewhere the learner is looking: the button they just pressed says
+           * "Writing..." while this branch is on screen, and if it ends in a
+           * refusal the banner above says so in the model's own words. The live
+           * region carries the same fact to a screen reader, which cannot see
+           * the button change.
+           */
+          <div className="lc-writing" />
         ) : result.ok ? (
           /*
            * `key` on the lesson id, so switching subject starts the new lesson
@@ -826,14 +1085,66 @@ export default function CanvasRoute({
            * position is state, and state must not survive a change of subject.
            */
           <TeachView
-            key={chosen.id}
+            /* `onStage.id`, not `chosen.id`: asking a second question changed
+               the lesson and not the key, so `TeachView` was reused and the new
+               lesson opened at the beat the last one had reached. */
+            key={onStage.id}
             lesson={result.lesson}
+            /* THE LEVEL THIS ROUTE JUST JUDGED IT BY. `TeachView` re-validates
+               and defaults to `'lesson'`, so without this a concept clears the
+               gate above and is refused by the identical gate one component
+               later, under "This lesson was refused". It also fixes the picked
+               `by-hand` lesson, which is an ANSWER and was being re-judged as a
+               lesson here. `AskView` and `LearnView` pass the same prop for the
+               same reason. */
+            teaching={onStage.teaching}
             mode={mode}
             resolvers={resolvers}
             onNeedNextPart={needNextPart}
           />
         ) : (
           <Refusal title="This lesson was refused" issues={result.issues} />
+        )}
+
+        {/*
+          THE TUTOR ASKS BACK. See `TutorTurn`.
+
+          Below the lesson and inside the stage, because it belongs to the
+          explanation it followed: scrolling away from the lesson must take its
+          follow-up with it. Rendered only when a lesson is actually showing --
+          a checkpoint under a refusal would be asking whether something landed
+          that was never shown.
+
+          THE BRANCHES ARE THE ASK BOX, not new machinery. Pressing one puts its
+          label in the topic box and asks, so the next explanation goes through
+          the same authoring path, the same gate and the same history as
+          anything typed by hand -- and the route it spends is recorded, so the
+          branch cannot be answered the same way twice either.
+        */}
+        {turn !== null && result.ok && (askedForATopic ? authored !== null : opened) && (
+          <section className="lc-turn" aria-label="What next">
+            {turn.checkpoint !== '' && (
+              <p className="lc-turn-check">{turn.checkpoint}</p>
+            )}
+            {turn.next.length > 0 && (
+              <div className="lc-turn-next">
+                <span className="lc-caption">Where next?</span>
+                {turn.next.map((branch) => (
+                  <button
+                    key={branch.id}
+                    type="button"
+                    disabled={authoring}
+                    onClick={() => {
+                      setTopic(branch.label)
+                      void askForALesson(branch.label)
+                    }}
+                  >
+                    {branch.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
         )}
       </main>
     </div>

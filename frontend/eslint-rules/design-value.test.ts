@@ -140,3 +140,38 @@ ruleTester.run('design-value-shorthands', rule as never, {
     { code: 'const s = { margin: "0 12px" }', errors: [{ messageId: 'rawSize' }] },
   ],
 })
+
+/*
+ * A KEY THAT SHARES A WORD WITH CSS IS NOT ALWAYS CSS.
+ *
+ * `DESIGN_KEYS` matches on the property NAME alone, and `gap` is an ordinary
+ * English noun. A lesson's own data -- a table of how far 0.999… is from 1 --
+ * was reported as arbitrary spacing, leaving only a suppression (forbidden) or
+ * renaming teaching content to dodge a linter. A value no browser could read as
+ * a length is not a design decision about length.
+ */
+ruleTester.run('design-value-data-keys', rule as never, {
+  valid: [
+    { code: "const rows = [{ digits: '0.9', gap: '0.1' }]", filename: 'src/canvas/render/Thing.tsx' },
+    { code: "const rows = [{ digits: 'all of them', gap: 'nothing left' }]", filename: 'src/canvas/render/Thing.tsx' },
+    { code: "const s = { gap: '0' }", filename: 'src/canvas/render/Thing.tsx' },
+  ],
+  invalid: [
+    {
+      /* Still a size, still caught: React writes a bare number as px. */
+      code: 'const s = { gap: 12 }',
+      filename: 'src/canvas/render/Thing.tsx',
+      errors: [{ messageId: 'rawSize' }],
+    },
+    {
+      code: "const s = { gap: '12px' }",
+      filename: 'src/canvas/render/Thing.tsx',
+      errors: [{ messageId: 'rawSize' }],
+    },
+    {
+      code: "const s = { padding: '8px 12px' }",
+      filename: 'src/canvas/render/Thing.tsx',
+      errors: [{ messageId: 'rawSize' }],
+    },
+  ],
+})

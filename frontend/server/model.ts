@@ -83,7 +83,27 @@ export interface FetchResponse {
 
 export type FetchLike = (
   url: string,
-  init: { method: string; headers: Record<string, string>; body: string },
+  init: {
+    method: string
+    headers: Record<string, string>
+    body: string
+    /**
+     * How the caller abandons a request that will not finish.
+     *
+     * OPTIONAL, SO EVERY EXISTING DOUBLE STAYS VALID -- the same reason
+     * `headers` above is optional. A test double that ignores it behaves
+     * exactly as it did before this existed.
+     *
+     * WHY IT HAD TO EXIST. `fetch` has no timeout of its own. A vendor that
+     * accepts the connection and then stops writing leaves the promise pending
+     * for as long as the socket stays open, and the layer above cannot fix
+     * that: `handler.ts` races its own timer against the call, which stops the
+     * LEARNER waiting but leaves the request itself in flight, holding a
+     * connection and a token reservation. Cancelling needs the signal, and the
+     * signal has to reach the transport.
+     */
+    signal?: AbortSignal
+  },
 ) => Promise<FetchResponse>
 
 export interface ModelOptions {

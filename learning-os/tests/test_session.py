@@ -16,7 +16,13 @@ from datetime import UTC, datetime
 import pytest
 
 from learning_os.domain.python_recursion import GRAPH
-from learning_os.llm.client import FailureMode, FakeLLMClient, LLMClient
+from learning_os.llm.client import (
+    FailureMode,
+    FakeLLMClient,
+    GeneratedContent,
+    LLMClient,
+)
+from learning_os.llm.contract import MAX_LESSON_QUESTION, InstructionContract
 from learning_os.memory.store import MemoryStore
 from learning_os.session import Doubt, DoubtOutcome, Resolution, map_to_skill, resolve
 
@@ -312,3 +318,69 @@ def test_taxonomy_words_cannot_carry_a_match() -> None:
         assert map_to_skill(GRAPH, Doubt(text=taxonomy_only, resume_at=AT)) is None, (
             f"{taxonomy_only!r} named no skill and was matched anyway"
         )
+
+
+# --------------------------------------------------------------------------
+# The cap keeps the front of the question
+# --------------------------------------------------------------------------
+class _RecordingClient:
+    """Wraps the fake and keeps the contract it was handed.
+
+    Wraps rather than subclasses: `FakeLLMClient` is a frozen dataclass, so a
+    subclass cannot hold a list of what it saw. `LLMClient` is satisfied by
+    having `generate`, so a plain object delegating to a real fake is both
+    simpler and less likely to drift when the fake changes.
+
+    The question `resolve` sends is not readable from the `Turn` it returns --
+    `GeneratedContent` carries the lesson, not the request that produced it --
+    so the only place to see what actually reached the model is here, on the
+    way in.
+    """
+
+    def __init__(self) -> None:
+        self._inner = FakeLLMClient()
+        self.questions: list[str] = []
+
+    def generate(self, contract: InstructionContract) -> GeneratedContent:
+        self.questions.append(contract.question)
+        return self._inner.generate(contract)
+
+
+def test_an_overlong_doubt_is_cut_from_the_end_not_the_start() -> None:
+    """`resolve` caps the text it sends, and the cap must keep the beginning.
+
+    WHY THIS IS HERE AND NOT IN `test_properties.py`. `api/ask.py` cuts the
+    text to the same limit before a `Doubt` is ever built, so through the
+    endpoint the cap in `resolve` is a no-op and its DIRECTION is invisible --
+    a mutant that took `text[-MAX_LESSON_QUESTION:]` instead of
+    `text[:MAX_LESSON_QUESTION]` passed the entire property suite. That is
+    defence in depth working as intended, and it is also why the direction can
+    only be pinned here, at the seam, with a `Doubt` longer than the endpoint
+    would ever build.
+
+    The tail is two-character filler on purpose: `_words` discards tokens that
+    short, so it lengthens the text without changing which skill it matches.
+    Padding by repeating the question instead makes a periodic string whose
+    front and back slices are equal, which is how the mutant survived the first
+    attempt at this test.
+    """
+    question = "identify the base case"
+    overlong = f"{question} " + "xy " * MAX_LESSON_QUESTION
+    assert len(overlong) > MAX_LESSON_QUESTION
+
+    client = _RecordingClient()
+    resolution = _resolve(overlong, client=client)
+
+    assert resolution.outcome is DoubtOutcome.ANSWERED, (
+        f"an overlong doubt was not answered at all: {resolution.outcome}"
+    )
+    assert client.questions, "the model was never called, so nothing was capped"
+    sent = client.questions[0]
+    assert len(sent) <= MAX_LESSON_QUESTION, (
+        f"{len(sent)} characters reached the contract, which permits "
+        f"{MAX_LESSON_QUESTION}"
+    )
+    assert sent.startswith(question), (
+        f"the cap dropped the beginning of the question; what reached the model "
+        f"starts {sent[:40]!r} and the learner asked {question!r}"
+    )

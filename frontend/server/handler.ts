@@ -34,7 +34,9 @@ import {
   withNote,
   withoutRefusedBlocks,
 } from './repair.ts'
-import { authorConcept } from '../src/canvas/teach/concept.ts'
+import { authorConcept, type ConceptResult } from '../src/canvas/teach/concept.ts'
+import { readableText } from '../src/canvas/spec/readable.ts'
+import { extractJson } from '../src/canvas/teach/authorLesson.ts'
 import type { Source } from '../src/canvas/teach/grounding.ts'
 import { chooseStrategy, type Strategy } from './teaching.ts'
 import { injectionSignals, stripInvisible } from '../src/websearch/guard.ts'
@@ -50,6 +52,9 @@ import {
   verifyIdentity,
 } from './identity.ts'
 import { BadMemoryKey } from './memory/key.ts'
+import type { Explanations } from './memory/explanations.ts'
+import type { WrittenLessons } from './memory/lessons.ts'
+import { noveltyAgainst } from './memory/variation.ts'
 import { NotConsistent } from './memory/progress.ts'
 import { NotStorable } from './memory/record.ts'
 import type { CanvasMemory } from './memory/store.ts'
@@ -134,6 +139,25 @@ export interface HandlerOptions {
   readonly almanac?: Ledger
   /** The canvas's memory. Absent means /api/memory answers 503, never a guess. */
   readonly memory?: CanvasMemory
+  /**
+   * What she has already been told, per concept. Phase 3's storage.
+   *
+   * OPTIONAL, AND ABSENT IS NOT A REFUSAL. Without it the server falls back to
+   * the routes the CALLER sent, which is exactly how it behaved before this
+   * existed -- a page still gets taught, it simply forgets across a reload.
+   * Refusing to teach because a history store is unconfigured would turn a
+   * missing nicety into a missing lesson.
+   */
+  readonly explanations?: Explanations
+  /**
+   * Lessons already written for a concept, readable by anyone who has not seen
+   * them. See `memory/lessons.ts`.
+   *
+   * OPTIONAL, AND ABSENT MEANS EVERY ASK IS AUTHORED. Without it the server
+   * behaves exactly as it did: a cache that can only save work must never be
+   * the reason a learner is not taught.
+   */
+  readonly lessons?: WrittenLessons
   /**
    * The key this server signs identities with.
    *
@@ -339,12 +363,129 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
    * screen. `CanvasRoute` branches on exactly that distinction to decide
    * whether to tell her to wait or to try a different question.
    */
+  /* The reader is `src/canvas/spec/readable.ts`, shared with the browser. It
+     lived here and the client had a SECOND, narrower one, so the words this
+     stored as "what she was told" and the words the screen actually rendered
+     were different sets -- novelty judged against text nobody saw. */
+
   async function conceptFor(
     question: string,
     alreadyUsed: readonly string[],
+    /** Who is asking. The history is hers, and nobody else's. */
+    who: Identified,
+    /**
+     * WHICH CONTEXT ASKED, AND WHY IT IS NOT ALWAYS `'ask'`.
+     *
+     * This was hardcoded, and then `/api/lesson` started calling here too --
+     * so a concept opened from today's plan and a question typed into the
+     * canvas box wrote to and read from ONE bucket. Pressing Start on
+     * "Photosynthesis" spent `numbers-first`, and typing "photosynthesis" was
+     * then denied a way in it had never actually been given. Two contexts ate
+     * each other's twelve-route budget, which is the opposite of the "keyed by
+     * lesson + concept" the store's own header states.
+     */
+    askedFrom: string,
+    /**
+     * The teaching decision, when the caller made one.
+     *
+     * `/api/lesson` chooses a strategy from what the browser reports about the
+     * student and the screen renders it. Routing fresh concepts here dropped
+     * that field from the reply, so the label vanished and a student meeting
+     * an idea for the first time and one revisiting it were answered
+     * identically. Carried through rather than re-derived: the decision stays
+     * where it is documented to be made.
+     */
+    strategy?: string,
   ): Promise<ServerResponse> {
     const chat = options.model.chat
     if (chat === undefined) throw new Error('conceptFor called without a chat-capable model')
+
+    /*
+     * WHOSE HISTORY, AND AT WHAT GRAIN.
+     *
+     * PER STUDENT AND PER CONCEPT. Not per tab: if she read an explanation in
+     * one tab, giving her the same one in a second tab is still repeating
+     * herself, so a tab-scoped history would defeat the rule it exists to keep.
+     * `tabId` is therefore fixed rather than read from the request -- and it
+     * cannot be blank, because `key.ts` refuses an empty part on purpose.
+     *
+     * `ask` as the lesson, because a free question belongs to no lesson. The
+     * concept part carries the question itself, so two different questions are
+     * two different histories inside it.
+     */
+    const owner = { studentId: who.studentId, tabId: 'any', lessonId: askedFrom }
+
+    /*
+     * THE SERVER'S OWN RECORD FIRST, THE CALLER'S SECOND.
+     *
+     * `alreadyUsed` arrives in the request body, filled from a `useRef` Map in
+     * `CanvasRoute` that dies on reload -- so trusting it alone meant a refresh
+     * erased every explanation she had ever had, and a caller that simply left
+     * it out was taught the same way forever. The stored history is the one
+     * that survives both.
+     *
+     * BOTH, NOT EITHER. The caller's list is still honoured because the canvas
+     * has a direct-to-model path that never touches this server, and dropping
+     * its list would let those explanations repeat. A route in either list is
+     * spent.
+     */
+    const remembered = options.explanations?.routesSpent(owner, question) ?? []
+    const spent = [...new Set([...remembered, ...alreadyUsed])]
+
+    /*
+     * READ ONCE, USED THREE TIMES.
+     *
+     * This was read twice -- here to build the prompt, and again below for the
+     * novelty check -- which is two `store.read` calls and two `JSON.parse`
+     * passes over the same blob on the hot path of the product's main teaching
+     * route. Worse than the cost: two reads can observe two different lists if
+     * another tab writes in between, so the wording SHOWN to the model and the
+     * wording it was JUDGED against were not guaranteed to be the same history.
+     * One read cannot disagree with itself.
+     */
+    const priorWords = options.explanations?.wordsShown(owner, question) ?? []
+
+    /*
+     * ALREADY WRITTEN, AND NEW TO THIS LEARNER: SERVE IT FOR NOTHING.
+     *
+     * THE CHEAPEST MODEL CALL IS THE ONE NOT MADE. A concept request reserves
+     * ~1,778 tokens of prompt plus a 1,000-token reply against 8,000 per minute
+     * and 200,000 per day -- this account reached `Used 198032` in an afternoon.
+     * A class working one syllabus asks the same concepts, and every ask was
+     * authored from scratch: the same truth written once per student.
+     *
+     * `spent` IS THE WHOLE SAFETY ARGUMENT. It is this learner's own list of
+     * ways in -- their stored history merged with the caller's -- so a hit is
+     * always an axis they have never been given. "Never repeat" is a property
+     * of a learner, not of the corpus, and this cannot return a repeat any more
+     * than `nextRoute` can hand back a spent route.
+     *
+     * BEFORE THE SEARCH, TOO. A cache hit needs no grounding, so the web call
+     * below is skipped as well -- the saving is the whole request, not just the
+     * authoring turn.
+     */
+    const ready = options.lessons?.findUnseen(question, spent) ?? null
+    if (ready !== null) {
+      /* Recorded as shown, exactly as an authored one is: it IS what she was
+         shown, so her history and her spent routes must reflect it or the next
+         asking will offer the same way in again. */
+      try {
+        options.explanations?.remember(owner, question, {
+          route: ready.route,
+          text: readableText(ready.lesson),
+          at: new Date().toISOString(),
+        })
+      } catch {
+        /* A failed write costs her a repeat later, never this answer. */
+      }
+      return reply(200, {
+        lesson: ready.lesson,
+        route: ready.route,
+        ...(ready.checkpoint === undefined ? {} : { checkpoint: ready.checkpoint }),
+        ...(ready.next === undefined ? {} : { next: ready.next }),
+        ...(strategy === undefined ? {} : { strategy }),
+      })
+    }
 
     /*
      * SEARCH FIRST, THEN WRITE -- the same order `CanvasRoute` uses, for the
@@ -381,14 +522,36 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
          weaker lesson, not a missing one. */
     }
 
-    let written
+    /* ANNOTATED, AND THAT IS THE POINT. Declared bare, this was an evolving
+       `any`: TypeScript never narrowed it to the refusal variant and never
+       checked a single property read on it, so `written.route` below compiled
+       for months against a field that did not exist there. The type is the
+       thing that catches the next one. */
+    let written: ConceptResult
     try {
       written = await authorConcept(
         (system: string, user: string, priorAssistant?: string) =>
           chat(system, user, priorAssistant),
         question,
         sources,
-        alreadyUsed,
+        /* The merged history, not the caller's list. See `spent` above. */
+        spent,
+        undefined,
+        /*
+         * AND THE WORDS THEMSELVES, NOT ONLY WHICH ROUTE THEY TOOK.
+         *
+         * These rows have been written on every successful concept since Phase
+         * 3, and only their `route` field was ever read back -- so the model was
+         * told which WAY IN was spent and never what it had actually said. A
+         * different opening over the same sentences is the repeat the rotation
+         * exists to prevent, and `noveltyAgainst` below was left to catch it
+         * afterwards at the cost of a second authoring turn.
+         *
+         * Shown to the model BEFORE it writes, which is the only place a repeat
+         * can be prevented rather than detected. `conceptRequest` caps how many
+         * and how much of each reach the prompt.
+         */
+        priorWords,
       )
     } catch (thrown) {
       /* The vendor's message is still dropped -- it quotes the request and
@@ -411,7 +574,134 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
      * here would restore that, one layer up, with the canvas unable to tell
      * that anything had rotated.
      */
-    if (written.ok) return reply(200, { lesson: written.lesson, route: written.route })
+    if (written.ok) {
+      /*
+       * R2 — "A NEW EXPLANATION MUST DIFFER FROM ALL PRIOR ONES", CHECKED.
+       *
+       * The store had a writer and no reader. Every successful concept was
+       * persisted with its wording through `remember`, and nothing ever
+       * compared a new one against it -- so the phase's done condition,
+       * "asking for the same concept twice never yields the same explanation",
+       * was written to disk and never once enforced. `route.ts` has twelve
+       * axes and `nextRoute` restarts the cycle once they are spent, so the
+       * thirteenth asking could legitimately be handed the same way in again.
+       *
+       * ONE MORE ATTEMPT, NOT A REFUSAL. Invariant R3 is that every input gets
+       * a reply, and an explanation she has read before is worth more than a
+       * blank screen -- so a repeat costs one further write with that route
+       * also spent, and whatever comes back is served either way. Judged on
+       * `readableText`, which is the same text `remember` stores, so this
+       * cannot disagree with what the next asking will be compared against.
+       */
+      if (noveltyAgainst(readableText(written.lesson), priorWords).isRepeat) {
+        try {
+          const afresh = await authorConcept(
+            (system: string, user: string, priorAssistant?: string) =>
+              chat(system, user, priorAssistant),
+            question,
+            sources,
+            /* The way in that produced the repeat is spent too, so `nextRoute`
+               cannot hand back the one that just failed to be new. */
+            [...spent, written.route],
+            undefined,
+            /*
+             * AND THE WORDING, INCLUDING THE REPEAT THAT CAUSED THIS.
+             *
+             * This call passed route ids and nothing else, so the ONE authoring
+             * call whose entire purpose is to produce something different was
+             * the only one writing blind: it knew which way in to avoid and not
+             * a single sentence it must not say again. It could -- and on a
+             * second failure would -- repeat, `if (afresh.ok)` would accept it
+             * because it parsed and passed the gate, and the learner would be
+             * served the repeat after paying for two model calls.
+             *
+             * The draft that just repeated is appended LAST, so it is the most
+             * recent thing in the list and survives `MOST_PRIOR_SHOWN`'s
+             * newest-first trim. It is the single most relevant text there is:
+             * it is the exact wording that was judged too close.
+             */
+            [...priorWords, readableText(written.lesson)],
+          )
+          /* Only if it ARRIVED. A second attempt that is refused, or that
+             repeats as well, leaves the first lesson standing -- she is
+             answered with something true rather than with the failure of an
+             improvement she never asked for. */
+          if (afresh.ok) written = afresh
+        } catch {
+          /* Recorded nowhere and rethrown nowhere: the lesson in hand is
+             correct and she is owed it. */
+        }
+      }
+
+      /*
+       * RECORDED ONLY AFTER IT PASSED THE GATE, AND ONLY WHAT SHE SAW.
+       *
+       * `authorConcept` returns `ok` after `validateLesson`, so nothing refused
+       * is ever written -- a rejected draft would spend a route the learner
+       * never actually received, and she would be denied the one good way in
+       * because a bad attempt had already used it.
+       *
+       * A FAILED WRITE MUST NOT COST HER THE LESSON. The lesson is in hand and
+       * correct; a full disk or a locked row is a reason to forget, not a
+       * reason to answer 500 to a child who is owed an answer. The consequence
+       * of the catch is stated rather than swallowed: she may be taught this
+       * way twice.
+       */
+      try {
+        const at = new Date().toISOString()
+        options.explanations?.remember(owner, question, {
+          route: written.route,
+          /* The words, in block order -- what `noveltyAgainst` judges on. */
+          text: readableText(written.lesson),
+          at,
+        })
+        /* AND ON THE SHARED SHELF, so the next learner to ask this concept
+           reads it instead of paying to have it written again. Only a lesson
+           that passed the gate WHOLE gets here -- a salvaged one is worth
+           serving to the person who waited for it and is not worth handing to
+           somebody else as the real thing. */
+        options.lessons?.keep(question, {
+          route: written.route,
+          lesson: written.lesson,
+          checkpoint: written.concept.checkpoint,
+          next: written.concept.next,
+          at,
+        })
+      } catch {
+        /* Recorded nowhere and rethrown nowhere: see above. */
+      }
+      /*
+       * THE TUTOR'S OWN TURN, WHICH WAS BUILT, ENFORCED, AND THEN THROWN AWAY.
+       *
+       * `conceptIssues` REFUSES a concept that has no `checkpoint` and no two
+       * named `next` branches -- "the step ends by asserting, not by asking",
+       * and "only N branches offered. Give at least two, so what comes next is
+       * a choice". So the model writes both on every request and the gate will
+       * not pass one without them.
+       *
+       * Then `validateLesson` drops them, correctly: a `Lesson` has no such
+       * fields and the schema is `.strict()`. The reply carried `lesson` alone,
+       * so the question that finds out whether the idea landed, and the two
+       * ways the learner could go next, were generated, required, and deleted
+       * one line before they would have reached anybody.
+       *
+       * MEASURED on this build, `/api/ask` for "how a fridge works":
+       *   lesson keys : blocks, id, question, relations, technicalTerms
+       *   checkpoint  : None
+       *   next        : None
+       *
+       * Carried BESIDE the lesson rather than inside it, so `validateLesson`
+       * judges exactly what it judged before and no gate is loosened to let a
+       * tutor ask a question.
+       */
+      return reply(200, {
+        lesson: written.lesson,
+        route: written.route,
+        checkpoint: written.concept.checkpoint,
+        next: written.concept.next,
+        ...(strategy === undefined ? {} : { strategy }),
+      })
+    }
 
     /*
      * A STRING, NOT A BOOLEAN, AND THE DIFFERENCE REACHED THE LEARNER.
@@ -425,7 +715,30 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
      * a comparison that reads correct.
      */
     if (written.unreachable !== undefined) {
-      return reply(502, { error: 'the model could not be reached' })
+      /* THE REASON IS KEPT, THE SAME WAY THE CATCH ABOVE KEEPS IT.
+       *
+       * This branch used to answer the bare sentence and drop `unreachable`
+       * entirely, while the `catch` twenty lines up preserved the identical
+       * message when it started with the same words. Two branches, one
+       * failure, opposite behaviour -- and this is the branch the concept
+       * path takes, so in practice the reason was ALWAYS discarded.
+       *
+       * MEASURED, and this is what it cost: every failed question for a whole
+       * day answered `{"error":"the model could not be reached"}` with no
+       * status and no code, while the client had already written
+       * `the model could not be reached (429 tokens/rate_limit_exceeded)` and
+       * handed it over. Reading the account's daily-token exhaustion out of
+       * that took hours of probing the vendor by hand; the server had been
+       * told, in one line, on the first request.
+       *
+       * SAFE TO REPEAT, for the same reason line 397 is: `groq.ts:273` builds
+       * this string from the STATUS and the vendor's SHORT CODE only, never
+       * its message -- the message is the part that can quote the request and
+       * the credential, and it is dropped there rather than here. */
+      const named = written.unreachable.startsWith('the model could not be reached')
+        ? written.unreachable
+        : 'the model could not be reached'
+      return reply(502, { error: named })
     }
 
     /* The gate's own issues, verbatim. `CanvasRoute` renders them one per line
@@ -435,6 +748,134 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       'concept refused by validation:',
       written.issues.map((issue) => `${issue.path}: ${issue.message}`).join(' | '),
     )
+
+    /*
+     * A REFUSAL BY OUR OWN GATE MUST STILL ANSWER HER.
+     *
+     * INVARIANT R3 / PHASE 4 ITEM 1, in the owner's words: "every input gets a
+     * reply; never blank, dropped, or refused." This branch broke it. The model
+     * had written something, `authorConcept` handed it back as `raw`, and this
+     * threw it away and sent a 502 -- so a child who asked a fair question, of
+     * a model that answered, was shown nothing because OUR checker disliked the
+     * shape.
+     *
+     * MEASURED: one question in ten came back this way -- "how does a fridge
+     * work?" produced a real explanation that failed one arc rule, and she got
+     * a dead screen for it.
+     *
+     * `deliverable` IS NOT NEW AND IS NOT WRITTEN FOR THIS. It is the ladder
+     * the whole-lesson path has used all along: repair without inventing, then
+     * re-judge as an ANSWER (which owes no arc), then drop only the refused
+     * blocks, then the honest sentence. It was simply never reachable from the
+     * path `/api/ask` actually takes -- the same orphan shape this repository
+     * built a reachability gate to catch, one layer above where that gate
+     * looks.
+     *
+     * NOTHING IS INVENTED. Every rung either keeps the model's own words or
+     * removes some of them. The server never writes a definition, a summary or
+     * a marked term on the model's behalf, so a salvaged lesson is a smaller
+     * true thing and never a fuller invented one.
+     */
+    /*
+     * PARSED FIRST. `ConceptResult.raw` is the model's REPLY TEXT -- the string
+     * `authorConcept` kept so a failure could be inspected -- and `deliverable`
+     * works on a parsed lesson. Handing it the string produced
+     * `Cannot create property 'blocks' on string`, which is a crash where an
+     * answer was owed.
+     *
+     * `extractJson` is the same reader `authorConcept` used to parse it in the
+     * first place, so this cannot disagree with what the gate judged. A reply
+     * that will not parse has nothing to salvage and falls through to the
+     * honest refusal below.
+     */
+    let parsed: unknown
+    try {
+      parsed = extractJson(written.raw)
+    } catch {
+      parsed = undefined
+    }
+
+    /*
+     * A CONCEPT IS NOT A LESSON, AND HANDING ONE OVER WHOLE THREW HER ANSWER
+     * AWAY.
+     *
+     * A concept carries `checkpoint` and `next` -- the question that finds out
+     * whether it landed, and the branches offered afterwards. A `Lesson` has
+     * neither, and `validateLesson` is `.strict()`, so the extra keys are a
+     * STRUCTURAL failure: "the thing is not a lesson". `deliverable` refuses to
+     * salvage anything structural, correctly, and fell to its last rung -- the
+     * honest sentence, with none of the model's words in it.
+     *
+     * MEASURED: the reply came back 200 and `partial: true`, and contained "I
+     * could not put this one together properly" instead of the explanation the
+     * model had written. Answering with nothing of hers is barely better than
+     * the 502 this replaced.
+     *
+     * The four fields kept are exactly the four `judge` keeps when a concept
+     * PASSES -- see `concept.ts` -- so the salvaged shape is the same shape the
+     * gate already judged, and this cannot disagree with it.
+     */
+    /*
+     * SUBTRACTIVE, NOT A WHITELIST.
+     *
+     * Listing the fields to KEEP dropped `subject` from every salvaged answer
+     * -- so the route bar lost its subject chip -- and would drop the next
+     * field added to `LessonSpec` just as silently, with no test to notice.
+     *
+     * What makes a concept not a lesson is the two keys it ADDS: `checkpoint`
+     * and `next`. `validateLesson` is `.strict()`, so those two are the whole
+     * of the structural failure. Removing exactly them, and keeping everything
+     * else the model wrote, cannot fall behind the schema.
+     */
+    const asLesson = (value: unknown): unknown => {
+      if (typeof value !== 'object' || value === null) return undefined
+      const { checkpoint: _checkpoint, next: _next, ...rest } = value as Record<string, unknown>
+      return { ...rest, relations: rest['relations'] ?? [] }
+    }
+
+    const shaped = parsed === undefined ? undefined : asLesson(parsed)
+    const salvaged = shaped === undefined
+      ? undefined
+      : deliverable(shaped, written.issues, 'answer', question)
+    if (salvaged !== undefined) {
+      /* NOT REMEMBERED, DELIBERATELY. A salvaged answer is less than the route
+         promised, so spending the route on it would deny her the good version
+         of that same way in later. She keeps the route. */
+      /* THE REAL ROUTE, NOT ''. Both clients read a non-empty `route` as "the
+         server wrote a CONCEPT, judge it at 'answer'"; `''` meant 'lesson', and
+         a salvaged answer refused by the arc rules it was salvaged from is the
+         ladder failing at its last step. See `ConceptResult.route`. */
+      /*
+       * THE TUTOR TURN SURVIVES A SALVAGE, AND IT DID NOT.
+       *
+       * `checkpoint` and `next` were added to the SUCCESS branch only, so a
+       * rescued answer arrived with neither: the reply ended and offered
+       * nothing. That is the wrong way round. A learner who has just been told
+       * "part of this did not pass the check" is the one who most needs a
+       * question to test what did land and two named ways on -- the complete
+       * answer is the one that can afford to end quietly.
+       *
+       * READ OFF `parsed`, NOT `written.concept`. On this branch the result is
+       * `ok: false` and carries no concept; `parsed` is the same reply text
+       * `deliverable` just salvaged the blocks from, so these are the model's
+       * own checkpoint and branches for this very answer. Absent or malformed
+       * simply means no turn -- `tutorTurnFrom` in `CanvasRoute` already treats
+       * that as "nothing to show" rather than as an error.
+       */
+      const rescued = parsed as { checkpoint?: unknown; next?: unknown } | undefined
+      return reply(200, {
+        lesson: salvaged.lesson,
+        route: written.route,
+        partial: true,
+        ...(typeof rescued?.checkpoint === 'string' ? { checkpoint: rescued.checkpoint } : {}),
+        ...(Array.isArray(rescued?.next) ? { next: rescued.next } : {}),
+        ...(strategy === undefined ? {} : { strategy }),
+      })
+    }
+
+    /* The floor. Nothing of the model's survived a check that only removes, so
+       there is genuinely nothing true to show -- and saying so is the honest
+       last rung rather than a silent blank. */
     return reply(502, {
       error: 'the model returned a lesson that failed validation',
       issues: written.issues,
@@ -818,6 +1259,58 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       if (!nonEmptyString(body['concept'])) {
         return reply(400, { error: 'concept is required' })
       }
+
+      /*
+       * THE SCREEN THE `START` BUTTON OPENS TAKES THE PATH MEASURED AT 0 OF 6.
+       *
+       * `/api/ask` was moved onto `authorConcept` because a whole lesson in one
+       * call is "a request shaped to be unaffordable" -- the note beside that
+       * route counts it: five 502s at the twenty-second ceiling and a 429 when
+       * the ceiling was raised, against 3 of 3 taught per concept. Everything
+       * since has been built on that path: the route rotation, the stored
+       * history, the salvage ladder that stops a refusal reaching a learner as
+       * a blank screen.
+       *
+       * `/api/lesson` was left behind, and it is the route the PRODUCT uses.
+       * `LearnView` posts here when a learner presses `Start` on today's work,
+       * so the one screen a planned lesson opens through got none of it.
+       *
+       * MEASURED, in the browser, minutes ago: pressing `Start` on "Fundamental
+       * Theorem of Arithmetic" spent twenty seconds on "Writing this lesson for
+       * you…" and ended on
+       * `the model returned a lesson that failed validation` -- a 502, on the
+       * main path, while `/api/ask` was answering the same model in about two
+       * seconds.
+       *
+       * ONLY A FRESH CONCEPT, and only when the provider has `chat`. A
+       * CONTINUATION carries `taught` and `justSaid`, and the next step of a
+       * lesson in progress must be written against what she has already read --
+       * which is what `briefFor` does and `authorConcept` has no parameter for.
+       * That is the same boundary `/api/ask` draws, for the same reason, and
+       * anything it does not cover falls through to `lessonFrom` below exactly
+       * as it always has.
+       */
+      if (options.model.chat !== undefined && !nonEmptyString(body['taught'])) {
+        const spent = Array.isArray(body['alreadyUsed'])
+          ? (body['alreadyUsed'] as unknown[]).filter((r): r is string => typeof r === 'string')
+          : []
+        /* The CONCEPT is the question here -- "Fundamental Theorem of
+           Arithmetic" -- where `/api/ask` carries what she typed. Both are the
+           thing being taught, which is what the history is keyed by. */
+        /* The plan's own bucket, and the plan's own teaching decision -- both
+           made here, exactly where `lessonFrom` below makes them. */
+        return await conceptFor(
+          body['concept'],
+          spent,
+          who,
+          'lesson',
+          chooseStrategy({
+            attempts: typeof body['attempts'] === 'number' ? body['attempts'] : 0,
+            carriedFrom: nonEmptyString(body['carriedFrom']) ? body['carriedFrom'] : undefined,
+            diagnosis: typeof body['diagnosis'] === 'string' ? body['diagnosis'] : undefined,
+          }),
+        )
+      }
       /* The teaching decision is made HERE, from what the browser reports
        * about the student. `body['strategy']` is deliberately not read: a page
        * must not be able to pick "transfer_challenge" for a student meeting a
@@ -894,7 +1387,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         const spent = Array.isArray(body['alreadyUsed'])
           ? (body['alreadyUsed'] as unknown[]).filter((r): r is string => typeof r === 'string')
           : []
-        return await conceptFor(body['question'], spent)
+        return await conceptFor(body['question'], spent, who, 'ask')
       }
 
       return lessonFrom({

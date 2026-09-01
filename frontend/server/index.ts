@@ -18,12 +18,15 @@
  */
 
 import { createServer as createNodeServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { chooseProvider } from './provider.ts'
+import { chooseProvider, hostedProviders, type OpenAiCompatible } from './provider.ts'
 import { createOllamaModel, DEFAULT_OLLAMA_ENDPOINT } from './ollama.ts'
 import { createGroqModel, DEFAULT_GROQ_MODEL } from './groq.ts'
+import { failover } from './failover.ts'
 import { pgStore } from './almanac/pgStore.ts'
 import { sqliteMemoryStore } from './memory/sqliteStore.ts'
 import { canvasMemory, type CanvasMemory } from './memory/store.ts'
+import { explanationsIn, type Explanations } from './memory/explanations.ts'
+import { writtenLessons, type WrittenLessons } from './memory/lessons.ts'
 import type { Readable } from 'node:stream'
 
 import { createHandler, type ModelPort, type SearchPort } from './handler.ts'
@@ -89,6 +92,10 @@ export interface ServerOptions {
   readonly almanac?: Ledger
   /** The canvas's memory. Absent means /api/memory answers 503, never a guess. */
   readonly memory?: CanvasMemory
+  /** What she has already been told. Absent means the caller's list is trusted alone. */
+  readonly explanations?: Explanations
+  /** Lessons any learner can read. Absent means every ask is authored. */
+  readonly lessons?: WrittenLessons
   /** The key identities are signed with. No default; see `identity.ts`. */
   readonly identitySecret: string
   readonly secrets?: readonly string[]
@@ -100,6 +107,8 @@ export function createServer(options: ServerOptions): Server {
     search: options.search,
     ...(options.almanac === undefined ? {} : { almanac: options.almanac }),
     ...(options.memory === undefined ? {} : { memory: options.memory }),
+    ...(options.explanations === undefined ? {} : { explanations: options.explanations }),
+    ...(options.lessons === undefined ? {} : { lessons: options.lessons }),
     identitySecret: options.identitySecret,
     secrets: options.secrets,
     maxBodyBytes: MAX_BODY_BYTES,
@@ -207,16 +216,51 @@ function main(): void {
   /* One branch per provider, spelled out. A ternary chain here would be the
      one place where a wrong branch sends a credential to the wrong host. */
   let model
+  /* The hosted clients this process can send to, or none. Read once; see below. */
+  let hosted: readonly OpenAiCompatible[] = []
   if (provider.kind === 'ollama') {
     model = createOllamaModel({
       model: provider.model,
       ...(provider.endpoint === undefined ? {} : { endpoint: provider.endpoint }),
     })
-  } else if (provider.kind === 'groq') {
-    model = createGroqModel({
-      apiKey: provider.apiKey,
-      ...(provider.model === undefined ? {} : { model: provider.model }),
-    })
+  } else if (provider.kind === 'openai-compatible') {
+    /* One client, five hosts. See `provider.ts`: Groq, Moonshot (Kimi), Z.ai
+       (GLM), NVIDIA NIM and DeepSeek all speak this exact shape, and a second
+       copy of the retry policy and the deadline would be a second place for
+       both to drift. */
+    /*
+     * EVERY CONFIGURED HOST, NOT JUST THE WINNER. See `failover.ts`.
+     *
+     * `chooseProvider` picked one and stopped, so a spent daily budget stopped
+     * the product outright -- measured here as Groq reaching `Used 198032` of
+     * 200,000 tokens per DAY in one afternoon, after which every lesson
+     * answered "the model could not be reached". Standbys are asked only when
+     * the primary cannot answer, and only for failures another host could
+     * actually fix, so which vendor teaches on a healthy day is unchanged.
+     *
+     * The first entry IS `provider` -- `hostedProviders` walks the same
+     * `VENDORS` list in the same order -- so a single-key setup builds exactly
+     * the client it built before and `failover` hands it straight back.
+     */
+    /* READ ONCE. This was called here and again for the secrets list below, so
+       two walks of a MUTABLE `process.env` produced two views of the same
+       thing -- and a value changed between them would have built a client
+       whose key was not in the scrub list, which is the exact gap the secrets
+       fix closed. One list, used twice, cannot disagree with itself. */
+    hosted = hostedProviders(process.env)
+    model = failover(
+      hosted.map((each) => ({
+        vendor: each.vendor,
+        model: createGroqModel({
+          apiKey: each.apiKey,
+          model: each.model,
+          baseUrl: each.baseUrl,
+          /* So a blank key names the variable the operator actually set, not
+             `GROQ_API_KEY` for all five hosts. See `GroqOptions.keyVar`. */
+          keyVar: each.keyVar,
+        }),
+      })),
+    )
   } else {
     model = createModel({ apiKey: provider.apiKey })
   }
@@ -226,8 +270,26 @@ function main(): void {
      everywhere. */
   /* Every real credential is scrubbed from responses. Listing an empty string
      would make `scrub` match everywhere, so local mode contributes none. */
+  /*
+   * EVERY CREDENTIAL IN PLAY, NOT JUST THE ONE THAT WON.
+   *
+   * This listed `provider.apiKey` alone, which was exactly right while
+   * `chooseProvider` picked one vendor and no other key was ever read. Failover
+   * builds a client for EVERY configured vendor, so the number of live
+   * credentials grew and the number being scrubbed did not: an operator holding
+   * Groq and Moonshot keys had the Moonshot one unprotected the moment Groq ran
+   * dry and the standby started answering.
+   *
+   * `scrub` removes each listed secret from responses, so the list has to be
+   * the set of keys this process can send -- which is precisely the set
+   * `hostedProviders` builds clients from.
+   */
   const secrets =
-    provider.kind === 'anthropic' || provider.kind === 'groq' ? [provider.apiKey] : []
+    provider.kind === 'openai-compatible'
+      ? hosted.map((each) => each.apiKey)
+      : provider.kind === 'anthropic'
+        ? [provider.apiKey]
+        : []
   const search: SearchPort = {
     /* Wired in Phase 4. Until then the route answers honestly rather than
      * pretending to have searched. */
@@ -260,7 +322,21 @@ function main(): void {
    * everything on restart, while answering every save with "saved", is exactly
    * the quiet failure this project keeps guarding against. */
   const memoryPath = process.env['CANVAS_MEMORY_DB'] ?? 'data/canvas-memory.db'
-  const memory = canvasMemory({ store: sqliteMemoryStore(memoryPath) })
+  /*
+   * ONE STORE, TWO READERS, AND THAT IS THE POINT.
+   *
+   * `canvasMemory` holds what the canvas saved; `explanationsIn` holds what she
+   * has already been told. Both go in the SAME file, through the same
+   * transactional `update`, so a lesson's progress and its explanation history
+   * cannot disagree about whether a write happened -- and Phase 3 inherits
+   * every durability and isolation proof Phases 1 and 2 already paid for
+   * instead of arguing them again in a second engine.
+   */
+  const memoryStore = sqliteMemoryStore(memoryPath)
+  const memory = canvasMemory({ store: memoryStore })
+  const explanations = explanationsIn(memoryStore)
+  /* One shelf of written lessons, shared by every learner. See `memory/lessons.ts`. */
+  const lessons = writtenLessons(memoryStore)
 
   /* THE IDENTITY SECRET. REQUIRED, AND THE SERVER REFUSES TO START WITHOUT IT.
    *
@@ -279,7 +355,7 @@ function main(): void {
     : { secret: configuredSecret, generated: false }
   const identitySecret = resolved.secret
 
-  const server = createServer({ model, search, almanac, memory, identitySecret, secrets })
+  const server = createServer({ model, search, almanac, memory, explanations, lessons, identitySecret, secrets })
   server.listen(port, host, () => {
     console.log(`almanac server listening on http://${host}:${port}`)
     console.log(`  memory: ${memoryPath} (sqlite, safe for many servers)`)
@@ -301,13 +377,16 @@ function main(): void {
     console.log(
       provider.kind === 'ollama'
         ? `  model:  ${provider.model} via ollama at ${provider.endpoint ?? DEFAULT_OLLAMA_ENDPOINT}`
-        : provider.kind === 'groq'
-          ? `  model:  ${provider.model ?? DEFAULT_GROQ_MODEL} via groq`
+        : provider.kind === 'openai-compatible'
+          /* THE VENDOR IS NAMED, NOT JUST THE MODEL. With five hosts behind one
+             client, "gpt-oss-120b" alone does not say which account is being
+             spent or which endpoint a failure came from. */
+          ? `  model:  ${provider.model} via ${provider.vendor}`
           : '  model:  anthropic',
     )
     if (host !== DEFAULT_HOST) {
       console.log(
-        provider.kind === 'anthropic' || provider.kind === 'groq'
+        provider.kind === 'anthropic' || provider.kind === 'openai-compatible'
           ? `WARNING: bound to ${host}, not loopback. This process holds an API key.`
           : `WARNING: bound to ${host}, not loopback.`,
       )

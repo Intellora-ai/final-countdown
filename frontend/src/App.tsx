@@ -153,12 +153,6 @@ export default function App() {
     return <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', color: 'var(--muted-foreground)', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '.18em', textTransform: 'uppercase' }}>Loading…</div>
   }
 
-  const hasPlan = store.hasPlan()
-  const inSetup = loc.pathname === '/setup'
-  if (!hasPlan && !inSetup) return <Navigate to="/setup" replace />
-
-  if (inSetup) return <SetupFlow />
-
   /* THE EXPLANATION CANVAS OWNS THE WHOLE WINDOW.
    *
    * It is returned BEFORE the shell rather than inside it, because the shell
@@ -181,6 +175,41 @@ export default function App() {
       </React.Suspense>
     )
   }
+
+  /* THE PLAN GATE, AND WHY IT IS *BELOW* THE CANVAS RATHER THAN ABOVE IT.
+   *
+   * Every route under the shell is built FROM the plan -- today's list, the
+   * sidebar's subjects, a chapter's concepts -- so a learner without one is
+   * sent to setup rather than shown an empty product. That is right for those
+   * routes and wrong for the canvas, which is the one screen that asks the
+   * learner what to study instead of reading it from a plan. Nothing under
+   * `src/canvas` touches `store`, `student()`, `hasPlan` or `cls`.
+   *
+   * MEASURED, with this gate above the canvas branch instead of below it:
+   *
+   *   fresh profile          ->  #/canvas  ->  #/canvas  topic box: YES
+   *   after picking "New learner" in the sidebar
+   *                          ->  #/canvas  ->  #/setup   topic box: NO
+   *
+   * The second line is not a corner case. `seed()` ships `stu_new` -- "an empty
+   * New learner that lands in setup" -- and `Sidebar` persists the choice, so
+   * one click put the profile in localStorage and EVERY later visit to
+   * `#/canvas` was answered with the setup wizard. A reload did not clear it; a
+   * new tab did not clear it. The address bar said `#/setup` while the person
+   * was holding a link that said `#/canvas`, so the only conclusion available
+   * to them was that the canvas had been taken away.
+   *
+   * `12410da0` made `/canvas` reach the route. This makes the route reach the
+   * screen. Both were needed, and shipping the first alone fixed nothing a
+   * person could see, because the browser it was checked in already had a plan.
+   *
+   * The gate keeps its exact meaning for every other path: /today, /learn,
+   * /chapter, /practice and the rest still require a plan. */
+  const hasPlan = store.hasPlan()
+  const inSetup = loc.pathname === '/setup'
+  if (!hasPlan && !inSetup) return <Navigate to="/setup" replace />
+
+  if (inSetup) return <SetupFlow />
 
   const closeOnPhone = () => { if (narrow) setDrawer(false) }
 

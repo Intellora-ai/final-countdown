@@ -47,6 +47,7 @@ from enum import StrEnum
 
 from learning_os.domain.knowledge import KnowledgeGraph
 from learning_os.llm.client import LLMClient
+from learning_os.llm.contract import MAX_LESSON_QUESTION
 from learning_os.llm.contract import DiagnosisKind
 from learning_os.mastery.estimate import Belief
 from learning_os.memory.store import MemoryStore
@@ -210,6 +211,36 @@ def map_to_skill(graph: KnowledgeGraph, doubt: Doubt) -> str | None:
     return None if best is None else best[1]
 
 
+def _shortened(text: str) -> str:
+    """The doubt, short enough for the contract, and never silently cut.
+
+    ``contract.MAX_LESSON_QUESTION`` is a validator, so a longer question is
+    rejected rather than trimmed, and every caller has to shorten first. This
+    line used to be a bare ``[:200]``, which is the exact defect the constant's
+    own docstring describes: a long question was "silently cut to 199 ... and
+    echoed back to the learner as a question they had not asked". Raising the
+    cap does not help -- the validator is the real ceiling -- so the cut stays
+    and stops being silent.
+
+    TWO CHANGES, BOTH VISIBLE TO THE LEARNER. It breaks on a word rather than
+    mid-word, so what is shown is a real phrase; and it ends in an ellipsis, so
+    the learner can SEE that this is the front of their question rather than the
+    whole of it. Their words are never added to, only stopped early and marked.
+
+    Short questions -- which is nearly all of them -- come back untouched.
+    """
+    said = text.strip()
+    if len(said) <= MAX_LESSON_QUESTION:
+        return said
+    # One character of the budget belongs to the ellipsis that marks the cut.
+    room = MAX_LESSON_QUESTION - 1
+    cut = said[:room]
+    # Back up to the last whole word, unless there is no space to back up to.
+    spaced = cut.rsplit(" ", 1)[0]
+    kept = spaced if spaced else cut
+    return f"{kept.rstrip()}\u2026"
+
+
 def resolve(
     graph: KnowledgeGraph,
     memory: MemoryStore,
@@ -257,7 +288,7 @@ def resolve(
         # a real diagnosis needs evidence, and asking a question is not evidence
         # of which KIND of gap it is.
         DiagnosisKind.CONCEPT_GAP,
-        question=doubt.text[:200],
+        question=_shortened(doubt.text),
         now=now,
         belief=belief,
     )

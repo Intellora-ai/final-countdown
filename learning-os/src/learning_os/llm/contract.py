@@ -136,6 +136,20 @@ class SimplicityConstraints(_Frozen):
     max_blocks: int = Field(ge=1, le=8, default=4)
 
 
+#: The longest question a lesson can be built around, and the real ceiling on
+#: every question in this system.
+#:
+#: WHY THIS IS THE ONE NUMBER. It is a validator, so it is the only cap that
+#: can actually reject anything -- the slices upstream merely avoid reaching it.
+#: `api.ask.MAX_QUESTION` advertised 400 while this rejected anything over 200,
+#: so a 300-character question was accepted by the endpoint, silently cut to
+#: 199 by `session/doubt.py`, and echoed back to the learner as a question they
+#: had not asked. Raising the upstream slices to 400 instead does not work and
+#: was tried: it reaches this validator and comes back as `engine_error` with a
+#: pydantic message in it. The endpoint must promise what this permits.
+MAX_LESSON_QUESTION = 200
+
+
 class InstructionContract(_Frozen):
     """One instruction to the model, and everything it is bound by.
 
@@ -149,7 +163,7 @@ class InstructionContract(_Frozen):
     #: one piece of learner-facing text the engine authors rather than the model.
     #: Deliberate: the model may phrase the explanation, but what is being
     #: explained is a decision, not a phrasing.
-    question: str = Field(min_length=1, max_length=200)
+    question: str = Field(min_length=1, max_length=MAX_LESSON_QUESTION)
 
     diagnosis: DiagnosisKind
     strategy: Strategy

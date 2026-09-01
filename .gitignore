@@ -191,3 +191,10 @@ frontend/e2e/*-snapshots/*-win32.png
 *.key
 *.p12
 *.pfx
+
+# A 520MB duplicate of frontend/node_modules, created when the real one was
+# wiped mid-session and something restored a copy beside it. It is build output
+# either way and must never reach a commit. The stray directory itself is left
+# on disk to be removed deliberately rather than by a tool.
+node_modules [0-9]/
+*/node_modules [0-9]/

@@ -15,6 +15,12 @@ So these tests enumerate `Strategy` rather than sampling it.
 
 from __future__ import annotations
 
+import pathlib
+import re
+from learning_os.api.ask import MAX_QUESTION as ENDPOINT_MAX_QUESTION
+from learning_os.api.emit import MAX_QUESTION as EMIT_MAX_QUESTION
+from learning_os.llm.contract import MAX_LESSON_QUESTION
+
 import pytest
 
 from learning_os.api.emit import PROSE_FIELD, TEXT_BLOCK_KINDS, EmitError, emit
@@ -115,3 +121,51 @@ def test_the_two_kind_sets_are_deliberately_different() -> None:
     """
     assert TEXT_BLOCK_KINDS < BLOCK_KINDS, "text kinds must be a strict subset"
     assert "table" in BLOCK_KINDS and "table" not in TEXT_BLOCK_KINDS
+
+
+# --------------------------------------------------------------------------
+# One number, in four places, in two languages
+# --------------------------------------------------------------------------
+def test_every_cap_on_a_question_is_the_same_number() -> None:
+    """The canvas, the emitter, the contract and the endpoint must agree.
+
+    THE BUG THIS WOULD HAVE CAUGHT ON THE DAY IT WAS WRITTEN. Three of these
+    said 200 and `api/ask.py` said 400. A learner could send 300 characters,
+    the endpoint accepted them, and the answer came back quoting a question cut
+    to 199 -- one they had not asked. Raising the other three to 400 instead is
+    not available: `spec.ts` is the wire format the canvas validates against,
+    and Python does not get to widen it unilaterally.
+
+    `spec.ts` is READ rather than restated. A number copied into this file
+    would be a fifth place to drift, which is the failure being tested for.
+    """
+    spec = (
+        pathlib.Path(__file__).resolve().parents[2]
+        / "frontend"
+        / "src"
+        / "canvas"
+        / "spec"
+        / "spec.ts"
+    )
+    assert spec.is_file(), f"the canvas spec is not where this test looks: {spec}"
+
+    found = re.search(r"question:\s*z\.string\(\)\.min\(1\)\.max\((\d+)\)", spec.read_text())
+    assert found is not None, (
+        f"no `question` length rule found in {spec.name}; if the canvas stopped "
+        f"bounding it, the Python caps below are no longer mirroring anything"
+    )
+    canvas = int(found.group(1))
+
+    assert MAX_LESSON_QUESTION == canvas, (
+        f"the LLM contract permits {MAX_LESSON_QUESTION} characters and the "
+        f"canvas permits {canvas}; the model can be told to write a title the "
+        f"canvas will refuse to render"
+    )
+    assert EMIT_MAX_QUESTION == canvas, (
+        f"the emitter permits {EMIT_MAX_QUESTION} and the canvas {canvas}"
+    )
+    assert ENDPOINT_MAX_QUESTION == canvas, (
+        f"the endpoint advertises {ENDPOINT_MAX_QUESTION} characters and everything "
+        f"downstream permits {canvas}, so a question between the two is accepted "
+        f"and then silently cut"
+    )

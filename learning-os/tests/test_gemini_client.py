@@ -479,3 +479,114 @@ def test_the_request_carries_the_model_the_schema_and_the_mime_type() -> None:
     assert config["response_mime_type"] == "application/json"
     assert config["response_json_schema"] == RESPONSE_SCHEMA
     assert config["max_output_tokens"] == 4096
+
+
+# --------------------------------------------------------------------------
+# WHAT A MALFORMED REPLY IS TOLD APART FROM, AND WHY EACH DISTINCTION EARNS ITS
+# OWN SENTENCE
+#
+# `parse_blocks` raises five different `LLMUnavailable` messages and only the
+# `kind` one was ever run. Measured before this block: `gemini_client.py` at 90%
+# with lines 213-228 uncovered -- every branch that describes HOW the reply was
+# malformed.
+#
+# The runtime branches on these. "not JSON" is a prompt or a truncation and a
+# retry may fix it; "no blocks" is a model that answered with an empty envelope;
+# "block N has no text" names the block, which is the only thing that lets
+# anybody look at the right one. A single "bad reply" for all five would send
+# every reader to the same wrong place.
+#
+# NOT DELEGATED TO `anthropic_client.parse_blocks`, and the note field is why --
+# so the provenance assertion below is part of the same claim.
+# --------------------------------------------------------------------------
+from learning_os.llm.gemini_client import _refusal_reason, parse_blocks
+
+
+def test_a_reply_that_is_not_json_says_so_rather_than_reporting_no_blocks() -> None:
+    with pytest.raises(LLMUnavailable) as caught:
+        parse_blocks("I'd be happy to help! Here is a lesson:")
+    assert "not JSON" in str(caught.value)
+
+
+def test_a_json_envelope_with_no_blocks_is_named_as_that() -> None:
+    for empty in ('{"blocks": []}', '{"blocks": "prose"}', '{"lesson": 1}', "[1, 2]"):
+        with pytest.raises(LLMUnavailable) as caught:
+            parse_blocks(empty)
+        assert "no blocks" in str(caught.value), empty
+
+
+def test_a_block_that_is_not_an_object_names_its_index() -> None:
+    with pytest.raises(LLMUnavailable) as caught:
+        parse_blocks('{"blocks": [{"kind": "prose", "text": "fine"}, "a bare string"]}')
+    assert "block 1 is not an object" in str(caught.value)
+
+
+def test_a_block_with_blank_text_is_refused_and_named() -> None:
+    """Whitespace is not text. A block of spaces renders as a gap on the canvas
+    and reads to a learner as a lesson that lost a paragraph."""
+    with pytest.raises(LLMUnavailable) as caught:
+        parse_blocks('{"blocks": [{"kind": "prose", "text": "   "}]}')
+    assert "block 0 has no text" in str(caught.value)
+
+    with pytest.raises(LLMUnavailable) as caught:
+        parse_blocks('{"blocks": [{"kind": "prose", "text": 7}]}')
+    assert "block 0 has no text" in str(caught.value)
+
+
+def test_a_good_reply_is_stamped_with_the_provider_that_wrote_it() -> None:
+    """Provenance has to name the provider. A shared parser would stamp every
+    lesson `anthropic:` regardless of who produced it."""
+    content = parse_blocks(
+        '{"blocks": [{"kind": "prose", "text": " a base case stops it "}],'
+        ' "introduced_concepts": ["base case", "  ", "recursion"]}'
+    )
+    assert content.blocks == (("prose", "a base case stops it"),)
+    assert content.introduced_concepts == ("base case", "recursion")
+    assert content.note.startswith("gemini:")
+
+
+# --------------------------------------------------------------------------
+# A SAFETY DECLINE IS NOT AN OUTAGE
+#
+# Both produce empty text. Collapsing them would report a decline as an outage,
+# which the runtime then retries -- forever, against a decision that does not
+# change. `_refusal_reason` draws that line and the candidate half of it (line
+# 401 and the loop that reaches it) had never been run.
+# --------------------------------------------------------------------------
+class _ACandidate:
+    def __init__(self, finish: object) -> None:
+        self.finish_reason = finish
+
+
+class _AResponse:
+    def __init__(self, candidates: list[object]) -> None:
+        self.candidates = candidates
+
+
+class _AFinishReason:
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+
+def test_a_candidate_stopped_for_safety_is_reported_as_a_decline() -> None:
+    said = _refusal_reason(_AResponse([_ACandidate(_AFinishReason("SAFETY"))]))
+    assert said == "candidate stopped (SAFETY)"
+
+
+def test_a_candidate_that_simply_finished_is_not_a_decline() -> None:
+    """STOP is the ordinary ending. Reading it as a refusal would turn every
+    successful call into one."""
+    assert _refusal_reason(_AResponse([_ACandidate(_AFinishReason("STOP"))])) is None
+
+
+def test_a_candidate_with_no_finish_reason_is_stepped_over_not_crashed_on() -> None:
+    """The SDK omits the field on a streamed partial. `None` there must not stop
+    the loop looking at the candidate after it."""
+    said = _refusal_reason(
+        _AResponse([_ACandidate(None), _ACandidate(_AFinishReason("PROHIBITED_CONTENT"))])
+    )
+    assert said == "candidate stopped (PROHIBITED_CONTENT)"
+
+
+def test_a_response_with_no_candidates_at_all_is_not_a_decline() -> None:
+    assert _refusal_reason(object()) is None

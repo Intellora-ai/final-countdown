@@ -98,6 +98,42 @@ const isTokenFile = (filename) =>
   /eslint-rules[\\/]/.test(filename) ||
   /\.test\.tsx?$/.test(filename)
 
+/* COULD THIS VALUE EVER BE A CSS SIZE?
+ *
+ * `DESIGN_KEYS` is matched on the property NAME alone, which is right for
+ * `style={{ gap: 12 }}` and wrong for every object that happens to share a word
+ * with CSS. `gap` is the one that bites: it is an ordinary English noun, and a
+ * lesson's own DATA used it -- a table of how far 0.999… still is from 1, with
+ * rows `{ digits: '0.9', gap: '0.1' }` and `{ digits: 'all of them', gap:
+ * 'nothing left' }`. The rule reported all three as arbitrary spacing, and the
+ * only fixes available were a suppression (forbidden) or renaming the lesson's
+ * column to dodge a linter (a change to teaching content for a tooling reason).
+ *
+ * A value that could not be a CSS size cannot be a design decision about size.
+ * `nothing left` is not a length in any stylesheet, and neither is a bare
+ * `0.1` -- CSS lengths need a unit, and unitless is legal only for zero.
+ *
+ * NOTHING REAL IS LET THROUGH. `gap: 12`, `gap: '12px'`, `gap: '1.5rem'` and
+ * `fontSize: 14` are all still sizes and still reported; this only declines to
+ * judge values that no browser would read as one.
+ */
+const SIZE_WITH_A_UNIT = /^-?(\d+(\.\d+)?|\.\d+)(px|rem|em|%|vh|vw|vmin|vmax|ch|ex|pt|pc|cm|mm|in|q|fr)$/i
+const BARE_ZERO = /^-?0(\.0+)?$/
+
+function couldBeASize(value) {
+  /* A NUMBER in a style object IS a size -- React writes `gap: 12` as `12px`,
+     which is exactly the arbitrary value this rule exists to catch. */
+  if (typeof value === 'number') return true
+  if (typeof value !== 'string') return false
+  const v = value.trim()
+  if (v === '') return false
+  /* A STRING NEEDS ITS UNIT. CSS accepts a unitless length only for zero, so
+     `'0.1'` is not a gap in any stylesheet -- it is data that happens to sit
+     under a key sharing a word with CSS. `'12px'` and the shorthand `'8px 12px'`
+     still are, and are still reported. */
+  return v.split(/\s+/).every((part) => SIZE_WITH_A_UNIT.test(part) || BARE_ZERO.test(part))
+}
+
 function looksLikeColour(value) {
   if (typeof value !== 'string') return false
   const v = value.trim()
@@ -166,7 +202,7 @@ export default {
         context.report({ node: value, messageId: 'rawColour', data: { value: literal, where: keyName } })
         return
       }
-      if (DESIGN_KEYS.has(keyName) && !isStructural(literal)) {
+      if (DESIGN_KEYS.has(keyName) && couldBeASize(literal) && !isStructural(literal)) {
         context.report({ node: value, messageId: 'rawSize', data: { prop: keyName, value: String(literal) } })
       }
     }

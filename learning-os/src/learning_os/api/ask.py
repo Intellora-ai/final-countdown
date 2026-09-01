@@ -50,6 +50,7 @@ from typing import Any
 from learning_os.api.emit import emit
 from learning_os.domain.python_recursion import GRAPH
 from learning_os.llm.client import LLMUnavailable
+from learning_os.llm.contract import MAX_LESSON_QUESTION
 from learning_os.llm.select import (
     client_from_env,
     configured_provider,
@@ -158,7 +159,7 @@ def diagnose() -> dict[str, Any]:
 
 #: An unbounded field on an endpoint is an unbounded prompt, and the engine is
 #: charged per token even when whoever sent it is not.
-MAX_QUESTION = 400
+MAX_QUESTION = MAX_LESSON_QUESTION
 
 #: The same cap the canvas puts on a block id. Carried through untouched
 #: otherwise: it is the canvas's value and this layer must not interpret it.

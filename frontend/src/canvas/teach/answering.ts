@@ -22,6 +22,7 @@
 import type { Lesson } from '../spec/spec'
 import type { AnyResolver, Doubt } from './contract'
 import { askChain } from './chain'
+import { readableText } from '../spec/readable'
 
 /** The single soft line that invites the learner back. Never a reprimand, and
  *  never more than once. */
@@ -43,7 +44,31 @@ export interface Answered {
 }
 
 /** Asks the server a free question. Kept narrow so a double is two lines. */
-export type AskPort = (question: string) => Promise<{ ok?: boolean; text?: string; reason?: string }>
+/**
+ * WHAT A QUESTION CARRIES BESIDES ITS WORDS.
+ *
+ * This took a bare string, and the caller that fills it -- `answerWithin`
+ * below -- is holding the lesson the whole time. So the one function that
+ * knew where the question came from had no way to say it, and a doubt reached
+ * the server as five words with no lesson attached. `/api/ask` answers a
+ * question with no `taught` by AUTHORING A NEW CONCEPT, so "so is that where
+ * the oxygen comes from?" came back as a fresh lesson about oxygen instead of
+ * an answer about the paragraph on screen.
+ *
+ * `modelResolver` already passes exactly this shape to its own port, and has
+ * since it was written. The two are now the same shape for the same reason.
+ */
+export interface AskedInside {
+  /** The question the lesson she is reading answers. */
+  readonly askedInside?: string
+  /** What she has already been shown of it, in reading order. */
+  readonly taught?: string
+}
+
+export type AskPort = (
+  question: string,
+  context?: AskedInside,
+) => Promise<{ ok?: boolean; text?: string; reason?: string }>
 
 /* Said when the model cannot be reached. It still ANSWERS in the only honest
  * way left -- by saying what happened and what will be done about it. The
@@ -243,7 +268,15 @@ export function createAnswering(options: {
        */
       let reply: Awaited<ReturnType<AskPort>>
       try {
-        const answered = await beforeDeadline(options.ask(doubt.text), signal)
+        /* THE LESSON GOES WITH THE QUESTION. It has been in scope here all
+           along; there was simply no parameter to put it in. */
+        const answered = await beforeDeadline(
+          options.ask(doubt.text, {
+            askedInside: lesson.question,
+            taught: readableText(lesson),
+          }),
+          signal,
+        )
 
         /* SILENCE IS TREATED AS THE UNREACHABILITY IT IS. The port was called
            and never answered, so "I could not reach the part of me that answers

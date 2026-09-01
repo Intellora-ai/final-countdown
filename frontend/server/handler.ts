@@ -35,6 +35,7 @@ import {
   withoutRefusedBlocks,
 } from './repair.ts'
 import { authorConcept } from '../src/canvas/teach/concept.ts'
+import type { Source } from '../src/canvas/teach/grounding.ts'
 import { chooseStrategy, type Strategy } from './teaching.ts'
 import { injectionSignals, stripInvisible } from '../src/websearch/guard.ts'
 import { citationSupports } from '../src/websearch/quality.ts'
@@ -330,13 +331,48 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     const chat = options.model.chat
     if (chat === undefined) throw new Error('conceptFor called without a chat-capable model')
 
+    /*
+     * SEARCH FIRST, THEN WRITE -- the same order `CanvasRoute` uses, for the
+     * reason it records beside its own search: "The gate reads shape and has no
+     * opinion about truth, so an invented lesson passes every check in this
+     * repository. The only defence is giving the author real text to write
+     * from."
+     *
+     * FAILING TO FIND SOURCES IS NOT FAILING TO TEACH, and that is why this is
+     * a `catch` and not a guard. A refused search, an unconfigured provider --
+     * `index.ts` still throws "search is not configured" until Phase 4 wires
+     * one -- or a topic the web does not cover all end here with an empty list,
+     * and `groundingPreamble([])` returns '', so the prompt is exactly what it
+     * was. Turning a retrieval failure into a teaching failure would be worse
+     * than being honestly ungrounded.
+     *
+     * The seam is what was missing. `authorConcept` has taken sources since it
+     * was written; this route passed `[]` and never asked, so the server could
+     * not have grounded a lesson even with a provider configured.
+     */
+    let sources: readonly Source[] = []
+    try {
+      const found = await options.search.search(question)
+      sources = found.map((page) => ({
+        /* No title comes back on this port, and the url is the honest stand-in:
+           `groundingPreamble` prints it as the citation either way, and an
+           invented title would be the one part of a citation nobody checked. */
+        url: page.url,
+        title: page.url,
+        text: page.content,
+      }))
+    } catch {
+      /* Recorded nowhere and rethrown nowhere: see above. Ungrounded is a
+         weaker lesson, not a missing one. */
+    }
+
     let written
     try {
       written = await authorConcept(
         (system: string, user: string, priorAssistant?: string) =>
           chat(system, user, priorAssistant),
         question,
-        [],
+        sources,
         alreadyUsed,
       )
     } catch (thrown) {

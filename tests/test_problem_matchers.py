@@ -24,7 +24,7 @@ MATCHERS = REPO / ".github" / "matchers" / "tools.json"
 #: Verbatim tool output. Do not tidy these strings -- their exact shape is the test.
 #: Single-pattern matchers pin one line; the loop matcher (eslint-stylish) pins
 #: one line PER PATTERN, in pattern order, because that is how the runner feeds it.
-SAMPLES: dict[str, Any] = {
+SAMPLES: dict[str, str | list[str]] = {
     "pyright": (
         '  /Users/x/final countdown/scripts/local_gates.py:204:5 - error: '
         'Variable "code" is not accessed (reportUnusedVariable)'
@@ -84,7 +84,7 @@ def test_each_regex_matches_real_output_and_extracts_every_field(owner: str) -> 
             f"dead in CI while appearing configured.\n  sample: {line}")
 
         for field in ("file", "line", "column", "severity", "message", "code"):
-            if field not in pattern or field == "loop":
+            if field not in pattern:
                 continue
             index = int(pattern[field])
             value = got.group(index)
@@ -108,10 +108,12 @@ def test_the_generic_template_regex_would_not_have_worked_for_pyright() -> None:
     matched nothing -- precisely the failure a problem matcher exists to remove.
     """
     generic = re.compile(r"^(.+?):(\d+):(\d+)?:?\s+(error|warning):\s+(.+)$")
-    assert generic.match(SAMPLES["pyright"]) is None, (
+    pyright_line, gcc_line = SAMPLES["pyright"], SAMPLES["gcc-style"]
+    assert isinstance(pyright_line, str) and isinstance(gcc_line, str)
+    assert generic.match(pyright_line) is None, (
         "the generic template now matches pyright; if pyright changed its output format, "
         "re-derive the matcher regex from fresh real output rather than assuming")
-    assert generic.match(SAMPLES["gcc-style"]) is not None, (
+    assert generic.match(gcc_line) is not None, (
         "the generic template should still match gcc-style output")
 
 

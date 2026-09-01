@@ -144,9 +144,13 @@ jobs:
       # overlapped, so nothing raced anything" -- a true report about the
       # machine, not about the code. Bounding the workers leaves it enough CPU
       # to race, which is the condition the test needs to mean anything.
+      # `--reporter=github-actions` is vitest's own annotation reporter: a
+      # failed test lands as an ::error on its exact file and line, message
+      # included, beside the tsc matcher and ruff's native annotations -- so
+      # every way this job can go red now names its line in the PR view.
       - name: The server and canvas suites
         working-directory: frontend
-        run: npx vitest run server src/canvas --maxWorkers=4
+        run: npx vitest run server src/canvas --maxWorkers=4 --reporter=default --reporter=github-actions
 
   # CHAOS RUNS ON EVERY PUSH, AS ITS OWN NAMED CHECK.
   #

@@ -141,6 +141,12 @@ export default defineConfig({
    * canvas-reporter emits one annotation per test, on the panel source the
    * test attributed via `attribute()`, and writes ci-findings.json for the
    * workflow to upload. `list` stays so a local run still reads normally. */
+  /* NOT the stock `github` reporter, and gate_integrity enforces this with a
+     measurement: it annotates the spec line rather than the SOURCE, and once
+     per retry rather than once per test -- 13 annotations for 5 real failures
+     on run 32589708228. canvas-reporter is the repository's own annotator and
+     it points at the panel source that actually broke. The reallife config,
+     which has no custom reporter, is where the stock one earns its place. */
   reporter: process.env.CI
     ? [['./e2e/reporters/canvas-reporter.ts'], ['list']]
     : [['list']],

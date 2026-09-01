@@ -54,7 +54,10 @@ export default defineConfig({
   timeout: 900_000,
   expect: { timeout: 15_000 },
 
-  reporter: [['list']],
+  /* `github` on CI for the same reason the main config carries it: a failed
+     law annotates its exact file and line in the PR view, with the law's own
+     sentence as the message. Locally it is inert noise, so list-only. */
+  reporter: process.env.CI ? [['github'], ['list']] : [['list']],
 
   use: {
     baseURL: 'http://127.0.0.1:5183',

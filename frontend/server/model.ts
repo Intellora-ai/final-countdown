@@ -39,6 +39,15 @@ const MAX_TOKENS = 16000
 
 export interface Model {
   lesson(brief: LessonBrief): Promise<unknown>
+  /**
+   * One turn, text in, text out -- the shape `authorConcept` asks for.
+   *
+   * OPTIONAL, because a provider that cannot do this must keep working rather
+   * than become unconfigurable. `handler.ts` reads it and falls back to
+   * `lesson` when it is absent, so the only thing a provider loses by not
+   * having it is the fast path, not the ability to teach.
+   */
+  chat?(system: string, user: string, priorAssistant?: string): Promise<string>
 }
 
 /**

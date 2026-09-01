@@ -170,6 +170,30 @@ function waitTheServiceAsksFor(response: FetchResponse): number | null {
  */
 const WAIT_BEFORE_RETRY_MS = [800, 14_000] as const
 
+/*
+ * HOW MUCH ONE CONCEPT MAY COST, AND WHY IT IS NOT `MAX_TOKENS`.
+ *
+ * MEASURED against this account, serially, one call at a time:
+ *
+ *   whole lesson, SYSTEM + LESSON_SCHEMA, max_tokens 2000  ->  429 on the
+ *                                                              FIRST call
+ *   one concept,  conceptRequest prompt,  max_tokens 1200  ->  2708ms, taught
+ *                                                              1062 in, 1064 out
+ *
+ * The arithmetic behind the 429 is not subtle. `SYSTEM` is 8737 characters and
+ * `LESSON_SCHEMA` is another 2534 -- about 2800 input tokens -- and
+ * `max_tokens` is a RESERVATION, not a measurement, so a whole-lesson request
+ * claims roughly 4800 of a budget the service reports as 8000 PER MINUTE. One
+ * repair turn re-sends the rejected lesson and the pair exceeds the whole
+ * minute. That is why five of six questions came back 502 and one came back
+ * 429: not a slow model, an over-drawn budget.
+ *
+ * A concept prompt is 1062 input tokens measured, and one concept is two
+ * blocks. 1200 leaves room for the longest one seen without reserving a
+ * quarter of the minute for output nobody writes.
+ */
+const CONCEPT_MAX_TOKENS = 1200
+
 export function createGroqModel(options: GroqOptions): Model {
   if (typeof options.apiKey !== 'string' || options.apiKey.trim() === '') {
     /* Built from a constant, never from the credential. */
@@ -179,7 +203,118 @@ export function createGroqModel(options: GroqOptions): Model {
   const apiKey = options.apiKey
   const model = options.model ?? DEFAULT_GROQ_MODEL
 
+  /*
+   * ONE REQUEST LOOP, USED BY BOTH CALLS.
+   *
+   * `chat` and `lesson` differ only in the body they send and what they read
+   * back. Everything between -- the retry policy, which failures are worth a
+   * second attempt, honouring the service's own reset figure over our estimate,
+   * and refusing to repeat the vendor's message because it quotes the request
+   * and sometimes the credential -- is identical, and a second copy of it is a
+   * second place for the retry policy to drift.
+   */
+  async function send(body: string): Promise<unknown> {
+    let lastStatus = 0
+    let lastWhy = ''
+    /* What the service told us to wait, if it did. Preferred over the fixed
+     * waits, because it is the truth and they are an estimate. */
+    let askedToWait: number | null = null
+
+    for (let attempt = 0; attempt <= WAIT_BEFORE_RETRY_MS.length; attempt++) {
+      if (attempt > 0) {
+        const wait = askedToWait ?? WAIT_BEFORE_RETRY_MS[attempt - 1] ?? 0
+        await new Promise((resume) => setTimeout(resume, wait))
+      }
+
+      const response = await doFetch(GROQ_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+        body,
+      })
+
+      if (response.ok) return await response.json()
+
+      /* THE VENDOR'S SHORT CODES ONLY. Its MESSAGE can quote the request, and
+       * the request is not something this server repeats. The credential is
+       * in neither, and `index.ts` scrubs the response regardless. */
+      let code = ''
+      let type = ''
+      try {
+        const failure = (await response.json()) as { error?: { type?: string; code?: string } }
+        type = failure.error?.type ?? ''
+        code = failure.error?.code ?? ''
+      } catch {
+        /* A body that is not JSON tells us nothing safe to repeat. */
+      }
+      lastStatus = response.status
+      lastWhy = [type, code].filter((part) => part !== '').join('/')
+      askedToWait = waitTheServiceAsksFor(response)
+
+      if (!worthAnotherTry(response.status, code)) break
+    }
+
+    throw new Error(
+      `the model could not be reached (${lastStatus}${lastWhy === '' ? '' : ` ${lastWhy}`})`,
+    )
+  }
+
   return {
+    /*
+     * ONE TURN, TEXT IN, TEXT OUT -- the shape `authorConcept` asks for.
+     *
+     * No `response_format` and no schema. The concept prompt carries a worked
+     * example of the shape it wants and `extractJson` reads the reply
+     * defensively, which is what the browser-side author has always done. The
+     * 2800 input tokens a schema costs buy nothing here: `handler.ts` puts
+     * every reply through `validateLesson` regardless, so the vendor was never
+     * the gate.
+     *
+     * `priorAssistant` is the repair turn. Sending back what the model wrote
+     * makes "fix these problems" a correction of a document it can see;
+     * omitting it makes the same message a complaint about something it has
+     * never read.
+     */
+    async chat(system: string, user: string, priorAssistant?: string) {
+      const messages: { role: string; content: string }[] = [{ role: 'system', content: system }]
+      if (priorAssistant !== undefined && priorAssistant !== '') {
+        messages.push({ role: 'assistant', content: priorAssistant })
+      }
+      messages.push({ role: 'user', content: user })
+
+      const answered = await send(JSON.stringify({
+        model,
+        max_tokens: CONCEPT_MAX_TOKENS,
+        /*
+         * JSON MODE, WHICH IS NOT THE SAME AS A SCHEMA.
+         *
+         * `json_object` costs nothing to send -- it is a flag, not 2534
+         * characters of schema -- and it removes the one failure this path
+         * produced that had nothing to do with teaching: MEASURED,
+         * "(reply): the reply contained no JSON object", where the model
+         * answered in prose around the object and `extractJson` had nothing to
+         * take. The concept prompt already carries a worked example of the
+         * shape; this only stops the reply being wrapped in a sentence.
+         *
+         * NOT `json_schema`. That is the expensive one, it is what made the
+         * whole-lesson request unaffordable, and `handler.ts` validates every
+         * reply against `validateLesson` regardless -- so the vendor was never
+         * the gate and does not need the shape.
+         */
+        response_format: { type: 'json_object' },
+        /* The routes in `route.ts` are the variation. Sampling on top of them
+           would make a measurement unrepeatable without making a lesson any
+           better. */
+        temperature: 0,
+        messages,
+      }))
+
+      /* Read defensively at every step: this crossed a network from a vendor. */
+      const choices = (answered as { choices?: unknown }).choices
+      const first = Array.isArray(choices) ? choices[0] : undefined
+      const content = (first as { message?: { content?: unknown } } | undefined)?.message?.content
+      return typeof content === 'string' ? content : ''
+    },
+
     async lesson(brief: LessonBrief) {
       const body = JSON.stringify({
         model,
@@ -216,53 +351,9 @@ export function createGroqModel(options: GroqOptions): Model {
         ],
       })
 
-      let lastStatus = 0
-      let lastWhy = ''
-      /* What the service told us to wait, if it did. Preferred over the fixed
-       * waits, because it is the truth and they are an estimate. */
-      let askedToWait: number | null = null
-
       /* One attempt, then up to two more for failures a retry actually fixes.
-       * See `worthAnotherTry`. */
-      for (let attempt = 0; attempt <= WAIT_BEFORE_RETRY_MS.length; attempt++) {
-        if (attempt > 0) {
-          const wait = askedToWait ?? WAIT_BEFORE_RETRY_MS[attempt - 1] ?? 0
-          await new Promise((resume) => setTimeout(resume, wait))
-        }
-
-        const response = await doFetch(GROQ_URL, {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-            authorization: `Bearer ${apiKey}`,
-          },
-          body,
-        })
-
-        if (response.ok) return lessonFrom(await response.json())
-
-        /* THE VENDOR'S SHORT CODES ONLY. Its MESSAGE can quote the request, and
-         * the request is not something this server repeats. The credential is
-         * in neither, and `index.ts` scrubs the response regardless. */
-        let code = ''
-        let type = ''
-        try {
-          const failure = (await response.json()) as { error?: { type?: string; code?: string } }
-          type = failure.error?.type ?? ''
-          code = failure.error?.code ?? ''
-        } catch {
-          /* A body that is not JSON tells us nothing safe to repeat. */
-        }
-        lastStatus = response.status
-        lastWhy = [type, code].filter((part) => part !== '').join('/')
-        askedToWait = waitTheServiceAsksFor(response)
-
-        if (!worthAnotherTry(response.status, code)) break
-      }
-
-      throw new Error(
-        `the model could not be reached (${lastStatus}${lastWhy === '' ? '' : ` ${lastWhy}`})`,
-      )
+         See `send` and `worthAnotherTry`. */
+      return lessonFrom(await send(body))
     },
   }
 }

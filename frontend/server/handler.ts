@@ -34,6 +34,7 @@ import {
   withNote,
   withoutRefusedBlocks,
 } from './repair.ts'
+import { authorConcept } from '../src/canvas/teach/concept.ts'
 import { chooseStrategy, type Strategy } from './teaching.ts'
 import { injectionSignals, stripInvisible } from '../src/websearch/guard.ts'
 import { citationSupports } from '../src/websearch/quality.ts'
@@ -74,6 +75,8 @@ export interface LessonRequest {
 
 export interface ModelPort {
   lesson(request: LessonRequest): Promise<unknown>
+  /** See `Model.chat`. Present on the Groq client; absent is handled. */
+  chat?(system: string, user: string, priorAssistant?: string): Promise<string>
 }
 
 export interface SearchResult {
@@ -305,6 +308,73 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
    * ever asked. That is the same defect already found and fixed in the doubt
    * resolver, reached by a second path; this is the other copy.
    */
+  /**
+   * ONE CONCEPT, WRITTEN NOW, FOR A QUESTION NOBODY HAS SEEN BEFORE.
+   *
+   * WHY THE REFUSAL IS NOT REPAIRED HERE. `deliverable` below is a ladder for a
+   * WHOLE lesson that failed one rule, and its rungs re-judge an arc. A concept
+   * has no arc to re-judge -- `authorConcept` already validated what it
+   * returns, so a refusal here means the model could not write one atomic idea,
+   * and the honest reply is to say so rather than to serve a fragment dressed
+   * as a lesson.
+   *
+   * `unreachable` IS KEPT SEPARATE from a refusal, because "nothing answered"
+   * and "it answered and what it wrote does not teach" want different words on
+   * screen. `CanvasRoute` branches on exactly that distinction to decide
+   * whether to tell her to wait or to try a different question.
+   */
+  async function conceptFor(question: string): Promise<ServerResponse> {
+    const chat = options.model.chat
+    if (chat === undefined) throw new Error('conceptFor called without a chat-capable model')
+
+    let written
+    try {
+      written = await authorConcept(
+        (system: string, user: string, priorAssistant?: string) =>
+          chat(system, user, priorAssistant),
+        question,
+      )
+    } catch (thrown) {
+      /* The vendor's message is still dropped -- it quotes the request and
+         sometimes the credential it rejected. Our client's own sentence
+         carries the status and the short code, and nothing else. */
+      const reason = thrown instanceof Error
+        && thrown.message.startsWith('the model could not be reached')
+        ? thrown.message
+        : 'the model could not be reached'
+      return reply(502, { error: reason })
+    }
+
+    if (written.ok) return reply(200, { lesson: written.lesson })
+
+    /*
+     * A STRING, NOT A BOOLEAN, AND THE DIFFERENCE REACHED THE LEARNER.
+     *
+     * `ConceptResult` declares `unreachable?: string` -- it carries the
+     * message, so the truthy test is "is it present". Written as `=== true` it
+     * was never once satisfied, every outage fell through to the branch below,
+     * and a learner whose question was never asked was told "the model returned
+     * a lesson that failed validation". That is the precise wrong-blame defect
+     * `authorLesson` records having already paid for, arrived at again through
+     * a comparison that reads correct.
+     */
+    if (written.unreachable !== undefined) {
+      return reply(502, { error: 'the model could not be reached' })
+    }
+
+    /* The gate's own issues, verbatim. `CanvasRoute` renders them one per line
+       under "That lesson was refused", so a summary here would replace the only
+       specific thing she is told with a vaguer version of it. */
+    console.error(
+      'concept refused by validation:',
+      written.issues.map((issue) => `${issue.path}: ${issue.message}`).join(' | '),
+    )
+    return reply(502, {
+      error: 'the model returned a lesson that failed validation',
+      issues: written.issues,
+    })
+  }
+
   async function lessonFrom(
     request: LessonRequest,
     teaching: TeachingLevel,
@@ -707,6 +777,42 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
        * judge whether her question belongs here, which is the judgement the
        * software used to make for it by counting shared words. Optional: the
        * tutor page asks with no lesson around it and is answered as before. */
+      /*
+       * A FRESH QUESTION IS AUTHORED ONE CONCEPT AT A TIME. MEASURED, not
+       * preferred.
+       *
+       * Six questions across six subjects, through this server, against the
+       * real account:
+       *
+       *   whole lesson in one call   1 of 6 taught; five 502s at exactly the
+       *                              20s ceiling, and a 429 when the ceiling
+       *                              was raised
+       *   one concept per call       3 of 3 taught, in 2708ms, 4478ms, 2872ms
+       *
+       * The whole-lesson call sends an 8737-character system prompt plus a
+       * 2534-character schema and RESERVES 2000 output tokens, which is about
+       * 4800 of a budget the service reports as 8000 per minute. It could
+       * therefore serve one or two lessons a minute at best, and a single
+       * repair turn -- which re-sends the rejected lesson -- exceeded the
+       * whole minute on its own. This is not a slow model. It is a request
+       * shaped to be unaffordable.
+       *
+       * `authorConcept` is not new and is not written for this: it is the
+       * module WORK.md records at 5 of 6 against `authorLesson`'s 0 of 6, built
+       * and then never wired to anything that ships. It returns a lesson that
+       * has already been through `validateLesson`, so it arrives at the same
+       * gate by the same door.
+       *
+       * ONLY THE FRESH QUESTION. A continuation carries `taught` and
+       * `justSaid`, and the next step of a lesson in progress must be written
+       * against what she has already read -- which is what `briefFor` does and
+       * what `authorConcept` has no parameter for. Routing that here would
+       * hand her a step that ignores the one she just finished.
+       */
+      if (options.model.chat !== undefined && !nonEmptyString(body['taught'])) {
+        return await conceptFor(body['question'])
+      }
+
       return lessonFrom({
         question: body['question'],
         ...(nonEmptyString(body['askedInside']) ? { askedInside: body['askedInside'] } : {}),

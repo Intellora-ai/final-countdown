@@ -127,6 +127,38 @@ function isDayPlan(value: unknown): value is DayPlan {
   )
 }
 
+/*
+ * WHAT SHE IS TOLD WHEN THE SERVER SAID NOTHING SHE COULD READ.
+ *
+ * THE DEFECT THIS REPLACES, MEASURED IN A BROWSER. This function used to end
+ * `return \`the planner answered ${response.status}\``, and that string is
+ * rendered verbatim on the front door. Run `npm run dev` with no API server --
+ * which is what everyone who clones this repository has -- and the first thing
+ * a child reads under "Today's learning" is "the planner answered 500". It
+ * tells her the app is broken and that it is not going to say why.
+ *
+ * `tests/integration/law-c-she-never-reads-a-machine-code.spec.ts` is the law
+ * that forbids it, and it failed on exactly that sentence, twice, on the front
+ * door and behind "Hide curriculum".
+ *
+ * THREE SENTENCES, NOT ONE, FOR THE REASON `CanvasRoute` GIVES FOR ITS THREE:
+ * each wrong sentence sends her to do a different wrong thing. Told to wait,
+ * she waits for a server that is not coming back. Told it is broken, she gives
+ * up on a rate limit that clears in a minute. Each one names an action,
+ * because Law C's other half forbids silence just as firmly as it forbids a
+ * code.
+ */
+const PLANNER_BUSY =
+  'The planner has too much on right now, so today’s work has not been ' +
+  'planned yet. Wait a minute and open this again.'
+const PLANNER_SILENT =
+  'The planner is not answering right now, so today’s work has not been ' +
+  'planned yet. Nothing you have done is lost — try again in a moment.'
+const PLANNER_REFUSED =
+  'The planner could not use that request, so today’s work has not been ' +
+  'planned yet. Try again, and if it keeps happening ask someone to check ' +
+  'this app’s setup.'
+
 /** The server's own message when it gave one; it is more specific than
  *  anything this side could invent. */
 async function reasonFrom(response: { status: number; json(): Promise<unknown> }): Promise<string> {
@@ -137,10 +169,18 @@ async function reasonFrom(response: { status: number; json(): Promise<unknown> }
       if (typeof error === 'string' && error.length > 0) return error
     }
   } catch {
-    /* An unreadable body is not a reason to lose the status code, which is the
-     * only fact left. Fall through to it. */
+    /* An unreadable body is not a reason to lose the status code. It is a
+       reason not to SHOW it to her. Fall through. */
   }
-  return `the planner answered ${response.status}`
+
+  /* THE STATUS IS NOT DISCARDED, IT IS REDIRECTED. It is the only fact left
+     when the body cannot be read, and a developer needs it -- so it goes to
+     the console, which is where a developer looks and where a child does not.
+     Losing it entirely would trade one defect for another. */
+  console.warn(`almanac: the planner answered ${response.status} with no readable reason`)
+
+  if (response.status === 429) return PLANNER_BUSY
+  return response.status >= 500 ? PLANNER_SILENT : PLANNER_REFUSED
 }
 
 export function createAlmanacClient(options: { fetchImpl?: FetchLike; baseUrl?: string } = {}): AlmanacClient {

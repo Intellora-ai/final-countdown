@@ -100,7 +100,23 @@ describe('when the planner cannot answer', () => {
     expect(result).toEqual({ ok: false, reason: 'the planner is not configured on this server' })
   })
 
-  it('does not crash when an error response has no readable body', async () => {
+  it('does not crash when an error response has no readable body, and does not put the number on her screen', async () => {
+    /*
+     * THE ASSERTION CHANGED, AND IT GOT STRONGER RATHER THAN WEAKER.
+     *
+     * It used to be `toContain('500')`. `reason` is rendered verbatim on the
+     * front door, so that pinned "the planner answered 500" as the first thing
+     * a child reads under "Today's learning" with no API server running --
+     * which is what everyone who clones this repository has.
+     * `tests/integration/law-c-she-never-reads-a-machine-code.spec.ts` failed
+     * on exactly that string, on the front door and behind "Hide curriculum",
+     * and Law C is the older claim: a child never reads a machine code.
+     *
+     * So the number is not lost, it is REDIRECTED -- to the console, where a
+     * developer looks and a child does not. Both halves are asserted here;
+     * dropping the number and telling nobody would be the weaker test.
+     */
+    const warned = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const client = createAlmanacClient({
       fetchImpl: vi.fn().mockResolvedValue({
         ok: false, status: 500, json: async () => { throw new Error('not json') },
@@ -109,7 +125,18 @@ describe('when the planner cannot answer', () => {
     const result = await client.day(request)
 
     expect(result.ok).toBe(false)
-    expect(!result.ok && result.reason).toContain('500')
+    const reason = !result.ok ? result.reason : ''
+    expect(reason, 'an unreadable body left her with no reason at all').not.toBe('')
+    expect(reason, 'a status code reached the screen a child reads').not.toMatch(/\d{3}/)
+    /* Law C forbids silence as firmly as it forbids a code, and these are the
+       words it scans for. */
+    expect(reason, 'she was told it went wrong and not what to do about it')
+      .toMatch(/\b(try|check|ask|set|open|press|start|need|install|configure|contact|again|meanwhile|instead)\b/i)
+    expect(
+      warned.mock.calls.flat().join(' '),
+      'the status was dropped instead of redirected, so nobody can diagnose it',
+    ).toContain('500')
+    warned.mockRestore()
   })
 
   it('refuses an item whose carriedFrom is not a date string', async () => {

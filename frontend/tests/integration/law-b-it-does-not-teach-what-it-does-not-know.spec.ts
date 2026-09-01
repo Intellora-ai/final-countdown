@@ -89,6 +89,14 @@ test.describe('Law B -- asked something it does not teach, it says so and invent
        * FRESH, not merely reloaded -- this app remembers her conversation. */
       await sheStartsFresh(page, '/#/canvas')
       const lessonButton = choices.nth(i)
+      /* WAIT FOR THE BUTTON, THEN READ IT. `textContent()` has a 15s action
+       * timeout of its own, and on a loaded runner WebKit can take longer
+       * than that to paint the picker after a fresh start -- measured as this
+       * law's only failure on the safari leg while laptop and firefox were
+       * green. The explicit waitFor asks the real question (is the picker
+       * there yet?) with the generosity the config's header promises, and the
+       * read that follows is then instant. */
+      await lessonButton.waitFor({ timeout: 30_000 })
       const lessonName = (await lessonButton.textContent())?.trim() || `lesson ${i + 1}`
       await lessonButton.click()
       await page.waitForTimeout(2000)

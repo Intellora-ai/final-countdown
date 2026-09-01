@@ -101,7 +101,14 @@ test.describe('Law F -- back never leaves her on a blank page', () => {
       if (!name || name.length > 60) continue
       const wasAt = page.url()
       await door.click({ timeout: 5000 }).catch(() => {})
-      await page.waitForTimeout(1500)
+      /* POLL FOR THE NAVIGATION, NEVER SLEEP AT IT. A fixed 1500ms judged the
+       * router by the machine's speed: on a loaded 4-vCPU runner a hash
+       * navigation can land after the sleep, `wentSomewhere` stays false, and
+       * the law fails claiming the app has no navigation -- measured exactly
+       * once per full run, always on the slowest leg. Waiting for the URL to
+       * actually differ asks the real question, and the catch keeps a door
+       * that genuinely goes nowhere as a plain false, not a throw. */
+      await page.waitForURL((now) => now.toString() !== wasAt, { timeout: 5000 }).catch(() => {})
       if (page.url() !== wasAt) { wentSomewhere = true; break }
     }
 

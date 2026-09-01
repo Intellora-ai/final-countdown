@@ -39,6 +39,14 @@ jobs:
     name: catch-errors
     runs-on: ubuntu-latest
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       # NOT fetch-depth: 0 -- no step in this job reads git history, and the
       # full clone was ~20s of every PR spent downloading 592 commits nobody
       # opened. verify.yml and deep-verify.yml keep theirs; they diff history.
@@ -169,6 +177,14 @@ jobs:
     name: chaos
     runs-on: ubuntu-latest
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -240,6 +256,12 @@ jobs:
     name: skills
     runs-on: ubuntu-latest
     steps:
+      # EVERY TOOL'S FINDING BECOMES AN ANNOTATION. The matchers read this
+      # job's whole log: mypy, pytest's failing frame, eslint, pyright and any
+      # gcc-shaped line all land on their exact file and line in the PR view.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -273,6 +295,14 @@ jobs:
       pull-requests: write
       issues: write
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - name: Checkout the pull request branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

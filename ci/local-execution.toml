@@ -274,6 +274,17 @@ locally_runnable = "no"
 category = "GITHUB_ONLY"
 reason = "A GitHub code-scanning analysis status, not a workflow job. It has no run steps and is created by the platform on pull requests only."
 
+[contexts."catch-errors"]
+required_context = "catch-errors"
+locally_runnable = "yes"
+category = "LOCALLY_RUNNABLE"
+reason = "The repository's own linters, the three-project typecheck and the server+canvas suites -- every command reads the working tree and nothing needs a credential, a service or a browser. Required since 2026-09-02, when the owner added the context to ruleset 20990225."
+requires_network = false
+command = ["bash", "-c", "cd frontend && npm run lint && npm run typecheck && npx vitest run server src/canvas --maxWorkers=4 && cd .. && ruff check ."]
+timeout_seconds = 900
+evidence = "per-linter and per-suite PASS/FAIL, annotated to file and line"
+in_fast = true
+
 [contexts."chaos"]
 required_context = "chaos"
 locally_runnable = "yes"

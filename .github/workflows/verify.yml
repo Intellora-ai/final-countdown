@@ -58,6 +58,14 @@ jobs:
     # check: gate_integrity.py itself runs in under a second.
     timeout-minutes: 3
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # tcb_gate.py diffs against the merge base; a shallow clone
@@ -207,6 +215,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with: {python-version: '3.12', cache: pip,
@@ -262,6 +278,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with: {python-version: '3.12', cache: pip,
@@ -284,6 +308,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with: {python-version: '3.12', cache: pip,
@@ -306,6 +338,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with: {python-version: '3.12', cache: pip,
@@ -328,6 +368,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with: {python-version: '3.12', cache: pip,
@@ -350,6 +398,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with: {python-version: '3.12', cache: pip,
@@ -374,6 +430,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with: {python-version: '3.12', cache: pip,
@@ -422,6 +481,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # PROBLEM MATCHERS — turn "Process completed with exit code 1" into a red box
       # on the exact file and line.
@@ -492,6 +559,14 @@ jobs:
       contents: read
       security-events: write   # required to upload SARIF to code scanning
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # PROBLEM MATCHERS — turn "Process completed with exit code 1" into a red box
       # on the exact file and line.
@@ -708,6 +783,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with: {python-version: '3.12', cache: pip,
@@ -734,6 +817,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with: {python-version: '3.12', cache: pip,
@@ -817,6 +908,14 @@ jobs:
       contents: read
       actions: read
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with: {python-version: '3.12'}
@@ -959,6 +1058,14 @@ jobs:
       actions: read
       checks: read
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0

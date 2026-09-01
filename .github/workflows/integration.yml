@@ -85,6 +85,14 @@ jobs:
       LEARNING_OS_TEST_DATABASE_URL: postgresql+psycopg://learning:learning@localhost:5432/postgres
 
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       # Pinned to commit SHAs, not tags, and matching the SHAs the rest of this
       # repository already uses. A tag is a mutable ref the upstream owner can
       # move, so `@v4` means the same commit can run different CI on different
@@ -149,6 +157,14 @@ jobs:
     timeout-minutes: 15
 
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0

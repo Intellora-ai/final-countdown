@@ -129,6 +129,14 @@ jobs:
       # evaluates to `false` rather than erroring.
       HAS_REVIEW_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - if: env.HAS_REVIEW_TOKEN == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

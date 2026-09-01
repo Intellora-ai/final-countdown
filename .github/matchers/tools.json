@@ -27,6 +27,47 @@
           "message": 5
         }
       ]
+    },
+    {
+      "owner": "mypy",
+      "pattern": [
+        {
+          "regexp": "^(.+\\.pyi?):(\\d+): (error|warning|note): (.+)$",
+          "file": 1,
+          "line": 2,
+          "severity": 3,
+          "message": 4
+        }
+      ]
+    },
+    {
+      "owner": "pytest-tail",
+      "pattern": [
+        {
+          "regexp": "^(\\S+\\.py):(\\d+): ((?:[A-Za-z_.]*(?:Error|Exception|Failed)).*)$",
+          "file": 1,
+          "line": 2,
+          "message": 3
+        }
+      ]
+    },
+    {
+      "owner": "eslint-stylish",
+      "pattern": [
+        {
+          "regexp": "^([^\\s].*\\.(?:ts|tsx|js|jsx|mjs))$",
+          "file": 1
+        },
+        {
+          "regexp": "^\\s+(\\d+):(\\d+)\\s+(error|warning)\\s+(.+?)\\s\\s+(\\S+)$",
+          "line": 1,
+          "column": 2,
+          "severity": 3,
+          "message": 4,
+          "code": 5,
+          "loop": true
+        }
+      ]
     }
   ]
 }

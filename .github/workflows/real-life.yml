@@ -53,6 +53,12 @@ jobs:
     timeout-minutes: 20
 
     steps:
+      # EVERY TOOL'S FINDING BECOMES AN ANNOTATION. The matchers read this
+      # job's whole log: mypy, pytest's failing frame, eslint, pyright and any
+      # gcc-shaped line all land on their exact file and line in the PR view.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # PYTHON 3.12, AND THE VERSION IS LOAD-BEARING.
@@ -220,6 +226,14 @@ jobs:
         working-directory: frontend
 
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -436,6 +450,14 @@ jobs:
         working-directory: frontend
 
     steps:
+      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
+      # The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped line in this job's log into a file-and-line annotation, so
+      # an error cannot scroll past unseen. ci-findings.yml then reconciles
+      # what was emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0

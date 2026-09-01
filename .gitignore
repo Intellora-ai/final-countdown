@@ -44,6 +44,10 @@ test-results/
 # worktrees, local settings, and per-machine state.
 .claude/*
 !.claude/skills/
+# Agents travel with the repository for the same reason skills do: an agent that
+# only exists on one laptop is a convention, and conventions are what this
+# repository keeps replacing with structure.
+!.claude/agents/
 
 # Local sandbox evidence. Every `make sandbox-*` run writes argv, exit codes, durations
 # and captured output here. It is generated, machine-local, and regenerated on demand;

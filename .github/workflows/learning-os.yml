@@ -129,7 +129,37 @@ jobs:
         # `.github/workflows/integration.yml` runs them against a service
         # container and fails if the suite has shrunk. Excluding them here means
         # this job never silently loses them: it never had them.
-        run: pytest tests -q --ignore=tests/db
+        # AND IT IS MEASURED NOW, WHICH IT WAS NOT.
+        #
+        # This step ran the engine's entire suite and measured nothing. The only
+        # coverage number this repository has ever published comes from the
+        # `coverage` gate in `verify.yml`, which is `--cov=src` -- and at the
+        # repository root `src/` is `add.py`, `subtract.py`, `multiply.py` and
+        # `clamp.py`. Four arithmetic functions. `e2e.yml` says so in its own
+        # words: "`--cov=src` measures FIVE files". So the required status check
+        # that gates every merge at 95% was reporting 100% of a calculator while
+        # 2598 statements of the actual engine went uncounted, and a whole module
+        # could have arrived with no test at all without one number moving.
+        #
+        # 95, AND THE NUMBER IS THE OWNER'S STANDARD, NOT A MEASUREMENT.
+        #
+        # Measured first, so nobody mistakes the gap for an accident: 88% branch
+        # coverage over `learning_os` on 2026-09-01, 2598 statements, 277 lines
+        # and 45 branches uncovered. The root suite's own gate has said
+        # `--cov-fail-under=95` since the beginning, so 95 is the number this
+        # repository already holds itself to -- it was simply pointed at four
+        # arithmetic functions instead of at the engine.
+        #
+        # THE BAR MOVES UP TO MEET THE CODE. THE CODE DOES NOT MOVE DOWN TO MEET
+        # THE BAR. The only legitimate way to satisfy this line is a real test
+        # exercising a real path -- the LLM adapters' failure branches are where
+        # the gap lives, and they are exactly the paths a student hits when a
+        # provider is down, rate-limited or returning nonsense. Reaching 95 by
+        # lowering this number, by adding `# pragma: no cover`, or by a test that
+        # imports a module and asserts nothing would defeat the only instrument
+        # in this repository that can see an untested file, and would be a worse
+        # outcome than the red run it replaced.
+        run: pytest tests -q --ignore=tests/db --cov=learning_os --cov-branch --cov-fail-under=95
         env:
           PYTHONPATH: src
 

@@ -49,6 +49,31 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
 
+  /* THREE ENGINES, BECAUSE "IT WORKS" IS AN ENGINE-SPECIFIC CLAIM.
+   *
+   * Until now these six LAWS only ever ran on Chromium — `Desktop Chrome` and
+   * `Pixel 7` are both `defaultBrowserType: 'chromium'`, so the two projects
+   * that looked like a matrix were one engine at two viewports. Every "a person
+   * can do this" statement the suite made was really "a person on Blink can do
+   * this", and a Gecko or WebKit-only regression had nowhere to show up.
+   *
+   * The specs can afford this because of what they are allowed to see. Nothing
+   * under `tests/integration/` touches a CDP session, a coverage API or any
+   * other Chromium-protocol feature — `person.ts` exposes only ARIA roles,
+   * accessible names and visible words, and those are exactly the things that
+   * are specified across engines rather than implemented per engine. So the
+   * same eleven tests are meaningful on all three, unchanged.
+   *
+   * THE THREE DESKTOP PROJECTS SHARE ONE VIEWPORT ON PURPOSE. 1440x900 for
+   * Chrome, Firefox and Safari alike, so that when one of them goes red the
+   * engine is the only variable that differs and the failure is attributable.
+   * A different viewport per engine would make every difference ambiguous.
+   *
+   * The two original projects are byte-for-byte what they were; the phone stays
+   * Chromium because Pixel 7 is a Chromium device and pretending otherwise
+   * would be a worse lie than the gap this closes. `Desktop Safari` is WebKit,
+   * which is the engine every browser on iOS is required to use, so it is the
+   * closest honest proxy for an iPhone that a laptop can run. */
   projects: [
     {
       name: 'a-person-on-a-laptop',
@@ -57,6 +82,14 @@ export default defineConfig({
     {
       name: 'a-person-on-a-phone',
       use: { ...devices['Pixel 7'] },
+    },
+    {
+      name: 'a-person-on-firefox',
+      use: { ...devices['Desktop Firefox'], viewport: { width: 1440, height: 900 } },
+    },
+    {
+      name: 'a-person-on-safari',
+      use: { ...devices['Desktop Safari'], viewport: { width: 1440, height: 900 } },
     },
   ],
 

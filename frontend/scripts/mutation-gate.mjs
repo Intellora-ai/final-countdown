@@ -995,11 +995,43 @@ const MUTANTS = [
     to: "      db.exec('BEGIN')",
     breaks: 'a plain BEGIN takes no lock until the first write, so a second server can slip between the read and the write of one save and undo progress that was already acknowledged',
   },
+  /*
+   * RETARGETED, NOT RELAXED, AND THE OLD ANCHOR IS WHY THIS FILE FAILED CI.
+   *
+   * It read `from: "    db.exec('PRAGMA journal_mode = WAL')"`. That line does
+   * not exist: `43d46823` replaced the fire-and-forget `exec` with a
+   * `prepare().get()` that READS THE RESULTING MODE BACK, because a switch that
+   * cannot be made is reported in the pragma's answer rather than as an error.
+   * A mutant whose target is gone is not scored -- it is reported as
+   * `STALE ... could not be applied`, which is how run 33475717825's shard 1/4
+   * went red while the mutant it was supposed to prove was never applied at all.
+   *
+   * The replacement mutates BOTH halves of that read-back in one edit, and that
+   * pairing is the point. Changing only the pragma leaves the check rejecting
+   * the answer, so the store throws on startup and dies loudly -- killed, but by
+   * a crash, which is not the defect this mutant is named for. Changing only the
+   * check leaves the file genuinely in WAL, so nothing observable differs and
+   * the mutant survives. Together they restore the ORIGINAL defect, quietly: a
+   * replica running contentedly on the single-writer journal, with every test
+   * that does not read the mode still green. `switchTheJournalToWal`'s own
+   * comment names that outcome -- "the original defect, restored quietly".
+   *
+   * `m4-startup-contention.test.ts:236` is what sees it: `theJournalModeOf`
+   * opens the file with a connection that changes nothing and reads the pragma.
+   */
   {
     id: 'memory-journal-does-not-survive-a-crash',
     file: 'server/memory/sqliteStore.ts',
-    from: "    db.exec('PRAGMA journal_mode = WAL')",
-    to: "    db.exec('PRAGMA journal_mode = MEMORY')",
+    from:
+      "      const answered = db.prepare('PRAGMA journal_mode = WAL').get() as\n"
+      + '        | { journal_mode?: unknown }\n'
+      + '        | undefined\n'
+      + "      if (answered?.journal_mode === 'wal') return",
+    to:
+      "      const answered = db.prepare('PRAGMA journal_mode = MEMORY').get() as\n"
+      + '        | { journal_mode?: unknown }\n'
+      + '        | undefined\n'
+      + '      if (answered !== undefined) return',
     breaks: 'the rollback journal lives only in RAM, so a crash or power loss leaves the database torn — the one thing "memory survives restart and crash" names explicitly',
   },
 ]

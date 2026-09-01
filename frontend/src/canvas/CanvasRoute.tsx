@@ -280,6 +280,21 @@ export default function CanvasRoute({
   const navigate = useNavigate()
   const [mode, setMode] = useState<'2d' | '3d'>('2d')
   const [lessonId, setLessonId] = useState<string>(LESSONS[0].id)
+  /*
+   * WHETHER SHE HAS ASKED FOR ANYTHING YET.
+   *
+   * The canvas opened straight into a logarithm lesson nobody had asked for.
+   * `lessonId` has to default to something -- `chosen` is derived from it and a
+   * lesson must be selected before one can be shown -- so the default read as a
+   * CHOICE when it was only an initial value, and the first thing a learner saw
+   * on a page that promises to teach anything was one particular topic in
+   * maths.
+   *
+   * This separates "which lesson would be shown" from "has she asked for one",
+   * which the code had no way to tell apart. Until she asks, the stage carries
+   * the invitation instead.
+   */
+  const [opened, setOpened] = useState(false)
 
   /* A lesson written for THIS learner, on a topic nobody authored in advance.
      Null until they ask for one; once set it replaces the picked lesson, and
@@ -415,6 +430,10 @@ export default function CanvasRoute({
 
     setAuthoring(true)
     setAuthorFailed(null)
+    /* Set BEFORE the await, not after. A refusal is something she asked for and
+       must land on the stage; leaving this until success would put the
+       invitation back over the top of the reason her question failed. */
+    setOpened(true)
     try {
       /*
        * WHICH MODEL, NEVER WHETHER. See `herOwnModel` above for why this is not
@@ -657,11 +676,12 @@ export default function CanvasRoute({
             <button
               key={lesson.id}
               type="button"
-              aria-pressed={authored === null && lessonId === lesson.id}
+              aria-pressed={opened && authored === null && lessonId === lesson.id}
               onClick={() => {
                 setAuthored(null)
                 setAuthorFailed(null)
                 setLessonId(lesson.id)
+                setOpened(true)
               }}
             >
               {lesson.label}
@@ -772,7 +792,24 @@ export default function CanvasRoute({
         the screenshot baselines taken before it are still valid.
       */}
       <main className="lc-stage">
-        {result.ok ? (
+        {!opened && authored === null ? (
+          /*
+           * NOTHING, AND SAYING SO IN WORDS.
+           *
+           * Not an empty box: an empty box is indistinguishable from a page
+           * that failed to load, which is the reading this project keeps
+           * guarding against. It names the one thing to do and gets out of the
+           * way. The control it points at is the topic box above, which is
+           * enabled for everybody -- see `herOwnModel`.
+           */
+          <div className="lc-refusal" role="status">
+            <h2>What do you want to learn?</h2>
+            <p className="lc-caption">
+              Type any topic in the box above and press <strong>Teach me</strong>. Anything
+              at all — it is written for you when you ask, not chosen in advance.
+            </p>
+          </div>
+        ) : result.ok ? (
           /*
            * `key` on the lesson id, so switching subject starts the new lesson
            * at its beginning. Without it React reuses the component and the

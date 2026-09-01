@@ -746,7 +746,16 @@
   min-width: 0;
   flex: 1 1 auto;
   padding: var(--s-sm) var(--s-md);
-  border: var(--stroke-hair) solid var(--c-line);
+  /* `--c-line-strong`, THE SAME EDGE THE BUTTON BESIDE IT USES.
+   *
+   * This was `--c-line`, which resolves to rgba(255,255,255,0.09) on a
+   * near-black surface -- MEASURED in a browser: the box is 213x38 at the top
+   * left, fully rendered, opacity 1, and invisible. The `Teach me` button next
+   * to it already used `--c-line-strong` and could be seen, so the control you
+   * PRESS had an edge and the control you TYPE INTO did not. On a canvas whose
+   * whole promise is "type any topic", that is the one box that must never be
+   * hard to find. */
+  border: var(--stroke-hair) solid var(--c-line-strong);
   border-radius: var(--r-pill);
   background: var(--c-surface);
   color: var(--c-ink);

@@ -24,7 +24,16 @@
  *    off this server, so refusals carry paths and fixed wording only.
  */
 
-import { validateLesson, type TeachingLevel } from '../src/canvas/spec/validate.ts'
+import { validateLesson, type Issue, type TeachingLevel } from '../src/canvas/spec/validate.ts'
+import type { Lesson } from '../src/canvas/spec/spec.ts'
+import {
+  noteOnly,
+  onlyTeachingRules,
+  PART_OF_IT,
+  repairLesson,
+  withNote,
+  withoutRefusedBlocks,
+} from './repair.ts'
 import { chooseStrategy, type Strategy } from './teaching.ts'
 import { injectionSignals, stripInvisible } from '../src/websearch/guard.ts'
 import { citationSupports } from '../src/websearch/quality.ts'
@@ -387,6 +396,12 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
          not onto the retry meant a lesson was judged by `answer` rules, then
          re-judged by `lesson` rules on the next attempt -- a retry that can fail
          what the first attempt passed, for no reason the caller can see. */
+      /* AND `produced` MOVES WITH IT. `again` was local to this loop, so after
+         it ran, `result` described the LAST attempt while `produced` still held
+         the FIRST. Nothing read `produced` afterwards, so the mismatch was
+         invisible -- until the repair below started reading it, at which point
+         it would have repaired one lesson against another lesson's faults. */
+      produced = again
       result = validateLesson(again, { teaching })
     }
 
@@ -405,8 +420,18 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
        * reaches a learner; it goes to the process that an operator can read. */
       console.error(
         'lesson refused by validation:',
-        result.issues.map((issue) => `${issue.path}: ${issue.message}`).join(' | '),
+        result.issues
+          .map((issue) => `${issue.path}: ${issue.message}${issue.rule ? ` [${issue.rule}]` : ''}`)
+          .join(' | '),
       )
+
+      /* NOW TRY TO SERVE HER SOMETHING ANYWAY. See `deliverable` below for what
+         is attempted and, more importantly, what is not. */
+      const rescued = deliverable(produced, result.issues, teaching, questionIn(request))
+      if (rescued !== undefined) {
+        return reply(200, { ...decided, lesson: rescued.lesson, partial: true })
+      }
+
       return reply(502, {
         ...decided,
         error: 'the model returned a lesson that failed validation',
@@ -417,6 +442,90 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       })
     }
     return reply(200, { ...decided, lesson: result.lesson })
+  }
+
+  /** Whatever she actually typed, for the title of a reply built here. */
+  function questionIn(request: LessonRequest): string {
+    return request.question ?? request.concept ?? 'your question'
+  }
+
+  /**
+   * THE LAST THING TRIED BEFORE A CHILD IS TOLD "NO".
+   *
+   * A ladder, and every rung ends at the SAME `validateLesson` the browser
+   * uses. Nothing is served that has not passed it, so no rung is a way around
+   * the gate -- each one is a different attempt to get something honest THROUGH
+   * the gate.
+   *
+   *   0. Is this even a lesson? If ANY issue is structural, stop. Structural
+   *      faults are the security and integrity controls -- an unknown key, a
+   *      dangling relation, an appearance breach, a body past the schema's
+   *      ceiling (which is what refuses a leaked system prompt). There is
+   *      nothing safe in there to salvage, and the 502 is correct. This is the
+   *      validator's own distinction, not one invented here: `validate.ts:240`
+   *      only runs the teaching rules when the structural pass found nothing,
+   *      so the two kinds never mix.
+   *
+   *   1. REPAIR, then judge it at the route's OWN level. If a blank line was
+   *      all that was missing, she gets her whole lesson and the arc rules were
+   *      never bent to give it to her.
+   *
+   *   2. Judge the repaired lesson as an ANSWER, and say so at the top of it.
+   *      This is the arc-less case: a real reply that is not shaped like a
+   *      taught lesson. `validate.ts` already draws this exact distinction in
+   *      its own words -- "a DOUBT ANSWER owes none of that" -- and the CHUNK
+   *      rules stay on, so the wall of text the arc rules were never about
+   *      still cannot get through here.
+   *
+   *   3. Drop the blocks still being refused and show what is left.
+   *
+   *   4. Say, in words, that it could not be done. Nothing of the model's
+   *      reaches her, and she is not left staring at a dead screen.
+   *
+   * WHAT IS NEVER DONE: writing a definition, inventing a summary, choosing
+   * which word to mark, re-roling a block or reordering a lesson. Every one of
+   * those is the server teaching her something nobody checked, and the census
+   * for this change measured that all 17 arc rules need exactly that. So the
+   * arc is never repaired -- only re-judged as what it actually is.
+   */
+  function deliverable(
+    produced: unknown,
+    issues: readonly Issue[],
+    teaching: TeachingLevel,
+    question: string,
+  ): { lesson: Lesson } | undefined {
+    const served = (candidate: unknown, level: TeachingLevel): Lesson | undefined => {
+      const checked = validateLesson(candidate, { teaching: level })
+      return checked.ok ? checked.lesson : undefined
+    }
+
+    if (onlyTeachingRules(issues)) {
+      const mended = repairLesson(produced, issues)
+      if (mended !== undefined) {
+        console.error('lesson repaired without inventing content:', mended.rules.join(', '))
+
+        /* 1. Good enough for the route that was asked. Whole lesson, no note. */
+        const whole = served(mended.lesson, teaching)
+        if (whole !== undefined) return { lesson: whole }
+      }
+
+      const best = mended?.lesson ?? produced
+
+      /* 2. Not a lesson, but a true answer. */
+      const asAnswer = served(withNote(best, PART_OF_IT), 'answer')
+      if (asAnswer !== undefined) return { lesson: asAnswer }
+
+      /* 3. Whatever survives once the refused blocks are gone. */
+      const pruned = withoutRefusedBlocks(best, issues)
+      if (pruned !== undefined) {
+        const rest = served(withNote(pruned, PART_OF_IT), 'answer')
+        if (rest !== undefined) return { lesson: rest }
+      }
+
+      /* 4. The floor: the honest sentence, and nothing of the model's. */
+      return { lesson: served(noteOnly(question), 'answer') } as { lesson: Lesson } | undefined
+    }
+    return undefined
   }
 
   /** Who the server believes is asking, and whether it had to decide for itself. */

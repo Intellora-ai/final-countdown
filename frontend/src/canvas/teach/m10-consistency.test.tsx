@@ -14,6 +14,7 @@ import {
 } from './teachStore'
 import type { Lesson } from '../spec/spec'
 import { validateLesson } from '../spec/validate'
+import { deriveBeats } from './beats'
 import { TeachView } from './TeachView'
 
 /**
@@ -362,6 +363,61 @@ function seen(root: ParentNode): { checkpoint: string; questions: string[]; bloc
  *  detector: one thing the learner did is one thing on the screen. */
 function entriesFor(root: ParentNode, question: string): number {
   return transcript(root).filter((asked) => asked === question).length
+}
+
+/**
+ * Two block titles from one lesson: one the first beat shows, one only a later
+ * beat shows. Read off `deriveBeats`, never written down here.
+ *
+ * WHY THIS IS DERIVED, MEASURED 2026-09-01.
+ *
+ * The three "refuses X's conversation to Y" cases below pinned two literal
+ * strings -- "Reported accuracy" present, "What the data actually contains"
+ * absent -- and both were correct on the day they were written. Then
+ * `7b608488 merge: bring 115 commits of main into codex` brought in the beats
+ * "complete idea" rule from the other branch, which recut `classifierEvaluation`:
+ *
+ *     before   [headline] [imbalance] [confusion roc] ...
+ *     after    [what-accuracy-is headline imbalance] [confusion roc] ...
+ *
+ * `imbalance` IS the first beat now, so a lesson opening correctly at its own
+ * first beat legitimately shows "What the data actually contains", and the
+ * assertion demanding its absence failed the product for being right. Measured
+ * before changing anything: the switched-to lesson's `seen()` is byte-identical
+ * to a pristine first open of that same lesson, and `loadTeachProgress` for it
+ * returns null -- so nothing leaks, and the leak the test hunts is not there.
+ *
+ * The property the test is FOR is unchanged and is what these two labels still
+ * check: the lesson opened at its OWN first beat rather than carrying the
+ * previous lesson's position. Deriving them means the next change to the beat
+ * rule recuts the expectation with the product instead of failing it.
+ *
+ * It THROWS rather than skipping when a lesson has only one beat. A lesson that
+ * cannot distinguish "first beat" from "a later beat" cannot support this
+ * check, and a silently skipped case is a case that cannot fail.
+ */
+function labelsAcrossTheBeatCut(lesson: Lesson): { atFirstBeat: string; onlyLater: string } {
+  const beats = deriveBeats(lesson)
+  const titleOf = (id: string): string | undefined =>
+    lesson.blocks.find((block) => block.id === id)?.title
+
+  const firstBeatTitles = (beats[0]?.blockIds ?? []).map(titleOf).filter((t) => t !== undefined)
+  const atFirstBeat = firstBeatTitles[0]
+  const onlyLater = beats
+    .slice(1)
+    .flatMap((beat) => beat.blockIds)
+    .map(titleOf)
+    .find((title) => title !== undefined && !firstBeatTitles.includes(title))
+
+  if (atFirstBeat === undefined || onlyLater === undefined) {
+    throw new Error(
+      `labelsAcrossTheBeatCut: "${lesson.id}" cuts into ${beats.length} beat(s) and does not offer ` +
+        'both a titled block in the first beat and a differently-titled one after it. ' +
+        'This case cannot prove where the lesson opened. That is a bug in this test data, ' +
+        'not in the product.',
+    )
+  }
+  return { atFirstBeat, onlyLater }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -728,16 +784,79 @@ describe("what's seen matches saved state", () => {
         "another lesson's conversation was shown against this one",
       ).toEqual([])
       expect(field().value, "another lesson's draft was restored into this one").toBe('')
+      const cut = labelsAcrossTheBeatCut(ml(second))
       expect(
-        screen.queryByText('Reported accuracy'),
+        screen.queryByText(cut.atFirstBeat),
         'the different lesson did not open at its first beat',
       ).not.toBeNull()
       expect(
-        screen.queryByText('What the data actually contains'),
+        screen.queryByText(cut.onlyLater),
         "the different lesson opened at the previous lesson's beat",
       ).toBeNull()
     })
   }
+
+  /**
+   * THE SWITCH THAT HAPPENS WITHOUT A REMOUNT, WHICH NOTHING COVERED.
+   *
+   * Every case above changes lesson through `reopen`, and `reopen` calls
+   * `closeTab`, which unmounts. That is the reload path. It is NOT the path a
+   * learner takes when the lesson changes under a mounted view, and the two run
+   * different code: a remount re-runs the `useState` initialisers, while an
+   * in-place change is caught only by the `taught`-ref branch at
+   * `TeachView.tsx:213-227`, which resets `revealed`, `asked`, `draft` and the
+   * counters by hand.
+   *
+   * MEASURED 2026-09-01, and this is why the test exists. Deleting
+   * `setRevealed(next?.revealed ?? 1)` from that branch — so a switched-to
+   * lesson keeps the previous lesson's beat, the exact defect line 738 above is
+   * written against — left the whole of `src/canvas/teach` green: 26 files, 453
+   * tests, no new failures. `grep -rn "rerender" src` returned nothing. The
+   * branch was reachable and unguarded.
+   *
+   * It is reachable in production, not only in theory. `CanvasRoute.tsx:590`
+   * passes `key={chosen.id}`, which forces a remount and is safe. But
+   * `LearnView.tsx:176` renders `<TeachView lesson={deeper} …>` with no key,
+   * and `AskView.tsx:99` does the same — so on those routes a new lesson
+   * arrives as a prop change into a live component.
+   */
+  it('switching the lesson in place, with no remount, opens the new one at its own first beat', async () => {
+    const from = ml('switched-away-from')
+    const to = ml('switched-into')
+
+    const view = await open(from, { ask: answersEverything() })
+    const atFirstBeat = seen(view.container)
+
+    /* A statement, not a question: `classifyTurn` reads it as an ANSWER and the
+       beat advances. Asserted rather than assumed — if the lesson never moved,
+       the switch below would be proving nothing. */
+    await sendAndSettle(ANSWERS[0])
+    const advanced = seen(view.container)
+    expect(
+      advanced.blocks.length,
+      'the first lesson never advanced a beat, so this case cannot prove a beat is reset',
+    ).toBeGreaterThan(atFirstBeat.blocks.length)
+
+    /* THE SWITCH. Same component instance, new lesson prop, no unmount and no
+       storage round trip. */
+    view.rerender(<TeachView lesson={to} mode="2d" ask={answersEverything()} />)
+    await settle()
+
+    const cut = labelsAcrossTheBeatCut(to)
+    expect(
+      screen.queryByText(cut.atFirstBeat),
+      'the switched-into lesson did not open at its first beat',
+    ).not.toBeNull()
+    expect(
+      screen.queryByText(cut.onlyLater),
+      "the switched-into lesson kept the previous lesson's beat",
+    ).toBeNull()
+    expect(
+      transcript(view.container),
+      "the previous lesson's conversation survived the switch",
+    ).toEqual([])
+    expect(field().value, "the previous lesson's draft survived the switch").toBe('')
+  })
 
   it('refuses the machine-learning conversation to the civics lesson', async () => {
     /* The same rule where the two lessons are genuinely different documents and

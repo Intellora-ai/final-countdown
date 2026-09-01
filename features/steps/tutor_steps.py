@@ -136,9 +136,20 @@ def _an_engine_serving(context, results: list[dict[str, str]]) -> None:
     # child process reads. A literal, because this steps file runs OUTSIDE the
     # engine's package path and an import here would be a second installation
     # requirement for the suite.
+    #
+    # THE DETERMINISTIC FAKE, PINNED ON PURPOSE. CI exports
+    # `LEARNING_OS_LLM_PROVIDER: groq` for this suite, and a grounded scenario
+    # riding the real model fails on any day the daily token budget is spent --
+    # a red required check about a vendor's clock, not about this code. What
+    # these scenarios prove is the RETRIEVAL path: a real process reaching a
+    # real engine over a real socket, sources entering the contract, the
+    # citation rules deciding. The fake is the reference implementation of the
+    # model boundary and honours sourced contracts deterministically; "a real
+    # model answered" stays proven by the scenarios that exist to prove it.
     context.search_env = {
         "LEARNING_OS_SEARCH_ENDPOINT":
-            f"http://127.0.0.1:{server.server_port}/search?q={{query}}&n={{limit}}"
+            f"http://127.0.0.1:{server.server_port}/search?q={{query}}&n={{limit}}",
+        "LEARNING_OS_LLM_PROVIDER": "fake",
     }
 
 

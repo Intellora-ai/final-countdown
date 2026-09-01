@@ -235,7 +235,12 @@ test.describe('reduced motion holds the simulation still', () => {
     try {
       await page.emulateMedia({ reducedMotion: 'no-preference' })
       await page.goto('/#/canvas')
-      await settle(page)
+      /* No settle before the click: the landing is BLANK by design now (the
+         auto-staged logarithm lesson was removed on purpose), and `settle`
+         refuses a page with zero blocks -- correctly, everywhere else -- so a
+         pre-click settle can only time out. The picker is awaited instead, and
+         the settle AFTER the click still guards everything the screenshots
+         compare. */
       await page.getByRole('button', { name: 'Physics', exact: true }).click()
       await settle(page)
       const surface = surfaceOf(page)

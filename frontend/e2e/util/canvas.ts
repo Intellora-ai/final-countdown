@@ -62,7 +62,23 @@ export function bodyBlocks(page: Page): Locator {
   return page.locator('.lc-teach__grid > .lc-teach__cell > .lc-block')
 }
 
-/** Open the canvas and wait for the first beat to paint. */
+/**
+ * Open the canvas and wait for the LESSON PICKER, not for lesson blocks.
+ *
+ * This used to wait for `bodyBlocks`, and that was correct while /#/canvas
+ * auto-staged a logarithm lesson on arrival. That auto-staging was removed on
+ * purpose -- "it opened into a logarithm lesson nobody had asked for" -- so
+ * the landing is now BLANK by design, and a wait for blocks here spun for its
+ * full 30 seconds on every visual and scene test, twice with the retry: ten
+ * failures, all reading `TimeoutError` at this line, none of them about the
+ * thing the spec asserts.
+ *
+ * NOTHING DOWNSTREAM LOST ITS GUARANTEE. Every spec stages a lesson through
+ * `teach()`, which clicks the picker and then performs the SAME
+ * `bodyBlocks().first().waitFor(...)` before anyone screenshots or counts --
+ * so blocks are still awaited, at the moment they are actually supposed to
+ * exist.
+ */
 export async function open(page: Page, testInfo: TestInfo): Promise<void> {
   /* Before navigation: the simulation reads the motion preference during its
    * first render, and applying it after paint would exercise the change
@@ -70,7 +86,9 @@ export async function open(page: Page, testInfo: TestInfo): Promise<void> {
    * project `use.reducedMotion` to the page fixture -- see util/media.ts. */
   await applyProjectMedia(page, testInfo)
   await page.goto(ROUTE)
-  await bodyBlocks(page).first().waitFor({ timeout: 30_000 })
+  await page
+    .getByRole('button', { name: LESSONS[0].label, exact: true })
+    .waitFor({ timeout: 30_000 })
 }
 
 /**

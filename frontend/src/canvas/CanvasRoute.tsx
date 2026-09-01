@@ -170,9 +170,31 @@ async function askTheServer(
       /** See `TutorTurn`. Absent when the whole-lesson path answered. */
       turn: TutorTurn | null
     }
+  /**
+   * THE SERVER ASKED A QUESTION BACK, WHICH IS NOT A FAILURE.
+   *
+   * `controller.ts` may answer ASK_CLARIFICATION -- it genuinely could not tell
+   * what was wanted -- and the server replies with a question instead of a
+   * lesson. That reply had no branch here, so `isLessonShaped` rejected it and
+   * the learner was told "the server returned something that is not a lesson":
+   * a tutor asking what they meant, rendered as a fault.
+   *
+   * Carried as its own case rather than folded into `issues`, because the
+   * banner that renders issues says "This lesson was refused" and nothing was
+   * refused. It is a turn in a conversation.
+   */
+  | { ok: false; clarify: string }
   | { ok: false; issues: Issue[] }
 > {
-  let body: { lesson?: unknown; error?: unknown; route?: unknown; checkpoint?: unknown; next?: unknown }
+  let body: {
+    lesson?: unknown
+    error?: unknown
+    route?: unknown
+    checkpoint?: unknown
+    next?: unknown
+    clarify?: unknown
+    question?: unknown
+  }
   try {
     const response = await fetch('/api/ask', {
       method: 'POST',
@@ -264,6 +286,18 @@ async function askTheServer(
    * this gate and be refused by the identical gate one component later. The
    * caller carries it through so the two gates are one gate.
    */
+  /* See the `clarify` case above: a question back, not a failed lesson. */
+  if (body?.clarify === true) {
+    const asked = body.question
+    return {
+      ok: false,
+      clarify:
+        typeof asked === 'string' && asked.trim() !== ''
+          ? asked.trim()
+          : 'What would you like me to do — teach something new, go over it again, or set you some practice?',
+    }
+  }
+
   const level: TeachingLevel =
     typeof body?.route === 'string' && body.route.trim() !== '' ? 'answer' : 'lesson'
   const checked = validateLesson(body?.lesson, { teaching: level })
@@ -424,6 +458,15 @@ export default function CanvasRoute({
    * gate to let a tutor ask a question. See `TutorTurn`.
    */
   const [turn, setTurn] = useState<TutorTurn | null>(null)
+
+  /*
+   * THE QUESTION THE TUTOR ASKED BACK, IF IT ASKED ONE.
+   *
+   * Apart from `authorFailed` because it is not a failure. Cleared when they
+   * ask again, so an answered question does not sit above the lesson that
+   * answered it.
+   */
+  const [askedBack, setAskedBack] = useState<string | null>(null)
   const [authoring, setAuthoring] = useState(false)
   const [authorFailed, setAuthorFailed] = useState<Issue[] | null>(null)
 
@@ -565,6 +608,7 @@ export default function CanvasRoute({
     /* The previous topic's follow-up must not sit under the next topic's
        lesson. Cleared as the question is asked, not when the answer lands. */
     setTurn(null)
+    setAskedBack(null)
     /*
      * THE LAST ANSWER GOES BEFORE THE NEXT QUESTION IS ASKED.
      *
@@ -622,6 +666,14 @@ export default function CanvasRoute({
           setAuthoredLevel(written.teaching)
           setTurn(written.turn)
           setAuthored(written.lesson)
+        } else if ('clarify' in written) {
+          /* A QUESTION BACK IS NOT A REFUSAL. `controller.ts` chose
+             ASK_CLARIFICATION -- it could not tell what was wanted and said so.
+             Rendering that under "This lesson was refused" would turn a tutor's
+             question into an error message. */
+          setAuthored(null)
+          setAuthorFailed(null)
+          setAskedBack(written.clarify)
         } else {
           setAuthored(null)
           setAuthorFailed(written.issues)
@@ -876,8 +928,18 @@ export default function CanvasRoute({
    * where it was tested -- `setOpened(true)` runs before anything that can set
    * `authored` -- so it read as a condition and was dead weight.
    */
-  const stage: 'inviting' | 'writing' | 'showing' =
-    !opened ? 'inviting' : askedForATopic && authored === null ? 'writing' : 'showing'
+  /* `asking` is the controller's ASK_CLARIFICATION reaching the screen. It sits
+     above `writing` because a question that has arrived is not a lesson still
+     being written -- and below `inviting`, because someone who has not opened
+     anything has not been asked anything either. */
+  const stage: 'inviting' | 'asking' | 'writing' | 'showing' =
+    !opened
+      ? 'inviting'
+      : askedBack !== null
+        ? 'asking'
+        : askedForATopic && authored === null
+          ? 'writing'
+          : 'showing'
 
   const askBox = (
   <form
@@ -1055,28 +1117,45 @@ export default function CanvasRoute({
               Anything at all — it is written for you when you ask, not chosen in advance.
             </p>
           </div>
+        ) : stage === 'asking' ? (
+          /*
+           * THE TUTOR ASKED SOMETHING BACK.
+           *
+           * The same shape as the invitation, because it is the same moment:
+           * a question on the stage and the box to answer it in directly
+           * below. `askedBack` is the controller's own words, never ours.
+           */
+          <div className="lc-blank">
+            <h2>{askedBack}</h2>
+            {askBox}
+          </div>
         ) : stage === 'writing' ? (
           /*
-           * THEY ASKED, AND THEIR LESSON IS NOT HERE YET. SHOW NOTHING.
+           * WAITING IS NOT NOTHING, AND A BLANK SCREEN SAYS NOTHING.
            *
-           * The stage is deliberately empty here, and this is the one place in
-           * the canvas where that is right. Every other empty state in this
-           * file is filled with words because an empty box reads as a page that
-           * failed to load -- but the alternative here was not words, it was
-           * THE WRONG LESSON: `result` falls back to `picked`, and `picked` is
-           * `LESSONS[0]`, logarithms. A maths lesson appearing after a question
-           * about photosynthesis is not a weaker answer than a blank stage, it
-           * is a false one, and the learner has no way to tell it apart from a
-           * product that ignored what they typed.
+           * This branch deliberately rendered an empty stage, on the argument
+           * that showing the WRONG lesson -- the picker's logarithms -- was
+           * worse than showing nothing. That argument was right about the
+           * logarithms and wrong about the conclusion: blank was never the only
+           * alternative to wrong.
            *
-           * Nothing is lost by being empty, because the state is already stated
-           * somewhere the learner is looking: the button they just pressed says
-           * "Writing..." while this branch is on screen, and if it ends in a
-           * refusal the banner above says so in the model's own words. The live
-           * region carries the same fact to a screen reader, which cannot see
-           * the button change.
+           * A learner who presses Teach me and sees an empty page has no way to
+           * tell it apart from a page that failed to load, and on a local model
+           * they can sit there for thirty seconds. What is shown here is
+           * neither a lesson nor a guess: it is THEIR OWN QUESTION, which is the
+           * one thing that is certainly true, and a plain statement of what is
+           * happening to it.
            */
-          <div className="lc-writing" />
+          <div className="lc-blank">
+            <h2 className="lc-writing-topic">{topic.trim() === '' ? 'Writing your lesson' : topic}</h2>
+            <p className="lc-caption">
+              Writing this for you now. It is being written from scratch, so it takes a few
+              seconds.
+            </p>
+            <div className="lc-writing-bar" aria-hidden="true">
+              <span />
+            </div>
+          </div>
         ) : result.ok ? (
           /*
            * `key` on the lesson id, so switching subject starts the new lesson

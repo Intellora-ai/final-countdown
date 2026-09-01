@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { chooseProvider } from './provider.ts'
+import { chooseProvider, hostedProviders } from './provider.ts'
 
 describe('choosing a provider', () => {
   it('uses the local model when OLLAMA_MODEL names one', () => {
@@ -64,5 +64,79 @@ describe('choosing a provider', () => {
     let message = ''
     try { chooseProvider({}) } catch (error) { message = String(error) }
     expect(message).toMatch(/ollama/i)
+  })
+})
+
+describe('a Gemini key is all it takes', () => {
+  /* Google publishes an OpenAI-compatible endpoint, so Gemini needs no new
+     client -- which is the entire reason `groq.ts` was generalised. */
+  it('is chosen ahead of the others, and only its key is read', () => {
+    const chosen = chooseProvider({
+      GEMINI_API_KEY: 'AIza-test',
+      GROQ_API_KEY: 'gsk_test',
+      MOONSHOT_API_KEY: 'sk-test',
+    })
+    expect(chosen.kind).toBe('openai-compatible')
+    if (chosen.kind === 'openai-compatible') {
+      expect(chosen.vendor).toBe('gemini')
+      expect(chosen.apiKey).toBe('AIza-test')
+      expect(chosen.baseUrl).toContain('generativelanguage.googleapis.com')
+      expect(chosen.model).toBe('gemini-2.5-flash-lite')
+    }
+  })
+
+  it('takes a different model or endpoint without a code change', () => {
+    const chosen = chooseProvider({
+      GEMINI_API_KEY: 'AIza-test',
+      GEMINI_MODEL: 'gemini-2.5-pro',
+      GEMINI_BASE_URL: 'https://example.test/v1',
+    })
+    if (chosen.kind === 'openai-compatible') {
+      expect(chosen.model).toBe('gemini-2.5-pro')
+      expect(chosen.baseUrl).toBe('https://example.test/v1')
+    }
+  })
+
+  it('is listed as a standby when another vendor is primary', () => {
+    const all = hostedProviders({ MOONSHOT_API_KEY: 'sk-x', GEMINI_API_KEY: 'AIza-y' })
+    expect(all.map((p) => p.vendor)).toEqual(['gemini', 'moonshot'])
+  })
+})
+
+describe('the vendors a key can actually select', () => {
+  /* A vendor is DATA in this file -- a base URL and a default model -- so the
+     thing worth testing is that a key selects one, in the documented order,
+     with the endpoint and model the table names. */
+  it('builds a Mistral client from MISTRAL_API_KEY alone', () => {
+    const built = hostedProviders({ MISTRAL_API_KEY: 'mk_test' })
+    expect(built).toHaveLength(1)
+    expect(built[0]?.vendor).toBe('mistral')
+    expect(built[0]?.baseUrl).toBe('https://api.mistral.ai/v1')
+    expect(built[0]?.model).toBe('mistral-large-latest')
+    expect(built[0]?.keyVar, 'a failure would name the wrong variable').toBe('MISTRAL_API_KEY')
+  })
+
+  it('lets the endpoint and model be moved without a code change', () => {
+    /* Every default here is overridable on purpose: none of these base URLs has
+       been verified against a live endpoint from this machine, so a wrong one
+       must be a variable and never a release. */
+    const built = hostedProviders({
+      MISTRAL_API_KEY: 'mk_test',
+      MISTRAL_MODEL: 'mistral-small-latest',
+      MISTRAL_BASE_URL: 'https://example.test/v1',
+    })
+    expect(built[0]?.model).toBe('mistral-small-latest')
+    expect(built[0]?.baseUrl).toBe('https://example.test/v1')
+  })
+
+  it('keeps the documented order when several keys are held at once', () => {
+    /* The three keys in hand today. Order decides who teaches on a healthy day,
+       and `failover` walks this list as it stands. */
+    const built = hostedProviders({
+      GEMINI_API_KEY: 'g',
+      ZAI_API_KEY: 'z',
+      MISTRAL_API_KEY: 'm',
+    })
+    expect(built.map((one) => one.vendor)).toEqual(['gemini', 'zai', 'mistral'])
   })
 })

@@ -864,3 +864,34 @@
 
 .lc-turn-next button:hover:not(:disabled) { border-color: var(--c-accent, #5eead4); }
 .lc-turn-next button:disabled { opacity: 0.5; cursor: default; }
+
+/* WAITING, SHOWN. See `CanvasRoute`'s writing branch: an empty stage reads as a
+   page that failed to load, which is the one thing it must never look like. */
+.lc-writing-topic {
+  margin: 0 0 var(--space-2, 8px);
+  color: var(--c-ink, #e7eef2);
+}
+
+.lc-writing-bar {
+  width: 100%;
+  max-width: 22rem;
+  height: var(--stroke-2, 2px);
+  margin-top: var(--space-3, 12px);
+  background: var(--c-line, #24323a);
+  border-radius: var(--radius-pill, 999px);
+  overflow: hidden;
+}
+
+.lc-writing-bar span {
+  display: block;
+  width: 40%;
+  height: 100%;
+  background: var(--c-accent, #5eead4);
+  border-radius: inherit;
+  animation: lc-writing-slide 1.4s ease-in-out infinite;
+}
+
+@keyframes lc-writing-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}

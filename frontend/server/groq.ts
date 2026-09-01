@@ -105,6 +105,43 @@ export interface GroqOptions {
    * Absent keeps `GROQ_API_KEY`, so every existing caller reads as before.
    */
   readonly keyVar?: string
+  /**
+   * WHETHER THIS CLIENT SHOULD SIT OUT A RATE LIMIT, OR HAND IT UP AT ONCE.
+   *
+   * `WAIT_BEFORE_RETRY_MS` is `[800, 14_000]`, so a 429 the vendor puts no
+   * clock on costs 14.8 SECONDS OF PURE WAITING before the caller hears about
+   * it. Those numbers were tuned when one vendor was all there was, and waiting
+   * was then the only fix there could be -- which is still true for the LAST
+   * client in a failover chain.
+   *
+   * It is exactly wrong for every client before it. MEASURED on the running
+   * server: Gemini answered 429, this client waited out its pauses twice, and
+   * `POST /api/ask` came back 502 after 31.5s with a Groq key configured and
+   * Groq never asked. Another vendor's quota is a different quota, and reaching
+   * it costs one round trip against fifteen seconds of sitting still.
+   *
+   * SET BY WHOEVER KNOWS THERE IS AN ALTERNATIVE, which is `index.ts`, because
+   * it is the code that builds the list. This client cannot know -- it has
+   * never been told another exists -- and a client that guessed would be
+   * guessing about something it cannot see.
+   *
+   * DEFAULTS TO TRUE, so a single client built anywhere behaves exactly as it
+   * always has: it waits, because for it waiting really is the whole fix.
+   */
+  readonly waitOutRateLimits?: boolean
+  /**
+   * WHAT ONE CONCEPT MAY RESERVE HERE. See `Vendor.conceptTokens`.
+   *
+   * `CONCEPT_MAX_TOKENS` below is the maximum over every vendor, because it had
+   * to be -- one constant serving five hosts must clear the longest-writing one
+   * or it truncates. That makes it the WRONG number for all the others: this
+   * model's measured worst case is 791 and it was reserving 1400, handing back
+   * nothing on an account measured at `Used 199967` of 200,000 per day.
+   *
+   * Defaulted, so a client built anywhere else reserves exactly what it always
+   * did.
+   */
+  readonly conceptTokens?: number
 }
 
 /**
@@ -355,13 +392,23 @@ const WHOLE_REQUEST_DEADLINE_MS = 45_000
  * low the thinking is an order of magnitude smaller and the number that failed
  * is not the number being set.
  *
- * 26% OF HEADROOM over the worst measured reply, and a truncation is not
- * silent: it arrives as `json_validate_failed`, which `worthAnotherTry` already
- * retries, and the repair turn re-asks. The failure mode of being slightly too
- * low is a second attempt; the failure mode of being far too high is a spent
- * account, which is what actually happened.
+ * 1400, NOT 1000, AND THE EXTRA 400 IS GEMINI'S. The 791 worst case above is
+ * `gpt-oss`. Gemini writes longer: measured at 658 completion tokens for a
+ * SIMPLER ask than a real concept, and at 1000 the full concept came back
+ * truncated -- reaching the learner as "the reply contained no JSON object",
+ * which reads like a broken model rather than a ceiling we set.
+ *
+ * NOT BACK TO 2000. That reserved 1,209 tokens beyond anything ever observed
+ * and is what spent a day's budget in an afternoon. 1400 clears the largest
+ * measured reply by a wide margin and still returns 600 tokens per request to
+ * the rate limit.
+ *
+ * HONESTLY UNFINISHED: Gemini's exact worst case is not measured, because the
+ * free tier rate-limited the measurement. If truncations reappear, the number
+ * to move is this one, and the evidence to collect is `usage.completion_tokens`
+ * on a `finish_reason: length`.
  */
-const CONCEPT_MAX_TOKENS = 1000
+const CONCEPT_MAX_TOKENS = 1400
 
 /**
  * How hard the model is asked to think before it writes.
@@ -426,8 +473,38 @@ const CONCEPT_REASONING_EFFORT = 'low'
  * one and nobody would notice, because the failure is a slower lesson rather
  * than an error.
  */
-function understandsReasoningEffort(model: string): boolean {
-  return model.includes('gpt-oss')
+/**
+ * HOW MUCH THINKING TO ASK FOR, PER FAMILY, OR NOT TO ASK AT ALL.
+ *
+ * The field is not portable and the right VALUE is not portable either. Three
+ * behaviours, all measured here against a full-size request:
+ *
+ *   gpt-oss        effort low   6 of 6 answered, 30-272 thinking tokens
+ *                  (absent)     2 of 4; the thinking ate the reply budget)
+ *   gemini-2.5     effort none  finish=stop,   658 written, JSON complete
+ *                  effort low   finish=length, 335 written, JSON truncated
+ *                  (absent)     "the reply contained no JSON object"
+ *   everything else  absent     qwen3.8 with `low` returned finish=length
+ *                               and truncated every reply; without it, stop
+ *
+ * The shape is the same in all three cases and the answer is different in all
+ * three, which is why this is a lookup and not a boolean. A model nobody has
+ * measured gets nothing sent, because that is the only setting known not to
+ * make things worse.
+ *
+ * GEMINI THINKS BY DEFAULT AND BILLS IT TO THE SAME BUDGET. Measured on a
+ * trivial call: 18 prompt + 5 completion, `total_tokens` 49 -- the missing 26
+ * are thoughts. On a real concept that overhead is what truncated the JSON,
+ * and the failure arrived as "no JSON object", which reads like a bad model
+ * rather than a budget spent on reasoning nobody reads.
+ */
+function reasoningEffortFor(model: string): string | undefined {
+  if (model.includes('gpt-oss')) return CONCEPT_REASONING_EFFORT
+  /* Gemini 2.5 and later accept the field through the OpenAI-compatible layer
+     and map it onto a thinking budget. `none` is the only value measured to
+     leave the whole reservation for the reply. */
+  if (model.includes('gemini')) return 'none'
+  return undefined
 }
 
 /*
@@ -478,6 +555,12 @@ export function createGroqModel(options: GroqOptions): Model {
    *            `doFetch is not a function` from inside the retry loop, three
    *            attempts and fourteen seconds later.
    */
+  /* See `GroqOptions.waitOutRateLimits`. Read once, here, so the retry loop
+     reads a constant rather than an options object that a caller still holds. */
+  const waitOutRateLimits = options.waitOutRateLimits
+  /* See `GroqOptions.conceptTokens`. The shared constant is the fallback, not
+     the rule. */
+  const conceptTokens = options.conceptTokens ?? CONCEPT_MAX_TOKENS
   const rawFetch = options.fetchImpl ?? (globalThis.fetch as unknown as FetchLike | undefined)
   if (typeof rawFetch !== 'function') {
     throw new Error('no fetch is available; pass fetchImpl or run on a runtime that has fetch')
@@ -642,6 +725,49 @@ export function createGroqModel(options: GroqOptions): Model {
         .join(' — ')
       askedToWait = waitTheServiceAsksFor(response)
 
+      /*
+       * A RATE LIMIT GOES STRAIGHT UP WHEN SOMEBODY ELSE COULD ANSWER IT.
+       *
+       * `worthAnotherTry` is about whether a SECOND ATTEMPT AT THIS VENDOR can
+       * succeed, and for a 429 it can -- after the wait. This asks the
+       * different question the deadline actually turns on: is waiting the best
+       * use of the learner's time? When a standby exists it is not, and
+       * `waitOutRateLimits` is how the layer that can see the standby says so.
+       *
+       * WHATEVER THE VENDOR CALLED IT. Groq sends `429 rate_limit_exceeded` and
+       * Gemini sends a bare `429`; reading the STATUS rather than a short code
+       * is what stops one vendor's wording deciding the product's behaviour --
+       * the same mistake that disabled failover entirely. 413 is included only
+       * on the vendor's own budget code, exactly as `worthAnotherTry` has it,
+       * because a genuinely oversized payload is not a rate limit.
+       */
+      const rateLimited = response.status === 429 || code === 'rate_limit_exceeded'
+      if (rateLimited && waitOutRateLimits === false) break
+      /*
+       * A DAY DOES NOT REFILL IN FORTY-FIVE SECONDS.
+       *
+       * `budget` is rebuilt above from the vendor's own sentence, and it
+       * distinguishes the two things a 429 can mean: a per-MINUTE ceiling that
+       * clears in seconds, and a per-DAY one that does not clear until
+       * tomorrow. Waiting is the entire fix for the first and is pure dead time
+       * for the second -- `WAIT_BEFORE_RETRY_MS` is `[800, 14_000]`, so a
+       * spent day cost 14.8 seconds per model call to rediscover.
+       *
+       * MEASURED, with both accounts empty: `POST /api/ask` took 31.0s to
+       * return 502, and 30 of those seconds were this client sitting out a
+       * limit whose own message said `tokens per day (TPD): Limit 200000, Used
+       * 199967 ... try again in 10m22s`. We were told, in the first reply, that
+       * no amount of waiting inside this request would help.
+       *
+       * THIS APPLIES TO THE LAST CLIENT TOO, which is why it is a second check
+       * and not part of `waitOutRateLimits`. That flag asks "is somebody else
+       * better placed to answer?"; this asks "can waiting possibly work?", and
+       * when the answer is no there is nobody for whom waiting is right.
+       * `failover` still records the vendor as spent and still asks it again on
+       * a later request -- see `spentUntil` -- so nothing is given up except
+       * the dead time.
+       */
+      if (budget.includes('daily token budget is spent')) break
       if (!worthAnotherTry(response.status, code)) break
     }
 
@@ -666,22 +792,42 @@ export function createGroqModel(options: GroqOptions): Model {
      * omitting it makes the same message a complaint about something it has
      * never read.
      */
-    async chat(system: string, user: string, priorAssistant?: string) {
+    /*
+      * `budget` IS THE CALLER'S RESERVATION, AND IT HAS TO BE.
+      *
+      * One `chat` serves two calls of very different size: a controller
+      * decision is one small JSON object -- action, target, one clause of
+      * reason -- and a concept is a whole lesson. Both reserved
+      * `CONCEPT_MAX_TOKENS`.
+      *
+      * `max_tokens` IS A RESERVATION, NOT A MEASUREMENT: this file already
+      * records that "a vendor DEDUCTS the reservation" from the per-minute
+      * budget whatever the reply actually costs. So every decision spent a
+      * lesson's worth of a 8,000-per-minute allowance to write sixty tokens,
+      * and the 429s that bought multi-second retry pauses arrived sooner than
+      * they had to. Ten decisions filled the same minute as three lessons.
+      *
+      * DEFAULTED, NOT REQUIRED, so a caller that says nothing behaves exactly
+      * as it did. The ceiling log below reads the same number that was sent, so
+      * a budget set too low is reported rather than silently truncating.
+      */
+    async chat(system: string, user: string, priorAssistant?: string, budget?: number) {
+      const reserved = budget ?? conceptTokens
       const messages: { role: string; content: string }[] = [{ role: 'system', content: system }]
       if (priorAssistant !== undefined && priorAssistant !== '') {
         messages.push({ role: 'assistant', content: priorAssistant })
       }
       messages.push({ role: 'user', content: user })
 
+      /* One call, one local. See `reasoningEffortFor`. */
+      const effort = reasoningEffortFor(model)
       const answered = await send(JSON.stringify({
         model,
-        max_tokens: CONCEPT_MAX_TOKENS,
+        max_tokens: reserved,
         /* See `CONCEPT_REASONING_EFFORT` and `understandsReasoningEffort`:
            this took gpt-oss from 2 of 4 answered to 6 of 6, and truncated
            every reply on models that do not implement it. */
-        ...(understandsReasoningEffort(model)
-          ? { reasoning_effort: CONCEPT_REASONING_EFFORT }
-          : {}),
+        ...(effort === undefined ? {} : { reasoning_effort: effort }),
         /*
          * JSON MODE, WHICH IS NOT THE SAME AS A SCHEMA.
          *
@@ -729,6 +875,24 @@ export function createGroqModel(options: GroqOptions): Model {
        * Thrown, it is a transport failure like any other: `send` has already
        * decided whether it was worth another attempt, and the layer above
        * reports an outage as an outage. */
+      /*
+       * A TRUNCATION SAYS WHAT IT COST, SO THE CEILING CAN BE SET FROM EVIDENCE.
+       *
+       * `CONCEPT_MAX_TOKENS` has been wrong twice -- 16000 against an 8000
+       * limit, then 1000 against a model that needed more -- and both times the
+       * failure arrived as `json_validate_failed` or "no JSON object", which
+       * reads like a broken model. The number that would have settled it is in
+       * every one of those replies and was thrown away.
+       */
+      const stopped = (first as { finish_reason?: unknown } | undefined)?.finish_reason
+      if (stopped === 'length') {
+        const spent = (answered as { usage?: { completion_tokens?: unknown } }).usage
+        console.warn(
+          `[model] reply hit the ceiling: max_tokens=${reserved}, ` +
+            `completion_tokens=${String(spent?.completion_tokens ?? 'unknown')} — raise CONCEPT_MAX_TOKENS`,
+        )
+      }
+
       if (typeof content !== 'string' || content.trim() === '') {
         throw new Error('the model reply carried no text')
       }

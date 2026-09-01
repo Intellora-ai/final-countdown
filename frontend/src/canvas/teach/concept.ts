@@ -809,80 +809,27 @@ export function conceptRequest(
    * than being honestly ungrounded.
    */
   const grounding = groundingPreamble(sources)
+  /*
+   * THE UNCHANGING HALF FIRST, AND IT IS WORTH REAL MONEY.
+   *
+   * Gemini (and Anthropic, and DeepSeek) discount a repeated PREFIX: the
+   * leading run of characters identical to the previous request is billed at a
+   * fraction. That only pays if the identical part LEADS.
+   *
+   * MEASURED BEFORE THIS REORDERING: two ordinary requests shared 64 characters
+   * -- 16 tokens of 1,735 -- because the grounding, the question, the ask menu
+   * and the route directive all came first and all vary, so the ~1,000 tokens
+   * of rules, legal values and craft guidance behind them could never be
+   * matched against anything.
+   *
+   * So the order is now: everything constant, then everything that varies, and
+   * the learner's own question last -- which is also where a model reads it
+   * most reliably. Nothing about the content changed; only its order.
+   */
   return [
-    ...(grounding === '' ? [] : [grounding, '']),
-    `Teach ONE atomic concept that moves a learner toward answering: ${question}`,
-    '',
-    /* WHAT THEY ASKED FOR, BEFORE HOW TO COME AT IT. See `intent.ts`: the line
-       above is the TOPIC and was for a long time the only thing said, so every
-       string a person could type requested the same artifact. This says which
-       artifact. It is placed first because it can change what the reply IS,
-       where the route below only changes how it opens. */
-    menu,
-    '',
-    `HOW TO COME AT IT THIS TIME: ${route}`,
-    '',
-    'Not a lesson. One idea, the smallest that stands on its own.',
-    '',
-    /*
-     * WHAT WAS ALREADY SAID, VERBATIM, SO "DO NOT REPEAT" IS CHECKABLE BY THE
-     * MODEL RATHER THAN ONLY BY US.
-     *
-     * Rotating the route made the OPENING different and left the sentences free
-     * to be identical underneath it. `noveltyAgainst` in `handler.ts` catches
-     * that afterwards and pays for a whole second authoring turn to fix it --
-     * so the cheapest place to prevent a repeat is the only place that can:
-     * showing the model its own previous words before it writes.
-     *
-     * TRUNCATED, AND THE OLDEST DROPPED. Prompt budget spent here is budget not
-     * spent on the reply, and `CONCEPT_MAX_TOKENS` is a hard ceiling that
-     * `groq.ts` measured being hit as `json_validate_failed`.
-     */
-    ...(alreadySaid.length === 0
-      ? []
-      : [
-          'YOU HAVE ALREADY TAUGHT THIS LEARNER THIS IDEA. Here is what you said,',
-          'oldest first. Do not say it again — not these examples, not these',
-          'numbers, not these opening words. Teach the same truth a different way.',
-          '',
-          ...alreadySaid
-            .slice(-MOST_PRIOR_SHOWN)
-            .map((said, i) => `--- what you said (${i + 1}) ---\n${clipped(said)}`),
-          '',
-        ]),
     'Reply with ONE JSON object and nothing else. No markdown, no code fence,',
     'no sentence before or after it. Every string must be in double quotes.',
     '',
-    'Here is a complete, correct answer to a different question. Copy its shape',
-    'exactly and change only the content:',
-    '',
-    /* The example that matches the way in above -- see `EXAMPLE_FOR_ROUTE`.
-       One example, still, so the prompt shows exactly one JSON object and the
-       tests that slice from the first `{` to the last `}` keep working. */
-    JSON.stringify(exampleFor(axis.id), null, 2),
-    '',
-    /*
-     * THE TWO CRAFT RULES, AND WHY THERE ARE ONLY TWO OF THEM.
-     *
-     * `docs/engineering/teaching-patterns.md` extracts 26 universal patterns
-     * from two worked reference explanations, and closes by naming the two the
-     * other 24 are consequences of. Those two are below, in the document's own
-     * words.
-     *
-     * NOT ALL 26. `CONSTRAINTS.md` is explicit, and it is the same page that
-     * points at the pattern document: "Do not add rules to fix a quality
-     * problem. Each new rule narrows what can be said, and a model optimising
-     * against a long rule list produces output that passes and does not teach."
-     * Twenty-six numbered instructions would be exactly that list.
-     *
-     * The other 24 reach the model the way the document says they were meant
-     * to: as STRUCTURE rather than as instructions -- the `anchor`, `notation`,
-     * `rule` and `restriction` roles, the `reasoning` block whose every step
-     * carries its own `because`, and `counterexample` on a misconception. All
-     * of those are now in the legal values above, which is what makes them
-     * sayable. A pattern the schema can express and the gate can check does not
-     * need to be a sentence in a prompt.
-     */
     'HOW THIS PRODUCT TEACHES. These two decide everything else:',
     '- Simplify the PATH, never the DESTINATION. Use plain words and keep the',
     '  full idea. Do not reach a simpler explanation by teaching less of the',
@@ -893,7 +840,7 @@ export function conceptRequest(
     '  Derive it from something more primitive, then check it immediately on a',
     '  number or a case.',
     '',
-    'Rules that example obeys, and yours must too:',
+    'Rules your reply must obey, and the example below obeys them too:',
     '- exactly ONE block with "role":"definition"',
     '- at least one block of kind "table", "chart", "flow" or "figure" that',
     '  SHOWS the idea, and it must FIT the content — a graph for a continuous',
@@ -1019,6 +966,92 @@ export function conceptRequest(
     'your own "blocks". Do not copy the ids from the example above — you will',
     'have renamed those blocks. Ids are lowercase kebab-case: a-z, 0-9 and',
     'hyphens only.',
+    '',
+    /* ---- everything below this line varies per request ---- */
+    'Here is a complete, correct answer to a different question. Copy its shape',
+    'exactly and change only the content:',
+    '',
+    /*
+     * The example that matches the way in above -- see `EXAMPLE_FOR_ROUTE`.
+     * One example, still, so the prompt shows exactly one JSON object and the
+     * tests that slice from the first `{` to the last `}` keep working.
+     *
+     * MINIFIED, AND THAT IS A TOKEN DECISION RATHER THAN A STYLE ONE. This was
+     * `JSON.stringify(x, null, 2)`, and the indentation is not free: MEASURED,
+     * the concept prompt is 6,960 characters of which 701 are indent-only
+     * whitespace, and the example alone is 1,684. Every one of those characters
+     * is billed on every authoring request, against a budget measured exhausted
+     * at `Used 199967` of 200,000 per day.
+     *
+     * NOTHING IS LOST. The example is here so the model can copy a SHAPE, and a
+     * shape is the keys and the nesting -- neither of which indentation carries.
+     * The reply is read by `extractJson`, which slices from the first `{` to the
+     * last `}` and parses; it has never cared how the example was spaced.
+     */
+    JSON.stringify(exampleFor(axis.id)),
+    '',
+    /*
+     * THE TWO CRAFT RULES, AND WHY THERE ARE ONLY TWO OF THEM.
+     *
+     * `docs/engineering/teaching-patterns.md` extracts 26 universal patterns
+     * from two worked reference explanations, and closes by naming the two the
+     * other 24 are consequences of. Those two are below, in the document's own
+     * words.
+     *
+     * NOT ALL 26. `CONSTRAINTS.md` is explicit, and it is the same page that
+     * points at the pattern document: "Do not add rules to fix a quality
+     * problem. Each new rule narrows what can be said, and a model optimising
+     * against a long rule list produces output that passes and does not teach."
+     * Twenty-six numbered instructions would be exactly that list.
+     *
+     * The other 24 reach the model the way the document says they were meant
+     * to: as STRUCTURE rather than as instructions -- the `anchor`, `notation`,
+     * `rule` and `restriction` roles, the `reasoning` block whose every step
+     * carries its own `because`, and `counterexample` on a misconception. All
+     * of those are now in the legal values above, which is what makes them
+     * sayable. A pattern the schema can express and the gate can check does not
+     * need to be a sentence in a prompt.
+     */
+    ...(grounding === '' ? [] : [grounding, '']),
+    `Teach ONE atomic concept that moves a learner toward answering: ${question}`,
+    '',
+    /* WHAT THEY ASKED FOR, BEFORE HOW TO COME AT IT. See `intent.ts`: the line
+       above is the TOPIC and was for a long time the only thing said, so every
+       string a person could type requested the same artifact. This says which
+       artifact. It is placed first because it can change what the reply IS,
+       where the route below only changes how it opens. */
+    menu,
+    '',
+    `HOW TO COME AT IT THIS TIME: ${route}`,
+    '',
+    'Not a lesson. One idea, the smallest that stands on its own.',
+    '',
+    /*
+     * WHAT WAS ALREADY SAID, VERBATIM, SO "DO NOT REPEAT" IS CHECKABLE BY THE
+     * MODEL RATHER THAN ONLY BY US.
+     *
+     * Rotating the route made the OPENING different and left the sentences free
+     * to be identical underneath it. `noveltyAgainst` in `handler.ts` catches
+     * that afterwards and pays for a whole second authoring turn to fix it --
+     * so the cheapest place to prevent a repeat is the only place that can:
+     * showing the model its own previous words before it writes.
+     *
+     * TRUNCATED, AND THE OLDEST DROPPED. Prompt budget spent here is budget not
+     * spent on the reply, and `CONCEPT_MAX_TOKENS` is a hard ceiling that
+     * `groq.ts` measured being hit as `json_validate_failed`.
+     */
+    ...(alreadySaid.length === 0
+      ? []
+      : [
+          'YOU HAVE ALREADY TAUGHT THIS LEARNER THIS IDEA. Here is what you said,',
+          'oldest first. Do not say it again — not these examples, not these',
+          'numbers, not these opening words. Teach the same truth a different way.',
+          '',
+          ...alreadySaid
+            .slice(-MOST_PRIOR_SHOWN)
+            .map((said, i) => `--- what you said (${i + 1}) ---\n${clipped(said)}`),
+          '',
+        ]),
   ].join('\n')
 }
 

@@ -433,3 +433,51 @@ describe('the menu is paid for where it can help, and only there', () => {
     expect(read).toBeLessThan(unread - 200)
   })
 })
+
+describe('the unchanging half of the prompt comes first', () => {
+  /*
+   * WHY THE ORDER IS A TESTED PROPERTY AND NOT A STYLE CHOICE.
+   *
+   * Gemini, Anthropic and DeepSeek all discount a repeated PREFIX -- the
+   * leading run identical to the previous request is billed at a fraction. It
+   * only pays if the identical part LEADS.
+   *
+   * MEASURED before the reordering: two ordinary requests shared 64 characters,
+   * 16 tokens of 1,735, because the grounding, question, ask menu and route all
+   * came first and all vary. The ~800 tokens of rules and legal values behind
+   * them could never match anything. After: 806 shared tokens.
+   *
+   * A future edit that moves a varying line above the static block would undo
+   * that silently and nothing else would notice, so it is asserted here.
+   */
+  const sharedPrefix = (a: string, b: string): number => {
+    let i = 0
+    while (i < a.length && i < b.length && a[i] === b[i]) i += 1
+    return i
+  }
+
+  it('shares most of the prompt between two unrelated requests', () => {
+    const a = conceptRequest('photosynthesis', [], [], 1, [])
+    const b = conceptRequest('logarithms', [], ['contrast'], 9, ['a prior telling'])
+
+    /* Roughly 800 tokens. Asserted well below the measurement so a small
+       wording change does not fail it, and well above the 16 it used to be. */
+    expect(sharedPrefix(a, b)).toBeGreaterThan(2400)
+  })
+
+  it('keeps the rules and the legal values inside that shared part', () => {
+    const a = conceptRequest('photosynthesis', [], [], 1, [])
+    const b = conceptRequest('quiz me on tenses', [], [], 3, [])
+    const shared = a.slice(0, sharedPrefix(a, b))
+
+    expect(shared).toContain('LEGAL VALUES')
+    expect(shared).toContain('Rules your reply must obey')
+    expect(shared).toContain('Simplify the PATH, never the DESTINATION')
+    expect(shared).toContain('IDS MUST MATCH')
+  })
+
+  it('still ends with what varies, so the question is read last', () => {
+    const prompt = conceptRequest('photosynthesis', [], [], 1, [])
+    expect(prompt.indexOf('LEGAL VALUES')).toBeLessThan(prompt.indexOf('photosynthesis'))
+  })
+})

@@ -47,7 +47,10 @@ export interface Model {
    * `lesson` when it is absent, so the only thing a provider loses by not
    * having it is the fast path, not the ability to teach.
    */
-  chat?(system: string, user: string, priorAssistant?: string): Promise<string>
+  /* `budget` is the caller's `max_tokens` reservation. A decision and a lesson
+     are very different sizes and reserving the larger for both spent a
+     per-minute allowance four times faster than it had to; see `groq.ts`. */
+  chat?(system: string, user: string, priorAssistant?: string, budget?: number): Promise<string>
   /**
    * The next part of a lesson in progress, priced for one or two blocks.
    *

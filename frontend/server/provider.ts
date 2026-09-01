@@ -38,6 +38,36 @@ export interface Vendor {
   readonly model: string
   /** Shown in the "no model is configured" message, so setup is one line. */
   readonly hint: string
+  /**
+   * WHAT ONE CONCEPT MAY RESERVE FROM THIS VENDOR'S BUDGET.
+   *
+   * `max_tokens` IS A RESERVATION, NOT A MEASUREMENT -- `groq.ts` records the
+   * whole argument and the headers it was measured from: a vendor DEDUCTS the
+   * reservation at request time, so the reservation, not the usage, decides how
+   * many lessons a day buys.
+   *
+   * ONE NUMBER FOR EVERY VENDOR WAS THE MISTAKE, and it is a subtle one because
+   * the number itself was right. `CONCEPT_MAX_TOKENS` is 1400 because GEMINI
+   * writes long -- at 1000 a full concept came back truncated. `gpt-oss` on
+   * Groq has a measured worst case of 791 (272 thinking + 519 written at
+   * `effort: low`), so every Groq request reserved 609 tokens it could never
+   * use. A single constant has to be the maximum over all vendors, which means
+   * every vendor but the longest-writing one overpays on every request.
+   *
+   * MEASURED, ON THIS ACCOUNT, TODAY:
+   *
+   *   tokens per day (TPD): Limit 200000, Used 199967, Requested 1473
+   *
+   * 1,473 per concept is ~135 lessons a day. At 1000 the same budget buys ~186.
+   * That is the difference between a class getting through an afternoon and not.
+   *
+   * HONESTLY UNFINISHED, exactly as `groq.ts` says: Gemini's worst case is not
+   * measured, because the free tier rate-limited the measurement. Its number
+   * stays at the safe 1400 until `[model] reply hit the ceiling` says otherwise
+   * -- that log line is the evidence to collect, and it prints
+   * `completion_tokens` for precisely this.
+   */
+  readonly conceptTokens: number
 }
 
 /**
@@ -67,12 +97,72 @@ export interface Vendor {
  */
 export const VENDORS: readonly Vendor[] = [
   {
+    /*
+     * GEMINI, FIRST, AND THROUGH ITS OPENAI-COMPATIBLE ENDPOINT.
+     *
+     * Google publishes one at `/v1beta/openai/`, which speaks the same
+     * chat-completions shape as every other vendor here -- so it needs no new
+     * client, no second retry policy and no second deadline. That is the whole
+     * reason `groq.ts` was generalised.
+     *
+     * FIRST IN THE LIST because it is the most recently chosen key, which is
+     * the ordering argument this file has always made: a key typed today beats
+     * one exported in August. It also has by far the largest free daily budget
+     * of the vendors here, which matters because Groq's 200,000 tokens per day
+     * was measured exhausted in a single afternoon.
+     *
+     * `gemini-2.5-flash`, CHOSEN BY MEASUREMENT AND NOT BY REASONING.
+     *
+     * This shipped twice wrong first. `gemini-2.0-flash` was dead on arrival --
+     * 404, "no longer available" -- so it was replaced with the alias
+     * `gemini-flash-latest`, on the sound argument that a pinned version is a
+     * default with an expiry date nobody writes down.
+     *
+     * Then the alias was measured, against a full-size request:
+     *
+     *   gemini-flash-latest    503 in 10.1s   (unserviceable)
+     *   gemini-2.5-flash       200 in 1.25s
+     *   gemini-2.5-flash-lite  200 in 0.99s
+     *
+     * And end to end, writing a real lesson through the whole pipeline:
+     *
+     *   gemini-2.5-flash       15-30s per lesson, with 429s on top
+     *   gemini-2.5-flash-lite  6-10s per lesson
+     *
+     * A learner waits that difference on every question, and the gate refuses
+     * anything the smaller model gets wrong -- so the cost of being wrong is a
+     * retry and the cost of being slow is a child staring at a screen.
+     *
+     * The argument for the alias is still right in principle and wrong today: a
+     * name that resolves to something overloaded is worse than a name that
+     * resolves to something that answers. A default has to WORK first.
+     *
+     * `GEMINI_MODEL` still pins anything else without a code change, so moving
+     * to the next flash when this one ages is a variable, not a release.
+     *
+     * Flash rather than pro: both the controller and the tutor need fast,
+     * strict JSON, not depth.
+     */
+    keyVar: 'GEMINI_API_KEY',
+    modelVar: 'GEMINI_MODEL',
+    urlVar: 'GEMINI_BASE_URL',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    model: 'gemini-2.5-flash-lite',
+    hint: '  GEMINI_API_KEY=AIza...               use Gemini (Google)',
+    /* The unmeasured one. See `Vendor.conceptTokens`: 1000 truncated a real
+       concept here, so this keeps the safe number until the ceiling log says
+       what the true worst case is. */
+    conceptTokens: 1400,
+  },
+  {
     keyVar: 'MOONSHOT_API_KEY',
     modelVar: 'MOONSHOT_MODEL',
     urlVar: 'MOONSHOT_BASE_URL',
     baseUrl: 'https://api.moonshot.ai/v1',
     model: 'kimi-k2-0905-preview',
     hint: '  MOONSHOT_API_KEY=sk-...             use Kimi (Moonshot AI)',
+    /* Unmeasured from this machine, so it keeps the safe number. */
+    conceptTokens: 1400,
   },
   {
     keyVar: 'ZAI_API_KEY',
@@ -81,6 +171,44 @@ export const VENDORS: readonly Vendor[] = [
     baseUrl: 'https://api.z.ai/api/paas/v4',
     model: 'glm-4.6',
     hint: '  ZAI_API_KEY=...                     use GLM (Z.ai)',
+    conceptTokens: 1400,
+  },
+  {
+    /*
+     * MISTRAL, AND IT IS DATA RATHER THAN A CLIENT.
+     *
+     * This file's whole argument is that an OpenAI-shaped vendor is a base URL
+     * and a default model: "a vendor here is DATA -- a base URL and a default
+     * model -- and never a second client". Mistral publishes exactly that shape
+     * at `/v1`, so it needs no client, no second retry policy and no second
+     * deadline. Six lines, not a file.
+     *
+     * ABOVE GROQ, BELOW Z.AI, on this file's own ordering rule: a key typed
+     * today beats one exported in August, and this is one of the keys in hand
+     * now. The Groq key below it was measured exhausted at `Used 199967` of
+     * 200,000 per day.
+     *
+     * `mistral-large-latest` RATHER THAN A SMALL ONE, AND THIS IS A JUDGEMENT
+     * NOT A MEASUREMENT -- said plainly because nothing here has been run
+     * against a Mistral key. The measured lesson is that a weak model does not
+     * fail loudly: `qwen2.5:7b` returned lessons that only ever survived as
+     * SALVAGED, and a salvaged lesson is deliberately never shelved, so the
+     * cache can never warm and every ask pays full price. Reaching for the
+     * capable model first makes that failure less likely; `MISTRAL_MODEL` moves
+     * it to a faster one without a code change if it turns out to be slow.
+     *
+     * `conceptTokens` STAYS AT THE SAFE 1400 for the same reason it does for
+     * every unmeasured vendor: only `gpt-oss` has a measured worst case here.
+     * The number to move when evidence arrives is this one, and the evidence is
+     * the `[model] reply hit the ceiling` line.
+     */
+    keyVar: 'MISTRAL_API_KEY',
+    modelVar: 'MISTRAL_MODEL',
+    urlVar: 'MISTRAL_BASE_URL',
+    baseUrl: 'https://api.mistral.ai/v1',
+    model: 'mistral-large-latest',
+    hint: '  MISTRAL_API_KEY=...                 use Mistral',
+    conceptTokens: 1400,
   },
   {
     keyVar: 'GROQ_API_KEY',
@@ -89,6 +217,11 @@ export const VENDORS: readonly Vendor[] = [
     baseUrl: 'https://api.groq.com/openai/v1',
     model: 'openai/gpt-oss-120b',
     hint: '  GROQ_API_KEY=gsk_...                use Groq (openai/gpt-oss-120b)',
+    /* THE ONE THAT IS MEASURED. `groq.ts` records this model's real cost at
+       `effort: low` -- 30-272 thinking, 325-519 written, largest total 791 --
+       so 1000 clears the worst reply ever seen here and hands 400 tokens per
+       request back to a 200,000-per-day budget measured exhausted at 199,967. */
+    conceptTokens: 1000,
   },
   {
     keyVar: 'NVIDIA_API_KEY',
@@ -97,6 +230,7 @@ export const VENDORS: readonly Vendor[] = [
     baseUrl: 'https://integrate.api.nvidia.com/v1',
     model: 'nvidia/llama-3.3-nemotron-super-49b-v1',
     hint: '  NVIDIA_API_KEY=nvapi-...            use Nemotron (NVIDIA NIM)',
+    conceptTokens: 1400,
   },
   {
     keyVar: 'DEEPSEEK_API_KEY',
@@ -105,6 +239,7 @@ export const VENDORS: readonly Vendor[] = [
     baseUrl: 'https://api.deepseek.com/v1',
     model: 'deepseek-chat',
     hint: '  DEEPSEEK_API_KEY=sk-...             use DeepSeek',
+    conceptTokens: 1400,
   },
 ]
 
@@ -145,10 +280,19 @@ export type Provider =
       apiKey: string
       model: string
       baseUrl: string
+      /** What one concept may reserve here. See `Vendor.conceptTokens`. */
+      conceptTokens: number
     }
   | { kind: 'ollama'; model: string; endpoint: string | undefined }
 
-function value(env: Record<string, string | undefined>, name: string): string | undefined {
+/**
+ * An environment variable, or nothing. Blank and whitespace-only are unset.
+ *
+ * EXPORTED so `index.ts` reads a variable by exactly this rule rather than by a
+ * second copy of it. What counts as "set" is a decision, and a decision kept in
+ * two places is a decision that drifts.
+ */
+export function value(env: Record<string, string | undefined>, name: string): string | undefined {
   const raw = env[name]
   if (typeof raw !== 'string') return undefined
   const trimmed = raw.trim()
@@ -259,6 +403,7 @@ function providerFrom(
     apiKey,
     model: value(env, vendor.modelVar) ?? vendor.model,
     baseUrl: value(env, vendor.urlVar) ?? vendor.baseUrl,
+    conceptTokens: vendor.conceptTokens,
   }
 }
 

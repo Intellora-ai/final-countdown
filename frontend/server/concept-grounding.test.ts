@@ -97,12 +97,30 @@ describe('a lesson the server writes', () => {
 
     expect(res.status).toBe(200)
     expect(asked, 'the web was never asked, so the author wrote from nothing').toContain(QUESTION)
+
+    /*
+     * THE AUTHORING PROMPT, FOUND RATHER THAN ASSUMED TO BE FIRST.
+     *
+     * This read `prompts[0]`, which was the authoring call for as long as
+     * authoring was the only thing the server asked a model to do. It is not
+     * any more: `controller.ts` decides what should happen next before anything
+     * is written, so the first prompt is now a decision and the lesson is the
+     * one after it.
+     *
+     * The invariant is unchanged and is what is still asserted -- the page the
+     * web returned reached the thing that WRITES. Selecting the authoring
+     * prompt by what it contains rather than by its position also means the
+     * next call added in front of it cannot quietly move the assertion off the
+     * prompt it is about.
+     */
+    const authoring = prompts.find((prompt) => prompt.includes('Teach ONE atomic concept'))
+    expect(authoring, 'no authoring prompt was sent at all').toBeDefined()
     expect(
-      prompts[0],
+      authoring,
       'the page came back and never reached the author, so searching bought nothing',
     ).toContain(A_REAL_SENTENCE)
     expect(
-      prompts[0],
+      authoring,
       'the source was handed over uncited, so nothing she reads can be followed back',
     ).toContain('https://example.org/chameleon')
   })

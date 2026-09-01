@@ -35,6 +35,7 @@ import {
   withoutRefusedBlocks,
 } from './repair.ts'
 import { authorConcept, type ConceptResult } from '../src/canvas/teach/concept.ts'
+import { decideNext, namesASubject, permitted, type Action, type Situation } from './controller.ts'
 import { readableText } from '../src/canvas/spec/readable.ts'
 import { extractJson } from '../src/canvas/teach/authorLesson.ts'
 import type { Source } from '../src/canvas/teach/grounding.ts'
@@ -52,8 +53,9 @@ import {
   verifyIdentity,
 } from './identity.ts'
 import { BadMemoryKey } from './memory/key.ts'
-import type { Explanations } from './memory/explanations.ts'
-import type { WrittenLessons } from './memory/lessons.ts'
+import type { Explanation, Explanations } from './memory/explanations.ts'
+import type { Written, WrittenLessons } from './memory/lessons.ts'
+import type { SubjectAliases } from './memory/aliases.ts'
 import { noveltyAgainst } from './memory/variation.ts'
 import { NotConsistent } from './memory/progress.ts'
 import { NotStorable } from './memory/record.ts'
@@ -81,8 +83,9 @@ export interface LessonRequest {
 
 export interface ModelPort {
   lesson(request: LessonRequest): Promise<unknown>
-  /** See `Model.chat`. Present on the Groq client; absent is handled. */
-  chat?(system: string, user: string, priorAssistant?: string): Promise<string>
+  /** See `Model.chat`. Present on the Groq client; absent is handled.
+      `budget` is the caller's `max_tokens` reservation; see `groq.ts`. */
+  chat?(system: string, user: string, priorAssistant?: string, budget?: number): Promise<string>
   /** See `Model.nextPart`. Absent falls back to `lesson`, which still works. */
   nextPart?(request: LessonRequest): Promise<unknown>
 }
@@ -158,6 +161,15 @@ export interface HandlerOptions {
    * the reason a learner is not taught.
    */
   readonly lessons?: WrittenLessons
+  /**
+   * WHAT A PHRASING WAS ALREADY DECIDED TO MEAN. See `memory/aliases.ts`.
+   *
+   * OPTIONAL, AND ABSENT ONLY COSTS TIME. Without it every ask pays for the
+   * controller call before the shelf can be read, which is exactly how this
+   * behaved before the memo existed. A store that can only make things faster
+   * must never be the reason a learner is not taught.
+   */
+  readonly aliases?: SubjectAliases
   /**
    * The key this server signs identities with.
    *
@@ -323,6 +335,26 @@ function nonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
+/**
+ * WHAT ONE DECISION IS ALLOWED TO RESERVE.
+ *
+ * The controller answers with one JSON object -- five short fields, measured at
+ * roughly sixty tokens. It reserved `CONCEPT_MAX_TOKENS` (1400) because one
+ * `chat` served both it and the authoring call, and a vendor DEDUCTS the
+ * reservation from a per-minute allowance whatever the reply costs. Against
+ * Groq's 8,000 per minute that is a lesson's worth of budget spent to write a
+ * sentence, and the 429s -- each one a multi-second retry pause a learner sits
+ * through -- arrived four times sooner than they had to.
+ *
+ * GENEROUS ON PURPOSE, ~10x the measured reply. A truncated decision is not a
+ * slow decision, it is a WRONG one: `decisionFrom` cannot read half an object,
+ * falls back, and a fallback target is `guessed`, which stops the lesson being
+ * filed and stops the alias being learned -- so a budget shaved too fine would
+ * quietly switch the whole shelf off. The saving is in the 800 tokens this
+ * still gives back, not in the last hundred.
+ */
+const DECISION_MAX_TOKENS = 600
+
 export function createHandler(options: HandlerOptions): (req: ServerRequest) => Promise<ServerResponse> {
   const secrets = options.secrets ?? []
   const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES
@@ -429,8 +461,159 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
      * its list would let those explanations repeat. A route in either list is
      * spent.
      */
-    const remembered = options.explanations?.routesSpent(owner, question) ?? []
-    const spent = [...new Set([...remembered, ...alreadyUsed])]
+    /* READ AFTER THE FAST PATH, NOT BEFORE IT. Its only consumer is
+       `situation.told`, which is only ever sent to the controller -- so on a
+       shelf hit this was a SQLite read and a JSON parse of a row nobody looks
+       at, on the one path whose entire purpose is to touch nothing. */
+    const spentLater = (): readonly string[] => [
+      ...new Set([...(options.explanations?.routesSpent(owner, question) ?? []), ...alreadyUsed]),
+    ]
+
+    /**
+     * Hand back a lesson that is already on the shelf.
+     *
+     * ONE PLACE, BECAUSE THERE ARE NOW TWO WAYS TO REACH THE SHELF -- before
+     * the controller through the alias, and after it through the decided
+     * target -- and a lesson served without being RECORDED as served is the
+     * repeat this whole subsystem exists to prevent. Two copies of that
+     * recording is one copy that eventually stops being made.
+     */
+    function offShelf(ready: Written, key: string, memo: boolean): ServerResponse {
+      /* Recorded as shown, exactly as an authored one is: it IS what she was
+         shown, so her history and her spent routes must reflect it or the next
+         asking will offer the same way in again. */
+      const at = new Date().toISOString()
+      try {
+        options.explanations?.remember(owner, key, {
+          route: ready.route,
+          text: readableText(ready.lesson),
+          at,
+        })
+      } catch {
+        /* A failed write costs her a repeat later, never this answer. */
+      }
+      /*
+       * ITS OWN TRY, AND THE SEPARATION IS THE POINT. These two writes fail for
+       * the same reasons -- a locked row, a full disk -- and cost completely
+       * different things. Sharing one `try` meant a failed history write
+       * skipped the memo that had not been attempted yet, so one unlucky
+       * request cost EVERY later learner the controller call this one paid for,
+       * silently and for as long as nothing else succeeded. A catch documented
+       * as costing "a repeat later" must not also be able to cost the speed.
+       *
+       * ONLY WHEN IT IS NEW, AND ONLY WHEN IT IS FILEABLE. Reaching the shelf
+       * through the controller is the one case where the app has learned a
+       * mapping it did not already have; reaching it through the alias taught
+       * nothing, and rewriting the row it just read would put a store write
+       * back on the one path that has none.
+       *
+       * THE CALLER DECIDES, because the caller is the only one that can. This
+       * took a bare "is it new" and wrote the alias on the strength of it,
+       * skipping the `!guessed && subjectNamed && !appSupplied` gate that the
+       * IDENTICAL write obeys on the authoring path -- so a guessed target that
+       * happened to hit an old shelf row was memoed as a subject on the one
+       * path where the app knows least. Two writes of one fact must share one
+       * condition or the weaker path reintroduces what the stronger refuses.
+       */
+      if (memo) {
+        try {
+          options.aliases?.learn(askedFrom, question, key, at)
+        } catch {
+          /* The next learner pays for a decision. Nobody goes untaught. */
+        }
+      }
+      return reply(200, {
+        lesson: ready.lesson,
+        route: ready.route,
+        ...(ready.checkpoint === undefined ? {} : { checkpoint: ready.checkpoint }),
+        ...(ready.next === undefined ? {} : { next: ready.next }),
+        ...(strategy === undefined ? {} : { strategy }),
+      })
+    }
+
+    /*
+     * THE ANSWER THAT COSTS NOTHING, REACHED WITHOUT SPENDING ANYTHING.
+     *
+     * THE BOTTLENECK THIS REMOVES, AND IT WAS THE PRODUCT'S WHOLE LATENCY
+     * STORY. A lesson already on the shelf is served from one SQLite row --
+     * measured at 11ms end to end. But the shelf is keyed by the SUBJECT, and
+     * until now only the controller could turn `wat is fotosynthesis` into
+     * `photosynthesis` -- so the cheapest answer the product can give still sat
+     * behind a model round trip: 6-10s measured on `gemini-2.5-flash-lite`,
+     * 15-30s on `gemini-2.5-flash`, and longer again whenever a 429 bought a
+     * retry pause. A cache that costs a network call is not a cache.
+     *
+     * `aliases` holds the subject THE MODEL ITSELF named for this exact
+     * phrasing, written only where a lesson was filed. So this is not the fast
+     * path that was removed: nothing here reads the message or judges what it
+     * means, and a phrasing that has never produced a filed lesson -- every
+     * greeting, every unreadable sentence -- has no entry and falls straight
+     * through to the controller, veto included.
+     *
+     * IT CANNOT SERVE A REPEAT. The lookup is filtered by this learner's own
+     * spent routes for that subject, which is the same filter the slow path
+     * applies. A miss here costs one extra SQLite read and nothing else.
+     */
+    const meant = options.aliases?.subjectFor(askedFrom, question) ?? null
+    if (meant !== null) {
+      const had = options.explanations?.priorFor(owner, meant).explanations ?? []
+      const onShelf =
+        options.lessons?.findUnseen(meant, [
+          ...new Set([...had.map((one) => one.route), ...alreadyUsed]),
+        ]) ?? null
+      if (onShelf !== null) {
+        console.log(`[controller] SHELF target="${meant}" (phrasing already decided, no model call)`)
+        return offShelf(onShelf, meant, false)
+      }
+    }
+
+    /*
+     * THE SEARCH STARTS NOW, NOT AFTER THE DECISION.
+     *
+     * It is grounding for the AUTHORING call and it is keyed by what the
+     * learner typed -- `options.search.search(question)` -- so it has never
+     * depended on the controller's answer in any way. Awaiting it after the
+     * decision made two independent network calls into a queue, and a learner
+     * waited for the sum of them; started here they overlap and the same
+     * learner waits for the longer one.
+     *
+     * WHAT THIS COSTS, STATED RATHER THAN HIDDEN. A request that ends in
+     * ASK_CLARIFICATION, or that finds its lesson on the shelf after the
+     * controller has run, has issued a search whose result is discarded. That
+     * is one wasted lookup on the two paths that author nothing, bought to take
+     * a whole round trip out of the path that does.
+     *
+     * FAILING TO FIND SOURCES IS STILL NOT FAILING TO TEACH. The catch that
+     * used to sit at the await sits here instead and does the same thing: an
+     * unreachable or unconfigured provider becomes an empty list, and
+     * `groundingPreamble([])` returns '' -- so the prompt is exactly what it
+     * was. Turning a retrieval failure into a teaching failure would be worse
+     * than being honestly ungrounded.
+     */
+    const lookUp = async (): Promise<readonly SearchResult[]> => {
+      try {
+        return await options.search.search(question)
+      } catch {
+        return []
+      }
+    }
+    /*
+     * NOT FOR A MESSAGE THAT NAMES NOTHING.
+     *
+     * Started unconditionally, every greeting bought a web search for the word
+     * "hi" whose result was thrown away when the veto turned the decision into
+     * ASK_CLARIFICATION -- and that branch is common enough to have its own
+     * test file.
+     *
+     * THIS IS NOT THE APP DECIDING FROM TEXT, and the distinction is the one
+     * `controller.ts` draws. `namesASubject` does not choose the ACTION, does
+     * not name a target, and nothing downstream reads its answer. It decides
+     * only whether to START FETCHING EARLY, and both ways of being wrong cost
+     * exactly one thing: a message it wrongly calls empty simply falls back to
+     * `lookUp()` below and waits for the search as it always did. A guess that
+     * can only cost latency, never correctness, is allowed to be a guess.
+     */
+    const searching = namesASubject(question) ? lookUp() : null
 
     /*
      * READ ONCE, USED THREE TIMES.
@@ -443,7 +626,6 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
      * wording it was JUDGED against were not guaranteed to be the same history.
      * One read cannot disagree with itself.
      */
-    const priorWords = options.explanations?.wordsShown(owner, question) ?? []
 
     /*
      * ALREADY WRITTEN, AND NEW TO THIS LEARNER: SERVE IT FOR NOTHING.
@@ -464,28 +646,271 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
      * below is skipped as well -- the saving is the whole request, not just the
      * authoring turn.
      */
-    const ready = options.lessons?.findUnseen(question, spent) ?? null
-    if (ready !== null) {
-      /* Recorded as shown, exactly as an authored one is: it IS what she was
-         shown, so her history and her spent routes must reflect it or the next
-         asking will offer the same way in again. */
-      try {
-        options.explanations?.remember(owner, question, {
-          route: ready.route,
-          text: readableText(ready.lesson),
-          at: new Date().toISOString(),
-        })
-      } catch {
-        /* A failed write costs her a repeat later, never this answer. */
-      }
+    /*
+     * WHAT SHOULD HAPPEN NEXT, DECIDED BY THE MODEL AND APPROVED BY US.
+     *
+     * THE FRAME THIS BREAKS. Every earlier version answered a smaller question
+     * -- "is this a question?", "which of seven shapes is it?" -- with rules,
+     * and a sentence nobody anticipated fell through to a lecture. `controller.ts`
+     * asks the one question a tutor actually asks, and five actions cover
+     * greetings, doubts, requests, confusion and off-topic messages without any
+     * of them being enumerated.
+     *
+     * AND THE APPLICATION KEEPS CONTROL. `permitted` runs on every decision
+     * before anything happens: the model may choose EXPLAIN for someone who has
+     * been told nothing, and the app knows better because `told` is ours. A
+     * refusal always carries what happens instead, so a decision can be
+     * overruled and the learner still gets taught.
+     *
+     * ONE SMALL CALL, AND IT CAN REMOVE A LARGE ONE. ~250 tokens in, ~60 out,
+     * against an authoring call of ~1,420 in and 1,000 reserved -- and when the
+     * answer is ASK_CLARIFICATION nothing is authored at all.
+     */
+    /*
+     * WHAT THE APP CAN HONESTLY TELL THE CONTROLLER BEFORE IT HAS DECIDED.
+     *
+     * `told` used to carry a count read against the RAW MESSAGE, because the
+     * subject is not known until the controller answers. That count is wrong
+     * the moment a learner rephrases: taught `photosynthesis` twice, they type
+     * `wat is fotosynthesis`, the lookup finds nothing, and the controller is
+     * told nobody has ever explained this -- so `permitted` turns their EXPLAIN
+     * into START_LESSON and begins from the beginning, which is the opposite of
+     * what they asked for.
+     *
+     * The count cannot be keyed correctly before the subject exists, so it is
+     * not sent at all. Nothing is lost: the same fact is enforced AFTER the
+     * decision, in `permitted`, against the subject-keyed history -- which is
+     * where a fact the app owns belongs anyway.
+     */
+    /*
+     * A HINT FOR THE MODEL, NOT THE AUTHORITY.
+     *
+     * `told` was emptied because it could not be keyed correctly before the
+     * subject was known -- true, and it went too far: `situationText` only
+     * prints the "already explained N times" line when the list is non-empty,
+     * so the controller was never told anything had been taught and could not
+     * choose EXPLAIN on any basis but wording. `permitted` can correct an
+     * EXPLAIN with no history; nothing corrects a START_LESSON chosen because
+     * the model was told nothing.
+     *
+     * So the best available reading is sent -- the count against what they
+     * typed -- and it is explicitly a hint: it UNDERCOUNTS when a learner
+     * rephrases, never overcounts, so its only failure is to withhold
+     * information the model would have used. The authoritative check runs after
+     * the decision, against the subject-keyed history, in `permitted`.
+     */
+    const situation: Situation = {
+      said: question,
+      ...(askedFrom === 'ask' ? {} : { lesson: askedFrom }),
+      told: spentLater(),
+    }
+    /*
+     * THE CONTROLLER IS SPENT WHERE IT EARNS ITS PLACE, AND SKIPPED WHERE IT
+     * DOES NOT.
+     *
+     * Two calls per lesson is two REQUESTS, and Gemini's free tier is limited
+     * by requests per minute far more tightly than by tokens -- measured here
+     * as repeated 429s, including one where the rate budget went on a decision
+     * whose tutor call then failed, so the learner waited for a call that could
+     * never be executed.
+     *
+     * The controller exists because the patterns cannot read a misspelling, a
+     * greeting or Hinglish -- and those all fall through to `teach`. When the
+     * patterns DID place the message and it names a subject, the model is being
+     * asked to re-derive something already in hand, and the action for a clean
+     * request naming a subject is START_LESSON either way.
+     *
+     * NO NEW VOCABULARY. The shape still comes from `readTheAsk` through the
+     * `asked` parameter, exactly as it does on the model path; this decides
+     * only whether a request is worth spending on.
+     */
+    /*
+     * THE DECISION IS ALWAYS THE MODEL'S. THERE IS NO FAST PATH.
+     *
+     * There was one: when `readTheAsk` placed the message and a word list said
+     * it named a subject, the app built the decision itself and skipped the
+     * call. It was added to halve requests-per-minute, and it was wrong twice
+     * over.
+     *
+     * It did not save what it claimed. "teach me logarithms", "explain X" and a
+     * bare topic all read as `teach`, which was the exempted case -- so the
+     * commonest phrasings still paid for the call and the saving landed on
+     * traffic the limit does not bind on.
+     *
+     * And it asserted something the app cannot know. It hardcoded
+     * START_LESSON, so `quiz me on tenses` -- read correctly as `practice` --
+     * was recorded, vetoed and logged as a request to start a lesson. The
+     * action drives `permitted`'s rules and is what `controller.ts` documents
+     * as the product's real capability; only the prompt shape came from the
+     * reading.
+     *
+     * Both faults have the same root: the app deciding from text. It cannot.
+     * Latency is bought instead where it is actually available -- a smaller
+     * model (6-10s rather than 15-30) and a shelf that makes a repeat free.
+     */
+    const proposed = await decideNext(
+      (system: string, user: string) => chat(system, user, undefined, DECISION_MAX_TOKENS),
+      situation,
+    )
+    const shelved = proposed.target.trim()
+    /*
+     * ONE READ, AND IT IS TAKEN HERE RATHER THAN REUSED FROM THE FAST PATH.
+     *
+     * `routesSpent` and `wordsShown` each read and parse the same row;
+     * `priorFor` returns it once and both lists come off it.
+     *
+     * REUSING THE ALIAS'S READ WAS A REAL SAVING AND THE WRONG TRADE. That read
+     * happens at the TOP of the request, before a controller call measured at
+     * 6-10 seconds. Handing it to `permitted` and to the tutor prompt would
+     * mean judging "has she had this?" against a list that predates the whole
+     * model call -- so a second tab finishing inside that window is invisible,
+     * and she can be handed the way in it just gave her. The row costs
+     * microseconds; the window costs seconds. Freshness wins.
+     */
+    const history = options.explanations?.priorFor(owner, shelved).explanations ?? []
+    const spentOnSubject = [...new Set([...history.map((one) => one.route), ...alreadyUsed])]
+    const wordsOnSubject = history.map((one) => one.text)
+
+    /* Judged against the history for the SUBJECT the controller just named,
+       which is the only key under which "has this been explained" is a real
+       question. See `situation.told`. */
+    const verdict = permitted(proposed, { ...situation, told: spentOnSubject })
+    const decision = verdict.ok ? verdict.decision : verdict.instead
+
+    /*
+     * THE VETO CAN CHANGE THE SUBJECT, SO THE HISTORY IS RE-READ WHEN IT DOES.
+     *
+     * `permitted` may replace the target -- with the topic on screen, or with
+     * the learner's own words when the model named something they never
+     * mentioned. Reading the history once against the PROPOSED target and then
+     * filing against the DECIDED one would put the two back out of step, which
+     * is the mismatch this whole key unification exists to remove. Re-read only
+     * when it actually moved; on the common path nothing changed and nothing is
+     * re-read.
+     */
+    const finalKey = decision.target.trim()
+    const moved = finalKey !== shelved
+    /*
+     * WHOSE WORDS THE TARGET IS, WHICH DECIDES WHETHER IT MAY BE SHARED.
+     *
+     * `permitted` substitutes `situation.said` when the model names a subject
+     * the learner never mentioned -- so `finalKey` is then the learner's whole
+     * sentence, exactly as it is when the controller could not be reached and
+     * `fallbackDecision` guessed. The `guessed` case is already refused a place
+     * on the SHARED shelf, for a reason that is stated there and applies word
+     * for word here: "a fallback target is the learner's whole sentence, and
+     * filing under it creates a key no second learner will ever produce".
+     *
+     * The two paths produce the identical thing and only one of them was
+     * guarded, which was survivable while the shelf was the only consumer. It
+     * stopped being survivable when the alias made such a key answerable with
+     * NO model call: `i still dont get it` would be filed as a subject, memoed
+     * as a phrasing, and served to the next learner who typed those words
+     * without the veto ever running again.
+     *
+     * IT IS STILL TAUGHT, AND STILL REMEMBERED FOR HER. Only the two SHARED
+     * stores refuse it. Her own history is written either way, because what she
+     * was shown is a fact about her whatever the target was made of.
+     */
+    /*
+     * `moved`, NOT `!verdict.ok`, AND THE DIFFERENCE IS THE WHOLE MEANING.
+     *
+     * This asked "was the decision refused, and does the target happen to equal
+     * the message?" -- which is true whenever the veto corrected the ACTION and
+     * left the target alone. A learner typing a bare `photosynthesis` gets
+     * EXPLAIN with target `photosynthesis`, `permitted` rewrites the action to
+     * START_LESSON because nothing has been explained yet, and the target never
+     * moved: the model named that subject itself. It was then refused the
+     * shared shelf and the memo, so the commonest veto in the file silently
+     * switched off the caching for the commonest phrasing there is.
+     *
+     * What actually has to be excluded is a target the APP supplied, and the
+     * app supplies one only by SUBSTITUTION -- which is exactly what `moved`
+     * already records one line above.
+     */
+    const appSupplied = moved && finalKey === question.trim()
+    const movedHistory = moved
+      ? (options.explanations?.priorFor(owner, finalKey).explanations ?? [])
+      : history
+    const spentFinal = moved
+      ? [...new Set([...movedHistory.map((one) => one.route), ...alreadyUsed])]
+      : spentOnSubject
+    const wordsFinal = moved ? movedHistory.map((one) => one.text) : wordsOnSubject
+    /*
+     * EVERY DECISION IS READABLE, NOT JUST THE OVERRULED ONES.
+     *
+     * This logged only overrides, and that made the system's own judgement
+     * invisible: a lesson came back titled "How do you say 'hi'?" with nothing
+     * in the log, because the controller had named a target that passed the
+     * veto and no one could see what it was. A component given autonomy has to
+     * be legible or its mistakes are unattributable -- which is the failure
+     * this whole file was written in response to.
+     *
+     * One line, at info level, carrying the model's own reason. It is the only
+     * record of WHY the product did what it did for a given learner.
+     */
+    console.log(
+      `[controller] ${proposed.action} target="${proposed.target}" (${proposed.reason})` +
+        (verdict.ok ? '' : ` -> OVERRULED to ${decision.action}: ${verdict.why}`),
+    )
+
+    /*
+     * THE ONE ACTION THAT NEEDS NO TUTOR. They have said something nobody can
+     * act on, so the honest move is to ask -- and asking is free. Authoring a
+     * lesson about a sentence we could not read would spend the budget to guess.
+     */
+    if (decision.action === 'ASK_CLARIFICATION') {
       return reply(200, {
-        lesson: ready.lesson,
-        route: ready.route,
-        ...(ready.checkpoint === undefined ? {} : { checkpoint: ready.checkpoint }),
-        ...(ready.next === undefined ? {} : { next: ready.next }),
+        clarify: true,
+        question:
+          'I want to get this right — what would you like me to do? Teach you something new, ' +
+          'go over something again, answer a question, or give you problems to practise?',
         ...(strategy === undefined ? {} : { strategy }),
       })
     }
+
+    /* The action decides the SHAPE the tutor is asked for. One vocabulary
+       reaches the prompt; `controller.ts` owns what the product can do. */
+    const shape: Record<Exclude<Action, 'ASK_CLARIFICATION'>, string> = {
+      START_LESSON: 'teach',
+      EXPLAIN: 'stuck',
+      ANSWER: 'define',
+      PRACTICE: 'practice',
+    }
+    /*
+     * ALREADY WRITTEN, AND NEW TO THIS LEARNER: NO TUTOR IS ASKED ANYTHING.
+     *
+     * KEYED BY THE SUBJECT THE CONTROLLER DECIDED, NOT BY WHAT WAS TYPED, and
+     * that is the fix rather than a refinement. Keyed by the raw message the
+     * shelf was both too narrow and too permissive at once: "photosynthesis",
+     * "what is photosynthesis?" and "wat is fotosynthesis" were three separate
+     * entries for one subject, so real hits were missed -- and a junk key like
+     * "wat is fotosynthesis" was stored for ever, which is how a lesson written
+     * before a bug fix was still being served at 11ms afterwards. A library
+     * catalogues by subject, not by the sentence somebody said at the desk.
+     *
+     * THE COST OF THE MOVE, AND WHY IT IS WORTH IT. The lookup now happens
+     * after the controller, so a hit costs one small decision call (~250
+     * tokens) instead of none. It saves the authoring call (~1,420 in, 1,000
+     * reserved), which is the dominant one, and every phrasing of a subject now
+     * shares an entry -- so the hit RATE rises far more than the hit price.
+     *
+     * `spent` is still this learner's own list, so a hit can only ever be an
+     * axis they have not had.
+     */
+
+
+    /* KEYED AND FILTERED BY THE SAME TARGET. This asked the shelf for
+       `finalKey` while passing the spent list read against the PROPOSED one, so
+       on the veto's override path the two disagreed: an overruled target read
+       an empty history and the shelf handed back a route the learner had
+       already been given -- the mismatch `spentFinal` exists to close. */
+    const ready = options.lessons?.findUnseen(finalKey, spentFinal) ?? null
+    if (ready !== null) {
+      return offShelf(ready, finalKey, !decision.guessed && decision.subjectNamed && !appSupplied)
+    }
+
+    const asked = shape[decision.action as Exclude<Action, 'ASK_CLARIFICATION'>]
 
     /*
      * SEARCH FIRST, THEN WRITE -- the same order `CanvasRoute` uses, for the
@@ -506,21 +931,17 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
      * was written; this route passed `[]` and never asked, so the server could
      * not have grounded a lesson even with a provider configured.
      */
-    let sources: readonly Source[] = []
-    try {
-      const found = await options.search.search(question)
-      sources = found.map((page) => ({
-        /* No title comes back on this port, and the url is the honest stand-in:
-           `groundingPreamble` prints it as the citation either way, and an
-           invented title would be the one part of a citation nobody checked. */
-        url: page.url,
-        title: page.url,
-        text: page.content,
-      }))
-    } catch {
-      /* Recorded nowhere and rethrown nowhere: see above. Ungrounded is a
-         weaker lesson, not a missing one. */
-    }
+    /* STARTED BEFORE THE DECISION, COLLECTED HERE. See `searching`: this is
+       the only place the result is needed, and by now it has been in flight for
+       the whole of the controller call rather than beginning after it. */
+    const sources: readonly Source[] = (await (searching ?? lookUp())).map((page) => ({
+      /* No title comes back on this port, and the url is the honest stand-in:
+         `groundingPreamble` prints it as the citation either way, and an
+         invented title would be the one part of a citation nobody checked. */
+      url: page.url,
+      title: page.url,
+      text: page.content,
+    }))
 
     /* ANNOTATED, AND THAT IS THE POINT. Declared bare, this was an evolving
        `any`: TypeScript never narrowed it to the refusal variant and never
@@ -532,10 +953,27 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       written = await authorConcept(
         (system: string, user: string, priorAssistant?: string) =>
           chat(system, user, priorAssistant),
-        question,
+        /*
+         * THE SUBJECT THE CONTROLLER DECIDED, NOT THE RAW MESSAGE.
+         *
+         * This passed `question` -- what the learner typed -- so the entire
+         * controller was decorative for the target: it read the message, chose
+         * a subject, had that subject approved by `permitted`, logged it, and
+         * then the tutor was handed the original string anyway.
+         *
+         * MEASURED, and it is exactly the reported defect:
+         *
+         *   [controller] START_LESSON target="math" (no topic given)
+         *   lesson       "How do you say 'hi'?"
+         *
+         * The controller had already done its job correctly. Nothing consumed
+         * the answer. `decision.target` is the whole point of ACTION + TARGET.
+         */
+        decision.target,
         sources,
-        /* The merged history, not the caller's list. See `spent` above. */
-        spent,
+        /* The merged history for the SUBJECT, not the raw message. See
+           `spentOnSubject`. */
+        spentFinal,
         undefined,
         /*
          * AND THE WORDS THEMSELVES, NOT ONLY WHICH ROUTE THEY TOOK.
@@ -551,7 +989,9 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
          * can be prevented rather than detected. `conceptRequest` caps how many
          * and how much of each reach the prompt.
          */
-        priorWords,
+        wordsFinal,
+        /* The shape the controller's action calls for. See `shape` above. */
+        asked as never,
       )
     } catch (thrown) {
       /* The vendor's message is still dropped -- it quotes the request and
@@ -593,16 +1033,32 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
        * `readableText`, which is the same text `remember` stores, so this
        * cannot disagree with what the next asking will be compared against.
        */
-      if (noveltyAgainst(readableText(written.lesson), priorWords).isRepeat) {
+      if (noveltyAgainst(readableText(written.lesson), wordsFinal).isRepeat) {
         try {
           const afresh = await authorConcept(
             (system: string, user: string, priorAssistant?: string) =>
               chat(system, user, priorAssistant),
-            question,
+            /*
+             * THE SUBJECT, EXACTLY AS THE FIRST ATTEMPT HAD IT.
+             *
+             * This passed `question` -- the raw message -- while the call it is
+             * retrying passed `decision.target`. So the one authoring call
+             * whose entire job is to produce something BETTER was the only one
+             * asked about a different thing: `wat is fotosynthesis` instead of
+             * `photosynthesis`, after the controller had already read it,
+             * decided it and had that decision approved.
+             *
+             * It is the same defect this file records one screen above -- "the
+             * entire controller was decorative for the target" -- fixed on the
+             * first call and left standing on the second, which is the call the
+             * learner waits an extra 6-10 seconds for. A retry that changes the
+             * subject is not a retry.
+             */
+            decision.target,
             sources,
             /* The way in that produced the repeat is spent too, so `nextRoute`
                cannot hand back the one that just failed to be new. */
-            [...spent, written.route],
+            [...spentFinal, written.route],
             undefined,
             /*
              * AND THE WORDING, INCLUDING THE REPEAT THAT CAUSED THIS.
@@ -620,7 +1076,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
              * newest-first trim. It is the single most relevant text there is:
              * it is the exact wording that was judged too close.
              */
-            [...priorWords, readableText(written.lesson)],
+            [...wordsFinal, readableText(written.lesson)],
           )
           /* Only if it ARRIVED. A second attempt that is refused, or that
              repeats as well, leaves the first lesson standing -- she is
@@ -649,7 +1105,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
        */
       try {
         const at = new Date().toISOString()
-        options.explanations?.remember(owner, question, {
+        options.explanations?.remember(owner, finalKey, {
           route: written.route,
           /* The words, in block order -- what `noveltyAgainst` judges on. */
           text: readableText(written.lesson),
@@ -660,13 +1116,28 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
            that passed the gate WHOLE gets here -- a salvaged one is worth
            serving to the person who waited for it and is not worth handing to
            somebody else as the real thing. */
-        options.lessons?.keep(question, {
-          route: written.route,
-          lesson: written.lesson,
-          checkpoint: written.concept.checkpoint,
-          next: written.concept.next,
-          at,
-        })
+        /* NOT WHEN THE TARGET WAS GUESSED. See `Decision.guessed`: a fallback
+           target is the learner's whole sentence, and filing under it creates
+           a key no second learner will ever produce -- so the shelf fills with
+           one-off rows exactly while the provider is struggling. */
+        /* FILED ONLY WHEN SOMETHING NAMED IT. A guessed target is the learner's
+           sentence, and a decision that reported no subject has nothing to file
+           under -- both produce keys no second learner ever asks for. */
+        if (!decision.guessed && decision.subjectNamed && !appSupplied) {
+          /* AND THE PHRASING THAT PRODUCED IT, under the same condition and for
+             the same reason: a target nothing named is a key no second learner
+             ever asks for, and an alias to it would send them to an empty
+             shelf. Filed together so the two can never disagree about which
+             subject this sentence meant. See `memory/aliases.ts`. */
+          options.aliases?.learn(askedFrom, question, finalKey, at)
+          options.lessons?.keep(finalKey, {
+            route: written.route,
+            lesson: written.lesson,
+            checkpoint: written.concept.checkpoint,
+            next: written.concept.next,
+            at,
+          })
+        }
       } catch {
         /* Recorded nowhere and rethrown nowhere: see above. */
       }

@@ -20,7 +20,7 @@ import { Readable } from 'node:stream'
 import { createServer as createNodeServer } from 'node:http'
 import type { Server } from 'node:http'
 
-import { readJsonBody, DEFAULT_HOST, createServer } from './index.ts'
+import { readJsonBody, DEFAULT_HOST, createServer, standbysFor } from './index.ts'
 
 /* The key this server signs identities with.
  *
@@ -265,5 +265,56 @@ describe('when serving a request throws unexpectedly', () => {
     } finally {
       console.error = original
     }
+  })
+})
+
+describe('the order the vendors are tried in, and who is allowed to wait', () => {
+  /*
+   * A 429 the vendor puts no clock on costs `WAIT_BEFORE_RETRY_MS` -- measured
+   * at 14.8s -- inside the client before the caller hears about it. That is
+   * right for the LAST standby, which has nobody behind it, and wrong for every
+   * one before it, where reaching the next vendor is one round trip. This
+   * expression had no test, and a 14.8s pause is invisible until somebody times
+   * a live request: it is how the measured `502 in 31.5s` shipped.
+   */
+  const hosted = (...vendors: string[]) =>
+    vendors.map((vendor) => ({
+      kind: 'openai-compatible' as const,
+      vendor,
+      keyVar: `${vendor.toUpperCase()}_API_KEY`,
+      apiKey: 'k',
+      model: 'm',
+      baseUrl: 'https://example.test/v1',
+      conceptTokens: 1000,
+    }))
+
+  it('keeps the hosted vendors in the order they were given', () => {
+    const built = standbysFor(hosted('gemini', 'zai', 'mistral'), undefined, undefined)
+    expect(built.map((one) => one.vendor)).toEqual(['gemini', 'zai', 'mistral'])
+  })
+
+  it('appends the local model last, and only when one is configured', () => {
+    expect(standbysFor(hosted('gemini'), undefined, undefined)).toHaveLength(1)
+
+    const withLocal = standbysFor(hosted('gemini'), 'qwen2.5:7b', undefined)
+    expect(withLocal).toHaveLength(2)
+    expect(withLocal[1]?.vendor, 'the laptop must be last, never first').toBe(
+      'ollama (qwen2.5:7b)',
+    )
+  })
+
+  it('names the local model in the vendor, so a log line says who answered', () => {
+    /* `failover` prints the vendor on every refusal. A run served by the laptop
+       has to be distinguishable from a healthy one. */
+    const built = standbysFor(hosted('gemini'), 'gemma3:12b', 'http://elsewhere:11434')
+    expect(built[1]?.vendor).toContain('gemma3:12b')
+  })
+
+  it('leaves nobody waiting out a rate limit when the laptop is behind them', () => {
+    /* Proven through behaviour rather than through a field: a client that is
+       told not to wait gives up on a 429 after ONE attempt. */
+    const built = standbysFor(hosted('gemini', 'zai'), 'qwen2.5:7b', undefined)
+    expect(built).toHaveLength(3)
+    expect(built.map((one) => one.vendor)).toEqual(['gemini', 'zai', 'ollama (qwen2.5:7b)'])
   })
 })

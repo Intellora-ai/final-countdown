@@ -45,6 +45,14 @@ export interface Written {
   readonly next?: unknown
   /** ISO 8601, so a row reads in order without a clock. */
   readonly at: string
+  /**
+   * WHICH RECIPE WROTE IT. See `writtenLessons`.
+   *
+   * A lesson is only reusable while the thing that produces lessons has not
+   * changed. Stamped on write and checked on read, so a prompt change retires
+   * every lesson written before it without anyone having to remember to.
+   */
+  readonly recipe: string
 }
 
 /**
@@ -70,11 +78,49 @@ const MOST_ROUTES_KEPT = 12
  * "What is photosynthesis?" and "what  is  photosynthesis?" share a cache
  * entry. Case and runs of whitespace carry no meaning in a question.
  */
+/**
+ * The words that make a subject a COMPARISON, where the two sides are
+ * interchangeable and the sequence really is arbitrary.
+ */
+const JOINED = new Set(['and', 'or', 'vs', 'vs.', 'versus', '&'])
+
 export function keyFor(concept: string): string {
+  /*
+   * ORDER CARRIES NO MEANING IN A COMPARISON. IT CARRIES ALL OF IT ELSEWHERE.
+   *
+   * MEASURED: the same comparison asked two ways was named `mass and weight`
+   * once and `weight and mass` the other time, and the second learner missed a
+   * lesson already on the shelf and paid to have it written again. Both name
+   * one subject; only the sequence differs.
+   *
+   * SORTING EVERY TARGET WAS THE WRONG GENERALISATION OF THAT. Two nouns joined
+   * by "and" are interchangeable; words standing in a RELATION are not, and
+   * sorting collapsed subjects that mean different things onto one shelf entry:
+   *
+   *   "rate of change"        and "change of rate"
+   *   "work done by a force"  and "force done by a work"
+   *
+   * The first learner's lesson was then served to the second under a key that
+   * no longer told them apart. Nothing in a target marks which kind it is --
+   * except the joining word itself, which is present in exactly the case where
+   * the sequence is arbitrary. So the sort is applied there and nowhere else.
+   *
+   * Safe HERE either way: the tutor still receives `decision.target` in the
+   * order the model wrote it. This is an identifier, and an identifier only has
+   * to be stable.
+   */
+  const words = concept
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .split(' ')
+    .filter((word) => word !== '')
+  const compared = words.some((word) => JOINED.has(word))
+  const named = (compared ? [...words].sort() : words).join(' ')
   return memoryKey({
     studentId: 'shared',
     tabId: 'any',
-    lessonId: `written:${encodeURIComponent(concept.trim().toLowerCase().replace(/\s+/g, ' '))}`,
+    lessonId: `written:${encodeURIComponent(named)}`,
   })
 }
 
@@ -97,10 +143,14 @@ function shelfFrom(stored: string | undefined): Record<string, Written> {
     const it = one as Record<string, unknown>
     if (typeof it['route'] !== 'string' || typeof it['at'] !== 'string') continue
     if (it['lesson'] === undefined || it['lesson'] === null) continue
+    /* A row with no recipe was written before recipes existed, so it cannot be
+       vouched for and reads as absent. */
+    if (typeof it['recipe'] !== 'string') continue
     out[route] = {
       route: it['route'],
       lesson: it['lesson'],
       at: it['at'],
+      recipe: it['recipe'],
       ...(typeof it['checkpoint'] === 'string' ? { checkpoint: it['checkpoint'] } : {}),
       ...(Array.isArray(it['next']) ? { next: it['next'] } : {}),
     }
@@ -115,11 +165,24 @@ export interface WrittenLessons {
    * `spent` is that learner's own list, so a hit is always new TO THEM.
    */
   findUnseen(concept: string, spent: readonly string[]): Written | null
-  /** Keep one that passed the gate whole. */
-  keep(concept: string, written: Written): void
+  /** Keep one that passed the gate whole. The recipe is stamped for you. */
+  keep(concept: string, written: Omit<Written, 'recipe'>): void
 }
 
-export function writtenLessons(store: MemoryStore): WrittenLessons {
+/**
+ * THE SHELF, AND WHAT MAKES SOMETHING ON IT STILL GOOD.
+ *
+ * `recipe` is a fingerprint of everything that decides what a lesson looks
+ * like -- the prompt, its rules, its worked examples. The caller derives it
+ * (see `index.ts`) rather than maintaining a number, because a hand-kept
+ * version is a number somebody forgets to bump the first time they edit a
+ * prompt, and then a stale lesson is served for ever.
+ *
+ * MEASURED, AND THIS IS WHY IT EXISTS: after the target bug was fixed, the
+ * shelf served the lessons written BEFORE the fix -- "wat is fotosynthesis" --
+ * in 11ms, because a stored lesson has no idea the rules changed underneath it.
+ */
+export function writtenLessons(store: MemoryStore, recipe: string): WrittenLessons {
   return {
     findUnseen(concept, spent) {
       const shelf = shelfFrom(store.read(keyFor(concept)))
@@ -129,6 +192,9 @@ export function writtenLessons(store: MemoryStore): WrittenLessons {
          same point in their history get the same lesson, which is what makes a
          classroom's questions cheap. */
       const unseen = Object.values(shelf)
+        /* Written by a different recipe, so it is not this product's lesson any
+           more however good it was. */
+        .filter((one) => one.recipe === recipe)
         .filter((one) => !already.has(one.route))
         .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0))
       return unseen[0] ?? null
@@ -144,7 +210,7 @@ export function writtenLessons(store: MemoryStore): WrittenLessons {
        */
       store.update(keyFor(concept), written.at, (current) => {
         const shelf = shelfFrom(current)
-        shelf[written.route] = written
+        shelf[written.route] = { ...written, recipe }
         const kept = Object.values(shelf)
           .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0))
           .slice(-MOST_ROUTES_KEPT)

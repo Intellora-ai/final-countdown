@@ -18,7 +18,7 @@
  */
 
 import { createServer as createNodeServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { chooseProvider, hostedProviders, type OpenAiCompatible } from './provider.ts'
+import { chooseProvider, hostedProviders, value, type OpenAiCompatible } from './provider.ts'
 import { createOllamaModel, DEFAULT_OLLAMA_ENDPOINT } from './ollama.ts'
 import { createGroqModel, DEFAULT_GROQ_MODEL } from './groq.ts'
 import { failover } from './failover.ts'
@@ -27,6 +27,10 @@ import { sqliteMemoryStore } from './memory/sqliteStore.ts'
 import { canvasMemory, type CanvasMemory } from './memory/store.ts'
 import { explanationsIn, type Explanations } from './memory/explanations.ts'
 import { writtenLessons, type WrittenLessons } from './memory/lessons.ts'
+import { subjectAliases, type SubjectAliases } from './memory/aliases.ts'
+import { CONTROLLER_SYSTEM } from './controller.ts'
+import { conceptIssues, conceptRequest } from '../src/canvas/teach/concept.ts'
+import { validateLesson } from '../src/canvas/spec/validate.ts'
 import type { Readable } from 'node:stream'
 
 import { createHandler, type ModelPort, type SearchPort } from './handler.ts'
@@ -96,9 +100,71 @@ export interface ServerOptions {
   readonly explanations?: Explanations
   /** Lessons any learner can read. Absent means every ask is authored. */
   readonly lessons?: WrittenLessons
+  /** What a phrasing was decided to mean. Absent means every ask pays for the
+      controller before the shelf can be read. See `memory/aliases.ts`. */
+  readonly aliases?: SubjectAliases
   /** The key identities are signed with. No default; see `identity.ts`. */
   readonly identitySecret: string
   readonly secrets?: readonly string[]
+}
+
+/**
+ * THE ORDER THE VENDORS ARE TRIED IN, AND WHO IS ALLOWED TO WAIT.
+ *
+ * EXTRACTED SO IT CAN BE TESTED. This lived inline in the boot path, reading
+ * `process.env` in the middle of an eighty-line function, and nothing exercised
+ * it: `groq-budget.test.ts` builds clients directly and `failover.test.ts` is
+ * handed standbys already constructed. So the one expression that decides
+ * whether a hosted vendor sits out a 14.8-second rate-limit pause had no test
+ * at all -- and a 14.8s pause is invisible until somebody times a live request,
+ * which is exactly how the measured `502 in 31.5s` shipped.
+ *
+ * `waitOutRateLimits` IS TRUE FOR ONE STANDBY ONLY: the last one, because it is
+ * the only one with nobody behind it, and for it waiting really is the whole
+ * fix. A local fallback, when configured, takes that place -- so no hosted
+ * vendor is the last resort while the laptop exists.
+ *
+ * THE LOCAL ENTRY IS LAST AND OPT-IN. See the note at the call site: it appears
+ * only when `OLLAMA_FALLBACK_MODEL` is set, so an unset variable leaves this
+ * list exactly what it was.
+ */
+export function standbysFor(
+  hosted: readonly OpenAiCompatible[],
+  localModel: string | undefined,
+  localEndpoint: string | undefined,
+): readonly { vendor: string; model: ReturnType<typeof createGroqModel> }[] {
+  return [
+    ...hosted.map((each, at) => ({
+      vendor: each.vendor,
+      model: createGroqModel({
+        apiKey: each.apiKey,
+        model: each.model,
+        baseUrl: each.baseUrl,
+        /* So a blank key names the variable the operator actually set, not
+           `GROQ_API_KEY` for all five hosts. See `GroqOptions.keyVar`. */
+        keyVar: each.keyVar,
+        /* What ONE concept may reserve from THIS vendor's budget. See
+           `Vendor.conceptTokens`: a single constant had to clear the
+           longest-writing vendor, so every other vendor overpaid on every
+           request. */
+        conceptTokens: each.conceptTokens,
+        /* The local standby, when configured, is the one with nobody behind
+           it -- so a hosted vendor is never the last resort while it exists. */
+        waitOutRateLimits: localModel === undefined && at === hosted.length - 1,
+      }),
+    })),
+    ...(localModel === undefined
+      ? []
+      : [
+          {
+            vendor: `ollama (${localModel})`,
+            model: createOllamaModel({
+              model: localModel,
+              ...(localEndpoint === undefined ? {} : { endpoint: localEndpoint }),
+            }) as unknown as ReturnType<typeof createGroqModel>,
+          },
+        ]),
+  ]
 }
 
 export function createServer(options: ServerOptions): Server {
@@ -109,6 +175,7 @@ export function createServer(options: ServerOptions): Server {
     ...(options.memory === undefined ? {} : { memory: options.memory }),
     ...(options.explanations === undefined ? {} : { explanations: options.explanations }),
     ...(options.lessons === undefined ? {} : { lessons: options.lessons }),
+    ...(options.aliases === undefined ? {} : { aliases: options.aliases }),
     identitySecret: options.identitySecret,
     secrets: options.secrets,
     maxBodyBytes: MAX_BODY_BYTES,
@@ -249,17 +316,11 @@ function main(): void {
        fix closed. One list, used twice, cannot disagree with itself. */
     hosted = hostedProviders(process.env)
     model = failover(
-      hosted.map((each) => ({
-        vendor: each.vendor,
-        model: createGroqModel({
-          apiKey: each.apiKey,
-          model: each.model,
-          baseUrl: each.baseUrl,
-          /* So a blank key names the variable the operator actually set, not
-             `GROQ_API_KEY` for all five hosts. See `GroqOptions.keyVar`. */
-          keyVar: each.keyVar,
-        }),
-      })),
+      standbysFor(
+        hosted,
+        value(process.env, 'OLLAMA_FALLBACK_MODEL'),
+        value(process.env, 'OLLAMA_ENDPOINT'),
+      ),
     )
   } else {
     model = createModel({ apiKey: provider.apiKey })
@@ -336,7 +397,82 @@ function main(): void {
   const memory = canvasMemory({ store: memoryStore })
   const explanations = explanationsIn(memoryStore)
   /* One shelf of written lessons, shared by every learner. See `memory/lessons.ts`. */
-  const lessons = writtenLessons(memoryStore)
+  /*
+   * THE RECIPE, DERIVED RATHER THAN DECLARED.
+   *
+   * A stored lesson is only reusable while the thing that writes lessons has
+   * not changed. The obvious implementation is a version constant -- and it is
+   * the wrong one, because it is a number somebody has to remember to bump the
+   * first time they edit a prompt, and the failure when they forget is silent:
+   * a lesson written by the old rules served for ever.
+   *
+   * So the fingerprint IS the prompt. `conceptRequest` with fixed arguments
+   * returns the whole static skeleton -- the rules, the legal values, the
+   * worked example, the craft rules -- so any edit to any of them changes this
+   * string, and every lesson written before that edit stops matching. Nothing
+   * to maintain and nothing to forget.
+   *
+   * A CHEAP HASH, NOT A CRYPTOGRAPHIC ONE. This is a cache key, not a
+   * signature: it only has to change when the prompt changes, and FNV-1a over
+   * a few thousand characters costs microseconds once at boot.
+   */
+  /*
+   * THE GATE IS PART OF THE RECIPE TOO.
+   *
+   * Fingerprinting only the prompt left the same hole one layer up: tighten a
+   * rule in `conceptIssues` -- say a concept must now carry a `restriction`
+   * block -- and every lesson already on the shelf was written under the looser
+   * rule, would fail the new gate, and is served anyway because the prompt
+   * string never changed. The product would then hand out lessons it refuses to
+   * author, and the gate would stop applying to most of what learners see.
+   *
+   * `Function.prototype.toString` gives the source of the checkers as the
+   * bundle actually contains it, so editing a rule changes this string. It is a
+   * cache key, not a signature: it only has to CHANGE when the behaviour does.
+   */
+  const fingerprintOf = (text: string): string => {
+    let hash = 0x811c9dc5
+    for (let i = 0; i < text.length; i += 1) {
+      hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193) >>> 0
+    }
+    return hash.toString(16)
+  }
+  const recipe = fingerprintOf(
+    [
+      conceptRequest('x', [], [], 1, [], 'teach'),
+      conceptIssues.toString(),
+      validateLesson.toString(),
+    ].join('\n'),
+  )
+  const lessons = writtenLessons(memoryStore, recipe)
+  /*
+   * ONE MEMO OF WHAT EACH PHRASING WAS DECIDED TO MEAN.
+   *
+   * STAMPED WITH THE CONTROLLER'S PROMPT, NOT THE SHELF'S RECIPE.
+   *
+   * An entry here records the CONTROLLER'S READING of a phrasing, and a reading
+   * is produced by `CONTROLLER_SYSTEM`. Stamping it with `recipe` -- built from
+   * `conceptRequest`, `conceptIssues` and `validateLesson` -- got this exactly
+   * backwards in both directions:
+   *
+   *   - editing the controller prompt so `rate of change` now reads as
+   *     `derivatives` rather than `rates` did NOT move the stamp, so every
+   *     stored reading survived and the fast path, which deliberately never
+   *     re-learns, served the old one for ever. That is precisely the failure
+   *     the stamp was added to prevent;
+   *   - editing the AUTHORING prompt, which cannot change what a sentence
+   *     means, retired every alias in the store and cost a controller call per
+   *     phrasing for nothing.
+   *
+   * Each store is stamped with the prompt that actually determines what it
+   * holds. The lesson an alias points at is still recipe-checked on read by
+   * `writtenLessons`, so a stale LESSON cannot be served through a live alias.
+   *
+   * The cost of being wrong is one controller call per phrasing after a
+   * controller-prompt edit, paid once and then warm again -- which is the price
+   * of being able to be wrong and recover at all.
+   */
+  const aliases = subjectAliases(memoryStore, fingerprintOf(CONTROLLER_SYSTEM))
 
   /* THE IDENTITY SECRET. REQUIRED, AND THE SERVER REFUSES TO START WITHOUT IT.
    *
@@ -355,7 +491,7 @@ function main(): void {
     : { secret: configuredSecret, generated: false }
   const identitySecret = resolved.secret
 
-  const server = createServer({ model, search, almanac, memory, explanations, lessons, identitySecret, secrets })
+  const server = createServer({ model, search, almanac, memory, explanations, lessons, aliases, identitySecret, secrets })
   server.listen(port, host, () => {
     console.log(`almanac server listening on http://${host}:${port}`)
     console.log(`  memory: ${memoryPath} (sqlite, safe for many servers)`)

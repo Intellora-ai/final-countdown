@@ -89,7 +89,10 @@ export interface ModelLike {
    * repair, then the user's turn. No schema is sent -- `concept.ts` carries a
    * worked example instead, and `handler.ts` validates every reply either way.
    */
-  chat(system: string, user: string, priorAssistant?: string): Promise<string>
+  /* `budget` is accepted and ignored: a local model has no per-minute
+     allowance to protect, and the parameter exists so one `chat` shape serves
+     every client. See `groq.ts`. */
+  chat(system: string, user: string, priorAssistant?: string, budget?: number): Promise<string>
 }
 
 /**

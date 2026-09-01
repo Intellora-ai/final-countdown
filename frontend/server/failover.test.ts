@@ -53,6 +53,47 @@ describe('the day the free tier runs out', () => {
     expect(kimi).toHaveBeenCalledOnce()
   })
 
+  it('moves on from a 429 that carries no vendor code at all', async () => {
+    /*
+     * MEASURED ON THE RUNNING SERVER, and it took the product down completely:
+     *
+     *   [failover] gemini could not answer: the model could not be reached (429)
+     *   POST /api/ask -> 502 in 31.5s
+     *
+     * with a Groq key configured, a Groq client built, and Groq never asked.
+     *
+     * Every other 429 case in this file is written in GROQ'S wording --
+     * `(429 tokens/rate_limit_exceeded ...)` -- which the string tests catch.
+     * Gemini sends a bare `(429)`, so every string test missed it and the
+     * status fell through to `code >= 500`. The vendor whose phrasing nobody
+     * had written a test from was the one vendor that could disable failover,
+     * and it is FIRST in `VENDORS`.
+     */
+    const kimi = vi.fn(async () => 'a lesson about the tyndall effect')
+    const model = failover([
+      line('gemini', refuses('the model could not be reached (429)')),
+      line('moonshot', { ...answers('unused'), chat: kimi }),
+    ])
+
+    await expect(model.chat!('sys', 'the tyndall effect')).resolves.toBe(
+      'a lesson about the tyndall effect',
+    )
+    expect(kimi, 'the standby was never asked, so the learner got a 502').toHaveBeenCalledOnce()
+  })
+
+  it('moves on from a bare 429 for a whole lesson too', async () => {
+    /* `lesson` and `chat` are two entry points into the same loop; a fix that
+       only reached one of them would leave the other path dead. */
+    const kimi = vi.fn(async () => ({ id: 'a-lesson' }))
+    const model = failover([
+      line('gemini', refuses('the model could not be reached (429)')),
+      line('moonshot', { ...answers('unused'), lesson: kimi }),
+    ])
+
+    await expect(model.lesson({} as never)).resolves.toEqual({ id: 'a-lesson' })
+    expect(kimi).toHaveBeenCalledOnce()
+  })
+
   it('does not touch a standby while the primary is healthy', async () => {
     /* Which vendor teaches on a good day must not change, or every measurement
        in CONSTRAINTS.md becomes unrepeatable. */
@@ -302,16 +343,44 @@ describe('numbers that are not statuses are not read as statuses', () => {
   })
 
   it('does not read a local endpoint’s port as an HTTP status', async () => {
-    /* `ollama.ts` writes "the model could not be reached: Ollama is not
-       answering at http://127.0.0.1:11434 ..." -- a colon, not a parenthesis. */
-    const second = vi.fn(async () => 'never')
+    /*
+     * THE PROPERTY: a message with a colon rather than a parenthesis carries no
+     * status, and `(503 MB free)` in the middle of a sentence is not a 503.
+     *
+     * WHAT CHANGED, AND WHY THE ASSERTION MOVED. This used to end
+     * `expect(second).not.toHaveBeenCalled()`, and that was right when it was
+     * written: Ollama could only ever be the PRIMARY in local mode and could
+     * never appear in a failover chain, so "no status" and "do not move on"
+     * were the same outcome. Ollama can now be a standby, and a laptop with
+     * `ollama serve` stopped is exactly the "host that is down or not
+     * answering" this file is documented to move for -- so the two came apart
+     * and the sentence, not the digits, is what decides now.
+     *
+     * The anti-misparse property is proven by the next test instead, which uses
+     * a sentence `worthAskingAnother` has no other reason to move for.
+     */
+    const second = vi.fn(async () => 'the hosted vendor answered')
     const model = failover([
       line('ollama', refuses('the model could not be reached: Ollama is not answering at http://127.0.0.1:11434 (503 MB free)')),
       line('moonshot', { ...answers('never'), chat: second }),
     ])
 
-    await expect(model.chat!('sys', 'q')).rejects.toThrow(/Ollama/)
-    expect(second).not.toHaveBeenCalled()
+    await expect(model.chat!('sys', 'q')).resolves.toBe('the hosted vendor answered')
+    expect(second, 'a stopped laptop model took the hosted vendor down with it').toHaveBeenCalledOnce()
+  })
+
+  it('still refuses to find a status inside a sentence that has none', async () => {
+    /* Same shape -- a colon, a port, a parenthesised number -- but none of the
+       phrases this file matches on. If `(503 MB free)` were being read as a
+       status the standby would be asked, and it must not be. */
+    const second = vi.fn(async () => 'never')
+    const model = failover([
+      line('groq', refuses('the model could not be reached: the disk at /var/db:11434 (503 MB free) is full')),
+      line('moonshot', { ...answers('never'), chat: second }),
+    ])
+
+    await expect(model.chat!('sys', 'q')).rejects.toThrow(/disk/)
+    expect(second, 'a parenthesised number in prose was read as an HTTP status').not.toHaveBeenCalled()
   })
 
   it('still moves on for a real 503 from the hosted client', async () => {
@@ -320,5 +389,48 @@ describe('numbers that are not statuses are not read as statuses', () => {
       line('moonshot', answers('the second host was up')),
     ])
     await expect(model.chat!('sys', 'q')).resolves.toBe('the second host was up')
+  })
+})
+
+describe('a local model that is not running is not the end of the road', () => {
+  it('asks a hosted vendor after Ollama says it is not answering', async () => {
+    /*
+     * `ollama.ts` writes `the model could not be reached: Ollama is not
+     * answering at <endpoint>` -- a colon and no parenthesis -- so the status
+     * regex found nothing and `worthAskingAnother` returned false. Harmless
+     * while the laptop is LAST; the moment anyone puts it first, for offline
+     * use or to spare a quota, a stopped `ollama serve` takes every hosted
+     * vendor behind it down with it.
+     */
+    const hosted = vi.fn(async () => 'a lesson about photosynthesis')
+    const model = failover([
+      line(
+        'ollama (qwen2.5:7b)',
+        refuses(
+          'the model could not be reached: Ollama is not answering at http://127.0.0.1:11434. ' +
+            'Is it running? Start it with: ollama serve',
+        ),
+      ),
+      line('gemini', { ...answers('unused'), chat: hosted }),
+    ])
+
+    await expect(model.chat!('sys', 'photosynthesis')).resolves.toBe(
+      'a lesson about photosynthesis',
+    )
+    expect(hosted, 'a stopped laptop model stopped the whole chain').toHaveBeenCalledOnce()
+  })
+
+  it('also moves on when the local model simply never answers', async () => {
+    const hosted = vi.fn(async () => 'a lesson')
+    const model = failover([
+      line(
+        'ollama (gemma3:12b)',
+        refuses('the model could not be reached: Ollama at http://127.0.0.1:11434 did not answer within 240000ms'),
+      ),
+      line('gemini', { ...answers('unused'), chat: hosted }),
+    ])
+
+    await expect(model.chat!('sys', 'x')).resolves.toBe('a lesson')
+    expect(hosted).toHaveBeenCalledOnce()
   })
 })

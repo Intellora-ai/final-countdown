@@ -74,6 +74,26 @@ function worthAskingAnother(reason: string): boolean {
   if (said.includes('no reply')) return true
   /* A named code, which no digit sniffing can imitate. */
   if (said.includes('invalid_api_key')) return true
+  /*
+   * A HOST THAT IS SIMPLY NOT THERE, WHICH IS WHAT `ollama.ts` SAYS IN WORDS.
+   *
+   * This function is documented as moving for "a host that is down or not
+   * answering", and the one client that reports exactly that could not be read:
+   * `ollama.ts` writes `the model could not be reached: Ollama is not answering
+   * at <endpoint>` and `... did not answer within <n>ms` -- a colon and no
+   * parenthesis, so the status regex below finds nothing and returns false.
+   *
+   * IT COSTS NOTHING TODAY AND EVERYTHING ON THE DAY SOMEBODY REORDERS. The
+   * local model is last in the chain, so a false here ends a loop that was
+   * ending anyway. Put it first -- for offline use, or to spare a quota -- and
+   * a laptop with `ollama serve` not running breaks the loop and every hosted
+   * vendor behind it goes unasked. That is the identical failure the bare-429
+   * fix was written for, waiting for a one-line change to the list.
+   *
+   * MATCHED ON WHAT THIS REPOSITORY WRITES, like every rule above it: both
+   * sentences come from `ollama.ts`, not from a vendor's prose.
+   */
+  if (said.includes('is not answering at') || said.includes('did not answer within')) return true
 
   /*
    * THE STATUS, READ FROM THE ONE PLACE IT IS WRITTEN.
@@ -97,6 +117,32 @@ function worthAskingAnother(reason: string): boolean {
   /* The key was refused, or the account cannot use this model. Another vendor's
      key is a different key. */
   if (code === 401 || code === 403) return true
+  /*
+   * RATE LIMITED, WHICH IS THE WHOLE REASON THIS FILE EXISTS.
+   *
+   * MEASURED ON THE RUNNING SERVER, and it took the product down completely:
+   *
+   *   [failover] gemini could not answer: the model could not be reached (429)
+   *   POST /api/ask -> 502 in 31.5s
+   *
+   * with a Groq key configured, a Groq client built, and Groq never asked.
+   *
+   * WHY THE GUARD ABOVE DID NOT CATCH IT. The string tests read `rate_limit`
+   * and `token budget is spent` out of the message, and those are GROQ'S short
+   * codes -- every 429 case in `failover.test.ts` is written in Groq's wording,
+   * `(429 tokens/rate_limit_exceeded ...)`. Gemini sends a 429 with no short
+   * code at all, so the message is bare `(429)`, every string test missed, and
+   * the status fell through to `code >= 500` -- false. The primary broke the
+   * loop and no standby was tried.
+   *
+   * So the vendor whose wording was not the one the tests were written from was
+   * the one vendor that could disable failover, and it is FIRST in `VENDORS`.
+   * Read from the STATUS, which every vendor sends and none of them phrases:
+   * 429 means this account cannot serve us right now, which is precisely the
+   * "unavailable TO US" this function is documented to move for -- and another
+   * vendor's quota is a different quota.
+   */
+  if (code === 429) return true
   /* A host that is up and failing. */
   return code >= 500
 }
@@ -274,9 +320,9 @@ export function failover(standbys: readonly Standby[]): Model {
       firstThatAnswers(standbys, spentUntil, 'write a lesson', (m) => m.lesson(brief)),
     ...(someoneCanChat
       ? {
-          chat: (system: string, user: string, priorAssistant?: string) =>
+          chat: (system: string, user: string, priorAssistant?: string, budget?: number) =>
             firstThatAnswers(standbys, spentUntil, 'answer', (m) =>
-              m.chat?.(system, user, priorAssistant),
+              m.chat?.(system, user, priorAssistant, budget),
             ),
         }
       : {}),

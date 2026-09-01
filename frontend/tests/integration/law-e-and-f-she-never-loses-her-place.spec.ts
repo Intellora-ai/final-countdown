@@ -94,9 +94,21 @@ test.describe('Law F -- back never leaves her on a blank page', () => {
 
     /* Go somewhere. Then press the browser's own back button, which is the
      * most-pressed control on the web and the one apps forget exists. */
-    const doors = await thingsSheCanPress(page)
+    /*
+     * RE-QUERIED EVERY ATTEMPT, AND THE PHONE IS WHY. On the mobile layout the
+     * navigation sits behind a menu button: the first tap opens the menu (no
+     * URL change) and the links it reveals are the doors that actually go
+     * somewhere. A list snapshotted once before any click can never contain
+     * them, so this law failed on the phone leg -- and only the phone leg --
+     * on every run it ever had, reporting "an app with no navigation" about
+     * an app whose navigation simply takes two taps. A person's finger works
+     * from the screen as it is now; so does this loop.
+     */
     let wentSomewhere = false
-    for (const door of doors.slice(0, 10)) {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const doors = await thingsSheCanPress(page)
+      const door = doors[attempt]
+      if (!door) break
       const name = (await door.textContent().catch(() => ''))?.trim() ?? ''
       if (!name || name.length > 60) continue
       const wasAt = page.url()

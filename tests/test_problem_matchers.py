@@ -22,7 +22,9 @@ REPO = Path(__file__).resolve().parent.parent
 MATCHERS = REPO / ".github" / "matchers" / "tools.json"
 
 #: Verbatim tool output. Do not tidy these strings -- their exact shape is the test.
-SAMPLES = {
+#: Single-pattern matchers pin one line; the loop matcher (eslint-stylish) pins
+#: one line PER PATTERN, in pattern order, because that is how the runner feeds it.
+SAMPLES: dict[str, Any] = {
     "pyright": (
         '  /Users/x/final countdown/scripts/local_gates.py:204:5 - error: '
         'Variable "code" is not accessed (reportUnusedVariable)'
@@ -31,6 +33,21 @@ SAMPLES = {
         'scripts/verify_per_function.sh:12:1: error: '
         'Double quote to prevent globbing [SC2086]'
     ),
+    # Verbatim from the learning-os Types step, run 33543240439 (2026-09-01):
+    # the strict-mypy failure the red ruff step had been hiding. mypy prints NO
+    # column by default, which is exactly why gcc-style never fired on it.
+    "mypy": (
+        'tests/test_ollama_client.py:249: error: '
+        'Function is missing a return type annotation  [no-untyped-def]'
+    ),
+    # Verbatim from the coverage gate, run on 87c2686c (2026-09-02): the failing
+    # frame pytest prints last, which is the one line that carries file+line.
+    "pytest-tail": 'tests/test_problem_matchers.py:44: AssertionError',
+    # eslint stylish output: a file line, then indented findings under it.
+    "eslint-stylish": [
+        'src/canvas/CanvasRoute.tsx',
+        "  12:5  error  'draft' is assigned a value but never used  no-unused-vars",
+    ],
 }
 
 
@@ -48,22 +65,38 @@ def test_the_matcher_file_is_valid_json_with_the_expected_owners() -> None:
 
 @pytest.mark.parametrize("owner", sorted(SAMPLES))
 def test_each_regex_matches_real_output_and_extracts_every_field(owner: str) -> None:
-    pattern = matchers()[owner]["pattern"][0]           # type: ignore[index]
-    got = re.compile(str(pattern["regexp"])).match(SAMPLES[owner])  # type: ignore[index]
-    assert got is not None, (
-        f"{owner}: the regex does not match real output. This matcher would be dead in "
-        f"CI while appearing configured.\n  sample: {SAMPLES[owner]}")
+    """Each pattern is fed its own sample line, and only the fields a pattern
+    DECLARES are demanded of it: mypy prints no column and pytest's failing
+    frame prints no severity -- demanding absent fields would force every
+    matcher to lie about its tool's real output, which is the exact failure
+    this file exists to prevent."""
+    patterns = cast("list[dict[str, Any]]", matchers()[owner]["pattern"])
+    sample = SAMPLES[owner]
+    lines: list[str] = sample if isinstance(sample, list) else [sample]
+    assert len(lines) == len(patterns), (
+        f"{owner}: {len(patterns)} pattern(s) need {len(patterns)} sample line(s), "
+        f"one per pattern in order; got {len(lines)}")
 
-    # Every declared capture index must actually capture something.
-    for field in ("file", "line", "column", "severity", "message"):
-        index = int(pattern[field])                     # type: ignore[index]
-        value = got.group(index)
-        assert value, f"{owner}: capture group {index} for {field!r} is empty"
+    for pattern, line in zip(patterns, lines):
+        got = re.compile(str(pattern["regexp"])).match(line)
+        assert got is not None, (
+            f"{owner}: the regex does not match real output. This matcher would be "
+            f"dead in CI while appearing configured.\n  sample: {line}")
 
-    assert got.group(int(pattern["line"])).isdigit()     # type: ignore[index]
-    assert got.group(int(pattern["column"])).isdigit()   # type: ignore[index]
-    assert got.group(int(pattern["severity"])) in {      # type: ignore[index]
-        "error", "warning", "note", "information"}
+        for field in ("file", "line", "column", "severity", "message", "code"):
+            if field not in pattern or field == "loop":
+                continue
+            index = int(pattern[field])
+            value = got.group(index)
+            assert value, f"{owner}: capture group {index} for {field!r} is empty"
+
+        if "line" in pattern:
+            assert got.group(int(pattern["line"])).isdigit()
+        if "column" in pattern:
+            assert got.group(int(pattern["column"])).isdigit()
+        if "severity" in pattern:
+            assert got.group(int(pattern["severity"])) in {
+                "error", "warning", "note", "information"}
 
 
 def test_the_generic_template_regex_would_not_have_worked_for_pyright() -> None:

@@ -287,6 +287,12 @@ export async function sheStartsFresh(page: Page, where = '/'): Promise<void> {
     try { localStorage.clear() } catch { /* a private window has none */ }
     try { sessionStorage.clear() } catch { /* nor this */ }
   }).catch(() => {})
-  await page.reload({ waitUntil: 'domcontentloaded' })
+  /* NOT `page.reload()`. WebKit on a loaded runner answers reload with
+   * "WebKit encountered an internal error" -- the safari leg's only failure,
+   * annotated at exactly this line. A hop through about:blank and back forces
+   * the same full document boot with the storage now clear, through the plain
+   * navigation path every engine survives. */
+  await page.goto('about:blank')
+  await page.goto(where, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1800)
 }

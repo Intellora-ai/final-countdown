@@ -45,6 +45,27 @@ export default defineConfig({
 
   use: {
     baseURL: 'http://127.0.0.1:5183',
+
+    /* AND THE SAME SHORT LEASH ON EVERY ACTION, WHICH IS THE HALF THAT WAS
+     * MISSING AND COST FIFTEEN MINUTES A RUN.
+     *
+     * Playwright's default `actionTimeout` is 0, which means NO LIMIT -- a
+     * click or a fill that can never succeed waits until the whole test dies.
+     * With `timeout: 900_000` above, that is what one unfillable box costs.
+     *
+     * MEASURED, and this is the number that started the hunt. Law A walks
+     * every lesson this app offers. One of them is refused, and a refused
+     * lesson draws no box to type in, so `fill` waited on a control that will
+     * never be enabled: 900s, then "Test timeout of 900000ms exceeded" with no
+     * word about which element or why. The same wait happens on Chromium and
+     * WebKit -- it was never an engine's fault.
+     *
+     * 15s for the same reason `expect` gets 15s: it is roughly the point at
+     * which a real person decides the screen is broken. Every action this
+     * suite actually performs is measured in tens of milliseconds, so this
+     * cannot shorten an honest one; it only stops a hopeless one from
+     * pretending to be slow. */
+    actionTimeout: 15_000,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

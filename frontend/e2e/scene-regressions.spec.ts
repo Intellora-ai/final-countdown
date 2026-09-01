@@ -457,6 +457,34 @@ test.describe('the lesson is taught, not printed', () => {
       'frontend/src/canvas/teach/TeachView.tsx',
     ])
     await open(page, testInfo)
+    /*
+     * THE LESSON IS NAMED HERE, AND UNTIL NOW IT WAS ASSUMED.
+     *
+     * This typed "what is pressure" into whatever `/#/canvas` happens to open
+     * with. When it was written that was the gas lesson -- `CanvasRoute`'s list
+     * began `{ id: 'gas', label: 'Physics' }` -- so the doubt was about the page
+     * in front of the learner, which is the entire property being checked.
+     *
+     * `logarithms` was later put first and the input stopped matching the
+     * lesson. Nothing in a lesson about logarithms says anything about pressure.
+     * MEASURED through `validateLesson` and the real resolver, on this branch
+     * and on `main` alike: "what is pressure" on `logarithms` is a REFUSAL, and
+     * "what is pressure" on `gasPressure` is an answer drawn from
+     * `what-pressure-is`.
+     *
+     * So why was it green? The WEB rung answered it -- a live fetch, over the
+     * network, from a CI runner. A browser guard for "the lesson answers a
+     * doubt in place" was passing on a page whose lesson had refused the
+     * question, and could only ever pass where the network was. That rung is
+     * now reachable only behind one that can judge (`webResolver`'s
+     * `judgementRan`), which is what finally turned this red.
+     *
+     * Naming the lesson puts the doubt back on the page in front of the
+     * learner, offline and deterministic, and reordering the picker can no
+     * longer re-aim this test at a lesson the question has nothing to do with.
+     */
+    const physics = LESSONS[0]
+    await page.getByRole('button', { name: physics.label, exact: true }).click()
     await settle(page)
 
     const before = await bodyBlocks(page).count()
@@ -475,6 +503,27 @@ test.describe('the lesson is taught, not printed', () => {
       await answer.locator('.lc-block').count(),
       'the answer drew something',
     ).toBeGreaterThan(0)
+
+    /* AND THIS LESSON IS WHERE IT CAME FROM, WHICH NOTHING HERE CHECKED.
+     *
+     * `drawnFrom` is empty for every rung behind the lesson -- the engine and
+     * the web both set it so on purpose, because neither drew on the page in
+     * front of the learner -- so the footer is rendered only when the LESSON
+     * answered. Without this line any reply from anywhere satisfies the three
+     * assertions above, which is precisely how this test stayed green while the
+     * lesson on screen was refusing the question. The titles are read off the
+     * lesson source, so editing the lesson cannot leave a stale string here.
+     */
+    const foot = answer.locator('.lc-teach__answer-foot')
+    await expect(foot, 'the answer never said which block it came from').toHaveCount(1)
+    const drawnFrom = (await foot.textContent()) ?? ''
+    const titles = physics.spec.blocks
+      .map((block) => block.title)
+      .filter((title): title is string => typeof title === 'string' && title.trim() !== '')
+    expect(
+      titles.filter((title) => drawnFrom.includes(title)),
+      `"Drawn from" named no block of this lesson: ${drawnFrom}`,
+    ).not.toHaveLength(0)
 
     /* THE POINT OF THE FEATURE: there is no route from a doubt to the next
      * beat. The body is untouched and the same checkpoint is asked again. */

@@ -159,13 +159,15 @@ const OWN_MODEL_NOTE =
  */
 async function askTheServer(
   question: string,
-): Promise<{ ok: true; lesson: Lesson } | { ok: false; issues: Issue[] }> {
-  let body: { lesson?: unknown; error?: unknown }
+  /** Routes already spent on this topic, so the server can pick a fresh one. */
+  alreadyUsed: readonly string[],
+): Promise<{ ok: true; lesson: Lesson; route: string } | { ok: false; issues: Issue[] }> {
+  let body: { lesson?: unknown; error?: unknown; route?: unknown }
   try {
     const response = await fetch('/api/ask', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({ question, alreadyUsed }),
     })
     body = (await response.json()) as { lesson?: unknown; error?: unknown }
     if (!response.ok) {
@@ -234,7 +236,17 @@ async function askTheServer(
    * sentence and no explanation.
    */
   const checked = validateLesson(body?.lesson)
-  return checked.ok ? { ok: true, lesson: checked.lesson } : { ok: false, issues: [...checked.issues] }
+  if (!checked.ok) return { ok: false, issues: [...checked.issues] }
+
+  /* '' rather than a throw when the server did not name a route: an unnamed
+     route simply cannot be excluded next time, which costs variety and not the
+     lesson. Refusing a lesson she can read over a bookkeeping field would be
+     the wrong trade. */
+  return {
+    ok: true,
+    lesson: checked.lesson,
+    route: typeof body?.route === 'string' ? body.route : '',
+  }
 }
 
 function readEnv(name: string): string {
@@ -415,8 +427,29 @@ export default function CanvasRoute({
        * Everyone else reaches the server, which can hold a key safely.
        */
       if (!herOwnModel) {
-        const written = await askTheServer(question)
+        /*
+         * THE SAME MEMORY THE DIRECT PATH KEEPS, FOR THE SAME REASON.
+         *
+         * `alreadyTaught` is not new and is not a second store: it is the map
+         * `explainAgain` already reads and writes below, so a learner who asks
+         * the same thing twice gets a different way in whichever model wrote
+         * it. Without this the server is stateless, `nextRoute` is handed an
+         * empty list every time, and the same question returns the same
+         * explanation forever -- which is the one thing a second asking must
+         * never do, because a message the receiver could have predicted teaches
+         * nothing.
+         */
+        const key = question.toLowerCase()
+        const before = alreadyTaught.current.get(key) ?? NOTHING_YET
+        const written = await askTheServer(question, before.routes)
         if (written.ok) {
+          alreadyTaught.current.set(key, {
+            /* An unnamed route is not recorded. Storing '' would make the next
+               request claim to have spent a route that does not exist, and
+               `nextRoute` would rule out nothing while believing it had. */
+            routes: written.route === '' ? before.routes : [...before.routes, written.route],
+            shown: [...before.shown, written.lesson],
+          })
           setAuthored(written.lesson)
         } else {
           setAuthored(null)

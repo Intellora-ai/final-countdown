@@ -323,7 +323,10 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
    * screen. `CanvasRoute` branches on exactly that distinction to decide
    * whether to tell her to wait or to try a different question.
    */
-  async function conceptFor(question: string): Promise<ServerResponse> {
+  async function conceptFor(
+    question: string,
+    alreadyUsed: readonly string[],
+  ): Promise<ServerResponse> {
     const chat = options.model.chat
     if (chat === undefined) throw new Error('conceptFor called without a chat-capable model')
 
@@ -333,6 +336,8 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         (system: string, user: string, priorAssistant?: string) =>
           chat(system, user, priorAssistant),
         question,
+        [],
+        alreadyUsed,
       )
     } catch (thrown) {
       /* The vendor's message is still dropped -- it quotes the request and
@@ -345,7 +350,17 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       return reply(502, { error: reason })
     }
 
-    if (written.ok) return reply(200, { lesson: written.lesson })
+    /*
+     * THE ROUTE IS RETURNED, AND THAT IS WHAT MAKES THE ROTATION WORK.
+     *
+     * `authorConcept` already computes which way in it took and hands it back
+     * -- `ConceptResult.route` exists precisely because a caller with no way to
+     * read it had no way to fill `alreadyUsed`, "so the parameter stayed empty
+     * forever and the same question always took the same route". Dropping it
+     * here would restore that, one layer up, with the canvas unable to tell
+     * that anything had rotated.
+     */
+    if (written.ok) return reply(200, { lesson: written.lesson, route: written.route })
 
     /*
      * A STRING, NOT A BOOLEAN, AND THE DIFFERENCE REACHED THE LEARNER.
@@ -810,7 +825,25 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
        * hand her a step that ignores the one she just finished.
        */
       if (options.model.chat !== undefined && !nonEmptyString(body['taught'])) {
-        return await conceptFor(body['question'])
+        /*
+         * THE ROUTES SHE HAS ALREADY BEEN GIVEN, SENT BY THE CANVAS.
+         *
+         * `nextRoute` can only pick a way in she has not had if somebody
+         * REMEMBERS the ones she has, and this server is stateless per request
+         * -- so the remembering belongs where the state already is. The canvas
+         * keeps exactly this, in `alreadyTaught`, for its own direct-to-model
+         * path; it now sends it here too rather than a second copy being grown
+         * in the memory store under a key that is not a lesson, a tab or a
+         * student.
+         *
+         * Absent or malformed reads as "nothing spent yet", which is the state
+         * every first question is in anyway. A caller cannot break the rotation
+         * by omitting it; it can only fail to benefit from it.
+         */
+        const spent = Array.isArray(body['alreadyUsed'])
+          ? (body['alreadyUsed'] as unknown[]).filter((r): r is string => typeof r === 'string')
+          : []
+        return await conceptFor(body['question'], spent)
       }
 
       return lessonFrom({

@@ -48,6 +48,13 @@ export interface Model {
    * having it is the fast path, not the ability to teach.
    */
   chat?(system: string, user: string, priorAssistant?: string): Promise<string>
+  /**
+   * The next part of a lesson in progress, priced for one or two blocks.
+   *
+   * OPTIONAL for the same reason `chat` is: a provider without it keeps
+   * working, on the whole-lesson call, and loses only the saving.
+   */
+  nextPart?(brief: LessonBrief): Promise<unknown>
 }
 
 /**

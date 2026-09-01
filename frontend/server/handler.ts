@@ -78,6 +78,8 @@ export interface ModelPort {
   lesson(request: LessonRequest): Promise<unknown>
   /** See `Model.chat`. Present on the Groq client; absent is handled. */
   chat?(system: string, user: string, priorAssistant?: string): Promise<string>
+  /** See `Model.nextPart`. Absent falls back to `lesson`, which still works. */
+  nextPart?(request: LessonRequest): Promise<unknown>
 }
 
 export interface SearchResult {
@@ -200,10 +202,23 @@ class ModelTookTooLong extends Error {}
  * cannot wait for that.
  */
 async function askWithinBudget(model: ModelPort, request: LessonRequest): Promise<unknown> {
+  /* A CONTINUATION IS THE CHEAP CALL WHEN THE PROVIDER HAS ONE.
+   *
+   * `taught` is what makes a request a continuation -- `briefFor` checks it
+   * FIRST for the same reason: a brief carrying what has already been taught is
+   * never a fresh question. The reply it asks for is one or two blocks, so it
+   * is priced as one or two blocks. Falling back to `lesson` is not a
+   * degradation; it is what every provider did until now. */
+  const carriesWhatWasTaught =
+    typeof request.taught === 'string' && request.taught.trim() !== ''
+  const ask = carriesWhatWasTaught && model.nextPart !== undefined
+    ? () => model.nextPart!(request)
+    : () => model.lesson(request)
+
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
     return await Promise.race([
-      model.lesson(request),
+      ask(),
       new Promise<never>((_resolve, reject) => {
         timer = setTimeout(
           () => { reject(new ModelTookTooLong('the model could not be reached in time')) },

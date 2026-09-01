@@ -194,6 +194,22 @@ const WAIT_BEFORE_RETRY_MS = [800, 14_000] as const
  */
 const CONCEPT_MAX_TOKENS = 1200
 
+/*
+ * A NEXT PART IS ONE OR TWO BLOCKS, AND IT WAS PRICED AS A WHOLE LESSON.
+ *
+ * `briefFor` tells the model, in its own words, "Write ONLY THE NEXT PART. One
+ * or two blocks, no more." The request that carried that instruction reserved
+ * 2000 output tokens and shipped a 2534-character schema alongside it -- about
+ * 4800 of an 8000-per-minute budget, and roughly a fortieth of the 200000 this
+ * account is allowed in a DAY, spent every time a learner presses continue.
+ * Forty presses is not a lesson; it is barely one.
+ *
+ * The schema buys nothing, and that is measured rather than argued: the concept
+ * path sends none and its replies pass the same `validateLesson` in
+ * `handler.ts`, which is the gate either way. The vendor was never the gate.
+ */
+const NEXT_PART_MAX_TOKENS = 1200
+
 export function createGroqModel(options: GroqOptions): Model {
   if (typeof options.apiKey !== 'string' || options.apiKey.trim() === '') {
     /* Built from a constant, never from the credential. */
@@ -313,6 +329,27 @@ export function createGroqModel(options: GroqOptions): Model {
       const first = Array.isArray(choices) ? choices[0] : undefined
       const content = (first as { message?: { content?: unknown } } | undefined)?.message?.content
       return typeof content === 'string' ? content : ''
+    },
+
+    /*
+     * THE NEXT PART OF A LESSON IN PROGRESS.
+     *
+     * The SAME `SYSTEM` and the SAME `briefFor` as `lesson` -- the teaching
+     * contract does not change because the reply is shorter, and a second
+     * prompt would be a second place for it to drift. What changes is only what
+     * is paid: `json_object` in place of the schema, and a reservation sized
+     * for the one or two blocks the brief actually asks for.
+     */
+    async nextPart(brief: LessonBrief) {
+      return lessonFrom(await send(JSON.stringify({
+        model,
+        max_tokens: NEXT_PART_MAX_TOKENS,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: SYSTEM },
+          { role: 'user', content: briefFor(brief) },
+        ],
+      })))
     },
 
     async lesson(brief: LessonBrief) {

@@ -42,7 +42,7 @@ import { fileURLToPath } from 'node:url'
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 
-import { settle } from './util/canvas'
+import { stage } from './util/canvas'
 import { permittedFor, type Baseline } from './util/baseline'
 import { applyProjectMedia } from './util/media'
 
@@ -164,14 +164,19 @@ async function focused(page: Page): Promise<string> {
  * is also what keeps this off the law gate's list of timing races.
  */
 async function canvasReady(page: Page): Promise<void> {
-  /* `settle`, not a bespoke wait. The first version of this function waited for
-     the Lesson toggle, which sits OUTSIDE both Suspense boundaries -- so it was
-     satisfied before a single lazy chunk had landed, and axe scanned a page
-     whose figures had not arrived. Every assertion here counts violations, so
-     an unfinished page scores BETTER: a slower runner would have produced a
-     cleaner baseline. `settle` waits for no mounted fallback, real content in
-     every block, fonts loaded, and two frames that agree. */
-  await settle(page)
+  /* `stage`, not a bare `settle`. The landing at /#/canvas is BLANK by design
+     -- the auto-staged lesson was removed on purpose -- and `settle` refuses an
+     empty page (correctly), so settling here spun its full 30s against zero
+     blocks on every project. Staging a lesson gives axe real content to scan:
+     blocks, figures, the answer box -- the page a learner actually reads.
+     `stage` waits for blocks and then settles, so nothing about "no mounted
+     fallback, fonts loaded, two frames agree" is lost.
+
+     The blur restores the journey's start state: `stage` clicks the picker,
+     and a clicked button keeps focus, but a learner who has just arrived has
+     focused nothing -- and the focus test below asserts exactly that. */
+  await stage(page, 'Physics')
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
 }
 
 const collected: Baseline = {}

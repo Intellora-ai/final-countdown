@@ -5,7 +5,7 @@ import { test, expect, type Page, type TestInfo } from '@playwright/test'
 
 import { tokens } from '../src/canvas/design/tokens'
 import { attribute, RENDERER_FALLBACK, RENDERER_SOURCE } from './util/attribution'
-import { LESSONS, bodyBlocks, open, settle, teach } from './util/canvas'
+import { LESSONS, bodyBlocks, open, teach } from './util/canvas'
 
 /* WHAT A LEARNER WOULD NOTICE, ASSERTED IN A REAL BROWSER.
  *
@@ -99,7 +99,9 @@ async function sweep(
 ): Promise<void> {
   await page.setViewportSize(size)
   await open(page, testInfo)
-  await settle(page)
+  /* No settle() here: the landing is blank by design, and settle refuses an
+   * empty page -- it would spin its full 30s against zero blocks. teach()
+   * below stages each lesson and settles it once blocks actually exist. */
   for (const lesson of LESSONS) {
     await teach(page, lesson.label)
     await each(lesson.label)

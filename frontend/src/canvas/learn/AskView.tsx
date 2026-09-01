@@ -96,7 +96,26 @@ export function AskView({ almanac }: { almanac?: AlmanacClient } = {}) {
       )}
 
       {lesson !== null && (
-        <TeachView lesson={lesson} mode="2d" ask={(question) => client.ask(question)} />
+        <TeachView
+          lesson={lesson}
+          mode="2d"
+          /*
+           * THE SAME LEVEL THIS SCREEN JUST JUDGED IT BY.
+           *
+           * `TeachView` re-validates what it is handed, and it used to do that
+           * with no level, which means `'lesson'`. So the sentence four lines
+           * above -- "checked at `'lesson'`, every answer this screen ever
+           * received was refused" -- was still true one component later: the
+           * answer cleared the gate here and was refused by the identical gate
+           * inside the view, under "This lesson was refused, so it is not being
+           * taught", listing an opening definition and a closing progression
+           * that a reply to one free question never owed.
+           *
+           * Passing the level is what makes the two gates one gate.
+           */
+          teaching="answer"
+          ask={(question) => client.ask(question)}
+        />
       )}
 
       <p className="td-sub">

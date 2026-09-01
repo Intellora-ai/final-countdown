@@ -21,6 +21,114 @@ import { AskView } from './AskView'
 import { gasPressure } from '../lessons/gasPressure'
 import type { AlmanacClient } from '../../almanac/client'
 
+/**
+ * WHAT `/api/ask` ACTUALLY SENDS BACK. Not a fixture written to suit this file.
+ *
+ * Captured on 2026-09-01 by running the shipped server -- `node
+ * dist-server/index.js` with `GROQ_API_KEY` set, provider `groq`, model
+ * `openai/gpt-oss-120b` -- and posting `{"question":"photosynthesis"}` to
+ * `http://127.0.0.1:8787/api/ask`. HTTP 200 in 37.7s. Copied verbatim.
+ *
+ * WHY IT MATTERS THAT THIS IS THE REAL REPLY AND `gasPressure` IS NOT.
+ * `gasPressure` is a hand-authored lesson that ships in `src/canvas/lessons/`
+ * and clears the STRICTEST teaching level. Every existing test on this screen
+ * feeds it that, so every one of them passed while the screen refused every
+ * answer a real server ever produced. Measured through the real gates:
+ *
+ *   validateLesson(reply, { teaching: 'answer' })  -> ok
+ *   validateLesson(reply, { teaching: 'lesson' })  -> refused, four rules:
+ *       does-not-open-on-the-topic, nothing-marked,
+ *       material-before-the-definition, nothing-is-shown
+ *
+ * `server/handler.ts` judges `/api/ask` at `'answer'` and says why: a reply to
+ * one free question owes no opening definition and no closing progression.
+ * `AskView` judges it at `'answer'` for the same reason. `TeachView` then
+ * re-judged it at `'lesson'`, because it was handed no level and `'lesson'` is
+ * the default -- so the answer cleared two gates and was refused by the third.
+ */
+const WHAT_THE_SERVER_REALLY_ANSWERS = {
+  "id": "photosynthesis-lesson",
+  "question": "photosynthesis",
+  "subject": "Biology",
+  "blocks": [
+    {
+      "id": "a-note",
+      "emphasis": "supporting",
+      "tone": "neutral",
+      "role": "support",
+      "depth": "core",
+      "kind": "prose",
+      "body": "I could not put all of this together properly, so this is the part of it I was able to check. Ask me again if it looks wrong.",
+      "terms": []
+    },
+    {
+      "id": "def",
+      "emphasis": "supporting",
+      "tone": "neutral",
+      "role": "definition",
+      "depth": "core",
+      "kind": "prose",
+      "body": "Photosynthesis is the process by which green plants turn sunlight into chemical energy.",
+      "terms": [
+        {
+          "text": "Photosynthesis",
+          "mark": "key"
+        }
+      ]
+    },
+    {
+      "id": "importance",
+      "emphasis": "supporting",
+      "tone": "neutral",
+      "role": "support",
+      "depth": "core",
+      "kind": "callout",
+      "body": "Without photosynthesis, most life on Earth would have no food or oxygen.",
+      "terms": [
+        {
+          "text": "oxygen",
+          "mark": "key"
+        }
+      ]
+    },
+    {
+      "id": "where",
+      "emphasis": "supporting",
+      "tone": "neutral",
+      "role": "component",
+      "depth": "core",
+      "kind": "prose",
+      "body": "Photosynthesis mainly happens in the chloroplasts of leaf cells, where the pigment chlorophyll captures light.",
+      "terms": [
+        {
+          "text": "chloroplasts",
+          "mark": "key"
+        },
+        {
+          "text": "chlorophyll",
+          "mark": "key"
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "emphasis": "supporting",
+      "tone": "neutral",
+      "role": "summary",
+      "depth": "core",
+      "kind": "summary",
+      "progression": [
+        "Remember photosynthesis makes food and oxygen from CO₂ and water.",
+        "It occurs in chloroplasts using chlorophyll.",
+        "The main products are glucose and O₂."
+      ],
+      "mentalModel": "Plants turn light into sugar and release oxygen."
+    }
+  ],
+  "relations": [],
+  "technicalTerms": []
+}
+
 afterEach(cleanup)
 
 function open(client: Partial<AlmanacClient>) {
@@ -129,5 +237,41 @@ describe('a new session each time', () => {
 
     await waitFor(() => expect(screen.queryByText(second.question)).toBeInTheDocument())
     expect(screen.queryByText(gasPressure.question)).toBeNull()
+  })
+})
+
+describe('the answer a real server actually sends', () => {
+  it('is taught, not refused for owing an arc a free answer never owed', async () => {
+    const lessonForQuestion = vi
+      .fn()
+      .mockResolvedValue({ ok: true, lesson: WHAT_THE_SERVER_REALLY_ANSWERS })
+    open({ lessonForQuestion, ask: vi.fn() })
+
+    await askThat('photosynthesis')
+
+    /* The refusal wording is `TeachView`'s own. Asserting on it rather than on
+       an absence means this cannot pass by the screen having gone blank. */
+    expect(
+      document.body.textContent,
+      'the answer cleared the server gate and this screen’s gate, and was then ' +
+        'refused by the view that was supposed to teach it',
+    ).not.toContain('This lesson was refused')
+
+    /* TAUGHT, not merely not-refused. The definition the model wrote has to be
+       on her screen, and the box has to be there for the next question. */
+    /* Read off the whole page, not by element. A marked term is its own node,
+       so the sentence the model wrote is never one element -- `Photosynthesis`
+       carries `mark: "key"` in the reply above. The question being asked is
+       whether the words are on her screen, and this asks exactly that. */
+    await waitFor(() =>
+      expect(
+        document.body.textContent,
+        'the definition the model wrote never reached her screen',
+      ).toContain('Photosynthesis is the process by which green plants turn sunlight'),
+    )
+    expect(
+      screen.getByLabelText('Answer the question, or ask one of your own'),
+      'she was shown an answer she cannot ask anything about',
+    ).toBeInTheDocument()
   })
 })

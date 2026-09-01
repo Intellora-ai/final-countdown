@@ -16,7 +16,7 @@ import { BlockView } from '../render/BlockView'
 import { classifyTurn, strugglingAfter } from './turn'
 import { createAnswering, type AskPort } from './answering'
 import type { Block, Lesson } from '../spec/spec'
-import { validateLesson, type Issue } from '../spec/validate'
+import { validateLesson, type Issue, type TeachingLevel } from '../spec/validate'
 import { deriveBeats } from './beats'
 import {
   checkBeats,
@@ -73,6 +73,9 @@ import { shownAlready } from './shownAlready'
 export function TeachView({
   lesson,
   mode,
+  /* Renamed on the way in: `teaching` is already the name of the validated
+     lesson twenty lines below, and this is the level it is judged BY. */
+  teaching: teachingLevel = 'lesson',
   ask: askPort,
   resolvers = DEFAULT_RESOLVERS,
   onStruggling,
@@ -80,6 +83,28 @@ export function TeachView({
 }: {
   lesson: Lesson
   mode: '2d' | '3d'
+  /**
+   * WHICH TEACHING RULES THIS LESSON IS JUDGED BY, AND WHY IT HAS TO BE PASSED.
+   *
+   * `validateLesson` takes a level and this view re-runs it (see below). Until
+   * now it re-ran it with no level, so it always used the default, `'lesson'`
+   * — the strictest one. A caller that had already accepted a lesson at
+   * `'answer'` level then handed it to a view that refused it.
+   *
+   * MEASURED IN A BROWSER, and it is why `law-a` was red. `CanvasRoute` offers
+   * "Same contract, written by hand" at `teaching: 'answer'`, because it is a
+   * human's prose and its definition runs to 54 words against a 30-word cap
+   * (`.agent/deferred.md`). `validateLesson(byHand, { teaching: 'answer' })`
+   * returns `ok: true`; `validateLesson(byHand)` returns seven issues. So the
+   * route said teach it and this view said refuse it, and the learner who
+   * pressed that button got a list of `blocks[0] — this block marks no
+   * important word` and no way to read, ask or continue. A dead end with a
+   * reason is still a dead end.
+   *
+   * The default is unchanged, so every other caller is judged exactly as
+   * before. What is fixed is that the two gates now answer the same question.
+   */
+  teaching?: TeachingLevel
   /* Reaches the model for questions the lesson itself cannot answer. Absent by
    * default so the canvas still runs standalone -- and when it is absent the
    * learner is TOLD the outside answer is unreachable rather than refused. */
@@ -114,13 +139,34 @@ export function TeachView({
    * input will one day teach a lie. One call, and the refusal is the same one
    * the rest of the canvas gives.
    */
-  const validated = useMemo(() => validateLesson(lesson), [lesson])
+  const validated = useMemo(
+    () => validateLesson(lesson, { teaching: teachingLevel }),
+    [lesson, teachingLevel],
+  )
   const safe = validated.ok ? validated.lesson : null
 
   const beats = useMemo<Beats>(() => (safe === null ? [] : deriveBeats(safe)), [safe])
+  /*
+   * THE SAME LEVEL, AT THE SECOND GATE TOO.
+   *
+   * `checkBeats` already takes `{ teaching }` -- see `BeatOptions` -- and this
+   * view was the one caller that never passed it, so it always used the
+   * default `true`. That reintroduces one level lower exactly the disagreement
+   * the `teaching` prop removes: an ANSWER clears `validateLesson` at
+   * `'answer'` because `nothing-is-shown` is an arc rule and arc rules are off
+   * there, and was then refused by "beat ... shows the learner nothing", which
+   * is the same rule under another name.
+   *
+   * `teachingLevel === 'lesson'` is not a new mapping: it is the one
+   * `validate.ts:240` already makes when it turns the arc rules on, written the
+   * same way so the two gates cannot drift.
+   */
   const beatIssues = useMemo(
-    () => (safe === null ? [] : checkBeats(beats, safe)),
-    [beats, safe],
+    () =>
+      safe === null
+        ? []
+        : checkBeats(beats, safe, { teaching: teachingLevel === 'lesson' }),
+    [beats, safe, teachingLevel],
   )
 
   const frame = useMemo<Frame | null>(

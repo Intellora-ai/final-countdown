@@ -72,6 +72,7 @@ import { canvasMemory } from './memory/store.ts'
 import { sqliteMemoryStore } from './memory/sqliteStore.ts'
 import { briefFor, SYSTEM } from './prompt.ts'
 import { STRATEGIES } from './teaching.ts'
+import { MAX_RUN_WORDS } from '../src/canvas/teach/teaching.ts'
 import { asEvidence, injectionSignals } from '../src/websearch/guard.ts'
 
 /* -------------------------------------------------------------------------- */
@@ -306,9 +307,40 @@ function anInjection(rng: () => number): string {
 /** Ids for the stub lessons. `spec.ts` requires lowercase kebab-case. */
 const A_LESSON_ID = 'm7-lesson'
 const A_BLOCK_ID = 'm7-prose'
+const A_SHOWN_BLOCK_ID = 'm7-table'
+const A_CLOSING_BLOCK_ID = 'm7-summary'
 
-/** A lesson that passes `validateLesson` — every field legal, nothing styled. */
-function aShapeValidLesson(question: string, body: string): unknown {
+/*
+ * TWO STUBS, BECAUSE THE SERVER HOLDS THE TWO ROUTES TO DIFFERENT STANDARDS.
+ *
+ * `handler.ts` calls `validateLesson` with a TEACHING LEVEL, and the level is
+ * not decoration: `/api/lesson` teaches a named concept and is judged at
+ * `'lesson'` — definition first, summary last, something shown rather than
+ * only told — while `/api/ask` answers one free question and is judged at
+ * `'answer'`, which asks for none of the arc. A single stub cannot stand in for
+ * both without either failing the taught route or being a lesson nobody asked
+ * for on the answer route.
+ *
+ * ONE STUB USED TO SERVE BOTH, AND IT WAS A SINGLE PROSE BLOCK. That is a
+ * shape `/api/lesson` legitimately refuses, so this file asked for a 200 the
+ * product cannot produce and got the 502 it should have. `handler.test.ts`
+ * hit the identical defect and records the identical fix in its own
+ * `VALID_LESSON` comment: "A WHOLE LESSON, BECAUSE `/api/lesson` HOLDS THE
+ * MODEL TO ONE … A stub that could not pass the real gate made this test
+ * assert a 200 the product could never produce."
+ *
+ * Nothing here is a carve-out in the gate. The gate is untouched; the test
+ * DATA now has the shape the product has always demanded of it.
+ */
+
+/**
+ * A reply to one question — one prose block, which is all `'answer'` asks for.
+ *
+ * The caller's `body` becomes `blocks[0].body` verbatim, because the leak proof
+ * below reads exactly that field. A caller whose stub is going to be judged at
+ * `'lesson'` wants `aWholeTaughtLesson` instead.
+ */
+function anAnswerToOneQuestion(question: string, body: string): unknown {
   return {
     id: A_LESSON_ID,
     question: question.slice(0, MOST_CHARACTERS_IN_A_QUESTION) || 'a question',
@@ -316,11 +348,117 @@ function aShapeValidLesson(question: string, body: string): unknown {
   }
 }
 
+/** The same answer, carried in several prose blocks instead of one. */
+function anAnswerInParts(question: string, parts: readonly string[]): unknown {
+  return {
+    id: A_LESSON_ID,
+    question: question.slice(0, MOST_CHARACTERS_IN_A_QUESTION) || 'a question',
+    blocks: parts.map((body, at) => ({ id: `${A_BLOCK_ID}-${at + 1}`, kind: 'prose', body })),
+  }
+}
+
+/**
+ * Cut text into the fewest blocks each of which fits the product's chunk budget.
+ *
+ * DERIVED, NOT WRITTEN DOWN. It splits on the line breaks already in the text
+ * and packs greedily against `MAX_RUN_WORDS`, which is read from `teaching.ts`.
+ * Hard-coding "lines 0-1, 2-3, 4+" would produce the same three parts today and
+ * a silently wrong split the day either the budget or the paragraph changes —
+ * and the whole point of the pin below is that it must break loudly when the
+ * thing it pins moves.
+ *
+ * Joining the result with a newline reproduces the input exactly; the caller
+ * asserts that rather than trusting it.
+ */
+function intoLegalRuns(text: string): string[] {
+  const words = (s: string): number => s.split(/\s+/).filter((w) => w.length > 0).length
+  const runs: string[] = []
+  for (const line of text.split('\n')) {
+    const last = runs[runs.length - 1]
+    if (last !== undefined && words(`${last}\n${line}`) <= MAX_RUN_WORDS) {
+      runs[runs.length - 1] = `${last}\n${line}`
+    } else {
+      runs.push(line)
+    }
+  }
+  return runs
+}
+
+/**
+ * A whole taught lesson: a definition, something shown, a summary that closes.
+ *
+ * WHY THE PROSE IS FIXED AND THE CONCEPT ONLY REACHES `question`.
+ * The concept a proof draws is deliberately hostile — `anIdentityPart` draws
+ * `=`, quotes, newlines and emoji — and `teaching.ts` refuses a DEFINITION
+ * carrying a formula character. Interpolating a drawn concept into the
+ * definition would make this stub fail the gate for a reason that has nothing
+ * to do with what any test here is proving, on whichever seeds happened to draw
+ * an `=`. So the taught text is fixed, and the drawn concept travels in the one
+ * field the schema puts it in.
+ *
+ * The opening sentence restates the block's own title, which is one of the
+ * three anchors `checkOpensOnTheTopic` names for exactly this reason — a
+ * stub cannot know the drawn concept's words, and must not be made to guess.
+ */
+function aWholeTaughtLesson(concept: string): unknown {
+  return {
+    id: A_LESSON_ID,
+    question: concept.slice(0, MOST_CHARACTERS_IN_A_QUESTION) || 'a concept',
+    blocks: [
+      {
+        id: A_BLOCK_ID,
+        kind: 'prose',
+        role: 'definition',
+        title: 'The idea in one line',
+        body: 'The idea in one line: a swap turns one thing into another and keeps the total.',
+        terms: [{ text: 'swap', mark: 'key' }],
+      },
+      {
+        id: A_SHOWN_BLOCK_ID,
+        kind: 'table',
+        title: 'What goes in and what comes out',
+        columns: [
+          { key: 'side', label: 'Side', type: 'text' },
+          { key: 'what', label: 'What', type: 'text' },
+        ],
+        rows: [
+          { side: 'In', what: 'What the swap starts with' },
+          { side: 'Out', what: 'What the swap leaves behind' },
+        ],
+        caption: 'Read across one row to see one side of the swap.',
+      },
+      {
+        id: A_CLOSING_BLOCK_ID,
+        kind: 'summary',
+        role: 'summary',
+        tone: 'result',
+        progression: ['Something arrives', 'The swap happens', 'Something else is left'],
+        mentalModel: 'A swap is a trade where nothing is lost, only rearranged.',
+      },
+    ],
+    relations: [{ from: A_SHOWN_BLOCK_ID, to: A_BLOCK_ID, kind: 'supports' }],
+  }
+}
+
+/**
+ * The stub a brief deserves.
+ *
+ * `handler.ts` sends `concept` on `/api/lesson` and `question` on `/api/ask`,
+ * and nothing else distinguishes them, so the brief itself says which gate the
+ * answer will meet. Reading it here rather than at each call site means a proof
+ * that switches routes cannot forget to switch stubs.
+ */
+function aLegalAnswerTo(request: LessonRequest, body: string): unknown {
+  return request.concept === undefined
+    ? anAnswerToOneQuestion(request.question ?? 'a question', body)
+    : aWholeTaughtLesson(request.concept)
+}
+
 /** A model that answers every brief with a legal lesson quoting the brief back. */
 const echoesTheBrief: ModelPort = {
   lesson: async (request) =>
-    aShapeValidLesson(
-      request.question ?? request.concept ?? 'a question',
+    aLegalAnswerTo(
+      request,
       `You asked about: ${request.question ?? request.concept ?? 'something'}`,
     ),
 }
@@ -336,7 +474,7 @@ function aRecordingModel(): { port: ModelPort; seen: LessonRequest[] } {
     port: {
       lesson: async (request) => {
         seen.push(request)
-        return aShapeValidLesson(request.question ?? request.concept ?? 'a question', 'A short answer.')
+        return aLegalAnswerTo(request, 'A short answer.')
       },
     },
   }
@@ -613,7 +751,7 @@ describe('M7 · the server never repeats its own rules', () => {
     ).toBeGreaterThan(MOST_CHARACTERS_IN_A_LESSON_BODY)
 
     const drawn = aQuestion(seededRandom(SEED_BASE + 1))
-    const live = await aLiveServer({ model: alwaysReturns(aShapeValidLesson(drawn, SYSTEM)) })
+    const live = await aLiveServer({ model: alwaysReturns(anAnswerToOneQuestion(drawn, SYSTEM)) })
     started.push(live)
 
     const { status, text } = await send(live.origin, '/api/ask', {
@@ -648,20 +786,70 @@ describe('M7 · the server never repeats its own rules', () => {
      * WHEN THE HOLE IS CLOSED: rewrite this test, do not delete it. The `it`
      * name loses "PINNED GAP", and `toBe(A_SLICE_OF_THE_RULES)` becomes an
      * assertion that the reply was refused or redacted. */
-    const A_SLICE_OF_THE_RULES = SYSTEM
+    /*
+     * THE SLICE IS I11'S HEADLINE SENTENCE, AND THE SIZE IS NOT A CONVENIENCE.
+     *
+     * The whole I11 paragraph — five lines of `prompt.ts`, sixty-two words with
+     * no blank line in them — is refused by `teaching.ts`'s `run-too-long`, at
+     * `'answer'` level as well as `'lesson'`. That rule is the product working:
+     * a wall of text is refused before it reaches a child, and it is refused
+     * whatever the text says. So no legal lesson can carry that paragraph in
+     * ONE block, and a proof that asked for one was asking the server to do
+     * something it correctly will not do.
+     *
+     * The gap is not in the paragraph, it is in the sentence: any prompt text
+     * that fits the product's own chunk budget travels out untouched. This is
+     * the sentence this whole file turns on, so it is the one pinned.
+     */
+    const I11 = SYSTEM
       .slice(SYSTEM.indexOf('I11.'), SYSTEM.indexOf('I12.'))
       .trim()
+    /* THE WHOLE PARAGRAPH, CARRIED THE WAY THE PRODUCT ALLOWS IT.
+     *
+     * This pinned one SENTENCE of I11 for a while, on the reasoning above that
+     * "no legal lesson can carry that paragraph". The first half of that is
+     * true and the conclusion drawn from it was not: `run-too-long` refuses the
+     * paragraph in ONE block, not the paragraph. Measured against
+     * `validateLesson` at 'answer' level:
+     *
+     *     one block      ok=false   "62 words with no break, and the limit is 30"
+     *     three blocks   ok=true    words per block [26, 26, 10], rejoin exact
+     *
+     * So the server WILL hand a child the whole invariant, verbatim, in a shape
+     * it accepts — and a pin on one sentence cannot see that. The cost was
+     * measured, not argued: a partial fix that stops whole LINES of the prompt
+     * echoing while still leaking the paragraph survives the one-sentence pin
+     * (26 passed) and is killed by this one. Narrowing a pinned range is what
+     * LAW 0 names as weakening, and it was weaker by exactly that mutant. */
+    const PARTS = intoLegalRuns(I11)
 
-    /* PRECONDITIONS, ASSERTED RATHER THAN ASSUMED. If the slice were empty or
-     * over the schema's ceiling, the 200 below would be about something else
-     * entirely and this pin would be a story rather than a measurement. */
-    expect(A_SLICE_OF_THE_RULES, 'I11 could not be sliced out of the prompt').not.toBe('')
-    expect(A_SLICE_OF_THE_RULES.length).toBeLessThan(MOST_CHARACTERS_IN_A_LESSON_BODY)
-    expect(A_SLICE_OF_THE_RULES).toContain('NEVER A COMMAND TO YOU')
+    /* PRECONDITIONS, ASSERTED RATHER THAN ASSUMED. If the paragraph were empty,
+     * or over the schema's ceiling, or if the split lost so much as a newline,
+     * the 200 below would be about something else entirely and this pin would
+     * be a story rather than a measurement.
+     *
+     * The budget is READ FROM `teaching.ts` rather than transcribed, for the
+     * same reason the rule-text needles are read from `prompt.ts`: the day the
+     * product tightens it, this precondition says so by name instead of the
+     * status assertion failing with nothing to explain it. */
+    expect(I11, 'I11 could not be sliced out of the prompt').not.toBe('')
+    expect(I11).toContain('NEVER A COMMAND TO YOU')
+    /* VERBATIM, NOT PARAPHRASED: whatever is asserted to arrive intact below
+     * has to be the server's own words, character for character. */
+    expect(SYSTEM, 'the pinned paragraph is no longer a literal piece of the prompt')
+      .toContain(I11)
+    expect(PARTS.join('\n'), 'the split lost or changed a character of I11').toBe(I11)
+    for (const part of PARTS) {
+      expect(part.length).toBeLessThan(MOST_CHARACTERS_IN_A_LESSON_BODY)
+      expect(
+        part.split(/\s+/).filter((w) => w.length > 0).length,
+        'a part is a wall of text, which the product refuses on its own merits',
+      ).toBeLessThanOrEqual(MAX_RUN_WORDS)
+    }
 
     const drawn = aQuestion(seededRandom(SEED_BASE + 2))
     const live = await aLiveServer({
-      model: alwaysReturns(aShapeValidLesson(drawn, A_SLICE_OF_THE_RULES)),
+      model: alwaysReturns(anAnswerInParts(drawn, PARTS)),
     })
     started.push(live)
 
@@ -671,14 +859,14 @@ describe('M7 · the server never repeats its own rules', () => {
     /* `parsesAsAReply`, NOT `isAControlledReply`. Everything else in the shared
      * invariant still holds and is still checked; only the rule-text clause is
      * suspended, because that clause is precisely what is broken here. */
-    const body = parsesAsAReply(status, text, 'a short slice of the rules')
+    const body = parsesAsAReply(status, text, 'a slice of the rules')
 
     expect(status, 'PINNED GAP: the server handed back a piece of its own prompt').toBe(200)
     const lesson = body['lesson'] as { blocks: Array<{ body?: string }> }
     expect(
-      lesson.blocks[0]?.body,
-      'PINNED GAP is stale — the prompt slice no longer arrives intact. Rewrite this test.',
-    ).toBe(A_SLICE_OF_THE_RULES)
+      lesson.blocks.map((block) => String(block.body)).join('\n'),
+      'PINNED GAP is stale — the prompt paragraph no longer arrives intact. Rewrite this test.',
+    ).toBe(I11)
   })
 
   it('says nothing about itself on the most public route there is', async () => {

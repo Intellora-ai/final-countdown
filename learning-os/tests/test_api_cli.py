@@ -14,6 +14,11 @@ from __future__ import annotations
 
 import json
 
+from pathlib import Path
+
+import pytest
+
+from learning_os.api import cli
 from learning_os.api.cli import FIXTURE, build, main, render
 from learning_os.spec_root import REPO_ROOT
 
@@ -72,3 +77,64 @@ def test_the_fixture_would_split_into_more_than_one_beat() -> None:
     emphases = {b["emphasis"] for b in payload["blocks"]}
     assert "primary" in emphases, "no block is primary, so every beat looks equal"
     assert payload["relations"], "no relations, so the canvas has nothing to split on"
+
+
+# --------------------------------------------------------------------------
+# The three modes the command actually has
+#
+# WHY THESE WERE MISSING AND WHY THAT MATTERED. `main` had three exits --
+# `--check`, `--stdout`, and write -- and only the first was ever run. So the
+# command a reader is told to type ("Regenerate with: python -m
+# learning_os.api.cli") had never been executed by anything, and neither had the
+# branch that reports a fixture that is not there at all. Measured before these
+# were written: `api/cli.py` at 69%, the lowest file in the package.
+#
+# REPO_ROOT IS REDIRECTED, NOT THE WRITE SUPPRESSED. The write is the behaviour
+# under test; pointing it at tmp_path is what lets it happen for real without
+# the suite editing the repository it is testing.
+# --------------------------------------------------------------------------
+def test_check_mode_says_which_file_is_missing_rather_than_raising(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A fresh checkout with the fixture deleted must READ as a missing file."""
+    monkeypatch.setattr(cli, "REPO_ROOT", tmp_path)
+
+    code = main(["--check"])
+
+    assert code == 1
+    err = capsys.readouterr().err
+    assert "missing fixture" in err
+    assert str(tmp_path / FIXTURE) in err, "the message did not name the path it looked at"
+
+
+def test_stdout_mode_writes_the_document_and_touches_no_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli, "REPO_ROOT", tmp_path)
+
+    code = main(["--stdout"])
+
+    assert code == 0
+    assert capsys.readouterr().out == render()
+    assert not (tmp_path / FIXTURE).exists(), "--stdout wrote a file as well as printing"
+
+
+def test_the_regenerate_command_the_error_message_names_actually_regenerates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--check` tells the reader to run this. Nothing had ever run it.
+
+    Including the directory it has to create: the fixture lives under
+    `frontend/src/canvas/lessons/generated/`, so a checkout without those
+    directories must not fail with a FileNotFoundError.
+    """
+    monkeypatch.setattr(cli, "REPO_ROOT", tmp_path)
+
+    assert main([]) == 0
+
+    written = tmp_path / FIXTURE
+    assert written.read_text(encoding="utf-8") == render()
+    assert "wrote" in capsys.readouterr().out
+
+    # And the file it just wrote satisfies the check it was written for.
+    assert main(["--check"]) == 0

@@ -867,3 +867,107 @@ def test_an_unavailable_from_the_transport_is_not_rewrapped(
     with pytest.raises(LLMUnavailable) as caught:
         GroqClient(post=explode).generate(_contract())
     assert caught.value is precise
+
+
+# --------------------------------------------------------------------------
+# THE REAL TRANSPORT, WHICH NOTHING HAD EVER RUN
+#
+# Every test above injects `post`, which is right for the retry logic and leaves
+# `_post` -- the function that actually talks to Groq -- unexecuted. Measured
+# before this block: lines 254-257 and 267-276 of `groq_client.py` uncovered,
+# which is the whole of the success path and the whole of the HTTPError path.
+#
+# The distinction those two paths draw is the retry decision itself, and it is
+# the reason this file exists: a 429 is an ANSWER that says "later", so it comes
+# back as a `Reply`; a refused connection is not an answer, so it raises. Nothing
+# proved that `_post` actually draws the line where the docstring says it does.
+#
+# `urlopen` is the only thing faked. The request is built by the real
+# `build_http_request`, the error is a genuine `urllib.error.HTTPError`, and
+# `_decode` is the real one -- which is what lets the HTML case below be honest.
+# --------------------------------------------------------------------------
+import io as _io
+import urllib.error
+import urllib.request
+from contextlib import contextmanager
+
+from learning_os.llm.groq_client import _post
+
+
+@contextmanager
+def _answers(status: int, body: bytes, headers: dict[str, str] | None = None):  # noqa: ANN202
+    class _Response:
+        def __init__(self) -> None:
+            self.status = status
+            self.headers = headers or {}
+
+        def read(self) -> bytes:
+            return body
+
+    yield _Response()
+
+
+def test_a_200_comes_back_as_a_reply_with_its_body_and_headers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        urllib.request,
+        "urlopen",
+        lambda *_a, **_k: _answers(200, b'{"choices":[]}', {"X-RateLimit-Limit-Tokens": "8000"}),
+    )
+
+    reply = _post("https://api.groq.com/openai/v1/chat/completions", {"model": "m"}, "k")
+
+    assert reply.status == 200
+    assert reply.body == {"choices": []}
+    # LOWERCASED, because HTTP header names are case-insensitive and every reader
+    # of this dict looks them up in lower case.
+    assert reply.headers["x-ratelimit-limit-tokens"] == "8000"
+
+
+def test_a_429_is_returned_as_an_answer_rather_than_raised(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """THE WHOLE POINT OF THE FUNCTION. urllib raises HTTPError on a 429, and a
+    transport that let it propagate would force the retry loop to read a status
+    off an exception."""
+
+    def _raise(*_a: object, **_k: object) -> None:
+        raise urllib.error.HTTPError(
+            "https://api.groq.com/openai/v1/chat/completions",
+            429,
+            "Too Many Requests",
+            {"Retry-After": "12"},  # type: ignore[arg-type]
+            _io.BytesIO(b'{"error":{"code":"rate_limit_exceeded"}}'),
+        )
+
+    monkeypatch.setattr(urllib.request, "urlopen", _raise)
+
+    reply = _post("https://api.groq.com/openai/v1/chat/completions", {"model": "m"}, "k")
+
+    assert reply.status == 429
+    assert reply.headers["retry-after"] == "12"
+    assert isinstance(reply.body, dict)
+
+
+def test_a_gateways_html_error_page_stays_text_instead_of_becoming_a_json_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A JSONDecodeError out of the transport reads as "the model returned bad
+    JSON", which is a different failure with a different remedy."""
+
+    def _raise(*_a: object, **_k: object) -> None:
+        raise urllib.error.HTTPError(
+            "https://api.groq.com/openai/v1/chat/completions",
+            502,
+            "Bad Gateway",
+            {},  # type: ignore[arg-type]
+            _io.BytesIO(b"<html>502 Bad Gateway</html>"),
+        )
+
+    monkeypatch.setattr(urllib.request, "urlopen", _raise)
+
+    reply = _post("https://api.groq.com/openai/v1/chat/completions", {"model": "m"}, "k")
+
+    assert reply.status == 502
+    assert reply.body == "<html>502 Bad Gateway</html>"

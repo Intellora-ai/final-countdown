@@ -219,3 +219,101 @@ def test_a_well_formed_response_parses_via_the_shared_parser() -> None:
     got = OllamaClient(post=lambda _url, _payload: _ok()).generate(_contract())
     assert isinstance(got, GeneratedContent)
     assert got.blocks == (("prose", "A base case stops it."),)
+
+
+# --------------------------------------------------------------------------
+# THE REAL TRANSPORT, WHICH NOTHING HAD EVER RUN
+#
+# Every test above injects `post`, which is right for the client's own logic and
+# leaves `_post` -- the function that actually talks to Ollama -- unexecuted.
+# Measured before this block: `ollama_client.py` at 74%, the lowest file in the
+# package, and the whole of `_post` was the hole.
+#
+# WHAT IS FAKED IS `urlopen` AND NOTHING ELSE. The request is built by the real
+# `_post`, the errors are genuine `urllib.error.HTTPError` objects, and the
+# translation from an HTTP status to a sentence a person can act on is the real
+# code. `tests/conftest.py` blocks `socket.connect` for every test in this suite,
+# so a real local server is not available to test against and would not be
+# honest here either: the failures below are the ones a running Ollama does not
+# produce.
+# --------------------------------------------------------------------------
+import io as _io
+import urllib.error
+import urllib.request
+from contextlib import contextmanager
+
+from learning_os.llm.ollama_client import _post
+
+
+@contextmanager
+def _answers(body: bytes):  # noqa: ANN202 - a test-local context manager
+    class _Response:
+        def read(self) -> bytes:
+            return body
+
+    yield _Response()
+
+
+def _http_error(code: int, body: bytes) -> urllib.error.HTTPError:
+    """A genuine HTTPError, built the way urllib builds one."""
+    return urllib.error.HTTPError(
+        "http://127.0.0.1:11434/api/chat", code, "", {}, _io.BytesIO(body)
+    )
+
+
+def test_a_json_object_comes_back_as_a_dict(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        urllib.request, "urlopen", lambda *_a, **_k: _answers(b'{"message":{"content":"hi"}}')
+    )
+    assert _post("http://127.0.0.1:11434/api/chat", {"model": "m"}) == {
+        "message": {"content": "hi"}
+    }
+
+
+def test_a_404_names_the_command_that_fixes_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The one failure a first-time reader actually hits: the server is running
+    and the model was never pulled. A generic "the server answered 404" sends
+    them to check the port, which is fine."""
+
+    def _raise(*_a: object, **_k: object) -> None:
+        raise _http_error(404, b'{"error":"model \'qwen\' not found"}')
+
+    monkeypatch.setattr(urllib.request, "urlopen", _raise)
+
+    with pytest.raises(LLMUnavailable) as caught:
+        _post("http://127.0.0.1:11434/api/chat", {"model": "qwen"})
+
+    assert "ollama pull" in str(caught.value)
+
+
+def test_any_other_status_carries_the_code_and_the_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A 500 is not a missing model, so it must not offer `ollama pull` as the
+    remedy -- that is the wrong instruction confidently given."""
+
+    def _raise(*_a: object, **_k: object) -> None:
+        raise _http_error(500, b"the runner crashed")
+
+    monkeypatch.setattr(urllib.request, "urlopen", _raise)
+
+    with pytest.raises(LLMUnavailable) as caught:
+        _post("http://127.0.0.1:11434/api/chat", {"model": "m"})
+
+    said = str(caught.value)
+    assert "500" in said
+    assert "the runner crashed" in said
+    assert "ollama pull" not in said
+
+
+def test_a_body_that_is_not_an_object_is_refused_rather_than_indexed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A proxy or a captive portal answers 200 with something else entirely.
+    Indexing it would raise a TypeError the runtime reads as an engine bug."""
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *_a, **_k: _answers(b'["not", "a", "map"]'))
+
+    with pytest.raises(LLMUnavailable) as caught:
+        _post("http://127.0.0.1:11434/api/chat", {"model": "m"})
+
+    assert "not an object" in str(caught.value)

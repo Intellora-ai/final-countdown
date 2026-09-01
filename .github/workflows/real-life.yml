@@ -75,7 +75,15 @@ jobs:
       - name: Install the engine's dependencies and the runner
         run: |
           pip install --quiet --require-hashes -r learning-os/requirements-learning-os.lock
-          pip install --quiet behave
+          # HASH-LOCKED LIKE EVERY OTHER INSTALL IN THIS REPOSITORY, and the
+          # comment below already said why: `tests/test_supply_chain.py` forbids
+          # a pip install that is not hash-locked, because an unverified
+          # toolchain inside the verification system verifies nothing. This line
+          # was `pip install --quiet behave` and it failed that test, which is
+          # what held the `coverage` gate -- and `coverage` is one of the
+          # twenty-one checks the branch ruleset requires, so one unpinned
+          # package blocked the merge of everything behind it.
+          pip install --quiet --require-hashes -r learning-os/requirements-behave.lock
 
       # GROQ, AND THE PROVIDER IS THE FIX RATHER THAN A PREFERENCE.
       #

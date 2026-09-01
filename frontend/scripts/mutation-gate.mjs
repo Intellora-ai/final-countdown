@@ -77,11 +77,12 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync, writeFileSync, mkdtempSync, existsSync, rmSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdtempSync, existsSync, rmSync, openSync, closeSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { isScopedKill } from './mutation-verdict.mjs'
+import { notGreenEvidence } from './suite-report.mjs'
 
 /* CRASH SAFETY, because this tool edits real source files in the working tree.
  *
@@ -1055,6 +1056,73 @@ function vitest(outFile, { scoped = false } = {}) {
   }
 }
 
+/*
+ * THE BASELINE RUN, WHICH IS THE ONE FAILURE A PERSON HAS TO DIAGNOSE.
+ *
+ * `vitest()` above throws its console away, and for a MUTANT that is right:
+ * seven hundred lines per mutant, thirty-odd mutants a shard, and the verdict
+ * is in the JSON either way. The baseline is the opposite case. It runs once,
+ * and when it is red the shard stops with nothing else to say -- so the console
+ * is the only evidence there will ever be, and ignoring it is what turned a red
+ * shard into a dead end.
+ *
+ * MEASURED, run 33470632438: shard 1 of 4 stopped here while shards 2, 3 and 4
+ * ran the same baseline on the same commit and found it green. Something
+ * intermittent went red on one runner and left no name, no file and no message
+ * behind. This function is why that cannot happen again.
+ *
+ * `--reporter=default` alongside the JSON one, and only here: the JSON reporter
+ * writes to a file and prints nothing, so without a second reporter there is no
+ * console to keep. `frontend`'s Unit tests step already runs this exact pair.
+ */
+function baseline(outFile, logFile) {
+  const args = [
+    'vitest', 'run',
+    '--reporter=default',
+    '--reporter=json', `--outputFile=${outFile}`,
+  ]
+
+  /*
+   * A FILE, NOT A PIPE, AND THE FIRST VERSION OF THIS KILLED THE RUN.
+   *
+   * `stdio: ['ignore', 'pipe', 'pipe']` was measured doing exactly that.
+   * `execFileSync` buffers a piped stream in memory and kills the child the
+   * moment it passes `maxBuffer`, which defaults to 1 MB. This suite prints far
+   * more than that before it finishes -- `server/m8-response.test.ts` alone
+   * writes `lesson refused by validation` thousands of times -- so vitest was
+   * SIGTERMed part way through, no JSON report was ever written, and the gate
+   * then reported "vitest produced no JSON report" on a suite that was
+   * perfectly capable of finishing. A diagnostic that causes the failure it is
+   * describing is worse than no diagnostic.
+   *
+   * A file descriptor has no such ceiling and costs no memory. Both streams go
+   * to the same file so the tail is the true end of the run in the order it
+   * happened, rather than all of stdout followed by all of stderr.
+   */
+  const log = openSync(logFile, 'w')
+  try {
+    execFileSync('npx', args, { stdio: ['ignore', log, log], cwd: process.cwd() })
+  } catch {
+    /* Non-zero is why we are here. The evidence is in the two files below. */
+  } finally {
+    closeSync(log)
+  }
+
+  let report = null
+  try {
+    report = JSON.parse(readFileSync(outFile, 'utf8'))
+  } catch {
+    report = null
+  }
+  let printed = ''
+  try {
+    printed = readFileSync(logFile, 'utf8')
+  } catch {
+    printed = ''
+  }
+  return { report, printed }
+}
+
 /* A lock from a previous run means that run died without restoring. Refusing
  * is the only safe move: mutating on top of already-mutated source would make
  * every later result meaningless and bury the original damage. */
@@ -1126,9 +1194,13 @@ const tmp = mkdtempSync(join(tmpdir(), 'canvas-mutation-'))
 const out = join(tmp, 'run.json')
 
 process.stdout.write('canvas-mutation-gate: establishing the baseline\n')
-const base = vitest(out)
+const { report: base, printed: baselineConsole } = baseline(out, join(tmp, 'baseline.log'))
 if (!base || base.numFailedTests > 0) {
   process.stdout.write('::error title=mutation gate::The suite is not green before mutating. Fix the suite first.\n')
+  /* AND WHAT WENT RED, WHICH THIS USED TO KEEP TO ITSELF. See `suite-report.mjs`
+   * for the failure that argued for it: a red shard whose entire evidence was
+   * the sentence above, on a suite three other shards found green. */
+  process.stdout.write(notGreenEvidence(base ?? null, baselineConsole))
   process.exit(1)
 }
 /*

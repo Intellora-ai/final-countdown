@@ -69,16 +69,17 @@ jobs:
     # concurrent slots this account has.
     timeout-minutes: 5
     steps:
-      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
-      # The matchers turn any mypy / pytest-frame / eslint / pyright /
-      # gcc-shaped line in this job's log into a file-and-line annotation, so
-      # an error cannot scroll past unseen. ci-findings.yml then reconciles
-      # what was emitted against what GitHub accepted, after the run.
-      - name: Teach the runner to read tool findings
-        run: echo "::add-matcher::.github/matchers/tools.json"
-
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # UNIVERSAL FINDING NET -- registered right after checkout, because the
+      # matcher FILE must exist in the workspace before ::add-matcher:: can
+      # read it: registered as the first step, it killed every job in the
+      # repository at once, before a single checkout had run. The matchers
+      # turn any mypy / pytest-frame / eslint / pyright / gcc-shaped log line
+      # into a file-and-line annotation; ci-findings.yml reconciles what was
+      # emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
       # `::warning`, never `::error`. The level does not change how GitHub
       # resolves `file=`, and errors would paint two red annotations on every
       # green run. Exit status is always 0: this job's only purpose is to put
@@ -93,16 +94,17 @@ jobs:
     # Two `gh api` reads and one script. Same reasoning as `emit` above.
     timeout-minutes: 5
     steps:
-      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
-      # The matchers turn any mypy / pytest-frame / eslint / pyright /
-      # gcc-shaped line in this job's log into a file-and-line annotation, so
-      # an error cannot scroll past unseen. ci-findings.yml then reconciles
-      # what was emitted against what GitHub accepted, after the run.
-      - name: Teach the runner to read tool findings
-        run: echo "::add-matcher::.github/matchers/tools.json"
-
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # UNIVERSAL FINDING NET -- registered right after checkout, because the
+      # matcher FILE must exist in the workspace before ::add-matcher:: can
+      # read it: registered as the first step, it killed every job in the
+      # repository at once, before a single checkout had run. The matchers
+      # turn any mypy / pytest-frame / eslint / pyright / gcc-shaped log line
+      # into a file-and-line annotation; ci-findings.yml reconciles what was
+      # emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
       # A job's annotations are only queryable once its check-run has completed,
       # which `needs: emit` guarantees. GitHub's job id and check-run id are the
       # same number, so the jobs listing resolves the id to query.

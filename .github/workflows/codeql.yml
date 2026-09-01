@@ -62,15 +62,16 @@ jobs:
       security-events: write   # required to publish results to code scanning
       actions: read            # required to read workflow run metadata
     steps:
-      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
-      # The matchers turn any mypy / pytest-frame / eslint / pyright /
-      # gcc-shaped line in this job's log into a file-and-line annotation, so
-      # an error cannot scroll past unseen. ci-findings.yml then reconciles
-      # what was emitted against what GitHub accepted, after the run.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # UNIVERSAL FINDING NET -- registered right after checkout, because the
+      # matcher FILE must exist in the workspace before ::add-matcher:: can
+      # read it: registered as the first step, it killed every job in the
+      # repository at once, before a single checkout had run. The matchers
+      # turn any mypy / pytest-frame / eslint / pyright / gcc-shaped log line
+      # into a file-and-line annotation; ci-findings.yml reconciles what was
+      # emitted against what GitHub accepted, after the run.
       - name: Teach the runner to read tool findings
         run: echo "::add-matcher::.github/matchers/tools.json"
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Initialize CodeQL
         uses: github/codeql-action/init@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
         with:
@@ -140,15 +141,16 @@ jobs:
       security-events: write
       actions: read
     steps:
-      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
-      # The matchers turn any mypy / pytest-frame / eslint / pyright /
-      # gcc-shaped line in this job's log into a file-and-line annotation, so
-      # an error cannot scroll past unseen. ci-findings.yml then reconciles
-      # what was emitted against what GitHub accepted, after the run.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # UNIVERSAL FINDING NET -- registered right after checkout, because the
+      # matcher FILE must exist in the workspace before ::add-matcher:: can
+      # read it: registered as the first step, it killed every job in the
+      # repository at once, before a single checkout had run. The matchers
+      # turn any mypy / pytest-frame / eslint / pyright / gcc-shaped log line
+      # into a file-and-line annotation; ci-findings.yml reconciles what was
+      # emitted against what GitHub accepted, after the run.
       - name: Teach the runner to read tool findings
         run: echo "::add-matcher::.github/matchers/tools.json"
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Initialize CodeQL
         uses: github/codeql-action/init@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
         with:
@@ -180,15 +182,16 @@ jobs:
       security-events: write
       actions: read
     steps:
-      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
-      # The matchers turn any mypy / pytest-frame / eslint / pyright /
-      # gcc-shaped line in this job's log into a file-and-line annotation, so
-      # an error cannot scroll past unseen. ci-findings.yml then reconciles
-      # what was emitted against what GitHub accepted, after the run.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # UNIVERSAL FINDING NET -- registered right after checkout, because the
+      # matcher FILE must exist in the workspace before ::add-matcher:: can
+      # read it: registered as the first step, it killed every job in the
+      # repository at once, before a single checkout had run. The matchers
+      # turn any mypy / pytest-frame / eslint / pyright / gcc-shaped log line
+      # into a file-and-line annotation; ci-findings.yml reconciles what was
+      # emitted against what GitHub accepted, after the run.
       - name: Teach the runner to read tool findings
         run: echo "::add-matcher::.github/matchers/tools.json"
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Initialize CodeQL
         uses: github/codeql-action/init@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
         with:

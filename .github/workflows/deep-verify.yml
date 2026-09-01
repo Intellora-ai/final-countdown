@@ -54,14 +54,6 @@ jobs:
       run: ${{ steps.decide.outputs.run }}
       source_sha: ${{ steps.decide.outputs.source_sha }}
     steps:
-      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
-      # The matchers turn any mypy / pytest-frame / eslint / pyright /
-      # gcc-shaped line in this job's log into a file-and-line annotation, so
-      # an error cannot scroll past unseen. ci-findings.yml then reconciles
-      # what was emitted against what GitHub accepted, after the run.
-      - name: Teach the runner to read tool findings
-        run: echo "::add-matcher::.github/matchers/tools.json"
-
       # THE ANCESTRY CHECK NEEDS HISTORY, AND `ref:` IS DELIBERATELY NOT THE
       # DISPATCH INPUT. Checking out an unvalidated attacker-supplied SHA is
       # precisely what the decision below exists to prevent, so this takes the
@@ -72,6 +64,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      # UNIVERSAL FINDING NET -- registered right after checkout, because the
+      # matcher FILE must exist in the workspace before ::add-matcher:: can
+      # read it: registered as the first step, it killed every job in the
+      # repository at once, before a single checkout had run. The matchers
+      # turn any mypy / pytest-frame / eslint / pyright / gcc-shaped log line
+      # into a file-and-line annotation; ci-findings.yml reconciles what was
+      # emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
       - name: Decide whether the deep lane may run
         id: decide
         env:
@@ -189,14 +190,6 @@ jobs:
     env:
       SOURCE_SHA: ${{ needs.gate.outputs.source_sha }}
     steps:
-      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
-      # The matchers turn any mypy / pytest-frame / eslint / pyright /
-      # gcc-shaped line in this job's log into a file-and-line annotation, so
-      # an error cannot scroll past unseen. ci-findings.yml then reconciles
-      # what was emitted against what GitHub accepted, after the run.
-      - name: Teach the runner to read tool findings
-        run: echo "::add-matcher::.github/matchers/tools.json"
-
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The exact commit under test. fetch-depth 0 so the SHA is present rather
@@ -204,6 +197,15 @@ jobs:
           ref: ${{ needs.gate.outputs.source_sha }}
           fetch-depth: 0
 
+      # UNIVERSAL FINDING NET -- registered right after checkout, because the
+      # matcher FILE must exist in the workspace before ::add-matcher:: can
+      # read it: registered as the first step, it killed every job in the
+      # repository at once, before a single checkout had run. The matchers
+      # turn any mypy / pytest-frame / eslint / pyright / gcc-shaped log line
+      # into a file-and-line annotation; ci-findings.yml reconciles what was
+      # emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
       - name: The checked-out tree is the SHA this run claims
         env:
           WORKFLOW_RUN_SHA: ${{ github.sha }}

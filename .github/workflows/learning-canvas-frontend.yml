@@ -103,14 +103,6 @@ jobs:
     outputs:
       frontend: ${{ steps.detect.outputs.frontend }}
     steps:
-      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
-      # The matchers turn any mypy / pytest-frame / eslint / pyright /
-      # gcc-shaped line in this job's log into a file-and-line annotation, so
-      # an error cannot scroll past unseen. ci-findings.yml then reconciles
-      # what was emitted against what GitHub accepted, after the run.
-      - name: Teach the runner to read tool findings
-        run: echo "::add-matcher::.github/matchers/tools.json"
-
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -120,6 +112,15 @@ jobs:
           # pull request and hide this regression behind a green result.
           fetch-depth: 0
 
+      # UNIVERSAL FINDING NET -- registered right after checkout, because the
+      # matcher FILE must exist in the workspace before ::add-matcher:: can
+      # read it: registered as the first step, it killed every job in the
+      # repository at once, before a single checkout had run. The matchers
+      # turn any mypy / pytest-frame / eslint / pyright / gcc-shaped log line
+      # into a file-and-line annotation; ci-findings.yml reconciles what was
+      # emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
       - name: Detect frontend changes
         id: detect
         env:
@@ -166,17 +167,18 @@ jobs:
         working-directory: frontend
 
     steps:
-      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
-      # The matchers turn any mypy / pytest-frame / eslint / pyright /
-      # gcc-shaped line in this job's log into a file-and-line annotation, so
-      # an error cannot scroll past unseen. ci-findings.yml then reconciles
-      # what was emitted against what GitHub accepted, after the run.
-      - name: Teach the runner to read tool findings
-        run: echo "::add-matcher::.github/matchers/tools.json"
-
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # UNIVERSAL FINDING NET -- registered right after checkout, because the
+      # matcher FILE must exist in the workspace before ::add-matcher:: can
+      # read it: registered as the first step, it killed every job in the
+      # repository at once, before a single checkout had run. The matchers
+      # turn any mypy / pytest-frame / eslint / pyright / gcc-shaped log line
+      # into a file-and-line annotation; ci-findings.yml reconciles what was
+      # emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
       # node-version-file rather than a literal: the version lives in frontend/.nvmrc, so a
       # developer's local shell and this runner read the same single declaration.
       - name: Setup Node
@@ -547,17 +549,18 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
-      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
-      # The matchers turn any mypy / pytest-frame / eslint / pyright /
-      # gcc-shaped line in this job's log into a file-and-line annotation, so
-      # an error cannot scroll past unseen. ci-findings.yml then reconciles
-      # what was emitted against what GitHub accepted, after the run.
-      - name: Teach the runner to read tool findings
-        run: echo "::add-matcher::.github/matchers/tools.json"
-
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # UNIVERSAL FINDING NET -- registered right after checkout, because the
+      # matcher FILE must exist in the workspace before ::add-matcher:: can
+      # read it: registered as the first step, it killed every job in the
+      # repository at once, before a single checkout had run. The matchers
+      # turn any mypy / pytest-frame / eslint / pyright / gcc-shaped log line
+      # into a file-and-line annotation; ci-findings.yml reconciles what was
+      # emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -668,17 +671,18 @@ jobs:
         # projects, same ~290 tests -- Playwright's --shard splits, never skips.
         shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
-      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
-      # The matchers turn any mypy / pytest-frame / eslint / pyright /
-      # gcc-shaped line in this job's log into a file-and-line annotation, so
-      # an error cannot scroll past unseen. ci-findings.yml then reconciles
-      # what was emitted against what GitHub accepted, after the run.
-      - name: Teach the runner to read tool findings
-        run: echo "::add-matcher::.github/matchers/tools.json"
-
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # UNIVERSAL FINDING NET -- registered right after checkout, because the
+      # matcher FILE must exist in the workspace before ::add-matcher:: can
+      # read it: registered as the first step, it killed every job in the
+      # repository at once, before a single checkout had run. The matchers
+      # turn any mypy / pytest-frame / eslint / pyright / gcc-shaped log line
+      # into a file-and-line annotation; ci-findings.yml reconciles what was
+      # emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -790,17 +794,18 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
-      # The matchers turn any mypy / pytest-frame / eslint / pyright /
-      # gcc-shaped line in this job's log into a file-and-line annotation, so
-      # an error cannot scroll past unseen. ci-findings.yml then reconciles
-      # what was emitted against what GitHub accepted, after the run.
-      - name: Teach the runner to read tool findings
-        run: echo "::add-matcher::.github/matchers/tools.json"
-
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # UNIVERSAL FINDING NET -- registered right after checkout, because the
+      # matcher FILE must exist in the workspace before ::add-matcher:: can
+      # read it: registered as the first step, it killed every job in the
+      # repository at once, before a single checkout had run. The matchers
+      # turn any mypy / pytest-frame / eslint / pyright / gcc-shaped log line
+      # into a file-and-line annotation; ci-findings.yml reconciles what was
+      # emitted against what GitHub accepted, after the run.
+      - name: Teach the runner to read tool findings
+        run: echo "::add-matcher::.github/matchers/tools.json"
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -873,14 +878,6 @@ jobs:
     # waiting on it.
     timeout-minutes: 10
     steps:
-      # UNIVERSAL FINDING NET -- registered first in EVERY job, mechanically.
-      # The matchers turn any mypy / pytest-frame / eslint / pyright /
-      # gcc-shaped line in this job's log into a file-and-line annotation, so
-      # an error cannot scroll past unseen. ci-findings.yml then reconciles
-      # what was emitted against what GitHub accepted, after the run.
-      - name: Teach the runner to read tool findings
-        run: echo "::add-matcher::.github/matchers/tools.json"
-
       # THE VERDICT IS WRITTEN DOWN, NOT ONLY EXITED.
       #
       # This is a required check, and `gate_integrity` refuses a mandatory gate

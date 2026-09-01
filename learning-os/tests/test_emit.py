@@ -17,15 +17,19 @@ from __future__ import annotations
 
 import pathlib
 import re
-from learning_os.api.ask import MAX_QUESTION as ENDPOINT_MAX_QUESTION
-from learning_os.api.emit import MAX_QUESTION as EMIT_MAX_QUESTION
-from learning_os.llm.contract import MAX_LESSON_QUESTION
 
 import pytest
 
+from learning_os.api.ask import MAX_QUESTION as ENDPOINT_MAX_QUESTION
+from learning_os.api.emit import MAX_QUESTION as EMIT_MAX_QUESTION
 from learning_os.api.emit import PROSE_FIELD, TEXT_BLOCK_KINDS, EmitError, emit
 from learning_os.llm.client import FakeLLMClient, GeneratedContent
-from learning_os.llm.contract import DiagnosisKind, InstructionContract, Strategy
+from learning_os.llm.contract import (
+    MAX_LESSON_QUESTION,
+    DiagnosisKind,
+    InstructionContract,
+    Strategy,
+)
 from learning_os.llm.validation import BLOCK_KINDS
 from learning_os.models.contracts import ActionKind
 
@@ -156,15 +160,15 @@ def test_every_cap_on_a_question_is_the_same_number() -> None:
     )
     canvas = int(found.group(1))
 
-    assert MAX_LESSON_QUESTION == canvas, (
+    assert canvas == MAX_LESSON_QUESTION, (
         f"the LLM contract permits {MAX_LESSON_QUESTION} characters and the "
         f"canvas permits {canvas}; the model can be told to write a title the "
         f"canvas will refuse to render"
     )
-    assert EMIT_MAX_QUESTION == canvas, (
+    assert canvas == EMIT_MAX_QUESTION, (
         f"the emitter permits {EMIT_MAX_QUESTION} and the canvas {canvas}"
     )
-    assert ENDPOINT_MAX_QUESTION == canvas, (
+    assert canvas == ENDPOINT_MAX_QUESTION, (
         f"the endpoint advertises {ENDPOINT_MAX_QUESTION} characters and everything "
         f"downstream permits {canvas}, so a question between the two is accepted "
         f"and then silently cut"

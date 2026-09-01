@@ -52,6 +52,7 @@ from learning_os.llm.gemini_client import (
     SUPPORTED_SCHEMA_KEYWORDS,
     GeminiClient,
     _content_of,
+    _refusal_reason,
     _send,
     parse_blocks,
     schema_keywords,
@@ -499,7 +500,6 @@ def test_the_request_carries_the_model_the_schema_and_the_mime_type() -> None:
 # NOT DELEGATED TO `anthropic_client.parse_blocks`, and the note field is why --
 # so the provenance assertion below is part of the same claim.
 # --------------------------------------------------------------------------
-from learning_os.llm.gemini_client import _refusal_reason, parse_blocks
 
 
 def test_a_reply_that_is_not_json_says_so_rather_than_reporting_no_blocks() -> None:

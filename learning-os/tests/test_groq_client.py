@@ -41,8 +41,12 @@ from __future__ import annotations
 import ast
 import importlib.util
 import inspect
+import io as _io
 import sys
+import urllib.error
+import urllib.request
 from collections.abc import Mapping
+from contextlib import contextmanager
 from dataclasses import fields
 from typing import Any
 
@@ -71,6 +75,7 @@ from learning_os.llm.groq_client import (
     WAIT_BEFORE_RETRY_SECONDS,
     GroqClient,
     Reply,
+    _post,
     build_http_request,
     build_request,
     content_of,
@@ -886,16 +891,11 @@ def test_an_unavailable_from_the_transport_is_not_rewrapped(
 # `build_http_request`, the error is a genuine `urllib.error.HTTPError`, and
 # `_decode` is the real one -- which is what lets the HTML case below be honest.
 # --------------------------------------------------------------------------
-import io as _io
-import urllib.error
-import urllib.request
-from contextlib import contextmanager
 
-from learning_os.llm.groq_client import _post
 
 
 @contextmanager
-def _answers(status: int, body: bytes, headers: dict[str, str] | None = None):  # noqa: ANN202
+def _answers(status: int, body: bytes, headers: dict[str, str] | None = None):
     class _Response:
         def __init__(self) -> None:
             self.status = status

@@ -282,7 +282,13 @@ def test_an_oversized_question_is_capped_not_refused(question: str) -> None:
 # P6  The answer is to the question that was asked.
 # --------------------------------------------------------------------------
 @PROPERTY_SETTINGS
-@given(st.one_of(MAPPABLE, OVERSIZED_MAPPABLE, st.text(min_size=1, max_size=MAX_QUESTION).filter(lambda s: s.strip())))
+@given(
+    st.one_of(
+        MAPPABLE,
+        OVERSIZED_MAPPABLE,
+        st.text(min_size=1, max_size=MAX_QUESTION).filter(lambda s: s.strip()),
+    )
+)
 def test_a_lesson_answers_the_question_it_was_given(question: str) -> None:
     """One learner must never receive another's lesson.
 
@@ -328,7 +334,9 @@ def test_the_answered_branch_is_reachable() -> None:
     answered = [
         question
         for question in ASKABLE
-        if isinstance(answer(json.dumps({"text": question, "learner_id": "canary"})).get("lesson"), dict)
+        if isinstance(
+            answer(json.dumps({"text": question, "learner_id": "canary"})).get("lesson"), dict
+        )
     ]
 
     assert answered, (

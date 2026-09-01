@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from dataclasses import replace as _replace
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +33,8 @@ import pytest
 
 from learning_os.api import speak
 from learning_os.llm.select import PROVIDER_ENV
+from learning_os.llm.validation import Violation, ViolationKind
+from learning_os.runtime.loop import TurnStatus
 
 
 def _run(
@@ -278,10 +281,7 @@ def test_the_question_can_be_supplied_on_the_command_line(
 # needed; UNSATISFIABLE says the content was wrong, not the connection. Reading
 # the wrong one costs an afternoon.
 # --------------------------------------------------------------------------
-from dataclasses import replace as _replace
 
-from learning_os.llm.validation import Violation, ViolationKind
-from learning_os.runtime.loop import TurnStatus
 
 
 def _turn_that_ends(

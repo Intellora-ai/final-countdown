@@ -47,8 +47,7 @@ from enum import StrEnum
 
 from learning_os.domain.knowledge import KnowledgeGraph
 from learning_os.llm.client import LLMClient
-from learning_os.llm.contract import MAX_LESSON_QUESTION
-from learning_os.llm.contract import DiagnosisKind
+from learning_os.llm.contract import MAX_LESSON_QUESTION, DiagnosisKind
 from learning_os.mastery.estimate import Belief
 from learning_os.memory.store import MemoryStore
 from learning_os.runtime.loop import Turn, TurnStatus, teach_once

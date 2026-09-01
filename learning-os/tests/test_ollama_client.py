@@ -29,7 +29,11 @@ permit what it forbids is a test that passes for the wrong reason.
 
 from __future__ import annotations
 
+import io as _io
 import json
+import urllib.error
+import urllib.request
+from contextlib import contextmanager
 from typing import Any
 
 import pytest
@@ -44,6 +48,7 @@ from learning_os.llm.ollama_client import (
     DEFAULT_HOST,
     OLLAMA_HOST_ENV,
     OllamaClient,
+    _post,
     build_request,
 )
 from learning_os.models.contracts import ActionKind
@@ -237,16 +242,11 @@ def test_a_well_formed_response_parses_via_the_shared_parser() -> None:
 # honest here either: the failures below are the ones a running Ollama does not
 # produce.
 # --------------------------------------------------------------------------
-import io as _io
-import urllib.error
-import urllib.request
-from contextlib import contextmanager
 
-from learning_os.llm.ollama_client import _post
 
 
 @contextmanager
-def _answers(body: bytes):  # noqa: ANN202 - a test-local context manager
+def _answers(body: bytes):
     class _Response:
         def read(self) -> bytes:
             return body
@@ -311,7 +311,9 @@ def test_a_body_that_is_not_an_object_is_refused_rather_than_indexed(
 ) -> None:
     """A proxy or a captive portal answers 200 with something else entirely.
     Indexing it would raise a TypeError the runtime reads as an engine bug."""
-    monkeypatch.setattr(urllib.request, "urlopen", lambda *_a, **_k: _answers(b'["not", "a", "map"]'))
+    monkeypatch.setattr(
+        urllib.request, "urlopen", lambda *_a, **_k: _answers(b'["not", "a", "map"]')
+    )
 
     with pytest.raises(LLMUnavailable) as caught:
         _post("http://127.0.0.1:11434/api/chat", {"model": "m"})

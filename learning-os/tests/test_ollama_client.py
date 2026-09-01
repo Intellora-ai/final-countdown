@@ -33,7 +33,9 @@ import io as _io
 import json
 import urllib.error
 import urllib.request
+from collections.abc import Iterator
 from contextlib import contextmanager
+from email.message import Message
 from typing import Any
 
 import pytest
@@ -246,7 +248,7 @@ def test_a_well_formed_response_parses_via_the_shared_parser() -> None:
 
 
 @contextmanager
-def _answers(body: bytes):
+def _answers(body: bytes) -> Iterator[Any]:
     class _Response:
         def read(self) -> bytes:
             return body
@@ -257,7 +259,7 @@ def _answers(body: bytes):
 def _http_error(code: int, body: bytes) -> urllib.error.HTTPError:
     """A genuine HTTPError, built the way urllib builds one."""
     return urllib.error.HTTPError(
-        "http://127.0.0.1:11434/api/chat", code, "", {}, _io.BytesIO(body)
+        "http://127.0.0.1:11434/api/chat", code, "", Message(), _io.BytesIO(body)
     )
 
 

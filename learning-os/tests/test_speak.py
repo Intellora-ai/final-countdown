@@ -34,7 +34,7 @@ import pytest
 from learning_os.api import speak
 from learning_os.llm.select import PROVIDER_ENV
 from learning_os.llm.validation import Violation, ViolationKind
-from learning_os.runtime.loop import TurnStatus
+from learning_os.runtime.loop import TurnStatus, teach_once
 
 
 def _run(
@@ -288,7 +288,12 @@ def _turn_that_ends(
     monkeypatch: pytest.MonkeyPatch, status: TurnStatus, **over: Any
 ) -> None:
     """Run the real loop, then report a different ending."""
-    real = speak.teach_once
+    # The same object `speak` imported, read from its DEFINING module: `speak`
+    # deliberately does not re-export it (`__all__` names the exit codes and
+    # `main`), so reading it through `speak` is an implicit re-export mypy
+    # rightly refuses. The PATCH still lands on `speak`, because that is the
+    # reference `main` calls.
+    real = teach_once
 
     def _stub(*args: Any, **kwargs: Any) -> Any:
         return _replace(real(*args, **kwargs), status=status, **over)

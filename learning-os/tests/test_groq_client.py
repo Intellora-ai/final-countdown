@@ -45,7 +45,7 @@ import io as _io
 import sys
 import urllib.error
 import urllib.request
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import fields
 from typing import Any
@@ -895,7 +895,7 @@ def test_an_unavailable_from_the_transport_is_not_rewrapped(
 
 
 @contextmanager
-def _answers(status: int, body: bytes, headers: dict[str, str] | None = None):
+def _answers(status: int, body: bytes, headers: dict[str, str] | None = None) -> Iterator[Any]:
     class _Response:
         def __init__(self) -> None:
             self.status = status

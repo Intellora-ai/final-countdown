@@ -680,8 +680,11 @@ workflow = "gate.yml"
 job = "catch-errors"
 mandatory = false
 role = "scanner"
+# `npx tsc --noEmit` left this list WITH its step: `npm run typecheck` is that
+# same compile of that same project plus the canvas and server projects, so the
+# bare step was duplicate work, not a distinct check. The contract pins the
+# superset.
 must_contain = [
-  "npx tsc --noEmit",
   "npm run lint",
   "ruff check .",
   "npm run typecheck",

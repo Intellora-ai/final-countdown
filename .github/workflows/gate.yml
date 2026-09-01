@@ -99,10 +99,15 @@ jobs:
       - name: Teach the runner to read tsc findings
         run: echo "::add-matcher::.github/matchers/tsc.json"
 
-      - name: TypeScript
-        working-directory: frontend
-        run: npx tsc --noEmit
-
+      # THE BARE `npx tsc --noEmit` STEP IS GONE, AND NOTHING IS CHECKED LESS.
+      # It compiled tsconfig.json alone; the "TypeScript, every project" step
+      # below runs `npm run typecheck`, whose first command is the IDENTICAL
+      # compile of the IDENTICAL project, followed by the canvas and server
+      # projects. Two steps compiling the same project was ~40 seconds of the
+      # job re-proving what its later step re-proves anyway -- deleted as
+      # duplicate work, not as a check. The problem matcher registered above
+      # reads any step's log, so typecheck failures still annotate their exact
+      # file and line.
       - name: ESLint
         working-directory: frontend
         run: npm run lint

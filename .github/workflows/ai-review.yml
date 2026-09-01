@@ -134,13 +134,12 @@ jobs:
 
       # UNIVERSAL FINDING NET -- registered right after checkout, because the
       # matcher FILE must exist in the workspace before ::add-matcher:: can
-      # read it: registered as the first step, it killed every job in the
-      # repository at once, before a single checkout had run. The matchers
-      # turn any mypy / pytest-frame / eslint / pyright / gcc-shaped log line
-      # into a file-and-line annotation; ci-findings.yml reconciles what was
-      # emitted against what GitHub accepted, after the run.
+      # read it. The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped log line into a file-and-line annotation; ci-findings.yml
+      # reconciles what was emitted against what GitHub accepted, post-run.
       - name: Teach the runner to read tool findings
         run: echo "::add-matcher::.github/matchers/tools.json"
+
       # The `claude` GitHub App (app_id 1236702) is already installed on this
       # repository with `pull_requests: write` and `checks: write`. The check
       # run this job produces still comes from GitHub Actions (integration 15368)

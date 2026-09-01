@@ -53,23 +53,16 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      # EVERY TOOL'S FINDING BECOMES AN ANNOTATION. The matchers read this
-      # job's whole log: mypy, pytest's failing frame, eslint, pyright and any
-      # gcc-shaped line all land on their exact file and line in the PR view.
-      - name: Teach the runner to read tool findings
-        run: echo "::add-matcher::.github/matchers/tools.json"
-
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # UNIVERSAL FINDING NET -- registered right after checkout, because the
       # matcher FILE must exist in the workspace before ::add-matcher:: can
-      # read it: registered as the first step, it killed every job in the
-      # repository at once, before a single checkout had run. The matchers
-      # turn any mypy / pytest-frame / eslint / pyright / gcc-shaped log line
-      # into a file-and-line annotation; ci-findings.yml reconciles what was
-      # emitted against what GitHub accepted, after the run.
+      # read it. The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped log line into a file-and-line annotation; ci-findings.yml
+      # reconciles what was emitted against what GitHub accepted, post-run.
       - name: Teach the runner to read tool findings
         run: echo "::add-matcher::.github/matchers/tools.json"
+
       # PYTHON 3.12, AND THE VERSION IS LOAD-BEARING.
       #
       # Measured on the maintainer's machine 2026-09-01: under Python 3.14.7,
@@ -239,13 +232,12 @@ jobs:
 
       # UNIVERSAL FINDING NET -- registered right after checkout, because the
       # matcher FILE must exist in the workspace before ::add-matcher:: can
-      # read it: registered as the first step, it killed every job in the
-      # repository at once, before a single checkout had run. The matchers
-      # turn any mypy / pytest-frame / eslint / pyright / gcc-shaped log line
-      # into a file-and-line annotation; ci-findings.yml reconciles what was
-      # emitted against what GitHub accepted, after the run.
+      # read it. The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped log line into a file-and-line annotation; ci-findings.yml
+      # reconciles what was emitted against what GitHub accepted, post-run.
       - name: Teach the runner to read tool findings
         run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: frontend/.nvmrc
@@ -464,13 +456,12 @@ jobs:
 
       # UNIVERSAL FINDING NET -- registered right after checkout, because the
       # matcher FILE must exist in the workspace before ::add-matcher:: can
-      # read it: registered as the first step, it killed every job in the
-      # repository at once, before a single checkout had run. The matchers
-      # turn any mypy / pytest-frame / eslint / pyright / gcc-shaped log line
-      # into a file-and-line annotation; ci-findings.yml reconciles what was
-      # emitted against what GitHub accepted, after the run.
+      # read it. The matchers turn any mypy / pytest-frame / eslint / pyright /
+      # gcc-shaped log line into a file-and-line annotation; ci-findings.yml
+      # reconciles what was emitted against what GitHub accepted, post-run.
       - name: Teach the runner to read tool findings
         run: echo "::add-matcher::.github/matchers/tools.json"
+
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'

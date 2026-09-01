@@ -655,6 +655,19 @@ jobs:
       # Was five installs of the same browser, one per shard, at ~11s each.
       # Collapsing the matrix collapses that too, without adding a cache action
       # this repository does not already pin.
+      # THE BROWSER BINARIES, CACHED. `playwright install` downloads ~150MB of
+      # Chromium on every run of every job that needs a browser -- eight jobs a
+      # push, all fetching the same bytes. The INSTALL STEP STAYS: on a cache
+      # hit it validates and no-ops in seconds, on a miss or a version bump it
+      # downloads exactly as before, so a stale or poisoned cache cannot skip
+      # validation -- this trades seconds, never assurance. Keyed on the
+      # lockfile: any dependency change rebuilds the cache.
+      - name: Cache playwright browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-chromium-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+
       - name: Install Chromium
         run: npx playwright install chromium
 
@@ -752,6 +765,19 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # THE BROWSER BINARIES, CACHED. `playwright install` downloads ~150MB of
+      # Chromium on every run of every job that needs a browser -- eight jobs a
+      # push, all fetching the same bytes. The INSTALL STEP STAYS: on a cache
+      # hit it validates and no-ops in seconds, on a miss or a version bump it
+      # downloads exactly as before, so a stale or poisoned cache cannot skip
+      # validation -- this trades seconds, never assurance. Keyed on the
+      # lockfile: any dependency change rebuilds the cache.
+      - name: Cache playwright browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-chromium-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
 
       - name: Install Chromium
         run: npx playwright install chromium

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -19,7 +20,27 @@ from behave import given, then, when  # pyright: ignore[reportMissingImports]
 
 REPO = Path(__file__).resolve().parents[2]
 LEARNING_OS = REPO / "learning-os"
-PYTHON = REPO / ".venv" / "bin" / "python"
+#
+# THE INTERPRETER, RESOLVED FOR THE MACHINE THIS IS RUNNING ON.
+#
+# `.venv/bin/python` was hardcoded, and the suite HAD NEVER EXECUTED ON A
+# RUNNER: GitHub installs the hash-locked dependencies into the job's own
+# Python, builds no repo-local venv, and `real-tutor` died in before_all with
+# "the interpreter this suite drives is missing" -- 15 scenarios, 60 steps,
+# all UNTESTED, on every run since the job existed. A suite that only runs on
+# a laptop with one particular directory layout is a suite about that laptop.
+#
+# Order: an explicit override wins (CI can point anywhere), the repo venv wins
+# on a developer machine (it is the interpreter with the product installed),
+# and the interpreter running behave is the honest fallback -- on CI it is
+# exactly the one the workflow just installed the dependencies into.
+PYTHON = Path(os.environ.get("LEARNING_OS_PYTHON") or "") if os.environ.get(
+    "LEARNING_OS_PYTHON"
+) else (
+    REPO / ".venv" / "bin" / "python"
+    if (REPO / ".venv" / "bin" / "python").is_file()
+    else Path(sys.executable)
+)
 
 #: Things a stack trace says. A student must never see any of them.
 TRACEBACK_TELLS = ("Traceback (most recent call last)", 'File "', "  at ")

@@ -53,7 +53,8 @@ def before_all(context) -> None:
     _TALLY["scenarios"] = 0
     _TALLY["processes"] = 0
 
-    python = REPO / ".venv" / "bin" / "python"
+    from steps.tutor_steps import PYTHON as python
+
     tutor = REPO / "learning-os" / "src" / "learning_os" / "api" / "ask.py"
     # Fail loudly and early rather than letting every scenario fail with the
     # same confusing error twenty times over.

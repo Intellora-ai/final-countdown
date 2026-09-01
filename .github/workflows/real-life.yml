@@ -77,9 +77,29 @@ jobs:
           pip install --quiet --require-hashes -r learning-os/requirements-learning-os.lock
           pip install --quiet behave
 
+      # GROQ, AND THE PROVIDER IS THE FIX RATHER THAN A PREFERENCE.
+      #
+      # This step selected `gemini` and failed on every run, correctly and for
+      # the reason written below: it fails closed on an absent credential, and
+      # `secrets.GEMINI_API_KEY` is not set on this repository. The credential
+      # that IS set is `GROQ_API_KEY` -- `real-planner` in this same file has
+      # been using it to prove the TypeScript half of the product all along. So
+      # the engine was configured for a provider nobody could reach from CI
+      # while a working one sat unused two jobs down.
+      #
+      # `learning-os/src/learning_os/llm/groq_client.py` is the adapter, and it
+      # is deliberately SDK-free: it speaks the same OpenAI-compatible endpoint
+      # as `frontend/server/groq.ts` over `urllib`. That is what makes it
+      # runnable HERE. The install step above is `requirements-learning-os.lock`
+      # plus `behave` and nothing else -- a hash-locked set that contains no
+      # vendor SDK, because `tests/test_supply_chain.py` forbids any pip install
+      # that is not `--require-hashes -r <lock>`. An adapter needing
+      # `pip install groq` would fail `api/ask.py`'s pre-flight with `no_sdk`
+      # before a single scenario ran.
+      #
       # FAIL-CLOSED ON A MISSING CREDENTIAL, AND NOT SILENTLY SKIPPED.
       #
-      # The tempting shape is `if: secrets.GEMINI_API_KEY != ''`. GitHub counts
+      # The tempting shape is `if: secrets.GROQ_API_KEY != ''`. GitHub counts
       # a skipped job as SATISFYING its required status check, so that spelling
       # turns "we could not verify this" into a green tick -- which is the exact
       # class of false positive this whole workflow exists to remove, reproduced
@@ -87,28 +107,49 @@ jobs:
       #
       # This repository is single-maintainer and public. A fork pull request has
       # no secrets and will fail here; that is visible and explainable, which is
-      # the property being bought. `features/environment.py` refuses the run
+      # the property being bought. The receipt step below refuses the run
       # anyway, so a missing key can never quietly become a fake-answered pass.
+      #
+      # THE VARIABLE IS PREFIXED AND THE SECRET IS NOT, AND THAT IS ON PURPOSE.
+      # `secrets.GROQ_API_KEY` is the one credential, used by both halves of the
+      # product. It reaches the engine as `LEARNING_OS_GROQ_API_KEY` because
+      # that is the only name `groq_client.py` reads, and because
+      # `features/steps/tutor_steps.py` strips the UNPREFIXED vendor names from
+      # the child process to prove the offline path -- a bare `GROQ_API_KEY`
+      # here would be stripped by the very step that is meant to exercise it.
       - name: The real-life suite, answered by a real model
         env:
-          LEARNING_OS_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          LEARNING_OS_LLM_PROVIDER: gemini
+          LEARNING_OS_GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          LEARNING_OS_LLM_PROVIDER: groq
           PYTHONHASHSEED: '0'
         run: |
-          if [ -z "${LEARNING_OS_GEMINI_API_KEY}" ]; then
-            echo "::error title=no credential::secrets.GEMINI_API_KEY is not set on this repository, so the real-life suite cannot reach a model. Add it in Settings > Secrets and variables > Actions. This job fails rather than skipping, because a skipped required check reads as green."
+          if [ -z "${LEARNING_OS_GROQ_API_KEY}" ]; then
+            echo "::error title=no credential::secrets.GROQ_API_KEY is not set on this repository, so the real-life suite cannot reach a model. Add it in Settings > Secrets and variables > Actions. This job fails rather than skipping, because a skipped required check reads as green."
             exit 1
           fi
           behave features/ --no-capture
 
-      # THE RECEIPT IS THE EVIDENCE, AND IT NOW RECORDS WHO ANSWERED.
+      # THE RECEIPT IS THE EVIDENCE, AND IT MUST RECORD WHO ANSWERED.
       #
-      # `answers_by_provider` was added 2026-09-01. Before it, nothing anywhere
-      # in this repository recorded whether an answer came from a model or from
-      # a format string, so "was it real?" was not a question the evidence could
-      # be asked. This step prints it into the log and fails if the receipt is
-      # absent -- environment.py withholds it deliberately when every answer
-      # came from the fake.
+      # Nothing anywhere in this repository records whether an answer came from
+      # a model or from a format string, so "was it real?" is not a question the
+      # evidence can currently be asked. This step prints the receipt and fails
+      # if it is absent or claims no real answers.
+      #
+      # KNOWN BLOCKER, MEASURED 2026-09-01 AND LEFT LOUD ON PURPOSE.
+      # `features/environment.py` writes `.real-infra-proof` with
+      # scenarios_run, real_os_processes_started and canvas_compose_present --
+      # and no `real_model_answers`. grep across the tree returns that field in
+      # this file and nowhere else, so this step fails with "the receipt records
+      # zero answers from a real model" EVEN WHEN a real model answered every
+      # scenario. Wiring the provider does not fix it; the receipt has to start
+      # recording provenance, which `GeneratedContent.note` already carries
+      # (`groq:<model>` versus `fake:<strategy>:<digest>`).
+      #
+      # The check is deliberately NOT relaxed to get past this. A green tick
+      # bought by deleting the assertion that a real model answered would
+      # recreate the exact false positive this whole workflow was built to
+      # remove, and the receipt would go back to being worth nothing.
       - name: Prove a real model answered
         if: always()
         run: |

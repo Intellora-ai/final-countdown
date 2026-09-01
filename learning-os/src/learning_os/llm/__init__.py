@@ -11,16 +11,22 @@ The split is the point. `contract.py` alone is a prompt; it becomes a contract
 only because `validation.py` can fail it.
 
 THE LIVE ADAPTERS ARE NOT RE-EXPORTED HERE, ON PURPOSE.
-`anthropic_client` and `gemini_client` are reachable by their full path and by
-`select.client_from_env`, and by nothing else. Importing this package must not
-pull a vendor adapter into a process that only wanted the contract types --
-that is what keeps "the SDK is optional" a fact about the import graph rather
-than a promise about how carefully people import.
+`anthropic_client`, `gemini_client` and `groq_client` are reachable by their
+full path and by `select.client_from_env`, and by nothing else. Importing this
+package must not pull a vendor adapter into a process that only wanted the
+contract types -- that is what keeps "the SDK is optional" a fact about the
+import graph rather than a promise about how carefully people import.
+
+Their CREDENTIAL NAMES are exported, and that is not an inconsistency. A name is
+not a vendor: `api/speak.py` and `api/ask.py` have to be able to tell somebody
+which variable to export without importing the adapter that reads it, and the
+value itself is never read here -- see `client.api_key_present`.
 """
 
 from learning_os.llm.client import (
     API_KEY_ENV,
     GEMINI_API_KEY_ENV,
+    GROQ_API_KEY_ENV,
     FailureMode,
     FakeLLMClient,
     GeneratedContent,
@@ -55,6 +61,7 @@ __all__ = [
     "BLOCK_KINDS",
     "DEFAULT_PROVIDER",
     "GEMINI_API_KEY_ENV",
+    "GROQ_API_KEY_ENV",
     "PROVIDERS",
     "PROVIDER_ENV",
     "DiagnosisKind",

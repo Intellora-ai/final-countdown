@@ -61,6 +61,22 @@ API_KEY_ENV = "LEARNING_OS_LLM_API_KEY"
 #: than unlikely.
 GEMINI_API_KEY_ENV = "LEARNING_OS_GEMINI_API_KEY"
 
+#: The same rule again, for Groq.
+#:
+#: A THIRD VARIABLE, FOR THE REASON THE SECOND ONE EXISTS -- and the risk is
+#: higher here rather than lower. Groq speaks OpenAI's dialect, so a key meant
+#: for one OpenAI-compatible host is syntactically at home at any other, and a
+#: shared variable would send it to whichever one was configured last. The
+#: request would look completely ordinary. Separate names make that mistake
+#: unreachable rather than unlikely.
+#:
+#: NOT `GROQ_API_KEY`. That bare name is what `frontend/server/groq.ts` reads
+#: for the TypeScript planner, and both halves of this product run in the same
+#: CI job tree. Prefixed, so exporting one cannot silently configure the other,
+#: and so `features/steps/tutor_steps.py` -- which strips the unprefixed vendor
+#: names to prove the offline path -- keeps stripping exactly what it means to.
+GROQ_API_KEY_ENV = "LEARNING_OS_GROQ_API_KEY"
+
 
 class LLMUnavailable(RuntimeError):
     """The model could not be reached, or refused.

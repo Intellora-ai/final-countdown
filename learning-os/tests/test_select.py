@@ -29,6 +29,7 @@ import pytest
 from learning_os.llm.client import (
     API_KEY_ENV,
     GEMINI_API_KEY_ENV,
+    GROQ_API_KEY_ENV,
     FakeLLMClient,
     LLMClient,
     LLMUnavailable,
@@ -244,3 +245,75 @@ def test_no_function_here_ever_returns_a_credential_value() -> None:
     secret = "a-value-that-must-never-be-returned"
     assert missing_credential("gemini", {GEMINI_API_KEY_ENV: secret}) is None
     assert configured_provider({PROVIDER_ENV: "gemini"}) == "gemini"
+
+
+# --------------------------------------------------------------------------
+# Groq: a hosted provider that needs a key and no SDK at all
+# --------------------------------------------------------------------------
+#
+# Both halves of that sentence are load-bearing, and they pull in opposite
+# directions from the other two hosted adapters, so each is asserted rather than
+# left to the table being edited carefully.
+
+
+def test_groq_is_selectable_by_name() -> None:
+    from learning_os.llm.groq_client import GroqClient
+
+    assert isinstance(client_from_env({PROVIDER_ENV: "groq"}), GroqClient)
+
+
+def test_groq_is_matched_case_insensitively_and_trimmed() -> None:
+    """`LEARNING_OS_LLM_PROVIDER=Groq ` pasted out of a README should not be an
+    outage."""
+    from learning_os.llm.groq_client import GroqClient
+
+    assert isinstance(client_from_env({PROVIDER_ENV: "  GROQ  "}), GroqClient)
+
+
+def test_the_refusal_lists_groq_among_what_would_have_worked() -> None:
+    """A provider that exists and is not named in the refusal is a provider
+    nobody discovers."""
+    with pytest.raises(LLMUnavailable, match="groq"):
+        client_from_env({PROVIDER_ENV: "grok"})
+
+
+def test_groq_declares_its_own_credential_variable() -> None:
+    assert missing_credential("groq", {}) == GROQ_API_KEY_ENV
+    assert missing_credential("groq", {GROQ_API_KEY_ENV: "a-value"}) is None
+
+
+def test_a_whitespace_only_groq_key_counts_as_missing() -> None:
+    assert missing_credential("groq", {GROQ_API_KEY_ENV: "   "}) == GROQ_API_KEY_ENV
+
+
+def test_no_other_providers_key_satisfies_groq_and_groqs_satisfies_no_other() -> None:
+    """THE CROSS-WIRING GUARD, in both directions.
+
+    A Groq key sent to Google, or a Google key sent to Groq, is a credential
+    disclosed to a third party -- and there is no undo for that which is not
+    rotation. Separate names make the mistake unreachable rather than unlikely.
+    """
+    assert missing_credential("groq", {GEMINI_API_KEY_ENV: "google"}) == GROQ_API_KEY_ENV
+    assert missing_credential("groq", {API_KEY_ENV: "anthropic"}) == GROQ_API_KEY_ENV
+    assert missing_credential("gemini", {GROQ_API_KEY_ENV: "groq"}) == GEMINI_API_KEY_ENV
+    assert missing_credential("anthropic", {GROQ_API_KEY_ENV: "groq"}) == API_KEY_ENV
+
+
+def test_groq_needs_no_optional_sdk() -> None:
+    """THE DECLARATION THE PRE-FLIGHT REPEATS TO A READER.
+
+    `api/ask.py` answers `no_sdk` and tells whoever is configuring this to run a
+    `pip install` before anything else can work. Saying that about a client built
+    from `urllib` would send them to install a package that does not exist for a
+    problem they do not have.
+
+    It is also what makes the CI job runnable: `real-life.yml` installs
+    `requirements-learning-os.lock` and `behave`, so a provider needing a vendor
+    SDK cannot be the one that job selects.
+
+    `test_groq_client.py::test_the_module_imports_nothing_outside_the_standard_library`
+    is the other half -- it fails the day an import makes this line false.
+    """
+    assert PROVIDER_SDK_MODULE["groq"] is None
+    assert missing_sdk("groq", installed=frozenset()) is None
+    assert missing_sdk("groq") is None

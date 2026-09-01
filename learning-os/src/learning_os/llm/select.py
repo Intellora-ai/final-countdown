@@ -42,6 +42,7 @@ from collections.abc import Callable, Mapping
 from learning_os.llm.client import (
     API_KEY_ENV,
     GEMINI_API_KEY_ENV,
+    GROQ_API_KEY_ENV,
     FakeLLMClient,
     LLMClient,
     LLMUnavailable,
@@ -81,6 +82,12 @@ def _anthropic() -> LLMClient:
     return AnthropicClient()
 
 
+def _groq() -> LLMClient:
+    from learning_os.llm.groq_client import GroqClient
+
+    return GroqClient()
+
+
 #: The whole decision table. `fake` is named rather than implied so a test or a
 #: demo can ASK for it out loud instead of relying on the default staying the
 #: default -- an intent that survives someone changing `DEFAULT_PROVIDER`.
@@ -88,6 +95,7 @@ PROVIDERS: Mapping[str, Callable[[], LLMClient]] = {
     "fake": FakeLLMClient,
     "gemini": _gemini,
     "anthropic": _anthropic,
+    "groq": _groq,
 }
 
 
@@ -138,6 +146,7 @@ PROVIDER_KEY_ENV: Mapping[str, str | None] = {
     "fake": None,
     "gemini": GEMINI_API_KEY_ENV,
     "anthropic": API_KEY_ENV,
+    "groq": GROQ_API_KEY_ENV,
 }
 
 
@@ -175,6 +184,15 @@ PROVIDER_SDK_MODULE: Mapping[str, str | None] = {
     "fake": None,
     "gemini": "google.genai",
     "anthropic": "anthropic",
+    # `None` here is a CLAIM, not a gap. `groq_client` speaks the vendor's
+    # OpenAI-compatible endpoint over `urllib` and imports nothing outside the
+    # standard library, so there is no `pip install` that could ever be the
+    # remedy -- and saying otherwise would send a first-time reader to install a
+    # package they do not need for a problem they do not have.
+    #
+    # `tests/test_groq_client.py::test_the_module_imports_nothing_outside_the_standard_library`
+    # reads that module's own imports and fails the day this stops being true.
+    "groq": None,
 }
 
 

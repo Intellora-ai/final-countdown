@@ -72,6 +72,28 @@ TWO SURVIVED, and a survivor is a must-fix:
 An earlier 12/13 score was RETRACTED: the agents' files landed mid-run, so part
 of it was scored against a red baseline.
 
+**BOTH SURVIVORS ARE DEAD AS OF 2026-09-01, AND THE COUNTS ABOVE ARE STALE.**
+This paragraph is left standing rather than deleted because the reasoning in it
+was right and is the reason the kills work: neither mutant can die inside one
+process, so `m4-consistency.test.ts` grew cases that spawn real OS processes
+contending for one file. Re-measured against the pristine file at HEAD:
+
+    BEGIN IMMEDIATE -> BEGIN DEFERRED   3 failed | 18 passed
+      "402 of 600 saves were turned away while 5 processes shared one file"
+      "the save returned immediately, so it never met the held lock at all"
+    busy_timeout 5000 -> 0              3 failed | 18 passed
+      "the next student was told her work did not save, when the database was
+       merely busy: expected 'database is locked' to be undefined"
+
+The killing cases are `m4-consistency.test.ts:1173` and `:1326`, already
+committed. The suite is **174 tests in 10 files**, not the 140 in 8 recorded
+above; that line was written before `progress.test.ts` and `variation.test.ts`
+grew. A third defect surfaced while proving these: two replicas switching the
+journal to WAL at the same moment raced, because `busy_timeout` does not cover
+that pragma, and the loser exited at boot. Fixed in `sqliteStore.ts` with a
+bounded retry on SQLITE_BUSY (5) and SQLITE_LOCKED (6) only, and pinned by
+`m4-startup-contention.test.ts`.
+
 ### Phase 3 — Adaptive explanation engine — SCOPING
 
 What already exists, verified by reading:

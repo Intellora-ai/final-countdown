@@ -65,8 +65,10 @@ import { afterAll, describe, expect, it } from 'vitest'
 
 import { createLedger, type Ledger } from './almanac/ledger.ts'
 import { fileStore } from './almanac/fileStore.ts'
-import type { LessonRequest, ModelPort, SearchPort, SearchResult } from './handler.ts'
+import type { LessonRequest, ModelPort, OpenWebReply, SearchPort, SearchResult } from './handler.ts'
 import { createServer } from './index.ts'
+import { API_KEY_ENV, ENDPOINT_ENV, searchTheOpenWeb } from './openweb.ts'
+import type { FetchOutcome } from '../src/websearch/fetchPage.ts'
 import { anIdentityPart, aStorableValue, DRAWS, seededRandom } from './memory/generate.test.ts'
 import { canvasMemory } from './memory/store.ts'
 import { sqliteMemoryStore } from './memory/sqliteStore.ts'
@@ -481,6 +483,39 @@ function aRecordingModel(): { port: ModelPort; seen: LessonRequest[] } {
 }
 
 const searchFindsNothing: SearchPort = { search: async () => [] }
+/**
+ * THE REAL OPEN-WEB CORE with fixture transports -- m9's helper, duplicated
+ * here the way every Live helper in these law files is: local, so a change to
+ * one file's fixtures cannot silently reshape another file's proof.
+ */
+const A_PRETEND_ENGINE_KEY = 'm7-pretend-engine-key'
+function openWebServing(bodies: Record<string, string>): (requestBody: string) => Promise<OpenWebReply> {
+  return (requestBody) =>
+    searchTheOpenWeb(requestBody, {
+      env: {
+        [API_KEY_ENV]: A_PRETEND_ENGINE_KEY,
+        [ENDPOINT_ENV]: 'https://engine.m7.test/s?q={query}&n={limit}',
+      },
+      fetchJson: async () => ({
+        results: Object.keys(bodies).map((url, at) => ({ url, title: `page ${at}`, snippet: '' })),
+      }),
+      fetchImpl: async (url: string): Promise<FetchOutcome> => {
+        const body = bodies[url]
+        if (body === undefined) {
+          return { ok: false, reason: 'network', detail: 'not in fixture', elapsedMs: 1, attempts: 1 }
+        }
+        return {
+          ok: true,
+          page: {
+            requestedUrl: url, finalUrl: url, status: 200, contentType: 'text/html',
+            body, bytes: body.length, truncated: false, redirects: [],
+            elapsedMs: 5, attempts: 1, retrievedAt: '2026-01-01T00:00:00.000Z',
+          },
+        }
+      },
+    })
+}
+
 const searchReturning = (results: readonly SearchResult[]): SearchPort => ({
   search: async () => results,
 })
@@ -502,6 +537,8 @@ interface Live {
 interface LiveParts {
   readonly model?: ModelPort
   readonly search?: SearchPort
+  /** The open-web pipeline behind /api/search. See m9's `openWebServing`. */
+  readonly openWeb?: (requestBody: string) => Promise<OpenWebReply>
   readonly secrets?: readonly string[]
   /** False builds a server with no planner and no memory, to reach 503. */
   readonly configured?: boolean
@@ -549,6 +586,7 @@ async function aLiveServer(parts: LiveParts = {}): Promise<Live> {
   const server = createServer({
     model: parts.model ?? echoesTheBrief,
     search: parts.search ?? searchFindsNothing,
+    ...(parts.openWeb === undefined ? {} : { openWeb: parts.openWeb }),
     ...(memory === undefined ? {} : { memory }),
     ...(almanac === undefined ? {} : { almanac }),
     identitySecret: A_SECRET,
@@ -922,7 +960,16 @@ describe('M7 · no credential leaves by any door', () => {
     const live = await aLiveServer({
       secrets: EVERY_FAKE_KEY,
       model: echoesTheBrief,
+      /* Grounding still carries the key, for the /api/ask legs... */
       search: searchReturning([{ url: 'https://example.test/page', content: `a page mentioning ${GSK}` }]),
+      /* ...and so does a fetched PAGE, because /api/search relays the open-web
+       * core's pages now and "a search whose page carries a key" must flow
+       * through the path production runs -- the sweep leg went vacuous the day
+       * the route stopped reading `search`. The 200 relay is exactly where a
+       * key inside web content would escape, and `scrub` is what must stop it. */
+      openWeb: openWebServing({
+        'https://example.test/page': `a page mentioning ${GSK} in its body text`,
+      }),
     })
     started.push(live)
 
@@ -1297,12 +1344,14 @@ describe('M7 · injection, coming in and going out', () => {
     }
     expect(injectionSignals(innocent), 'the ordinary sentence trips a pattern').toEqual([])
 
-    const live = await aLiveServer({
-      search: searchReturning([
-        ...pages.map((content, i) => ({ url: `https://hostile.test/${i}`, content })),
-        { url: 'https://innocent.test/page', content: innocent },
-      ]),
-    })
+    const byUrl: Record<string, string> = Object.fromEntries([
+      ...pages.map((content, i) => [`https://hostile.test/${i}`, content]),
+      ['https://innocent.test/page', innocent],
+    ])
+    /* THE REAL PIPELINE, not a port fake: extraction and the guard are the
+     * code production runs, so a pattern family that fell out of the list
+     * fails HERE and not only in guard.test.ts. */
+    const live = await aLiveServer({ openWeb: openWebServing(byUrl) })
     started.push(live)
 
     const { status, text } = await send(live.origin, '/api/search', {
@@ -1311,24 +1360,30 @@ describe('M7 · injection, coming in and going out', () => {
     const body = isAControlledReply(status, text, 'a page carrying an order')
     expect(status).toBe(200)
 
-    const results = body['results'] as Array<Record<string, unknown>>
-    expect(results, 'the results were not returned at all').toHaveLength(HOW_MANY_PAGES + 1)
+    const served = body['pages'] as Array<Record<string, unknown>>
+    expect(served, 'the pages were not returned at all').toHaveLength(HOW_MANY_PAGES + 1)
 
     pages.forEach((page, i) => {
-      const hit = results[i] as Record<string, unknown>
-      expect(hit['signals'], `page ${i} was passed through unflagged: ${page}`)
-        .not.toEqual([])
+      const hit = served.find((p) => p['url'] === `https://hostile.test/${i}`)
+      expect(hit, `page ${i} was dropped instead of reported`).toBeDefined()
+      expect(hit?.['suspicious'], `page ${i} was passed through unflagged: ${page}`).toBe(true)
+      expect(hit?.['signals'], `page ${i} carries no named shape: ${page}`).not.toEqual([])
       /* AND NOT CENSORED. `guard.ts` argues at length that a detector which
        * DELETES what it matches silently edits the source, after which the
        * citation no longer supports the claim attached to it. Every visible
-       * word must survive. */
-      expect(String(hit['content']), `page ${i} was silently edited`).toBe(page)
+       * word must survive, in order. Extraction is allowed exactly one edit
+       * class -- layout whitespace ("Tabs and newlines inside a block are
+       * layout, not content", extract.ts) -- so the comparison collapses
+       * whitespace on both sides and nothing else. */
+      const flat = (s: string): string => s.replace(/\s+/g, ' ').trim()
+      expect(flat(String(hit?.['text'])), `page ${i} was silently edited`).toBe(flat(page))
     })
 
     /* THE PAIR. "Flag it" is satisfied by flagging everything, which tells a
      * reader precisely nothing. */
-    expect((results[HOW_MANY_PAGES] as Record<string, unknown>)['signals'],
-      'an ordinary page was flagged as hostile').toEqual([])
+    const ordinary = served.find((p) => p['url'] === 'https://innocent.test/page')
+    expect(ordinary?.['suspicious'], 'an ordinary page was flagged as hostile').toBe(false)
+    expect(ordinary?.['signals'], 'an ordinary page carried signal kinds').toEqual([])
   })
 
   it('PINNED GAP: the same text typed by the learner reaches the model with no fence, no flag and no warning', async () => {

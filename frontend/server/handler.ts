@@ -40,8 +40,6 @@ import { readableText } from '../src/canvas/spec/readable.ts'
 import { extractJson } from '../src/canvas/teach/authorLesson.ts'
 import type { Source } from '../src/canvas/teach/grounding.ts'
 import { chooseStrategy, type Strategy } from './teaching.ts'
-import { injectionSignals, stripInvisible } from '../src/websearch/guard.ts'
-import { citationSupports } from '../src/websearch/quality.ts'
 import { subjectsFor, SUPPORTED_CLASSES, type SchoolClass } from './almanac/curriculum.ts'
 import type { Ledger } from './almanac/ledger.ts'
 import {
@@ -99,6 +97,19 @@ export interface SearchPort {
   search(query: string): Promise<readonly SearchResult[]>
 }
 
+/**
+ * What the open-web pipeline answers with: a status and a body it has already
+ * serialized. Declared structurally here rather than imported from
+ * `vite-plugin-search.ts` for the same reason `webResolver.ts` declares its
+ * retrieval shapes: this file depends on WHAT it needs, and
+ * `canvasContract.test.ts` shows what closes the drift such a declaration
+ * opens -- here the passthrough test does, by running the real core.
+ */
+export interface OpenWebReply {
+  readonly status: number
+  readonly body: string
+}
+
 export interface ServerRequest {
   readonly method: string
   readonly path: string
@@ -138,6 +149,13 @@ export interface ServerResponse {
 export interface HandlerOptions {
   readonly model: ModelPort
   readonly search: SearchPort
+  /**
+   * The open-web pipeline behind /api/search. Absent means the route answers
+   * 503 and the browser's Wikipedia rung takes over -- honest degradation, the
+   * same shape `almanac` and `memory` already follow. `index.ts` wires the
+   * real `searchTheOpenWeb`; tests inject fakes.
+   */
+  readonly openWeb?: (requestBody: string) => Promise<OpenWebReply>
   /** Almanac's memory. Absent means the day routes answer 503, never a guess. */
   readonly almanac?: Ledger
   /** The canvas's memory. Absent means /api/memory answers 503, never a guess. */
@@ -1920,39 +1938,75 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       return reply(200, { done: true })
     }
 
-    /* /api/search */
-    if (!nonEmptyString(body['query'])) {
-      return reply(400, { error: 'query is required' })
+    /* /api/search
+     *
+     * A PASSTHROUGH TO THE OPEN-WEB PIPELINE, NOT A SECOND SEARCH.
+     *
+     * This route used to map `options.search` hits into a `results` shape that
+     * NOTHING read: `webSearchClient.askTheRoute` parses `pages` and treats any
+     * other reply as a broken route, so every production answer from here was
+     * discarded and the browser fell back to Wikipedia. The dev server has
+     * always answered through `searchTheOpenWeb` (vite-plugin-search.ts), which
+     * plans queries, fetches pages, runs the injection guard and marks
+     * `suspicious` -- so the honest production route is the SAME function, and
+     * dev and prod cannot drift apart again.
+     *
+     * `options.search` is untouched by this: it is the GROUNDING port for
+     * lesson authoring (see the race above `lookUp`), a different job with a
+     * different shape.
+     *
+     * The core validates the body itself -- 400 for a missing question, 503
+     * naming the unset variable, 413 for an oversized one -- and this route
+     * forwards those verdicts rather than pre-judging them, so validation has
+     * exactly one owner.
+     */
+    if (options.openWeb === undefined) {
+      return reply(503, {
+        pages: [],
+        engineFailed: true,
+        engineError: 'web search is not configured on this server',
+        /* Both spellings on purpose: `engineError` is the browser client's
+         * contract, `error` is the refusal convention every other route
+         * follows and M7 checks. One sentence, two doors. */
+        error: 'web search is not configured on this server',
+      })
     }
-    /* Held in a const: the narrowing above does not survive into the callback
-     * below, and re-reading body['query'] there is `unknown` again. */
-    const query = body['query']
 
-    let hits: readonly SearchResult[]
+    let webReply: OpenWebReply
     try {
-      hits = await options.search.search(query)
+      webReply = await options.openWeb(JSON.stringify(body))
     } catch {
-      return reply(502, { error: 'search could not be reached' })
+      /* The thrown message is NOT forwarded: the search layer holds a
+       * credential, and an error string is exactly where one leaks. The
+       * scrubbed sentence below is the whole story a browser needs. */
+      return reply(502, {
+        pages: [],
+        engineFailed: true,
+        engineError: 'search could not be reached',
+        error: 'search could not be reached',
+      })
     }
 
-    /* Search results are attacker-controlled text by definition. Invisible
-     * characters are stripped and injection markers are reported alongside each
-     * result, so nothing downstream has to guess whether a page is hostile. */
-    const results = hits.map((hit) => {
-      const content = stripInvisible(hit.content)
-      return {
-        url: hit.url,
-        content,
-        signals: injectionSignals(content).map((signal) => signal.kind),
-        /* A page that mentions the words but not the FIGURE is not an answer.
-         * `citationSupports` checks the load-bearing parts — every number in
-         * the query must appear in the page — so a caller can tell a real
-         * source from a topical one. */
-        supports: citationSupports(query, content),
-      }
-    })
-
-    return reply(200, { results })
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(webReply.body)
+    } catch {
+      return reply(502, {
+        pages: [],
+        engineFailed: true,
+        engineError: 'the search layer answered something that was not JSON',
+        error: 'the search layer answered something that was not JSON',
+      })
+    }
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return reply(502, {
+        pages: [],
+        engineFailed: true,
+        engineError: 'the search layer answered something that was not JSON',
+        error: 'the search layer answered something that was not JSON',
+      })
+    }
+    return reply(webReply.status, parsed as Record<string, unknown>)
   }
 
   return async function handle(req: ServerRequest): Promise<ServerResponse> {

@@ -45,7 +45,9 @@ import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 
 import { createServer } from './index.ts'
-import type { ModelPort, SearchPort, SearchResult } from './handler.ts'
+import type { ModelPort, OpenWebReply, SearchPort, SearchResult } from './handler.ts'
+import { API_KEY_ENV, ENDPOINT_ENV, searchTheOpenWeb } from './openweb.ts'
+import type { FetchOutcome } from '../src/websearch/fetchPage.ts'
 import { anIdentityPart, seededRandom } from './memory/generate.test.ts'
 import { canvasMemory } from './memory/store.ts'
 import { sqliteMemoryStore } from './memory/sqliteStore.ts'
@@ -132,6 +134,45 @@ const searchReturning = (results: readonly SearchResult[]): SearchPort => ({
   search: async () => results,
 })
 
+/**
+ * THE REAL OPEN-WEB CORE, with every transport injected.
+ *
+ * /api/search stopped mapping `options.search` hits when the production
+ * server wired `searchTheOpenWeb` -- the same function the dev middleware
+ * always answered with. So the truthful way to drive the route is the real
+ * pipeline: the provider and the page fetcher are fakes (no network in a
+ * proof), but planning, ranking, extraction and the injection guard are the
+ * code production runs. `SearchPort` above still matters -- it grounds lesson
+ * authoring -- it just is not this route any more.
+ */
+const A_PRETEND_ENGINE_KEY = 'm9-pretend-engine-key'
+function openWebServing(bodies: Record<string, string>): (requestBody: string) => Promise<OpenWebReply> {
+  return (requestBody) =>
+    searchTheOpenWeb(requestBody, {
+      env: {
+        [API_KEY_ENV]: A_PRETEND_ENGINE_KEY,
+        [ENDPOINT_ENV]: 'https://engine.m9.test/s?q={query}&n={limit}',
+      },
+      fetchJson: async () => ({
+        results: Object.keys(bodies).map((url, at) => ({ url, title: `page ${at}`, snippet: '' })),
+      }),
+      fetchImpl: async (url: string): Promise<FetchOutcome> => {
+        const body = bodies[url]
+        if (body === undefined) {
+          return { ok: false, reason: 'network', detail: 'not in fixture', elapsedMs: 1, attempts: 1 }
+        }
+        return {
+          ok: true,
+          page: {
+            requestedUrl: url, finalUrl: url, status: 200, contentType: 'text/html',
+            body, bytes: body.length, truncated: false, redirects: [],
+            elapsedMs: 5, attempts: 1, retrievedAt: '2026-01-01T00:00:00.000Z',
+          },
+        }
+      },
+    })
+}
+
 /* -------------------------------------------------------------------------- */
 /* Drawn questions                                                            */
 /* -------------------------------------------------------------------------- */
@@ -174,6 +215,7 @@ interface Live { readonly origin: string; close(): Promise<void>; readonly dir: 
 async function serverWith(parts: {
   model?: ModelPort
   search?: SearchPort
+  openWeb?: (requestBody: string) => Promise<OpenWebReply>
   secrets?: readonly string[]
 }): Promise<Live> {
   const dir = mkdtempSync(join(tmpdir(), 'm9-'))
@@ -181,6 +223,7 @@ async function serverWith(parts: {
   const server = createServer({
     model: parts.model ?? returnsNothing,
     search: parts.search ?? searchFindsNothing,
+    ...(parts.openWeb === undefined ? {} : { openWeb: parts.openWeb }),
     memory,
     identitySecret: A_SECRET,
     ...(parts.secrets === undefined ? {} : { secrets: parts.secrets }),
@@ -667,30 +710,41 @@ describe('M9 · a search that failed is not a search that found nothing', () => 
   })
 
   it('says the search could not be reached, and returns no result set at all', async () => {
-    /* THE PRODUCTION CASE, TODAY. `server/index.ts` wires `/api/search` to a
-     * port that always throws, with the note "Wired in Phase 4. Until then the
-     * route answers honestly rather than pretending to have searched."
+    /* TWO WAYS TO NOT HAVE SEARCHED, BOTH REQUIRED TO SAY SO.
      *
-     * "Honestly" has a testable meaning, and this is it: the reply must say the
-     * search could not be reached, and it must NOT carry `results`. An empty
-     * array here would be read by every caller as "we looked and there is
-     * nothing", which is a statement about the world that this server is in no
-     * position to make. */
-    const live = await serverWith({ search: searchIsNotWiredYet })
-    started.push(live)
-
-    const { status, text } = await send(live.origin, '/api/search', {
-      query: aQuestion(seededRandom(SEED_BASE + 12)),
+     * The route no longer maps `options.search` -- it forwards the open-web
+     * core's reply, and a server built without that pipeline (the default
+     * `serverWith` here, exactly like a bare `createServer`) must answer 503
+     * rather than pretend. A wired pipeline that THROWS must answer 502, and
+     * its internal words must never reach the wire -- the search layer holds a
+     * credential, and an exception message is where one leaks.
+     *
+     * `engineFailed: true` is the machine-readable half of "we did not look":
+     * it is the exact flag `webSearchClient.askTheRoute` reads before it ever
+     * considers `pages`, so a caller cannot mistake either reply for "we
+     * looked and the web has nothing". */
+    const unwired = await serverWith({})
+    const exploding = await serverWith({
+      openWeb: async () => { throw new Error('INTERNAL-PORT-WORDS-7777') },
     })
-    const body = isAnHonestReply(status, text, 'search that cannot be reached')
-    expect(status, 'a failed search was reported as a successful one').toBe(502)
-    expect(body['results'], 'a failed search returned a result set anyway').toBeUndefined()
-    expect(String(body['error']).toLowerCase()).toContain('search')
-    expect(String(body['error']).toLowerCase()).toContain('could not be reached')
-    /* And the port's own words are not forwarded, for the same reason the
-     * model's are not. */
-    expect(text, "the search port's internal message was reflected")
-      .not.toContain('search is not configured')
+    started.push(unwired, exploding)
+
+    const drawn = aQuestion(seededRandom(SEED_BASE + 12))
+
+    const absent = await send(unwired.origin, '/api/search', { query: drawn })
+    const absentBody = isAnHonestReply(absent.status, absent.text, 'search that is not wired')
+    expect(absent.status, 'an unwired search was reported as a success').toBe(503)
+    expect(absentBody['engineFailed'], 'an unwired search did not say engineFailed').toBe(true)
+    expect(absentBody['results'], 'an unwired search returned a result set anyway').toBeUndefined()
+    expect(String(absentBody['error']).toLowerCase()).toContain('search')
+
+    const thrown = await send(exploding.origin, '/api/search', { query: drawn })
+    const thrownBody = isAnHonestReply(thrown.status, thrown.text, 'search that exploded')
+    expect(thrown.status, 'a failed search was reported as a successful one').toBe(502)
+    expect(thrownBody['engineFailed'], 'a failed search did not say engineFailed').toBe(true)
+    expect(String(thrownBody['error']).toLowerCase()).toContain('could not be reached')
+    expect(thrown.text, "the search layer's internal message was reflected")
+      .not.toContain('INTERNAL-PORT-WORDS-7777')
   })
 
   it('answers an empty result set and a failed search differently', async () => {
@@ -701,8 +755,11 @@ describe('M9 · a search that failed is not a search that found nothing', () => 
      * with every test that only ever checks "did it return 200" still green.
      * So both are driven through the same route in the same test and required
      * to differ. */
-    const emptyLive = await serverWith({ search: searchFindsNothing })
-    const failedLive = await serverWith({ search: searchIsNotWiredYet })
+    const emptyLive = await serverWith({
+      /* The REAL core, whose provider answers and finds an empty web. */
+      openWeb: openWebServing({}),
+    })
+    const failedLive = await serverWith({})
     started.push(emptyLive, failedLive)
 
     const drawn = aQuestion(seededRandom(SEED_BASE + 13))
@@ -714,12 +771,13 @@ describe('M9 · a search that failed is not a search that found nothing', () => 
 
     /* Nothing found is a fact about the world, and it is an answer. */
     expect(found.status, 'a completed search was not reported as a success').toBe(200)
-    expect(foundBody['results'], 'a completed search reported no result set').toEqual([])
+    expect(foundBody['engineFailed'], 'a completed search claimed the engine failed').toBe(false)
+    expect(foundBody['pages'], 'a completed search reported no page list').toEqual([])
     expect(foundBody['error'], 'a completed search reported an error').toBeUndefined()
 
     /* A search that never happened is not. */
-    expect(failed.status, 'a failed search was reported as a success').toBe(502)
-    expect(failedBody['results'], 'a failed search returned a result set').toBeUndefined()
+    expect(failed.status, 'a failed search was reported as a success').toBe(503)
+    expect(failedBody['engineFailed'], 'a failed search did not say so').toBe(true)
 
     expect(found.text, 'the two are the same answer — a learner cannot tell them apart')
       .not.toBe(failed.text)
@@ -749,10 +807,12 @@ describe('M9 · a search that failed is not a search that found nothing', () => 
       `This page explains ${drawn} in plain sentences and asks nothing of anyone.`
 
     const live = await serverWith({
-      search: searchReturning([
-        { url: HOSTILE_URL, content: AN_INSTRUCTION_ADDRESSED_TO_THE_READER },
-        { url: INNOCENT_URL, content: AN_ORDINARY_SENTENCE },
-      ]),
+      /* The REAL pipeline: extraction and the guard are the code production
+       * runs; only the provider and the page transport are fixtures. */
+      openWeb: openWebServing({
+        [HOSTILE_URL]: AN_INSTRUCTION_ADDRESSED_TO_THE_READER,
+        [INNOCENT_URL]: AN_ORDINARY_SENTENCE,
+      }),
     })
     started.push(live)
 
@@ -762,27 +822,33 @@ describe('M9 · a search that failed is not a search that found nothing', () => 
     const body = isAnHonestReply(status, text, 'a hostile page')
     expect(status).toBe(200)
 
-    const results = body['results'] as Array<Record<string, unknown>>
-    expect(results, 'the results were not returned at all').toHaveLength(2)
+    /* BY URL, NOT BY INDEX. Ranking is candidate order and the route does not
+     * promise to preserve the provider's; which page is which is a fact the
+     * URL carries either way. */
+    const pages = body['pages'] as Array<Record<string, unknown>>
+    expect(pages, 'the pages were not returned at all').toHaveLength(2)
+    const hostile = pages.find((p) => p['url'] === HOSTILE_URL)
+    const innocent = pages.find((p) => p['url'] === INNOCENT_URL)
+    expect(hostile, 'the hostile page was dropped instead of reported').toBeDefined()
+    expect(innocent, 'the innocent page was dropped').toBeDefined()
 
-    const hostile = results[0] as Record<string, unknown>
-    const innocent = results[1] as Record<string, unknown>
-
-    /* FLAGGED. */
-    expect(hostile['signals'], 'a hostile page was passed through unflagged')
+    /* FLAGGED, AND WITH THE SHAPE NAMED. */
+    expect(hostile?.['suspicious'], 'a hostile page was passed through unflagged').toBe(true)
+    expect(hostile?.['signals'], 'the shape of the instruction was not named')
       .toContain('override-previous')
 
     /* AND NOT CENSORED. The invisible character is gone — that is the one
      * deletion `guard.ts` allows, and it is what makes the machine's view and a
      * human's view of the page agree — but every visible word survives. */
-    const served = String(hostile['content'])
+    const served = String(hostile?.['text'])
     expect(served, 'the page was silently edited').toContain('Ignore all previous instructions')
     expect(served, 'the invisible character survived, so a reviewer sees a different page')
       .not.toContain(A_ZERO_WIDTH_SPACE)
 
     /* THE PAIR. Without this, "flag it" is satisfied by flagging everything,
      * which tells a reader precisely nothing. */
-    expect(innocent['signals'], 'an ordinary page was flagged as hostile').toEqual([])
+    expect(innocent?.['suspicious'], 'an ordinary page was flagged as hostile').toBe(false)
+    expect(innocent?.['signals'], 'an ordinary page carried signal kinds').toEqual([])
   })
 
   it('marks a result unsupported when the page lacks the figure the question carried', async () => {
@@ -810,11 +876,24 @@ describe('M9 · a search that failed is not a search that found nothing', () => 
     expect(TOPICAL_BUT_WRONG, 'the unsupporting page accidentally contains the figure')
       .not.toContain(A_FIGURE_THE_QUESTION_CARRIES)
 
+    /* WHERE THE VERDICT LIVES NOW, AND WHAT THIS ROUTE STILL OWES.
+     *
+     * The route used to stamp a `supports` boolean per hit with
+     * `citationSupports`. That reply shape was read by nobody: the browser
+     * client judges support itself -- `webSearchClient.verdictFor` runs
+     * `checkClaims` over the pages it is handed, and `verify.test.ts` and
+     * `webSearchClient.test.ts` hold the figure-versus-topic law there,
+     * including this exact wrong-number case. What the SERVER owes the judge
+     * is unedited evidence: both figures must cross the wire byte-for-byte,
+     * because a route that normalised or dropped a number would decide the
+     * verdict by editing the exhibits. That is what is proven here. */
+    const SUPPORTS_URL = 'https://supports.example/report'
+    const TOPICAL_URL = 'https://topical.example/report'
     const live = await serverWith({
-      search: searchReturning([
-        { url: 'https://supports.example/report', content: SUPPORTING },
-        { url: 'https://topical.example/report', content: TOPICAL_BUT_WRONG },
-      ]),
+      openWeb: openWebServing({
+        [SUPPORTS_URL]: SUPPORTING,
+        [TOPICAL_URL]: TOPICAL_BUT_WRONG,
+      }),
     })
     started.push(live)
 
@@ -822,16 +901,16 @@ describe('M9 · a search that failed is not a search that found nothing', () => 
     const body = isAnHonestReply(status, text, 'a claim with a figure in it')
     expect(status).toBe(200)
 
-    const results = body['results'] as Array<Record<string, unknown>>
-    expect(results).toHaveLength(2)
+    const pages = body['pages'] as Array<Record<string, unknown>>
+    expect(pages).toHaveLength(2)
+    const supporting = pages.find((p) => p['url'] === SUPPORTS_URL)
+    const topical = pages.find((p) => p['url'] === TOPICAL_URL)
 
-    /* THE PAIR, IN ONE REPLY. A verdict asserted only to be `false` is
-     * satisfied by `return false`; asserted only to be `true`, by `return
-     * true`. Both pages are about the same subject in nearly the same words and
-     * differ only in the number, which is the one thing the check is for. */
-    expect((results[0] as Record<string, unknown>)['supports'],
-      'a page carrying the figure was called unsupported').toBe(true)
-    expect((results[1] as Record<string, unknown>)['supports'],
-      'a page with the WRONG figure was called a supporting source').toBe(false)
+    expect(String(supporting?.['text']), 'the supporting figure was edited in transit')
+      .toContain(A_FIGURE_THE_QUESTION_CARRIES)
+    expect(String(topical?.['text']), "the topical page's own figure was edited in transit")
+      .toContain(A_DIFFERENT_FIGURE_THE_PAGE_CARRIES)
+    expect(String(topical?.['text']), 'the route gave the topical page the claimed figure')
+      .not.toContain(A_FIGURE_THE_QUESTION_CARRIES)
   })
 })

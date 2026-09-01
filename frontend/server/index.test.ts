@@ -247,6 +247,9 @@ describe('when serving a request throws unexpectedly', () => {
         search: {
           search: () => { throw new Error('SEARCH-EXPLODED-9999') },
         },
+        /* The route no longer touches `search` (that port grounds authoring),
+         * so the leak property is proven on the seam the route actually calls. */
+        openWeb: () => { throw new Error('SEARCH-EXPLODED-9999') },
         secrets: [],
         identitySecret: A_TEST_SECRET,
       })

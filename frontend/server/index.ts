@@ -33,7 +33,9 @@ import { conceptIssues, conceptRequest } from '../src/canvas/teach/concept.ts'
 import { validateLesson } from '../src/canvas/spec/validate.ts'
 import type { Readable } from 'node:stream'
 
-import { createHandler, type ModelPort, type SearchPort } from './handler.ts'
+import { createHandler, type ModelPort, type OpenWebReply, type SearchPort } from './handler.ts'
+import { searchTheOpenWeb } from './openweb.ts'
+import { MemoryCache } from '../src/websearch/gather.ts'
 import { resolveIdentitySecret } from './identity.ts'
 import { createModel } from './model.ts'
 import { createLedger, type Ledger } from './almanac/ledger.ts'
@@ -93,6 +95,8 @@ export async function readJsonBody(stream: Readable, maxBytes: number): Promise<
 export interface ServerOptions {
   readonly model: ModelPort
   readonly search: SearchPort
+  /** The open-web pipeline behind /api/search. See `HandlerOptions.openWeb`. */
+  readonly openWeb?: (requestBody: string) => Promise<OpenWebReply>
   readonly almanac?: Ledger
   /** The canvas's memory. Absent means /api/memory answers 503, never a guess. */
   readonly memory?: CanvasMemory
@@ -171,6 +175,7 @@ export function createServer(options: ServerOptions): Server {
   const handle = createHandler({
     model: options.model,
     search: options.search,
+    ...(options.openWeb === undefined ? {} : { openWeb: options.openWeb }),
     ...(options.almanac === undefined ? {} : { almanac: options.almanac }),
     ...(options.memory === undefined ? {} : { memory: options.memory }),
     ...(options.explanations === undefined ? {} : { explanations: options.explanations }),
@@ -352,12 +357,31 @@ function main(): void {
         ? [provider.apiKey]
         : []
   const search: SearchPort = {
-    /* Wired in Phase 4. Until then the route answers honestly rather than
-     * pretending to have searched. */
+    /* The GROUNDING port for lesson authoring, still unwired. The handler's
+     * `lookUp` catch turns this throw into an empty source list, so lessons
+     * are honestly ungrounded rather than falsely sourced. /api/search no
+     * longer goes through here at all -- see `openWeb` below. */
     async search() {
       throw new Error('search is not configured')
     },
   }
+
+  /* THE OPEN-WEB PIPELINE BEHIND /api/search -- the same `searchTheOpenWeb`
+   * the dev server has always answered with, so dev and prod serve one shape
+   * and cannot drift. Unconfigured is not an error here: the core itself
+   * answers 503 naming the unset variable, and the browser's Wikipedia rung
+   * takes over exactly as it does today. The env names stay out of `src/`
+   * (island.test.ts refuses them there); this file is the server and may
+   * hold them.
+   *
+   * ONE CACHE FOR THE LIFE OF THE SERVER, exactly as the dev middleware keeps
+   * one for the life of the dev server and for the same reason: a second
+   * learner asking the same question should not pay for the same pages twice.
+   * `provenance.freshnessOf` reports a cached page as not-live, which is what
+   * keeps this from trading a correctness property for latency. */
+  const pageCache = new MemoryCache()
+  const openWeb = (requestBody: string): Promise<OpenWebReply> =>
+    searchTheOpenWeb(requestBody, { cache: pageCache })
 
   /* ALMANAC'S MEMORY. A shared database when one is named, a file otherwise.
    *
@@ -491,7 +515,7 @@ function main(): void {
     : { secret: configuredSecret, generated: false }
   const identitySecret = resolved.secret
 
-  const server = createServer({ model, search, almanac, memory, explanations, lessons, aliases, identitySecret, secrets })
+  const server = createServer({ model, search, openWeb, almanac, memory, explanations, lessons, aliases, identitySecret, secrets })
   server.listen(port, host, () => {
     console.log(`almanac server listening on http://${host}:${port}`)
     console.log(`  memory: ${memoryPath} (sqlite, safe for many servers)`)

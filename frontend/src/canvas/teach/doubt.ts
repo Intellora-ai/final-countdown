@@ -257,12 +257,13 @@ interface Indexed {
   /** Every word each block uses anywhere, captions and bodies included. */
   vocabulary: Map<string, Set<string>>
   /**
-   * For each block, the words it uses to say what it is ABOUT — its title, its
-   * caption, its body. Never a label.
+   * For each block, the words the block says something ABOUT — its title, the
+   * representation it declares itself to be, its caption, its body, and the
+   * row names of any table that explains them (see `glossaryNames`).
    *
    * This is a NARROWER set than `vocabulary`, and the narrowing is the whole
-   * point. A label is a name painted on one part of the block; a title and a
-   * caption are the author writing about the block itself. Only
+   * point. A bare label is a name painted on one part of the block and nothing
+   * more; every source above is the author putting words to a name. Only
    * `answersADefinition` reads this, and the distinction is the one thing it
    * decides on.
    */
@@ -281,6 +282,21 @@ function firstTextCell(row: Row, columns: readonly Column[]): string | null {
     const value = row[column.key]
     if (typeof value === 'string' && value.trim().length > 0) return value
   }
+  return null
+}
+
+/**
+ * Rows and columns of whichever of the two tabular block kinds this is.
+ *
+ * Up here beside `firstTextCell` because two very different readers need it:
+ * `glossaryNames` below asks what a table DEFINES, and `buildComparison` far
+ * below asks which two of its rows the learner named. One accessor, so the two
+ * can never disagree about what counts as a table.
+ */
+function tableOf(block: Block): { columns: Column[]; rows: Row[] } | null {
+  if (block.kind === 'table') return { columns: block.columns, rows: block.rows }
+  if (block.kind === 'figure' && block.data.shape === 'tabular')
+    return { columns: block.data.columns, rows: block.data.rows }
   return null
 }
 
@@ -309,6 +325,80 @@ function representationName(block: Block): string | null {
   if (block.kind !== 'figure') return null
   const spaced = block.as.replace(/([a-z0-9])([A-Z])/g, '$1 $2')
   return spaced.includes(' ') ? spaced : null
+}
+
+/**
+ * The row names of a table that says, in words, what each of those names IS.
+ *
+ * WHY A TABLE ROW IS NOT JUST ANOTHER LABEL
+ * -----------------------------------------
+ * `describes` exists to separate a block that EXPLAINS a term from a block that
+ * merely has the term painted on one of its parts -- see `answersADefinition`.
+ * A flow node, a pie slice and an axis tick are all the second kind: the label
+ * stands alone and the block says nothing further about it, so handing the
+ * block back to a learner who asked what the word means returns her own screen.
+ *
+ * A table row is the first kind, and it is the one shape of "label" that is.
+ * The naming cell is a term and the cells beside it are the author's own words
+ * about that term, written in the same row precisely so the two are read
+ * together. `Base | 2 | the number doing the multiplying` is a definition of
+ * "base" in the only form a table has; refusing "what is the base" on the
+ * lesson whose job is to name the parts of a logarithm is the exact failure
+ * `answersADefinition` was written to prevent, pointed the wrong way.
+ *
+ * MEASURED, on `logarithms`, before this existed: "what is the base" and "what
+ * is the argument" -- two of the three parts the lesson exists to name -- both
+ * came back as refusals offering `the-parts` as somewhere to look, while
+ * `the-parts` is the block that answers them.
+ *
+ * WHAT KEEPS IT FROM BEING EVERY TABLE. The row has to say something the name
+ * does not already say. Concretely: some other TEXT cell in the same row whose
+ * content words are not already inside the name.
+ *
+ *   the-parts     Base | 2 | "the number doing the multiplying"     -> defines
+ *   what-changes  Pressure (kPa) | 103.9 | 207.9 | 100              -> measures
+ *   chambers      Ordinary bills | Yes | Yes                        -> tabulates
+ *   three-at-once log3 81 = 4 | "3^4 = 81"                          -> restates
+ *
+ * Only the first gains the learner a word. A number is a measurement of the
+ * thing, "Yes" is an answer about it, and a restatement is the same fact in
+ * other notation -- none of the three is anybody saying what the thing IS. That
+ * is why the test is content words rather than a non-empty cell: `2` and `Yes`
+ * carry none (`yes` is a stopword, `2` is below `MIN_TOKEN_LENGTH`), and
+ * `3^4 = 81` carries only `81`, which the name `log3 81 = 4` already contains.
+ *
+ * PER ROW, NOT PER TABLE. `chambers` above is not excluded -- its `Ordinary
+ * bills` row is. The row two down reads `Term | 5 years | Permanent, 1/3 retire
+ * every 2 years`, which does say what the term of each House is, and that one
+ * counts. A table is free to explain some of its rows and merely tabulate the
+ * rest, and the author decided that one row at a time.
+ */
+function glossaryNames(block: Block): string[] {
+  const table = tableOf(block)
+  if (!table) return []
+
+  const out: string[] = []
+  for (const row of table.rows) {
+    const name = firstTextCell(row, table.columns)
+    if (!name) continue
+    const inTheName = new Set(contentTokens(name))
+
+    /* The same two guards `firstTextCell` uses to pick the name, and for the
+       same reason: a term and the author's words about it are both TEXT cells.
+       A number, a percent or a currency beside the name is a measurement of the
+       thing, and a measurement is not a definition however many digits it has.
+
+       No `said.length > 0` in front of the `.some`: `[].some` is already false,
+       so the guard could never change an outcome. */
+    const explained = table.columns.some((column) => {
+      if (column.type !== 'text') return false
+      const value = row[column.key]
+      if (typeof value !== 'string') return false
+      return contentTokens(value).some((token) => !inTheName.has(token))
+    })
+    if (explained) out.push(name)
+  }
+  return out
 }
 
 function payloadLabels(data: Payload, add: (text: string) => void): void {
@@ -440,10 +530,10 @@ function buildIndex(lesson: Lesson): Indexed {
     for (const token of contentTokens(bodyOf(block) ?? '')) prose.add(token)
     if (prose.size > 0) sentences.push({ blockId: block.id, blockIndex, tokens: prose })
 
-    /* What the block calls ITSELF, as a whole: its title, the representation it
-       declares itself to be, and the prose it carries. A node label, a pie
-       slice, a table row and an axis tick all name PARTS, and none of them is
-       the block saying what it is.
+    /* What the block puts words to: its title, the representation it declares
+       itself to be, the prose it carries, and any table row it explains in
+       words. A node label, a pie slice and an axis tick name PARTS and stop
+       there -- the block never says what they are.
 
        A COPY, and the two extra sources go on the copy only. `sentences` above
        holds `prose` by reference and must never gain a title: the sentence rule
@@ -452,6 +542,8 @@ function buildIndex(lesson: Lesson): Indexed {
     const said = new Set(prose)
     for (const token of contentTokens(block.title ?? '')) said.add(token)
     for (const token of contentTokens(representationName(block) ?? '')) said.add(token)
+    for (const name of glossaryNames(block))
+      for (const token of contentTokens(name)) said.add(token)
     describes.set(block.id, said)
 
     for (const token of prose) vocab.add(token)
@@ -750,14 +842,6 @@ function valuesOf(block: Block): ValueSource | null {
     }
   }
 
-  return null
-}
-
-/** Rows and columns of whichever of the two tabular block kinds this is. */
-function tableOf(block: Block): { columns: Column[]; rows: Row[] } | null {
-  if (block.kind === 'table') return { columns: block.columns, rows: block.rows }
-  if (block.kind === 'figure' && block.data.shape === 'tabular')
-    return { columns: block.data.columns, rows: block.data.rows }
   return null
 }
 

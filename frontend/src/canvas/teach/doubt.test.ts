@@ -381,9 +381,21 @@ describe('a definition ask is answered only by a block that says the word itself
     // Not the diagram she was already looking at.
     expect(answer.drawnFrom).not.toContain('causal-chain')
 
-    // The one paragraph in the lesson that says what the words mean:
-    // "Temperature is a measure of the average kinetic energy of the particles."
-    expect(answer.drawnFrom).toEqual(['summary'])
+    /* The one paragraph in the lesson that says what the words mean:
+       "Temperature is a measure of the average kinetic energy of the particles."
+
+       ITS ID, NOT A LOOSER ASSERTION. This read `['summary']` until the merge
+       that brought main into codex renamed that very block -- same title "In
+       one paragraph", same body, same `terms` -- to `wall-collisions`, because
+       `technicalTerms` pins "force" and "kinetic energy" to it by id. There is
+       no block called `summary` in the fixture any more, so the line could only
+       ever be red; `git show b3cc2023:frontend/src/canvas/lessons/gasPressure.ts`
+       is the rename. The assertion is still exact, still one id, and still goes
+       red the moment any block is allowed to answer a definition ask --
+       MEASURED, with `answersADefinition` replaced by `return true` AND the
+       line above it silenced so this one was carrying the test on its own:
+       "expected [ 'causal-chain' ] to deeply equal [ 'wall-collisions' ]". */
+    expect(answer.drawnFrom).toEqual(['wall-collisions'])
     const prose = answer.lesson.blocks.find((block: Block) => block.kind === 'prose')
     expect(prose && prose.kind === 'prose' ? prose.body : '').toContain('average kinetic energy')
   })

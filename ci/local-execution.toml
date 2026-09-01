@@ -289,11 +289,11 @@ in_fast = true
 required_context = "skills"
 locally_runnable = "yes"
 category = "LOCALLY_RUNNABLE"
-reason = "Reads committed markdown under .claude/skills/. No service, no browser, no credential."
+reason = "Runs the adversarial CI suites against a throwaway copy of the verification system. No service, no browser, no credential."
 requires_network = false
-command = ["python3", "-m", "pytest", "tests/test_skills_present.py", "-q"]
-timeout_seconds = 120
-evidence = "pytest result per required skill"
+command = ["python3", "-m", "pytest", "tests/test_ci_integrity.py", "tests/test_no_weakening_gate.py", "-q"]
+timeout_seconds = 300
+evidence = "pytest result per adversarial scenario"
 in_fast = true
 
 [contexts."frontend"]

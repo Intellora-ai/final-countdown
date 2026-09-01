@@ -501,21 +501,24 @@ evidence = "playwright report, uploaded as an artifact on failure"
 artifact = ""
 
 # ---------------------------------------------------------------------------
-# SKILLS — the fixer's instructions exist, and are not empty.
+# SKILLS — the name is pinned by the live ruleset; the check is not.
 #
-# `claude-fix` has write access to the branch. `.claude/skills/` is what points
-# it at a root cause instead of at the cheapest green, and a deleted skill file
-# fails silently: the job runs, unguided, and nothing reports it. Required
-# rather than advisory for that reason -- an advisory check on the thing that
-# constrains an autofixer constrains nothing.
+# This ran `tests/test_skills_present.py`, which asserted six SKILL.md files
+# existed. The skills tree is deliberately gone, so that check went permanently
+# red. Deleting the JOB would have been worse: the ruleset requires a context
+# named `skills`, and a required context that never reports is pending for ever,
+# so every pull request would have become unmergeable. Renaming needs
+# `administration:write` (403 here), so the name stays and the CHECK moved to
+# the adversarial CI suites -- which sabotage a copy of the verification system
+# and require it to notice. A harder question than whether markdown exists.
 # ---------------------------------------------------------------------------
 [gates.skills]
 workflow = "gate.yml"
 job = "skills"
 mandatory = true
 role = "scanner"
-must_contain = ["python3 -m pytest tests/test_skills_present.py"]
-evidence = "pytest result per required skill"
+must_contain = ["python3 -m pytest tests/test_ci_integrity.py tests/test_no_weakening_gate.py"]
+evidence = "pytest result per adversarial scenario"
 artifact = ""
 
 # ---------------------------------------------------------------------------
@@ -649,12 +652,41 @@ artifact = ""
 # complaints about rules nobody chose is noise that teaches people to scroll
 # past a red check.
 # ---------------------------------------------------------------------------
+# ADVISORY, AND THAT IS A LIMIT OF THE TOKEN, NOT A JUDGEMENT.
+#
+# This SHOULD be mandatory: it is now the gate that runs the TEST SUITES, not
+# just the linters, and an advisory check on the suite is not a check on the
+# suite. Making it mandatory requires adding `catch-errors` to the live ruleset
+# (id 20990225), because `check_ruleset.py` refuses a gate declared required
+# that GitHub does not enforce -- "a mandatory gate that GitHub does not require
+# blocks nothing". That edit needs `administration:write`; this token has it not
+# and the API answers 403. ONE ADMIN ACTION FINISHES IT: add `catch-errors` to
+# the ruleset, then flip this to true and add it to required_checks above.
+#
+# `must_contain` grows with what the job gained. It pins the commands whose exit
+# codes ARE the verdict, so a job that installs, lints nothing and exits 0
+# cannot look identical to a clean run:
+#
+#   - `npm run typecheck` compiles ALL THREE TypeScript projects. The bare
+#     `npx tsc --noEmit` above reads `tsconfig.json` only, so every type error
+#     under `frontend/server/` -- the handler, the model clients, the failover
+#     chain, the memory stores -- passed this gate unread.
+#   - the vitest run is the first test command this gate has ever contained.
+#     Two real defects this week -- a veto refusing a subject the model named,
+#     and a bare 429 disabling the whole failover chain -- are invisible to a
+#     linter and were caught only by running the suite.
 [gates.catch-errors]
 workflow = "gate.yml"
 job = "catch-errors"
 mandatory = false
 role = "scanner"
-must_contain = ["npx tsc --noEmit", "npm run lint", "ruff check ."]
+must_contain = [
+  "npx tsc --noEmit",
+  "npm run lint",
+  "ruff check .",
+  "npm run typecheck",
+  "npx vitest run server src/canvas",
+]
 evidence = "per-linter PASS/FAIL lines in the job summary"
 artifact = ""
 

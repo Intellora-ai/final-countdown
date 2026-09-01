@@ -226,7 +226,10 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.cache/ms-playwright
-          key: pw-chromium-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+          # Keyed on the ROOT lockfile: this job's npm ci runs at the repo
+          # root, so the playwright version comes from there -- the frontend
+          # key busted this cache for nothing and missed real bumps.
+          key: pw-chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install Chromium
         run: npx --no-install playwright install chromium

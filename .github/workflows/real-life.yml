@@ -281,14 +281,24 @@ jobs:
 
           # Poll rather than sleep: /api/health is the one route that answers a
           # GET precisely so a waiting process can ask "are you there".
+          up=""
           for _ in $(seq 1 60); do
             if curl -fsS "http://127.0.0.1:8788/api/health" > /dev/null 2>&1; then
+              up=1
               break
             fi
             sleep 1
           done
 
           cat "$RUNNER_TEMP/planner.log"
+
+          # Without this check a server that never answered fell through to the
+          # grep below and the failure blamed the provider choice instead of
+          # the boot -- a message about the wrong thing.
+          if [ -z "$up" ]; then
+            echo "::error file=frontend/server/index.ts,title=the planner never came up::/api/health did not answer within 60s; the log above holds the boot failure"
+            exit 1
+          fi
 
           if ! grep -q "via groq" "$RUNNER_TEMP/planner.log"; then
             echo "::error file=frontend/server/provider.ts,title=wrong provider::the planner booted without choosing the groq branch, so whatever answered below was not the model this job is meant to exercise"

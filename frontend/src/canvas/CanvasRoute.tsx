@@ -664,6 +664,40 @@ export default function CanvasRoute({
     [chosen],
   )
 
+  const askBox = (
+  <form
+            className="lc-ask-topic"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void askForALesson()
+            }}
+          >
+            <input
+              type="text"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              /* ALWAYS THE INVITATION, BECAUSE THERE IS ALWAYS SOMEWHERE TO ASK.
+                 This read 'No model configured' and the control was `disabled`
+                 for every person who has ever cloned this repository, because
+                 there is no `.env` in it and `readEnv` returns '' for anything
+                 unset. The one control that promises to teach anything was dead
+                 on arrival, and it looked like a product with nothing behind it.
+                 `askForALesson` routes to the server when she has no model of her
+                 own, so the only thing missing was ever the route, not the
+                 ability. */
+              placeholder="Teach me anything…"
+              aria-label="A topic to be taught"
+              /* Kept as a hint, not a blocker: it now says where lessons come
+                 from and how to change that, rather than what is broken. */
+              title={herOwnModel ? undefined : OWN_MODEL_NOTE}
+              disabled={authoring}
+            />
+            <button type="submit" disabled={authoring || topic.trim() === ''}>
+              {authoring ? 'Writing…' : 'Teach me'}
+            </button>
+          </form>
+  )
+
   return (
     <div className="lc-root lc-route" style={cssVariables() as React.CSSProperties}>
       <div className="lc-route-bar">
@@ -699,37 +733,12 @@ export default function CanvasRoute({
           so a model that produces a wall of text is refused here as loudly as
           an author would be.
         */}
-        <form
-          className="lc-ask-topic"
-          onSubmit={(e) => {
-            e.preventDefault()
-            void askForALesson()
-          }}
-        >
-          <input
-            type="text"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            /* ALWAYS THE INVITATION, BECAUSE THERE IS ALWAYS SOMEWHERE TO ASK.
-               This read 'No model configured' and the control was `disabled`
-               for every person who has ever cloned this repository, because
-               there is no `.env` in it and `readEnv` returns '' for anything
-               unset. The one control that promises to teach anything was dead
-               on arrival, and it looked like a product with nothing behind it.
-               `askForALesson` routes to the server when she has no model of her
-               own, so the only thing missing was ever the route, not the
-               ability. */
-            placeholder="Teach me anything…"
-            aria-label="A topic to be taught"
-            /* Kept as a hint, not a blocker: it now says where lessons come
-               from and how to change that, rather than what is broken. */
-            title={herOwnModel ? undefined : OWN_MODEL_NOTE}
-            disabled={authoring}
-          />
-          <button type="submit" disabled={authoring || topic.trim() === ''}>
-            {authoring ? 'Writing…' : 'Teach me'}
-          </button>
-        </form>
+        {/* THE ASK BOX LIVES IN ONE PLACE AT A TIME, and which place is the
+            whole point. In the bar it is a control beside other controls; on a
+            blank canvas it IS the page. Rendered once either way, because two
+            copies would be two inputs with the same label -- ambiguous to a
+            screen reader, to a test, and to a person tabbing through. */}
+        {opened && askBox}
 
         <div className="lc-route-end">
           {result.ok && result.lesson.subject && (
@@ -802,11 +811,11 @@ export default function CanvasRoute({
            * way. The control it points at is the topic box above, which is
            * enabled for everybody -- see `herOwnModel`.
            */
-          <div className="lc-refusal" role="status">
+          <div className="lc-blank">
             <h2>What do you want to learn?</h2>
+            {askBox}
             <p className="lc-caption">
-              Type any topic in the box above and press <strong>Teach me</strong>. Anything
-              at all — it is written for you when you ask, not chosen in advance.
+              Anything at all — it is written for you when you ask, not chosen in advance.
             </p>
           </div>
         ) : result.ok ? (

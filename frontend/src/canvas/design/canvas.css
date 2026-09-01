@@ -780,3 +780,49 @@
 }
 .lc-ask-topic button:disabled { opacity: 0.5; cursor: default; }
 .lc-ask-topic button:not(:disabled):hover { background: var(--c-panel-hover); }
+
+/* THE BLANK CANVAS: the ask box IS the page.
+ *
+ * Written because a learner could not find where to type. The box was in the
+ * top bar, 213x38, with a border at rgba(255,255,255,0.09) on rgb(11,15,18) --
+ * MEASURED as fully rendered, opacity 1, nothing overlapping it, and invisible.
+ * Raising the border alone did not fix it, so the box moved instead of being
+ * tinted: on a page whose only instruction is "type any topic", the field is
+ * not a control in a toolbar, it is the content. */
+.lc-blank {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-md);
+  margin: 12vh auto 0;
+  padding: 0 var(--s-lg);
+  max-width: 640px;
+  text-align: center;
+}
+
+.lc-blank h2 {
+  margin: 0;
+  font-family: var(--lc-sans);
+  font-size: var(--type-title-size, 1.5rem);
+  color: var(--c-ink);
+}
+
+.lc-blank .lc-ask-topic { width: 100%; }
+
+/* Bright enough to be found without looking for it. The accent is already what
+ * this design uses to say "here", and focus already uses it. */
+.lc-blank .lc-ask-topic input {
+  padding: var(--s-md) var(--s-lg);
+  border-color: var(--c-accent);
+  background: var(--c-panel);
+  font-size: var(--type-lead-size, 1.05rem);
+}
+
+.lc-blank .lc-ask-topic input::placeholder { color: var(--c-ink-dim, #8fa3ae); }
+
+.lc-blank .lc-ask-topic button {
+  border-color: var(--c-accent);
+  padding: var(--s-md) var(--s-lg);
+}
+
+.lc-blank .lc-caption { margin: 0; }

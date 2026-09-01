@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { subjectAliases } from './aliases.ts'
-import { inMemoryStore as aStore } from './inMemory.ts'
+import { inMemoryStore as aStore } from './inMemory.spec.ts'
 
 const AT = '2026-09-01T10:00:00.000Z'
 const RECIPE = 'r1'

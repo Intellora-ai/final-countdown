@@ -32,7 +32,7 @@ import { describe, expect, it } from 'vitest'
 import { createHandler, type ModelPort, type SearchPort } from './handler.ts'
 import type { Explanation, Explanations } from './memory/explanations.ts'
 import { writtenLessons } from './memory/lessons.ts'
-import { inMemoryStore as aStore } from './memory/inMemory.ts'
+import { inMemoryStore as aStore } from './memory/inMemory.spec.ts'
 
 /* The worked example the concept prompt itself carries, so the shape is the
    prompt's own rather than one invented here. */

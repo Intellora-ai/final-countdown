@@ -25,7 +25,7 @@ import { createHandler, type ModelPort, type SearchPort } from './handler.ts'
 import { explanationsIn } from './memory/explanations.ts'
 import { writtenLessons } from './memory/lessons.ts'
 import { subjectAliases } from './memory/aliases.ts'
-import { inMemoryStore as aStore } from './memory/inMemory.ts'
+import { inMemoryStore as aStore } from './memory/inMemory.spec.ts'
 
 const A_CONCEPT = {
   id: 'base-case',

@@ -604,7 +604,7 @@ jobs:
     # because parallel workers poison every p95 they touch. At workers=1 the
     # unit-starvation argument above disappears and one-project-per-runner
     # becomes the faster shape again.
-    name: scenes ${{ matrix.shard }}/2
+    name: scenes ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
     needs: [changes]
     if: needs.changes.outputs.frontend == 'true'
@@ -634,7 +634,10 @@ jobs:
         # tests across them while every shard still runs all five projects, so
         # gate_integrity check (f) reads five literal `--project=` flags here
         # exactly as before.
-        shard: [1, 2]
+        # 2 -> 4: each shard was MEASURED at ~15 minutes, the second-longest
+        # wall in the repository. Same tests, same five projects per shard --
+        # twice the machines, roughly half the wait.
+        shard: [1, 2, 3, 4]
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -684,7 +687,7 @@ jobs:
           --project=mobile-375
           --project=reduced-motion
           --project=keyboard
-          --shard="$SHARD/2"
+          --shard="$SHARD/4"
           --fail-on-flaky-tests
 
       # ONE DOWNLOAD INSTEAD OF A LOG CRAWL.

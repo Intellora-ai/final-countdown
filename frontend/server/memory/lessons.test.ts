@@ -13,7 +13,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { writtenLessons, type Written } from './lessons.ts'
-import { inMemoryStore as aStore } from './inMemory.ts'
+import { inMemoryStore as aStore } from './inMemory.spec.ts'
 
 const RECIPE = 'r1'
 

@@ -167,7 +167,18 @@ export async function sheAsks(page: Page, question: string): Promise<{
   const box = theBoxSheTypesIn(page)
   const before = await whatSheCanRead(page)
   await box.fill(question)
-  await page.getByRole('button', { name: /^send$/i }).click()
+  /*
+   * WHICHEVER SUBMIT THIS SCREEN OFFERS. Inside a lesson the box is
+   * `TeachView`'s and its button says "Send". On the blank landing -- which is
+   * what /#/canvas IS since the auto-staged logarithm lesson was removed
+   * ("it opened into a logarithm lesson nobody had asked for") -- the only box
+   * is the topic box and its button says "Teach me". The law is about what
+   * happens AFTER she asks; which control carried the question is the
+   * product's business, so the helper follows the product rather than pinning
+   * the old landing. `.last()` for the same reason `theBoxSheTypesIn` uses it:
+   * when both exist, the one beside the box she just typed in wins.
+   */
+  await page.getByRole('button', { name: /^(send|teach me)$/i }).last().click()
 
   /* WAIT FOR THE REPLY TO SETTLE, NOT FOR THE FIRST FLICKER.
    *

@@ -429,10 +429,28 @@ jobs:
   #
   # Measured locally 2026-09-01 before this job existed: 11 passed in 5.0m on
   # a-person-on-a-laptop. So a red result here is a regression, not a backlog.
+  # ONE JOB PER ENGINE, AND THE WALL CLOCK IS WHY. One runner walking all four
+  # projects serially was MEASURED at 18.6 minutes -- the single longest job in
+  # the repository, and the tail every evidence aggregator then waited on. The
+  # engines share nothing at runtime, so serialising them bought nothing but
+  # time. Three runners, each installing ONLY its own engine (webkit's apt
+  # dependencies now land on one machine instead of three), finish in roughly
+  # the slowest single engine: ~6 minutes. Same tests, same projects, same
+  # assertions -- the split changes where they run, never what runs.
   laws:
-    name: laws
+    name: laws (${{ matrix.engine }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - engine: chrome
+            browsers: chromium
+          - engine: firefox
+            browsers: firefox
+          - engine: safari
+            browsers: webkit
     defaults:
       run:
         working-directory: frontend
@@ -452,18 +470,18 @@ jobs:
       # runner image does not carry. Without it the browser downloads and then
       # fails to launch, which reads as a product defect rather than a missing
       # apt package.
-      - name: Install every engine a learner might use
-        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Install this engine
+        run: npx playwright install --with-deps ${{ matrix.browsers }}
 
       # NO MODEL CREDENTIAL IS SET HERE. See the block above this job.
       - name: The six laws
-        run: npm run test:laws
+        run: npm run test:laws:${{ matrix.engine }}
 
       - name: Upload the traces so a failed law can be watched
         if: failure()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: reports-laws
+          name: reports-laws-${{ matrix.engine }}
           path: frontend/test-results
           if-no-files-found: ignore
           retention-days: 30

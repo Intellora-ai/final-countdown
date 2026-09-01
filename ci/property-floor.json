@@ -1,0 +1,20 @@
+{
+  "_what": "The highest proportion of property-based test files this repository has ever reached, per suite. Raised automatically by scripts/property_floor.py --update. Lowering a number here is a deliberate, reviewable edit and never an accident.",
+  "_why": "An example-based test can be passed by a lookup table, because its inputs are visible to whoever writes the code. A property test generates inputs at run time and cannot be. See the module docstring.",
+  "_not_the_backstop": "This counts files that USE a property library and can be gamed with a trivial property. Mutation testing is what actually proves a test can fail; both run in .github/workflows/real-life.yml.",
+  "floors": {
+    "python": 0.0753
+  },
+  "measured": {
+    "python": {
+      "test_files": 93,
+      "property_files": 7,
+      "ratio": 0.0753
+    },
+    "frontend": {
+      "test_files": 142,
+      "property_files": 0,
+      "ratio": 0.0
+    }
+  }
+}

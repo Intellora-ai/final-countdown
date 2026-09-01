@@ -1,0 +1,420 @@
+name: real-life
+
+# THE JOB THAT WAS NEVER BUILT.
+#
+# WHAT WENT WRONG, MEASURED 2026-09-01
+# ------------------------------------
+# `learning-os.yml` states, in capitals, that its job "MUST PASS WITH NO
+# NETWORK AND NO API KEY", and forbids any step from reading a credential. That
+# rule is CORRECT for a unit suite: a suite that needs a key is a suite that is
+# skipped the first time the key expires, and the tests that stop running are
+# the ones asserting the engine does not fabricate confidence.
+#
+# The defect was never that rule. It was that nothing was ever built BESIDE it.
+# "The unit tests run offline" quietly became "the only tests that exist run
+# offline", and so:
+#
+#   * every learning-os test answered from `llm/client.py` `_SKELETONS`, a dict
+#     of format strings;
+#   * `features/` -- the suite whose own header says "Nothing here is pretend"
+#     -- was run by NO workflow at all (grep: 0 hits for "behave" across
+#     .github/workflows on 2026-09-01);
+#   * `frontend/scripts/mutation-gate.mjs` (60KB) and `reachability-gate.mjs`,
+#     the two tools written specifically to catch a test that cannot fail, were
+#     likewise wired to nothing.
+#
+# So every green tick on this repository certified that `add`, `subtract`,
+# `multiply` and `clamp` were correct -- `verify.yml` runs `--cov=src`, and
+# `src/` contains exactly those four files -- while the tutor, the canvas and
+# the engine were verified by nobody.
+#
+# This workflow is the missing half. It is the ONLY place a real credential is
+# used, so `learning-os.yml`'s offline rule stays intact and unweakened.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: real-life-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # ------------------------------------------------------------------ #
+  # A REAL MODEL ANSWERS, OR THIS GOES RED.
+  # ------------------------------------------------------------------ #
+  real-tutor:
+    name: real-tutor
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # PYTHON 3.12, AND THE VERSION IS LOAD-BEARING.
+      #
+      # Measured on the maintainer's machine 2026-09-01: under Python 3.14.7,
+      # `behave --version` never returns. It hangs during import --
+      #   behave/__init__.py:23 -> step_registry.py:13 -> matchers.py:19
+      #     -> parse_type/cfparse.py:11 -> from .parse_util import FieldParser
+      # -- and produces no output at all. Captured with faulthandler, from an
+      # empty directory, with no project config in scope, so it is the toolchain
+      # and not this repository.
+      #
+      # That is why the Stop hook's log was 0 bytes: it ran behave, behave hung,
+      # the 900s timeout killed it, and the gate blocked with nothing to say.
+      # The suite had never executed once.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Install the engine's dependencies and the runner
+        run: |
+          pip install --quiet --require-hashes -r learning-os/requirements-learning-os.lock
+          pip install --quiet behave
+
+      # FAIL-CLOSED ON A MISSING CREDENTIAL, AND NOT SILENTLY SKIPPED.
+      #
+      # The tempting shape is `if: secrets.GEMINI_API_KEY != ''`. GitHub counts
+      # a skipped job as SATISFYING its required status check, so that spelling
+      # turns "we could not verify this" into a green tick -- which is the exact
+      # class of false positive this whole workflow exists to remove, reproduced
+      # in the fix for it.
+      #
+      # This repository is single-maintainer and public. A fork pull request has
+      # no secrets and will fail here; that is visible and explainable, which is
+      # the property being bought. `features/environment.py` refuses the run
+      # anyway, so a missing key can never quietly become a fake-answered pass.
+      - name: The real-life suite, answered by a real model
+        env:
+          LEARNING_OS_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          LEARNING_OS_LLM_PROVIDER: gemini
+          PYTHONHASHSEED: '0'
+        run: |
+          if [ -z "${LEARNING_OS_GEMINI_API_KEY}" ]; then
+            echo "::error title=no credential::secrets.GEMINI_API_KEY is not set on this repository, so the real-life suite cannot reach a model. Add it in Settings > Secrets and variables > Actions. This job fails rather than skipping, because a skipped required check reads as green."
+            exit 1
+          fi
+          behave features/ --no-capture
+
+      # THE RECEIPT IS THE EVIDENCE, AND IT NOW RECORDS WHO ANSWERED.
+      #
+      # `answers_by_provider` was added 2026-09-01. Before it, nothing anywhere
+      # in this repository recorded whether an answer came from a model or from
+      # a format string, so "was it real?" was not a question the evidence could
+      # be asked. This step prints it into the log and fails if the receipt is
+      # absent -- environment.py withholds it deliberately when every answer
+      # came from the fake.
+      - name: Prove a real model answered
+        if: always()
+        run: |
+          if [ ! -f .real-infra-proof ]; then
+            echo "::error title=no receipt::features/environment.py wrote no .real-infra-proof, which it does only when the run was answered entirely by the offline fake."
+            exit 1
+          fi
+          cat .real-infra-proof
+          python3 - <<'PY'
+          import json, sys, pathlib
+          receipt = json.loads(pathlib.Path(".real-infra-proof").read_text())
+          real = receipt.get("real_model_answers", 0)
+          if real < 1:
+              sys.exit("::error title=no real answers::the receipt records zero answers from a real model")
+          print(f"{real} answer(s) came from a real model")
+          PY
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: reports-real-life
+          path: |
+            .real-infra-proof
+          retention-days: 30
+          if-no-files-found: error
+
+  # ------------------------------------------------------------------ #
+  # THE TWO GATES THAT EXISTED AND RAN NOWHERE.
+  # ------------------------------------------------------------------ #
+  #
+  # Both were written, both are substantial, and grep across .github/workflows
+  # found zero references to either on 2026-09-01. They ran only from a local
+  # Stop hook whose behave step hung, so in practice they never ran at all.
+  #
+  # Mutation testing is the ONLY mechanical check that answers "can this test
+  # fail?". Every other gate in this repository asks whether something ran.
+  # That distinction is the whole subject of this repository's problem, so the
+  # tool that measures it belongs in CI and not in a hook on one laptop.
+  cannot-fail-gates:
+    name: cannot-fail-gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      # Reachability first: it is the cheaper of the two, and a test that is
+      # never reached cannot be killed by a mutant either, so its failures
+      # explain the mutation results rather than duplicating them.
+      - name: Reachability
+        run: npm run gate:reachability
+
+      - name: Mutation -- can these tests fail at all?
+        run: npm run test:mutation
+
+  # ------------------------------------------------------------------ #
+  # THE OTHER HALF OF THE PRODUCT ALSO NEEDS A REAL MODEL TO ANSWER.
+  # ------------------------------------------------------------------ #
+  #
+  # `real-tutor` above proves a real model answers the PYTHON engine. Nothing
+  # anywhere proved it for the TypeScript planner, and that is the half a child
+  # actually talks to: `frontend/server/provider.ts` chooses Groq, Anthropic or
+  # a local model, `frontend/server/groq.ts` calls it, and `handler.ts` puts
+  # the answer through `validateLesson` before a browser sees it.
+  #
+  # Measured 2026-09-01: `.github/workflows/learning-canvas-frontend.yml`
+  # references no model credential at all, and every server in its unit suite
+  # is built with an injected fake `ModelPort`. So the Groq path had no CI
+  # coverage of any kind -- not the credential, not the request, not the
+  # validator's verdict on what a real model returns.
+  #
+  # THIS IS WHERE THE KEY BELONGS, AND NOWHERE ELSE. The frontend unit suite
+  # must stay keyless for the reason recorded in that workflow beside its
+  # `Unit tests` step: `server/boot.test.ts` proves the server REFUSES TO START
+  # unconfigured, and a key in that job's environment is inherited by the
+  # spawned child and deletes the proof. `playwright.reallife.config.ts` must
+  # stay keyless for the reason in its own header: it is the only suite that
+  # sees what a person without a key sees. Both of those are coverage of the
+  # UNCONFIGURED product. This job is the coverage of the configured one, and
+  # keeping them in separate jobs is what lets both be true at once.
+  real-planner:
+    name: real-planner
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      # `dist-server/index.js` is what `npm run server` boots and what
+      # `server/boot.test.ts` measures, so the bundle under test here is the
+      # one the product ships rather than a `tsx` invocation of the sources.
+      - name: Build the planner
+        run: npm run server:build
+
+      # FAIL-CLOSED ON A MISSING CREDENTIAL, EXACTLY AS `real-tutor` DOES.
+      #
+      # Not `if: secrets.GROQ_API_KEY != ''`. GitHub counts a skipped job as
+      # SATISFYING a required status check, so that spelling turns "we could
+      # not verify this" into a green tick -- the precise false positive this
+      # whole workflow exists to remove. The reasoning is written out at length
+      # on `real-tutor`'s credential step above and is not repeated here.
+      #
+      # WHAT A PASS MEANS, STATED SO A GREEN TICK CANNOT BE OVERREAD.
+      #   * the credential exists and Groq accepted it;
+      #   * `chooseProvider` picked the groq branch, printed at boot;
+      #   * a real model returned a lesson that `validateLesson` ACCEPTED.
+      #
+      # The third clause is the one with teeth. `handler.ts` answers 502 with
+      # "the model returned a lesson that failed validation" when the model is
+      # reached and its answer is refused, and 200 only when a real lesson came
+      # back whole. Run 33444764358 shows that refusal firing against the unit
+      # suite's own fixtures, so it is not a theoretical branch. A 502 here is
+      # a genuine finding -- the configured product cannot produce a lesson --
+      # and it is reported as one rather than tolerated.
+      #
+      # THE KEY IS NEVER ECHOED. It reaches the process through `env:` and the
+      # emptiness test reads the variable, never prints it; the assertions
+      # below print status codes and the model's block text, and the boot log
+      # is grepped for the provider NAME, which `boot.test.ts` already proves
+      # is printed without the key beside it.
+      - name: A real model writes a lesson the validator accepts
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          PORT: '8788'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GROQ_API_KEY}" ]; then
+            echo "::error file=.github/workflows/real-life.yml,title=no credential::secrets.GROQ_API_KEY is not set on this repository, so the planner cannot reach a model. Add it in Settings > Secrets and variables > Actions. This job fails rather than skipping, because a skipped required check reads as green."
+            exit 1
+          fi
+
+          node dist-server/index.js > "$RUNNER_TEMP/planner.log" 2>&1 &
+          planner=$!
+          trap 'kill "${planner}" 2>/dev/null || true' EXIT
+
+          # Poll rather than sleep: /api/health is the one route that answers a
+          # GET precisely so a waiting process can ask "are you there".
+          for _ in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:8788/api/health" > /dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+
+          cat "$RUNNER_TEMP/planner.log"
+
+          if ! grep -q "via groq" "$RUNNER_TEMP/planner.log"; then
+            echo "::error file=frontend/server/provider.ts,title=wrong provider::the planner booted without choosing the groq branch, so whatever answered below was not the model this job is meant to exercise"
+            exit 1
+          fi
+
+          status=$(curl -sS -o "$RUNNER_TEMP/lesson.json" -w '%{http_code}' \
+            -X POST "http://127.0.0.1:8788/api/lesson" \
+            -H 'content-type: application/json' \
+            --data '{"concept":"photosynthesis","subject":"biology"}')
+
+          echo "POST /api/lesson -> ${status}"
+          cat "$RUNNER_TEMP/lesson.json"
+          echo
+
+          python3 - "$status" <<'PY'
+          import json, pathlib, os, sys
+
+          status = sys.argv[1]
+          raw = pathlib.Path(os.environ["RUNNER_TEMP"], "lesson.json").read_text()
+
+          # A non-JSON body is its own finding and must not arrive as a
+          # traceback: `handler.ts` answers JSON on every path it owns, so
+          # anything else means the reply did not come from the planner at all.
+          try:
+              body = json.loads(raw)
+          except json.JSONDecodeError:
+              sys.exit(
+                  "::error file=frontend/server/handler.ts,title=the reply was not JSON::"
+                  f"POST /api/lesson answered {status} with a body the planner cannot have "
+                  "written: " + raw[:400]
+              )
+          if not isinstance(body, dict):
+              sys.exit(
+                  "::error file=frontend/server/handler.ts,title=the reply was not an object::"
+                  f"POST /api/lesson answered {status} with {type(body).__name__}"
+              )
+
+          if status == "502":
+              sys.exit(
+                  "::error file=frontend/server/handler.ts,title=the real model's lesson was refused::"
+                  "a real model answered and validateLesson refused what it wrote: "
+                  + json.dumps(body.get("issues", body.get("error")))
+              )
+          if status != "200":
+              sys.exit(
+                  "::error file=frontend/server/groq.ts,title=the planner did not answer::"
+                  f"POST /api/lesson answered {status}: " + json.dumps(body.get("error", body))[:400]
+              )
+
+          lesson = body.get("lesson")
+          blocks = lesson.get("blocks") if isinstance(lesson, dict) else None
+          if not blocks:
+              sys.exit(
+                  "::error file=frontend/server/validate.ts,title=an empty lesson passed validation::"
+                  "the reply was 200 with no blocks in it, so nothing was taught and the "
+                  "validator did not object"
+              )
+          print(f"a real model wrote {len(blocks)} block(s) and the validator accepted them")
+          PY
+
+      - name: Upload the planner's log
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: reports-real-planner
+          path: ${{ runner.temp }}/planner.log
+          if-no-files-found: error
+          retention-days: 30
+
+  # ------------------------------------------------------------------ #
+  # THE SIX LAWS. THE ONLY SUITE THAT MEASURES THE CHILD, NOT THE CODE.
+  # ------------------------------------------------------------------ #
+  #
+  # `frontend/tests/integration/law-*.spec.ts` is six laws about what a learner
+  # is owed -- A: an answer must teach her something she did not already have on
+  # screen; B: asked what it does not teach, it says so and invents nothing;
+  # C: no machine code ever reaches her; D: a button that promises, delivers;
+  # E: work survives closing the tab; F: back never strands her.
+  #
+  # WHY NO WORKFLOW RAN THEM UNTIL NOW, MEASURED 2026-09-01.
+  # `real-life.yml` existed only on a developer's disk. GET on
+  # .github/workflows/real-life.yml returned 404 for both `main` and `codex`, so
+  # the file that would have run these was on no branch. There was also no npm
+  # script: the suite could only be started by typing the config path by hand.
+  # Both halves are fixed -- the file is on the branch, and `test:laws` exists.
+  #
+  # THIS JOB IS KEYLESS, AND THAT IS THE POINT, NOT AN OVERSIGHT.
+  # `playwright.reallife.config.ts` says it in its own header: most people who
+  # open this app will not have a key, so that state IS real life, and a suite
+  # that only runs in the everything-provided configuration cannot see this
+  # class of defect at all. Law C exists precisely because an unconfigured app
+  # showed a child "the planner answered 500". Give this job a credential and
+  # that law can never fail again -- which is not the same as it being upheld.
+  #
+  # ALL THREE ENGINES. The config declared two projects and both were Chromium
+  # underneath (Desktop Chrome and Pixel 7), so "it works in the browser" meant
+  # one browser. Firefox and WebKit are declared now and run here.
+  #
+  # Measured locally 2026-09-01 before this job existed: 11 passed in 5.0m on
+  # a-person-on-a-laptop. So a red result here is a regression, not a backlog.
+  laws:
+    name: laws
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      # `--with-deps` because WebKit on ubuntu-latest needs system libraries the
+      # runner image does not carry. Without it the browser downloads and then
+      # fails to launch, which reads as a product defect rather than a missing
+      # apt package.
+      - name: Install every engine a learner might use
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      # NO MODEL CREDENTIAL IS SET HERE. See the block above this job.
+      - name: The six laws
+        run: npm run test:laws
+
+      - name: Upload the traces so a failed law can be watched
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: reports-laws
+          path: frontend/test-results
+          if-no-files-found: ignore
+          retention-days: 30

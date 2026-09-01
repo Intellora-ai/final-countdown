@@ -837,6 +837,20 @@ artifact = ""
 #   accessibility problems, so green means no automatically-detectable
 #   violation outside the baseline, never that a route is accessible.
 
+# real-life.yml reached the branch on 2026-09-01. Until then the file existed
+# only on a developer's disk -- GET on .github/workflows/real-life.yml returned
+# 404 for both `main` and `codex` -- so preflight was reading a workflow no
+# runner had ever executed, and findings A15030 and 3A4494 named two jobs that
+# could not have blocked anything because they could not have run.
+
+"real-life.yml::real-tutor" = "DELIBERATE for now. It fails by design when secrets.GEMINI_API_KEY is absent, and it is absent on this repository. Requiring it would block every merge for a missing credential rather than for a defect. The job is right to fail loudly instead of skipping -- real-life.yml:99 says a skipped required check reads as green -- but that argument is about honesty in the log, not about gating. Set the secret, then move this row to required_checks."
+
+"real-life.yml::real-planner" = "DELIBERATE for now. The same reason as real-tutor, for the TypeScript half: it needs a model credential to prove the Groq path answers and that validateLesson accepts what a real model returns. No credential is set, so requiring it would gate merges on configuration."
+
+"real-life.yml::cannot-fail-gates" = "DEBT. It runs the reachability gate and the mutation gate -- the two tools written specifically to catch a test that cannot fail -- and neither can fail a merge. This is the same debt as learning-canvas-frontend.yml::frontend-mutation and should be paid the same way, by an edit to live ruleset 20990225 that only the repository owner can make."
+
+"real-life.yml::laws" = "DEBT, and NEW. It runs frontend/tests/integration/law-*.spec.ts -- the six laws about what a learner is owed -- on Chromium, Firefox and WebKit, with no model credential, because an unconfigured app is what most people opening this repository will see. Measured locally 2026-09-01 before this job existed: 11 passed in 5.0m on one engine. It is listed advisory rather than required only because it has never executed on a runner and the other two engines have never run at all, so its true flake profile is unmeasured. Once it has a green history it belongs in required_checks, and of everything in this table it has the strongest claim: it is the only suite that measures the child rather than the code."
+
 "learning-canvas-frontend.yml::frontend-visual" = "DEBT, and PARTIAL. toHaveScreenshot baselines for three acceptance lessons. The spec and its pairing test are complete and the discipline is written down in docs/visual-review.md, but the baselines themselves are platform-specific and must come from a Linux CI run: a macOS capture can never match, and .gitignore refuses one so it cannot be committed by accident. Until those baselines land, this job fails on missing snapshots -- which is the correct behaviour and is why Playwright is not allowed to create them in CI."
 
 "nightly.yml::fuzzing" = "DELIBERATE. It runs on a schedule, not on a pull request, so it cannot be a required check by construction -- there is no commit for it to gate. The same suite runs on every pull request at 30 generated examples per operation; this runs it at 500. That difference is not cosmetic: 30 examples pass while 1500 found a real schema defect, so the nightly profile finds things the blocking profile cannot afford to look for. A failure here is a finding to act on, not a merge to stop."

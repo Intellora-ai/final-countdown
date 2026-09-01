@@ -5,12 +5,14 @@
  * reachability gate -- "built and tested, imported by nothing that ships" --
  * which is the gate doing its job: a helper only tests import does not belong
  * in the product tree under a product name. The `.spec` suffix is the one
- * marker BOTH systems already honour: `reachability-gate.mjs` excludes
- * `/\.(test|spec)\.tsx?$/` from the product scan, and vitest's include for
- * `server/` is `server/**/*.test.ts` alone -- so this is skipped as product
- * AND not collected as a suite. It holds no tests on purpose; it is the shared
- * double four suites build their stores from.
-
+ * marker BOTH systems already honour: the reachability gate's TEST_RE skips
+ * any file ending in .test.ts, .spec.ts, .test.tsx or .spec.tsx from the
+ * product scan, and vitest's include for the server tree collects files
+ * ending in .test.ts ONLY -- so this is skipped as product AND not collected
+ * as a suite. (The glob is not quoted here verbatim because it contains the
+ * two characters that end a block comment, which is how this header once
+ * broke every suite that imports the file.) It holds no tests on purpose; it
+ * is the shared double four suites build their stores from.
  *
  * ONE COPY, BECAUSE THERE WERE FOUR. `lessons.test.ts`, `aliases.test.ts`,
  * `concept-override-rekeys.test.ts` and `speed.test.ts` each hand-copied the

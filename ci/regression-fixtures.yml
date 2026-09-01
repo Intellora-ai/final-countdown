@@ -68,57 +68,23 @@ fixtures:
         before pushing. Incident recorded in .githooks/pre-push:4 and
         ci/local-execution.toml:8.
 
-  - id: RF-002
-    requirement: >-
-      A failing local gate blocks a normal `git push`, and the commit does not
-      reach the remote.
-    test_file: tests/test_local_execution_manifest.py
-    test_name: test_a_failing_local_gate_blocks_a_normal_push
-    command: python3 -m pytest -q tests/test_local_execution_manifest.py -k blocks_a_normal_push
-    expected_broken: >-
-      With the pre-push hook absent or non-blocking, the push succeeds and the
-      remote receives the commit; the test fails on the remote-log assertion.
-    expected_fixed: passes
-    tier: sandbox-test
-    deterministic: true
-    network_required: false
-    source_evidence:
-      type: ESCAPE
-      reference: >-
-        Same incident as RF-001. Commit 27429ae. The hook exists because
-        documenting `make sandbox-fast` as mandatory is what had already failed.
-
   # -------------------------------------------------------------------------
-  # G1 — the link RF-001 and RF-002 leave unproven between them
-  # -------------------------------------------------------------------------
-  - id: RF-003
-    requirement: >-
-      The production chain end to end: a real pyright type error, through the
-      real manifest parser, through the exact pyright argv the manifest selects,
-      through real `make sandbox-fast`, through the real copied pre-push hook,
-      rejects a real `git push`. RF-001 proves selection and RF-002 proves the
-      hook, but RF-002 uses a synthetic Makefile exit code, so nothing proved a
-      real type error reaches that exit code.
-    test_file: tests/test_pre_push_chain.py
-    test_name: test_a_real_type_error_rejects_a_real_push
-    command: python3 -m pytest -q tests/test_pre_push_chain.py
-    expected_broken: >-
-      If pyright leaves the fast tier, or sandbox-fast stops propagating a gate's
-      exit code, the push is accepted with the type error present and the test
-      fails.
-    expected_fixed: push rejected with the error present, accepted once removed
-    tier: sandbox-test
-    deterministic: true
-    network_required: false
-    source_evidence:
-      type: REQUIREMENT
-      reference: >-
-        Milestone 4 acceptance, "a deliberate local pyright failure blocks a
-        normal local push". Descends from the RF-001 escape but is not itself a
-        recorded escape.
-
-  # -------------------------------------------------------------------------
-  # R2 — absence is never success
+  # RF-002 AND RF-003 — RETIRED WITH THE MECHANISM THEY PROVED (2026-09-01).
+  #
+  # Both rows proved the pre-push hook: RF-002 that a failing local gate blocks
+  # a normal `git push`, RF-003 that a real pyright error reaches that block
+  # through the real manifest, the real `make sandbox-fast` and the real hook.
+  # The hook was removed by the repository owner's decision -- it had gone
+  # permanently red on the deleted skills tree, and its own banner stated the
+  # limit: "It is not a security boundary ... GitHub's required contexts remain
+  # the final merge proof."
+  #
+  # The requirement the pair guarded -- broken code cannot land -- is enforced
+  # at the ruleset now: 21 required contexts, held in agreement with
+  # ci/gates.toml by scripts/check_ruleset.py. A fixture row for a mechanism
+  # the repository decided not to have would document a regression proof that
+  # can never run again, which is exactly what this registry's own gate
+  # refuses.
   # -------------------------------------------------------------------------
   - id: RF-004
     requirement: >-

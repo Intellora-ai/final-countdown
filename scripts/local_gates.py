@@ -674,7 +674,6 @@ def cmd_bootstrap() -> int:
         f"create virtualenv at {venv} (repository-local; nothing installed system-wide)",
         "pip install --require-hashes -r requirements.lock  (exact pinned hashes only)",
         "npm ci                                             (package-lock.json only)",
-        "git config core.hooksPath .githooks                 (repository-local hook path)",
     ]
     print("=== bootstrap will do exactly this ===")
     for i, a in enumerate(actions, 1):
@@ -734,16 +733,17 @@ def cmd_bootstrap() -> int:
             "-> npm absent; skipping node dependencies (only the GitHub-only e2e context needs them)"
         )
 
-    print("-> git config core.hooksPath .githooks")
-    code, _ = _probe(["git", "config", "core.hooksPath", ".githooks"])
-    if code != 0:
-        print("STATUS: FAIL — could not set the repository-local hook path")
-        return 1
-
+    # NO HOOK PATH ANY MORE. Bootstrap used to run `git config core.hooksPath
+    # .githooks` so a normal push ran `make sandbox-fast` first. That hook was
+    # removed by the repository owner's decision (2026-09-01) -- its own banner
+    # said it was never a security boundary -- and pointing hooksPath at a
+    # directory that no longer exists would silently disable any hook a
+    # developer keeps in .git/hooks. The merge proof lives at the ruleset's
+    # required contexts; run the same gates by hand with `make sandbox-fast`.
     print(
-        "\nSTATUS: PASS — repository-local environment ready, pre-push hook installed."
+        "\nSTATUS: PASS — repository-local environment ready."
     )
-    print("A normal `git push` now runs `make sandbox-fast` first.")
+    print("Run `make sandbox-fast` before pushing to see the local gates.")
     return 0
 
 

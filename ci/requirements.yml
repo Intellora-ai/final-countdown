@@ -448,20 +448,21 @@ requirements:
 
   - id: REQ-042
     statement: >-
-      Every skill the automatic fixer is told to read exists in this repository
-      and is not empty, and the fixer's prompt never names a skill that is
-      absent.
+      The verification system detects its own sabotage: a gate deleted while
+      its job stays green, a report quietly missing, a fixer diff that
+      suppresses a warning instead of repairing its cause -- each attack is
+      performed against a throwaway copy and must be caught.
     verification: skills
     severity: blocking
-    evidence: "pytest result per required skill"
-    source: ci/gates.toml [gates.skills]; .github/workflows/gate.yml claude-fix prompt
+    evidence: "pytest result per adversarial scenario"
+    source: ci/gates.toml [gates.skills]; tests/test_ci_integrity.py; tests/test_no_weakening_gate.py
     note: >-
-      `claude-fix` has write access to the branch. `.claude/skills/` is what
-      points it at a root cause rather than at the cheapest green, and a deleted
-      skill file fails silently - the job runs, unguided, and nothing reports
-      it. A prompt naming a skill the repository lacks is an instruction about a
-      file the model cannot open, and a model will invent a process rather than
-      report the gap.
+      This requirement previously asserted that six SKILL.md files existed for
+      the automatic fixer. That skills tree was deliberately removed; the
+      `skills` context name is pinned by the live ruleset (renaming needs
+      administration:write, which answers 403 here), so the NAME stays and the
+      CHECK moved to the adversarial CI suites -- a strictly harder question
+      than whether markdown exists.
 
   - id: REQ-043
     statement: >-

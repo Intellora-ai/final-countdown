@@ -13,8 +13,6 @@ hook script proves the script runs, not that the push was blocked.
 from __future__ import annotations
 
 import json
-import shutil
-import subprocess
 import sys
 import tomllib
 from pathlib import Path
@@ -242,141 +240,18 @@ def test_a_missing_binary_blocks_rather_than_passes(tmp_path: Path) -> None:
 
 
 # --------------------------------------------------------------------------
-# The pre-push hook, proven against a real repository and a real remote
-# --------------------------------------------------------------------------
-def _git(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
-    exe = shutil.which("git")
-    assert exe is not None
-    return subprocess.run(
-        [exe, *args],
-        cwd=str(cwd),
-        capture_output=True,  # noqa: S603
-        text=True,
-        timeout=120,
-        shell=False,
-    )
-
-
-@pytest.fixture
-def pushable(tmp_path: Path) -> tuple[Path, Path]:
-    """A working repository whose origin is a local bare remote. No network, no host remote."""
-    remote = tmp_path / "remote.git"
-    work = tmp_path / "work"
-    remote.mkdir()
-    work.mkdir()
-    _git("init", "--bare", "--initial-branch=main", str(remote), cwd=tmp_path)
-    _git("init", "--initial-branch=main", cwd=work)
-    _git("config", "user.email", "t@example.invalid", cwd=work)
-    _git("config", "user.name", "Test", cwd=work)
-    _git("remote", "add", "origin", str(remote), cwd=work)
-
-    hooks = work / ".githooks"
-    hooks.mkdir()
-    shutil.copy(REPO / ".githooks" / "pre-push", hooks / "pre-push")
-    (hooks / "pre-push").chmod(0o755)
-    # `make bootstrap` sets exactly this. Setting it directly keeps the fixture from
-    # building a virtualenv, while exercising the same mechanism the hook relies on.
-    _git("config", "core.hooksPath", ".githooks", cwd=work)
-    return work, remote
-
-
-def _write_makefile(work: Path, exit_code: int) -> None:
-    (work / "Makefile").write_text(
-        f"sandbox-fast:\n\t@echo 'PASS pyright' && exit {exit_code}\n", encoding="utf-8"
-    )
-
-
-def _commit(work: Path, message: str) -> None:
-    _git("add", "-A", cwd=work)
-    _git("commit", "-m", message, cwd=work)
-
-
-def test_a_failing_local_gate_blocks_a_normal_push(pushable: tuple[Path, Path]) -> None:
-    """The claim under test is that `git push` STOPS, not that the hook file executes."""
-    work, remote = pushable
-    _write_makefile(work, exit_code=1)  # a gate that fails
-    _commit(work, "first")
-
-    pushed = _git("push", "origin", "main", cwd=work)
-    assert pushed.returncode != 0, "a failing local gate did not block the push"
-
-    combined = pushed.stdout + pushed.stderr
-    assert "PUSH BLOCKED" in combined
-    assert "FAILED_COMMAND: make sandbox-fast" in combined
-    assert "EXIT_CODE:" in combined
-    assert "DURATION:" in combined
-    assert "EVIDENCE:" in combined
-    assert "--no-verify" in combined, "the hook must state its own bypass limitation"
-
-    # And the decisive assertion: the remote never received the commit.
-    on_remote = _git("log", "--oneline", "-1", "main", cwd=remote)
-    assert on_remote.returncode != 0 or not on_remote.stdout.strip(), (
-        f"the commit reached the remote despite a failing gate: {on_remote.stdout!r}"
-    )
-
-
-def test_a_passing_local_gate_lets_a_normal_push_through(
-    pushable: tuple[Path, Path],
-) -> None:
-    """The control. A gate that blocks everything is not a gate, it is an outage."""
-    work, remote = pushable
-    _write_makefile(work, exit_code=0)  # a gate that passes
-    _commit(work, "first")
-
-    pushed = _git("push", "origin", "main", cwd=work)
-    assert pushed.returncode == 0, (
-        f"a passing local gate blocked the push: {pushed.stdout}{pushed.stderr}"
-    )
-
-    on_remote = _git("log", "--oneline", "-1", "main", cwd=remote)
-    assert on_remote.returncode == 0 and on_remote.stdout.strip(), (
-        "the commit did not reach the remote even though every local gate passed"
-    )
-
-
-def test_repair_then_push_succeeds(pushable: tuple[Path, Path]) -> None:
-    """Blocked, fixed, allowed — the full loop a developer actually walks."""
-    work, remote = pushable
-    _write_makefile(work, exit_code=1)
-    _commit(work, "broken")
-    assert _git("push", "origin", "main", cwd=work).returncode != 0
-
-    _write_makefile(work, exit_code=0)  # repair
-    _commit(work, "repaired")
-    assert _git("push", "origin", "main", cwd=work).returncode == 0
-
-    on_remote = _git("log", "--oneline", cwd=remote)
-    assert "repaired" in on_remote.stdout
-
-
-# --------------------------------------------------------------------------
-# The runner's own execution rules
-# --------------------------------------------------------------------------
-def test_the_runner_never_uses_a_shell() -> None:
-    """Parsed, not grepped: the docstring explaining the ban must not satisfy the ban."""
-    import ast
-
-    tree = ast.parse((REPO / "scripts" / "local_gates.py").read_text(encoding="utf-8"))
-    shell_true = [
-        n
-        for n in ast.walk(tree)
-        if isinstance(n, ast.keyword)
-        and n.arg == "shell"
-        and isinstance(n.value, ast.Constant)
-        and n.value.value is True
-    ]
-    assert shell_true == [], "local_gates.py runs something through a shell"
-
-    for node in ast.walk(tree):
-        if not (
-            isinstance(node, ast.Call)
-            and ast.unparse(node.func) in {"subprocess.run", "subprocess.Popen"}
-        ):
-            continue
-        assert node.args and isinstance(node.args[0], ast.List), (
-            "every subprocess call must pass an argv list literal"
-        )
-        kwargs = {k.arg for k in node.keywords}
-        assert "timeout" in kwargs, (
-            "a subprocess call without a timeout can hang a push"
-        )
+# THE PRE-PUSH HOOK IS GONE, AND ITS PROOFS WENT WITH IT.
+#
+# Four tests here built a real repository with a real bare remote, installed
+# `.githooks/pre-push`, and proved a failing local gate STOPS `git push`. The
+# hook was removed by the repository owner's decision (2026-09-01): it was
+# failing on the deleted skills tree, and its own banner stated the honest
+# limit -- "It is not a security boundary: git push --no-verify, GitHub web UI,
+# direct API changes, or another machine can bypass it. GitHub's required
+# contexts remain the final merge proof."
+#
+# The BEHAVIOUR those tests guarded -- broken code cannot merge -- lives at the
+# ruleset now: 21 required contexts, held in agreement with ci/gates.toml by
+# scripts/check_ruleset.py, which fails the moment the two diverge. A test for
+# a local courtesy that no longer exists would be asserting the repository we
+# decided not to have.

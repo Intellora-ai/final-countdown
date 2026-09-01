@@ -155,6 +155,23 @@ export async function revealAll(page: Page): Promise<number> {
  * "Machine learning" would match a fuzzy "learning" query, and an accidental
  * partial match is how a sweep silently measures the wrong lesson.
  */
+/**
+ * Stage a lesson at its FIRST beat: click the picker, wait for blocks, settle.
+ *
+ * The half of `teach()` without `revealAll`. Three scene tests interact with a
+ * lesson from beat 0 -- answering a beat, escalating a question -- and they
+ * used to get that state for free from the auto-staged landing. When that
+ * landing became blank by design, their bare `settle()` after `open()` spun
+ * its full 30s against a page with zero blocks (settle refuses an empty page,
+ * correctly). `teach()` is wrong for them too: it reveals every beat, and a
+ * test about ADVANCING a lesson cannot start at its end.
+ */
+export async function stage(page: Page, label: LessonLabel): Promise<void> {
+  await page.getByRole('button', { name: label, exact: true }).click()
+  await bodyBlocks(page).first().waitFor({ timeout: 30_000 })
+  await settle(page)
+}
+
 export async function teach(page: Page, label: LessonLabel): Promise<void> {
   await page.getByRole('button', { name: label, exact: true }).click()
   await bodyBlocks(page).first().waitFor({ timeout: 30_000 })

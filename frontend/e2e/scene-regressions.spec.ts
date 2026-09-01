@@ -11,6 +11,7 @@ import {
   open,
   settle,
   shownTitles,
+  stage,
   teach,
 } from './util/canvas'
 
@@ -174,7 +175,8 @@ test.describe('explanation canvas regressions', () => {
      * canvas. */
     attributeFiles(testInfo, ['frontend/src/canvas/design/canvas.css'])
     await open(page, testInfo)
-    await settle(page)
+    /* Staged at beat 0, not revealed to the end: see `stage()`. */
+    await stage(page, 'Physics')
 
     const families = await page.evaluate(() =>
       [...document.querySelectorAll('.lc-root h1, .lc-root h2, .lc-root h3')].map((h) => ({
@@ -536,7 +538,8 @@ test.describe('the lesson is taught, not printed', () => {
   test('a question the lesson cannot answer ESCALATES, and is never a dead end', async ({ page }, testInfo) => {
     attributeFiles(testInfo, ['frontend/src/canvas/teach/doubt.ts'])
     await open(page, testInfo)
-    await settle(page)
+    /* Staged at beat 0, not revealed to the end: see `stage()`. */
+    await stage(page, 'Physics')
 
     const before = await bodyBlocks(page).count()
 
@@ -578,7 +581,8 @@ test.describe('the lesson is taught, not printed', () => {
      * turn every beat into a gate they can fail. */
     attributeFiles(testInfo, ['frontend/src/canvas/teach/turn.ts'])
     await open(page, testInfo)
-    await settle(page)
+    /* Staged at beat 0, not revealed to the end: see `stage()`. */
+    await stage(page, 'Physics')
 
     const before = await bodyBlocks(page).count()
     await answerBox(page).fill('zzzz qqqq wubbleflarp')

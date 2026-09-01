@@ -532,7 +532,7 @@ jobs:
   # same needs entry since #61, and run 32658532840 proved it in the red
   # direction, one deliberately broken shard turning the verdict red.
   frontend-mutation:
-    name: mutation ${{ matrix.shard }}/4
+    name: mutation ${{ matrix.shard }}/8
     runs-on: ubuntu-latest
     needs: [changes]
     if: needs.changes.outputs.frontend == 'true'
@@ -545,7 +545,12 @@ jobs:
       # siblings would hide three quarters of the answer behind the first failure.
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        # 4 -> 8, ON MEASUREMENT: the shards were wildly unbalanced -- 708s and
+        # 512s against 124s and 97s -- because mutants cluster by file and the
+        # split is by mutant list. Twice the shards halves the worst pocket to
+        # ~350s. Same catalogue, same floor of 39 mutants, same baseline: the
+        # split changes where mutants run, never which ones.
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -571,7 +576,7 @@ jobs:
       - name: Mutation gate
         env:
           MUTATION_SHARD: ${{ matrix.shard }}
-        run: npm run test:mutation -- --shard="$MUTATION_SHARD/4"
+        run: npm run test:mutation -- --shard="$MUTATION_SHARD/8"
 
   # THE BROWSER GUARDS, ONE RUNNER PER PROJECT.
   #

@@ -369,6 +369,30 @@ function entriesFor(root: ParentNode, question: string): number {
 /* -------------------------------------------------------------------------- */
 
 /**
+ * Pick from a fixed list, wrapping round the end.
+ *
+ * `ANSWERS[i % ANSWERS.length]` is obviously in range to a reader and NOT to
+ * TypeScript, which cannot narrow a COMPUTED index even on a tuple. Measured:
+ * `as const` on the four data lists closed 42 of 43 `noUncheckedIndexedAccess`
+ * errors and left exactly this one.
+ *
+ * A `!` would silence it by promising, and that promise breaks on the one edit
+ * that matters -- emptying the list. `undefined` would then travel into
+ * `sendAndSettle` and fail somewhere else, reading as a product bug. This
+ * throws AT the mistake and says whose fault it is.
+ */
+function nthWrapping<T>(list: readonly T[], index: number): T {
+  const picked = list[index % list.length]
+  if (picked === undefined) {
+    throw new Error(
+      `nthWrapping: nothing at ${index % list.length} of ${list.length}. ` +
+        'The test data list is empty. That is a bug in this test, not in the product.',
+    )
+  }
+  return picked
+}
+
+/**
  * Plain statements. None begins with an interrogative and none carries a
  * question mark, so `classifyTurn` (`turn.ts:35`) reads each as an ANSWER and
  * the beat advances.
@@ -886,7 +910,7 @@ describe('no lost answers', () => {
          survive being spread across beats as well as accumulating within
          one — answers are grouped by beat when rendered
          (`TeachView.tsx:518`), which is exactly where an ordering bug hides. */
-      if (index > 0 && index % 2 === 0) await sendAndSettle(ANSWERS[index % ANSWERS.length] ?? ANSWERS[0])
+      if (index > 0 && index % 2 === 0) await sendAndSettle(nthWrapping(ANSWERS, index))
       await sendAndSettle(question)
       expected.push(question)
       expect(transcript(container), `the history was wrong after question ${index + 1}`).toEqual(

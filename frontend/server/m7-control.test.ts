@@ -128,11 +128,19 @@ const A_WHOLE_CLASS = 30
 /**
  * How many memories the logging proof writes.
  *
- * A FORTIETH OF `DRAWS`, because every one is a real HTTP round trip into a
- * real SQLite file. Enough that a log line built from one lucky record cannot
- * carry the proof, few enough that the suite still finishes.
+ * A TENTH OF `DRAWS` -- forty records -- because every one is a real HTTP round
+ * trip into a real SQLite file. Enough that a log line built from one lucky
+ * record cannot carry the proof, few enough that the suite still finishes.
+ *
+ * The word said "fortieth" while the code said a tenth, which is the shape of
+ * mistake that gets copied: the next person needing "the same size sample"
+ * writes `DRAWS / 40` and the proof silently drops to ten records.
+ *
+ * `Math.floor` because this is a LOOP BOUND and `DRAWS` lives in another file.
+ * A future edit making it indivisible by ten would hand a fraction to `i < x`
+ * and to `toBeGreaterThan(x / 2)`. Neither throws, so nothing would flag it.
  */
-const HOW_MANY_MEMORIES_THE_LOG_PROOF_WRITES = DRAWS / 10
+const HOW_MANY_MEMORIES_THE_LOG_PROOF_WRITES = Math.floor(DRAWS / 10)
 
 /** Hundreds of real round trips do not fit in vitest's default five seconds. */
 const A_GENEROUS_TIMEOUT_MS = 120_000

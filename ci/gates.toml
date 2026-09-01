@@ -124,10 +124,27 @@ run_identity = { commit = "GITHUB_SHA", run_id = "GITHUB_RUN_ID", run_attempt = 
 # ---------------------------------------------------------------------------
 [coverage]
 measured = [
-  # The four arithmetic functions carrying Lean specifications. 95% is enforced
-  # by the `coverage` gate's own `--cov-fail-under=95`; this row records WHICH
+  # The four arithmetic functions carrying Lean specifications. 97% is enforced
+  # by the `coverage` gate's own `--cov-fail-under=97`; this row records WHICH
   # directory that number is about.
-  { path = "src", scope = "src", floor = 95 },
+  { path = "src", scope = "src", floor = 97 },
+
+  # 7,992 lines: the actual teaching engine. Moved out of `unmeasured` on
+  # 2026-09-01, when `learning-os.yml` gained `--cov=learning_os --cov-branch
+  # --cov-fail-under=97` on its `Tests` step.
+  #
+  # THE ROW MOVED BECAUSE THE FACT MOVED. Its `why` used to read "no coverage
+  # configuration exists in learning-os/pyproject.toml yet", and leaving that
+  # sentence in place after wiring the floor would be this repository's own
+  # named failure: a declaration in a trusted path describing a weaker state
+  # than the one in force.
+  #
+  # Measured before the floor was chosen: 88% branch coverage, 2598 statements,
+  # 277 lines and 45 branches uncovered, concentrated in the LLM adapters'
+  # outage and malformed-reply paths. The floor is 97 rather than 88 because 97
+  # is the standard, not the status quo -- the distance is closed by testing the
+  # uncovered paths, never by lowering this number.
+  { path = "learning-os/src", scope = "learning_os", floor = 97 },
 ]
 
 unmeasured = [
@@ -139,10 +156,10 @@ unmeasured = [
   # was trustworthy would have pinned an artefact.
   { path = "scripts", why = "no floor yet; 57% measured 2026-08-25, pending a per-area floor" },
 
-  # 7,992 lines. `learning-os/pyproject.toml` has no [tool.coverage] section at
-  # all, so its 482 tests run unmeasured. Adding a floor here needs its own
-  # measurement first, for the same reason as `scripts`.
-  { path = "learning-os/src", why = "no coverage configuration exists in learning-os/pyproject.toml yet" },
+  # `learning-os/src` WAS HERE AND IS NOW `measured`. Left as a note rather than
+  # deleted silently, because "which areas stopped being unmeasured, and when"
+  # is the only way a reader can tell a shrinking list from a list somebody
+  # trimmed. Moved 2026-09-01 with a floor of 97; see the `measured` block.
 
   # Alembic's environment and its migration scripts. This IS production code --
   # it is what changes a real database -- so it is `unmeasured` rather than
@@ -312,7 +329,7 @@ role = "gate"
 # the scope stays still, which is what actually happened. That is what
 # scripts/coverage_scope_gate.py and the [coverage] section exist for. Both are
 # needed: this pin stops the scope moving, the gate stops the code escaping it.
-must_contain = ["--cov=src", "--cov-fail-under=95"]
+must_contain = ["--cov=src", "--cov-fail-under=97"]
 evidence = "reports/coverage.json"
 artifact = "reports-coverage"
 

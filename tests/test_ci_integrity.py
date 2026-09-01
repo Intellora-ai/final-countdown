@@ -1629,16 +1629,55 @@ def test_only_app_posted_roles_are_exempt_from_reporting(sandbox: Path) -> None:
 # --------------------------------------------------------------------------
 E2E = ".github/workflows/e2e.yml"
 
+# THE THRESHOLDS ARE READ FROM ci/gates.toml, NOT SPELLED OUT AGAIN HERE.
+#
+# These two anchors used to write the numbers out -- `95` and `0.95` -- inside a
+# literal copy of the workflow line. That is what made this test fail on
+# 2026-09-01 when the coverage floor was legitimately RAISED from 95 to 97: the
+# sabotage target was suddenly "not present in verify.yml", so a test whose
+# entire subject is "can the gate notice a LOWERED threshold" went red because
+# somebody INCREASED one. A test that blocks the improvement it exists to
+# protect is anchored on the wrong thing, and the anchor is the defect -- not
+# the threshold that moved.
+#
+# Nothing is weakened by reading them. `ci/gates.toml` already pins both tokens
+# in `must_contain`, and `gate_integrity.py` already fails when a workflow drifts
+# from that pin, so both directions stay covered: verify.yml moving away from
+# gates.toml is caught there, and the sabotages below still prove that a demoted,
+# quoted or suppressed token is detected here. This is the rule line 459 of this
+# same file already states -- "Read from ci/gates.toml rather than pinned to a
+# literal. The manifest is the source of truth" -- applied to the one place that
+# had not adopted it.
+def _pinned(gate: str, prefix: str) -> str:
+    """The token `ci/gates.toml` pins for `gate`, e.g. `--cov-fail-under=97`.
+
+    Fails loudly rather than returning a default: a missing pin means the
+    manifest stopped declaring a threshold, which is exactly the drift this
+    module exists to catch, and silently substituting one would hide it.
+    """
+    declared = tomllib.loads((REPO / "ci" / "gates.toml").read_text(encoding="utf-8"))
+    for token in declared["gates"][gate]["must_contain"]:
+        if token.startswith(prefix):
+            return token
+    raise AssertionError(
+        f"ci/gates.toml pins no {prefix!r} token for gate {gate!r}; "
+        "the threshold this test anchors on is no longer declared"
+    )
+
+
+COVERAGE_FLOOR = _pinned("coverage", "--cov-fail-under=")
+MUTATION_FLOOR = _pinned("mutmut", "--min-score ")
+
 COVERAGE_STEP = (
     "run: python3 scripts/run_gate.py --name coverage -- pytest "
     "-n auto --dist loadfile --cov=src --cov-branch "
-    "--cov-fail-under=95 "
+    f"{COVERAGE_FLOOR} "
     '-m "not axle"'
 )
 MUTMUT_STEP = (
     "run: python3 scripts/run_gate.py --name mutmut -- bash "
     "scripts/verify_per_function.sh scripts/mutation_gate.py "
-    "--min-score 0.95"
+    f"{MUTATION_FLOOR}"
 )
 # ANCHORED ON THE IN-CHAIN FORM, for the same reason SHELLCHECK_STEP below is.
 # enforce_spec.py used to be a bare `run:` step that owned no report: a spec

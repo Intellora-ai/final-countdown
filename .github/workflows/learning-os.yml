@@ -159,7 +159,7 @@ jobs:
         # imports a module and asserts nothing would defeat the only instrument
         # in this repository that can see an untested file, and would be a worse
         # outcome than the red run it replaced.
-        run: pytest tests -q --ignore=tests/db --cov=learning_os --cov-branch --cov-fail-under=95
+        run: pytest tests -q --ignore=tests/db --cov=learning_os --cov-branch --cov-fail-under=97
         env:
           PYTHONPATH: src
 

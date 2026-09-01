@@ -252,3 +252,79 @@ describe('a refusal is not reported as a network failure', () => {
     expect(result.text.trim().endsWith('come back to it.')).toBe(true)
   })
 })
+
+/*
+ * A WAIT THAT NEVER ENDS, WHICH IS NOT THE SAME AS A WAIT THAT FAILS.
+ *
+ * Every check above gives the port a way to finish: it resolves, it rejects, it
+ * returns `ok: false`. Real life has a fourth: nothing comes back at all. A
+ * learner with no model configured posts to `/api/ask`, the socket is accepted
+ * and never answered, and the promise simply does not settle.
+ *
+ * MEASURED, and this is why it matters more than it looks. `TeachView` disables
+ * the ask box while an answer is in flight and re-enables it in `.finally()`.
+ * `.finally()` runs when a promise SETTLES. A promise that never settles never
+ * runs it. So the box is disabled, and it is disabled for the rest of the
+ * session -- she asks one question and can never ask another. `TeachView`'s own
+ * comment feared exactly this outcome ("one refactor away from locking a
+ * learner out of the box for good") and guarded the two paths it could see, a
+ * resolve and a reject. This is the third.
+ *
+ * The bound belongs HERE and not in the port. `answer` is the promise
+ * `TeachView` waits on, so it is the only place that can promise to settle.
+ */
+describe('a wait that never ends', () => {
+  it('still answers when the port never comes back', async () => {
+    const never = vi.fn(() => new Promise<never>(() => {}))
+    const a = createAnswering({
+      resolvers: [RESOLVER('refusal')],
+      ask: never,
+      askTimeoutMs: 20,
+    })
+
+    const answered = await a.answer(doubt, LESSON)
+
+    expect(answered.from).toBe('unavailable')
+    expect(answered.text).not.toBe('')
+  })
+
+  it('still answers when a resolver never comes back, signal ignored', async () => {
+    /* A resolver that ignores the signal is the case a signal alone cannot fix.
+       The chain awaits it, and an await on a promise that never settles is not
+       interruptible. Only a race with the deadline gets the learner an answer,
+       so that is what is asserted. */
+    const deaf = {
+      name: 'deaf',
+      resolve: () => new Promise<never>(() => {}),
+    } as unknown as DoubtResolver
+
+    const a = createAnswering({
+      resolvers: [deaf],
+      ask: vi.fn(async () => ({ ok: true, text: 'the model answered' })),
+      askTimeoutMs: 20,
+    })
+
+    const answered = await a.answer(doubt, LESSON)
+
+    expect(answered.text).not.toBe('')
+  })
+
+  it('does not cut short a port that answers within the bound', async () => {
+    const slowButFine = vi.fn(
+      () =>
+        new Promise<{ ok: boolean; text: string }>((resolve) =>
+          setTimeout(() => resolve({ ok: true, text: 'here is why' }), 5),
+        ),
+    )
+    const a = createAnswering({
+      resolvers: [RESOLVER('refusal')],
+      ask: slowButFine,
+      askTimeoutMs: 200,
+    })
+
+    const answered = await a.answer(doubt, LESSON)
+
+    expect(answered.from).toBe('model')
+    expect(answered.text).toContain('here is why')
+  })
+})

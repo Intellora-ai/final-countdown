@@ -55,6 +55,53 @@ const UNAVAILABLE = [
   'again in a moment and I will come back to it.',
 ].join(' ')
 
+/*
+ * HOW LONG A LEARNER IS MADE TO WAIT BEFORE SHE IS TOLD SOMETHING.
+ *
+ * Not a network timeout -- `engineResolver` already has one of those, at three
+ * seconds, and the model rung has its own. This is the deadline on the WHOLE
+ * answer, and it exists because the rungs cannot provide it between them: a
+ * resolver that ignores the signal it was handed, or a port that accepts a
+ * socket and never writes to it, leaves an `await` that no rung's own timeout
+ * can reach.
+ *
+ * Sixty seconds is deliberately far longer than any measured answer. It is not
+ * tuned for speed. It is the point past which "still working" has stopped being
+ * true, and the honest sentence is worth more than continuing to wait.
+ */
+const DEFAULT_ANSWER_TIMEOUT_MS = 60_000
+
+/** Returned in place of the work when the deadline won the race. */
+const TIMED_OUT = Symbol('the answer deadline expired')
+
+/*
+ * A DEADLINE THAT WORKS EVEN ON A PROMISE THAT NEVER SETTLES.
+ *
+ * WHY THE SIGNAL ALONE IS NOT ENOUGH, and this is the whole point of the
+ * function. `askChain` is handed the signal and checks it between rungs, and
+ * `engineResolver` and `modelResolver` honour it inside a rung -- so for every
+ * well-behaved resolver the signal is what stops the work, and it stops it
+ * properly, cancelling the request rather than abandoning it. This race does
+ * not replace that. It covers the one case the signal cannot: a resolver that
+ * never looks at it. `await` on a promise that never settles is not
+ * interruptible by anything, so the only way to get an answer to the learner is
+ * to stop waiting for that promise and return without it.
+ *
+ * `Promise.race` attaches a handler to `work`, so a rejection arriving after
+ * the deadline has already won is delivered to that handler and is NOT an
+ * unhandled rejection. The abandoned work is left running; it cannot reach the
+ * screen, because the record it would have filled has already been written.
+ */
+function beforeDeadline<T>(work: Promise<T>, signal: AbortSignal): Promise<T | typeof TIMED_OUT> {
+  if (signal.aborted) return Promise.resolve(TIMED_OUT)
+  return Promise.race([
+    work,
+    new Promise<typeof TIMED_OUT>((resolve) => {
+      signal.addEventListener('abort', () => resolve(TIMED_OUT), { once: true })
+    }),
+  ])
+}
+
 /**
  * The chain's "did you mean" list, turned into something a learner can read.
  *
@@ -84,9 +131,50 @@ function paragraphs(...parts: readonly string[]): string {
   return parts.map((part) => part.trim()).filter((part) => part !== '').join('\n\n')
 }
 
-export function createAnswering(options: { resolvers: readonly AnyResolver[]; ask: AskPort }) {
+export function createAnswering(options: {
+  resolvers: readonly AnyResolver[]
+  ask: AskPort
+  /** The whole-answer deadline. See `DEFAULT_ANSWER_TIMEOUT_MS`. */
+  askTimeoutMs?: number
+}) {
+  const deadlineMs = options.askTimeoutMs ?? DEFAULT_ANSWER_TIMEOUT_MS
+
   return {
     async answer(doubt: Doubt, lesson: Lesson): Promise<Answered> {
+      /*
+       * THE PROMISE `TeachView` WAITS ON IS THE ONE THAT MUST SETTLE.
+       *
+       * `TeachView` disables the ask box before this call and re-enables it in
+       * `.finally()`. `.finally()` runs when a promise SETTLES, so a promise
+       * that never settles disables the box for the rest of the session: she
+       * asks one question and can never ask another. Its own comment feared
+       * exactly that -- "one refactor away from locking a learner out of the
+       * box for good" -- and guarded the two endings it could see, a resolve
+       * and a reject. A wait that simply never ends is the third, and it is the
+       * one a learner with no model configured meets first.
+       *
+       * The bound is here rather than in `TeachView` because this is the
+       * function that promises an answer. A guard in the caller would re-enable
+       * the box while this call was still running, which is the double-submit
+       * the flag exists to prevent.
+       */
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), deadlineMs)
+      try {
+        return await answerWithin(doubt, lesson, controller.signal)
+      } finally {
+        /* On every path, including a throw. A live timer would keep the process
+           awake and, in a test, outlive the case that created it. */
+        clearTimeout(timer)
+      }
+    },
+  }
+
+  async function answerWithin(
+    doubt: Doubt,
+    lesson: Lesson,
+    signal: AbortSignal,
+  ): Promise<Answered> {
       /* THE CHAIN FIRST, then escalation.
        *
        * Two branches built this independently: a chain of resolvers that tries
@@ -97,7 +185,15 @@ export function createAnswering(options: { resolvers: readonly AnyResolver[]; as
        * became its LAST rung rather than a second mechanism beside it.
        *
        * Neither idea was discarded to settle a merge. */
-      const chained = await askChain(doubt, lesson, options.resolvers)
+      const chained = await beforeDeadline(
+        askChain(doubt, lesson, options.resolvers, { signal }),
+        signal,
+      )
+
+      /* The chain never came back. Nothing is known about the lesson's own
+         answer, so there is no "did you mean" list to offer -- only the honest
+         sentence, which is still an answer and still unblocks the box. */
+      if (chained === TIMED_OUT) return { from: 'unavailable', text: UNAVAILABLE }
       /*
        * THE RESOLUTION IS READ, NOT STEPPED OVER.
        *
@@ -147,7 +243,17 @@ export function createAnswering(options: { resolvers: readonly AnyResolver[]; as
        */
       let reply: Awaited<ReturnType<AskPort>>
       try {
-        reply = await options.ask(doubt.text)
+        const answered = await beforeDeadline(options.ask(doubt.text), signal)
+
+        /* SILENCE IS TREATED AS THE UNREACHABILITY IT IS. The port was called
+           and never answered, so "I could not reach the part of me that answers
+           questions outside this lesson" is true in the only sense that matters
+           to her: nothing came back. The `closest` list still goes with it,
+           because that much IS known. */
+        if (answered === TIMED_OUT) {
+          return { from: 'unavailable', text: paragraphs(UNAVAILABLE, closest) }
+        }
+        reply = answered
       } catch {
         /* Assigns a result and returns: the failure changes what the learner
          * sees rather than being noted and stepped over. */
@@ -196,6 +302,5 @@ export function createAnswering(options: { resolvers: readonly AnyResolver[]; as
       /* Exactly one come-back line, appended rather than woven in, so it can
        * never read as part of the answer. */
       return { from: 'model', text: `${text}\n\n${RETURN_LINE}` }
-    },
   }
 }

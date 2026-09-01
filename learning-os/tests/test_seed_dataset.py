@@ -445,12 +445,17 @@ def test_a_stored_mastery_level_equals_what_that_childs_answers_imply(
         observed.setdefault((row.learner_id, row.skill_id), []).append(bool(row.correct))
 
     checked = 0
-    for row in session.execute(select(Mastery)).scalars():
-        outcomes = observed.get((row.learner_id, row.skill_id))
+    # NAMED APART FROM THE `Attempt` LOOP ABOVE, and not for tidiness. Both
+    # loops bound `row`, so mypy fixed its type at the first binding and then
+    # read `Mastery.level` as an attribute `Attempt` does not have -- three
+    # errors on working code, because the name was reused and the types differ.
+    for mastery in session.execute(select(Mastery)).scalars():
+        outcomes = observed.get((mastery.learner_id, mastery.skill_id))
         assert outcomes, "a mastery level rested on no answers at all"
         implied = sum(1 for outcome in outcomes if outcome) / len(outcomes)
-        assert row.level == pytest.approx(implied, abs=5e-5), (
-            f"{row.learner_id} on {row.skill_id}: stored {row.level}, log implies {implied}"
+        assert mastery.level == pytest.approx(implied, abs=5e-5), (
+            f"{mastery.learner_id} on {mastery.skill_id}: "
+            f"stored {mastery.level}, log implies {implied}"
         )
         checked += 1
 

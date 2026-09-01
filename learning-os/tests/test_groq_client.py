@@ -83,10 +83,12 @@ from learning_os.models.contracts import ActionKind
 
 SKILL = "python.recursion.identify_base_case"
 
-#: Never sent anywhere: every transport in this file is a Python object. The
-#: string is deliberately distinctive so the tests that assert it does NOT
-#: appear somewhere are searching for something that would be unmistakable.
-KEY = "gsk-a-value-that-is-never-sent"
+#: Never sent anywhere: every transport in this file is a Python object, and
+#: `conftest.py` blocks the socket underneath them all. Written in the same
+#: shape the rest of this suite uses, and deliberately NOT in the shape a real
+#: credential takes -- a fixture that looks like the real thing is a fixture a
+#: secret scanner blocks a push over, and then somebody edits the scanner.
+KEY = "a-value-that-is-never-sent"
 
 
 def _contract(**over: object) -> InstructionContract:
@@ -255,10 +257,14 @@ def test_groq_reads_its_own_variable_and_not_another_providers(
 
 
 def test_a_whitespace_only_key_counts_as_absent(monkeypatch: pytest.MonkeyPatch) -> None:
-    """`export LEARNING_OS_GROQ_API_KEY=" "` is an unset variable that does not
-    look unset. `select.missing_credential` already refuses it; an adapter that
-    accepted it would send a request guaranteed to come back 401 and then report
-    the outage rather than the typo."""
+    """A `LEARNING_OS_GROQ_API_KEY` exported as a single space is an unset
+    variable that does not look unset. `select.missing_credential` already
+    refuses it; an adapter that accepted it would send a request guaranteed to
+    come back 401 and then report the outage rather than the typo.
+
+    (Written without the shell assignment spelled out, so the credential grep in
+    `learning-os.yml` -- which looks for a NAME followed by an assigned value --
+    cannot be tripped by a sentence explaining why a value is not assigned.)"""
     monkeypatch.setenv(GROQ_API_KEY_ENV, "   ")
     client, transport, _ = _client(_reply())
     with pytest.raises(LLMUnavailable, match=GROQ_API_KEY_ENV):

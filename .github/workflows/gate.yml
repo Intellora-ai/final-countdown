@@ -39,10 +39,11 @@ jobs:
     name: catch-errors
     runs-on: ubuntu-latest
     steps:
+      # NOT fetch-depth: 0 -- no step in this job reads git history, and the
+      # full clone was ~20s of every PR spent downloading 592 commits nobody
+      # opened. verify.yml and deep-verify.yml keep theirs; they diff history.
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
@@ -55,6 +56,8 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.lock
 
       # `npm ci` installs exactly what the lockfile pins and fails when the
       # lockfile and package.json disagree. `npm install` would quietly resolve
@@ -240,6 +243,8 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.lock
 
       # THE LOCKFILE, NOT NAMED PACKAGES. `test_every_pip_install_requires_
       # hashes_and_a_lock` refuses an unpinned install inside the verification

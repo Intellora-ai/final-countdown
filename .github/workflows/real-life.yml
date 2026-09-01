@@ -71,6 +71,10 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            learning-os/requirements-learning-os.lock
+            learning-os/requirements-behave.lock
 
       - name: Install the engine's dependencies and the runner
         run: |
@@ -197,59 +201,16 @@ jobs:
   # fail?". Every other gate in this repository asks whether something ran.
   # That distinction is the whole subject of this repository's problem, so the
   # tool that measures it belongs in CI and not in a hook on one laptop.
-  cannot-fail-gates:
-    name: cannot-fail-gates
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    defaults:
-      run:
-        working-directory: frontend
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - run: npm ci
-
-      # Reachability first: it is the cheaper of the two, and a test that is
-      # never reached cannot be killed by a mutant either, so its failures
-      # explain the mutation results rather than duplicating them.
-      - name: Reachability
-        run: npm run gate:reachability
-
-      - name: Mutation -- can these tests fail at all?
-        run: npm run test:mutation
-
-  # ------------------------------------------------------------------ #
-  # THE OTHER HALF OF THE PRODUCT ALSO NEEDS A REAL MODEL TO ANSWER.
-  # ------------------------------------------------------------------ #
+  # `cannot-fail-gates` LIVED HERE AND IS GONE, AND NOTHING RUNS LESS.
   #
-  # `real-tutor` above proves a real model answers the PYTHON engine. Nothing
-  # anywhere proved it for the TypeScript planner, and that is the half a child
-  # actually talks to: `frontend/server/provider.ts` chooses Groq, Anthropic or
-  # a local model, `frontend/server/groq.ts` calls it, and `handler.ts` puts
-  # the answer through `validateLesson` before a browser sees it.
-  #
-  # Measured 2026-09-01: `.github/workflows/learning-canvas-frontend.yml`
-  # references no model credential at all, and every server in its unit suite
-  # is built with an injected fake `ModelPort`. So the Groq path had no CI
-  # coverage of any kind -- not the credential, not the request, not the
-  # validator's verdict on what a real model returns.
-  #
-  # THIS IS WHERE THE KEY BELONGS, AND NOWHERE ELSE. The frontend unit suite
-  # must stay keyless for the reason recorded in that workflow beside its
-  # `Unit tests` step: `server/boot.test.ts` proves the server REFUSES TO START
-  # unconfigured, and a key in that job's environment is inherited by the
-  # spawned child and deletes the proof. `playwright.reallife.config.ts` must
-  # stay keyless for the reason in its own header: it is the only suite that
-  # sees what a person without a key sees. Both of those are coverage of the
-  # UNCONFIGURED product. This job is the coverage of the configured one, and
-  # keeping them in separate jobs is what lets both be true at once.
+  # It re-ran `npm run gate:reachability` -- byte-identical to the step inside
+  # the REQUIRED `frontend` context -- and `npm run test:mutation` UNSHARDED,
+  # the union of what the four `frontend-mutation` shards behind the REQUIRED
+  # `frontend-verdict` context already execute. Its own DEBT entry said it
+  # blocked nothing. Measured, the unsharded catalogue is ~550-650s: this one
+  # advisory duplicate was the longest single stretch of wall clock in the
+  # repository. The same two gates run on every PR, once, where a red actually
+  # stops the merge.
   real-planner:
     name: real-planner
     runs-on: ubuntu-latest
@@ -492,8 +453,17 @@ jobs:
           path: ~/.cache/ms-playwright
           key: pw-${{ matrix.browsers }}-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
 
+      # `--with-deps` ONLY FOR WEBKIT: it is an apt-get update+install that the
+      # browser cache cannot cover, it exists for WebKit's system libraries
+      # alone, and e2e.yml records it once stalling 13 minutes on the Azure
+      # mirror. The chromium and firefox legs skip the apt trip entirely.
       - name: Install this engine
-        run: npx playwright install --with-deps ${{ matrix.browsers }}
+        run: |
+          if [ "${{ matrix.browsers }}" = "webkit" ]; then
+            npx playwright install --with-deps webkit
+          else
+            npx playwright install ${{ matrix.browsers }}
+          fi
 
       # NO MODEL CREDENTIAL IS SET HERE. See the block above this job.
       - name: The six laws

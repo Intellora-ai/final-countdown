@@ -61,6 +61,7 @@ required_checks = [
   "full",
   "chaos",
   "skills",
+  "catch-errors",
   "frontend",
   "frontend-verdict",
 ]
@@ -652,16 +653,16 @@ artifact = ""
 # complaints about rules nobody chose is noise that teaches people to scroll
 # past a red check.
 # ---------------------------------------------------------------------------
-# ADVISORY, AND THAT IS A LIMIT OF THE TOKEN, NOT A JUDGEMENT.
+# MANDATORY, AND THE RULESET AGREES SINCE 2026-09-02.
 #
-# This SHOULD be mandatory: it is now the gate that runs the TEST SUITES, not
-# just the linters, and an advisory check on the suite is not a check on the
-# suite. Making it mandatory requires adding `catch-errors` to the live ruleset
-# (id 20990225), because `check_ruleset.py` refuses a gate declared required
-# that GitHub does not enforce -- "a mandatory gate that GitHub does not require
-# blocks nothing". That edit needs `administration:write`; this token has it not
-# and the API answers 403. ONE ADMIN ACTION FINISHES IT: add `catch-errors` to
-# the ruleset, then flip this to true and add it to required_checks above.
+# This spent a day advisory for one reason only: `check_ruleset.py` refuses a
+# gate declared required that GitHub does not enforce -- "a mandatory gate that
+# GitHub does not require blocks nothing" -- and the ruleset edit needs
+# `administration:write`, which the automation token does not have (the API
+# answers 403). The repository owner added `catch-errors` to live ruleset
+# 20990225 by hand, and this flip is the manifest catching up with that fact.
+# From here, the job that runs BOTH TEST SUITES and the three-project
+# typecheck physically blocks a merge.
 #
 # `must_contain` grows with what the job gained. It pins the commands whose exit
 # codes ARE the verdict, so a job that installs, lints nothing and exits 0
@@ -678,7 +679,7 @@ artifact = ""
 [gates.catch-errors]
 workflow = "gate.yml"
 job = "catch-errors"
-mandatory = false
+mandatory = true
 role = "scanner"
 # `npx tsc --noEmit` left this list WITH its step: `npm run typecheck` is that
 # same compile of that same project plus the canvas and server projects, so the
@@ -899,7 +900,6 @@ artifact = ""
 
 "real-life.yml::real-planner" = "DELIBERATE for now. The same reason as real-tutor, for the TypeScript half: it needs a model credential to prove the Groq path answers and that validateLesson accepts what a real model returns. No credential is set, so requiring it would gate merges on configuration."
 
-"real-life.yml::cannot-fail-gates" = "DEBT. It runs the reachability gate and the mutation gate -- the two tools written specifically to catch a test that cannot fail -- and neither can fail a merge. This is the same debt as learning-canvas-frontend.yml::frontend-mutation and should be paid the same way, by an edit to live ruleset 20990225 that only the repository owner can make."
 
 "real-life.yml::laws" = "DEBT, and NEW. It runs frontend/tests/integration/law-*.spec.ts -- the six laws about what a learner is owed -- on Chromium, Firefox and WebKit, with no model credential, because an unconfigured app is what most people opening this repository will see. Measured locally 2026-09-01 before this job existed: 11 passed in 5.0m on one engine. It is listed advisory rather than required only because it has never executed on a runner and the other two engines have never run at all, so its true flake profile is unmeasured. Once it has a green history it belongs in required_checks, and of everything in this table it has the strongest claim: it is the only suite that measures the child rather than the code."
 

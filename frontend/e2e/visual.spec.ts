@@ -95,6 +95,18 @@ if (LESSONS.length !== CANVAS_LESSONS.length) {
  */
 const MAX_DIFF_RATIO = 0.002
 
+/**
+ * AND AN ABSOLUTE CAP, BECAUSE A RATIO SCALES WITH THE PAGE.
+ *
+ * 0.2% of a full-page shot at 1440x3000 is over eight thousand pixels -- a
+ * visible artifact can hide inside a ratio that was tuned for anti-aliasing
+ * noise. Both bounds must hold: the ratio absorbs sub-pixel rendering drift,
+ * the absolute cap refuses anything big enough to be a real element moving,
+ * whatever the page's area. 600px is roughly a 25x25 block -- below any
+ * control, above any AA shimmer.
+ */
+const MAX_DIFF_PIXELS = 600
+
 test.describe('the acceptance lessons render without regressing', () => {
   for (const lesson of LESSONS) {
     test(`${lesson.slug} matches its baseline`, async ({ page }, testInfo) => {
@@ -104,6 +116,7 @@ test.describe('the acceptance lessons render without regressing', () => {
       await expect(page).toHaveScreenshot(`${lesson.slug}.png`, {
         fullPage: true,
         maxDiffPixelRatio: MAX_DIFF_RATIO,
+        maxDiffPixels: MAX_DIFF_PIXELS,
         /* Animations are already off in the reduced-motion project; this is the
            belt to that braces, and costs nothing when they are. */
         animations: 'disabled',
@@ -259,4 +272,56 @@ test.describe('reduced motion holds the simulation still', () => {
       await context.close()
     }
   })
+})
+
+test.describe('every representation is actually drawn, not merely mounted', () => {
+  /*
+   * A BASELINE COMPARES PIXELS; THIS COMPARES SUBSTANCE, AND IT NEEDS NO
+   * BASELINE, SO IT RUNS ON EVERY PROJECT AND EVERY PLATFORM.
+   *
+   * The failure this closes: a chart that mounts its <svg> and draws nothing,
+   * a table that renders headers over zero rows, a figure whose canvas stays
+   * at its mounting size. Each is a real defect a screenshot ratio can absorb
+   * and a "block reached the screen" census cannot see -- the block IS on
+   * screen; it is just empty. Deterministic bounds only: element counts and
+   * box sizes, never pixels, so this cannot flake and cannot be platform-bound.
+   */
+  for (const lesson of LESSONS) {
+    test(`${lesson.label}: charts, tables and figures carry real content`, async ({ page }, testInfo) => {
+      await open(page, testInfo)
+      await teach(page, lesson.label)
+
+      /* Every SVG chart must contain drawn geometry, not an empty plot area. */
+      const svgs = page.locator('.lc-block svg')
+      for (let i = 0; i < (await svgs.count()); i++) {
+        const svg = svgs.nth(i)
+        const shapes = await svg.locator('path, rect, circle, line, polyline, polygon, text').count()
+        expect(shapes, `svg #${i} in ${lesson.label} mounted with no drawn geometry`).toBeGreaterThan(0)
+        const box = await svg.boundingBox()
+        expect(box, `svg #${i} in ${lesson.label} has no layout box`).not.toBeNull()
+        expect(
+          (box!.width * box!.height),
+          `svg #${i} in ${lesson.label} collapsed to ${box!.width}x${box!.height}`,
+        ).toBeGreaterThan(400)
+      }
+
+      /* Every table must have body rows with non-empty cells. */
+      const tables = page.locator('.lc-block table')
+      for (let i = 0; i < (await tables.count()); i++) {
+        const rows = tables.nth(i).locator('tbody tr')
+        expect(await rows.count(), `table #${i} in ${lesson.label} has no rows`).toBeGreaterThan(0)
+        const firstCell = (await rows.first().locator('td, th').first().textContent())?.trim() ?? ''
+        expect(firstCell, `table #${i} in ${lesson.label} has an empty first cell`).not.toBe('')
+      }
+
+      /* Every canvas (r3f simulation) must be laid out at a real size. */
+      const canvases = page.locator('.lc-block canvas')
+      for (let i = 0; i < (await canvases.count()); i++) {
+        const box = await canvases.nth(i).boundingBox()
+        expect(box, `canvas #${i} in ${lesson.label} has no layout box`).not.toBeNull()
+        expect(box!.width, `canvas #${i} in ${lesson.label} is ${box!.width}px wide`).toBeGreaterThan(100)
+        expect(box!.height, `canvas #${i} in ${lesson.label} is ${box!.height}px tall`).toBeGreaterThan(80)
+      }
+    })
+  }
 })

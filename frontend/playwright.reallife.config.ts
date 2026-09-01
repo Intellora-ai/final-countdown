@@ -26,6 +26,9 @@ import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
   testDir: './tests/integration',
   retries: 0,
+  /* A committed `.only` silently shrinks the suite to one test and everything
+     else "passes" by not existing. Refused on CI, same as the main config. */
+  forbidOnly: !!process.env.CI,
   /*
    * TWO WORKERS ON CI, ONE ON A LAPTOP -- AND WHY THIS IS SAFE WHERE THE PERF
    * CONFIG'S CAP IS NOT. playwright.config.ts pins workers only to protect CDP

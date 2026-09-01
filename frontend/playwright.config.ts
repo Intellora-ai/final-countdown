@@ -103,7 +103,19 @@ export default defineConfig({
    * suffixes, and now both configs say so.
    */
   testMatch: '**/*.spec.ts',
-  retries: process.env.CI ? 1 : 0,
+  /*
+   * ZERO RETRIES, EVERYWHERE, AND THAT IS A GATE-HARDNESS DECISION.
+   *
+   * `CI ? 1 : 0` meant every browser test got a second roll of the dice on
+   * exactly the machine where the verdict matters -- a test that fails once
+   * and passes once is NONDETERMINISTIC, and a retry converts that coin-flip
+   * into a green check nobody ever looks at. This run's own history shows it
+   * working: the visual failures each burned a "(retry #1)" before going red.
+   * A flake is a defect in the test or the product; with retries off it
+   * surfaces as red and gets FIXED at the root instead of absorbed. Nothing
+   * passes by chance.
+   */
+  retries: 0,
   forbidOnly: !!process.env.CI,
   workers: 4,
   fullyParallel: false,

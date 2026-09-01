@@ -13,8 +13,10 @@
  *   - `pageerror`: an uncaught exception or unhandled rejection in page code.
  *   - `console.error`: the app or a library saying, itself, that something is
  *     wrong. React prints hook violations, key warnings and act() misuse here.
- * `console.warn` is deliberately excluded: warnings are advice, and a gate
- * that fails on advice gets switched off within a week.
+ * `console.warn` joins the same ratchet: a NEW warning fails, today's
+ * recorded ones are permitted until fixed, and a fixed one may not return.
+ * The ratchet is what makes failing on advice survivable -- the gate starts
+ * from the honest present and the debt can only shrink.
  *
  * THE RATCHET, SAME AS a11y.spec.ts, SAME REASON. A first run on any real app
  * finds noise. Failing on ALL of it makes the gate red from day one, and a
@@ -74,6 +76,7 @@ for (const route of ROUTES) {
     page.on('pageerror', (error) => found.add(`pageerror: ${fingerprint(error.message)}`))
     page.on('console', (message) => {
       if (message.type() === 'error') found.add(`error: ${fingerprint(message.text())}`)
+      if (message.type() === 'warning') found.add(`warn: ${fingerprint(message.text())}`)
     })
 
     await page.goto(route.path)

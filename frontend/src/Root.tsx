@@ -34,7 +34,16 @@ import { ErrorBoundary } from './ErrorBoundary'
 export function Root() {
   return (
     <ErrorBoundary>
-      <HashRouter future={{ v7_startTransition: true }}>
+      <HashRouter
+        /* `v7_relativeSplatPath` joins for the same reason `v7_startTransition`
+           is here: the router warns about the v7 change on every route load,
+           and the console-hygiene law rightly refuses new console noise. The
+           only splat in App.tsx is the catch-all `*` that redirects to /today
+           -- it has no relative child links, so the v7 resolution change
+           cannot alter any path this app produces. Opting in removes the
+           warning by adopting the behaviour, not by muting the report. */
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
         <App />
       </HashRouter>
     </ErrorBoundary>

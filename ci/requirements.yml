@@ -480,6 +480,24 @@ requirements:
       that carries a pinned token, and it is right to for a gate that DECIDES.
       This job reports; `frontend-verdict` decides.
 
+  - id: REQ-045
+    statement: >-
+      Every pull request compiles all three TypeScript projects, passes the
+      repository's own linters, and passes the server and canvas test suites
+      before it may merge.
+    verification: catch-errors
+    severity: blocking
+    evidence: "per-linter and per-suite PASS/FAIL, annotated to file and line"
+    source: ci/gates.toml [gates.catch-errors]; .github/workflows/gate.yml
+    note: >-
+      This gate ran three linters and no tests until 2026-09-01, and two
+      shipped-grade defects that week -- a veto refusing a subject the model
+      itself named, and a bare 429 disabling the whole failover chain -- moved
+      no linter. Both were caught only by the suites this gate now runs, and
+      both are kill-tested: replanting either turns the gate red. Mandatory
+      since 2026-09-02, when the repository owner added the context to live
+      ruleset 20990225 by hand.
+
   - id: REQ-044
     statement: >-
       A failure in any frontend job - unit, mutation, or browser scenes -

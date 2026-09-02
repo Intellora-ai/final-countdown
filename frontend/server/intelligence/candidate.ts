@@ -43,11 +43,20 @@ export function candidateIntelligence(options: CandidateOptions): LearningIntell
       }
 
       let modelCalls = 0
+      /* THE SERVER'S CHAT IS JSON-MODE (the controller needs it), so the
+         reasoner is asked for one key and read by it. A reply that is not
+         JSON at all is prose from a text-mode port and is used as it is. A
+         JSON reply without the key is not an answer; it is recorded as an
+         Unknown below, in the reply's own words, and nothing is invented. */
+      let notAnAnswer: string | null = null
       const model: AgentModelPort = {
         generate: async (req) => {
           modelCalls += 1
           const prompt = buildPrompt(req)
-          return chat(prompt.system, prompt.user)
+          const reply = await chat(`${prompt.system}\n\nReply as a JSON object with exactly one key, "answer", whose value is your whole reply as plain text.`, prompt.user)
+          const unwrapped = answerIn(reply)
+          if (unwrapped.kind === 'not-an-answer') notAnAnswer = unwrapped.because
+          return unwrapped.kind === 'answer' ? unwrapped.text : ''
         },
       }
       const search: AgentSearchPort = {
@@ -58,7 +67,7 @@ export function candidateIntelligence(options: CandidateOptions): LearningIntell
       const out = await agent.ask({ parts: [{ modality: 'text', content: request.question }], at: now() })
 
       const rationale = Object.entries(out.result.plan.rationale).map(([cap, why]) => `${cap}: ${why}`).join('; ')
-      const actions: LearningAction[] = [
+      const actions: LearningAction[] = notAnAnswer !== null ? [] : [
         {
           kind: 'explain',
           because: rationale.length > 0 ? rationale : 'the loop answered',
@@ -73,6 +82,7 @@ export function candidateIntelligence(options: CandidateOptions): LearningIntell
         actions.push({ kind: 'ask', because: 'the loop wants one thing settled first', risk: 0, evidence: [], payload: { question: out.result.question } })
       }
       const unknowns: Unknown[] = [
+        ...(notAnAnswer === null ? [] : [{ what: 'the reasoner gave no answer', because: notAnAnswer, blocking: true }]),
         ...out.trace.understanding.ambiguities.map((a) => ({ what: a.what, because: 'the understanding stage could not settle it', blocking: a.blocking })),
         ...Object.entries(out.trace.unmet).map(([capability, why]) => ({ what: capability, because: why, blocking: false })),
       ]
@@ -89,4 +99,21 @@ export function candidateIntelligence(options: CandidateOptions): LearningIntell
       }
     },
   }
+}
+
+
+/** What a JSON-mode reply holds, by the one agreed key. */
+function answerIn(reply: string): { kind: 'answer'; text: string } | { kind: 'not-an-answer'; because: string } {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(reply)
+  } catch {
+    return { kind: 'answer', text: reply }
+  }
+  if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+    const answer = (parsed as Record<string, unknown>)['answer']
+    if (typeof answer === 'string' && answer.trim().length > 0) return { kind: 'answer', text: answer }
+    return { kind: 'not-an-answer', because: `the reply is a JSON object with keys ${Object.keys(parsed as object).join(', ') || '(none)'} and no "answer"` }
+  }
+  return { kind: 'not-an-answer', because: `the reply is JSON but not an object with an "answer": ${reply.slice(0, 60)}` }
 }

@@ -74,6 +74,32 @@ describe('the candidate intelligence', () => {
     expect(proposal.actions.filter((a) => a.kind === 'explain'), 'an explanation was invented without a reasoner').toEqual([])
   })
 
+  it('reads a JSON-mode reply by its one agreed key, so the answer is prose and never a blob', async () => {
+    /* The server's chat is JSON-mode for the controller's sake (ollama sends
+       `format: 'json'`, groq `response_format: json_object`). The first live
+       shadow run handed the canvas `{ "answer": "..." }` as the explanation
+       and the gate refused it. The candidate asks for one key and reads it. */
+    const model: ModelPort = {
+      lesson: async () => { throw new Error('no') },
+      chat: async (system: string) => {
+        expect(system, 'the candidate did not ask for the agreed key').toMatch(/"answer"/)
+        return JSON.stringify({ answer: 'A zero of a polynomial is a number that makes it equal zero.' })
+      },
+    }
+    const candidate = candidateIntelligence({ model, search: noSearch, now: () => '2026-09-03T00:00:00.000Z' })
+    const proposal = await candidate.propose(aRequest('what is a zero of a polynomial'))
+    const explain = proposal.actions.find((a) => a.kind === 'explain')
+    expect(explain?.payload?.['answer']).toBe('A zero of a polynomial is a number that makes it equal zero.')
+  })
+
+  it('a JSON reply without the agreed key is an Unknown in its own words, never an answer', async () => {
+    const model: ModelPort = { lesson: async () => { throw new Error('no') }, chat: async () => JSON.stringify({ result: 'something', ok: true }) }
+    const candidate = candidateIntelligence({ model, search: noSearch, now: () => '2026-09-03T00:00:00.000Z' })
+    const proposal = await candidate.propose(aRequest('what is a zero of a polynomial'))
+    expect(proposal.actions.filter((a) => a.kind === 'explain')).toEqual([])
+    expect(proposal.unknowns.some((u) => /answer/.test(u.what) && /result, ok|keys/.test(u.because)), JSON.stringify(proposal.unknowns)).toBe(true)
+  })
+
   it('counts its cost from what actually happened', async () => {
     const model = aReasoner()
     let tick = 0

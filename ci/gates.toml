@@ -157,6 +157,12 @@ unmeasured = [
   # was trustworthy would have pinned an artefact.
   { path = "scripts", why = "no floor yet; 57% measured 2026-08-25, pending a per-area floor" },
 
+  # learning-os's own gate machinery, the same classification as `scripts`
+  # above: the curated mutation catalogue for the grounded-answer work
+  # (mutation_discrimination.py, run on demand rather than wired into a job).
+  # Declared the day the gate caught it undeclared -- which is the gate working.
+  { path = "learning-os/scripts", why = "on-demand mutation catalogue; gate machinery like `scripts`, no coverage floor yet" },
+
   # `learning-os/src` WAS HERE AND IS NOW `measured`. Left as a note rather than
   # deleted silently, because "which areas stopped being unmeasured, and when"
   # is the only way a reader can tell a shrinking list from a list somebody

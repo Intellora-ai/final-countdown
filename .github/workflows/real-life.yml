@@ -192,6 +192,13 @@ jobs:
           name: reports-real-life
           path: |
             .real-infra-proof
+          # THE RECEIPT IS A DOTFILE, AND THE ACTION SKIPS DOTFILES BY DEFAULT
+          # since upload-artifact v4.4 -- so every run of this job ended with
+          # "No files were found with the provided path: .real-infra-proof"
+          # while the prove step above was READING that same file. The proof
+          # existed and the evidence trail said it did not, which is the exact
+          # absence-looks-like-health failure this workflow exists to close.
+          include-hidden-files: true
           retention-days: 30
           if-no-files-found: error
 

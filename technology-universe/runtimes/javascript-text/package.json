@@ -22,7 +22,7 @@
     "@milkdown/core": "7.22.1",
     "@remirror/core": "3.0.2",
     "@swc/core": "1.16.1",
-    "@tiptap/core": "3.30.2",
+    "@tiptap/core": "3.30.4",
     "@tiptap/extension-document": "3.30.2",
     "@tiptap/extension-paragraph": "3.30.2",
     "@tiptap/extension-text": "3.30.2",

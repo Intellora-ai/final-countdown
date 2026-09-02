@@ -82,6 +82,26 @@ const SIGNALS: readonly { signal: string; reason: string; test: RegExp }[] = [
     test: /(?<![\d.])\b\d+\s+\d+\s*(?:[A-Za-z]+\s*)?:?\s*$|\s\d\s\d\s/,
   },
   {
+    signal: 'a-mark-scheme',
+    reason: 'this is how the paper is marked, not something to understand',
+    /* FOUND BY RUNNING THE GENERATOR: "30 Marks" was decomposed into
+       Practical/Project, Viva and Project Evaluation Parameters, and a reading
+       format into Word Count and Marks Allocation. A canvas offering to teach
+       one of those is offering to teach a mark sheet. */
+    test: /\b\d+\s*marks?\b|\bmarks?\s*[:)]|\b(?:theory|practical|project|viva)\s*[:\-]\s*\d/i,
+  },
+  {
+    signal: 'a-sentence-fragment',
+    reason: 'this is the middle of a sentence the document was cut across, not a whole idea',
+    /* Two shapes, both real. A line opening on a relative pronoun is the tail of
+       something: "whose first term is -3 and common difference is 4" produced
+       "First Term" and "Common Difference" -- real ideas about a topic that is
+       not there. And a full stop followed by one or two stray words is the head
+       of the next line that came across with it: "luxury of goods and services.
+       goods". */
+    test: /^\s*(?:whose|which|that|who|whom|where|when|and|or|but|because|so)\b|\.\s+\S+\s*$/i,
+  },
+  {
     signal: 'longer-than-a-syllabus-line',
     reason: 'this is a paragraph, so it is prose from the document rather than the name of a topic',
     /* Measured: the median real entry is well under this; 178 entries are over. */

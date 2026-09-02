@@ -1,0 +1,43 @@
+{
+  "curriculum": "cbse-class-10",
+  "subjectId": "mathematics",
+  "models": [
+    {
+      "topicId": "real-numbers--fundamental-theorem-of-arithmetic-statements-after-reviewing-work-done-earlier-a",
+      "topicName": "Fundamental Theorem of Arithmetic - statements after reviewing work done earlier and after illustrating and motivating through examples",
+      "curriculum": "cbse-class-10",
+      "subjectId": "mathematics",
+      "chapterId": "real-numbers",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "fundamental-theorem-of-arithmetic",
+          "name": "Fundamental Theorem of Arithmetic",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "maths-x",
+              "page": 3,
+              "quote": "Fundamental Theorem of Arithmetic - statements after reviewing work done earlier and after illustrating and motivating through examples"
+            }
+          ]
+        },
+        {
+          "id": "irrationality-of-numbers",
+          "name": "Irrationality of Numbers",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "maths-x",
+              "page": 3,
+              "quote": "Prove algebraically the Irrationality of numbers like √2, √3, √5, 3 + 2√5 etc."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/gemma3:12b"
+    }
+  ]
+}

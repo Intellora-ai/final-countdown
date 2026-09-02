@@ -1,0 +1,31 @@
+{
+  "curriculum": "cbse-class-9",
+  "subjectId": "english-language-and-literature",
+  "models": [
+    {
+      "topicId": "cg-1--uses-language-appropriate-to-social-effective-communication-through-context",
+      "topicName": "Uses language appropriate to social effective communication through context",
+      "curriculum": "cbse-class-9",
+      "subjectId": "english-language-and-literature",
+      "chapterId": "cg-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "uses-language-appropriate-to-social-context",
+          "name": "Uses language appropriate to social context",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "english-ix",
+              "page": 3,
+              "quote": "C-1.1: Uses language appropriate to social context, expresses agreement and disagreement with reasons, and arrives at conclusions through discussion and debate."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/gemma3:12b"
+    }
+  ]
+}

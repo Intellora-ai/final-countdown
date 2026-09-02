@@ -1,0 +1,55 @@
+{
+  "curriculum": "cbse-class-10",
+  "subjectId": "science",
+  "models": [
+    {
+      "topicId": "tissues--importance-meristematic-and-permanent-tissues",
+      "topicName": "importance meristematic and permanent tissues",
+      "curriculum": "cbse-class-10",
+      "subjectId": "science",
+      "chapterId": "tissues",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "meristematic-tissues",
+          "name": "Meristematic Tissues",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "science-ix-x",
+              "page": 5,
+              "quote": "• Meristematic tissues (types and function of each)"
+            }
+          ]
+        },
+        {
+          "id": "permanent-tissues",
+          "name": "Permanent Tissues",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "science-ix-x",
+              "page": 5,
+              "quote": "• Permanent tissues (types, structure and function of each)"
+            }
+          ]
+        },
+        {
+          "id": "differentiation",
+          "name": "Differentiation",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "science-ix-x",
+              "page": 5,
+              "quote": "• Differentiate between plant and animal tissues; meristematic and permanent tissues; simple and complex tissues;"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/gemma3:12b"
+    }
+  ]
+}

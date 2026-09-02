@@ -1,0 +1,43 @@
+{
+  "curriculum": "cbse-class-9",
+  "subjectId": "mathematics",
+  "models": [
+    {
+      "topicId": "cg-1--understands-numbers-natural-whole-integer-rational-irrational-and-real",
+      "topicName": "Understands numbers (natural, whole, integer, rational, irrational, and real)",
+      "curriculum": "cbse-class-9",
+      "subjectId": "mathematics",
+      "chapterId": "cg-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "numbers",
+          "name": "Numbers",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "maths-ix",
+              "page": 2,
+              "quote": "Understands numbers (natural, whole, integer, rational, irrational, and real)"
+            }
+          ]
+        },
+        {
+          "id": "real-numbers",
+          "name": "Real Numbers",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "maths-ix",
+              "page": 2,
+              "quote": "Develops understanding of numbers, including the set of real numbers and its properties."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/gemma3:12b"
+    }
+  ]
+}

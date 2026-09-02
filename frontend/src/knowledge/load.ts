@@ -30,11 +30,17 @@ import { KnowledgeFile, type KnowledgeModel } from './schema'
  * belongs to decides where it lives: this is canonical content, so it lives
  * with the curriculum.
  *
+ * `cbse/**` AND NOT `**`, so unreviewed candidates never enter the bundle. They
+ * are version-controlled and checked by `gate:knowledge` -- both of which they
+ * need to be -- and they live under `candidates/`, outside this glob, because
+ * shipping a model's unread guesses to a browser is a way for them to be
+ * treated as real by accident.
+ *
  * `eager` because these are small, static, and needed the moment a canvas
  * opens: a student who has waited for a lesson should not then wait for the
  * list of what the lesson is about.
  */
-const FILES = import.meta.glob('../data/knowledge/**/*.json', {
+const FILES = import.meta.glob('../data/knowledge/cbse/**/*.json', {
   import: 'default',
   eager: true,
 }) as Record<string, unknown>

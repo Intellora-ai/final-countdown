@@ -29,6 +29,23 @@ const NOT_SOMETHING_TO_LEARN: readonly string[] = [
   'Verification of Newton’s Second Law of Motion using a trolley, pulley and hanging masses. Ch. 6',
   'Draw the ‘Label’ of your product',
   'Observe developmental norms: (Physical, Motor, Language, Social and Emotional) birth to three years',
+  /* FOUND BY RUNNING THE GENERATOR, 2026-09-03. Twenty topics went through a
+     real model and these came back with a straight face: "30 Marks" decomposed
+     into Practical/Project, Viva and Project Evaluation Parameters; a reading
+     comprehension format decomposed into Word Count and Marks Allocation. They
+     are assessment schemes, not ideas, and a canvas offering to teach one is
+     offering to teach a mark sheet. */
+  '30 Marks',
+  'Practical/ Project: 30 Marks',
+  'Discursive passage of 400-450 words. 10 marks',
+  'Theory: 70 Marks',
+  /* And these are sentence fragments the PDF broke apart. "whose first term is
+     -3 and common difference is 4" is the tail of an example; asked what is
+     inside it, the model dutifully produced "First Term" and "Common
+     Difference", which are real ideas about a topic that is not there. */
+  'whose first term is –3 and common difference is 4',
+  'luxury of goods and services. goods',
+  'which are defined at 0° and 90°. Values',
 ]
 
 /** Real entries that ARE things to learn. Verbatim from the curriculum. */

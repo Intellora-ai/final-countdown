@@ -1,0 +1,55 @@
+{
+  "curriculum": "cbse-class-10",
+  "subjectId": "elements-of-book-keeping-accountancy",
+  "models": [
+    {
+      "topicId": "capital-and-revenue--capital-and-revenue-receipts",
+      "topicName": "Capital and revenue receipts",
+      "curriculum": "cbse-class-10",
+      "subjectId": "elements-of-book-keeping-accountancy",
+      "chapterId": "capital-and-revenue",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "capital-and-revenue-receipts",
+          "name": "Capital and revenue receipts",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "elements-of-accountancy-x",
+              "page": 1,
+              "quote": "Capital and revenue : Capital and revenue receipts, capital and revenue expenditure and deferred revenue expenditure"
+            }
+          ]
+        },
+        {
+          "id": "capital",
+          "name": "Capital",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "elements-of-accountancy-x",
+              "page": 1,
+              "quote": "Recapitulate the meaning of the terms ‘Capital’ and ‘Revenue’"
+            }
+          ]
+        },
+        {
+          "id": "revenue",
+          "name": "Revenue",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "elements-of-accountancy-x",
+              "page": 1,
+              "quote": "Recapitulate the meaning of the terms ‘Capital’ and ‘Revenue’"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/gemma3:12b"
+    }
+  ]
+}

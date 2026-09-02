@@ -24,8 +24,12 @@ it needs to know when.
 
 - The 49 knowledge candidates in `frontend/src/data/knowledge/candidates/` —
   about 18 look right to me; none becomes `verified` without your eyes.
-- `INTELLIGENCE_MODE=shadow` → `canary` → `primary`. I hand you the
-  disagreement queue and the report; I do not flip the switch.
+- `INTELLIGENCE_MODE=shadow` → `canary` → `primary`, with
+  `INTELLIGENCE_CANARY_PERCENT`, set on the server you run (your `api` entry on
+  8787 is `off`; `api-shadow` on 8791 and `api-canary` on 8792 exist for
+  proofs). The report is `GET /api/intelligence/report` on a server whose mode
+  is not off; the disagreement queue is the `shadow_runs` table in that
+  server's database. I do not flip the switch.
 
 ## Not blockers (so they stop being asked)
 

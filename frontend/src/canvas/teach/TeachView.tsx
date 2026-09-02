@@ -27,6 +27,7 @@ import {
   type Resolution,
 } from './contract'
 import { lessonResolver } from './doubt'
+import type { SituationPort } from './situation'
 import { loadTeachProgress, saveTeachProgress } from './teachStore'
 import type { AnyResolver } from './contract'
 
@@ -78,6 +79,8 @@ export function TeachView({
   teaching: teachingLevel = 'lesson',
   ask: askPort,
   resolvers = DEFAULT_RESOLVERS,
+  situation,
+  initialDraft,
   onStruggling,
   onNeedNextPart,
 }: {
@@ -112,6 +115,14 @@ export function TeachView({
   /* The resolver chain. An injection point `CanvasRoute` supplies, and the
    * reason a web or engine resolver can be added without touching this file. */
   resolvers?: readonly AnyResolver[]
+  /* The open-loop ledger. An injection point like `ask` and `resolvers`, and
+   * optional for the same reason: this view must keep working with no server
+   * at all, and the ledger is a courtesy, never a dependency. */
+  situation?: SituationPort
+  /* Seeds the ask box ONCE, for the arrival card's "ask it again": her old
+   * question waiting in the box, hers to send or edit. Never re-applied on
+   * re-render -- the box is hers after first paint. */
+  initialDraft?: string
   /* Called ONCE, the moment the learner's own turns show they are struggling.
    * Depth is added when they ask for it and automatically when their answers
    * show a gap; this is the automatic half. Nothing on screen ever says
@@ -195,7 +206,7 @@ export function TeachView({
   /* How many beats have been revealed — never rendered, only sliced with. */
   const [revealed, setRevealed] = useState(() => restored.current?.revealed ?? 1)
   const [asked, setAsked] = useState<Asked[]>(() => restored.current?.asked ?? [])
-  const [draft, setDraft] = useState(() => restored.current?.draft ?? '')
+  const [draft, setDraft] = useState(() => restored.current?.draft ?? initialDraft ?? '')
   const [announcement, setAnnouncement] = useState('')
   /* Watched, never shown. Depth is added when the learner asks for it and
      automatically when their answers show a gap; nothing on screen ever says
@@ -358,6 +369,7 @@ export function TeachView({
   const answering = createAnswering({
     resolvers,
     ask: askPort ?? (async () => ({ ok: false, reason: 'no question service is configured' })),
+    ...(situation === undefined ? {} : { situation }),
   })
 
   const teaching = validated.lesson

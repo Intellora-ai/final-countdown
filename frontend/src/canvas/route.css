@@ -67,3 +67,52 @@
   letter-spacing: var(--type-label-tracking);
   text-transform: uppercase;
 }
+
+/* THE RETURN CARD. One unfinished question, shown once per arrival.
+
+   Quiet on purpose: token colours only, no accent background, no animation —
+   a reminder of a promise, not an alert. Every value is a token, per this
+   file's header and the `canvas/design-value` rule. */
+.lc-return-card {
+  margin: var(--s-md) var(--s-lg) 0;
+  padding: var(--s-md) var(--s-lg);
+  border: var(--stroke-hair) solid var(--c-line);
+  border-radius: var(--r-md);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-sm) var(--s-md);
+}
+.lc-return-card__note {
+  margin: 0;
+  color: var(--c-ink-faint);
+  font-size: var(--type-label-size);
+  letter-spacing: var(--type-label-tracking);
+  text-transform: uppercase;
+}
+.lc-return-card__question {
+  margin: 0;
+  color: var(--c-ink);
+  /* Her words can be long; they wrap rather than clip, and the card grows. */
+  overflow-wrap: anywhere;
+}
+.lc-return-card button {
+  background: none;
+  border: var(--stroke-hair) solid var(--c-line);
+  border-radius: var(--r-md);
+  color: var(--c-ink-muted);
+  font: inherit;
+  font-size: var(--type-label-size);
+  letter-spacing: var(--type-label-tracking);
+  text-transform: uppercase;
+  padding: var(--s-sm) var(--s-md);
+  cursor: pointer;
+}
+.lc-return-card button:hover {
+  color: var(--c-ink);
+  border-color: var(--c-line-strong);
+}
+.lc-return-card button:focus-visible {
+  outline: var(--stroke-thin) solid var(--c-accent);
+  outline-offset: var(--s-xs);
+}

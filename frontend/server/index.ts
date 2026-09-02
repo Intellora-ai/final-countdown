@@ -35,6 +35,7 @@ import type { Readable } from 'node:stream'
 
 import { createHandler, type ModelPort, type OpenWebReply, type SearchPort } from './handler.ts'
 import { searchTheOpenWeb } from './openweb.ts'
+import { openLoops, type OpenLoops } from './openLoops.ts'
 import { MemoryCache } from '../src/websearch/gather.ts'
 import { resolveIdentitySecret } from './identity.ts'
 import { createModel } from './model.ts'
@@ -97,6 +98,8 @@ export interface ServerOptions {
   readonly search: SearchPort
   /** The open-web pipeline behind /api/search. See `HandlerOptions.openWeb`. */
   readonly openWeb?: (requestBody: string) => Promise<OpenWebReply>
+  /** The open-loop ledger behind /api/situation. See `HandlerOptions.loops`. */
+  readonly loops?: OpenLoops
   readonly almanac?: Ledger
   /** The canvas's memory. Absent means /api/memory answers 503, never a guess. */
   readonly memory?: CanvasMemory
@@ -176,6 +179,7 @@ export function createServer(options: ServerOptions): Server {
     model: options.model,
     search: options.search,
     ...(options.openWeb === undefined ? {} : { openWeb: options.openWeb }),
+    ...(options.loops === undefined ? {} : { loops: options.loops }),
     ...(options.almanac === undefined ? {} : { almanac: options.almanac }),
     ...(options.memory === undefined ? {} : { memory: options.memory }),
     ...(options.explanations === undefined ? {} : { explanations: options.explanations }),
@@ -420,6 +424,10 @@ function main(): void {
   const memoryStore = sqliteMemoryStore(memoryPath)
   const memory = canvasMemory({ store: memoryStore })
   const explanations = explanationsIn(memoryStore)
+  /* The open-loop ledger rides the SAME store, for the same reason
+   * `explanations` does: one durable file, one atomic `update`, no second
+   * engine to re-prove. See `openLoops.ts` for what a loop is. */
+  const loops = openLoops(memoryStore)
   /* One shelf of written lessons, shared by every learner. See `memory/lessons.ts`. */
   /*
    * THE RECIPE, DERIVED RATHER THAN DECLARED.
@@ -515,7 +523,7 @@ function main(): void {
     : { secret: configuredSecret, generated: false }
   const identitySecret = resolved.secret
 
-  const server = createServer({ model, search, openWeb, almanac, memory, explanations, lessons, aliases, identitySecret, secrets })
+  const server = createServer({ model, search, openWeb, loops, almanac, memory, explanations, lessons, aliases, identitySecret, secrets })
   server.listen(port, host, () => {
     console.log(`almanac server listening on http://${host}:${port}`)
     console.log(`  memory: ${memoryPath} (sqlite, safe for many servers)`)

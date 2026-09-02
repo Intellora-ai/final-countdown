@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import type { AnyResolver } from './teach/contract'
 import { lessonResolver } from './teach/doubt'
 import { engineResolver } from './teach/engineResolver'
 import { webResolver, type SearchResult } from './teach/webResolver'
+import { fetchOpenLoops, situationClient, type OpenLoop } from './teach/situation'
 import { modelResolver } from './teach/modelResolver'
 import { cssVariables } from './design/tokens'
 import { billBecomesLaw } from './lessons/billBecomesLaw'
@@ -432,6 +433,20 @@ export default function CanvasRoute({
      Null until they ask for one; once set it replaces the picked lesson, and
      clearing it hands the picker back. */
   const [topic, setTopic] = useState('')
+
+  /* THE OPEN LOOPS THIS STUDENT HOLDS, fetched once on arrival. The ledger is
+     a courtesy: every failure shape (no server, 503, junk) arrives as []. */
+  const situation = useMemo(() => situationClient(), [])
+  const [openLoops, setOpenLoops] = useState<readonly OpenLoop[]>([])
+  useEffect(() => {
+    let mounted = true
+    void fetchOpenLoops().then((loops) => {
+      if (mounted) setOpenLoops(loops)
+    })
+    return () => {
+      mounted = false
+    }
+  }, [])
   const [authored, setAuthored] = useState<Lesson | null>(null)
   /*
    * AT WHAT LEVEL THE AUTHORED LESSON WAS JUDGED, CARRIED RATHER THAN GUESSED.
@@ -666,6 +681,8 @@ export default function CanvasRoute({
           setAuthoredLevel(written.teaching)
           setTurn(written.turn)
           setAuthored(written.lesson)
+          /* The debt for this question, if any, is settled by a real lesson. */
+          situation.resolved(question)
         } else if ('clarify' in written) {
           /* A QUESTION BACK IS NOT A REFUSAL. `controller.ts` chose
              ASK_CLARIFICATION -- it could not tell what was wanted and said so.
@@ -677,6 +694,8 @@ export default function CanvasRoute({
         } else {
           setAuthored(null)
           setAuthorFailed(written.issues)
+          /* She asked, the gate refused every draft: the product owes her. */
+          situation.opened({ question, lesson: '', stalled: 'refused' })
         }
         return
       }
@@ -778,13 +797,17 @@ export default function CanvasRoute({
          */
         setTurn(tutorTurnFrom({ checkpoint: written.concept.checkpoint, next: written.concept.next }))
         setAuthored(written.lesson)
+        situation.resolved(question)
       } else {
         setAuthored(null)
         setAuthorFailed(written.issues)
+        situation.opened({ question, lesson: '', stalled: 'refused' })
       }
     } catch (e) {
       setAuthored(null)
       setAuthorFailed([{ path: '(model)', message: e instanceof Error ? e.message : String(e) }])
+      /* Nothing could be reached; `chain.ts`'s own distinction, kept here. */
+      situation.opened({ question, lesson: '', stalled: 'failed' })
     } finally {
       setAuthoring(false)
     }
@@ -1061,6 +1084,50 @@ export default function CanvasRoute({
         </div>
       </div>
 
+      {/*
+        THE RETURN CARD: one unfinished question, waiting where she left it.
+
+        `askChain` ends some questions with an honest refusal and the product
+        used to forget them on the next visit. The server now remembers
+        (`/api/situation`), and this is the whole of how that memory reaches
+        her: ONE quiet card, on arrival, showing HER OWN words, with one
+        button that asks the question again through the same authoring path,
+        the same gate and the same history as anything typed by hand. Nothing
+        pings, nothing nags — resolved, it never returns; unresolved, it waits
+        for her NEXT arrival, not her next click.
+
+        Hidden while she is authoring or once she has begun asking, because a
+        card about yesterday's question must never sit on top of today's.
+      */}
+      {openLoops.length > 0 && openLoops[0] !== undefined && !authoring && !askedForATopic && (
+        <div className="lc-return-card">
+          <p className="lc-return-card__note">
+            Last time, this question was left without an answer:
+          </p>
+          <p className="lc-return-card__question">{openLoops[0].question}</p>
+          <button
+            type="button"
+            onClick={() => {
+              const owed = openLoops[0]
+              if (owed === undefined) return
+              /* Cleared for THIS visit before asking: if the ask fails again
+                 the server re-records it and the card returns next arrival —
+                 "never nags twice" is a promise about a sitting, kept here. */
+              setOpenLoops([])
+              /* HER WORDS GO INTO THE BOX, not only into the request. The
+                 writing header renders the topic, refusals deliberately never
+                 echo her words (M7), and the box is hers to edit and resend —
+                 so the box is the one honest place her question stays visible
+                 while it is being asked again. */
+              setTopic(owed.question)
+              void askForALesson(owed.question)
+            }}
+          >
+            Ask it again
+          </button>
+        </div>
+      )}
+
       {authorFailed !== null && (
         <div className="lc-refusal" role="alert">
           <h2>That lesson was refused</h2>
@@ -1179,6 +1246,7 @@ export default function CanvasRoute({
             teaching={onStage.teaching}
             mode={mode}
             resolvers={resolvers}
+            situation={situation}
             onNeedNextPart={needNextPart}
           />
         ) : (

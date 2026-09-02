@@ -42,6 +42,7 @@ import type { Source } from '../src/canvas/teach/grounding.ts'
 import { chooseStrategy, type Strategy } from './teaching.ts'
 import { subjectsFor, SUPPORTED_CLASSES, type SchoolClass } from './almanac/curriculum.ts'
 import type { Ledger } from './almanac/ledger.ts'
+import type { OpenLoops } from './openLoops.ts'
 import {
   IDENTITY_COOKIE,
   identityCookie,
@@ -156,6 +157,12 @@ export interface HandlerOptions {
    * real `searchTheOpenWeb`; tests inject fakes.
    */
   readonly openWeb?: (requestBody: string) => Promise<OpenWebReply>
+  /**
+   * The open-loop ledger behind /api/situation. Absent means the route answers
+   * 503 and the canvas simply shows no card -- the same honest degradation as
+   * `memory` and `almanac`.
+   */
+  readonly loops?: OpenLoops
   /** Almanac's memory. Absent means the day routes answer 503, never a guess. */
   readonly almanac?: Ledger
   /** The canvas's memory. Absent means /api/memory answers 503, never a guess. */
@@ -291,7 +298,7 @@ async function askWithinBudget(model: ModelPort, request: LessonRequest): Promis
 /** 256 KB is far above any real request and far below anything that hurts. */
 const DEFAULT_MAX_BODY_BYTES = 256 * 1024
 
-const ROUTES = new Set(['/api/lesson', '/api/ask', '/api/search', '/api/day', '/api/done', '/api/health', '/api/memory'])
+const ROUTES = new Set(['/api/lesson', '/api/ask', '/api/search', '/api/day', '/api/done', '/api/health', '/api/memory', '/api/situation'])
 
 /* The one route that answers a GET.
  *
@@ -1733,6 +1740,57 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       }
 
       return reply(405, { error: 'memory is read with GET and written with PUT' })
+    }
+
+    if (req.path === '/api/situation') {
+      /* THE SITUATION DOCUMENT: what this student's visit should know on
+       * arrival. Today that is her open loops -- the questions this product
+       * still owes an answer -- served under the same identity rule as
+       * /api/memory: `who` came from a signature this server produced, and the
+       * caller gets no say in whose situation it reads or writes. */
+      if (options.loops === undefined) {
+        return reply(503, { error: 'the situation is not configured on this server' })
+      }
+
+      if (req.method === 'GET') {
+        return reply(200, { openLoops: options.loops.list(who.studentId) })
+      }
+
+      if (req.method === 'PUT') {
+        if (!isPlainObject(req.body)) {
+          return reply(400, { error: 'body must be a JSON object' })
+        }
+        const asked = req.body
+        const question = asked['question']
+        if (typeof question !== 'string' || question.trim() === '') {
+          return reply(400, { error: 'question is required' })
+        }
+
+        if (asked['resolved'] === true) {
+          options.loops.close(who.studentId, question)
+          return reply(200, { closed: true })
+        }
+
+        const stalled = asked['stalled']
+        if (stalled !== 'refused' && stalled !== 'failed') {
+          /* The chain's own two words, and only those. Anything else is a
+           * caller inventing a third state this ledger would then have to
+           * mean something by. */
+          return reply(400, { error: "stalled must be 'refused' or 'failed'" })
+        }
+        options.loops.open(
+          who.studentId,
+          {
+            question,
+            lesson: typeof asked['lesson'] === 'string' ? asked['lesson'] : '',
+            stalled,
+          },
+          new Date().toISOString(),
+        )
+        return reply(200, { opened: true })
+      }
+
+      return reply(405, { error: 'the situation is read with GET and written with PUT' })
     }
 
     if (req.method !== 'POST') {

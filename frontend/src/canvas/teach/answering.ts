@@ -23,6 +23,7 @@ import type { Lesson } from '../spec/spec'
 import type { AnyResolver, Doubt } from './contract'
 import { askChain } from './chain'
 import { readableText } from '../spec/readable'
+import type { SituationPort } from './situation'
 
 /** The single soft line that invites the learner back. Never a reprimand, and
  *  never more than once. */
@@ -161,8 +162,48 @@ export function createAnswering(options: {
   ask: AskPort
   /** The whole-answer deadline. See `DEFAULT_ANSWER_TIMEOUT_MS`. */
   askTimeoutMs?: number
+  /**
+   * The open-loop ledger, when the route serves one. Every ending below is
+   * reported: a real answer settles any debt for this question, and an ending
+   * that gave her no answer records one. Absent means no ledger, and nothing
+   * about answering changes -- the ledger is a courtesy, never a dependency.
+   */
+  situation?: SituationPort
 }) {
   const deadlineMs = options.askTimeoutMs ?? DEFAULT_ANSWER_TIMEOUT_MS
+
+  /**
+   * Which endings are a kept promise and which are a debt.
+   *
+   * The mapping reads `from` the way `TeachView` renders it:
+   *   'model'                       -> a real general answer. Settled.
+   *   'lesson' WITH a resolution    -> the chain answered. Settled.
+   *   'lesson' without one          -> the chain's refusal sentence: she was
+   *                                    answered politely, not actually. Owed,
+   *                                    as 'refused'.
+   *   'unavailable'                 -> nothing could be reached. Owed, as
+   *                                    'failed', which is `chain.ts`'s own
+   *                                    distinction between "no answer" and
+   *                                    "could not go and look".
+   *
+   * Errors in the ledger call are swallowed where the port was built; a throw
+   * here must never cost a learner the answer she just received.
+   */
+  function report(doubt: Doubt, lesson: Lesson, answered: Answered): void {
+    const ledger = options.situation
+    if (ledger === undefined) return
+    try {
+      if (answered.from === 'model' || (answered.from === 'lesson' && answered.resolution !== undefined)) {
+        ledger.resolved(doubt.text)
+      } else if (answered.from === 'unavailable') {
+        ledger.opened({ question: doubt.text, lesson: lesson.question, stalled: 'failed' })
+      } else {
+        ledger.opened({ question: doubt.text, lesson: lesson.question, stalled: 'refused' })
+      }
+    } catch {
+      /* The courtesy failed; the answer stands. */
+    }
+  }
 
   return {
     async answer(doubt: Doubt, lesson: Lesson): Promise<Answered> {
@@ -186,7 +227,9 @@ export function createAnswering(options: {
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), deadlineMs)
       try {
-        return await answerWithin(doubt, lesson, controller.signal)
+        const answered = await answerWithin(doubt, lesson, controller.signal)
+        report(doubt, lesson, answered)
+        return answered
       } finally {
         /* On every path, including a throw. A live timer would keep the process
            awake and, in a test, outlive the case that created it. */

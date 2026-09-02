@@ -101,14 +101,20 @@ class TestWhichCommandsAreTestRunsAndWhichAreVerification:
         "command",
         [
             "ruff check scripts tests", ".venv/bin/pyright scripts", "npx tsc --noEmit -p tsconfig.json",
-            "npm run typecheck", "npm run lint", "mypy --strict src", "pytest -q",
+            "npm run typecheck", "npm run lint", "mypy --strict src", "python3 -m mypy src",
+            "learning-os/.venv/bin/mypy --strict src", "bandit -r src",
         ],
     )
-    def test_verification_commands_are_recognised(self, command: str) -> None:
+    def test_static_verification_commands_are_recognised(self, command: str) -> None:
         assert looks_like_verification(command) is True
 
-    @pytest.mark.parametrize("command", ["git push origin codex", "grep -rn lint README.md", "npm run dev"])
-    def test_non_verification_commands_are_not(self, command: str) -> None:
+    @pytest.mark.parametrize(
+        "command",
+        ["git push origin codex", "grep -rn lint README.md", "npm run dev", "pytest -q", "npx vitest run"],
+    )
+    def test_test_runs_and_other_commands_are_not_static_verification(self, command: str) -> None:
+        """A test run is evidence of behaviour and is judged by the GREEN rule;
+        verification here means the static half: types and lint."""
         assert looks_like_verification(command) is False
 
 

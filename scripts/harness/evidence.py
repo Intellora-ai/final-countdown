@@ -133,11 +133,14 @@ def looks_like_test_command(command: str) -> str | None:
     return None
 
 
-_VERIFIERS = {"ruff", "pyright", "mypy", "tsc", "eslint", "pytest", "vitest", "playwright", "bandit"}
-_NPM_VERIFY_SCRIPTS = re.compile(r"^(typecheck|lint|test).*")
+_VERIFIERS = {"ruff", "pyright", "mypy", "tsc", "eslint", "bandit"}
+_NPM_VERIFY_SCRIPTS = re.compile(r"^(typecheck|lint)")
 
 
 def looks_like_verification(command: str) -> bool:
+    """A STATIC check -- types or lint. Test runs are evidence of behaviour and
+    are judged by the green/red rules, so they are deliberately not here: a
+    second pytest run must not stand in for ruff or pyright."""
     for tokens in _executables(command):
         head, rest = tokens[0], tokens[1:]
         if head in _VERIFIERS:

@@ -58,6 +58,26 @@ function shorten(name) {
 }
 
 /**
+ * Repository-relative, always: the only path a `file=` property can carry.
+ *
+ * `shorten` is for a reader and leaves alone what it does not recognise, so a
+ * `server/` file keeps the runner's absolute path. GitHub resolves `file=`
+ * from the repository root, and an absolute path there -- or `frontend/`
+ * glued onto the front of one, which is what the first version did -- attaches
+ * the annotation to nothing. Three shapes: the runner's absolute path, cut at
+ * the package root; a path already relative to the package, given the package;
+ * anything else as it came, because a guessed prefix names a file that is not
+ * there.
+ */
+function repoRelative(name) {
+  const path = String(name ?? '')
+  const at = path.indexOf('/frontend/')
+  if (at !== -1) return path.slice(at + 1)
+  if (/^(src|scripts|server)\//.test(path)) return `frontend/${path}`
+  return path
+}
+
+/**
  * Every failure the report actually names.
  *
  * BOTH SHAPES, because vitest has two and only one of them has assertions in
@@ -77,18 +97,61 @@ function failures(report) {
       if (assertion.status !== 'failed') continue
       named += 1
       out.push({
+        file: file.name,
         what: `${where}: ${assertion.fullName ?? assertion.title ?? '(unnamed test)'}`,
         why: (assertion.failureMessages ?? []).map(headline),
       })
     }
     if (named === 0 && file.status === 'failed') {
       out.push({
+        file: file.name,
         what: `${where}: the file failed before any test in it ran`,
         why: [headline(file.message)],
       })
     }
   }
   return out
+}
+
+/**
+ * The same evidence as `notGreenEvidence`, as GitHub workflow commands.
+ *
+ * WHY. `notGreenEvidence` names the failing test, the file and the assertion
+ * -- and writes them to stdout, which on CI is a job log only an admin can
+ * open. Measured across four runs (shard 2/8 three times, shard 6/8 once):
+ * every reader with less than admin saw one sentence, "The suite is not
+ * green before mutating", and no test name. A `::error` line on stdout is
+ * turned into an annotation on the run by GitHub itself, visible to anyone
+ * who can see the run. Same facts, second channel; nothing is decided here.
+ *
+ * Escaped per GitHub's workflow-command rules: `%`, `\r`, `\n` in every
+ * value, plus `:` and `,` inside a property. Unescaped, a message with a
+ * comma in it silently truncates the annotation.
+ */
+export function notGreenAnnotations(report, output) {
+  const data = (text) => String(text).replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A')
+  const prop = (text) => data(text).replace(/:/g, '%3A').replace(/,/g, '%2C')
+  if (report === null || report === undefined) {
+    const printed = tail(output).trim()
+    return [
+      '::error title=baseline not green::vitest produced no JSON report, so the run was killed or '
+      + 'died before a reporter could write.'
+      + (printed === '' ? '' : ` It printed: ${data(printed.slice(-800))}`),
+    ]
+  }
+  const named = failures(report)
+  if (named.length === 0) {
+    return [
+      '::error title=baseline not green::the run reported no failing test, so the suite was '
+      + 'refused for something other than an assertion (an unhandled rejection, or a reporter '
+      + 'that threw after the tests passed).',
+    ]
+  }
+  return named.map((failure) => {
+    const why = failure.why[0] ?? ''
+    return `::error file=${prop(repoRelative(failure.file))},title=baseline not green::${data(failure.what)}`
+      + (why === '' ? '' : ` — ${data(why.slice(0, 700))}`)
+  })
 }
 
 /**

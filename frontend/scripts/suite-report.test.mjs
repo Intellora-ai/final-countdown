@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { notGreenEvidence } from './suite-report.mjs'
+import { notGreenAnnotations, notGreenEvidence } from './suite-report.mjs'
 
 /*
  * THE MESSAGE THAT NAMED NOTHING.
@@ -174,5 +174,158 @@ describe('the evidence a red baseline leaves behind', () => {
     expect(said).toContain('the last line')
     expect(said).not.toContain('line 0\n')
     expect(said.split('\n').length).toBeLessThan(80)
+  })
+})
+
+describe('the same evidence as workflow-command annotations', () => {
+  /* WHY THESE EXIST. Four red mutation shards showed a reader without the job
+     log exactly one sentence. The annotations are the second channel for the
+     names `notGreenEvidence` already had; these prove the channel carries
+     them, and carries them intact past GitHub's own escaping rules. */
+
+  /** Where GitHub's runner checks the repository out, as vitest writes it. */
+  const root = '/home/runner/work/final-countdown/final-countdown/frontend'
+
+  /** The `file=` property of one annotation, read the way GitHub reads it. */
+  function fileProperty(line) {
+    const found = line.match(/^::error file=([^,]*),title=baseline not green::/)
+    return found === null ? null : found[1]
+  }
+
+  /** A report with exactly one failing test, in the named file. */
+  function reportFor(name) {
+    return {
+      numFailedTests: 1,
+      testResults: [fileWithFailures(name, [{ title: 't > fails', message: 'Error: no' }])],
+    }
+  }
+
+  const report = {
+    numFailedTests: 2,
+    testResults: [
+      {
+        name: `${root}/server/memory/m4-consistency.test.ts`,
+        status: 'failed',
+        assertionResults: [
+          {
+            status: 'failed',
+            fullName: 'M4 · a busy database is a queue > stores the next student\'s work',
+            failureMessages: ['AssertionError: expected 1 to be greater than or equal to 500\n    at x.ts:1'],
+          },
+          { status: 'passed', fullName: 'M4 · something fine', failureMessages: [] },
+        ],
+      },
+      {
+        name: `${root}/src/canvas/teach/anyTopic.test.ts`,
+        status: 'failed',
+        assertionResults: [
+          {
+            status: 'failed',
+            fullName: 'any topic, with a comma: colon',
+            failureMessages: ['Error: 100% wrong, twice\n    at Object.<anonymous> (stack.ts:4:2)'],
+          },
+        ],
+      },
+    ],
+  }
+
+  it('emits one ::error per failing test, on its repository-relative file, with the test name and the first line', () => {
+    const lines = notGreenAnnotations(report, '')
+
+    expect(lines).toHaveLength(2)
+    /* `server/` is the root `shorten` does not know, so this is the path that
+       came out as `frontend//home/runner/...` -- a file GitHub cannot find. */
+    expect(fileProperty(lines[0])).toBe('frontend/server/memory/m4-consistency.test.ts')
+    expect(lines[0]).toContain('stores the next student\'s work')
+    expect(lines[0]).toContain('expected 1 to be greater than or equal to 500')
+    /* First line only: the stack frame is the log's business. */
+    expect(lines[0]).not.toContain('at x.ts')
+    /* The test that PASSED in the same file is not an annotation. */
+    expect(lines[0]).not.toContain('something fine')
+  })
+
+  it('escapes what would otherwise truncate or break the command', () => {
+    const [, second] = notGreenAnnotations(report, '')
+
+    /* One command is one line. A raw newline anywhere ends it early. */
+    expect(second).not.toMatch(/[\r\n]/)
+    /* `%` first, or the escapes themselves get decoded twice. */
+    expect(second).toContain('Error: 100%25 wrong, twice')
+    expect(second).not.toContain('100% wrong')
+    /* The stack frame is not the first line, so it is not here. */
+    expect(second).not.toContain('stack.ts')
+    /* In the MESSAGE a comma and a colon mean nothing, and escaping them there
+       would show a reader `%2C` in the name of the test. */
+    expect(second).toContain('any topic, with a comma: colon')
+    /* In the PROPERTY they would end it. */
+    expect(fileProperty(second)).toBe('frontend/src/canvas/teach/anyTopic.test.ts')
+  })
+
+  it('escapes a comma, a colon or a percent inside the file property, and a newline in a name', () => {
+    const [odd] = notGreenAnnotations(reportFor(`${root}/src/a,b:c%.test.ts`), '')
+    expect(fileProperty(odd)).toBe('frontend/src/a%2Cb%3Ac%25.test.ts')
+
+    /* A template-literal title can hold a newline; encoded, it stays on the line. */
+    const tall = {
+      numFailedTests: 1,
+      testResults: [fileWithFailures(`${root}/src/a.test.ts`, [{ title: 'first\nsecond', message: 'Error: no' }])],
+    }
+    const [named] = notGreenAnnotations(tall, '')
+    expect(named).not.toMatch(/\n/)
+    expect(named).toContain('first%0Asecond')
+  })
+
+  it('puts the file where GitHub can find it, from wherever the runner checked out', () => {
+    const at = (name) => fileProperty(notGreenAnnotations(reportFor(name), '')[0])
+
+    /* The runner's absolute path, which is what vitest's reporter writes. */
+    expect(at(`${root}/server/memory/m4-consistency.test.ts`)).toBe('frontend/server/memory/m4-consistency.test.ts')
+    expect(at(`${root}/src/canvas/teach/anyTopic.test.ts`)).toBe('frontend/src/canvas/teach/anyTopic.test.ts')
+    expect(at(`${root}/scripts/mutation-gate.test.mjs`)).toBe('frontend/scripts/mutation-gate.test.mjs')
+    /* Already short, as a report written from inside `frontend/` names them. */
+    expect(at('src/a.test.ts')).toBe('frontend/src/a.test.ts')
+    expect(at('server/x.test.ts')).toBe('frontend/server/x.test.ts')
+    expect(at('scripts/y.test.mjs')).toBe('frontend/scripts/y.test.mjs')
+    /* Anything else passes through: a guessed prefix names a file that is not there. */
+    expect(at('elsewhere/z.test.ts')).toBe('elsewhere/z.test.ts')
+  })
+
+  it('attaches a file that failed before any test in it ran to that file', () => {
+    const broken = {
+      numFailedTests: 0,
+      testResults: [{
+        name: `${root}/server/broken.test.ts`,
+        status: 'failed',
+        message: 'Error: Cannot find module ./gone\n    at load',
+        assertionResults: [],
+      }],
+    }
+    const [only] = notGreenAnnotations(broken, '')
+
+    expect(fileProperty(only)).toBe('frontend/server/broken.test.ts')
+    expect(only).toContain('failed before any test in it ran')
+    expect(only).toContain('Cannot find module ./gone')
+    expect(only).not.toContain('at load')
+  })
+
+  it('still says something, on one line, when vitest wrote no report at all', () => {
+    const [only] = notGreenAnnotations(null, 'some noise\r\nthe last line')
+
+    expect(only).toMatch(/^::error title=baseline not green::/)
+    expect(only).toContain('no JSON report')
+    /* What was printed has many lines; the command that repeats it has one.
+       This is the branch where `\r` and `\n` actually reach the encoder: a
+       failure's first line never holds one, the console tail always does. */
+    expect(only).not.toMatch(/[\r\n]/)
+    expect(only).toContain('some noise%0D%0Athe last line')
+  })
+
+  it('names the one shape that has no failing test to name', () => {
+    const green = { numFailedTests: 0, testResults: [{ name: `${root}/src/a.test.ts`, status: 'passed', assertionResults: [] }] }
+    const [only] = notGreenAnnotations(green, 'Unhandled Rejection')
+
+    expect(only).toMatch(/^::error title=baseline not green::/)
+    expect(only).toMatch(/no failing test/i)
+    expect(only).not.toContain('a.test.ts')
   })
 })

@@ -286,7 +286,15 @@ export async function sheStartsFresh(page: Page, where = '/'): Promise<void> {
   await page.evaluate(() => {
     try { localStorage.clear() } catch { /* a private window has none */ }
     try { sessionStorage.clear() } catch { /* nor this */ }
-  }).catch(() => {})
+  })
+  /* AND THE COOKIES, which is where the server keeps who she is. This helper
+     cleared storage only, and that was a complete clean machine for as long
+     as the laws ran against no server. With a real server behind the proxy
+     the identity lives in an HttpOnly cookie no page script can clear, so
+     "a different child" still carried the first child's signed identity --
+     and Law G measured exactly that: her unanswered question shown to the
+     next child, in every browser, on run 33606201542. */
+  await page.context().clearCookies().catch(() => {})
   /* NOT `page.reload()`. WebKit on a loaded runner answers reload with
    * "WebKit encountered an internal error" -- the safari leg's only failure,
    * annotated at exactly this line. A hop through about:blank and back forces

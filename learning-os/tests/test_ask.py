@@ -486,6 +486,7 @@ def test_a_failed_generation_names_the_rules_the_draft_broke(
     from learning_os.session.doubt import DoubtOutcome, Resolution
 
     broke = MagicMock(spec=Turn)
+    broke.cause = ""
     broke.violations = (
         Violation(kind=ViolationKind.UNKNOWN_BLOCK_KIND, detail="block 1 is a 'figure'"),
         Violation(kind=ViolationKind.MISSING_REQUIRED_TERM, detail="never says 'pressure'"),
@@ -504,6 +505,7 @@ def test_a_failed_generation_names_the_rules_the_draft_broke(
     ], result
 
     clean = MagicMock(spec=Turn)
+    clean.cause = ""
     clean.violations = ()
 
     def _failed_without_reasons(*_args: Any, **_kwargs: Any) -> Resolution:

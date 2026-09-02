@@ -225,9 +225,28 @@ def step_sends_whitespace(context) -> None:
 
 @when("they all ask at the same moment")
 def step_all_at_once(context) -> None:
+    # THE BURST RUNS ON THE OFFLINE PROVIDER, WHATEVER THE SUITE IS CONFIGURED
+    # WITH, AND THE NUMBER THAT DECIDED IT IS ON THE RUN.
+    #
+    # This scenario is about twelve processes at once: every student answered,
+    # nobody handed another student's lesson. Nothing in it is about which
+    # model wrote the words. Under a live provider it was twelve requests in
+    # one instant, each retried up to twice -- and on CI run 33606201542 the
+    # receipt printed the service's own answer to that: `429 RESOURCE_EXHAUSTED
+    # ... generate_content_free_tier_requests, limit: 20, model:
+    # gemini-2.5-flash, please retry in 59s`. A burst of up to thirty-six calls
+    # against a ceiling of twenty a minute cannot pass, and the two single-ask
+    # scenarios that ARE about the model were being starved by it.
+    #
+    # So the class asks the deterministic fake. The isolation proof is
+    # unchanged -- the fake is the same shipped provider, in the same shipped
+    # process, over the same stdin and stdout -- and the live receipt is left
+    # to the scenarios that ask one question and mean it.
     def one(item: tuple[str, str]) -> tuple[str, str, int, str, str]:
         learner, question = item
-        code, out, err = _ask(question, learner=learner)
+        code, out, err = _ask(
+            question, learner=learner, extra_env={"LEARNING_OS_LLM_PROVIDER": "fake"}
+        )
         return learner, question, code, out, err
 
     with ThreadPoolExecutor(max_workers=8) as pool:

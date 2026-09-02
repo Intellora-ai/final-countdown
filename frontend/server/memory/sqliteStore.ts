@@ -175,10 +175,34 @@ function takeTheWriteLock(db: DatabaseSync): void {
   const giveUpAt = Date.now() + A_WRITE_LOCK_IS_RETRIED_FOR_MS
   let pause = 1
   for (;;) {
+    /* A DEFERRED BEGIN, THEN A WRITE THAT TOUCHES NO ROW -- NOT `BEGIN IMMEDIATE`.
+     *
+     * MEASURED THREE TIMES ON CI (runs 33596355320, 33596363576, 33606201542):
+     * `BEGIN IMMEDIATE` against a child process writing the same file in a
+     * hot loop came back "database is locked" -- with `busy_timeout` set, with
+     * a five-second retry, and with a fifteen-second jittered retry. In the
+     * same runs the compare-and-swap version of `update()` -- single guarded
+     * INSERT/UPDATE statements, no explicit transaction -- never starved once.
+     * The difference is WHICH code path asks for the lock: a write STATEMENT
+     * takes the write lock through SQLite's busy handler and queues behind the
+     * other writer; the transaction-opening form is the one SQLite may refuse
+     * to run the handler for, and a refusal answered instantly is a retry loop
+     * that only ever samples the instants the other writer holds the file.
+     *
+     * So the lock is taken the way the statements that survived take it: a
+     * plain BEGIN (no lock), then an UPDATE that matches nothing and therefore
+     * changes nothing but still needs the write lock to run. From that point
+     * the transaction holds the lock exactly as it did before, across `change`,
+     * which is the contract the queue test measures. A busy answer from the
+     * probe leaves a transaction open, so it is rolled back before the pause;
+     * a transaction left open across the retry would be the deadlock this is
+     * built to avoid. */
     try {
-      db.exec('BEGIN IMMEDIATE')
+      db.exec('BEGIN')
+      db.exec("UPDATE canvas_memory SET updated_at = updated_at WHERE memory_key = ''")
       return
     } catch (thrown) {
+      try { db.exec('ROLLBACK') } catch { /* nothing was open */ }
       const code = (thrown as { errcode?: unknown }).errcode
       if (code !== SQLITE_BUSY && code !== SQLITE_LOCKED) throw thrown
       if (Date.now() >= giveUpAt) throw thrown

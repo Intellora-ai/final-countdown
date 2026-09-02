@@ -57,7 +57,17 @@ test('law G -- the question she was refused is waiting when she returns, and pre
   ).toContain(HER_QUESTION)
 
   /* SHE COMES BACK. Same child, same machine: a reload keeps her identity,
-     which is the whole premise -- the card follows the person, not the tab. */
+     which is the whole premise -- the card follows the person, not the tab.
+
+     THROUGH A BLANK PAGE FIRST, AND THE REASON IS A MEASUREMENT. `goto` to the
+     URL she is already on differs only in the hash, and a browser treats that
+     as a same-document navigation: nothing reloads, nothing remounts, and the
+     canvas keeps every bit of the state her ask left behind -- "she has asked
+     in this sitting" included, which is exactly the state that hides the card
+     for the rest of a sitting. Five red runs (up to 33606201542) said only
+     "element(s) not found"; the other edge of this law painted the card fine
+     for a child who arrived by a real load. Coming back is a real load. */
+  await page.goto('about:blank')
   await sheOpensTheApp(page, '/#/canvas')
 
   const card = page.locator('.lc-return-card')

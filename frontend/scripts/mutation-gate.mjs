@@ -82,7 +82,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { isScopedKill } from './mutation-verdict.mjs'
-import { notGreenEvidence } from './suite-report.mjs'
+import { notGreenAnnotations, notGreenEvidence } from './suite-report.mjs'
 
 /* CRASH SAFETY, because this tool edits real source files in the working tree.
  *
@@ -1233,6 +1233,12 @@ if (!base || base.numFailedTests > 0) {
    * for the failure that argued for it: a red shard whose entire evidence was
    * the sentence above, on a suite three other shards found green. */
   process.stdout.write(notGreenEvidence(base ?? null, baselineConsole))
+  /* AND AS ANNOTATIONS, so a reader without the job log gets the same names.
+   * Approved by the repository owner on 2026-09-02, after four red shards
+   * whose only visible evidence was the sentence above. */
+  for (const line of notGreenAnnotations(base ?? null, baselineConsole)) {
+    process.stdout.write(`${line}\n`)
+  }
   process.exit(1)
 }
 /*

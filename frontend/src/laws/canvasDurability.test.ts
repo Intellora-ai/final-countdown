@@ -516,9 +516,9 @@ describe('THE GATE -- code decides when no brain is needed, and the shadow recor
     })
     const runs = server.runsKept().slice(before)
     expect(runs).toHaveLength(1)
-    expect(runs[0]?.run?.gate.path).toBe(0)
+    expect(runs[0]?.run?.gate?.path).toBe(0)
     expect(runs[0]?.run?.live).toEqual({ did: 'asked', status: 200 })
-    expect(runs[0]?.run?.candidate).toEqual({ ok: 'skipped', because: runs[0]?.run?.gate.because })
+    expect(runs[0]?.run?.candidate).toEqual({ ok: 'skipped', because: runs[0]?.run?.gate?.because })
     expect(server.shadowLog.join('\n')).not.toMatch(/candidate explain/)
   })
 
@@ -529,7 +529,7 @@ describe('THE GATE -- code decides when no brain is needed, and the shadow recor
       await new Promise((r) => setTimeout(r, 20))
     })
     const run = server.runsKept().slice(before)[0]?.run
-    expect(run?.gate.path).toBe(5)
+    expect(run?.gate?.path).toBe(5)
     expect(run?.candidate.ok).toBe(true)
   })
 })

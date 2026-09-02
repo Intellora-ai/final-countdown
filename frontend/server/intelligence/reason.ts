@@ -51,7 +51,8 @@ export async function reasonAbout(input: ReasonInput): Promise<Reasoned> {
 
   const offered = input.registry.list().map((c) => {
     const a = c.available()
-    return `- ${c.name}: ${c.purpose}. ${a.ok ? 'Available.' : `NOT available here: ${a.because}.`}`
+    const cost = c.cost === 'unknown' ? 'Cost unmeasured.' : `Costs about ${c.cost.ms} ms and ${c.cost.modelCalls} model call(s), measured over ${c.cost.samples} run(s).`
+    return `- ${c.name}: ${c.purpose}. ${a.ok ? 'Available.' : `NOT available here: ${a.because}.`} ${cost}`
   })
   const system = [
     'You decide which capabilities a learning system should compose for one request. You choose only from this list; you invent nothing.',

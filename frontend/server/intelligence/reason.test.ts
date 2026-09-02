@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import { loadPlannedSubjects } from '../../src/almanac/curriculum.ts'
 import type { Understanding } from '../../src/agent/kernel/contracts.ts'
+import { costsFrom } from './cost.ts'
 import { reasonAbout, UNCLEAR_BELOW } from './reason.ts'
+import type { ListedRun, ShadowRun } from './runs.ts'
+import liveRun2 from './__fixtures__/live-run-2.json'
 import { capabilityRegistry, type Has } from './registry.ts'
 
 /**
@@ -90,6 +93,18 @@ describe('the reason seam', () => {
       expect(out.compose, JSON.stringify(reply)).toEqual([])
       expect(out.unknowns.length, JSON.stringify(reply)).toBeGreaterThan(0)
     }
+  })
+
+  it('tells the reasoner a measured cost when there is one, and says unmeasured when there is none', async () => {
+    let seen = ''
+    const chat = { chat: async (system: string) => { seen = system; return JSON.stringify({ compose: [] }) } }
+    await reasonAbout({ question: 'q', understanding: reading(0.1), registry, chat: chat.chat })
+    expect(seen).toMatch(/candidate-agent[^\n]*unmeasured/)
+    const runs: ListedRun[] = [{ seq: 2, at: (liveRun2 as ShadowRun).at, run: liveRun2 as ShadowRun }]
+    const measured = capabilityRegistry(EVERYTHING, () => costsFrom(runs))
+    await reasonAbout({ question: 'q', understanding: reading(0.1), registry: measured, chat: chat.chat })
+    const ms = (liveRun2 as { candidate: { proposal: { cost: { ms: number } } } }).candidate.proposal.cost.ms
+    expect(seen).toMatch(new RegExp(`candidate-agent[^\\n]*${ms} ms`))
   })
 
   it('tells the reasoner every contract by name, purpose and availability -- nothing more, nothing less', async () => {

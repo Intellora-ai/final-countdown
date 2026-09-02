@@ -77,6 +77,7 @@ import { legacyIntelligence } from './intelligence/legacy.ts'
 import type { LearningIntelligence } from './intelligence/LearningIntelligence.ts'
 import type { ShadowRun, ShadowRuns } from './intelligence/runs.ts'
 import { shadowObserver } from './intelligence/shadow.ts'
+import { costsFrom } from './intelligence/cost.ts'
 import { capabilityRegistry } from './intelligence/registry.ts'
 import { sufficientPath } from './intelligence/sufficiency.ts'
 import { knownTopicCount } from '../src/knowledge/load.ts'
@@ -488,7 +489,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         misconceptions: options.misconceptions !== undefined,
         concepts: options.concepts !== undefined,
         verifiedTopics: knownTopicCount(),
-      }),
+      }, () => costsFrom(options.shadowRuns?.list() ?? [])),
     }),
     legacy: options.intelligence?.legacy ?? legacyIntelligence({ model: options.model }),
     mode: () => process.env['INTELLIGENCE_MODE'] ?? 'off',

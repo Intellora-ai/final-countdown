@@ -12,7 +12,7 @@
  * COST IS 'unknown' UNTIL MEASURED. M5 measures. A number written here would
  * be a guess dressed as a fact.
  */
-import type { Cost } from './LearningIntelligence.ts'
+import type { MeasuredCost } from './cost.ts'
 
 /** What this server has. The handler fills it in from its options. */
 export interface Has {
@@ -34,7 +34,8 @@ export interface Contract {
   readonly inputs: string
   readonly outputs: string
   readonly guarantees: readonly string[]
-  readonly cost: Cost | 'unknown'
+  /** Measured by recorded runs (see `cost.ts`); 'unknown' until one did. */
+  readonly cost: MeasuredCost | 'unknown'
   readonly risk: 0 | 1 | 2
   readonly sideEffects: 'none' | 'writes memory' | 'network' | 'model'
   readonly failureModes: readonly string[]
@@ -83,15 +84,16 @@ function missing(has: Has, need: Need): string | null {
   }
 }
 
-export function capabilityRegistry(has: Has): Registry {
-  const contracts: readonly Contract[] = CONTRACTS.map((c) => ({
+export function capabilityRegistry(has: Has, measured: () => ReadonlyMap<string, MeasuredCost> = () => new Map()): Registry {
+  /* A LIVE VIEW: costs are read when the registry is read, so a contract's
+     cost is whatever the runs have measured by then. */
+  const contracts = (): readonly Contract[] => CONTRACTS.map((c) => ({
     ...c,
-    cost: 'unknown',
+    cost: measured().get(c.name) ?? 'unknown',
     available() {
       const gaps = c.needs.map((n) => missing(has, n)).filter((m): m is string => m !== null)
       return gaps.length === 0 ? { ok: true } : { ok: false, because: gaps.join('; ') }
     },
   }))
-  const byName = new Map(contracts.map((c) => [c.name, c]))
-  return { list: () => contracts, get: (name) => byName.get(name) }
+  return { list: contracts, get: (name) => contracts().find((c) => c.name === name) }
 }

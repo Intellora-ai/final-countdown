@@ -198,3 +198,7 @@ frontend/e2e/*-snapshots/*-win32.png
 # on disk to be removed deliberately rather than by a tool.
 node_modules [0-9]/
 */node_modules [0-9]/
+
+# Engineering harness runtime state: per-checkout task, evidence, verdict, memory.
+# See docs/superpowers/specs/2026-09-02-engineering-harness-design.md.
+.harness/

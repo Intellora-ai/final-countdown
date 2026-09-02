@@ -133,11 +133,15 @@ def _since(evidence: list[dict[str, Any]], moment: str) -> list[dict[str, Any]]:
 
 
 def _has_reproduction(evidence: list[dict[str, Any]]) -> bool:
+    """See `verify.root_cause_recorded`: a failing command leaves no event on
+    this build, so a red TEST RUN is what a reproduction actually looks like.
+    The two must answer alike, or `advance` and the verifier disagree about
+    the same evidence."""
     if _of_kind(evidence, "reproduction"):
         return True
-    return any(
-        r.get("exit_code") not in (None, 0) for r in _of_kind(evidence, "command")
-    )
+    if any(r.get("exit_code") not in (None, 0) for r in _of_kind(evidence, "command")):
+        return True
+    return any(_is_red(r) for r in _of_kind(evidence, "command"))
 
 
 # --- the preconditions, one per transition that carries a rule --------------

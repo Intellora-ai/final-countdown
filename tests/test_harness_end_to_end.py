@@ -71,6 +71,31 @@ def bash(project: Path, command: str, stdout: str, exit_code: int) -> dict[str, 
                 tool_input={"command": command}, tool_response={"stdout": stdout, "stderr": "", "exit_code": exit_code})
 
 
+def real_bash(project: Path, command: str, stdout: str) -> dict[str, Any] | None:
+    """A Bash call as Claude Code ACTUALLY reports it on this build.
+
+    Captured 2026-09-02 by dumping the raw event from inside the hook: five
+    keys, and no exit code under any name. `bash` above sends an `exit_code`
+    that this build never sends, which is why both halves of the harness could
+    be green while the seam between them was broken -- 1,076 recorded commands
+    with `exit_code: null`, and a VERIFICATION_RAN rule requiring 0 that could
+    therefore never pass for anybody.
+
+    A FAILING command in the FOREGROUND produces no event at all -- `exit 7`
+    and `exit 3` were measured producing none while four successful commands
+    did. A failing TEST RUN still reaches this hook, and does so constantly,
+    because it is piped: `pytest ... | tail` exits 0 whatever pytest did, so
+    the hook sees it and the red/green rules read the numbers out of the text
+    rather than out of the status. That is why the red runs below are modelled
+    here, and why the recorder refuses to read a piped shell's 0 as proof that
+    the program inside it passed.
+    """
+    return hook(project, "record_command", hook_event_name="PostToolUse", tool_name="Bash",
+                tool_input={"command": command},
+                tool_response={"stdout": stdout, "stderr": "", "interrupted": False,
+                               "isImage": False, "noOutputExpected": False})
+
+
 def _tool_input(project: Path, path: str) -> dict[str, str]:
     return {"file_path": str(project / path), "old_string": "a", "new_string": "b"}
 
@@ -152,6 +177,48 @@ def test_a_bug_travels_from_report_to_complete_on_evidence_alone(project: Path) 
     kinds = [json.loads(line)["kind"] for line in (project / ".harness" / "evidence.jsonl").read_text().splitlines()]
     assert kinds[0] == "route" and kinds[-1] == "verdict"
     assert kinds.count("file_change") == 2 and kinds.count("hypothesis") == 1  # the test, then the fix
+    verdict = json.loads((project / ".harness" / "verdict.json").read_text(encoding="utf-8"))
+    assert verdict["status"] == "PASS" and all(r["ok"] for r in verdict["rules"])
+
+
+def test_the_event_this_build_really_sends_carries_a_task_to_complete(project: Path) -> None:
+    """THE SEAM, CROSSED. Every other test in this file hands the recorder an
+    `exit_code` field. Claude Code does not send one, so the recorder wrote
+    `null` for all 1,076 commands in this repository's own evidence file and
+    `VERIFICATION_RAN` -- which requires `exit_code == 0` -- could never pass.
+    Both halves had passing tests; nothing tested the join.
+
+    This drives the whole loop with the REAL response shape. Before the
+    recorder was fixed it stopped for good at step 5, whatever was run.
+    """
+    # 1. A feature is asked for; the router opens the task in `spec`.
+    routed = hook(project, "route", hook_event_name="UserPromptSubmit", prompt="add a lesson exporter")
+    assert routed is not None and phase(project) == "spec"
+    assert cli(project, "advance").returncode == 0 and phase(project) == "red"
+
+    # 2. The test is written first and fails, with the real response shape.
+    edit(project, "tests/test_export.py")
+    real_bash(project, "pytest tests/test_export.py -q 2>&1 | tail -3", "1 failed in 0.04s\n")
+    assert cli(project, "advance").returncode == 0 and phase(project) == "green"
+
+    # 3. The code is written and the test passes.
+    edit(project, "src/save.py")
+    real_bash(project, "pytest tests/test_export.py -q 2>&1 | tail -3", "2 passed in 0.04s\n")
+    assert cli(project, "advance").returncode == 0 and phase(project) == "refactor"
+    assert cli(project, "advance").returncode == 0 and phase(project) == "verify"
+
+    # 4. The gate still refuses: the static half has not run since the change.
+    still = stop(project)
+    assert still is not None and "VERIFICATION_RAN" in still["reason"]
+
+    # 5. A static check that really did pass, reported the way this build
+    #    reports it -- no exit code anywhere in the payload.
+    real_bash(project, "ruff check src", "All checks passed!\n")
+
+    # 6. And the rule can now see it, which is the whole point.
+    allowed = stop(project)
+    assert allowed is not None and "block" not in json.dumps(allowed)
+    assert phase(project) == "complete"
     verdict = json.loads((project / ".harness" / "verdict.json").read_text(encoding="utf-8"))
     assert verdict["status"] == "PASS" and all(r["ok"] for r in verdict["rules"])
 

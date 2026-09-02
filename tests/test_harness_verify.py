@@ -185,6 +185,98 @@ class TestVerificationRan:
         assert not _rule(verdict, "VERIFICATION_RAN").ok
 
 
+class TestEvidenceBelongsToThisTask:
+    """`.harness/evidence.jsonl` is one file for the life of the repository --
+    1,500 rows here, task after task appended to the same log. The verifier was
+    handed all of it, so a rule could be satisfied by something a PREVIOUS task
+    did. Nothing in the file says which task a row belongs to; what it has is a
+    time, and `task.started_at` is the line between them.
+
+    This mattered little while every recorded command had `exit_code: null`,
+    because no verification row could satisfy anything. It matters now that
+    they carry a real 0.
+    """
+
+    def _before(self, seconds: int) -> str:
+        return f"2026-09-02T09:59:{seconds:02d}+00:00"
+
+    def test_a_verification_from_a_previous_task_does_not_count(self) -> None:
+        """THE LEAK, EXACTLY. `_last_change_at` maxes over every change in the
+        file, so a task that has changed nothing yet inherits the PREVIOUS
+        task's last change as its line -- and any verification that task ran
+        after it sits on the right side of the comparison. The new task has
+        done nothing at all and its static check is already satisfied."""
+        previous_task = [
+            {"at": self._before(0), "kind": "file_change", "role": "production", "path": "src/old.py"},
+            {"at": self._before(30), "kind": "command", "command": "ruff check scripts", "exit_code": 0, "test_run": None},
+        ]
+        verdict = verify(_task("feature", "verify"), previous_task)
+        assert not _rule(verdict, "VERIFICATION_RAN").ok
+
+    def test_a_verification_before_this_task_started_never_counts(self) -> None:
+        stale = {"at": self._before(45), "kind": "command", "command": "ruff check scripts",
+                 "exit_code": 0, "test_run": None}
+        verdict = verify(_task("feature", "verify"), [stale, *HONEST_FEATURE[:-1]])
+        assert not _rule(verdict, "VERIFICATION_RAN").ok
+
+    def test_a_green_run_from_a_previous_task_does_not_count(self) -> None:
+        stale = {"at": self._before(1), "kind": "command", "command": "pytest -q", "exit_code": 0,
+                 "test_run": {"runner": "pytest", "passed": 5, "failed": 0, "errors": 0}}
+        without_a_green_run = [_change(1, "test"), _run(2, failed=1), _change(3, "production"), _verification(5)]
+        verdict = verify(_task("feature", "verify"), [stale, *without_a_green_run])
+        assert not _rule(verdict, "GREEN_AFTER_LAST_CHANGE").ok
+
+    def test_a_change_from_a_previous_task_does_not_move_the_line(self) -> None:
+        """`_last_change_at` maxes over every change in the file. A change from
+        a task that finished yesterday must not make today's verification look
+        as though it ran too early."""
+        stale = {"at": self._before(2), "kind": "file_change", "role": "production", "path": "src/old.py"}
+        verdict = verify(_task("feature", "verify"), [stale, *HONEST_FEATURE])
+        assert _rule(verdict, "VERIFICATION_RAN").ok
+
+    def test_this_task_own_evidence_still_counts(self) -> None:
+        """The line is `started_at`, and everything after it is this task's."""
+        assert verify(_task("feature", "verify"), HONEST_FEATURE).status == "PASS"
+
+
+class TestAReproductionCanBeSeen:
+    """A BUG'S REPRODUCTION HAS TO BE OBSERVABLE, and on this build it was not.
+
+    `root_cause_recorded` accepts a command whose exit code is non-zero. A
+    foreground command that fails produces no hook event at all here -- measured
+    -- and a piped one records no exit code, so that branch could never fire and
+    the only way past the rule was to type `harness reproduce` by hand. The
+    gap message offered an option that could not happen.
+
+    A RED TEST RUN IS a failing command on record, and it is the one the
+    harness already parses out of the text.
+    """
+
+    def test_a_red_test_run_is_a_reproduction(self) -> None:
+        evidence = [
+            {"at": _at(1), "kind": "hypothesis", "text": "save() returns its input"},
+            _run(2, failed=2, exit_code=None),
+        ]
+        assert _rule(verify(_task("bug", "root_cause"), evidence), "ROOT_CAUSE_RECORDED").ok
+
+    def test_a_red_run_with_no_exit_code_still_counts(self) -> None:
+        """The shape this build actually produces: piped, so the shell exits 0
+        and the failure is only in the numbers."""
+        red = {"at": _at(2), "kind": "command", "command": "pytest -q 2>&1 | tail -3", "exit_code": None,
+               "test_run": {"runner": "pytest", "passed": 3, "failed": 2, "errors": 0}}
+        evidence = [{"at": _at(1), "kind": "hypothesis", "text": "x"}, red]
+        assert _rule(verify(_task("bug", "root_cause"), evidence), "ROOT_CAUSE_RECORDED").ok
+
+    def test_a_green_run_is_not_a_reproduction(self) -> None:
+        evidence = [{"at": _at(1), "kind": "hypothesis", "text": "x"}, _run(2, failed=0)]
+        assert not _rule(verify(_task("bug", "root_cause"), evidence), "ROOT_CAUSE_RECORDED").ok
+
+    def test_a_hypothesis_alone_is_still_not_enough(self) -> None:
+        evidence = [{"at": _at(1), "kind": "hypothesis", "text": "x"}]
+        result = _rule(verify(_task("bug", "root_cause"), evidence), "ROOT_CAUSE_RECORDED")
+        assert not result.ok and "reproduction" in result.detail
+
+
 class TestRiskBoundedAttack:
     def test_high_risk_needs_an_attack_outcome_after_the_last_change(self) -> None:
         verdict = verify(_task("feature", "verify", risk="high"), HONEST_FEATURE)

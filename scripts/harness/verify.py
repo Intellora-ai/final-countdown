@@ -93,8 +93,22 @@ def _first_red_at(evidence: list[dict[str, Any]]) -> str | None:
 
 def root_cause_recorded(task: Task, evidence: list[dict[str, Any]]) -> RuleResult:
     has_hypothesis = bool(_kind(evidence, "hypothesis"))
-    has_reproduction = bool(_kind(evidence, "reproduction")) or any(
-        r.get("exit_code") not in (None, 0) for r in _kind(evidence, "command")
+    """A REPRODUCTION HAS TO BE SOMETHING THE HARNESS CAN SEE.
+
+    This accepted a command with a non-zero exit code, and on this build that
+    could never happen: a foreground command that fails fires no hook event at
+    all, and a piped one records no exit code (see
+    `hooks/record_command.py`). So the only way past this rule was to type
+    `harness reproduce` by hand, while the gap message went on offering "a
+    failing command on record" -- an option that could not occur.
+
+    A RED TEST RUN IS that failing command, and it is the one thing the
+    harness already reads out of the output text rather than out of a status.
+    """
+    has_reproduction = (
+        bool(_kind(evidence, "reproduction"))
+        or any(r.get("exit_code") not in (None, 0) for r in _kind(evidence, "command"))
+        or any(_is_red(r) for r in _test_runs(evidence))
     )
     missing = [
         name for name, present in (("a hypothesis", has_hypothesis), ("a reproduction", has_reproduction))
@@ -225,6 +239,22 @@ _RULES_BY_TYPE: dict[str, tuple[Rule, ...]] = {
 
 
 def verify(task: Task, evidence: list[dict[str, Any]]) -> Verdict:
+    """Every rule below reads only what THIS task did.
+
+    `.harness/evidence.jsonl` is one log for the life of the repository -- task
+    after task appended to the same file, 1,500 rows here -- and nothing in a
+    row says which task it belongs to. What it has is a time, and
+    `task.started_at` is the line.
+
+    WITHOUT THE LINE, A TASK INHERITS. `_last_change_at` maxes over every
+    change in the file, so a task that has changed nothing takes the PREVIOUS
+    task's last change as its line, and any verification that task ran after it
+    lands on the satisfying side: a new task, having done nothing, would arrive
+    with its static check already ticked. That was harmless while every
+    recorded command had `exit_code: null` and no verification row could
+    satisfy anything; it stopped being harmless the moment they carried a 0.
+    """
+    evidence = [r for r in evidence if str(r.get("at", "")) >= task.started_at]
     rules: list[Rule] = list(_RULES_BY_TYPE[task.type])
     if task.risk == "high":
         rules.append(attack_reviewed)

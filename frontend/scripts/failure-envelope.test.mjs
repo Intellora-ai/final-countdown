@@ -127,6 +127,19 @@ describe('the reproduction is the exact next command, on the right machine', () 
   })
 })
 
+describe('the reproduction command survives a hostile test name', () => {
+  it('escapes a backslash before a quote, so the shell sees the name it was given', () => {
+    const name = 'reads C:\\path and says "hi"'
+    const { command } = reproduction({ runner: 'vitest', file: 'frontend/src/a.test.ts', test: name, kind: 'CODE' })
+    /* What the shell would parse back must be the original name. */
+    const quoted = command.slice(command.indexOf(' -t ') + 4)
+    const parsedBack = JSON.parse(quoted)
+    expect(parsedBack).toBe(name)
+    expect(command).toContain('\\\\path')
+    expect(command).toContain('\\"hi\\"')
+  })
+})
+
 describe('the envelope, whole', () => {
   it('carries every field a router or a person needs, and renders to one line', () => {
     const env = envelope({ runner: 'vitest', test: 'M4 > queue', file: 'frontend/server/memory/m4-consistency.test.ts', message: ASSERTION, commit: 'abc1234' })

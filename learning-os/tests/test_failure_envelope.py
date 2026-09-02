@@ -121,3 +121,14 @@ def test_known_failures_reads_only_well_shaped_entries(tmp_path: Path) -> None:
     bad = tmp_path / "bad.json"
     bad.write_text("not json", encoding="utf-8")
     assert known_failures(bad) == {}
+
+
+def test_the_reproduction_survives_a_hostile_test_name() -> None:
+    """A backslash is escaped before a quote is, so what the shell parses back
+    is the name it was given -- the order CodeQL held the JS twin to."""
+    name = 'tests/test_x.py::test_reads_C:\\path_and_says_"hi"'
+    env = envelope(runner="pytest", test=name, file="tests/test_x.py", message=ASSERTION)
+    quoted = env.reproduction.command[len("pytest ") :]
+    assert json.loads(quoted) == name
+    assert "\\\\path" in env.reproduction.command
+    assert '\\"hi\\"' in env.reproduction.command

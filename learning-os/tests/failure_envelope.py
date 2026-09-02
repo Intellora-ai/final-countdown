@@ -167,7 +167,8 @@ def classify(
 def reproduction(runner: str, file: str, test: str, kind: str) -> Reproduction:
     needs_machine = bool(_NEEDS_A_REAL_MACHINE.search(file)) or kind == "ENVIRONMENT"
     where = "cloud-network" if needs_machine else "sandbox"
-    quoted = '"' + test.replace('"', '\\"') + '"'
+    # Backslashes first, then quotes -- the order CodeQL held the JS twin to.
+    quoted = '"' + test.replace("\\", "\\\\").replace('"', '\\"') + '"'
     if runner == "pytest":
         prefix = "cd learning-os && " if file.startswith("learning-os/") else ""
         return Reproduction(f"{prefix}pytest {quoted}", where)

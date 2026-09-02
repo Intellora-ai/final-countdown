@@ -153,7 +153,10 @@ export function reproduction({ runner, file, test, kind }) {
   const rel = String(file ?? '').replace(/^frontend\//, '')
   const needsMachine = NEEDS_A_REAL_MACHINE.test(rel) || kind === 'ENVIRONMENT'
   const where = needsMachine ? 'cloud-network' : 'sandbox'
-  const quoted = (s) => `"${String(s).replace(/"/g, '\\"')}"`
+  /* Backslashes FIRST, then quotes: escaping the quote alone turns a name
+     that already contains `\"` into an unterminated string, and CodeQL
+     flagged exactly that on run 33608660212 (code-scanning alert 110). */
+  const quoted = (s) => `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
   const command =
     runner === 'vitest' ? `cd frontend && npx vitest run ${rel} -t ${quoted(test)}`
     : runner === 'playwright' ? `cd frontend && npx playwright test --config=playwright.reallife.config.ts ${rel} -g ${quoted(test)}`

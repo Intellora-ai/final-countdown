@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { loadPlannedSubjects } from '../../src/almanac/curriculum.ts'
 import type { ModelPort, SearchPort } from '../handler.ts'
 import { candidateIntelligence } from './candidate.ts'
+import { capabilityRegistry } from './registry.ts'
 import type { TeachingRequest } from './LearningIntelligence.ts'
 
 /**
@@ -98,6 +99,37 @@ describe('the candidate intelligence', () => {
     const proposal = await candidate.propose(aRequest('what is a zero of a polynomial'))
     expect(proposal.actions.filter((a) => a.kind === 'explain')).toEqual([])
     expect(proposal.unknowns.some((u) => /answer/.test(u.what) && /result, ok|keys/.test(u.because)), JSON.stringify(proposal.unknowns)).toBe(true)
+  })
+
+  it('asks the reasoner only when the loop s own reading is unclear, and folds its plan into the trace', async () => {
+    /* "what is it" has a pronoun that names nothing yet: the rules make that
+       a BLOCKING ambiguity, which is the router's own definition of unclear.
+       "what is a zero of a polynomial" is clear. The reasoner is a second,
+       separate model call, so the count of calls is the proof. */
+    const registry = capabilityRegistry({ model: 'chat', search: true, aliases: true, lessons: true, evidence: true, misconceptions: true, concepts: true, verifiedTopics: 3 })
+    /* The two prompts are told apart by the key each asks for. A blocked
+       request makes the loop ASK rather than generate, so the reasoner's call
+       can be the only model call; what is counted is each prompt on its own. */
+    const model = { answers: 0, plans: 0, lesson: async () => { throw new Error('no') }, chat: async (system: string) => {
+      if (system.includes('"compose"')) { model.plans += 1; return JSON.stringify({ compose: [{ capability: 'diagnose', because: 'she may hold a wrong belief' }] }) }
+      model.answers += 1
+      return JSON.stringify({ answer: 'A zero makes the polynomial equal zero.' })
+    } }
+    const candidate = candidateIntelligence({ model, search: noSearch, registry, now: () => '2026-09-03T00:00:00.000Z' })
+
+    const clear = await candidate.propose(aRequest('what is a zero of a polynomial'))
+    expect(model.plans).toBe(0)
+    expect(clear.cost.modelCalls).toBe(model.answers)
+    expect((clear.trace as { reasoner?: { asked: boolean } }).reasoner?.asked).toBe(false)
+
+    model.answers = 0
+    const unclear = await candidate.propose(aRequest('what is it'))
+    expect(model.plans).toBe(1)
+    expect(unclear.cost.modelCalls).toBe(model.answers + model.plans)
+    const reasoner = (unclear.trace as { reasoner?: { asked: boolean; compose: { capability: string }[] } }).reasoner
+    expect(reasoner?.asked).toBe(true)
+    expect(reasoner?.compose.map((c) => c.capability)).toEqual(['diagnose'])
+    expect(unclear.rationale).toMatch(/reasoner: diagnose/)
   })
 
   it('counts its cost from what actually happened', async () => {

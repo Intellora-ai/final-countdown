@@ -77,7 +77,9 @@ import { legacyIntelligence } from './intelligence/legacy.ts'
 import type { LearningIntelligence } from './intelligence/LearningIntelligence.ts'
 import type { ShadowRun, ShadowRuns } from './intelligence/runs.ts'
 import { shadowObserver } from './intelligence/shadow.ts'
+import { capabilityRegistry } from './intelligence/registry.ts'
 import { sufficientPath } from './intelligence/sufficiency.ts'
+import { knownTopicCount } from '../src/knowledge/load.ts'
 
 export interface LessonRequest {
   readonly concept?: string
@@ -473,7 +475,21 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
      call so a running server can be switched. Asked only after a reply is
      formed, so nothing here can reach the student. */
   const observeInShadow = shadowObserver({
-    candidate: options.intelligence?.candidate ?? candidateIntelligence({ model: options.model, search: options.search }),
+    candidate: options.intelligence?.candidate ?? candidateIntelligence({
+      model: options.model,
+      search: options.search,
+      /* What THIS server has, so every contract's availability is honest. */
+      registry: capabilityRegistry({
+        model: options.model.chat !== undefined ? (options.model.decide !== undefined ? 'chat-and-decide' : 'chat') : options.model.decide !== undefined ? 'decide' : 'none',
+        search: true,
+        aliases: options.aliases !== undefined,
+        lessons: options.lessons !== undefined,
+        evidence: options.evidence !== undefined,
+        misconceptions: options.misconceptions !== undefined,
+        concepts: options.concepts !== undefined,
+        verifiedTopics: knownTopicCount(),
+      }),
+    }),
     legacy: options.intelligence?.legacy ?? legacyIntelligence({ model: options.model }),
     mode: () => process.env['INTELLIGENCE_MODE'] ?? 'off',
     log: options.intelligence?.log ?? ((line) => console.log(line)),

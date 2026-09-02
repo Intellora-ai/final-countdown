@@ -17,10 +17,14 @@ import type { SearchPort as AgentSearchPort } from '../../src/agent/knowledge/kn
 import type { ModelPort, SearchPort } from '../handler.ts'
 import type { LearningAction } from './ir.ts'
 import type { LearningIntelligence, Proposal, TeachingRequest, Unknown } from './LearningIntelligence.ts'
+import { reasonAbout, type Reasoned } from './reason.ts'
+import type { Registry } from './registry.ts'
 
 export interface CandidateOptions {
   readonly model: ModelPort
   readonly search: SearchPort
+  /** The contracts the reasoner may compose from. Absent, the seam is never asked. */
+  readonly registry?: Registry
   readonly now?: () => string
 }
 
@@ -66,7 +70,18 @@ export function candidateIntelligence(options: CandidateOptions): LearningIntell
       const agent = createAgent({ model, search, now })
       const out = await agent.ask({ parts: [{ modality: 'text', content: request.question }], at: now() })
 
-      const rationale = Object.entries(out.result.plan.rationale).map(([cap, why]) => `${cap}: ${why}`).join('; ')
+      /* THE `reason` SEAM. Asked only when the loop's own reading was unclear
+         by the router's rule; its plan is folded into the rationale and the
+         trace, never substituted for the router's selection. */
+      const reasoned: Reasoned = options.registry === undefined
+        ? { asked: false, compose: [], unknowns: [], modelCalls: 0 }
+        : await reasonAbout({ question: request.question, understanding: out.trace.understanding, registry: options.registry, chat: (system, user) => chat(system, user) })
+      modelCalls += reasoned.modelCalls
+
+      const rationale = [
+        ...Object.entries(out.result.plan.rationale).map(([cap, why]) => `${cap}: ${why}`),
+        ...reasoned.compose.map((c) => `reasoner: ${c.capability} because ${c.because}`),
+      ].join('; ')
       const actions: LearningAction[] = notAnAnswer !== null ? [] : [
         {
           kind: 'explain',
@@ -83,6 +98,7 @@ export function candidateIntelligence(options: CandidateOptions): LearningIntell
       }
       const unknowns: Unknown[] = [
         ...(notAnAnswer === null ? [] : [{ what: 'the reasoner gave no answer', because: notAnAnswer, blocking: true }]),
+        ...reasoned.unknowns,
         ...out.trace.understanding.ambiguities.map((a) => ({ what: a.what, because: 'the understanding stage could not settle it', blocking: a.blocking })),
         ...Object.entries(out.trace.unmet).map(([capability, why]) => ({ what: capability, because: why, blocking: false })),
       ]
@@ -95,7 +111,7 @@ export function candidateIntelligence(options: CandidateOptions): LearningIntell
           rejected: Object.entries(out.result.plan.rejected).map(([capability, why]) => ({ capability, why })),
         },
         cost: { ms: Date.parse(now()) - startedAt, modelCalls },
-        trace: out.trace,
+        trace: { ...out.trace, reasoner: reasoned },
       }
     },
   }

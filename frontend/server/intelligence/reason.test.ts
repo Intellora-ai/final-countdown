@@ -107,6 +107,16 @@ describe('the reason seam', () => {
     expect(seen).toMatch(new RegExp(`candidate-agent[^\\n]*${ms} ms`))
   })
 
+  it('tells the reasoner what followed earlier teaching on the topic, in one line', async () => {
+    let seenUser = ''
+    const chat = { chat: async (_system: string, user: string) => { seenUser = user; return JSON.stringify({ compose: [] }) } }
+    const experience = { artifacts: [{ seq: 3, pleas: 2, answers: 0, questions: 0, empties: 0, movesSpent: ['worked-example'], outcome: 'pleaded' as const }, { seq: 5, pleas: 0, answers: 1, questions: 0, empties: 0, movesSpent: [], outcome: 'answered' as const }], unplaced: 0 }
+    await reasonAbout({ question: 'q', understanding: reading(0.1), registry, chat: chat.chat, experience })
+    expect(seenUser).toMatch(/2 earlier lesson/)
+    expect(seenUser).toMatch(/1 followed by a plea/)
+    expect(seenUser).toMatch(/worked-example/)
+  })
+
   it('tells the reasoner every contract by name, purpose and availability -- nothing more, nothing less', async () => {
     let seen = ''
     const chat = { chat: async (system: string) => { seen = system; return JSON.stringify({ compose: [] }) } }

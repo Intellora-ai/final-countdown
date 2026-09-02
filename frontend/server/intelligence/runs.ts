@@ -61,6 +61,11 @@ const runShape = z.object({
     alreadyUsed: z.array(z.string()),
     askedFrom: z.string(),
     studentId: z.string(),
+    topicName: z.string().optional(),
+    experience: z.object({
+      artifacts: z.array(z.object({ seq: z.number(), pleas: z.number(), answers: z.number(), questions: z.number(), empties: z.number(), movesSpent: z.array(z.string()), outcome: z.enum(['pleaded', 'answered', 'asked', 'silent', 'unknown']) })),
+      unplaced: z.number(),
+    }).optional(),
   }),
   gate: z.object({ path: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]), because: z.string() }).optional(),
   live: z.object({ did: z.string(), status: z.number() }),

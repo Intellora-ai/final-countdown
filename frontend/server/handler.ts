@@ -79,6 +79,7 @@ import type { ShadowRun, ShadowRuns } from './intelligence/runs.ts'
 import { shadowObserver } from './intelligence/shadow.ts'
 import { costsFrom } from './intelligence/cost.ts'
 import { evaluateRuns } from './intelligence/evaluate.ts'
+import { experienceOf } from './intelligence/experience.ts'
 import { capabilityRegistry } from './intelligence/registry.ts'
 import { sufficientPath } from './intelligence/sufficiency.ts'
 import { knownTopicCount } from '../src/knowledge/load.ts'
@@ -2304,9 +2305,15 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
           classId: nonEmptyString(body['classId']) ? body['classId'] : null,
           examId: nonEmptyString(body['examId']) ? body['examId'] : null,
         })
+        const shadowTopic = nonEmptyString(body['topicId']) ? body['topicId'] : null
         observeInShadow({
           question: body['question'],
-          topicId: nonEmptyString(body['topicId']) ? body['topicId'] : null,
+          topicId: shadowTopic,
+          ...(nonEmptyString(body['topicName']) ? { topicName: body['topicName'] } : {}),
+          /* What followed earlier teaching on this topic, from the evidence she
+             filed. The ask path carries no browser id, so only artifacts the
+             evidence names are known here. */
+          ...(shadowTopic === null || options.evidence === undefined ? {} : { experience: experienceOf(options.evidence.recall({ studentId: who.studentId, tabId: 'any', lessonId: shadowTopic }, shadowTopic)) }),
           classId: nonEmptyString(body['classId']) ? body['classId'] : null,
           examId: nonEmptyString(body['examId']) ? body['examId'] : null,
           alreadyUsed: spent,

@@ -12,6 +12,8 @@
  * proposal says exactly that.
  */
 import { buildPrompt, createAgent } from '../../src/agent/index.ts'
+import type { MemoryRecord } from '../../src/agent/kernel/contracts.ts'
+import { inMemoryPersistence } from '../../src/agent/memory/memory.ts'
 import type { ModelPort as AgentModelPort } from '../../src/agent/kernel/loop.ts'
 import type { SearchPort as AgentSearchPort } from '../../src/agent/knowledge/knowledge.ts'
 import type { ModelPort, SearchPort } from '../handler.ts'
@@ -67,7 +69,9 @@ export function candidateIntelligence(options: CandidateOptions): LearningIntell
         search: async (query) => (await options.search.search(query)).map((hit) => ({ url: hit.url, title: hit.url, snippet: hit.content })),
       }
 
-      const agent = createAgent({ model, search, now })
+      /* WHAT FOLLOWED EARLIER TEACHING, as observed episodes the loop's own
+         memory can find -- a read-only view of the server's evidence. */
+      const agent = createAgent({ model, search, now, persistence: inMemoryPersistence(episodesOf(request, now())) })
       const out = await agent.ask({ parts: [{ modality: 'text', content: request.question }], at: now() })
 
       /* THE `reason` SEAM. Asked only when the loop's own reading was unclear
@@ -75,7 +79,7 @@ export function candidateIntelligence(options: CandidateOptions): LearningIntell
          trace, never substituted for the router's selection. */
       const reasoned: Reasoned = options.registry === undefined
         ? { asked: false, compose: [], unknowns: [], modelCalls: 0 }
-        : await reasonAbout({ question: request.question, understanding: out.trace.understanding, registry: options.registry, chat: (system, user) => chat(system, user) })
+        : await reasonAbout({ question: request.question, understanding: out.trace.understanding, registry: options.registry, chat: (system, user) => chat(system, user), ...(request.experience === undefined ? {} : { experience: request.experience }) })
       modelCalls += reasoned.modelCalls
 
       const rationale = [
@@ -135,4 +139,29 @@ function answerIn(reply: string): { kind: 'answer'; text: string } | { kind: 'no
     return { kind: 'not-an-answer', because: `the reply is a JSON object with keys ${Object.keys(parsed as object).join(', ') || '(none)'} and no "answer"` }
   }
   return { kind: 'not-an-answer', because: `the reply is JSON but not an object with an "answer": ${reply.slice(0, 60)}` }
+}
+
+/** One observed episode per artifact the evidence named, in words the loop's memory can match to the topic. */
+function episodesOf(request: TeachingRequest, at: string): MemoryRecord[] {
+  const topic = request.topicName ?? request.topicId ?? 'this topic'
+  return (request.experience?.artifacts ?? []).map((a) => ({
+    id: `experience-${request.topicId ?? 'topic'}-${a.seq}`,
+    kind: 'episode',
+    content: `On "${topic}", lesson ${a.seq}: ${describe(a)}${a.movesSpent.length > 0 ? `; moves already spent: ${a.movesSpent.join(', ')}` : ''}.`,
+    createdAt: at,
+    updatedAt: at,
+    strength: 1,
+    supersedes: [],
+    source: 'observed',
+  }))
+}
+
+function describe(a: { pleas: number; answers: number; questions: number; empties: number; outcome: string }): string {
+  switch (a.outcome) {
+    case 'pleaded': return `she said she did not follow it ${a.pleas} time(s)`
+    case 'answered': return `she answered on it ${a.answers} time(s)`
+    case 'asked': return `she asked ${a.questions} question(s) about it`
+    case 'silent': return 'she was asked and said nothing'
+    default: return 'nothing followed it'
+  }
 }

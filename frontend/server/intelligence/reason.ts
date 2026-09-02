@@ -13,6 +13,7 @@
  * in silence.
  */
 import type { Understanding } from '../../src/agent/kernel/contracts.ts'
+import type { Experience } from './experience.ts'
 import type { Unknown } from './LearningIntelligence.ts'
 import type { Registry } from './registry.ts'
 
@@ -42,6 +43,8 @@ export interface ReasonInput {
   readonly understanding: Understanding
   readonly registry: Registry
   readonly chat: (system: string, user: string) => Promise<string>
+  /** What followed earlier teaching on the topic, when there was any. */
+  readonly experience?: Experience
 }
 
 const NOT_ASKED: Reasoned = { asked: false, compose: [], unknowns: [], modelCalls: 0 }
@@ -66,6 +69,7 @@ export async function reasonAbout(input: ReasonInput): Promise<Reasoned> {
     `Request: ${input.question}`,
     `The rules read it as: ${reading.intents.map((i) => `${i.kind} (${i.confidence.toFixed(2)}, ${i.because})`).join('; ') || 'nothing certain'}`,
     reading.ambiguities.length > 0 ? `Unclear: ${reading.ambiguities.map((a) => `${a.what}${a.blocking ? ' (blocking)' : ''}`).join('; ')}` : '',
+    experienceLine(input.experience),
   ].filter((line) => line.length > 0).join('\n')
 
   const reply = await input.chat(system, user)
@@ -107,4 +111,11 @@ function composeIn(reply: string): { ok: true; compose: readonly Composed[] } | 
     if (typeof it['capability'] === 'string' && typeof it['because'] === 'string') items.push({ capability: it['capability'], because: it['because'] })
   }
   return { ok: true, compose: items }
+}
+
+function experienceLine(experience: Experience | undefined): string {
+  if (experience === undefined || experience.artifacts.length === 0) return ''
+  const pleaded = experience.artifacts.filter((a) => a.outcome === 'pleaded')
+  const moves = [...new Set(experience.artifacts.flatMap((a) => a.movesSpent))]
+  return `Earlier teaching on this topic: ${experience.artifacts.length} earlier lesson(s), ${pleaded.length} followed by a plea${moves.length > 0 ? `; moves already spent: ${moves.join(', ')}` : ''}.`
 }

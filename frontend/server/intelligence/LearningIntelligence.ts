@@ -12,6 +12,7 @@
  * chooser. `shadow.ts` asks both the same question after the student has
  * already been answered, so neither can change what she sees.
  */
+import type { Experience } from './experience.ts'
 import type { LearningAction } from './ir.ts'
 
 /** What `/api/ask` was asked, in the words it was asked. */
@@ -25,6 +26,10 @@ export interface TeachingRequest {
   /** `'ask'` for a fresh question, otherwise the id of the lesson she is inside. */
   readonly askedFrom: string
   readonly studentId: string
+  /** The topic's name as the sidebar shows it, when the request carried one. */
+  readonly topicName?: string
+  /** What followed earlier teaching on this topic, from the evidence store. Read-only. */
+  readonly experience?: Experience
 }
 
 /** Something the intelligence could not settle. A first-class result, not an error. */

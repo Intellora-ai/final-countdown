@@ -6,6 +6,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createHandler, type ModelPort, type SearchPort } from '../../server/handler.ts'
+import { evidenceIn } from '../../server/memory/evidence.ts'
 import { canvasMemory } from '../../server/memory/store.ts'
 import { sqliteMemoryStore } from '../../server/memory/sqliteStore.ts'
 
@@ -133,6 +134,9 @@ function startServer(path: string): Server {
     model,
     search,
     memory: canvasMemory({ store, log: () => {} }),
+    /* The same store, as the production server has it: a plea she files is
+       what the shadow later reads back as experience. */
+    evidence: evidenceIn(store),
     identitySecret: A_TEST_SECRET,
     intelligence: { candidate, legacy: aProposingCandidate, log: (line) => { shadowLog.push(line) } },
     shadowRuns: shadowRuns(store),
@@ -520,6 +524,21 @@ describe('THE GATE -- code decides when no brain is needed, and the shadow recor
     expect(runs[0]?.run?.live).toEqual({ did: 'asked', status: 200 })
     expect(runs[0]?.run?.candidate).toEqual({ ok: 'skipped', because: runs[0]?.run?.gate?.because })
     expect(server.shadowLog.join('\n')).not.toMatch(/candidate explain/)
+  })
+
+  it('a plea she typed after a lesson reaches the shadow as experience of that lesson', async () => {
+    /* Through the same evidence route the canvas uses: a plea filed against
+       artifact 1 of this topic, then an ask on the topic in shadow mode. The
+       recorded run must carry what followed artifact 1 -- 'pleaded' -- and
+       nothing invented for artifacts the evidence never named. */
+    await fetch('/api/evidence', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ said: 'i still dont get it', topicId: 'optics', beat: 'b1', artifactSeq: 1 }) })
+    const before = server.runsKept().length
+    await inMode('shadow', async () => {
+      await ask('what is refraction again')
+      await new Promise((r) => setTimeout(r, 20))
+    })
+    const run = server.runsKept().slice(before)[0]?.run
+    expect(run?.request.experience?.artifacts.map((a) => [a.seq, a.outcome])).toEqual([[1, 'pleaded']])
   })
 
   it('a fresh question nobody decided is path 5, and both brains are asked', async () => {

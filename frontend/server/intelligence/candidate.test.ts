@@ -144,6 +144,20 @@ describe('the candidate intelligence', () => {
     expect(String(proposal.actions[0]?.payload?.['question'])).toMatch(/"it"/)
   })
 
+  it('is told what followed earlier teaching on the topic, and the loop s own memory finds it', async () => {
+    /* The evidence store says lesson 3 on this topic was followed by two
+       pleas. Seeded into the candidate's memory as an observed episode, a
+       question about the topic must hit it -- the loop's `memory-read` runs
+       on what it was given, and the trace counts the hits. */
+    const experience = { artifacts: [{ seq: 3, pleas: 2, answers: 0, questions: 0, empties: 0, movesSpent: ['worked-example'], outcome: 'pleaded' as const }], unplaced: 0 }
+    const candidate = candidateIntelligence({ model: aReasoner(), search: noSearch, now: () => '2026-09-03T00:00:00.000Z' })
+    const told = await candidate.propose({ ...aRequest('what is a zero of a polynomial', 'polynomials--zeros-of-a-polynomial'), topicName: 'Zeros of a polynomial', experience })
+    const hits = (told.trace as { context?: { memoryHits?: number } }).context?.memoryHits ?? 0
+    expect(hits, 'the seeded experience was not found by the loop').toBeGreaterThan(0)
+    const untold = await candidate.propose(aRequest('what is a zero of a polynomial', 'polynomials--zeros-of-a-polynomial'))
+    expect((untold.trace as { context?: { memoryHits?: number } }).context?.memoryHits ?? 0).toBe(0)
+  })
+
   it('counts its cost from what actually happened', async () => {
     const model = aReasoner()
     let tick = 0

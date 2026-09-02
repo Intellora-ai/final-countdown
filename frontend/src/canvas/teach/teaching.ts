@@ -93,7 +93,7 @@ const REPRESENTATION_KINDS = new Set(['chart', 'table', 'flow', 'figure', 'simul
 /* Small text helpers                                                          */
 /* -------------------------------------------------------------------------- */
 
-function words(text: string): string[] {
+export function words(text: string): string[] {
   return text.trim().split(/\s+/).filter((w) => w.length > 0)
 }
 

@@ -1,0 +1,16 @@
+{
+  "recordedAt": "2026-09-03",
+  "model": "gemma3:12b",
+  "seconds": 23,
+  "topic": "Trigonometric ratios of an acute angle of a right-angled triangle. Proof of their existence (well defined)",
+  "page": "maths-x page 6",
+  "answer": {
+    "shape": "flat",
+    "concepts": [
+      { "id": "trigonometric-ratios-of-an-acute-angle", "name": "Trigonometric ratios of an acute angle", "quote": "1. Trigonometric ratios of an acute angle of a right-angled triangle.", "subConcepts": [] },
+      { "id": "proof-of-their-existence", "name": "Proof of their existence", "quote": "Proof of their existence (well defined)", "subConcepts": [] },
+      { "id": "ratios-defined-at-0-and-90", "name": "Ratios defined at 0° and 90°", "quote": "Motivate the ratios whichever are defined at 0° and 90°.", "subConcepts": [] },
+      { "id": "values-of-ratios", "name": "Values of trigonometric ratios", "quote": "Values of the trigonometric ratios of 30° , 45° and 60°.", "subConcepts": [] }
+    ]
+  }
+}

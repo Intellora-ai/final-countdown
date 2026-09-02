@@ -1,0 +1,208 @@
+{
+  "curriculum": "cbse-class-10",
+  "subjectId": "mathematics",
+  "models": [
+    {
+      "topicId": "introduction-to-trigonometry--trigonometric-ratios-of-an-acute-angle-of-a-right-angled-triangle-proof-of-their",
+      "topicName": "Trigonometric ratios of an acute angle of a right-angled triangle. Proof of their existence (well defined)",
+      "curriculum": "cbse-class-10",
+      "subjectId": "mathematics",
+      "chapterId": "introduction-to-trigonometry",
+      "version": 1,
+      "status": "verified",
+      "verifiedAt": "2026-09-03T00:00:00.000Z",
+      "shape": "flat",
+      "generatedBy": "syllabus-extraction",
+      "concepts": [
+        {
+          "id": "right-angled-triangle",
+          "name": "The acute angle of a right-angled triangle",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "maths-x",
+              "page": 6,
+              "quote": "Trigonometric ratios of an acute angle of a right-angled triangle. Proof of their existence (well defined)"
+            }
+          ]
+        },
+        {
+          "id": "sine",
+          "name": "The sine function",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "maths-x",
+              "page": 6,
+              "quote": "Understands the definitions of the basic trigonometric functions (including the introduction of the sine and cosine functions)."
+            }
+          ]
+        },
+        {
+          "id": "cosine",
+          "name": "The cosine function",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "maths-x",
+              "page": 6,
+              "quote": "Understands the definitions of the basic trigonometric functions (including the introduction of the sine and cosine functions)."
+            }
+          ]
+        },
+        {
+          "id": "existence-of-the-ratios",
+          "name": "Why the ratios exist and are well defined",
+          "requires": [
+            "right-angled-triangle"
+          ],
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "maths-x",
+              "page": 6,
+              "quote": "Trigonometric ratios of an acute angle of a right-angled triangle. Proof of their existence (well defined)"
+            }
+          ]
+        },
+        {
+          "id": "evaluating-a-ratio",
+          "name": "Evaluating a trigonometric ratio",
+          "requires": [
+            "sine",
+            "cosine"
+          ],
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "maths-x",
+              "page": 6,
+              "quote": "Evaluates trigonometric ratios. Describes trigonometric ratios of standard angles and solving related expressions"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "topicId": "introduction-to-trigonometry--motivate-the-ratios-whichever-are-defined-at-0-and-90-values-of-the-trigonometri",
+      "topicName": "Motivate the ratios whichever are defined at 0° and 90°. Values of the trigonometric ratios of 30°, 45° and 60°",
+      "curriculum": "cbse-class-10",
+      "subjectId": "mathematics",
+      "chapterId": "introduction-to-trigonometry",
+      "version": 1,
+      "status": "verified",
+      "verifiedAt": "2026-09-03T00:00:00.000Z",
+      "shape": "hierarchical",
+      "generatedBy": "syllabus-extraction",
+      "concepts": [
+        {
+          "id": "ratios-at-the-edges",
+          "name": "Which ratios are defined at 0° and 90°",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "maths-x",
+              "page": 6,
+              "quote": "Motivate the ratios whichever are defined at 0° and 90°. Values of the trigonometric ratios of 30° , 45° and 60°."
+            }
+          ],
+          "subConcepts": [
+            {
+              "id": "at-zero",
+              "name": "The ratios at 0°",
+              "evidence": [
+                {
+                  "kind": "syllabus",
+                  "pdf": "maths-x",
+                  "page": 6,
+                  "quote": "Motivate the ratios whichever are defined at 0° and 90°. Values of the trigonometric ratios of 30° , 45° and 60°."
+                }
+              ]
+            },
+            {
+              "id": "at-ninety",
+              "name": "The ratios at 90°",
+              "evidence": [
+                {
+                  "kind": "syllabus",
+                  "pdf": "maths-x",
+                  "page": 6,
+                  "quote": "Motivate the ratios whichever are defined at 0° and 90°. Values of the trigonometric ratios of 30° , 45° and 60°."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "standard-angles",
+          "name": "The values at the standard angles",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "maths-x",
+              "page": 6,
+              "quote": "Motivate the ratios whichever are defined at 0° and 90°. Values of the trigonometric ratios of 30° , 45° and 60°."
+            },
+            {
+              "kind": "syllabus",
+              "pdf": "maths-x",
+              "page": 6,
+              "quote": "Evaluates trigonometric ratios. Describes trigonometric ratios of standard angles and solving related expressions"
+            }
+          ],
+          "subConcepts": [
+            {
+              "id": "thirty",
+              "name": "The ratios at 30°",
+              "evidence": [
+                {
+                  "kind": "syllabus",
+                  "pdf": "maths-x",
+                  "page": 6,
+                  "quote": "Motivate the ratios whichever are defined at 0° and 90°. Values of the trigonometric ratios of 30° , 45° and 60°."
+                }
+              ]
+            },
+            {
+              "id": "forty-five",
+              "name": "The ratios at 45°",
+              "evidence": [
+                {
+                  "kind": "syllabus",
+                  "pdf": "maths-x",
+                  "page": 6,
+                  "quote": "Motivate the ratios whichever are defined at 0° and 90°. Values of the trigonometric ratios of 30° , 45° and 60°."
+                }
+              ]
+            },
+            {
+              "id": "sixty",
+              "name": "The ratios at 60°",
+              "evidence": [
+                {
+                  "kind": "syllabus",
+                  "pdf": "maths-x",
+                  "page": 6,
+                  "quote": "Motivate the ratios whichever are defined at 0° and 90°. Values of the trigonometric ratios of 30° , 45° and 60°."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "topicId": "introduction-to-trigonometry--relationships-between-the-ratios",
+      "topicName": "Relationships between the ratios",
+      "curriculum": "cbse-class-10",
+      "subjectId": "mathematics",
+      "chapterId": "introduction-to-trigonometry",
+      "version": 1,
+      "status": "verified",
+      "verifiedAt": "2026-09-03T00:00:00.000Z",
+      "shape": "atomic",
+      "generatedBy": "syllabus-extraction",
+      "concepts": []
+    }
+  ]
+}

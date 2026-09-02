@@ -1,0 +1,50 @@
+2.   CIRCLES                                 derives     proofs   of     Prove the theorems
+                                              theorems related to the      based on the tangent
+     Tangent to a circle at point of          tangents of circles.         to a circle.
+     contact.                                                             Applies the concept of
+      1. (Prove) The tangent at any                                        tangents of circle to
+         point of a circle is                                              solve          various
+         perpendicular to the radius                                       problems.
+         through the point of
+         contact.
+      2. (Prove) The lengths of
+         tangents drawn from an
+         external point to a circle are
+         equal.
+                                 UNIT V: TRIGONOMETRY
+
+1.   INTRODUCTION                  TO        Understands          the    Evaluates
+     TRIGONOMETRY                             definitions of the basic     trigonometric ratios
+                                              trigonometric functions     Describes
+     1. Trigonometric ratios of an            (including           the     trigonometric ratios of
+        acute angle of a right-angled         introduction of the sine     standard angles and
+        triangle. Proof of their              and cosine functions).       solving          related
+        existence (well defined)                                           expressions
+     2. Motivate      the       ratios
+        whichever are defined at 0°
+        and 90°. Values of the
+        trigonometric ratios of 30° ,
+        45° and 60°.
+     3. Relationships between the
+        ratios.
+2.   TRIGONOMETRIC                           Uses       Trigonometric    Proves trigonometric
+     IDENTITIES                               identities    to  solve      identities         using
+                                              problems.                       2        2
+                                                                           sin A + cos A = 1
+     1. Proof and applications of the                                      and other identities
+        identity sin2 A + cos 2 A = 1.
+     2. Only simple identities to be
+        given.
+
+3.   HEIGHTS AND DISTANCES:                  Applies Trigonometric       Find    heights     and
+     Angle of elevation, Angle of             ratios    in   solving       distances in real life
+     Depression.                              problems in daily life       word problems using
+                                              contexts like finding        trigonometric ratios
+     1. Simple problems on heights            heights of different
+        and distances. Problems               structures or distance
+        should not involve more than          from them.
+        two right triangles. Angles of
+        elevation     /    depression
+        should be only 30°, 45°, and
+        60°.
+

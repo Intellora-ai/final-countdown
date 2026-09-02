@@ -471,3 +471,33 @@ describe('latency is recorded per path', () => {
     expect(latency.summary().stages.extract?.count).toBe(1)
   })
 })
+
+describe('a deadline keeps what arrived', () => {
+  /* MEASURED 2026-09-02: every lesson of the day was written ungrounded --
+     "[grounding] the web had not answered after 4000ms" -- while the search
+     itself took under two seconds. The pages were the wait: one slow read held
+     the whole batch, and the grounding port, racing the whole pipeline against
+     its budget, threw away the pages that HAD arrived. A read that misses the
+     deadline is left out, marked so; the rest are kept, now. */
+  it('returns the pages read by the deadline and marks the one that missed it', async () => {
+    const fast = 'https://a.gov.in/fast'
+    const slow = 'https://b.gov.in/slow'
+    const started = Date.now()
+    const out = await gather([hit(fast), hit(slow)], {
+      fetchImpl: async (url) => {
+        if (url === fast) return page('<p>arrived in time</p>', url)
+        await new Promise((resolve) => setTimeout(resolve, 5_000))
+        return page('<p>far too late</p>', url)
+      },
+      concurrency: 2,
+      deadlineAt: Date.now() + 80,
+    })
+    const elapsed = Date.now() - started
+    expect(elapsed, 'the batch waited for the slow read').toBeLessThan(1_000)
+    const a = out.find((r) => r.hit.url === fast)!
+    const b = out.find((r) => r.hit.url === slow)!
+    expect(a.ok).toBe(true)
+    expect(b.ok).toBe(false)
+    expect(b.ok ? '' : b.detail, 'the late read is not explained').toMatch(/deadline|in time/i)
+  })
+})

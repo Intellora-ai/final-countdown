@@ -15,7 +15,8 @@
  * downloads. The server is the side of the wire allowed to know them.
  */
 import type { SearchProvider } from '../src/websearch/engine.ts'
-import { ask } from '../src/websearch/pipeline.ts'
+import { ask, usableSources } from '../src/websearch/pipeline.ts'
+import { checkClaims } from '../src/websearch/verify.ts'
 import type { PageCache } from '../src/websearch/gather.ts'
 import { Latency, type Summary } from '../src/websearch/latency.ts'
 import type { Freshness } from '../src/websearch/provenance.ts'
@@ -120,6 +121,8 @@ export interface SearchedPage {
 }
 
 export interface SearchReplyBody {
+  /** F2: whether independent sources agree, read off the pages themselves. */
+  readonly check?: { readonly status: string; readonly supportingEvidenceIds: readonly string[]; readonly conflictingEvidenceIds: readonly string[] }
   readonly pages: readonly SearchedPage[]
   /** True only when EVERY planned query failed. Never true for an empty web. */
   readonly engineFailed: boolean
@@ -234,6 +237,60 @@ function str(value: unknown): string {
  * and an unbounded walk over attacker-influenced JSON is a denial of service
  * waiting to be reported.
  */
+/**
+ * The ENCYCLOPEDIA ANSWER a provider gives beside its ordinary results.
+ *
+ * MEASURED LIVE 2026-09-03 against the SearxNG on this machine. Its reply has
+ * seven top-level fields and `findHits` read exactly one of them, `results`.
+ * What that discarded, every single time:
+ *
+ *   "photosynthesis"        901 characters of Wikipedia, with the article URL
+ *   "trigonometric ratios"  514 characters of Wikipedia's Trigonometry
+ *
+ * And what it kept instead, from the one engine still answering on this home
+ * network: for "trigonometric ratios", `results[0]` was "XNXX Adult Forum".
+ * Top result, for a Class 10 maths topic, in a product built for children.
+ *
+ * The infobox WAS reachable before this -- but only by accident, and only in
+ * the wrong case: `findHits` falls through to walking every field, so an EMPTY
+ * `results` let the walk reach `infoboxes`, while a `results` full of rubbish
+ * won outright. Exactly backwards.
+ *
+ * An infobox is an encyclopedia summary carrying a canonical URL. It is the
+ * most trustworthy thing in the response, so it is read by name and it goes
+ * FIRST. Read by name, and not by another generic walk, because "the field
+ * that holds the encyclopedia answer" is a claim about meaning, and a walk
+ * that finds it by shape would just as happily find an advert.
+ */
+function findEncyclopedia(body: unknown): readonly SearchHit[] {
+  const record = asRecord(body)
+  if (!record) return []
+
+  const out: SearchHit[] = []
+  /* `answers` is SearxNG's direct answer (a calculation, a definition);
+     `infoboxes` is the encyclopedia panel. Both are the provider stating
+     something rather than pointing at somebody who does. */
+  for (const key of ['infoboxes', 'answers']) {
+    const list = record[key]
+    if (!Array.isArray(list)) continue
+    for (const item of list) {
+      const box = asRecord(item)
+      if (!box) continue
+      /* The URL, in the order the measured shape offers it: the first of the
+         `urls` list, then `id` (which SearxNG sets to the article address),
+         then a plain `url`. */
+      const first = Array.isArray(box['urls']) ? asRecord(box['urls'][0]) : null
+      const url = str(first?.['url']) || str(box['id']) || str(box['url'])
+      const content = str(box['content'])
+      /* Both halves are required. A panel with no address cannot be cited, and
+         one with no text is a picture and a heading. Neither is a source. */
+      if (url === '' || content === '') continue
+      out.push({ url, title: str(box['infobox']) || str(box['title']) || url, snippet: content })
+    }
+  }
+  return out
+}
+
 function findHits(body: unknown, depth = 0): readonly SearchHit[] {
   if (depth > 4) return []
 
@@ -322,6 +379,20 @@ function providerFor(
   secret: string,
   fetchJson: FetchJson,
   tally: ProviderTally,
+  /**
+   * The reading level to bias the ENGINE towards -- "class 10 school level,
+   * simple language", or an exam's subjects.
+   *
+   * IT IS APPENDED HERE AND NOWHERE EARLIER, and that placement is the whole
+   * point. It used to be glued onto the question before the request was made,
+   * so `interpret()` read "class 10 school level, simple language" as part of
+   * the SUBJECT. MEASURED LIVE 2026-09-03: a Class 10 photosynthesis question
+   * came back with "Bantu languages", "Baldwin Class 10-12-D" and Harvard's
+   * "Language" page, all of which honestly matched the words the scope had
+   * added. The level is a hint to a search engine; it is not what she asked
+   * about, and nothing downstream should think it is.
+   */
+  scope: string,
 ): SearchProvider {
   const carriesKey = endpoint.includes('{key}')
 
@@ -329,15 +400,30 @@ function providerFor(
     /* No vendor name. The browser is told a search happened, never by whom. */
     name: 'web',
     search: async (query: string) => {
+      /* Her words first, the level after: a query led by the level returns
+         pages ABOUT the level -- syllabus PDFs and school notices -- rather
+         than about the thing she asked. `level.ts` states the same rule for
+         the same reason. */
+      const asked = scope === '' ? query : `${query} ${scope}`
       const url = endpoint
-        .replace('{query}', encodeURIComponent(query))
+        .replace('{query}', encodeURIComponent(asked))
         .replace('{limit}', encodeURIComponent(String(ASK_FOR)))
         .replace('{key}', encodeURIComponent(secret))
 
-      const headers = carriesKey ? { accept: 'application/json' } : authHeaders(secret)
+      /* No key at all sends no credential header: a keyless engine is not
+         handed an empty bearer token to wonder about. */
+      const headers = carriesKey || secret === '' ? { accept: 'application/json' } : authHeaders(secret)
       tally.calls += 1
       try {
-        return findHits(await fetchJson(url, { headers }))
+        const answered = await fetchJson(url, { headers })
+        /* THE ENCYCLOPEDIA ANSWER FIRST, THEN EVERYTHING ELSE. Ranking happens
+           downstream in `select.ts` and it ranks what it is given; a source
+           that never arrives cannot be ranked. De-duplicated by url so a
+           provider that lists the same article both ways is one page, not two. */
+        const encyclopedia = findEncyclopedia(answered)
+        const ordinary = findHits(answered)
+        const seen = new Set(encyclopedia.map((hit) => hit.url))
+        return [...encyclopedia, ...ordinary.filter((hit) => !seen.has(hit.url))]
       } catch (error) {
         tally.failures += 1
         tally.firstError ??= error instanceof Error ? error.message : String(error)
@@ -395,9 +481,18 @@ export async function searchTheOpenWeb(
   }
 
   let query = ''
+  /* The reading level, carried BESIDE the question rather than glued onto it.
+     See `providerFor`'s `scope` for the measurement that forced the split. */
+  let scope = ''
+  let deadlineAt: number | undefined
   try {
     const parsed = asRecord(JSON.parse(requestBody))
     query = str(parsed?.['query']).trim()
+    /* A caller with a budget (lesson grounding) says when to stop; a caller
+       without one (the search screen) gets the whole pipeline. */
+    const asked = parsed?.['deadlineAt']
+    if (typeof asked === 'number' && Number.isFinite(asked)) deadlineAt = asked
+    scope = str(parsed?.['scope']).trim()
   } catch {
     return failed(400, 'the request body was not JSON', secret)
   }
@@ -408,17 +503,26 @@ export async function searchTheOpenWeb(
   /* Configuration is checked AFTER the request is validated and BEFORE the
      network is touched, so a malformed request never costs a metered call and
      a missing key never looks like a bad question. */
-  if (!secret) {
-    return failed(
-      503,
-      `web search is not configured on this server: ${API_KEY_ENV} is not set, so no search was made`,
-      secret,
-    )
-  }
   if (!endpoint) {
     return failed(
       503,
       `web search is not configured on this server: ${ENDPOINT_ENV} is not set, so no search was made`,
+      secret,
+    )
+  }
+  /* THE KEY IS REQUIRED EXACTLY WHEN THE TEMPLATE ASKS FOR ONE.
+   *
+   * This used to be `if (!secret)`, checked before the endpoint was even read,
+   * and MEASURED on 2026-09-02 as: POST /api/search -> 503 "WEB_SEARCH_API_KEY
+   * is not set" on a machine that could have run a free engine. A template
+   * with no `{key}` and no key is not a misconfiguration; it is a provider
+   * that needs no credential -- a local SearxNG, a public instance -- and it
+   * is refused for lacking something it never asked for. A template that DOES
+   * carry `{key}` is still refused without one, in the same words as before. */
+  if (endpoint.includes('{key}') && !secret) {
+    return failed(
+      503,
+      `web search is not configured on this server: ${API_KEY_ENV} is not set, so no search was made`,
       secret,
     )
   }
@@ -439,11 +543,12 @@ export async function searchTheOpenWeb(
   const tally: ProviderTally = { calls: 0, failures: 0 }
   const latency = new Latency()
   const result = await ask(query, {
-    provider: providerFor(endpoint, secret, deps.fetchJson ?? defaultFetchJson(), tally),
+    provider: providerFor(endpoint, secret, deps.fetchJson ?? defaultFetchJson(), tally, scope),
     latency,
     ...(deps.cache ? { cache: deps.cache } : {}),
     ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
     ...(deps.now ? { now: deps.now } : {}),
+    ...(deadlineAt === undefined ? {} : { deadlineAt }),
   })
 
   if (tally.calls > 0 && tally.failures === tally.calls) {
@@ -459,8 +564,13 @@ export async function searchTheOpenWeb(
    * which of these is true happens downstream, against the question, using more
    * than one of them.
    */
-  const pages: SearchedPage[] = result.retrieved
-    .filter((r) => r.ok && r.text.trim().length > 0)
+  /* `usableSources` and not `r.ok` alone: a page that was read and turned out
+     to be about something else -- a cookie wall, a page that matched the
+     reading level rather than the subject -- is still in `result.retrieved` so
+     the retrieval benchmark can grade it, and must never leave here as a
+     source a lesson could cite. Measured live 2026-09-03; see `pipeline.ts`. */
+  const pages: SearchedPage[] = usableSources(result.retrieved)
+    .filter((r) => r.text.trim().length > 0)
     .map((r) => ({
       title: r.title || r.hit.title,
       url: r.finalUrl || r.hit.url,
@@ -478,6 +588,10 @@ export async function searchTheOpenWeb(
     200,
     {
       pages,
+      /* F2: WHETHER THE SOURCES AGREE, which the pipeline worked out by reading
+         them. It was computed and dropped here, so a lesson from one shaky page
+         reached the author looking exactly like one from two that agree. */
+      check: checkClaims(usableSources(result.retrieved), query),
       engineFailed: false,
       freshness: result.freshness,
       rounds: result.rounds,

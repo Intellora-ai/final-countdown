@@ -261,3 +261,68 @@ describe('the pipeline is deterministic', () => {
     expect(a.answer).toEqual(b.answer)
   })
 })
+
+describe('a source must mention the subject', () => {
+  /* MEASURED 2026-09-02 through a local SearxNG: for "relation between zeros
+     and coefficients of a polynomial" Bing returned Bohemian Rhapsody lyrics,
+     then Vietnamese dishes, then LibreOffice downloads -- ten hits sharing not
+     one word with the question. They were demoted, then fetched (four seconds
+     of the learner's wait), then handed to the author as citations. A hit that
+     shares no word with the question is never read; the reason stays on it. */
+  it('a hit that shares no word with the question is marked and never fetched', async () => {
+    const fetched: string[] = []
+    const junk = 'https://www.tasteatlas.com/best-dishes-in-vietnam'
+    const real = 'https://en.wikiversity.org/wiki/Polynomial_zeros'
+    const provider: SearchProvider = {
+      name: 'bing-on-a-bad-day',
+      search: async () => [
+        { url: junk, title: 'Vietnamese Food: Top 100 Dishes', snippet: 'Pho, banh mi and bun cha are the dishes every visitor should try.' },
+        { url: real, title: 'Zeros and coefficients of a polynomial', snippet: 'The sum and product of the zeros are given by the coefficients.' },
+      ],
+    }
+    const pages = fetcherFor({
+      [junk]: '<p>Pho is a noodle soup.</p>',
+      [real]: '<p>For a quadratic, the sum of the zeros is -b/a and the product is c/a.</p>',
+    })
+    const result = await ask('relation between zeros and coefficients of a polynomial', {
+      provider,
+      fetchImpl: async (url) => {
+        fetched.push(url)
+        return pages(url)
+      },
+      now,
+    })
+    const marked = result.ranked.find((r) => r.hit.url === junk)!
+    expect(marked.excluded, 'a page about food was still a candidate source for a polynomial question').toBe(true)
+    expect(marked.excludedReason).toMatch(/question|subject|word/i)
+    expect(fetched, 'the off-topic page was read anyway').not.toContain(junk)
+    expect(fetched).toContain(real)
+  })
+})
+
+describe('the deadline bounds the search too, not only the reads', () => {
+  /* MEASURED 2026-09-02: with the reads bounded, every lesson was STILL
+     written ungrounded -- the four planned engine queries run together, and
+     the batch waits for the slowest one, which waits for the slowest engine.
+     A query that has not answered by the deadline is left out; the ones that
+     did answer are read. */
+  it('reads the hits of the queries that answered in time', async () => {
+    const started = Date.now()
+    const provider: SearchProvider = {
+      name: 'one-fast-engine',
+      search: async (text) => {
+        if (text === 'india gdp growth 2025') return [hit('https://mospi.gov.in/gdp-2025')]
+        await new Promise((resolve) => setTimeout(resolve, 5_000))
+        return [hit('https://late.example/x')]
+      },
+    }
+    const result = await ask('india gdp growth 2025', {
+      provider,
+      fetchImpl: fetcherFor({ 'https://mospi.gov.in/gdp-2025': '<p>India recorded GDP growth of 7.8 percent in 2025.</p>' }),
+      now,
+      deadlineAt: Date.now() + 150,
+    })
+    expect(Date.now() - started, 'the batch waited for the slow query').toBeLessThan(1_500)
+    expect(result.retrieved.map((r) => r.hit.url)).toContain('https://mospi.gov.in/gdp-2025')
+  })
+})

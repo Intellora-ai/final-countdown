@@ -111,7 +111,7 @@ describe('the scanner can see — negative and positive through the same code pa
 })
 
 describe('engine.ts says websearch IS reached — this is what makes that a fact', () => {
-  it('POSITIVE CONTROL — the six files that wire it are exactly these', () => {
+  it('POSITIVE CONTROL — the six files in src that wire it are exactly these, and one outside', () => {
     /*
      * THE SIXTH FILE ARRIVED, AND THIS TEST IS WHY ANYONE FOUND OUT.
      *
@@ -130,6 +130,28 @@ describe('engine.ts says websearch IS reached — this is what makes that a fact
      * in `engine.ts` what the new truth is." Somebody wired a sixth file. The
      * comment in `engine.ts` has been updated to name it. The instruction is
      * left standing, unchanged in force, for the seventh.
+     *
+     * THE SEVENTH ARRIVED ON 2026-09-02, and the same mechanism found it --
+     * twice, and the second time it was wrong, which is worth writing down.
+     *
+     * `referencesFrom` is a SUBSTRING SCAN (`readFileSync(f).includes(area)`),
+     * so a file that merely says the word "websearch" in a comment counts as a
+     * reference. Adding a doc comment to `canvas/teach/researched.ts` that
+     * named the module made this test go red with a file that imports nothing
+     * from it. Recording that file as an edge would have written a fiction
+     * into the inventory, so the comment was reworded instead and the list
+     * stays at six. The scanner's blind spot now has a name.
+     *
+     * The real seventh is below and is OUTSIDE `src/`, where this scanner
+     * cannot look:
+     * `server/openweb.ts` now imports `checkClaims` from `websearch/verify.ts`:
+     * the claim check was being COMPUTED by this module and dropped before it
+     * reached the author, so a lesson resting on one shaky page was written
+     * exactly like one resting on two independent sources that agree (F2). The
+     * seventh file is a SERVER file, which is new -- every earlier one was
+     * browser code -- so `engine.ts`'s paragraph has been updated to say that
+     * the module is now reached from both sides. The instruction stands for the
+     * eighth.
      *
      * THIS IS THE ONE EDIT THE PROJECT'S RULES ALLOW TO A PASSING-BY-DESIGN
      * ASSERTION, and it is worth being precise about why, because "the test
@@ -161,6 +183,12 @@ describe('engine.ts says websearch IS reached — this is what makes that a fact
       'canvas/teach/webResolver.ts',
       'tutor/TutorView.tsx',
     ])
+    /* The seventh is outside `src/`, so `referencesFrom` -- which walks `src`
+       -- cannot see it. Named here so the inventory is honest about its own
+       blind spot rather than quietly six. */
+    expect(readFileSync(join(SRC, '..', 'server', 'openweb.ts'), 'utf8')).toContain(
+      "from '../src/websearch/verify.ts'",
+    )
   })
 
   it('the live path is now the general one, and it needs a server', () => {

@@ -1,0 +1,36 @@
+# Free web search, from many engines, with no API key.
+#
+# ONE SERVICE, IN ITS OWN FILE. `docker-compose.canvas.yml` states its own
+# rule -- "a compose file that starts things this product does not use would
+# be a slower test and a longer list of ways to be broken" -- and this is not
+# something the almanac's tests use. It is what a developer runs so that
+# /api/search answers without a paid key.
+#
+# WHAT IT REPLACES. `WEB_SEARCH_ENDPOINT` is a URL template and `openweb.ts`
+# reads any provider that returns `{ results: [...] }`. SearxNG returns exactly
+# that, and queries dozens of engines per question -- "widely spread, not one
+# or two sources" -- so the whole configuration is:
+#
+#   WEB_SEARCH_ENDPOINT=http://127.0.0.1:8080/search?q={query}&format=json
+#
+# and no key at all. The template carries no `{key}`, so the server sends none.
+#
+# THE SECRET IS NOT A SECRET. SearxNG refuses to start with its default key,
+# so one has to be given. This instance is bound to loopback, holds no data
+# and signs nothing that leaves the machine; the value below is a placeholder
+# and is deliberately named as one.
+services:
+  searxng:
+    image: searxng/searxng:latest
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./searxng:/etc/searxng:ro
+    environment:
+      SEARXNG_BASE_URL: http://127.0.0.1:8080/
+      SEARXNG_SECRET: local-dev-placeholder-not-a-real-secret
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- 'http://127.0.0.1:8080/search?q=ping&format=json' | grep -q results"]
+      interval: 5s
+      timeout: 5s
+      retries: 12

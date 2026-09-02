@@ -32,7 +32,8 @@ import { researchPort, searchPort, type SearchPort } from './index'
 import type { SearchHit } from './port'
 
 const HITS: readonly SearchHit[] = [
-  { url: 'https://data.gov.in/inflation', title: 'CPI', snippet: 'engine blurb', publishedAt: '2026-01-01' },
+  /* An engine's snippet is matched on the question's words, so it says them. */
+  { url: 'https://data.gov.in/inflation', title: 'CPI inflation release', snippet: 'engine blurb', publishedAt: '2026-01-01' },
 ]
 
 describe('1. unconfigured is null, never a port that always fails', () => {

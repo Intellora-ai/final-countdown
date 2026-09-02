@@ -1,0 +1,129 @@
+# SearxNG, configured for ONE purpose: to be the free, keyless, many-engine
+# search provider behind /api/search on a developer's machine.
+#
+# WHY `json` HAS TO BE LISTED. SearxNG answers `format=json` with 403 unless the
+# format is enabled here -- the default settings allow html only. Without this
+# line the endpoint template "works" in a browser and fails from code.
+#
+# WHY THE LIMITER IS OFF. The rate limiter exists for a public instance facing
+# strangers. This one is bound to loopback and asked by one server.
+#
+# WHY THESE ENGINES AND NOT THE DEFAULT SET. MEASURED 2026-09-02 on a laptop:
+# the default set answered four pages once and then nothing at all -- Google
+# CSE, Brave and Startpage were CAPTCHA-suspended within minutes and DuckDuckGo
+# and Wikidata timed out on every request -- while `results` came back empty
+# and the pipeline honestly reported "the web had nothing usable to say".
+# "Widely spread" has to mean engines that keep answering from a home network
+# without a key: the Wikimedia family, arXiv, and the general engines that do
+# not gate on a CAPTCHA. Anything suspended stays in the list and comes back
+# on its own; nothing here is removed for being slow, only for never answering.
+#
+# WHY THE TIMEOUTS ARE LONGER. The defaults (3 s) were tuned for a datacenter;
+# from a laptop inside Docker the connect alone can take that.
+# `keep_only` KEEPS engines; it does not ENABLE them. MEASURED 2026-09-02 on
+# `/config` after the first version of this file: only arxiv, wikipedia,
+# wikidata and brave were enabled, because SearxNG ships bing and the smaller
+# Wikimedia engines switched off, and a kept-but-disabled engine answers
+# nothing. So every engine this instance relies on is enabled by name below.
+#
+# RE-MEASURED 2026-09-03, and the list was wrong in both directions.
+#
+#   Thirty-four candidates were enabled at once and asked three real school
+#   questions -- "photosynthesis", "trigonometric ratios", "the fundamental
+#   theorem of arithmetic". What actually answered:
+#
+#     bing               27 results
+#     yep                60 results   <- never tried before, and the best of them
+#     qwant              30 results   <- DROPPED yesterday for one CAPTCHA
+#     wikipedia          2 answers, in `infoboxes`
+#     wikidata           1 answer,  in `infoboxes`
+#     ddg definitions    2 answers
+#
+#   And what could not answer at all:
+#
+#     duckduckgo   CAPTCHA
+#     startpage    Suspended: CAPTCHA
+#     mojeek       Suspended: access denied
+#     yahoo        HTTP protocol error
+#
+#   Two lessons worth keeping. Qwant was struck off on a single observation and
+#   answers thirty results today, so ONE failure is not evidence that an engine
+#   is dead. And `yep` was never tried -- the earlier list was assembled from
+#   what the default set happened to contain rather than from a measurement, so
+#   the best engine available here was missing for a day.
+#
+# THE RULE FOR EDITING THIS LIST: a CAPTCHA or a protocol error is a hard gate
+# and the engine goes; "Suspended: too many requests" is rate limiting and the
+# engine STAYS, because it comes back on its own. Nothing is removed for being
+# slow. Nothing is added without asking it a real question first.
+#
+# An engine returning nothing for these three is not necessarily dead: arxiv
+# answers in the `science` category rather than `general`, which is why it is
+# kept without a result count beside it.
+use_default_settings:
+  engines:
+    keep_only:
+      - bing
+      - yep
+      - qwant
+      - wikipedia
+      - wikidata
+      - ddg definitions
+      - arxiv
+      - wikibooks
+      - wikisource
+      - wikiversity
+      - brave
+
+engines:
+  # general; 27 results across three school questions
+  - name: bing
+    disabled: false
+  # general; 60 results, the most of any engine measured
+  - name: yep
+    disabled: false
+  # general; 30 results
+  - name: qwant
+    disabled: false
+  # the encyclopedia answer, read from `infoboxes`
+  - name: wikipedia
+    disabled: false
+  # the encyclopedia answer, read from `infoboxes`
+  - name: wikidata
+    disabled: false
+  # definitions; 2 answers
+  - name: ddg definitions
+    disabled: false
+  # science papers; answers in its own category, not `general`
+  - name: arxiv
+    disabled: false
+  # rate-limited today, recovers on its own
+  - name: wikibooks
+    disabled: false
+  # rate-limited today, recovers on its own
+  - name: wikisource
+    disabled: false
+  # rate-limited today, recovers on its own
+  - name: wikiversity
+    disabled: false
+  # rate-limited today, recovers on its own
+  - name: brave
+    disabled: false
+
+server:
+  limiter: false
+  image_proxy: false
+
+# MEASURED 2026-09-02: with 6 s / 15 s here, one grounding search took 19.7 s
+# because the instance waited out engines that were never going to answer
+# (rate-limited Wikimedia, a suspended Brave). An engine that has not answered
+# in four seconds is not worth the learner's first word; the fast ones answer
+# in one or two.
+outgoing:
+  request_timeout: 2.0
+  max_request_timeout: 3.0
+
+search:
+  formats:
+    - html
+    - json

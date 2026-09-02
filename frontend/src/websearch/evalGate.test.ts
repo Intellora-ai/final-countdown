@@ -58,7 +58,7 @@ function fixtureWorld(cases: readonly BenchmarkCase[]): {
   const hits: Record<string, readonly SearchHit[]> = {}
   const bodies: Record<string, string> = {}
   for (const c of cases) {
-    hits[c.query] = c.relevantUrls.map((url) => ({ url, title: c.id, snippet: '' }))
+    hits[c.query] = c.relevantUrls.map((url) => ({ url, title: c.query, snippet: '' }))
     for (const url of c.relevantUrls) bodies[url] = c.examplePage
   }
   return { hits, bodies }

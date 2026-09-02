@@ -205,6 +205,107 @@ function penaltiesFor(hit: SearchHit, kind: SourceKind): string[] {
 /* -------------------------------------------------------------------------- */
 
 /** Exclusions. A hit here is reported, never removed. */
+/* Words with a subject in them: three letters or more, and not the small words
+   every question carries. */
+const SMALL_WORDS = new Set([
+  'the', 'and', 'for', 'are', 'how', 'why', 'can', 'its', 'was', 'who', 'not', 'but', 'has', 'had', 'did',
+  'all', 'any', 'one', 'two', 'out', 'off', 'via', 'per', 'use', 'get', 'got', 'way', 'say', 'see', 'let',
+  'may', 'yet', 'you', 'our', 'his', 'her', 'she', 'him', 'new', 'old',
+  'what', 'when', 'where', 'which', 'while', 'with', 'without', 'this', 'that', 'these', 'those', 'there',
+  'their', 'them', 'they', 'then', 'than', 'from', 'into', 'about', 'between', 'because', 'does', 'have',
+  'been', 'being', 'were', 'will', 'would', 'could', 'should', 'much', 'many', 'more', 'most', 'some',
+  'such', 'very', 'also', 'only', 'over', 'under', 'after', 'before', 'like', 'make', 'made', 'used',
+  'using', 'give', 'gives', 'given', 'find', 'explain', 'relation', 'relationship', 'difference', 'meaning',
+])
+
+function subjectWords(req: SearchRequirements): string[] {
+  const seen = new Set<string>()
+  /* The question's own words first: what was extracted from it is a subset. */
+  for (const phrase of [req.normalized, req.query, ...req.aspects, ...req.entities]) {
+    for (const word of phrase.toLowerCase().split(/[^a-z0-9]+/)) {
+      /* Three letters is where subjects start: GDP, CPI, DNA, pH is two and lost. */
+      if (word.length >= 3 && !SMALL_WORDS.has(word)) seen.add(word)
+    }
+  }
+  return [...seen]
+}
+
+/**
+ * A SOURCE MUST MENTION THE SUBJECT. Measured 2026-09-02 through a local
+ * SearxNG: for "relation between zeros and coefficients of a polynomial" Bing
+ * answered with song lyrics, then Vietnamese dishes, then LibreOffice
+ * downloads -- and a hit that shares no word with the question was demoted,
+ * fetched (four seconds of the learner's wait) and handed to the author as a
+ * citation. A hit whose title and snippet carry none of the question's words
+ * is excluded BEFORE it is fetched (see `pipeline.ts`), with the reason on it,
+ * so nothing is silently dropped. Not inside `rankHits`: that also ranks pages
+ * already read, whose text -- not their snippet -- is what says the subject.
+ * A question with no subject words at all cannot judge, and judges nothing.
+ */
+export function offTopic(hit: SearchHit, req: SearchRequirements): string | undefined {
+  const words = subjectWords(req)
+  if (words.length === 0) return undefined
+  const text = `${hit.title} ${hit.snippet}`.toLowerCase()
+  return words.some((word) => text.includes(stemOf(word)))
+    ? undefined
+    : 'off-topic: mentions none of the question\'s words'
+}
+
+/**
+ * As much of a word as still names its subject.
+ *
+ * WHY THIS EXISTS. The rule above compared whole words, and English does not
+ * spell a subject one way. MEASURED 2026-09-03: for the question "trigonometric
+ * ratios" it excluded **Wikipedia's own "Trigonometry" article** -- the single
+ * most trustworthy source in the reply -- because "trigonometry" does not
+ * contain the string "trigonometric". On that same search the adult forum the
+ * engine had ranked first was excluded for the right reason, so a Class 10
+ * student asking about trigonometry was left with NOTHING. The guard meant to
+ * protect her threw away the only true thing in the response.
+ *
+ * The same shape covers photosynthesis/photosynthetic, magnetic/magnetism,
+ * probability/probabilistic, refraction/refractive, digestive/digestion,
+ * nationalism/nationalist -- ordinary English, not a special case.
+ *
+ * HOW LONG THE STEM IS, AND WHY IT IS NOT SHORTER. Seven tenths of the word,
+ * never below five letters, and words under six letters are not cut at all. A
+ * shorter stem stops discriminating and the guard stops guarding: at three
+ * letters "carbon" matches "Car insurance quotes", which is exactly the kind of
+ * result this whole rule exists to keep away from a child. At five it does not.
+ *
+ * The rule errs towards LETTING A SOURCE THROUGH, deliberately. A page that is
+ * kept is still ranked, still read, and still judged on its text; a page that is
+ * excluded here is never fetched and can never be reconsidered. The cost of the
+ * two mistakes is not symmetrical.
+ */
+function stemOf(word: string): string {
+  if (word.length < SHORT_ENOUGH_TO_KEEP_WHOLE) return word
+  return word.slice(0, Math.ceil(word.length * KEPT_OF_A_WORD))
+}
+
+/** Under this many letters a word is its own stem: there is nothing to spare. */
+const SHORT_ENOUGH_TO_KEEP_WHOLE = 6
+
+/**
+ * How much of a word still names its subject: seven tenths, rounded up.
+ *
+ * THIS RATIO IS THE WHOLE RULE, and it is what keeps the guard guarding. Loosen
+ * it and the stems stop discriminating: at four tenths "carbon" becomes "car"
+ * and a child asking about the carbon cycle is offered "Car insurance quotes",
+ * which is the exact class of result this rule exists to keep away from her. At
+ * seven tenths "carbon" is "carbo" and it is not.
+ *
+ * IT SITS ALONE BECAUSE A SECOND GUARD HERE WAS DEAD. This was written as
+ * `Math.max(5, ceil(len * 0.7))`, and the 5 read like a floor protecting
+ * exactly the case above. MEASURED at every word length from 1 to 16: the
+ * ceiling is greater than or equal to 5 at every length the branch can reach,
+ * so the floor never once changed an answer. A mutation run found it by
+ * dropping it to 3 and watching all 21 tests stay green. A constant that looks
+ * like a safeguard and cannot fire is worse than no constant, because the next
+ * person reading it believes the case is covered.
+ */
+const KEPT_OF_A_WORD = 0.7
+
 function exclusionFor(hit: SearchHit): string | undefined {
   let parsed: URL
   try {

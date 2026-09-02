@@ -94,7 +94,8 @@ describe('the corpus itself is checked, because a broken benchmark scores nothin
       const report = await runCorpus({
         cases: [c],
         provider: fixtureProvider({
-          [c.query]: c.relevantUrls.map((u) => ({ url: u, title: 't', snippet: 's' })),
+          /* An engine's hit is matched on the question's words, so it says them. */
+          [c.query]: c.relevantUrls.map((u) => ({ url: u, title: c.query, snippet: 's' })),
         }),
         fetchImpl: async (url) => served(`<article><p>${c.examplePage}</p></article>`, url),
       })
@@ -165,7 +166,8 @@ describe('running the corpus', () => {
     const report = await runCorpus({
       cases: [oneCase],
       provider: fixtureProvider({
-        'india gdp growth 2025': [{ url: wrong, title: 'x', snippet: 'x' }],
+        /* SEO spam names the question in its title -- that is how it gets read. */
+        'india gdp growth 2025': [{ url: wrong, title: 'India GDP growth 2025 - best deals', snippet: 'x' }],
       }),
       fetchImpl: async () => served('<p>Unrelated content.</p>', wrong),
     })
@@ -224,9 +226,9 @@ describe('running the corpus', () => {
       cases: [{ ...oneCase, relevantUrls: ['https://a.example/x'], relevantTotal: 3 }],
       provider: fixtureProvider({
         'india gdp growth 2025': [
-          { url: 'https://a.example/x', title: 't', snippet: 's' },
-          { url: 'https://b.example/y', title: 't', snippet: 's' },
-          { url: 'https://c.example/z', title: 't', snippet: 's' },
+          { url: 'https://a.example/x', title: 'India GDP growth 2025', snippet: 's' },
+          { url: 'https://b.example/y', title: 'India GDP growth 2025', snippet: 's' },
+          { url: 'https://c.example/z', title: 'India GDP growth 2025', snippet: 's' },
         ],
       }),
       fetchImpl: async (url) => served(wire, url),
@@ -298,7 +300,7 @@ describe('the benchmark runs the pipeline the product runs', () => {
       name: 'counting',
       search: async () => {
         calls += 1
-        return [{ url: 'https://mospi.gov.in/gdp-2025', title: 'g', snippet: '' }]
+        return [{ url: 'https://mospi.gov.in/gdp-2025', title: 'India GDP growth 2025', snippet: '' }]
       },
     }
     const report = await runCorpus({
@@ -315,7 +317,7 @@ describe('the benchmark runs the pipeline the product runs', () => {
   it('records how many refinement rounds a case needed', async () => {
     const report = await runCorpus({
       provider: fixtureProvider({
-        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'g', snippet: '' }],
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'India GDP growth 2025', snippet: '' }],
       }),
       fetchImpl: async (url: string) =>
         served('The ministry reported the growth rate for 2025 was 6.1 percent.', url),
@@ -329,7 +331,7 @@ describe('the benchmark runs the pipeline the product runs', () => {
        notice the day its own numbers stop describing the live path. */
     const report = await runCorpus({
       provider: fixtureProvider({
-        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'g', snippet: '' }],
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'India GDP growth 2025', snippet: '' }],
       }),
       fetchImpl: async (url: string) =>
         served('The ministry reported the growth rate for 2025 was 6.1 percent.', url),
@@ -348,8 +350,8 @@ describe('the benchmark grades the verdict, not only the retrieval', () => {
     const report = await runCorpus({
       provider: fixtureProvider({
         'india gdp growth 2025': [
-          { url: 'https://mospi.gov.in/gdp-2025', title: 'a', snippet: '' },
-          { url: 'https://rbi.org.in/rates', title: 'b', snippet: '' },
+          { url: 'https://mospi.gov.in/gdp-2025', title: 'India GDP growth 2025', snippet: '' },
+          { url: 'https://rbi.org.in/rates', title: 'India GDP growth 2025: policy rates', snippet: '' },
         ],
       }),
       fetchImpl: async (url: string) =>
@@ -362,7 +364,7 @@ describe('the benchmark grades the verdict, not only the retrieval', () => {
   it('one domain scores as single-source, never supported', async () => {
     const report = await runCorpus({
       provider: fixtureProvider({
-        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'a', snippet: '' }],
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'India GDP growth 2025', snippet: '' }],
       }),
       fetchImpl: async (url: string) =>
         served('The ministry reported the growth rate for 2025 was 6.1 percent.', url),
@@ -385,7 +387,7 @@ describe('the benchmark grades the verdict, not only the retrieval', () => {
        is merely present is the easiest thing in this system to fake. */
     const report = await runCorpus({
       provider: fixtureProvider({
-        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'a', snippet: '' }],
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'India GDP growth 2025', snippet: '' }],
       }),
       fetchImpl: async (url: string) =>
         served('The ministry reported the growth rate for 2025 was 6.1 percent.', url),
@@ -441,7 +443,7 @@ describe('the benchmark grades the answer, not only the evidence behind it', () 
        words. Neither says the ANSWER was right. */
     const report = await runCorpus({
       provider: fixtureProvider({
-        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'a', snippet: '' }],
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'India GDP growth 2025', snippet: '' }],
       }),
       fetchImpl: async (url: string) =>
         served('The ministry reported that the growth rate for the year 2025 was 6.1 percent.', url),
@@ -460,7 +462,7 @@ describe('the benchmark grades the answer, not only the evidence behind it', () 
     }
     const report = await runCorpus({
       provider: fixtureProvider({
-        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'a', snippet: '' }],
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'India GDP growth 2025', snippet: '' }],
       }),
       fetchImpl: async (url: string) =>
         served('The ministry reported that the growth rate for the year 2025 was 6.1 percent.', url),
@@ -491,7 +493,7 @@ describe('the benchmark grades the answer, not only the evidence behind it', () 
   it('reports citations that no claim supports', async () => {
     const report = await runCorpus({
       provider: fixtureProvider({
-        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'a', snippet: '' }],
+        'india gdp growth 2025': [{ url: 'https://mospi.gov.in/gdp-2025', title: 'India GDP growth 2025', snippet: '' }],
       }),
       fetchImpl: async (url: string) =>
         served('The ministry reported that the growth rate for the year 2025 was 6.1 percent.', url),

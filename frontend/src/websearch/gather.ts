@@ -89,6 +89,22 @@ export interface Retrieved {
   /** The quarantined block, safe to hand to a reader. Empty on failure. */
   evidence: string
   suspicious: boolean
+  /**
+   * Whether the page's own text is about what was asked.
+   *
+   * MARKED, NEVER DROPPED, and the distinction is the whole reason this field
+   * exists rather than a filter. The first version of this check removed such
+   * pages from `retrieved` outright, and the retrieval benchmark immediately
+   * went blind: `corpus.test.ts` grades "the engine returned something and it
+   * was wrong" as zero precision, which it can only do if it can still SEE the
+   * wrong thing. A search that fetched a bad page and a search that fetched
+   * nothing are different failures with different fixes.
+   *
+   * `select.ts` states the same rule for hits -- "the reason stays on the hit,
+   * so nothing is silently dropped" -- and this is that rule one step later.
+   * Undefined on a page that was never judged (a fetch that failed).
+   */
+  aboutTheSubject?: boolean
   signals: readonly InjectionSignal[]
 
   finalUrl: string
@@ -107,6 +123,8 @@ export interface Retrieved {
 
 export interface GatherOptions {
   concurrency?: number
+  /** Epoch ms. Reads not finished by then are left out and marked so; the rest are kept. */
+  deadlineAt?: number
   cache?: PageCache
   latency?: Latency
   /** Beyond this age a cached entry is refetched. Absent means never stale. */
@@ -185,8 +203,10 @@ export async function gather(
   const bodies = new Map<string, { page: CachedPage; fromCache: boolean } | { error: Retrieved }>()
 
   let cursor = 0
+  const deadlineAt = options.deadlineAt
   const workers = Array.from({ length: Math.min(concurrency, distinct.length) }, async () => {
     for (;;) {
+      if (deadlineAt !== undefined && Date.now() >= deadlineAt) return
       const index = cursor
       cursor += 1
       if (index >= distinct.length) return
@@ -283,11 +303,25 @@ export async function gather(
     }
   })
 
-  await Promise.all(workers)
+  /* THE DEADLINE KEEPS WHAT ARRIVED. Measured 2026-09-02: one slow read held
+     the batch past the grounding budget and every page that had arrived was
+     thrown away with it. Past the deadline the batch returns as it stands; a
+     read still in flight is marked, not awaited. */
+  if (deadlineAt === undefined) {
+    await Promise.all(workers)
+  } else {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const untilDeadline = new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, Math.max(0, deadlineAt - Date.now()))
+    })
+    await Promise.race([Promise.all(workers).then(() => undefined), untilDeadline]).finally(() => {
+      if (timer !== undefined) clearTimeout(timer)
+    })
+  }
 
   return hits.map((hit) => {
     const entry = bodies.get(hit.url)
-    if (!entry) return emptyResult(hit, 'network', 'not retrieved')
+    if (!entry) return emptyResult(hit, 'network', deadlineAt === undefined ? 'not retrieved' : 'not read before the deadline')
     if ('error' in entry) {
       return { ...entry.error, hit, finalUrl: hit.url }
     }

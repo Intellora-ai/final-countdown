@@ -46,10 +46,12 @@ const HOSTILE = [
   'https://.com',
 ] as const
 
-const hit = (url: string, i = 0): SearchHit => ({
+/* A hit as an engine really returns one: its snippet is an excerpt matched on
+   the question's words, so it names the subject. `about` is that subject. */
+const hit = (url: string, i = 0, about = 'gas pressure'): SearchHit => ({
   url,
   title: `result ${i}`,
-  snippet: 'gas pressure rises with temperature',
+  snippet: `${about} rises with temperature`,
 })
 
 const SEEDS = Array.from({ length: 150 }, (_, i) => i * 5237 + 11)
@@ -190,7 +192,7 @@ describe('§44 — the components stay visible, the score is never the only arte
 describe('§9 — primary sources are preferred when the question calls for it', () => {
   it('an official source outranks a forum on the same question', () => {
     const ranked = rankHits(
-      [hit('https://reddit.com/r/askscience/comments/1'), hit('https://nasa.gov/mission')],
+      [hit('https://reddit.com/r/askscience/comments/1', 0, 'LIFO vs FIFO'), hit('https://nasa.gov/mission', 1, 'LIFO vs FIFO')],
       interpret('LIFO vs FIFO'),
       now,
     )
@@ -201,7 +203,7 @@ describe('§9 — primary sources are preferred when the question calls for it',
     const req = interpret('LIFO vs FIFO')
     expect(req.requirePrimary).toBe(true)
     const ranked = rankHits(
-      [hit('https://en.wikipedia.org/wiki/Gas'), hit('https://arxiv.org/abs/2401.00001')],
+      [hit('https://en.wikipedia.org/wiki/Gas', 0, 'LIFO vs FIFO'), hit('https://arxiv.org/abs/2401.00001', 1, 'LIFO vs FIFO')],
       req,
       now,
     )
@@ -215,7 +217,7 @@ describe('§9 — primary sources are preferred when the question calls for it',
        rule written for a different kind of question. */
     const req = interpret('what is opportunity cost')
     expect(req.requirePrimary).toBe(false)
-    const ranked = rankHits([hit('https://en.wikipedia.org/wiki/Opportunity_cost')], req, now)
+    const ranked = rankHits([hit('https://en.wikipedia.org/wiki/Opportunity_cost', 0, 'opportunity cost')], req, now)
     expect(ranked[0].excluded).toBeUndefined()
   })
 })
@@ -257,16 +259,16 @@ describe('§12 — freshness participates in ranking without inventing a date', 
   it('a dated page is preferred over an undated one for a recent question', () => {
     const req = interpret('latest news about india')
     const dated: SearchHit = {
-      ...hit('https://www.reuters.com/a'),
+      ...hit('https://www.reuters.com/a', 0, 'latest news about india'),
       publishedAt: new Date(NOW - 2 * 86_400_000).toISOString(),
     }
-    const undated = hit('https://apnews.com/b')
+    const undated = hit('https://apnews.com/b', 1, 'latest news about india')
     const ranked = rankHits([undated, dated], req, now)
     expect(ranked[0].hit.url).toContain('reuters')
   })
 
   it('an undated page stays undated — freshness is absent, not defaulted', () => {
-    const ranked = rankHits([hit('https://apnews.com/b')], interpret('latest news'), now)
+    const ranked = rankHits([hit('https://apnews.com/b', 0, 'latest news')], interpret('latest news'), now)
     expect(ranked[0].factors.freshness).toBeUndefined()
   })
 
@@ -275,11 +277,11 @@ describe('§12 — freshness participates in ranking without inventing a date', 
        not sort above an honest one. */
     const req = interpret('latest news about india')
     const future: SearchHit = {
-      ...hit('https://www.reuters.com/future'),
+      ...hit('https://www.reuters.com/future', 0, 'latest news about india'),
       publishedAt: new Date(NOW + 30 * 86_400_000).toISOString(),
     }
     const honest: SearchHit = {
-      ...hit('https://www.reuters.com/honest'),
+      ...hit('https://www.reuters.com/honest', 1, 'latest news about india'),
       publishedAt: new Date(NOW - 86_400_000).toISOString(),
     }
     const ranked = rankHits([future, honest], req, now)

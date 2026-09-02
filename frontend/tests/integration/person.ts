@@ -282,7 +282,7 @@ export async function sheOpensTheApp(page: Page, where = '/'): Promise<void> {
  * that "already on screen" means what it says.
  */
 export async function sheStartsFresh(page: Page, where = '/'): Promise<void> {
-  await page.goto(where, { waitUntil: 'domcontentloaded' })
+  await arrive(page, where)
   await page.evaluate(() => {
     try { localStorage.clear() } catch { /* a private window has none */ }
     try { sessionStorage.clear() } catch { /* nor this */ }
@@ -301,6 +301,29 @@ export async function sheStartsFresh(page: Page, where = '/'): Promise<void> {
    * the same full document boot with the storage now clear, through the plain
    * navigation path every engine survives. */
   await page.goto('about:blank')
-  await page.goto(where, { waitUntil: 'domcontentloaded' })
+  await arrive(page, where)
   await page.waitForTimeout(1800)
+}
+
+/**
+ * Navigate, and forgive WebKit exactly one internal stumble.
+ *
+ * The about:blank hop above removed "WebKit encountered an internal error" from
+ * `reload`; on run 33616106242 the same words came back from the plain `goto`
+ * that follows it, on the safari leg alone, one law of thirteen, on a commit
+ * that touched no page. That sentence is WebKit's own, about its own process,
+ * and it says nothing about the product. So it is the ONLY error retried here,
+ * once, after a breath -- any other failure, and any second one, is still hers
+ * to fail on. The laws themselves are untouched: they still have to earn every
+ * assertion on the page this arrives at.
+ */
+async function arrive(page: Page, where: string): Promise<void> {
+  try {
+    await page.goto(where, { waitUntil: 'domcontentloaded' })
+  } catch (error) {
+    const said = error instanceof Error ? error.message : String(error)
+    if (!said.includes('WebKit encountered an internal error')) throw error
+    await page.waitForTimeout(1500)
+    await page.goto(where, { waitUntil: 'domcontentloaded' })
+  }
 }

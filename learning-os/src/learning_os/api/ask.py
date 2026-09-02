@@ -43,6 +43,8 @@ of whatever somebody typed into a text box.
 from __future__ import annotations
 
 import json
+import os
+import re
 import sys
 from datetime import UTC, datetime
 from typing import Any
@@ -203,6 +205,22 @@ def _read(raw: str) -> tuple[Doubt | None, dict[str, Any] | None]:
     )
 
 
+#: Google's key shape. No client puts a key in an error message on purpose,
+#: but a vendor's message is not this module's to trust, and a key that
+#: leaked through a learner document would leak through the receipt next.
+_LOOKS_LIKE_A_KEY = re.compile(r"AIza[0-9A-Za-z_\-]{20,}")
+
+
+def _scrubbed(text: str) -> str:
+    """`text` with every configured credential value, and anything shaped like
+    one, replaced -- the same rule the refusal path already lives by."""
+    out = text
+    for name, value in os.environ.items():
+        if name.endswith("_API_KEY") and len(value) >= 8 and value in out:
+            out = out.replace(value, "[redacted]")
+    return _LOOKS_LIKE_A_KEY.sub("[redacted]", out)
+
+
 def _explain(outcome: DoubtOutcome) -> str:
     """A sentence for a learner, per outcome.
 
@@ -292,6 +310,12 @@ def answer(raw: str) -> dict[str, Any]:
             base["violations"] = [
                 f"{violation.kind.value}: {violation.detail}" for violation in turn.violations
             ]
+        # THE PROVIDER'S OWN WORDS FOR NOT ANSWERING, for the same reason as
+        # `violations`: "unavailable" names the learner's experience, `cause`
+        # names what to fix. Never a credential -- the clients never put one in
+        # a message, and `_scrubbed` is the same rule the refusal path applies.
+        if turn is not None and turn.cause:
+            base["cause"] = _scrubbed(turn.cause)
         return base
 
     turn = resolution.turn

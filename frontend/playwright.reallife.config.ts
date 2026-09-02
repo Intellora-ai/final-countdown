@@ -30,18 +30,31 @@ import { defineConfig, devices } from '@playwright/test'
  * `page.request.get('/api/situation')` answered 500, the dev server's word for
  * "upstream is not there".
  *
- * `server/boot.test.ts` proves the built server starts with no model key and
- * says `listening on`. So the server runs here with every model key set to
- * blank -- which `provider.ts` reads as unset -- and the laws finally run
- * against the product a keyless person actually has: a server that refuses
- * honestly, asks back when it cannot tell what was meant, and remembers.
+ * THE SERVER STILL REFUSES TO START WITH NO PROVIDER AT ALL, and that is a
+ * tested product decision (`boot.test.ts`: "refuses to start when no provider
+ * is configured, and names every way to set one"), not something a test
+ * config gets to override. A first draft of this entry blanked every key and
+ * the server exited 1 before it listened (run 33605784970). So the server is
+ * given the one provider that needs no key: a local Ollama model NAME, with
+ * no Ollama running behind it. That is a real machine too -- a laptop where
+ * the model was named and the daemon is not up -- and it is the closest real
+ * life to "no key" that still has a server: every hosted key stays blank
+ * (`provider.ts` reads blank as unset), every ask meets a connection refused
+ * and is answered with the same honest "could not be reached", and the server
+ * remembers what it was asked. The laws finally run against that.
  */
+import { mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 /* Fresh per run, outside the checkout, so a law never reads yesterday's
-   memory and a developer's own `data/` is never written to by a test. */
+   memory and a developer's own `data/` is never written to by a test.
+   CREATED HERE, because the server does not create it: the memory store
+   makes its own directory but the identity-secret writer does not, and on
+   run 33605784970 the server exited 1 before it ever listened -- the config
+   file is the one place that knows the directory is meant to exist. */
 const scratch = join(tmpdir(), `learning-canvas-laws-${process.pid}`)
+mkdirSync(scratch, { recursive: true })
 export default defineConfig({
   testDir: './tests/integration',
   retries: 0,
@@ -156,12 +169,14 @@ export default defineConfig({
        because a keyless server's health reply is allowed to be honest about
        having no model and Playwright treats a 5xx as "not up yet".
 
-       Every model key is set to BLANK rather than unset: Playwright's `env`
+       Every hosted key is set to BLANK rather than unset: Playwright's `env`
        can only add, and `provider.ts` reads blank as unset, so a developer's
        own GROQ_API_KEY in the shell cannot quietly turn these laws into the
-       keyed suite. `reuseExistingServer` matches the Vite entry below -- on a
-       laptop an already-running server is used as-is, which is the one way to
-       run the laws against a keyed server, and it is a choice, not a default. */
+       keyed suite. OLLAMA_MODEL is the provider -- see the header: a name with
+       no daemon behind it is what lets a keyless server start at all.
+       `reuseExistingServer` matches the Vite entry below -- on a laptop an
+       already-running server is used as-is, which is the one way to run the
+       laws against a keyed server, and it is a choice, not a default. */
     {
       command: 'npm run server',
       port: 8787,
@@ -174,7 +189,7 @@ export default defineConfig({
         ALMANAC_IDENTITY_SECRET_FILE: join(scratch, 'identity-secret'),
         ANTHROPIC_API_KEY: '',
         GROQ_API_KEY: '',
-        OLLAMA_MODEL: '',
+        OLLAMA_MODEL: 'laws-no-daemon-behind-this-name',
       },
     },
     {

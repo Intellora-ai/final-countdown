@@ -514,3 +514,36 @@ def test_a_failed_generation_names_the_rules_the_draft_broke(
     monkeypatch.setattr(ask, "resolve", _failed_without_reasons)
     result = run(DOUBT, monkeypatch)
     assert "violations" not in result, result
+
+
+def test_an_unavailable_provider_says_why_without_leaking_a_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The learner reads the sentence; whoever fixes it reads the cause.
+
+    Both directions: the provider's words reach the document, and a key-shaped
+    string or the configured key value inside them does not.
+    """
+    from typing import cast
+    from unittest.mock import MagicMock
+
+    from learning_os.runtime.loop import Turn
+    from learning_os.session.doubt import DoubtOutcome, Resolution
+
+    fake_key = "AIzaSyFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"
+    monkeypatch.setenv("LEARNING_OS_GEMINI_API_KEY", fake_key)
+    down = MagicMock(spec=Turn)
+    down.violations = ()
+    down.cause = f"the model could not be reached: 429 RESOURCE_EXHAUSTED (key {fake_key})"
+
+    def _unavailable(*_args: Any, **_kwargs: Any) -> Resolution:
+        return Resolution(
+            outcome=DoubtOutcome.UNAVAILABLE, resume_at="beat-0", turn=cast(Turn, down)
+        )
+
+    monkeypatch.setattr(ask, "resolve", _unavailable)
+    result = run(DOUBT, monkeypatch)
+    assert "429 RESOURCE_EXHAUSTED" in result["cause"], result
+    assert fake_key not in result["cause"], "the configured key leaked through the cause"
+    assert "AIza" not in result["cause"], "a key-shaped string leaked through the cause"
+    assert "problem on this end" in result["refusal"]

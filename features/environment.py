@@ -133,7 +133,7 @@ def _say_why_a_real_model_did_not_answer(scenario_name: str, raw_documents) -> N
             continue
         why = {
             key: document[key]
-            for key in ("outcome", "refusal", "violations", "issues", "error", "reason")
+            for key in ("outcome", "refusal", "cause", "violations", "issues", "error", "reason")
             if key in document
         }
         # One line, no newlines: a workflow command ends at the first newline.

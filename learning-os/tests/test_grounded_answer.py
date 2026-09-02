@@ -7,18 +7,23 @@ a broken engine, an empty web, or a model that cannot satisfy the citation
 rules, the learner gets exactly the refusal they always got. "Never guess"
 survives; "cannot look things up" does not.
 
-The end-to-end case runs a REAL loopback HTTP engine and the real `urllib`
-transport: `api.ask.answer` is driven with `LEARNING_OS_SEARCH_ENDPOINT`
-pointing at a server this file starts. No mock stands where a socket can.
+NO SOCKET IS OPENED HERE, AND THAT IS THIS SUITE'S LAW, NOT A SHORTCUT.
+`conftest.py` refuses every network connection so the engine's proofs stay
+offline and deterministic. A twin of the end-to-end case once lived here with
+a real loopback HTTP engine; on four CI runs it reported "unmappable" for a
+reason nobody could read until the transport printed its own exception: the
+guard had refused the loopback connect, and `sources_from` swallowed that
+into "the web has nothing". The end-to-end case with a real `urllib` transport
+runs where sockets are allowed by design -- `features/tutor.feature`, where the
+behave suite starts a real loopback engine and drives the real process. Here,
+the document path is proven with the transport swapped at its one seam.
 """
 
 from __future__ import annotations
 
 import json
-import threading
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
-from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
@@ -406,112 +411,6 @@ def test_the_bridge_document_end_to_end_with_an_injected_transport(
     )
     assert A_SOURCE.url in json.dumps(document["lesson"])
     assert seen and "chocolate" in seen[0], "the learner's own words never reached the engine"
-
-
-# ------------------------------------------- end to end, over a real socket ----
-
-
-class _Engine(BaseHTTPRequestHandler):
-    """A real search engine, as far as `urllib` can tell."""
-
-    def do_GET(self) -> None:
-        body = json.dumps(
-            {
-                "results": [
-                    {
-                        "url": A_SOURCE.url,
-                        "title": A_SOURCE.title,
-                        "snippet": A_SOURCE.snippet,
-                    }
-                ]
-            }
-        ).encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
-    def log_message(self, *_args: object) -> None:
-        """Silence: request lines on stderr read as failures in CI logs."""
-
-
-@pytest.fixture()
-def loopback_engine() -> Iterator[str]:
-    try:
-        server = HTTPServer(("127.0.0.1", 0), _Engine)
-    except PermissionError as denied:
-        # A hard failure, deliberately -- the same rule as `tests/db/conftest`:
-        # the absence of an environment must not masquerade as a passing suite.
-        # Sandboxed dev shells forbid binding sockets; CI runners do not, and
-        # CI is where this proof is required to run. The socketless twin above
-        # proves the same document path locally.
-        raise RuntimeError(
-            "this environment forbids binding a loopback socket, so there is "
-            "no engine to test against; run outside the sandbox or rely on CI"
-        ) from denied
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        yield f"http://127.0.0.1:{server.server_port}/search?q={{query}}&n={{limit}}"
-    finally:
-        server.shutdown()
-        thread.join(timeout=5)
-
-
-def test_the_bridge_answers_the_cake_question_with_a_source(
-    loopback_engine: str, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """`api.ask.answer`, the fake provider, real HTTP retrieval, one document."""
-    monkeypatch.setenv(websearch.ENDPOINT_ENV, loopback_engine)
-    monkeypatch.delenv("LEARNING_OS_LLM_PROVIDER", raising=False)
-
-    # THE FETCH'S OWN FAILURE, MADE VISIBLE. `sources_from` swallows every
-    # transport error into an empty tuple on purpose (a learner is never told
-    # the machinery's biography), which on CI meant this test failed as a bare
-    # "unmappable" with the real reason -- whatever urllib met on the runner --
-    # discarded before anyone could read it. The real transport still runs;
-    # this only says out loud what it raised, as an annotation, on the way.
-    real_fetch = websearch._default_fetch_json
-
-    def loud_fetch(url: str, headers: Mapping[str, str]) -> object:
-        try:
-            body = real_fetch(url, headers)
-        except Exception as failure:
-            print(
-                "::warning title=the cake bridge's fetch raised::"
-                f"{type(failure).__name__}: {str(failure)[:600]} (url={url[:200]})",
-                flush=True,
-            )
-            raise
-        print(f"::notice title=the cake bridge fetched::{json.dumps(body)[:300]}", flush=True)
-        return body
-
-    monkeypatch.setattr(websearch, "_default_fetch_json", loud_fetch)
-
-    document = answer(json.dumps({"text": OFF_CURRICULUM, "resume_at": "b1"}))
-
-    if document.get("outcome") != "answered":
-        # THE DOCUMENT ITSELF, AS AN ANNOTATION. This assert failed on four CI
-        # runs and every one of them said only "AssertionError": the matcher
-        # keeps the error's class, the job log that holds the message is
-        # admin-only, and the socket this test needs is forbidden in the
-        # sandbox, so the reason could be read nowhere. A ::warning line on
-        # stdout is turned into an annotation by GitHub with no workflow
-        # change, so the reply's own words -- outcome, refusal, violations --
-        # reach the run before the assert below refuses it.
-        print(
-            "::warning title=the cake bridge did not answer::"
-            + json.dumps(document, ensure_ascii=True)[:900].replace("\n", " "),
-            flush=True,
-        )
-    assert document["outcome"] == "answered", document
-    assert document["sources"] == [A_SOURCE.url], (
-        "the answer's sources are not exactly the engine's one page: "
-        f"{document.get('sources')!r} (full document: {document!r})"
-    )
-    lesson = json.dumps(document["lesson"])
-    assert A_SOURCE.url in lesson, "the lesson never names the source a learner could check"
 
 
 def test_a_curriculum_answer_carries_no_sources_field(

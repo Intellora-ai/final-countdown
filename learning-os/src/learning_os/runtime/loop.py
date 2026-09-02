@@ -86,6 +86,13 @@ class Turn:
     violations: tuple[Violation, ...] = ()
     attempts: int = 0
     at: datetime | None = None
+    #: What the provider said when it could not be reached, verbatim. Empty on
+    #: every other status. Carried because the learner's sentence for
+    #: UNAVAILABLE ("I could not reach the part of me that writes explanations")
+    #: is right for the learner and useless for whoever has to fix it -- on CI
+    #: run 33605784970 every Gemini ask was `unavailable` and nothing anywhere
+    #: recorded why.
+    cause: str = ""
 
     @property
     def contract(self) -> InstructionContract:
@@ -195,12 +202,13 @@ def generate_validated(
     for attempt in range(1, MAX_GENERATION_ATTEMPTS + 1):
         try:
             content = client.generate(contract)
-        except LLMUnavailable:
+        except LLMUnavailable as failure:
             return Turn(
                 status=TurnStatus.UNAVAILABLE,
                 decision=decision,
                 attempts=attempt,
                 at=now(),
+                cause=str(failure),
             )
 
         violations = validate(contract, content)

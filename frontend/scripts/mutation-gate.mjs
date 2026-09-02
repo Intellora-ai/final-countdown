@@ -1239,7 +1239,35 @@ const tmp = mkdtempSync(join(tmpdir(), 'canvas-mutation-'))
 const out = join(tmp, 'run.json')
 
 process.stdout.write('canvas-mutation-gate: establishing the baseline\n')
-const { report: base, printed: baselineConsole } = baseline(out, join(tmp, 'baseline.log'))
+let { report: base, printed: baselineConsole } = baseline(out, join(tmp, 'baseline.log'))
+if (!base || base.numFailedTests > 0) {
+  /*
+   * ONE MORE TIME BEFORE REFUSING, AND THE NUMBER THAT DECIDED IT.
+   *
+   * Approved by the repository owner on 2026-09-02. Measured on one pull
+   * request: the baseline went red on shard 2 three times, shard 6 once and
+   * shard 8 once, each time on ONE runner while the seven others ran the same
+   * suite on the same commit and found it green -- and each time the whole
+   * merge waited a full round for it. A single sample of a probabilistic
+   * failure was being read as a deterministic one.
+   *
+   * So a red baseline is run once more. Red twice is the refusal this gate has
+   * always made, with the second run's evidence. Green on the rerun is a
+   * flake: the gate proceeds -- every mutant still runs, no threshold moves --
+   * and says so, naming the test and its fingerprint as a warning so it is
+   * recorded rather than forgotten. This is repeatability evidence, not
+   * tolerance: a real regression fails both runs.
+   */
+  const firstRun = { report: base, printed: baselineConsole }
+  process.stdout.write('canvas-mutation-gate: the baseline is red; running it once more to tell a flake from a regression\n')
+  ;({ report: base, printed: baselineConsole } = baseline(join(tmp, 'run-2.json'), join(tmp, 'baseline-2.log')))
+  if (base && base.numFailedTests === 0) {
+    for (const line of notGreenAnnotations(firstRun.report ?? null, firstRun.printed)) {
+      process.stdout.write(`${line.replace(/^::error /, '::warning ').replace('baseline not green', 'flaky baseline (green on rerun)')}\n`)
+    }
+    process.stdout.write('canvas-mutation-gate: the rerun is green, so the first failure was a flake; proceeding. Record its fingerprint in scripts/known-failures.json.\n')
+  }
+}
 if (!base || base.numFailedTests > 0) {
   process.stdout.write('::error title=mutation gate::The suite is not green before mutating. Fix the suite first.\n')
   /* AND WHAT WENT RED, WHICH THIS USED TO KEEP TO ITSELF. See `suite-report.mjs`

@@ -35,6 +35,18 @@ on:
   pull_request:
   push:
     branches: [main]
+  # THE LIVE MODEL RUNS ON A SCHEDULE AND ON MAIN, NOT ON EVERY PULL REQUEST.
+  #
+  # Approved by the repository owner on 2026-09-02, after the receipt printed
+  # the vendor's own reason for five red runs in a row: `429 RESOURCE_EXHAUSTED
+  # ... generate_content_free_tier_requests, limit: 20`. A free-tier key spent
+  # by a morning's pushes was deciding the colour of pull requests that had not
+  # touched the engine. On a pull request the same suite -- the same shipped
+  # process over the same stdin and stdout, every scenario -- runs on the
+  # deterministic provider; the live model is proven nightly and on main, where
+  # a red is a finding about the model and not about a quota clock.
+  schedule:
+    - cron: '17 3 * * *'
 
 concurrency:
   group: real-life-${{ github.workflow }}-${{ github.ref }}
@@ -135,16 +147,22 @@ jobs:
       - name: Install the live-model SDK, hash-locked like everything else
         run: pip install --quiet --require-hashes -r learning-os/requirements-live.lock
 
+      # WHICH PROVIDER, DECIDED BY THE EVENT. See the `schedule` trigger above:
+      # a pull request runs the whole suite on the deterministic provider (no
+      # key is handed to it at all); a push to main or the nightly run hands it
+      # the live key and requires a real answer below. Both are passed through
+      # `env:`, never interpolated into the shell body.
       - name: The real-life suite, answered by a real model
         env:
-          LEARNING_OS_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          LEARNING_OS_LLM_PROVIDER: gemini
+          LEARNING_OS_GEMINI_API_KEY: ${{ github.event_name == 'pull_request' && '' || secrets.GEMINI_API_KEY }}
+          LEARNING_OS_LLM_PROVIDER: ${{ github.event_name == 'pull_request' && 'fake' || 'gemini' }}
           PYTHONHASHSEED: '0'
         run: |
-          if [ -z "${LEARNING_OS_GEMINI_API_KEY}" ]; then
+          if [ "${LEARNING_OS_LLM_PROVIDER}" = "gemini" ] && [ -z "${LEARNING_OS_GEMINI_API_KEY}" ]; then
             echo "::error title=no credential::secrets.GEMINI_API_KEY is not set on this repository, so the real-life suite cannot reach a model. Add it in Settings > Secrets and variables > Actions. This job fails rather than skipping, because a skipped required check reads as green."
             exit 1
           fi
+          echo "real-life suite on provider: ${LEARNING_OS_LLM_PROVIDER} (event: ${GITHUB_EVENT_NAME})"
           behave features/ --no-capture
 
       # THE RECEIPT IS THE EVIDENCE, AND IT MUST RECORD WHO ANSWERED.
@@ -168,21 +186,37 @@ jobs:
       # bought by deleting the assertion that a real model answered would
       # recreate the exact false positive this whole workflow was built to
       # remove, and the receipt would go back to being worth nothing.
+      # THE RECEIPT IS JUDGED BY WHAT THE RUN WAS ALLOWED TO CLAIM. A live run
+      # must record at least one answer from a real model, as before. A pull
+      # request ran the deterministic provider, so it must record that ITS
+      # scenarios ran and that it claims NO real answer -- a receipt saying a
+      # real model answered on the fake would be the false evidence this gate
+      # exists to refuse. Neither path is a skip.
       - name: Prove a real model answered
         if: always()
+        env:
+          EXPECT_LIVE: ${{ github.event_name != 'pull_request' }}
         run: |
           if [ ! -f .real-infra-proof ]; then
-            echo "::error title=no receipt::features/environment.py wrote no .real-infra-proof, which it does only when the run was answered entirely by the offline fake."
+            echo "::error title=no receipt::features/environment.py wrote no .real-infra-proof, which it does only when no scenario ran at all."
             exit 1
           fi
           cat .real-infra-proof
           python3 - <<'PY'
-          import json, sys, pathlib
+          import json, os, sys, pathlib
           receipt = json.loads(pathlib.Path(".real-infra-proof").read_text())
           real = receipt.get("real_model_answers", 0)
-          if real < 1:
-              sys.exit("::error title=no real answers::the receipt records zero answers from a real model")
-          print(f"{real} answer(s) came from a real model")
+          ran = receipt.get("scenarios_run", 0)
+          if ran < 1:
+              sys.exit("::error title=no scenarios::the receipt records no scenario, so nothing was proven")
+          if os.environ.get("EXPECT_LIVE") == "true":
+              if real < 1:
+                  sys.exit("::error title=no real answers::the receipt records zero answers from a real model")
+              print(f"{real} answer(s) came from a real model")
+          else:
+              if real != 0:
+                  sys.exit("::error title=fake claimed real::a pull request runs the deterministic provider, yet the receipt claims a real model answered")
+              print(f"{ran} scenario(s) ran on the deterministic provider; the live model is proven on the schedule and on main")
           PY
 
       - name: Upload evidence

@@ -125,7 +125,9 @@ beforeAll(async () => {
 afterEach(cleanup)
 
 function ConceptProbe() {
-  const { conceptId } = useParams()
+  /* Start opens the topic's own CANVAS now, not the ready-made lesson: one
+     blank canvas per topic, addressed by the topic's id. */
+  const { topicId: conceptId } = useParams()
   const { state } = useLocation()
   return (
     <div data-testid="teaching-screen" data-carried={(state as { carriedFrom?: string })?.carriedFrom ?? ''}>
@@ -139,7 +141,7 @@ function renderToday(almanac: AlmanacClient) {
     <MemoryRouter initialEntries={['/today']}>
       <Routes>
         <Route path="/today" element={<TodayView almanac={almanac} today={TODAY} />} />
-        <Route path="/learn/:conceptId" element={<ConceptProbe />} />
+        <Route path="/canvas/:topicId" element={<ConceptProbe />} />
       </Routes>
     </MemoryRouter>,
   )

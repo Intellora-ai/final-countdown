@@ -197,6 +197,8 @@ type SpentUntil = Map<string, number>
  * standbys, or fail outright for an operator who has none.
  */
 const SHORT_TERM_STAND_DOWN_MS = 60_000
+/** Fewer tokens than one concept reserves (see `Vendor.conceptTokens`): not enough for the next question. */
+const LOW_WATER_TOKENS = 4_000
 const DAILY_STAND_DOWN_MS = 60 * 60_000
 
 function comesBackIn(reason: string): number {
@@ -216,9 +218,18 @@ function order(
   spentUntil: SpentUntil,
   now: number,
 ): readonly Standby[] {
-  const ready = standbys.filter((s) => (spentUntil.get(s.vendor) ?? 0) <= now)
+  /* NEARLY OUT IS OUT, FOR ORDERING. A vendor that reported fewer tokens than
+     one concept needs, with its reset still ahead, is asked last -- before it
+     has to refuse, not after. It comes back on its own when the reset passes
+     or the next reply says otherwise. */
+  const standing = (s: Standby): boolean => {
+    if ((spentUntil.get(s.vendor) ?? 0) > now) return false
+    const left = s.model.budgetLeft?.() ?? null
+    return left === null || left.resetInMs <= 0 || left.remainingTokens >= LOW_WATER_TOKENS
+  }
+  const ready = standbys.filter(standing)
   if (ready.length === 0 || ready.length === standbys.length) return standbys
-  return [...ready, ...standbys.filter((s) => (spentUntil.get(s.vendor) ?? 0) > now)]
+  return [...ready, ...standbys.filter((s) => !standing(s))]
 }
 
 async function firstThatAnswers<T>(
@@ -323,6 +334,30 @@ export function failover(standbys: readonly Standby[]): Model {
           chat: (system: string, user: string, priorAssistant?: string, budget?: number) =>
             firstThatAnswers(standbys, spentUntil, 'answer', (m) =>
               m.chat?.(system, user, priorAssistant, budget),
+            ),
+        }
+      : {}),
+    /* STREAMING NEVER CHANGES WHO TEACHES. The vendor order is the vendor
+       order: a vendor without `chatStream` still answers first if it is first,
+       and its whole reply is handed over as one piece. Only a vendor that can
+       stream streams. Anything else would send every canvas question to the
+       laptop the moment the cloud vendor lacked streaming. */
+    ...(someoneCanChat
+      ? {
+          chatStream: (
+            system: string,
+            user: string,
+            onDelta: (text: string) => void,
+            priorAssistant?: string,
+            budget?: number,
+          ) =>
+            firstThatAnswers(standbys, spentUntil, 'answer', (m) =>
+              m.chatStream !== undefined
+                ? m.chatStream(system, user, onDelta, priorAssistant, budget)
+                : m.chat?.(system, user, priorAssistant, budget).then((whole) => {
+                    onDelta(whole)
+                    return whole
+                  }),
             ),
         }
       : {}),

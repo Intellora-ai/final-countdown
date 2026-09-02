@@ -12,7 +12,7 @@
  * with no sources is at least honestly ungrounded.
  */
 import type { Source } from './grounding'
-import type { SearchResult } from './webResolver'
+import type { SearchResult, ClaimCheck, SelectedEvidence } from './webResolver'
 
 /** The usable pages from one search, as sources an author may write from. */
 export function sourcesFrom(result: SearchResult): readonly Source[] {
@@ -39,4 +39,46 @@ export function sourcesFrom(result: SearchResult): readonly Source[] {
     })
   }
   return out
+}
+
+/**
+ * F2 — THE CLAIM CHECK IS CARRIED, NOT DROPPED.
+ *
+ * The search pipeline reads the pages, works out whether two INDEPENDENT
+ * domains agree
+ * on the answer, and hands back a verdict with the sentence it rests on.
+ * `sourcesFrom` kept the pages and threw both away, so a lesson written from
+ * one shaky page was indistinguishable from one written from two agreeing
+ * sources -- to the author writing it, and to the learner reading it.
+ *
+ * This keeps them together. The author is told, in one sentence, how well the
+ * sources agree; what it does with that is its own business, but it can no
+ * longer be unaware.
+ */
+export interface Grounding {
+  readonly sources: readonly Source[]
+  readonly check?: ClaimCheck
+  readonly evidence?: SelectedEvidence
+}
+
+export function groundingFrom(result: SearchResult): Grounding {
+  return {
+    sources: sourcesFrom(result),
+    ...(result.check === undefined ? {} : { check: result.check }),
+    ...(result.evidence === undefined ? {} : { evidence: result.evidence }),
+  }
+}
+
+/** How well the sources agree, in words the author can act on. */
+export function howWellSourcesAgree(check: ClaimCheck | undefined): string {
+  switch (check?.status) {
+    case 'supported':
+      return 'Two independent sources agree on this. State it plainly.'
+    case 'single-source':
+      return 'Only one source says this. Say it, and say that it rests on one source.'
+    case 'conflicting':
+      return 'The sources disagree. Say what each says and that they disagree; do not pick one silently.'
+    default:
+      return ''
+  }
 }

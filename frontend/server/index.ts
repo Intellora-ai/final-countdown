@@ -18,7 +18,7 @@
  */
 
 import { createServer as createNodeServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { chooseProvider, hostedProviders, value, type OpenAiCompatible } from './provider.ts'
+import { chooseProvider, controllerModel, hostedProviders, value, type OpenAiCompatible } from './provider.ts'
 import { createOllamaModel, DEFAULT_OLLAMA_ENDPOINT } from './ollama.ts'
 import { createGroqModel, DEFAULT_GROQ_MODEL } from './groq.ts'
 import { failover } from './failover.ts'
@@ -26,6 +26,10 @@ import { pgStore } from './almanac/pgStore.ts'
 import { sqliteMemoryStore } from './memory/sqliteStore.ts'
 import { canvasMemory, type CanvasMemory } from './memory/store.ts'
 import { explanationsIn, type Explanations } from './memory/explanations.ts'
+import { evidenceIn, type EvidenceStore } from './memory/evidence.ts'
+import { misconceptionsIn, type MisconceptionStore } from './memory/misconceptions.ts'
+import { conceptsIn, type ConceptIndex } from './memory/concepts.ts'
+import { embeddingsFrom } from './embed.ts'
 import { writtenLessons, type WrittenLessons } from './memory/lessons.ts'
 import { subjectAliases, type SubjectAliases } from './memory/aliases.ts'
 import { CONTROLLER_SYSTEM } from './controller.ts'
@@ -35,6 +39,7 @@ import type { Readable } from 'node:stream'
 
 import { createHandler, type ModelPort, type OpenWebReply, type SearchPort } from './handler.ts'
 import { searchTheOpenWeb } from './openweb.ts'
+import { GROUNDING_BUDGET_MS, searchPortFrom } from './groundingPort.ts'
 import { openLoops, type OpenLoops } from './openLoops.ts'
 import { MemoryCache } from '../src/websearch/gather.ts'
 import { resolveIdentitySecret } from './identity.ts'
@@ -110,6 +115,10 @@ export interface ServerOptions {
   readonly memory?: CanvasMemory
   /** What she has already been told. Absent means the caller's list is trusted alone. */
   readonly explanations?: Explanations
+  /** C3: what the learner typed, filed under the topic. */
+  readonly evidence?: EvidenceStore
+  readonly misconceptions?: MisconceptionStore
+  readonly concepts?: ConceptIndex
   /** Lessons any learner can read. Absent means every ask is authored. */
   readonly lessons?: WrittenLessons
   /** What a phrasing was decided to mean. Absent means every ask pays for the
@@ -120,6 +129,8 @@ export interface ServerOptions {
   /** Plant the identity cookie with `Secure`. Only behind TLS; see `handler.ts`. */
   readonly secureCookies?: boolean
   readonly secrets?: readonly string[]
+  /** See `HandlerOptions.vendors`: names only, for /api/health. */
+  readonly vendors?: readonly string[]
 }
 
 /**
@@ -190,10 +201,14 @@ export function createServer(options: ServerOptions): Server {
     ...(options.almanac === undefined ? {} : { almanac: options.almanac }),
     ...(options.memory === undefined ? {} : { memory: options.memory }),
     ...(options.explanations === undefined ? {} : { explanations: options.explanations }),
+    ...(options.evidence === undefined ? {} : { evidence: options.evidence }),
+    ...(options.misconceptions === undefined ? {} : { misconceptions: options.misconceptions }),
+    ...(options.concepts === undefined ? {} : { concepts: options.concepts }),
     ...(options.lessons === undefined ? {} : { lessons: options.lessons }),
     ...(options.aliases === undefined ? {} : { aliases: options.aliases }),
     identitySecret: options.identitySecret,
     ...(options.secureCookies === undefined ? {} : { secureCookies: options.secureCookies }),
+    ...(options.vendors === undefined ? {} : { vendors: options.vendors }),
     secrets: options.secrets,
     maxBodyBytes: MAX_BODY_BYTES,
   })
@@ -211,6 +226,27 @@ export function createServer(options: ServerOptions): Server {
       ...(setCookie === undefined ? {} : { 'set-cookie': setCookie }),
     })
     res.end(payload)
+  }
+
+  /* A DOCUMENT OR A STREAM. A reply that carries `stream` is written as
+     server-sent events -- one `event:`/`data:` pair per piece -- and closed
+     when the route says `done`. Everything else is the one JSON document it
+     always was. */
+  const deliver = async (res: ServerResponse, response: Awaited<ReturnType<typeof handle>>): Promise<void> => {
+    if (response.stream === undefined) {
+      send(res, response.status, response.body, response.setCookie)
+      return
+    }
+    res.writeHead(response.status, {
+      'content-type': 'text/event-stream; charset=utf-8',
+      'cache-control': 'no-cache',
+      'x-content-type-options': 'nosniff',
+      ...(response.setCookie === undefined ? {} : { 'set-cookie': response.setCookie }),
+    })
+    for await (const event of response.stream) {
+      res.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`)
+    }
+    res.end()
   }
 
   return createNodeServer((req: IncomingMessage, res: ServerResponse) => {
@@ -245,10 +281,12 @@ export function createServer(options: ServerOptions): Server {
        * unrelated cookie could lose her identity depending on ordering. */
       const rawCookie = req.headers['cookie']
       const cookie = Array.isArray(rawCookie) ? rawCookie.join('; ') : rawCookie
+      const rawAccept = req.headers['accept']
+      const accept = Array.isArray(rawAccept) ? rawAccept.join(', ') : rawAccept
 
       if (!carriesABody) {
-        const response = await handle({ method, path, query, cookie })
-        send(res, response.status, response.body, response.setCookie)
+        const response = await handle({ method, path, query, cookie, ...(accept === undefined ? {} : { accept }) })
+        await deliver(res, response)
         return
       }
 
@@ -268,8 +306,8 @@ export function createServer(options: ServerOptions): Server {
         return
       }
 
-      const response = await handle({ method, path, query, cookie, body: body.value, rawLength: body.bytes })
-      send(res, response.status, response.body, response.setCookie)
+      const response = await handle({ method, path, query, cookie, body: body.value, rawLength: body.bytes, ...(accept === undefined ? {} : { accept }) })
+      await deliver(res, response)
     })().catch((error: unknown) => {
       /* TWO HALVES, AND BOTH ARE REQUIRED.
        *
@@ -302,11 +340,14 @@ function main(): void {
   let model
   /* The hosted clients this process can send to, or none. Read once; see below. */
   let hosted: readonly OpenAiCompatible[] = []
+  /* What /api/health reports, in the order vendors are tried. Names only. */
+  let vendors: readonly string[] = []
   if (provider.kind === 'ollama') {
     model = createOllamaModel({
       model: provider.model,
       ...(provider.endpoint === undefined ? {} : { endpoint: provider.endpoint }),
     })
+    vendors = [`ollama (${provider.model})`]
   } else if (provider.kind === 'openai-compatible') {
     /* One client, five hosts. See `provider.ts`: Groq, Moonshot (Kimi), Z.ai
        (GLM), NVIDIA NIM and DeepSeek all speak this exact shape, and a second
@@ -332,15 +373,27 @@ function main(): void {
        whose key was not in the scrub list, which is the exact gap the secrets
        fix closed. One list, used twice, cannot disagree with itself. */
     hosted = hostedProviders(process.env)
-    model = failover(
-      standbysFor(
-        hosted,
-        value(process.env, 'OLLAMA_FALLBACK_MODEL'),
-        value(process.env, 'OLLAMA_ENDPOINT'),
-      ),
+    const standbys = standbysFor(
+      hosted,
+      value(process.env, 'OLLAMA_FALLBACK_MODEL'),
+      value(process.env, 'OLLAMA_ENDPOINT'),
     )
+    model = failover(standbys)
+    vendors = standbys.map((each) => each.vendor)
   } else {
     model = createModel({ apiKey: provider.apiKey })
+    vendors = ['anthropic']
+  }
+  /* The decision from a faster local model, when one is named; see
+     `controllerModel`. The port keeps every other method it had. */
+  const deciding = controllerModel(process.env as Record<string, string | undefined>)
+  if (deciding !== undefined) {
+    const decider = createOllamaModel({
+      model: deciding,
+      ...(value(process.env, 'OLLAMA_ENDPOINT') === undefined ? {} : { endpoint: value(process.env, 'OLLAMA_ENDPOINT') as string }),
+    })
+    model = Object.assign(model, { decide: decider.chat.bind(decider) })
+    vendors = [...vendors, `controller: ollama (${deciding})`]
   }
 
   /* Only a real credential is worth scrubbing from responses. There is none in
@@ -368,15 +421,6 @@ function main(): void {
       : provider.kind === 'anthropic'
         ? [provider.apiKey]
         : []
-  const search: SearchPort = {
-    /* The GROUNDING port for lesson authoring, still unwired. The handler's
-     * `lookUp` catch turns this throw into an empty source list, so lessons
-     * are honestly ungrounded rather than falsely sourced. /api/search no
-     * longer goes through here at all -- see `openWeb` below. */
-    async search() {
-      throw new Error('search is not configured')
-    },
-  }
 
   /* THE OPEN-WEB PIPELINE BEHIND /api/search -- the same `searchTheOpenWeb`
    * the dev server has always answered with, so dev and prod serve one shape
@@ -394,6 +438,10 @@ function main(): void {
   const pageCache = new MemoryCache()
   const openWeb = (requestBody: string): Promise<OpenWebReply> =>
     searchTheOpenWeb(requestBody, { cache: pageCache })
+  /* THE GROUNDING PORT, THROUGH THE SAME PIPELINE. This was `async search() {
+     throw new Error('search is not configured') }` -- see `groundingPort.ts`
+     for what that silently cost. */
+  const search: SearchPort = searchPortFrom(openWeb, { budgetMs: GROUNDING_BUDGET_MS })
 
   /* ALMANAC'S MEMORY. A shared database when one is named, a file otherwise.
    *
@@ -432,6 +480,17 @@ function main(): void {
   const memoryStore = sqliteMemoryStore(memoryPath)
   const memory = canvasMemory({ store: memoryStore })
   const explanations = explanationsIn(memoryStore)
+  const evidence = evidenceIn(memoryStore)
+  const misconceptions = misconceptionsIn(memoryStore)
+  /* D4: the local embeddings model, when one is installed. `OLLAMA_EMBED_MODEL`
+     names it; unset, `nomic-embed-text` is tried and absence costs nothing. */
+  const concepts = conceptsIn(
+    memoryStore,
+    embeddingsFrom({
+      ...(value(process.env, 'OLLAMA_EMBED_MODEL') === undefined ? {} : { model: value(process.env, 'OLLAMA_EMBED_MODEL') as string }),
+      ...(value(process.env, 'OLLAMA_ENDPOINT') === undefined ? {} : { endpoint: value(process.env, 'OLLAMA_ENDPOINT') as string }),
+    }),
+  )
   /* The open-loop ledger rides the SAME store, for the same reason
    * `explanations` does: one durable file, one atomic `update`, no second
    * engine to re-prove. See `openLoops.ts` for what a loop is. */
@@ -541,7 +600,7 @@ function main(): void {
    * new student. */
   const secureCookies = /^(1|true|yes)$/i.test((process.env['IDENTITY_COOKIE_SECURE'] ?? '').trim())
 
-  const server = createServer({ model, search, openWeb, loops, almanac, memory, explanations, lessons, aliases, identitySecret, secureCookies, secrets })
+  const server = createServer({ model, search, openWeb, loops, almanac, memory, explanations, evidence, misconceptions, concepts, lessons, aliases, identitySecret, secureCookies, secrets, vendors })
   server.listen(port, host, () => {
     console.log(`almanac server listening on http://${host}:${port}`)
     console.log(`  memory: ${memoryPath} (sqlite, safe for many servers)`)

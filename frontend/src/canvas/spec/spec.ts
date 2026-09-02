@@ -81,7 +81,7 @@ const MarkedTerm = z
 /** Which token in the fixed series a data series takes. An INDEX, never a hex. */
 export const SeriesIndex = z.number().int().min(0).max(5)
 
-const Id = z
+export const Id = z
   .string()
   .min(1)
   .max(64)

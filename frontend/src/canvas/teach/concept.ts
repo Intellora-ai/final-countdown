@@ -1,9 +1,12 @@
 import type { Lesson } from '../spec/spec'
 import { validateLesson, type Issue } from '../spec/validate'
+import { mendSpelling } from './mend'
 import { extractJson, type LessonModel } from './authorLesson'
 import { groundingPreamble, type Source } from './grounding'
 import { nextRoute, routeDirective } from './route'
 import { ASKS, askMenu, readTheAsk, type Ask } from './intent'
+import { mayShowNothing } from './necessity'
+import { wrongSums } from '../spec/arithmetic'
 import { MAX_DEFINITION_WORDS, MAX_EXAMPLE_WORDS, MAX_RUN_WORDS } from './teaching'
 import { classifyTurn } from './turn'
 
@@ -62,6 +65,8 @@ export interface Concept {
    * compiler telling the truth about a field the module genuinely uses.
    */
   readonly technicalTerms?: readonly { readonly term: string; readonly introducedIn: string }[]
+  /** E3: why this idea has nothing worth drawing. Required to omit a figure. */
+  readonly showsNothingBecause?: string
   /** The question that finds out whether it landed. Principle 4. */
   readonly checkpoint: string
   /** Named branches, at least two. Principle 1. */
@@ -257,6 +262,17 @@ export function conceptIssues(concept: Concept): Issue[] {
     })
   }
 
+  /* F1: NO NUMBER REACHES A LEARNER UNCHECKED. `evaluate` and
+     `verifyArithmetic` were wired only into the agent loop, which the canvas
+     never calls, so a wrong sum passed every gate. See `spec/arithmetic.ts`. */
+  for (const wrong of wrongSums(blocks)) {
+    out.push({
+      path: 'blocks',
+      message: `the arithmetic is wrong: ${wrong.why}`,
+      rule: 'arithmetic-is-wrong',
+    })
+  }
+
   const shape = known ? declared : 'teach'
   const owesARepresentation = shape !== 'define' && shape !== 'example'
 
@@ -264,13 +280,23 @@ export function conceptIssues(concept: Concept): Issue[] {
      whole lesson, but it is arc-gated and a step has no arc, so the step says
      it itself. WHICH representation fits is `teaching.ts`'s job. */
   if (owesARepresentation && !blocks.some((b) => SHOWS.has(String(b.kind)))) {
-    out.push({
-      path: 'blocks',
-      message:
-        'this step shows nothing — it is all words. One concept gets one representation that ' +
-        'fits it: a graph, a table, a flow or a figure',
-      rule: 'nothing-is-shown',
-    })
+    /* E3: WHETHER, BEFORE WHICH. A lesson may say there is nothing worth
+       drawing -- and must say why, and must be right about the idea. See
+       `necessity.ts`; decided 2026-09-02. */
+    const excuse = typeof concept.showsNothingBecause === 'string' ? concept.showsNothingBecause : ''
+    const verdict = mayShowNothing(blocks, excuse)
+    if (!verdict.ok) {
+      out.push({
+        path: 'blocks',
+        message:
+          excuse === ''
+            ? 'this step shows nothing — it is all words. One concept gets one representation that ' +
+              'fits it: a graph, a table, a flow or a figure. If the idea truly has nothing to draw, ' +
+              'say so in "showsNothingBecause"'
+            : verdict.why,
+        rule: 'nothing-is-shown',
+      })
+    }
   }
 
   /* Principle 1. The unit is ONE atomic idea. Two definitions is two concepts,
@@ -288,7 +314,10 @@ export function conceptIssues(concept: Concept): Issue[] {
      finding out whether it landed. `classifyTurn` already decides question
      from answer, and it is tested -- reimplementing it here would be a second
      opinion that can disagree with the box the learner types into. */
-  if (classifyTurn(concept.checkpoint ?? '') !== 'question') {
+  /* QUESTIONS ARE RARE (decided 2026-09-02). A checkpoint is optional; one
+     that is present must ask, never assert. */
+  const checkpoint = typeof concept.checkpoint === 'string' ? concept.checkpoint.trim() : ''
+  if (checkpoint !== '' && classifyTurn(checkpoint) !== 'question') {
     out.push({
       path: 'checkpoint',
       message:
@@ -301,14 +330,9 @@ export function conceptIssues(concept: Concept): Issue[] {
   /* Principle 1, second half. One option is not a choice, and an offer that
      names nothing puts the work of knowing the syllabus back on the learner,
      who is the one person who cannot know it. */
+  /* Branches are optional too: the learner types what comes next, there are
+     no buttons to choose from. A branch that IS offered must name something. */
   const next = concept.next ?? []
-  if (next.length < 2) {
-    out.push({
-      path: 'next',
-      message: `only ${next.length} branch offered. Give at least two, so what comes next is a choice`,
-      rule: 'no-choice-of-next',
-    })
-  }
   for (const [i, branch] of next.entries()) {
     if (!namesSomething(branch.label ?? '')) {
       out.push({
@@ -347,10 +371,15 @@ export function conceptIssues(concept: Concept): Issue[] {
  * the rules it teaches, fails the suite rather than quietly teaching a model
  * to break them.
  */
+/*
+ * `blocks` COMES FIRST IN EVERY EXAMPLE, measured 2026-09-02 on the local
+ * model: the first streamed token arrived at 5.1 s and the first prose in
+ * the browser at 8.1 s. The three seconds between were the model writing
+ * `id`, `question` and `technicalTerms` -- in the order the example shows
+ * them. A model mirrors the example's order, so the first block's body is
+ * now the first thing it writes, and the first thing the learner reads.
+ */
 const SHOWS_A_TABLE = {
-  id: 'base-case',
-  question: 'What is a base case?',
-  technicalTerms: [{ term: 'recursion', introducedIn: 'shown' }],
   blocks: [
     {
       id: 'says-what',
@@ -379,18 +408,13 @@ const SHOWS_A_TABLE = {
       ],
     },
   ],
+  id: 'base-case',
+  question: 'What is a base case?',
+  technicalTerms: [{ term: 'recursion', introducedIn: 'shown' }],
   relations: [{ kind: 'supports', from: 'says-what', to: 'shown' }],
-  checkpoint: 'Which of those two calls is the base case, and how can you tell?',
-  next: [
-    { id: 'deeper', label: 'Why a missing base case never stops' },
-    { id: 'related', label: 'How recursion builds the answer back up' },
-  ],
 }
 
 const SHOWS_A_CHART = {
-  id: 'half-life',
-  question: 'What is a half-life?',
-  technicalTerms: [{ term: 'decay', introducedIn: 'says-what' }],
   blocks: [
     {
       id: 'says-what',
@@ -427,18 +451,13 @@ const SHOWS_A_CHART = {
       caption: 'Each step halves what remains, so it never reaches zero.',
     },
   ],
+  id: 'half-life',
+  question: 'What is a half-life?',
+  technicalTerms: [{ term: 'decay', introducedIn: 'says-what' }],
   relations: [{ kind: 'supports', from: 'says-what', to: 'shown' }],
-  checkpoint: 'After four half-lives, what fraction of the original is left?',
-  next: [
-    { id: 'deeper', label: 'Why the curve never touches zero' },
-    { id: 'related', label: 'How this is used to date old bones' },
-  ],
 }
 
 const SHOWS_A_FLOW = {
-  id: 'tap-water',
-  question: 'How does water reach a tap?',
-  technicalTerms: [{ term: 'treatment', introducedIn: 'shown' }],
   blocks: [
     {
       id: 'says-what',
@@ -471,18 +490,13 @@ const SHOWS_A_FLOW = {
       caption: 'The tower is what gives the water its pressure.',
     },
   ],
+  id: 'tap-water',
+  question: 'How does water reach a tap?',
+  technicalTerms: [{ term: 'treatment', introducedIn: 'shown' }],
   relations: [{ kind: 'supports', from: 'says-what', to: 'shown' }],
-  checkpoint: 'Which step is the one that gives the water its pressure?',
-  next: [
-    { id: 'deeper', label: 'What the treatment works actually removes' },
-    { id: 'related', label: 'Why tall buildings need their own pumps' },
-  ],
 }
 
 const SHOWS_A_MISCONCEPTION = {
-  id: 'falling-speed',
-  question: 'Do heavier things fall faster?',
-  technicalTerms: [{ term: 'air resistance', introducedIn: 'wrong-idea' }],
   blocks: [
     {
       id: 'wrong-idea',
@@ -524,18 +538,13 @@ const SHOWS_A_MISCONCEPTION = {
       ],
     },
   ],
+  id: 'falling-speed',
+  question: 'Do heavier things fall faster?',
+  technicalTerms: [{ term: 'air resistance', introducedIn: 'wrong-idea' }],
   relations: [{ kind: 'contrasts', from: 'wrong-idea', to: 'shown' }],
-  checkpoint: 'Which column shows what gravity alone does, and how can you tell?',
-  next: [
-    { id: 'deeper', label: 'Why being heavier does not help' },
-    { id: 'related', label: 'What air resistance depends on' },
-  ],
 }
 
 const SHOWS_REASONING = {
-  id: 'nine-recurring',
-  question: 'Why does 0.999… equal 1?',
-  technicalTerms: [{ term: 'recurring', introducedIn: 'says-what' }],
   blocks: [
     {
       id: 'says-what',
@@ -581,12 +590,10 @@ const SHOWS_REASONING = {
       ],
     },
   ],
+  id: 'nine-recurring',
+  question: 'Why does 0.999… equal 1?',
+  technicalTerms: [{ term: 'recurring', introducedIn: 'says-what' }],
   relations: [{ kind: 'derives', from: 'says-what', to: 'argued' }],
-  checkpoint: 'At which step do the endless tails cancel, and why are they equal?',
-  next: [
-    { id: 'deeper', label: 'What “endless” is really doing here' },
-    { id: 'related', label: 'Other numbers with two decimal names' },
-  ],
 }
 
 /**
@@ -842,6 +849,11 @@ export function conceptRequest(
     '',
     'Rules your reply must obey, and the example below obeys them too:',
     '- exactly ONE block with "role":"definition"',
+    '- if the idea truly has nothing worth drawing -- a word and where it came',
+    '  from, a convention people agreed on -- omit the picture and say why in',
+    '  one sentence in "showsNothingBecause". An idea WITH something to show',
+    '  (quantities, steps in an order, cases side by side, parts of a whole)',
+    '  must still show it: that field cannot buy you out of a needed picture.',
     '- at least one block of kind "table", "chart", "flow" or "figure" that',
     '  SHOWS the idea, and it must FIT the content — a graph for a continuous',
     '  relationship, a table for cases, a flow for a process. Never add one',
@@ -897,9 +909,12 @@ export function conceptRequest(
     '- a block with "role":"example" must have exactly ONE relation of kind',
     '  "exemplifies" running FROM it TO the block it is an example of.',
     '  An example that points at nothing does not say what it is an example of',
-    '- "checkpoint" is a QUESTION that finds out whether the idea landed',
-    '- "next" has at least two branches, each naming a real idea. "Learn more"',
-    '  and "Continue" name nothing and will be refused.',
+    '- "checkpoint" is OPTIONAL and usually absent: this is a canvas for',
+    '  understanding, not a quiz. Include one only when you were told the',
+    '  learner did not understand -- then it is a QUESTION, chosen to find out',
+    '  what exactly did not land. Never a statement.',
+    '- "next" is OPTIONAL: if given, each branch names a real idea. "Learn',
+    '  more" and "Continue" name nothing and will be refused.',
     '',
     /*
      * EVERY ENUM WRITTEN OUT, AND THE REASON IS MEASURED.
@@ -946,11 +961,20 @@ export function conceptRequest(
     '   parts. "rule" is a rule you have JUSTIFIED. "restriction" is where it',
     '   stops being true.)',
     '- "depth": core | deeper',
-    '- "emphasis": primary | supporting',
-    '- "tone": neutral | warning | success',
+    '- "emphasis": primary | supporting | aside',
+    '  ("aside" is a remark the argument does not need; it is set small)',
+    '- "tone": neutral | insight | warning | result',
+    '  ("insight" is the turn of understanding; "result" is what came out.',
+    '   "success" is NOT one of them.)',
     '- a table column "type": text | number | percent | currency',
     '  ("percentage" is NOT one of them)',
-    '- "relations[].kind": supports | contrasts | leads-to | exemplifies',
+    '  (a table\'s "columns" is a list of objects, each with "key", "label"',
+    '   and "type". A "key" is an id: lowercase kebab-case, like "mass-kg",',
+    '   never a label with spaces or capitals. Its "rows" is a list of objects',
+    '   keyed by those column keys. There is no "cells" field.)',
+    '- "relations[].kind": supports | derives | contrasts | exemplifies',
+    '  ("derives": "to" is worked out from "from", step by step; the two',
+    '   are then stacked. "leads-to" is NOT one of them.)',
     /*
      * THE FOURTH TIME THE SAME CLASS IS PAID FOR IN THIS FILE, measured on a
      * real Gemini answer (run 33596363576): the model chose kind "figure" --
@@ -964,21 +988,64 @@ export function conceptRequest(
      * uncertain at the four kinds whose payloads this prompt fully teaches.
      */
     '- "figure" is the one kind with an extra cost: its "as" field must be an',
-    '  EXACT name from the canvas representation registry (137 names such as',
-    '  flowchart, timeline, vennDiagram, freeBodyDiagram) and its "data" must',
-    '  match that name\'s payload shape. If you do not know the exact registry',
-    '  name for what you want to draw, do NOT guess one: use "chart", "table"',
-    '  or "flow" instead — they need no registry and are always legal.',
+    '  EXACT name from the list below, and its "data" must match that name\'s',
+    '  payload. Every one of the 137 is named there, so there is nothing to',
+    '  guess: if none of them fits, use "chart", "table" or "flow" instead.',
     '',
-    /*
-     * THE ID RULE, AND IT IS THE COMMONEST FAILURE IN THE MEASURED RUN.
-     *
-     * Three of six refusals were `relations[0].to: no block "shown"` or
-     * `"title"` -- the model renamed its blocks to suit its own topic, which is
-     * correct, and then copied the EXAMPLE's relation ids verbatim, which is
-     * not. The example is meant to be copied in shape and not in content, and
-     * nothing in the prompt said which was which.
-     */
+    'THE 137 NAMES, GROUPED BY THE PAYLOAD EACH ONE NEEDS. Set "data.shape" to',
+    'the group name and give that group\'s fields. Nothing outside this list is',
+    'a legal "as".',
+    '',
+    'series: data.series is a list, each with a name and points, each point an x and a y',
+    '  bar, groupedBar, stackedBar, lollipop, dotPlot, bullet, radar, slope, parallelCoordinates,',
+    '  line, area, stackedArea, streamgraph, step, candlestick, controlChart, burndown, burnup,',
+    '  regression, residual, learningCurve, lossCurve, rocCurve, precisionRecall, calibration,',
+    '  scatter, bubble, connectedScatter, featureImportance, embeddingProjection, clusterPlot,',
+    '  impactEffort, functionGraph',
+    '',
+    'distribution: data.groups is a list, each with a name and samples, a list of numbers',
+    '  histogram, boxPlot, violin, density, strip, beeswarm, ridgeline, populationPyramid,',
+    '  quantile, qqPlot, shapSummary',
+    '',
+    'matrix: data.rows and data.columns are lists of labels; data.values is a list of rows of numbers',
+    '  hexbin, contour, heatMap, correlationMatrix, confusionMatrix, adjacencyMatrix,',
+    '  missingDataMap, pairPlot, decisionBoundary, riskHeatMap',
+    '',
+    'parts: data.parts is a list, each with a label and a value',
+    '  pie, donut, waffle, waterfall, funnel, marimekko',
+    '',
+    'hierarchy: data.nodes is a list, each with an id, a label and a parent -- null at the root',
+    '  treemap, sunburst, mindMap, taxonomy, issueTree, hypothesisTree, affinityDiagram,',
+    '  pyramidStructure, testPyramid, fishbone, faultTree, eventTree, attackTree, rootCauseTree',
+    '',
+    'graph: data.nodes is a list, each with an id and a label; data.edges is a list, each with from and to',
+    '  nodeLink, directedGraph, weightedGraph, bipartiteGraph, dag, dependencyGraph, callGraph,',
+    '  socialGraph, arcDiagram, conceptMap, ontology, argumentMap, stateDiagram, systemContext,',
+    '  containerDiagram, componentDiagram, deploymentDiagram, classDiagram, erDiagram,',
+    '  moduleGraph, controlFlowGraph, dataFlowGraph, gitBranchGraph, infrastructureTopology,',
+    '  threatModel, causalLoop, bowTie, bayesianNetwork, influenceDiagram, feedbackLoop,',
+    '  molecularStructure, biologicalCycle, foodWeb',
+    '',
+    'flowWeighted: data.nodes is a list, each with an id and a label; data.links is a list, each with from, to and value',
+    '  chord, sankey, alluvial',
+    '',
+    'process: data.steps is a list, each with an id, a label and a kind of start, action, decision or end; data.transitions is a list, each with from and to',
+    '  flowchart, decisionFlow, swimlane, bpmn, pipeline, valueStream, serviceBlueprint,',
+    '  sequenceDiagram, reactionDiagram, blockDiagram',
+    '',
+    'intervals: data.items is a list, each with an id, a label, a start and an end',
+    '  timeline, gantt',
+    '',
+    'geometry: data.elements is a list, each with an id, a label and a kind of point, line, vector, arc, set, body, force, component, axis or region',
+    '  numberLine, coordinatePlane, geometricFigure, vectorDiagram, vennDiagram, eulerDiagram,',
+    '  logicCircuit, freeBodyDiagram, circuitSchematic, experimentalSetup',
+    '',
+    'logic: data.steps is a list, each with an id and a statement; a truthTable also needs data.inputs and data.rows',
+    '  truthTable, proofTree, derivationTree',
+    '',
+    'tabular: data.columns is a list, each with a key and a label; data.rows is a list keyed by those column keys',
+    '  table, comparisonTable',
+    '',
     'IDS MUST MATCH. Every "from" and "to" in "relations", and every',
     '"introducedIn" in "technicalTerms", must be an id you actually used in',
     'your own "blocks". Do not copy the ids from the example above — you will',
@@ -1106,8 +1173,9 @@ function nameBlock(path: string, concept: Concept | null): string {
 }
 
 /** Judge one reply. Returns the issues, empty when the concept is sound. */
-function judge(raw: string): { concept: Concept | null; lesson: Lesson | null; issues: Issue[] } {
-  const parsed = extractJson(raw) as Concept | null
+function judge(raw: string, asked?: string): { concept: Concept | null; lesson: Lesson | null; issues: Issue[] } {
+  /* Spelling faults are mended before the gate judges; see `mend.ts`. */
+  const parsed = mendSpelling(extractJson(raw), asked) as Concept | null
   if (parsed === null || typeof parsed !== 'object') {
     return {
       concept: null,
@@ -1220,7 +1288,7 @@ export async function authorConcept(
       }
     }
 
-    const verdict = judge(raw)
+    const verdict = judge(raw, question)
     if (verdict.concept !== null && verdict.lesson !== null && verdict.issues.length === 0) {
       return { ok: true, concept: verdict.concept, lesson: verdict.lesson, attempts: attempt, route: taken.id }
     }

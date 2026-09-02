@@ -171,24 +171,62 @@ function backing(): Storage | undefined {
  */
 const teachStorage = createJSONStorage(guardedStorage)
 
+/* ONE MEMORY PER LESSON, IN THIS BROWSER TOO.
+ *
+ * This held ONE record: learn physics, then civics, and the physics progress
+ * was gone -- the defect `server/memory/key.ts` names as the reason the server
+ * store exists. The browser copy keeps the same promise now: a record per
+ * lesson, under the same storage key, capped at the most recently studied so
+ * storage cannot grow without bound (which was this file's own reason for
+ * keeping one). Older persisted state -- version 1, one `progress` -- is
+ * carried across, not dropped. */
+export const MOST_LESSONS_KEPT = 40
+
+interface Kept extends TeachProgress {
+  /** Ever-increasing, so two saves in one millisecond still have an order. */
+  updatedAt: number
+}
+let lastStamp = 0
+const stamp = (): number => {
+  lastStamp = Math.max(lastStamp + 1, Date.now())
+  return lastStamp
+}
 interface TeachStore {
-  progress: TeachProgress | null
+  byLesson: Record<string, Kept>
   save(progress: TeachProgress): void
   clear(): void
 }
 
 export const useTeachStore = create<TeachStore>()(
   persist(
-    (set) => ({
-      progress: null,
+    (set, get) => ({
+      byLesson: {},
       save(progress) {
-        set({ progress })
+        const next: Record<string, Kept> = {
+          ...get().byLesson,
+          [progress.lessonId]: { ...progress, updatedAt: stamp() },
+        }
+        const kept = Object.values(next)
+          .sort((a, b) => b.updatedAt - a.updatedAt)
+          .slice(0, MOST_LESSONS_KEPT)
+        set({ byLesson: Object.fromEntries(kept.map((record) => [record.lessonId, record])) })
       },
       clear() {
-        set({ progress: null })
+        set({ byLesson: {} })
       },
     }),
-    { name: KEY, storage: teachStorage, version: 1 },
+    {
+      name: KEY,
+      storage: teachStorage,
+      version: 2,
+      migrate: (persisted, version) => {
+        if (version < 2) {
+          const old = (persisted as { progress?: TeachProgress | null } | undefined)?.progress ?? null
+          return { byLesson: old === null ? {} : { [old.lessonId]: { ...old, updatedAt: 0 } } } as TeachStore
+        }
+        return persisted as TeachStore
+      },
+    },
   ),
 )
 
@@ -203,10 +241,21 @@ export const useTeachStore = create<TeachStore>()(
  *     forever with nothing working on it.
  */
 export function loadTeachProgress(lessonId: string): TeachProgress | null {
-  const saved = useTeachStore.getState().progress
-  if (saved === null || saved.lessonId !== lessonId) return null
-  if (typeof saved.draft !== 'string' || !Array.isArray(saved.asked)) return null
-
+  const kept = useTeachStore.getState().byLesson[lessonId]
+  if (kept === undefined || kept.lessonId !== lessonId) return null
+  if (typeof kept.draft !== 'string' || !Array.isArray(kept.asked)) return null
+  /* Handed back WITHOUT the store's own stamp: the caller gets a
+     `TeachProgress`, nothing more, so a record can round-trip to the server
+     and back unchanged. */
+  const saved: TeachProgress = {
+    lessonId: kept.lessonId,
+    revealed: kept.revealed,
+    asked: kept.asked,
+    draft: kept.draft,
+    questionsAsked: kept.questionsAsked,
+    emptyAnswers: kept.emptyAnswers,
+    struggleReported: kept.struggleReported,
+  }
   return {
     ...saved,
     asked: saved.asked.map((record) =>

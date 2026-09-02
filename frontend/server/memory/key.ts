@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 /* P1 — WHO THIS MEMORY BELONGS TO.
  *
  * One memory belongs to one student, in one tab, for one lesson. All three, or
@@ -73,4 +74,18 @@ export function memoryKey(owner: MemoryOwner): string {
   const tab = encodeURIComponent(part(owner.tabId, 'tabId'))
   const lesson = encodeURIComponent(part(owner.lessonId, 'lessonId'))
   return `${student}:${tab}:${lesson}`
+}
+
+/**
+ * A KEY IS OUR PROBLEM, NOT HERS. Measured 2026-09-02 by the gibberish law: a
+ * 5,000-character question -- one screenful of a textbook, pasted -- threw
+ * `BadMemoryKey: lessonId is longer than 200 characters` out through the API.
+ * Past the limit the words are replaced by a hash of themselves, so two long
+ * questions stay two memories and every printable one stays readable.
+ */
+export function fittedLessonId(prefix: string, printed: string, whole: string): string {
+  const room = 200 - prefix.length
+  return room > 0 && printed.length <= room
+    ? `${prefix}${printed}`
+    : `${prefix}${createHash('sha256').update(whole).digest('hex').slice(0, Math.max(8, Math.min(32, room)))}`
 }

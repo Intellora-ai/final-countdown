@@ -298,7 +298,7 @@ function clickSendTwice(text: string): void {
 async function closeTab(): Promise<void> {
   const onDisk = storage.getItem(TEACH_STORAGE_KEY)
   cleanup()
-  useTeachStore.setState({ progress: null })
+  useTeachStore.setState({ byLesson: {} })
   if (onDisk !== null) storage.setItem(TEACH_STORAGE_KEY, onDisk)
   await useTeachStore.persist?.rehydrate()
 }
@@ -1091,7 +1091,7 @@ describe('no lost answers', () => {
     })
   }
 
-  it('PINNED GAP: a lesson visited in between erases the first lesson\'s conversation', async () => {
+  it('a lesson visited in between leaves the first lesson\'s conversation where it was', async () => {
     /*
      * PINNED GAP — A REAL LOSS, ASSERTED AS IT ACTUALLY BEHAVES, NOT AS IT
      * SHOULD.
@@ -1134,16 +1134,21 @@ describe('no lost answers', () => {
 
     expect(
       transcript(back.container),
-      'the conversation survived the round trip — the gap is CLOSED, rewrite this test to assert that',
-    ).toEqual([])
+      /* THE GAP IS CLOSED (2026-09-02). `teachStore` kept one record under one
+         key, so a lesson glanced at in between erased the first lesson's
+         conversation; this test pinned that. It keeps a record per lesson now,
+         and this asserts what a child would expect: her conversation is where
+         she left it. */
+      "a lesson visited in between erased the first lesson's conversation",
+    ).toHaveLength(1)
     expect(
       checkpoint(back.container),
-      'the place in the lesson survived the round trip — the gap is CLOSED',
-    ).not.toBe(before.checkpoint)
+      'the place in the lesson was lost on the round trip',
+    ).toBe(before.checkpoint)
     expect(
       back.container.textContent,
-      'the answer survived the round trip — the gap is CLOSED',
-    ).not.toContain(modelAnswerFor(OFF_LESSON[0]))
+      'the answer was lost on the round trip',
+    ).toContain(modelAnswerFor(OFF_LESSON[0]))
   })
 
   it('keeps the draft that was typed after a question, not the question', async () => {

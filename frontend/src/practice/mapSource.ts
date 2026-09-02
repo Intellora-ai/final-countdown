@@ -143,6 +143,20 @@ type LoadedExam = MapSource['exam'] extends infer E ? (E & { subjects: readonly 
  * A typo in a stored preference would otherwise empty the exam half of the map
  * with nothing on screen or in the state to say why.
  */
+/**
+ * G1: one exam's subjects, for anything that teaches rather than tests. The
+ * four syllabi were reachable only through `practiceCurriculumFor`, which
+ * needs a class and returns a practice map; the canvas needs neither.
+ */
+export async function examSyllabusFor(
+  examId: string,
+): Promise<{ readonly subjects: readonly Subject[]; readonly reason: string }> {
+  const loader = EXAMS[examId]
+  if (!loader) return { subjects: [], reason: `no exam named ${examId}` }
+  const loaded = await loader()
+  return { subjects: loaded.subjects, reason: loaded.reason ?? '' }
+}
+
 async function loadExam(examId: string | null): Promise<LoadedExam> {
   if (examId === null) return null
 

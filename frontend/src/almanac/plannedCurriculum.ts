@@ -19,6 +19,7 @@
 
 import type { Subject } from '../types'
 import { loadPlannedSubjects } from './curriculum'
+import { withUniqueTopicIds } from './uniqueTopics'
 import { schoolClassOf } from './school-class'
 
 const CACHE = new Map<number, readonly Subject[]>()
@@ -35,7 +36,9 @@ export async function primePlannedCurriculum(cls: string | null): Promise<void> 
   if (existing !== undefined) return existing
 
   const loading = loadPlannedSubjects(cls).then((subjects) => {
-    CACHE.set(number, subjects as readonly Subject[])
+    /* Two topics may not share an id: everything the canvas does is keyed by
+       it. Measured on the real Class 11 and 12 data; see `uniqueTopics.ts`. */
+    CACHE.set(number, withUniqueTopicIds(subjects as readonly Subject[]))
     IN_FLIGHT.delete(number)
   })
   IN_FLIGHT.set(number, loading)

@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { chooseProvider, hostedProviders } from './provider.ts'
+import { controllerModel, chooseProvider, hostedProviders } from './provider.ts'
 
 describe('choosing a provider', () => {
   it('uses the local model when OLLAMA_MODEL names one', () => {
@@ -52,6 +52,25 @@ describe('choosing a provider', () => {
      * the key was working. */
     expect(() => chooseProvider({})).toThrow(/ANTHROPIC_API_KEY/)
     expect(() => chooseProvider({})).toThrow(/OLLAMA_MODEL/)
+  })
+
+  it('uses OLLAMA_FALLBACK_MODEL as the only resort when nothing else is configured', () => {
+    /* The laptop as last resort was a standby BEHIND a hosted key, so a clean
+       checkout with no key and a model already pulled still refused to start.
+       One variable now means one thing: the laptop answers when nothing else
+       can -- behind the cloud when there is a cloud, alone when there is not. */
+    const chosen = chooseProvider({ OLLAMA_FALLBACK_MODEL: 'qwen2.5:7b' })
+    expect(chosen.kind).toBe('ollama')
+    expect(chosen.kind === 'ollama' ? chosen.model : null).toBe('qwen2.5:7b')
+  })
+
+  it('keeps OLLAMA_FALLBACK_MODEL as a standby, never the primary, when a hosted key exists', () => {
+    const chosen = chooseProvider({ GROQ_API_KEY: 'gsk_x', OLLAMA_FALLBACK_MODEL: 'qwen2.5:7b' })
+    expect(chosen.kind).toBe('openai-compatible')
+  })
+
+  it('names OLLAMA_FALLBACK_MODEL in the refusal, beside OLLAMA_MODEL', () => {
+    expect(() => chooseProvider({})).toThrow(/OLLAMA_FALLBACK_MODEL/)
   })
 
   it('treats an empty or blank value as absent', () => {
@@ -138,5 +157,13 @@ describe('the vendors a key can actually select', () => {
       MISTRAL_API_KEY: 'm',
     })
     expect(built.map((one) => one.vendor)).toEqual(['gemini', 'zai', 'mistral'])
+  })
+})
+
+describe('a model for the decision alone', () => {
+  it('is named by OLLAMA_CONTROLLER_MODEL and otherwise absent', () => {
+    expect(controllerModel({ OLLAMA_CONTROLLER_MODEL: 'qwen2.5:7b' })).toBe('qwen2.5:7b')
+    expect(controllerModel({})).toBeUndefined()
+    expect(controllerModel({ OLLAMA_CONTROLLER_MODEL: '' })).toBeUndefined()
   })
 })

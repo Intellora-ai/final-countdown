@@ -36,7 +36,7 @@
  * route, at this time.
  */
 
-import { memoryKey, type MemoryOwner } from './key.ts'
+import { fittedLessonId, memoryKey, type MemoryOwner } from './key.ts'
 import type { MemoryStore } from './sqliteStore.ts'
 
 /** One explanation, as it was actually given. */
@@ -84,11 +84,19 @@ const MOST_EXPLANATIONS_KEPT = 12
  * refuses to overwrite progress with a shape that has none, and would refuse
  * this.
  */
+/**
+ * A KEY IS OUR PROBLEM, NOT HERS. Measured 2026-09-02 by the gibberish law: a
+ * student who pasted a paragraph -- 5,000 characters, one screenful of a
+ * textbook -- got `BadMemoryKey: lessonId is longer than 200 characters`
+ * thrown out through the API. Long is not invalid.
+ *
+ * Past the limit the question is replaced by a hash of itself: two different
+ * long questions stay two different memories, and the row is still readable
+ * for every question short enough to print, which is nearly all of them.
+ */
 export function keyFor(owner: MemoryOwner, concept: string): string {
-  return memoryKey({
-    ...owner,
-    lessonId: `explain:${owner.lessonId}:${encodeURIComponent(normalised(concept))}`,
-  })
+  const said = normalised(concept)
+  return memoryKey({ ...owner, lessonId: fittedLessonId(`explain:${owner.lessonId}:`, encodeURIComponent(said), said) })
 }
 
 /**

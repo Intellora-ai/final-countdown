@@ -47,6 +47,13 @@ export interface LessonBrief {
    * gets a different part two from one who said "I don't get it".
    */
   readonly justSaid?: string
+  /** C3: she said, in these words, that it did not land. The next part
+      comes at it another way and ends with ONE diagnostic question. */
+  readonly notUnderstood?: string
+  /** C4: wrong beliefs she may hold -- hypotheses with evidence, from memory. */
+  readonly mayHold?: readonly string[]
+  /** D3: prerequisites this learner's own evidence says are blocking her. */
+  readonly teachFirst?: readonly { readonly id: string; readonly name: string }[]
   /**
    * The lesson the student was looking at when she asked.
    *
@@ -413,12 +420,32 @@ export function briefFor(brief: LessonBrief): string {
       'ALREADY TAUGHT, in order. Do not repeat any of it:',
       taught,
       '',
-      said === ''
-        ? 'She has asked you to carry on.'
-        : `She just said: ${said}\n\nRead it. If it shows she has not got the last part, ` +
-          `take the next part more slowly and come at it a different way. If it shows ` +
-          `she has, move on properly rather than restating.`,
+      typeof brief.notUnderstood === 'string' && brief.notUnderstood.trim() !== ''
+        ? `She just said: ${brief.notUnderstood.trim()}\n\nShe has NOT understood the last part. Do not ` +
+          `restate it. Come at it a genuinely different way -- a different picture, a ` +
+          `different example, a different order -- and END with a "checkpoint": ONE short ` +
+          `question that finds out what exactly did not land (which step, which word, ` +
+          `which picture). That question is the only question.`
+        : said === ''
+          ? 'She has asked you to carry on.'
+          : `She just said: ${said}\n\nRead it. If it shows she has not got the last part, ` +
+            `take the next part more slowly and come at it a different way. If it shows ` +
+            `she has, move on properly rather than restating.`,
       '',
+      ...(Array.isArray(brief.mayHold) && brief.mayHold.length > 0
+        ? [
+            '',
+            `She may hold a wrong belief: ${brief.mayHold.map((one) => `"${one}"`).join('; ')}.`,
+            'State the wrong belief plainly, show the case where it gives the wrong answer, then give the correct rule and why it holds instead.',
+          ]
+        : []),
+      ...(Array.isArray(brief.teachFirst) && brief.teachFirst.length > 0
+        ? [
+            '',
+            `Teach this first, because she has not got it: ${brief.teachFirst.map((one) => one.name).join('; ')}.`,
+            'Teach that earlier idea properly, then connect it forward to what she asked about. Explaining this concept again cannot work while that is missing.',
+          ]
+        : []),
       'THE TEXT ABOVE IS EVERYTHING YOU HAVE ALREADY SAID TO HER, IN YOUR OWN',
       'WORDS, AND INVARIANT I9 IS CHECKED AGAINST IT. Do not teach any of it',
       'again. The next part goes FORWARD from where that text stops.',

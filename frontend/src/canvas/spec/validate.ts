@@ -1,6 +1,6 @@
 import { checkTeaching } from '../teach/teaching'
 import { checkFigure } from './figure'
-import { LessonSpec, type Block, type Lesson } from './spec'
+import { Block as BlockSchema, LessonSpec, type Block, type Lesson } from './spec'
 
 /**
  * The gate. Nothing renders that has not been through here.
@@ -191,6 +191,30 @@ function checkBlock(block: Block, index: number, issues: Issue[]): void {
 /* -------------------------------------------------------------------------- */
 /* The gate                                                                   */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * ONE BLOCK, ON ITS OWN, AS SOON AS IT HAS ARRIVED.
+ *
+ * `validateLesson` needs the whole document: relations point between blocks
+ * and the teaching rules read the lesson as a whole. But a block's OWN rules
+ * -- its schema, a flow's links, a table's columns, a chart's shape -- need
+ * nothing outside it, and a stream that shows each block as it closes needs
+ * exactly those checks and no more. Same checks as the whole-lesson path,
+ * lifted out so the two cannot drift.
+ */
+export function validateBlock(input: unknown, index: number): { ok: true; block: Block } | { ok: false; issues: Issue[] } {
+  const issues: Issue[] = []
+  appearanceKeysDeep(input, `blocks[${index}]`, issues)
+  const parsed = BlockSchema.safeParse(input)
+  if (!parsed.success) {
+    for (const error of parsed.error.errors) {
+      issues.push({ path: `blocks[${index}].${error.path.join('.')}`, message: error.message })
+    }
+    return { ok: false, issues }
+  }
+  checkBlock(parsed.data, index, issues)
+  return issues.length === 0 ? { ok: true, block: parsed.data } : { ok: false, issues }
+}
 
 export function validateLesson(input: unknown, options: ValidateOptions = {}): Result {
   const issues: Issue[] = []

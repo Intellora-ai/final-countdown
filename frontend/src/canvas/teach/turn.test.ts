@@ -19,7 +19,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { classifyTurn, strugglingAfter } from './turn'
+import { isPlea, classifyTurn, strugglingAfter } from './turn'
 
 describe('telling a question from an answer', () => {
   it('treats an explicit question mark as a question', () => {
@@ -135,4 +135,37 @@ describe('noticing that a learner is struggling', () => {
     expect(strugglingAfter({ questionsAsked: 0, emptyAnswers: 0, beatsSeen: 0 })).toBe(false)
     expect(strugglingAfter({ questionsAsked: 5, emptyAnswers: 0, beatsSeen: 0 })).toBe(true)
   })
+})
+
+describe('a plea is heard wherever it sits in the sentence', () => {
+  /* C3, decided 2026-09-02: a question is asked only when the learner did not
+     understand -- so the one signal everything downstream depends on is the
+     plea itself. The patterns anchored at the start of the sentence, and
+     "i still dont get why there are two", typed on a live canvas, was read as
+     an ANSWER and advanced the lesson. */
+  it.each([
+    'i still dont get why there are two',
+    "I don't understand the second step",
+    'this makes no sense to me',
+    'im confused about the sign',
+    'lost me at the product part',
+    'no idea what a coefficient is',
+    /* Naming an earlier idea she was never taught is the clearest plea there
+       is, and the one the in-lesson answerer must NOT take: it needs the
+       tutor, who can teach the missing thing. */
+    'what is mass? i never learnt that',
+    'we never did quadratics',
+    'that was never covered in class',
+  ])('"%s" is a plea, not an answer', (said) => {
+    expect(isPlea(said)).toBe(true)
+    expect(classifyTurn(said)).toBe('question')
+  })
+
+  it.each(['so the zeros are where the graph crosses the x axis', 'the product is c over a', 'ok got it'])(
+    '"%s" is an answer',
+    (said) => {
+      expect(isPlea(said)).toBe(false)
+      expect(classifyTurn(said)).toBe('answer')
+    },
+  )
 })

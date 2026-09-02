@@ -11,7 +11,7 @@
  * source at all -- grounding a lesson in an error page teaches the error.
  */
 import { describe, expect, it } from 'vitest'
-import { sourcesFrom } from './researched'
+import { groundingFrom, howWellSourcesAgree, sourcesFrom } from './researched'
 import type { SearchResult } from './webResolver'
 
 const page = (over: Partial<{ ok: boolean; suspicious: boolean; readerText: string; title: string; url: string }> = {}) => ({
@@ -78,5 +78,47 @@ describe('sources from a search', () => {
       page({ url: 'https://b.test', title: 'B' }),
     ]))
     expect(out.map((s) => s.title)).toEqual(['A', 'B'])
+  })
+})
+
+describe('F2 — the claim check is carried, not dropped', () => {
+  /* `websearch` reads the pages, decides whether two independent domains agree,
+     and hands back a verdict with the sentence it rests on. `sourcesFrom` threw
+     both away, so a lesson written from one shaky page looked exactly like one
+     written from two agreeing sources -- to the author, and to the reader. */
+  const page = (url: string, text: string) => ({
+    ok: true as const,
+    suspicious: false,
+    finalUrl: url,
+    title: 'A page',
+    readerText: text,
+    hit: { url, title: 'A page', snippet: '' },
+  })
+
+  it('passes the verdict through beside the sources', () => {
+    const checked = groundingFrom({
+      results: [page('https://a.test/1', 'Zeros are where the graph crosses.')],
+      engineFailed: false,
+      check: { status: 'supported', supportingEvidenceIds: ['e1', 'e2'], conflictingEvidenceIds: [] },
+      evidence: { text: 'A zero is where the polynomial equals zero.', sourceUrl: 'https://a.test/1' },
+    })
+    expect(checked.sources).toHaveLength(1)
+    expect(checked.check?.status).toBe('supported')
+    expect(checked.evidence?.text).toContain('polynomial equals zero')
+  })
+
+  it('says nothing about a check that was never made', () => {
+    const checked = groundingFrom({ results: [page('https://a.test/1', 'Some text.')], engineFailed: false })
+    expect(checked.check).toBeUndefined()
+  })
+
+  it('the author is told how well the sources agree, in words', () => {
+    const supported = howWellSourcesAgree({ status: 'supported', supportingEvidenceIds: ['e1', 'e2'], conflictingEvidenceIds: [] })
+    expect(supported).toMatch(/two|independent|agree/i)
+    const single = howWellSourcesAgree({ status: 'single-source', supportingEvidenceIds: ['e1'], conflictingEvidenceIds: [] })
+    expect(single).toMatch(/one source|single/i)
+    const conflicting = howWellSourcesAgree({ status: 'conflicting', supportingEvidenceIds: ['e1'], conflictingEvidenceIds: ['e2'] })
+    expect(conflicting).toMatch(/disagree|conflict/i)
+    expect(howWellSourcesAgree({ status: 'unknown', supportingEvidenceIds: [], conflictingEvidenceIds: [] })).toBe('')
   })
 })

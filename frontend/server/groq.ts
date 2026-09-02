@@ -586,6 +586,7 @@ export function createGroqModel(options: GroqOptions): Model {
    * and sometimes the credential -- is identical, and a second copy of it is a
    * second place for the retry policy to drift.
    */
+  let lastBudget: { remainingTokens: number; resetAt: number } | null = null
   async function send(body: string): Promise<unknown> {
     let lastStatus = 0
     let lastWhy = ''
@@ -665,7 +666,18 @@ export function createGroqModel(options: GroqOptions): Model {
         clearTimeout(abandon)
       }
 
-      if (response.ok) return await response.json()
+      if (response.ok) {
+        /* WHAT THE VENDOR SAYS IS LEFT, READ ON THE GOOD REPLY. The 429 is its
+           last word, not its first: it reports the remaining daily tokens and
+           when they reset on every reply, and until 2026-09-02 nothing read
+           them -- so a spent budget was discovered by being refused. */
+        const remaining = response.headers?.get('x-ratelimit-remaining-tokens') ?? null
+        if (remaining !== null && /^\d+$/.test(remaining.trim())) {
+          const resetMs = waitTheServiceAsksFor(response) ?? 0
+          lastBudget = { remainingTokens: Number(remaining.trim()), resetAt: Date.now() + resetMs }
+        }
+        return await response.json()
+      }
 
       /* THE VENDOR'S SHORT CODES ONLY. Its MESSAGE can quote the request, and
        * the request is not something this server repeats. The credential is
@@ -811,6 +823,10 @@ export function createGroqModel(options: GroqOptions): Model {
       * as it did. The ceiling log below reads the same number that was sent, so
       * a budget set too low is reported rather than silently truncating.
       */
+    budgetLeft() {
+      if (lastBudget === null) return null
+      return { remainingTokens: lastBudget.remainingTokens, resetInMs: Math.max(0, lastBudget.resetAt - Date.now()) }
+    },
     async chat(system: string, user: string, priorAssistant?: string, budget?: number) {
       const reserved = budget ?? conceptTokens
       const messages: { role: string; content: string }[] = [{ role: 'system', content: system }]

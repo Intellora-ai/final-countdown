@@ -96,7 +96,7 @@ function openToday(client: ReturnType<typeof createAlmanacClient>, date: string)
     <MemoryRouter initialEntries={['/today']}>
       <Routes>
         <Route path="/today" element={<TodayView almanac={client} today={date} />} />
-        <Route path="/learn/:conceptId" element={<div data-testid="teaching" />} />
+        <Route path="/canvas/:topicId" element={<div data-testid="teaching" />} />
       </Routes>
     </MemoryRouter>,
   )

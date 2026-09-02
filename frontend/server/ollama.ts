@@ -93,6 +93,8 @@ export interface ModelLike {
      allowance to protect, and the parameter exists so one `chat` shape serves
      every client. See `groq.ts`. */
   chat(system: string, user: string, priorAssistant?: string, budget?: number): Promise<string>
+  /** `chat`, with each piece handed over as it is written. See `Model.chatStream`. */
+  chatStream?(system: string, user: string, onDelta: (text: string) => void, priorAssistant?: string): Promise<string>
 }
 
 /**
@@ -186,6 +188,100 @@ export function createOllamaModel(options: OllamaOptions): ModelLike {
       }
     },
 
+    /* WORDS AS THEY ARE WRITTEN. `/api/chat` with `stream: true` answers one
+       JSON object per line, each carrying the next piece of the assistant's
+       text and a `done` flag. Same request, same refusals as `chat` below, in
+       the same words; the one difference is that the deadline is measured
+       from the LAST piece rather than the first byte -- a model that is still
+       writing is not a model that has stopped answering. */
+    async chatStream(system, user, onDelta, priorAssistant) {
+      const messages: { role: string; content: string }[] = [{ role: 'system', content: system }]
+      if (priorAssistant !== undefined && priorAssistant !== '') {
+        messages.push({ role: 'assistant', content: priorAssistant })
+      }
+      messages.push({ role: 'user', content: user })
+      const stopWaiting = new AbortController()
+      let abandon = setTimeout(() => { stopWaiting.abort() }, LONGEST_LOCAL_CHAT_MS)
+      const stillWriting = (): void => {
+        clearTimeout(abandon)
+        abandon = setTimeout(() => { stopWaiting.abort() }, LONGEST_LOCAL_CHAT_MS)
+      }
+      const tooSlow = (): Error =>
+        new Error(
+          `the model could not be reached: Ollama at ${endpoint} did not answer within ` +
+            `${Math.round(LONGEST_LOCAL_CHAT_MS / 1000)}s. The model "${options.model}" may be ` +
+            `too large for this machine, or still loading.`,
+        )
+      let response
+      try {
+        response = await doFetch(`${endpoint}/api/chat`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          signal: stopWaiting.signal,
+          body: JSON.stringify({
+            model: options.model,
+            stream: true,
+            format: 'json',
+            options: { temperature: 0 },
+            messages,
+          }),
+        })
+      } catch {
+        clearTimeout(abandon)
+        if (stopWaiting.signal.aborted) throw tooSlow()
+        throw new Error(
+          `the model could not be reached: Ollama is not answering at ${endpoint}. ` +
+            `Is it running? Start it with: ollama serve`,
+        )
+      }
+      if (!response.ok) {
+        clearTimeout(abandon)
+        if (response.status === 404) {
+          throw new Error(
+            `Ollama does not have the model "${options.model}". Pull it first: ollama pull ${options.model}`,
+          )
+        }
+        throw new Error(`Ollama returned status ${response.status}`)
+      }
+      const body = response.body
+      if (body === undefined || body === null) {
+        clearTimeout(abandon)
+        throw new Error('Ollama returned a reply with no content')
+      }
+      const reader = body.getReader()
+      const decoder = new TextDecoder()
+      let pending = ''
+      let whole = ''
+      try {
+        for (;;) {
+          const { value, done } = await reader.read()
+          if (done) break
+          stillWriting()
+          pending += decoder.decode(value, { stream: true })
+          let newline = pending.indexOf('\n')
+          while (newline >= 0) {
+            const line = pending.slice(0, newline).trim()
+            pending = pending.slice(newline + 1)
+            newline = pending.indexOf('\n')
+            if (line === '') continue
+            const parsed = JSON.parse(line) as { message?: { content?: unknown }; done?: unknown }
+            const piece = parsed.message?.content
+            if (typeof piece === 'string' && piece !== '') {
+              whole += piece
+              onDelta(piece)
+            }
+            if (parsed.done === true) break
+          }
+        }
+      } catch {
+        if (stopWaiting.signal.aborted) throw tooSlow()
+        throw new Error('the model could not be reached: the reply from Ollama stopped part-way')
+      } finally {
+        clearTimeout(abandon)
+      }
+      if (whole.trim() === '') throw new Error('Ollama returned a reply with no content')
+      return whole
+    },
     async chat(system, user, priorAssistant) {
       const messages: { role: string; content: string }[] = [{ role: 'system', content: system }]
       /* The repair turn. `concept.ts` sends the model's own rejected reply back

@@ -262,4 +262,30 @@ describe('a spent DAY is not waited out by anybody', () => {
     await expect(model.chat?.('sys', 'user')).rejects.toThrow(/short-term token budget is spent/)
     expect(tries.length, 'a ceiling that clears in seconds was abandoned').toBeGreaterThan(1)
   })
+
+  it('remembers how much of the day the vendor said is left, from a SUCCESSFUL reply', async () => {
+    /* MEASURED 2026-09-02: the day's budget ran out mid-afternoon and every
+       question until the reset waited out the retry loop before failover
+       moved on. The vendor had been saying `x-ratelimit-remaining-tokens` on
+       every good reply all day, and nothing read it. */
+    const model = createGroqModel({
+      apiKey: 'gsk_x',
+      model: 'm',
+      fetchImpl: async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({ choices: [{ message: { content: '{"a":1}' }, finish_reason: 'stop' }] }),
+        headers: {
+          get: (name: string) =>
+            name.toLowerCase() === 'x-ratelimit-remaining-tokens' ? '512' : name.toLowerCase() === 'x-ratelimit-reset-tokens' ? '30s' : null,
+        },
+      }),
+    })
+    expect(model.budgetLeft?.()).toBeNull()
+    await model.chat!('sys', 'q')
+    const left = model.budgetLeft?.()
+    expect(left?.remainingTokens).toBe(512)
+    expect(left?.resetInMs).toBeGreaterThan(25_000)
+    expect(left?.resetInMs).toBeLessThanOrEqual(30_000)
+  })
 })

@@ -29,6 +29,8 @@ declare module 'node:http' {
     headersSent: boolean
     writeHead(status: number, headers?: Record<string, string | number>): void
     end(chunk?: string): void
+    /** One piece of a streamed reply; see `index.ts deliver`. */
+    write(chunk: string): boolean
   }
 
   export interface AddressInfo {
@@ -240,6 +242,11 @@ declare module 'node:os' {
  * in unnoticed and cannot be reached by accident.
  */
 declare module 'node:crypto' {
+  /* Used by `memory/key.ts` to fit a long question into a key; see
+     `fittedLessonId`. Same shape as the runtime's. */
+  export function createHash(algorithm: string): {
+    update(data: string): { digest(encoding: 'hex'): string }
+  }
   export interface Hmac {
     update(data: string): Hmac
     digest(encoding: 'hex'): string
@@ -261,5 +268,15 @@ declare module 'node:sqlite' {
     exec(sql: string): void
     prepare(sql: string): StatementSync
     close(): void
+  }
+}
+
+/* The async context that carries where streamed words go, for the one
+   request that asked for them. See `handler.ts streaming`. Only the two
+   members used are declared, the same rule every module in this file keeps. */
+declare module 'node:async_hooks' {
+  export class AsyncLocalStorage<T> {
+    run<R>(store: T, fn: () => R): R
+    getStore(): T | undefined
   }
 }

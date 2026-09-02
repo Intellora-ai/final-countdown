@@ -901,7 +901,7 @@ describe('nothing typed is lost', () => {
   async function closeTab(): Promise<void> {
     const onDisk = storage.getItem(TEACH_STORAGE_KEY)
     cleanup()
-    useTeachStore.setState({ progress: null })
+    useTeachStore.setState({ byLesson: {} })
     if (onDisk !== null) storage.setItem(TEACH_STORAGE_KEY, onDisk)
     await useTeachStore.persist?.rehydrate()
   }
@@ -1128,7 +1128,7 @@ describe('nothing typed is lost', () => {
    * that let `setItem` throw fails the quota test.
    */
   async function openTabReadingDisk() {
-    useTeachStore.setState({ progress: null })
+    useTeachStore.setState({ byLesson: {} })
     await useTeachStore.persist?.rehydrate()
     const view = render(<TeachView lesson={fixture()} mode="2d" />)
     await settle()
@@ -1194,5 +1194,129 @@ describe('nothing typed is lost', () => {
       Object.prototype.hasOwnProperty.call(saved as object, 'answerInFlight'),
       'the in-flight latch was written to storage, where it can only do harm',
     ).toBe(false)
+  })
+})
+
+describe('the server is the truth; this browser is the fast copy', () => {
+  /* The owner's decision, 2026-09-02: memory lives in both places and the
+     server wins. `/api/memory` had been built, tested and exposed and no
+     browser had ever called it. These are the calls. */
+  let calls: { url: string; init?: RequestInit }[] = []
+  let remote: unknown = null
+  beforeEach(() => {
+    calls = []
+    remote = null
+    vi.stubGlobal('fetch', vi.fn(async (input: unknown, init?: RequestInit) => {
+      const url = String(input)
+      calls.push({ url, ...(init === undefined ? {} : { init }) })
+      if (url.startsWith('/api/memory')) {
+        if (init?.method === 'PUT') return { ok: true, status: 200, json: async () => ({ saved: true }) } as unknown as Response
+        return { ok: true, status: 200, json: async () => ({ record: remote }) } as unknown as Response
+      }
+      throw new Error(`nothing in this test should reach ${url}`)
+    }))
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+  const puts = () => calls.filter((c) => c.url === '/api/memory' && c.init?.method === 'PUT').map((c) => JSON.parse(String(c.init?.body)) as { lessonId: string; record: { revealed: number } })
+  const wait = (ms: number) => act(async () => { await new Promise((resolve) => setTimeout(resolve, ms)) })
+
+  it('sends progress to the server after a change, once it settles', async () => {
+    await teach()
+    await answerBeat()
+    await wait(900)
+    const sent = puts()
+    expect(sent.length, 'nothing was written to the server').toBeGreaterThan(0)
+    expect(sent[sent.length - 1]!.lessonId).toBe(fixture().id)
+    expect(sent[sent.length - 1]!.record.revealed).toBeGreaterThanOrEqual(2)
+  })
+
+  it('adopts what the server remembers when it is further along than this browser', async () => {
+    remote = { lessonId: fixture().id, revealed: 3, asked: [], draft: '', questionsAsked: 0, emptyAnswers: 0, struggleReported: false }
+    await teach()
+    await wait(50)
+    expect(loadTeachProgress(fixture().id)?.revealed, 'the server was further along and this browser ignored it').toBe(3)
+  })
+
+  it("keys a topic canvas's memory by the topic, not by the lesson it happened to write", async () => {
+    render(<TeachView lesson={fixture()} mode="2d" memoryKey="topic-42" />)
+    await settle()
+    await answerBeat()
+    await wait(900)
+    expect(puts().some((p) => p.lessonId === 'topic-42'), 'the memory was keyed by the lesson id').toBe(true)
+  })
+})
+
+describe('C3 — what she types inside a lesson is evidence, and a plea is not an answer', () => {
+  /* Decided 2026-09-02: questions are rare; a question is the system's move
+     only when the learner did not understand. So a plea must reach the tutor
+     with everything already taught, not the in-lesson answerer; and a plain
+     statement must be filed as what she said, then the lesson goes on. */
+  it('a plea goes to the tutor with what was taught, and the box is not left on "Working on it"', async () => {
+    const heard: { taught: string; justSaid: string; beat: string; afterBlock: string; beatTitles: readonly string[]; suspects: readonly string[] }[] = []
+    render(
+      <TeachView
+        lesson={fixture()}
+        mode="2d"
+        onNotUnderstood={async (context) => {
+          heard.push(context)
+          return { grown: false, question: 'Which step lost you?' }
+        }}
+      />,
+    )
+    await settle()
+    await askAbout('i still dont get why it stops')
+    expect(heard, 'the plea never reached the tutor').toHaveLength(1)
+    expect(heard[0]?.justSaid).toBe('i still dont get why it stops')
+    expect(heard[0]?.taught.length, 'nothing already taught was sent along').toBeGreaterThan(0)
+    expect(heard[0]?.beat).not.toBe('')
+    expect(heard[0]?.afterBlock, 'no block to put the answer after').not.toBe('')
+    expect(heard[0]?.beatTitles.length, 'the beat she was on has no names to ask about').toBeGreaterThan(0)
+    expect(Array.isArray(heard[0]?.suspects), 'the beat carries no warnings list').toBe(true)
+    expect(document.body.textContent).not.toMatch(/Working on it/)
+  })
+
+  it('a statement is filed as said, at the beat she was on, and the lesson goes on', async () => {
+    const filed: { said: string; beat: string }[] = []
+    render(<TeachView lesson={fixture()} mode="2d" onSaid={(context) => filed.push(context)} />)
+    await settle()
+    await askAbout('so it stops when there is nothing left to split')
+    expect(filed).toEqual([{ said: 'so it stops when there is nothing left to split', beat: expect.any(String) }])
+  })
+})
+
+describe('C4 — a plea at a beat that warned her names the belief it warned against', () => {
+  /* Decided 2026-09-02: a misconception is a hypothesis with evidence. The
+     lesson's misconception blocks say what is WRONG; when she pleads at a beat
+     carrying one, that wrong belief is what she may hold, and the server files
+     it as a low-confidence hypothesis. Nothing is inferred from a statement. */
+  it('sends the wrong beliefs of the beat she was reading, and nothing when the beat warns of none', async () => {
+    const heard: { suspects: readonly string[] }[] = []
+    const warned = {
+      id: 'free-fall',
+      question: 'Why do all objects fall at the same rate?',
+      blocks: [
+        { id: 'heavier-first', kind: 'misconception', role: 'misconception', wrong: 'heavier objects fall faster', correct: 'in a vacuum they fall together', why: 'Gravity pulls harder on more mass, and more mass is harder to move. The two cancel.' },
+        { id: 'closing', kind: 'summary', role: 'summary', progression: ['gravity pulls harder on more mass', 'more mass is harder to move', 'the two cancel'], mentalModel: 'Mass cancels out, so everything falls at the same rate.' },
+      ],
+      relations: [],
+    }
+    const checked = validateLesson(warned, { teaching: 'answer' })
+    if (!checked.ok) throw new Error(`the fixture does not validate: ${JSON.stringify(checked.issues)}`)
+    render(
+      <TeachView
+        lesson={checked.lesson}
+        teaching="answer"
+        mode="2d"
+        onNotUnderstood={async (context) => {
+          heard.push(context)
+          return { grown: false, question: null }
+        }}
+      />,
+    )
+    await settle()
+    await askAbout('i dont get why the hammer doesnt land first')
+    expect(heard[0]?.suspects, 'the warning the beat carries never reached the server').toEqual(['heavier objects fall faster'])
   })
 })

@@ -200,7 +200,7 @@ export function TodayView({
                * screen cannot work it out on its own, and the server teaches a
                * carried-over concept differently -- it comes back because it
                * was not finished, so repeating it is what already failed. */
-              nav(`/learn/${row.item.conceptId}`, {
+              nav(`/canvas/${row.item.conceptId}`, {
                 state: row.backlog ? { carriedFrom: row.item.carriedFrom } : {},
               })
             }

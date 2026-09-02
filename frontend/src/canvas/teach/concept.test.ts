@@ -279,14 +279,15 @@ describe('a concept teaches one idea and asks what is next', () => {
     expect(result.issues.map((i) => i.message).join(' ')).toMatch(/names nothing|generic/i)
   })
 
-  it('refuses a single branch, because one option is not a choice', async () => {
+  it('accepts a lesson that asks nothing at all -- questions are rare on this canvas', async () => {
+    /* Decided 2026-09-02: the canvas is for understanding, not a quiz. A
+       question is the system's move only when the learner did not understand,
+       and branches are not offered as buttons -- she types what comes next. */
     const result = await authorConcept(
-      says(soundConcept({ next: [{ id: 'deeper', label: 'Why a missing base case never stops' }] })),
+      says(soundConcept({ checkpoint: undefined, next: undefined })),
       'What is a base case?',
     )
-    expect(result.ok).toBe(false)
-    if (result.ok) throw new Error('expected a refusal')
-    expect(result.issues.map((i) => i.message).join(' ')).toMatch(/two/i)
+    expect(result.ok, JSON.stringify(result.ok ? null : result.issues)).toBe(true)
   })
 })
 
@@ -364,9 +365,12 @@ describe('a refused concept gets one chance to be corrected', () => {
    * about something it has never read, and it regenerates from scratch."
    */
   it('feeds the gate reasons back and accepts the corrected reply', async () => {
+    /* The flaw must be one the gate still refuses: a checkpoint that asserts.
+       (A single branch used to be the flaw here; since 2026-09-02 branches are
+       optional, and spelling faults are mended before the gate -- see mend.ts.) */
     const broken = JSON.stringify({
       ...(JSON.parse(soundConcept()) as Record<string, unknown>),
-      next: [{ id: 'only', label: 'Why a missing base case never stops' }],
+      checkpoint: 'That is how a base case works.',
     })
     const model = says(broken, soundConcept())
     const result = await authorConcept(model, 'What is a base case?')
@@ -583,5 +587,106 @@ describe('every route has an example written for it', () => {
         `${axis.id} shows nothing`,
       ).toBe(true)
     }
+  })
+})
+
+describe('E3 — a concept better served by plain language draws nothing', () => {
+  /* Decided 2026-09-02: whether, before which. A lesson may say there is
+     nothing worth drawing, and must say why -- so "no picture" is a decision
+     on the record. It cannot be used to escape drawing what the idea needs. */
+  const wordy = {
+    id: 'onomatopoeia',
+    question: 'What is onomatopoeia?',
+    technicalTerms: [],
+    blocks: [
+      {
+        id: 'what-it-is',
+        kind: 'prose',
+        role: 'definition',
+        emphasis: 'primary',
+        body: 'Onomatopoeia is a word that sounds like the noise it names, such as buzz or clang.',
+        terms: [{ text: 'Onomatopoeia', mark: 'key' }],
+      },
+      {
+        id: 'closing',
+        kind: 'summary',
+        role: 'summary',
+        progression: ['the word names a noise', 'the word sounds like that noise'],
+        mentalModel: 'The word is a copy of the sound.',
+      },
+    ],
+    relations: [],
+  }
+
+  it('is accepted with no figure when it says why there is nothing to draw', async () => {
+    const result = await authorConcept(
+      says(JSON.stringify({ ...wordy, showsNothingBecause: 'this is a word and where it came from; a picture of it would invent structure the idea does not have' })),
+      'What is onomatopoeia?',
+    )
+    expect(result.ok, JSON.stringify(result.ok ? null : result.issues)).toBe(true)
+  })
+
+  it('is refused when it draws nothing and says nothing', async () => {
+    const result = await authorConcept(says(JSON.stringify(wordy)), 'What is onomatopoeia?')
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected a refusal')
+    expect(result.issues.map((one) => one.message).join(' ')).toMatch(/shows nothing|all words/i)
+  })
+
+  it('cannot escape a picture the idea plainly needs', async () => {
+    const numbers = {
+      ...wordy,
+      id: 'melting-points',
+      question: 'Which metal melts at the lowest temperature?',
+      blocks: [
+        { ...wordy.blocks[0], id: 'what-it-is', body: 'Copper melts at 1085 degrees, iron at 1538, and tungsten at 3422.' },
+        wordy.blocks[1],
+      ],
+      showsNothingBecause: 'these are just three numbers and nothing would be gained by drawing them',
+    }
+    const result = await authorConcept(says(JSON.stringify(numbers)), 'Which metal melts at the lowest temperature?')
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected a refusal')
+    expect(result.issues.map((one) => one.message).join(' ')).toMatch(/something to show/i)
+  })
+})
+
+describe('F1 — a wrong sum never reaches the learner', () => {
+  /* `evaluate` and `verifyArithmetic` were built and wired only into the agent
+     loop, which the canvas never calls -- so "2 x 3 = 7" passed the gate that
+     refuses a dangling relation. Every sum a lesson states is checked now. */
+  /* The sum goes in a plain SUPPORT block, so the only thing under test is the
+     arithmetic: overwriting the definition breaks three unrelated rules. */
+  function withSum(sum: string): string {
+    const sound = JSON.parse(soundConcept()) as { blocks: Record<string, unknown>[] }
+    sound.blocks.splice(1, 0, {
+      id: 'how-many-calls',
+      kind: 'prose',
+      role: 'support',
+      emphasis: 'supporting',
+      body: `Counting the calls it saves: ${sum} of them.`,
+      terms: [{ text: 'calls', mark: 'key' }],
+    })
+    return JSON.stringify(sound)
+  }
+
+  it('refuses a lesson whose arithmetic is wrong, and says the right answer', async () => {
+    const result = await authorConcept(
+      says(withSum('2 × 3 = 7')),
+      'What is a base case?',
+    )
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected a refusal')
+    const said = result.issues.map((one) => one.message).join(' ')
+    expect(said).toMatch(/2 × 3 = 6/)
+    expect(said).toMatch(/says 7/)
+  })
+
+  it('accepts the same lesson when the arithmetic is right', async () => {
+    const result = await authorConcept(
+      says(withSum('2 × 3 = 6')),
+      'What is a base case?',
+    )
+    expect(result.ok, JSON.stringify(result.ok ? null : result.issues)).toBe(true)
   })
 })

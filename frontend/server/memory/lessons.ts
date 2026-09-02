@@ -30,7 +30,7 @@
  * there.
  */
 
-import { memoryKey } from './key.ts'
+import { fittedLessonId, memoryKey } from './key.ts'
 import type { MemoryStore } from './sqliteStore.ts'
 
 /** One lesson as it was served, with the tutor turn that went with it. */
@@ -120,7 +120,7 @@ export function keyFor(concept: string): string {
   return memoryKey({
     studentId: 'shared',
     tabId: 'any',
-    lessonId: `written:${encodeURIComponent(named)}`,
+    lessonId: fittedLessonId('written:', encodeURIComponent(named), named),
   })
 }
 

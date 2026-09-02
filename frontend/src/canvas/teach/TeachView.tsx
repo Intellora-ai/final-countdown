@@ -13,7 +13,7 @@ import { Question } from '../design/primitives'
 import { cssVariables } from '../design/tokens'
 import { checkFrame, plan, type Frame, type Placed } from '../layout/layout'
 import { BlockView } from '../render/BlockView'
-import { classifyTurn, strugglingAfter } from './turn'
+import { isPlea, classifyTurn, strugglingAfter } from './turn'
 import { createAnswering, type AskPort } from './answering'
 import type { Block, Lesson } from '../spec/spec'
 import { validateLesson, type Issue, type TeachingLevel } from '../spec/validate'
@@ -29,6 +29,7 @@ import {
 import { lessonResolver } from './doubt'
 import type { SituationPort } from './situation'
 import { loadTeachProgress, saveTeachProgress } from './teachStore'
+import { readProgress, writeProgress } from '../api/memoryClient'
 import type { AnyResolver } from './contract'
 
 /** The offline answer a learner can always be given. */
@@ -83,9 +84,16 @@ export function TeachView({
   initialDraft,
   onStruggling,
   onNeedNextPart,
+  onNotUnderstood,
+  onSaid,
+  memoryKey,
 }: {
   lesson: Lesson
   mode: '2d' | '3d'
+  /** What this lesson's memory is filed under. A topic canvas passes the
+      TOPIC id, so one topic keeps one memory whatever lesson was written
+      for it; absent, the lesson's own id. */
+  memoryKey?: string
   /**
    * WHICH TEACHING RULES THIS LESSON IS JUDGED BY, AND WHY IT HAS TO BE PASSED.
    *
@@ -138,6 +146,13 @@ export function TeachView({
    * and is still the right behaviour for a hand-written lesson.
    */
   onNeedNextPart?: (context: { taught: string; justSaid: string }) => Promise<boolean>
+  /** C3: she said, in these words, that it did not land. The tutor is told
+      what was taught and what she said; it comes back a different way and,
+      when it wrote one, with the ONE question that finds out what did not land.
+      The canvas shows that question; this view only grows the lesson. */
+  onNotUnderstood?: (context: { taught: string; justSaid: string; beat: string; afterBlock: string; beatTitles: readonly string[]; suspects: readonly string[] }) => Promise<{ grown: boolean; question: string | null }>
+  /** C3: a statement she typed, filed as what she said, at the beat she was on. */
+  onSaid?: (context: { said: string; beat: string }) => void
 }): JSX.Element {
   const width = useViewportWidth()
 
@@ -201,7 +216,7 @@ export function TeachView({
    * record, and when storage cannot be read -- so every one of those cases
    * arrives here as a plain fresh start.
    */
-  const restored = useRef(loadTeachProgress(safe === null ? '' : safe.id))
+  const restored = useRef(loadTeachProgress(safe === null ? '' : (memoryKey ?? safe.id)))
 
   /* How many beats have been revealed — never rendered, only sliced with. */
   const [revealed, setRevealed] = useState(() => restored.current?.revealed ?? 1)
@@ -264,7 +279,7 @@ export function TeachView({
    * rather than compared in an effect body with no guard, so a plain mount does
    * not queue four state updates it will immediately discard.
    */
-  const lessonKey = safe === null ? '' : safe.id
+  const lessonKey = safe === null ? '' : (memoryKey ?? safe.id)
   const taught = useRef(lessonKey)
   if (taught.current !== lessonKey) {
     taught.current = lessonKey
@@ -308,19 +323,78 @@ export function TeachView({
    * every change that flips it also changes a counter in this list, so the
    * record is never written without it.
    */
+  /* THE LAST RECORD THE SERVER AND THIS SCREEN AGREED ON. Opening a lesson
+     writes nothing -- what is on screen is what was loaded -- and adopting the
+     server's own record writes nothing back. Only a change she made is sent.
+     Measured 2026-09-02: every reload wrote the progress record once, unchanged. */
+  const agreed = useRef<string | null>(null)
   useEffect(() => {
     if (safe === null) return
-    saveTeachProgress({
-      lessonId: safe.id,
+    const record = {
+      lessonId: lessonKey,
       revealed,
       asked,
       draft,
       questionsAsked,
       emptyAnswers,
       struggleReported: struggleReported.current,
-    })
-  }, [safe, revealed, asked, draft, questionsAsked, emptyAnswers])
+    }
+    const wire = JSON.stringify(record)
+    if (agreed.current === null || agreed.current === wire) {
+      agreed.current = wire
+      saveTeachProgress(record)
+      return
+    }
+    agreed.current = wire
+    saveTeachProgress(record)
+    /* THE SERVER IS THE TRUTH, AND THIS IS HOW IT IS TOLD. Debounced: `draft`
+       changes on every keystroke and a write per keystroke is noise the
+       server would have to refuse in order. What settles is what is sent. */
+    const settle = setTimeout(() => {
+      void writeProgress(record)
+    }, 600)
+    return () => clearTimeout(settle)
+  }, [safe, lessonKey, revealed, asked, draft, questionsAsked, emptyAnswers])
 
+  /* THE SERVER IS READ ON OPEN, AND WINS WHEN IT IS FURTHER ALONG. The local
+     copy has already drawn the screen; if the server remembers more -- this
+     student on another browser, or a cleared cache -- that is adopted, through
+     the same setters a lesson change uses. Nothing here goes backwards. */
+  useEffect(() => {
+    if (lessonKey === '') return
+    let live = true
+    void readProgress(lessonKey).then((remote) => {
+      if (!live || remote === null) return
+      const local = loadTeachProgress(lessonKey)
+      const ahead =
+        local === null ||
+        remote.revealed > local.revealed ||
+        remote.questionsAsked > local.questionsAsked ||
+        remote.asked.length > local.asked.length
+      if (!ahead) return
+      restored.current = remote
+      agreed.current = JSON.stringify({
+        lessonId: lessonKey,
+        revealed: remote.revealed,
+        asked: remote.asked,
+        draft: remote.draft,
+        questionsAsked: remote.questionsAsked,
+        emptyAnswers: remote.emptyAnswers,
+        struggleReported: remote.struggleReported,
+      })
+      setRevealed(remote.revealed)
+      setAsked(remote.asked)
+      setDraft(remote.draft)
+      setQuestionsAsked(remote.questionsAsked)
+      setEmptyAnswers(remote.emptyAnswers)
+      struggleReported.current = remote.struggleReported
+    })
+    return () => {
+      live = false
+    }
+  }, [lessonKey])
+
+  const pleaInFlight = useRef(false)
   const closingRef = useRef<HTMLParagraphElement | null>(null)
   const focusClosing = useRef(false)
   useEffect(() => {
@@ -439,8 +513,57 @@ export function TeachView({
     }
 
     if (kind === 'answer') {
+      onSaid?.({ said: text.trim(), beat: current.id })
       setDraft('')
       advance()
+      return
+    }
+    /* C3: A PLEA GOES TO THE TUTOR, NOT TO THE IN-LESSON ANSWERER. The
+       answerer settles a doubt about a word; a plea means the last part did
+       not land, and only the tutor, told what it already said, can come at
+       it another way. */
+    if (isPlea(text) && onNotUnderstood !== undefined) {
+      /* Synchronous, because a click on the submit button fires the click AND
+         the form's submit before React has set any state: without this, one
+         plea went to the tutor twice and the next part arrived twice. */
+      if (pleaInFlight.current) return
+      pleaInFlight.current = true
+      const said = text.trim()
+      setDraft('')
+      setAnswerInFlight(true)
+      setAnnouncement('Coming at it another way…')
+      const afterBlock = current.blockIds[current.blockIds.length - 1] ?? current.id
+      /* The names of what she was reading, so a question can be asked about
+         THEM if the tutor asks none: a block's title, or its first words. */
+      const beatTitles = current.blockIds.flatMap((id) => {
+        const block = blockById.get(id) as Record<string, unknown> | undefined
+        if (block === undefined) return []
+        const title = typeof block['title'] === 'string' ? block['title'].trim() : ''
+        if (title !== '') return [title]
+        const body = typeof block['body'] === 'string' ? block['body'].trim() : ''
+        return body === '' ? [] : [body.split(/\s+/).slice(0, 6).join(' ')]
+      })
+      /* C4: what this beat WARNED her against. A plea here is evidence she may
+         hold it -- a hypothesis for the server to file, never a verdict. */
+      const suspects = current.blockIds.flatMap((id) => {
+        const block = blockById.get(id) as Record<string, unknown> | undefined
+        const wrong = block?.['kind'] === 'misconception' && typeof block['wrong'] === 'string' ? block['wrong'].trim() : ''
+        return wrong === '' ? [] : [wrong]
+      })
+      void onNotUnderstood({ taught: whatSheHasBeenTaught(), justSaid: said, beat: current.id, afterBlock, beatTitles, suspects })
+        .then(({ grown, question }) => {
+          /* The plea has been answered: it is not "the last thing she said"
+             any more, or the next part would be asked for as if she had just
+             said it again -- and filed again. */
+          lastSaid.current = ''
+          if (grown) advance()
+          setAnnouncement(question === null ? 'The next part has been added.' : 'There is one question for you below.')
+        })
+        .catch(() => setAnnouncement('That did not come through. Try once more.'))
+        .finally(() => {
+          pleaInFlight.current = false
+          setAnswerInFlight(false)
+        })
       return
     }
 
@@ -993,7 +1116,7 @@ function inFrameOrder(beat: Beat, frame: Frame): string[] {
   return [...beat.blockIds].sort((a, b) => (rank.get(a) ?? 0) - (rank.get(b) ?? 0))
 }
 
-function markerNumbers(frame: Frame, blockById: Map<string, Block>): Map<string, number | null> {
+export function markerNumbers(frame: Frame, blockById: Map<string, Block>): Map<string, number | null> {
   const out = new Map<string, number | null>()
   let n = 0
   for (const placed of frame.blocks) {

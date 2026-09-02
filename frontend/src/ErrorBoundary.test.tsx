@@ -68,6 +68,31 @@ const BANNER = 'Something went wrong'
 const CHILD = 'the application, rendering normally'
 
 describe('the error boundary, which is the only thing standing between a render error and a blank page', () => {
+  it('recovers on its own when the address changes after a crash, without a reload', async () => {
+    /* MEASURED 2026-09-02: one crashed screen (`#/chapter/science/...`) and
+       every address after it showed "Something went wrong" until the page was
+       reloaded -- /today included. The boundary mounts OUTSIDE the router, so
+       a hash change never remounts it and the caught error simply stayed. A
+       learner who hit one bad link lost the whole app. */
+    window.location.hash = '#/broken'
+    function OnlyBrokenThrows(): React.ReactElement {
+      if (window.location.hash === '#/broken') throw new Error('this screen is broken')
+      return <p>healthy screen</p>
+    }
+    render(
+      <ErrorBoundary>
+        <OnlyBrokenThrows />
+      </ErrorBoundary>,
+    )
+    expect(screen.getByText(/something went wrong/i)).toBeInTheDocument()
+
+    window.location.hash = '#/today'
+    window.dispatchEvent(new HashChangeEvent('hashchange'))
+
+    expect(await screen.findByText('healthy screen')).toBeInTheDocument()
+    expect(screen.queryByText(/something went wrong/i)).toBeNull()
+  })
+
   it('renders its children untouched when nothing throws', () => {
     render(
       <ErrorBoundary>

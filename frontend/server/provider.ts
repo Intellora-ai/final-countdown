@@ -299,6 +299,16 @@ export function value(env: Record<string, string | undefined>, name: string): st
   return trimmed === '' ? undefined : trimmed
 }
 
+/**
+ * A local model for the controller DECISION alone. Measured 2026-09-02: the
+ * verdict is a short JSON object that qwen2.5:7b returns in 1.4 s and
+ * gemma3:12b in 11 s, while gemma is the one refused less when WRITING. Unset,
+ * whichever model writes also decides.
+ */
+export function controllerModel(env: Record<string, string | undefined>): string | undefined {
+  return value(env, 'OLLAMA_CONTROLLER_MODEL')
+}
+
 export function chooseProvider(env: Record<string, string | undefined>): Provider {
   const local = value(env, 'OLLAMA_MODEL')
   if (local !== undefined) {
@@ -337,6 +347,18 @@ export function chooseProvider(env: Record<string, string | undefined>): Provide
   const apiKey = value(env, 'ANTHROPIC_API_KEY')
   if (apiKey !== undefined) return { kind: 'anthropic', apiKey }
 
+  /* THE LAPTOP AS THE ONLY RESORT. `OLLAMA_FALLBACK_MODEL` is the standby that
+     sits behind every hosted vendor (see `index.ts standbysFor`), and it meant
+     nothing at all without a hosted key in front of it -- so a clean checkout
+     with a model already pulled and no key refused to start, while the one
+     variable naming that model sat set. One variable, one meaning: the laptop
+     answers when nothing else can. Behind the cloud when there is a cloud;
+     alone when there is not. Read LAST, so a hosted key still wins. */
+  const fallback = value(env, 'OLLAMA_FALLBACK_MODEL')
+  if (fallback !== undefined) {
+    return { kind: 'ollama', model: fallback, endpoint: value(env, 'OLLAMA_ENDPOINT') }
+  }
+
   throw new Error(
     [
       'no model is configured, so no lesson can be written. Set one:',
@@ -344,6 +366,7 @@ export function chooseProvider(env: Record<string, string | undefined>): Provide
       '  ANTHROPIC_API_KEY=sk-ant-...        use Anthropic',
       '  OLLAMA_MODEL=qwen2.5:7b             use a model running on this machine',
       '                                      (ollama serve, then ollama pull qwen2.5:7b)',
+      '  OLLAMA_FALLBACK_MODEL=qwen2.5:7b    the same model as the last resort behind any key above',
       '',
       'Each hosted vendor also takes <NAME>_MODEL and <NAME>_BASE_URL, so a',
       'different model or a regional endpoint needs no code change.',

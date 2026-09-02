@@ -185,9 +185,12 @@ describe('a question that has been answered once is answered for nothing', () =>
   it('never builds a memo for a message that named nothing', async () => {
     /*
      * THE VETO IS NOT BYPASSED. A greeting files no lesson, so it can never
-     * acquire an alias, so the second `hi` reaches the controller exactly as
-     * the first did. The fast path can only ever repeat a decision the model
-     * has already made about a subject it named.
+     * acquire an alias. Since 2026-09-02 a greeting is answered on the spot by
+     * `smallTalk` -- no model call at all -- so neither `hi` reaches the
+     * controller; what must still hold is that no lesson is filed for it, and
+     * that the next message which DOES name a subject reaches the controller
+     * as if the greetings had never happened. The fast path can only ever
+     * repeat a decision the model has already made about a subject it named.
      */
     const model: ModelPort = {
       lesson: async () => {
@@ -218,10 +221,11 @@ describe('a question that has been answered once is answered for nothing', () =>
 
     const second = await handler(ask({ question: 'hi' }))
     expect((second.body as { clarify?: boolean }).clarify).toBe(true)
-    expect(seen, 'a greeting acquired an alias and skipped the veto').toEqual([
-      'controller',
-      'controller',
-    ])
+    expect(seen, 'a greeting reached a model').toEqual([])
+
+    const named = await handler(ask({ question: 'what is a base case' }))
+    expect(named.status).toBe(200)
+    expect(seen[0], 'a real question after the greetings skipped the controller').toBe('controller')
   })
 })
 
@@ -461,5 +465,42 @@ describe('a veto that corrects the ACTION does not cost the shelf', () => {
       kept,
       'a subject the model named itself was refused the shared shelf',
     ).toEqual([SUBJECT])
+  })
+})
+
+describe('the decision and the writing may come from different models', () => {
+  /*
+   * MEASURED 2026-09-02 on this laptop: gemma3:12b is refused far less than
+   * qwen2.5:7b when WRITING a lesson, and takes 11 s to make the controller
+   * DECISION the 7b makes in 1.4 s. The decision is a short JSON verdict; the
+   * writing is a whole lesson. `OLLAMA_CONTROLLER_MODEL` names a model for the
+   * decision alone. A port that offers `decide` is asked the decision there,
+   * and never through `chat`.
+   */
+  it('asks `decide` for the controller verdict and `chat` only for the lesson', async () => {
+    const seen: string[] = []
+    const verdict = JSON.stringify({
+      action: 'START_LESSON',
+      target: 'base case',
+      reason: 'she named it',
+      source_needed: false,
+      subject_named: true,
+    })
+    const handler = aServer({
+      lesson: async () => {
+        throw new Error('not used')
+      },
+      chat: async (system: string) => {
+        seen.push(system.includes('You are the controller') ? 'controller-through-chat' : 'tutor')
+        return system.includes('You are the controller') ? verdict : JSON.stringify(A_CONCEPT)
+      },
+      decide: async (system: string) => {
+        seen.push(system.includes('You are the controller') ? 'decide' : 'decide-asked-to-write')
+        return verdict
+      },
+    })
+    const reply = await handler(ask({ question: 'What is a base case?' }))
+    expect(reply.status).toBe(200)
+    expect(seen, 'the decision went through the writing model').toEqual(['decide', 'tutor'])
   })
 })

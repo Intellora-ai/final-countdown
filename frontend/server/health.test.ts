@@ -59,6 +59,22 @@ describe('GET /api/health', () => {
     expect(text).not.toMatch(/sk-ant|ledger|\.json|\/Users\/|studentId/i)
   })
 
+  it('names the vendors that can answer, and only their names', async () => {
+    /* `model: true` said a model was configured and nothing about WHICH -- so
+       when the laptop answers in place of a spent cloud budget, nothing anywhere
+       can say so. Names only: a vendor's key or base URL is a credential or a
+       path, and the test above forbids both. */
+    const res = await createHandler({
+      model, search, identitySecret: A_TEST_SECRET,
+      vendors: ['groq', 'ollama (qwen2.5:7b)'],
+    })(GET)
+    expect(res.body['model']).toBe(true)
+    expect(res.body['vendors']).toEqual(['groq', 'ollama (qwen2.5:7b)'])
+
+    const none = await createHandler({ model, search, identitySecret: A_TEST_SECRET })(GET)
+    expect(none.body['vendors'], 'an unconfigured list must read as empty, not as absent').toEqual([])
+  })
+
   it('is the only route that answers a GET at all', async () => {
     /* Everything else stays POST-only. A GET that mutates is a link a browser
      * can prefetch. */

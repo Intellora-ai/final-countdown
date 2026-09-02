@@ -51,6 +51,13 @@ export interface Model {
      are very different sizes and reserving the larger for both spent a
      per-minute allowance four times faster than it had to; see `groq.ts`. */
   chat?(system: string, user: string, priorAssistant?: string, budget?: number): Promise<string>
+  /** `chat`, with each piece handed over as it is written. Optional for the
+      same reason `chat` is; a caller that needs it and finds none falls back
+      to `chat` and hands the whole reply over as one piece. */
+  chatStream?(system: string, user: string, onDelta: (text: string) => void, priorAssistant?: string, budget?: number): Promise<string>
+  /** What the vendor last said was left of its budget, or null when it has
+      not said. Read by `failover` to ask a nearly-spent vendor last. */
+  budgetLeft?(): { readonly remainingTokens: number; readonly resetInMs: number } | null
   /**
    * The next part of a lesson in progress, priced for one or two blocks.
    *
@@ -82,6 +89,9 @@ export interface FetchResponse {
    * to the fixed waits, which is what it did before this existed.
    */
   readonly headers?: { get(name: string): string | null }
+  /** The raw reply, for a streamed answer read line by line. Optional for
+      the same reason `headers` is. */
+  readonly body?: ReadableStream<Uint8Array> | null
 }
 
 export type FetchLike = (

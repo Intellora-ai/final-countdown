@@ -39,6 +39,7 @@ import { decideNext, namesASubject, permitted, type Action, type Situation } fro
 import { readableText } from '../src/canvas/spec/readable.ts'
 import { extractJson } from '../src/canvas/teach/authorLesson.ts'
 import type { Source } from '../src/canvas/teach/grounding.ts'
+import { levelScope } from '../src/canvas/teach/level.ts'
 import { chooseStrategy, type Strategy } from './teaching.ts'
 import { subjectsFor, SUPPORTED_CLASSES, type SchoolClass } from './almanac/curriculum.ts'
 import type { Ledger } from './almanac/ledger.ts'
@@ -52,8 +53,19 @@ import {
   signIdentity,
   verifyIdentity,
 } from './identity.ts'
-import { BadMemoryKey } from './memory/key.ts'
+import { BadMemoryKey, type MemoryOwner } from './memory/key.ts'
+import { needsAnotherLook, type OnCanvas, type Suspicion } from './assurance.ts'
+import { AsyncLocalStorage } from 'node:async_hooks'
+import { lessonStream, type StreamEvent } from './lessonStream.ts'
+import { SMALL_TALK_REPLY, smallTalk } from './smallTalk.ts'
 import type { Explanation, Explanations } from './memory/explanations.ts'
+import { type EvidenceStore } from './memory/evidence.ts'
+import { type MisconceptionStore } from './memory/misconceptions.ts'
+import { diagnose } from './diagnose.ts'
+import { blocking, type Listed } from './prerequisites.ts'
+import { whatToDoNext, type Syllabus } from './priority.ts'
+import { type ConceptIndex } from './memory/concepts.ts'
+import { isPlea } from '../src/canvas/teach/turn.ts'
 import type { Written, WrittenLessons } from './memory/lessons.ts'
 import type { SubjectAliases } from './memory/aliases.ts'
 import { noveltyAgainst } from './memory/variation.ts'
@@ -77,6 +89,12 @@ export interface LessonRequest {
    */
   readonly taught?: string
   readonly justSaid?: string
+  /** C3: her plea, verbatim, when `justSaid` was one. See `prompt.ts`. */
+  readonly notUnderstood?: string
+  /** C4: wrong beliefs she may hold, from misconception memory. */
+  readonly mayHold?: readonly string[]
+  /** D3: prerequisites her own evidence says are blocking; see `prerequisites.ts`. */
+  readonly teachFirst?: readonly { readonly id: string; readonly name: string }[]
   /** How to teach it. Chosen here, never accepted from the request. */
   readonly strategy?: Strategy
 }
@@ -86,6 +104,11 @@ export interface ModelPort {
   /** See `Model.chat`. Present on the Groq client; absent is handled.
       `budget` is the caller's `max_tokens` reservation; see `groq.ts`. */
   chat?(system: string, user: string, priorAssistant?: string, budget?: number): Promise<string>
+  /** See `Model.chatStream`. Present on the local client and the failover wrapper. */
+  chatStream?(system: string, user: string, onDelta: (text: string) => void, priorAssistant?: string, budget?: number): Promise<string>
+  /** The controller DECISION alone -- a short JSON verdict -- when a different,
+      faster model makes it (`OLLAMA_CONTROLLER_MODEL`). Absent, `chat` decides. */
+  decide?(system: string, user: string, priorAssistant?: string, budget?: number): Promise<string>
   /** See `Model.nextPart`. Absent falls back to `lesson`, which still works. */
   nextPart?(request: LessonRequest): Promise<unknown>
 }
@@ -93,10 +116,24 @@ export interface ModelPort {
 export interface SearchResult {
   readonly url: string
   readonly content: string
+  /** F2: how well the sources agree, in words. Absent when nothing was checked. */
+  readonly agreement?: string
 }
 
 export interface SearchPort {
-  search(query: string): Promise<readonly SearchResult[]>
+  /**
+   * `scope` is the reading level to bias the ENGINE with -- "class 10 school
+   * level, simple language" -- and it is a SECOND ARGUMENT rather than part of
+   * the query on purpose.
+   *
+   * MEASURED LIVE 2026-09-03: glued onto the question, the level words were
+   * read as part of the subject, and a Class 10 photosynthesis search came
+   * back with "Bantu languages", "Baldwin Class 10-12-D" and Harvard's
+   * "Language" page -- every one of them an honest match for words the scope
+   * had added. Kept apart, the engine still gets the hint and nothing
+   * downstream mistakes it for what she asked about.
+   */
+  search(query: string, scope?: string): Promise<readonly SearchResult[]>
 }
 
 /**
@@ -115,6 +152,8 @@ export interface OpenWebReply {
 export interface ServerRequest {
   readonly method: string
   readonly path: string
+  /** The raw `Accept` header. `text/event-stream` on /api/ask asks for the words as they are written. */
+  readonly accept?: string
   /**
    * The raw query string, without the leading "?".
    *
@@ -146,6 +185,10 @@ export interface ServerResponse {
    * here instead of a call to `res.writeHead`.
    */
   readonly setCookie?: string
+  /** Present only when the caller asked for an event stream: the lesson as it
+      is written, ending with `done`, which carries the reply `body` above
+      would otherwise have been. */
+  readonly stream?: AsyncIterable<StreamEvent>
 }
 
 export interface HandlerOptions {
@@ -178,6 +221,12 @@ export interface HandlerOptions {
    * missing nicety into a missing lesson.
    */
   readonly explanations?: Explanations
+  /** C3: what the learner typed, filed under the topic; see `memory/evidence.ts`. */
+  readonly evidence?: EvidenceStore
+  /** C4: misconceptions as evidence-backed hypotheses; see `memory/misconceptions.ts`. */
+  readonly misconceptions?: MisconceptionStore
+  /** D4: questions resolved to concepts by meaning; see `memory/concepts.ts`. */
+  readonly concepts?: ConceptIndex
   /**
    * Lessons already written for a concept, readable by anyone who has not seen
    * them. See `memory/lessons.ts`.
@@ -215,6 +264,11 @@ export interface HandlerOptions {
   readonly secureCookies?: boolean
   /** Strings that must never appear in a response, whatever produced them. */
   readonly secrets?: readonly string[]
+  /** The names of the vendors that can answer, in the order they are tried --
+      "groq", "ollama (qwen2.5:7b)". Names only, never a key or a base URL:
+      /api/health repeats this list verbatim, and health is the most public
+      thing a server has. Absent reads as an empty list, never as "unknown". */
+  readonly vendors?: readonly string[]
   readonly maxBodyBytes?: number
 }
 
@@ -312,7 +366,13 @@ const DEFAULT_MAX_BODY_BYTES = 256 * 1024
  * is what lets the production server answer the same path, so a route that
  * exists twice as prose is a route that can drift. One declaration, two
  * servers. */
-const ROUTES = new Set(['/api/lesson', '/api/ask', SEARCH_ROUTE, '/api/day', '/api/done', '/api/health', '/api/memory', '/api/situation'])
+/* The one piece of request-scoped state in this file: where the words go as
+ * the model writes them, for the request that asked for them. Carried on the
+ * async context rather than threaded through eleven signatures, and read in
+ * exactly one place -- the authoring model inside `conceptFor`. */
+const streaming = new AsyncLocalStorage<(text: string) => void>()
+
+const ROUTES = new Set(['/api/lesson', '/api/ask', SEARCH_ROUTE, '/api/day', '/api/done', '/api/health', '/api/memory', '/api/canvas', '/api/situation', '/api/evidence', '/api/next'])
 
 /* The one route that answers a GET.
  *
@@ -467,9 +527,33 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
      * where it is documented to be made.
      */
     strategy?: string,
+    /**
+     * The level to search at: the student's class, and the exam she is sitting.
+     *
+     * PASSED IN RATHER THAN READ FROM THE BODY, because this function serves
+     * both `/api/lesson` and `/api/ask` and neither owns the other's shape.
+     * Absent means the query is the bare question, exactly as it always was.
+     */
+    level?: { readonly classId: string | null; readonly examId: string | null },
   ): Promise<ServerResponse> {
     const chat = options.model.chat
     if (chat === undefined) throw new Error('conceptFor called without a chat-capable model')
+    /* WORDS AS THEY ARE WRITTEN, ON THE FIRST ATTEMPT ONLY. A repair re-sends
+       the rejected document and asks for a correction; its words would
+       overwrite what is already on screen mid-sentence, so the repair -- and
+       the second authoring that `noveltyAgainst` may order -- are written
+       whole. `streaming.getStore()` is set only for a request that asked for
+       the stream, so every other caller gets exactly the model it always had. */
+    let streamedOnce = false
+    const authoring = () => (system: string, user: string, priorAssistant?: string): Promise<string> => {
+      const onDelta = streaming.getStore()
+      const stream = options.model.chatStream
+      if (onDelta !== undefined && stream !== undefined && !streamedOnce) {
+        streamedOnce = true
+        return stream.call(options.model, system, user, onDelta, priorAssistant)
+      }
+      return chat(system, user, priorAssistant)
+    }
 
     /*
      * WHOSE HISTORY, AND AT WHAT GRAIN.
@@ -629,9 +713,24 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
      * was. Turning a retrieval failure into a teaching failure would be worse
      * than being honestly ungrounded.
      */
+    /* THE QUERY IS PITCHED AT HER LEVEL, NOT AT NOBODY'S.
+     *
+     * MEASURED 2026-09-03: this searched the RAW question. A Class 9 student
+     * and a JEE candidate typing "trigonometric ratios" were sent to the same
+     * pages, and a Class 9 student reading a research paper has been failed by
+     * the search, not by the model that then had to teach from it.
+     *
+     * `scopedQuery` was written for exactly this and existed the whole time --
+     * reachable only on the local-model path in the browser, which almost
+     * nobody is on. The one thing missing was that the class never left the
+     * page. It does now (see `WhichCanvas` in `CanvasRoute.tsx`), so the
+     * function that was always right is finally on the path every student
+     * takes. Told neither a class nor an exam, this is the bare question,
+     * exactly as before: a guessed level is worse than none. */
+    const searchedAt = levelScope(level?.examId ?? null, level?.classId ?? null)
     const lookUp = async (): Promise<readonly SearchResult[]> => {
       try {
-        return await options.search.search(question)
+        return await options.search.search(question, searchedAt)
       } catch {
         return []
       }
@@ -787,10 +886,15 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
      * Latency is bought instead where it is actually available -- a smaller
      * model (6-10s rather than 15-30) and a shelf that makes a repeat free.
      */
+    const decidingAt = Date.now()
     const proposed = await decideNext(
-      (system: string, user: string) => chat(system, user, undefined, DECISION_MAX_TOKENS),
+      (system: string, user: string) => (options.model.decide ?? chat)(system, user, undefined, DECISION_MAX_TOKENS),
       situation,
     )
+    /* SAID, SO THE WAIT CAN BE ATTRIBUTED. MEASURED 2026-09-02 on a laptop
+       model: the first streamed word arrived 22 s after the request, and
+       nothing in the log said how much of that was this decision. */
+    console.log(`[timing] controller decided in ${Date.now() - decidingAt}ms`)
     const shelved = proposed.target.trim()
     /*
      * ONE READ, AND IT IS TAKEN HERE RATHER THAN REUSED FROM THE FAST PATH.
@@ -979,8 +1083,20 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
          invented title would be the one part of a citation nobody checked. */
       url: page.url,
       title: page.url,
-      text: page.content,
+      /* F2: the verdict on how well the sources agree, read off the pages by
+         `checkClaims` and carried here by `groundingPort`. It used to be
+         computed and dropped, so a lesson resting on one shaky page reached
+         the author looking exactly like one resting on two that agree. */
+      text: page.agreement === undefined ? page.content : `${page.content}\n\n[${page.agreement}]`,
     }))
+    /* SAID IN THE LOG, BECAUSE NOTHING ELSE SAYS IT. The reply carries the
+       lesson, never its sources, so the one way to know a lesson was grounded
+       -- rather than written by the model alone -- is this line. Measured
+       2026-09-02: the port was a throw for the server's whole life and no
+       line anywhere recorded that every lesson had zero sources. */
+    console.log(
+      `[grounding] ${sources.length} source(s) from ${new Set(sources.map((s) => s.url.replace(/^https?:\/\//, '').split('/')[0])).size} domain(s) for "${question.slice(0, 60)}"`,
+    )
 
     /* ANNOTATED, AND THAT IS THE POINT. Declared bare, this was an evolving
        `any`: TypeScript never narrowed it to the refusal variant and never
@@ -990,8 +1106,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     let written: ConceptResult
     try {
       written = await authorConcept(
-        (system: string, user: string, priorAssistant?: string) =>
-          chat(system, user, priorAssistant),
+        authoring(),
         /*
          * THE SUBJECT THE CONTROLLER DECIDED, NOT THE RAW MESSAGE.
          *
@@ -1075,8 +1190,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       if (noveltyAgainst(readableText(written.lesson), wordsFinal).isRepeat) {
         try {
           const afresh = await authorConcept(
-            (system: string, user: string, priorAssistant?: string) =>
-              chat(system, user, priorAssistant),
+            authoring(),
             /*
              * THE SUBJECT, EXACTLY AS THE FIRST ATTEMPT HAD IT.
              *
@@ -1258,6 +1372,11 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       'concept refused by validation:',
       written.issues.map((issue) => `${issue.path}: ${issue.message}`).join(' | '),
     )
+    /* AND THE VALUE THAT WAS REFUSED. A discriminator error names the twelve
+       legal kinds and never the one the model wrote, and that one word is the
+       whole diagnosis -- measured 2026-09-02, when every block came back with
+       a representation name where its kind belonged. */
+    console.log(`  kinds written: ${JSON.stringify((((extractJson(written.raw) as { blocks?: { kind?: unknown }[] } | null)?.blocks) ?? []).map((one) => one?.kind))}`)
 
     /*
      * A REFUSAL BY OUR OWN GATE MUST STILL ANSWER HER.
@@ -1373,6 +1492,23 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
        * that as "nothing to show" rather than as an error.
        */
       const rescued = parsed as { checkpoint?: unknown; next?: unknown } | undefined
+      /* SHE WAS SHOWN THIS WAY IN, SO IT IS SPENT. Measured 2026-09-02 by the
+         gibberish law: most answers come back salvaged, because the model's
+         first draft is imperfect most of the time -- and this path wrote
+         nothing to her history, so asking the same thing again returned the
+         same way in, forever.
+         HER history only. The shared shelf stays clean: a salvaged lesson is
+         worth serving to the person who waited for it and is not worth handing
+         to somebody else as the real thing (see `offShelf` above). */
+      try {
+        options.explanations?.remember(owner, finalKey, {
+          route: written.route,
+          text: readableText(salvaged.lesson),
+          at: new Date().toISOString(),
+        })
+      } catch {
+        /* A failed write must not cost her the lesson; see the note below. */
+      }
       return reply(200, {
         lesson: salvaged.lesson,
         route: written.route,
@@ -1397,6 +1533,30 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         message: safeMessage(issue.message),
       })),
     })
+  }
+
+  /* C3: the ONE question the tutor was asked to end with, when it wrote one.
+     `validateLesson` strips it from the lesson; the canvas shows it below. */
+  function checkpointIn(produced: unknown): { checkpoint?: string } {
+    const checkpoint = typeof produced === 'object' && produced !== null ? (produced as Record<string, unknown>)['checkpoint'] : undefined
+    return typeof checkpoint === 'string' && checkpoint.trim() !== '' ? { checkpoint: checkpoint.trim() } : {}
+  }
+
+  /* QUESTIONS ARE RARE, AND THAT IS THE SOFTWARE'S RULE, NOT THE MODEL'S.
+     A question goes out only when she said it did not land; a checkpoint the
+     model wrote unasked stays with the model. */
+  function questionOnlyIfAsked(request: LessonRequest, produced: unknown): { checkpoint?: string } {
+    return typeof request.notUnderstood === 'string' && request.notUnderstood.trim() !== '' ? checkpointIn(produced) : {}
+  }
+
+  /* The lesson without the turn: `checkpoint` and `next` are the tutor's, not
+     the lesson's, and the strict lesson schema refuses them. */
+  function withoutTurn(produced: unknown): unknown {
+    if (typeof produced !== 'object' || produced === null || Array.isArray(produced)) return produced
+    const { checkpoint: _checkpoint, next: _next, ...rest } = produced as Record<string, unknown>
+    void _checkpoint
+    void _next
+    return rest
   }
 
   async function lessonFrom(
@@ -1432,7 +1592,8 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
      * the revalidation loop. That loop already reads and reassigns `result`,
      * so the second declaration could not compile -- the option was right and
      * its position was not. It belongs on the one declaration, before the loop. */
-    let result = validateLesson(produced, { teaching })
+    let latest: unknown = produced
+    let result = validateLesson(withoutTurn(produced), { teaching })
 
     /* A LESSON THAT FAILS OUR OWN GATE IS WORTH ASKING FOR AGAIN.
      *
@@ -1496,7 +1657,8 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
          invisible -- until the repair below started reading it, at which point
          it would have repaired one lesson against another lesson's faults. */
       produced = again
-      result = validateLesson(again, { teaching })
+      latest = again
+      result = validateLesson(withoutTurn(again), { teaching })
     }
 
     if (!result.ok) {
@@ -1521,9 +1683,9 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
 
       /* NOW TRY TO SERVE HER SOMETHING ANYWAY. See `deliverable` below for what
          is attempted and, more importantly, what is not. */
-      const rescued = deliverable(produced, result.issues, teaching, questionIn(request))
+      const rescued = deliverable(withoutTurn(latest), result.issues, teaching, questionIn(request))
       if (rescued !== undefined) {
-        return reply(200, { ...decided, lesson: rescued.lesson, partial: true })
+        return reply(200, { ...decided, lesson: rescued.lesson, partial: true, ...questionOnlyIfAsked(request, latest) })
       }
 
       return reply(502, {
@@ -1535,7 +1697,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         })),
       })
     }
-    return reply(200, { ...decided, lesson: result.lesson })
+    return reply(200, { ...decided, lesson: result.lesson, ...questionOnlyIfAsked(request, latest) })
   }
 
   /** Whatever she actually typed, for the title of a reply built here. */
@@ -1695,6 +1857,10 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         ok: true,
         planner: options.almanac !== undefined,
         model: true,
+        /* WHICH vendors, not just whether. `model: true` alone could not say
+           that the laptop was answering in place of a spent cloud budget, and
+           that silence is the one thing a silent fallback must never add to. */
+        vendors: options.vendors ?? [],
       })
     }
 
@@ -1705,6 +1871,97 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
      *
      * Every refusal below says what was wrong. A memory that will not save and
      * will not say why is how a student loses an afternoon and never finds out. */
+    /* A TOPIC'S LEARNING HISTORY. Read with GET, added to with POST.
+     *
+     * SEPARATE FROM /api/memory, AND THE SEPARATION IS THE FIX. /api/memory
+     * PUTs a whole record, which is right for progress and was catastrophic
+     * for a canvas: an audit measured sixteen ways a term of learning could
+     * vanish, and every one of them ran through "the client sent a shorter
+     * canvas than the one on disk".
+     *
+     * There is no PUT here and no DELETE here. The only thing this route can
+     * do to a canvas is make it longer. See the five laws in
+     * `src/canvas/api/durability.laws.test.ts`.
+     *
+     * POST, NOT PUT, DELIBERATELY. PUT means "make the thing at this address
+     * equal to this", which is exactly the operation being removed. POST means
+     * "add this to the collection", which is exactly what happens.
+     */
+    /* MONITOR AFTER. Showing a lesson does not end its life: a canvas is
+     * permanent, so a mistake that slipped past the checks made before it was
+     * drawn sits in front of a student for months. This reads what she has
+     * actually said and reports which of her own lessons something real has put
+     * in question. Nothing is rewritten here and no model is asked -- see
+     * `assurance.ts`, which states what it refuses to do and why. */
+    const whatDeservesAnotherLook = (
+      lessonId: string,
+      artifacts: readonly { seq: number; artifact: unknown }[],
+    ): readonly Suspicion[] => {
+      if (options.evidence === undefined) return []
+      /* The canvas is stored under `<topic>#canvas`; evidence is filed under
+         the topic itself. */
+      const topic = lessonId.replace(/#canvas$/, '')
+      if (topic === '') return []
+      const said = options.evidence.recall({ studentId: who.studentId, tabId: 'any', lessonId: topic }, topic)
+      return needsAnotherLook({
+        canvas: artifacts.map((row) => asOnCanvas(row.seq, row.artifact)),
+        saidSince: said.flatMap((e) =>
+          e.artifactSeq === undefined
+            ? []
+            : [{ artifactSeq: e.artifactSeq, beat: e.beat ?? '', kind: e.kind }],
+        ),
+        knowledgeVersion: 1,
+      })
+    }
+
+    if (req.path === '/api/canvas') {
+      if (options.memory === undefined) {
+        return reply(503, { error: 'memory is not configured on this server' })
+      }
+      const canvasOwner = (tabId: unknown, lessonId: unknown): MemoryOwner => ({
+        /* The signed identity, never the one in the body or the query. Same
+         * rule, same reason, as /api/memory below. */
+        studentId: who.studentId,
+        tabId: typeof tabId === 'string' ? tabId : '',
+        lessonId: typeof lessonId === 'string' ? lessonId : '',
+      })
+
+      if (req.method === 'GET') {
+        const asked = new URLSearchParams(req.query ?? '')
+        try {
+          const artifacts = options.memory.list(canvasOwner(asked.get('tabId'), asked.get('lessonId')))
+          /* An empty history is a real answer -- she has not opened this topic
+           * yet. It is NOT the same answer as "this could not be read", and
+           * keeping those two apart is Law D. A failure leaves here as a
+           * non-200 and never as an empty list. */
+          return reply(200, { artifacts, needsAnotherLook: whatDeservesAnotherLook(asked.get('lessonId') ?? '', artifacts) })
+        } catch (thrown) {
+          if (thrown instanceof BadMemoryKey) return reply(400, { error: thrown.message })
+          throw thrown
+        }
+      }
+
+      if (req.method === 'POST') {
+        if (!isPlainObject(req.body)) {
+          return reply(400, { error: 'body must be a JSON object' })
+        }
+        const asked = req.body
+        try {
+          const stored = options.memory.append(
+            canvasOwner(asked['tabId'], asked['lessonId']),
+            asked['artifact'],
+          )
+          return reply(200, { appended: stored })
+        } catch (thrown) {
+          if (thrown instanceof BadMemoryKey) return reply(400, { error: thrown.message })
+          if (thrown instanceof NotStorable) return reply(400, { error: thrown.message })
+          throw thrown
+        }
+      }
+
+      return reply(405, { error: 'a canvas is read with GET and added to with POST' })
+    }
+
     if (req.path === '/api/memory') {
       if (options.memory === undefined) {
         return reply(503, { error: 'memory is not configured on this server' })
@@ -1906,6 +2163,14 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       if (!nonEmptyString(body['question'])) {
         return reply(400, { error: 'question is required' })
       }
+      /* "HI" IS NOT A LESSON, AND NOT A MODEL CALL. See `smallTalk.ts`. Only
+         for a message with no lesson around it: inside a lesson, "ok" is an
+         answer and the model must read it. Answered as `clarify`, which is what
+         it is -- a sentence back and the box to type in. */
+      if (!nonEmptyString(body['askedInside'])) {
+        const talk = smallTalk(body['question'])
+        if (talk !== null) return reply(200, { clarify: true, question: SMALL_TALK_REPLY[talk] })
+      }
       /* `askedInside` is the lesson she was reading. It is what lets the model
        * judge whether her question belongs here, which is the judgement the
        * software used to make for it by counting shared words. Optional: the
@@ -1961,10 +2226,112 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         const spent = Array.isArray(body['alreadyUsed'])
           ? (body['alreadyUsed'] as unknown[]).filter((r): r is string => typeof r === 'string')
           : []
-        return await conceptFor(body['question'], spent, who, 'ask')
+        /* D4: WHICH CONCEPT SHE IS ASKING ABOUT, by meaning rather than by
+           the words typed. The reply names it so the canvas and a person can
+           both see what was reused; `how` says whether it is the same idea in
+           new words, a related one, or new ground. */
+        const resolved = options.concepts === undefined
+          ? null
+          : await options.concepts.resolve({ studentId: who.studentId, tabId: 'any', lessonId: 'concepts' }, body['question'])
+        if (resolved !== null) {
+          console.log(`[concept] ${resolved.how} ${resolved.id}${resolved.how === 'new' ? '' : ` (${resolved.nearness.toFixed(2)})`}`)
+        }
+        const answered = await conceptFor(body['question'], spent, who, 'ask', undefined, {
+          classId: nonEmptyString(body['classId']) ? body['classId'] : null,
+          examId: nonEmptyString(body['examId']) ? body['examId'] : null,
+        })
+        return resolved === null || answered.status !== 200
+          ? answered
+          : { ...answered, body: { ...answered.body, concept: resolved } }
       }
 
-      return lessonFrom({
+      /* C3: WHAT SHE TYPED INSIDE THE LESSON IS EVIDENCE, and a plea changes
+         what the tutor is asked for. Filed under the topic when the canvas
+         names one; the reply names the student so the caller can see the file. */
+      const said = nonEmptyString(body['justSaid']) ? body['justSaid'].trim() : ''
+      const plea = said !== '' && isPlea(said)
+      if (said !== '' && nonEmptyString(body['topicId'])) {
+        options.evidence?.record({ studentId: who.studentId, tabId: 'any', lessonId: body['topicId'] }, body['topicId'], {
+          said,
+          kind: plea ? 'plea' : said.includes('?') ? 'question' : 'answer',
+          at: new Date().toISOString(),
+          ...(nonEmptyString(body['beat']) ? { beat: body['beat'] } : {}),
+        })
+        console.log(`[evidence] ${plea ? 'plea' : 'answer'} filed under ${body['topicId']}`)
+      }
+      /* C4: A PLEA AT A BEAT THAT WARNED HER is evidence -- low, revisable --
+         that she holds the belief it warned against. The tutor is told what
+         she may hold so the next part repairs it, not merely restates. */
+      let mayHold: readonly string[] = []
+      if (nonEmptyString(body['topicId']) && options.misconceptions !== undefined) {
+        const owner = { studentId: who.studentId, tabId: 'any', lessonId: 'anything' }
+        if (plea && Array.isArray(body['suspects'])) {
+          for (const suspect of body['suspects']) {
+            if (typeof suspect !== 'string' || suspect.trim() === '') continue
+            options.misconceptions.observe(owner, {
+              concept: body['topicId'],
+              observed: suspect.trim(),
+              evidence: { said, at: new Date().toISOString(), ...(nonEmptyString(body['beat']) ? { beat: body['beat'] } : {}) },
+            })
+            console.log(`[misconception] observed "${suspect.trim().slice(0, 60)}" under ${body['topicId']}`)
+          }
+        }
+        if (plea) mayHold = options.misconceptions.activeFor(owner, body['topicId']).map((h) => h.observed)
+      }
+
+      /* D1/D2: WHAT WENT WRONG IS GUESSED AT BEFORE ANYTHING IS WRITTEN, and
+         the guess chooses HOW to teach -- which is the thing the audit found
+         computed on every lesson and never put in a prompt. The moves already
+         spent on this topic are read back from the evidence, so the same
+         failed explanation is never served twice however it is worded. */
+      let decided: { diagnosis?: string; strategy?: Strategy } = {}
+      let teachFirst: readonly { readonly id: string; readonly name: string }[] = []
+      if (plea) {
+        const filed = nonEmptyString(body['topicId']) && options.evidence !== undefined
+          ? options.evidence.recall({ studentId: who.studentId, tabId: 'any', lessonId: body['topicId'] }, body['topicId'])
+          : []
+        const spentHere = filed.flatMap((one) => (typeof one.strategy === 'string' ? [one.strategy] : []))
+        const ranked = diagnose({
+          concept: nonEmptyString(body['topicId']) ? body['topicId'] : (body['question'] as string),
+          evidence: filed.length > 0 ? filed : [{ said, kind: 'plea', at: new Date().toISOString() }],
+          mayHold,
+          taught: nonEmptyString(body['taught']) ? body['taught'] : '',
+          attempts: spentHere.length,
+          alreadyUsed: spentHere,
+        })
+        const top = ranked[0]
+        if (top !== undefined) {
+          const strategy = chooseStrategy({ diagnosis: top.diagnosis, attempts: spentHere.length, alreadyUsed: spentHere })
+          decided = { diagnosis: top.diagnosis, strategy }
+          /* D3: THE CURRICULUM IS A PRIOR. It lists what comes first; her own
+             evidence decides whether any of it is actually stopping her. A
+             prerequisite she has answered on is never queued for reteaching. */
+          if (top.diagnosis === 'prerequisite_gap' && Array.isArray(body['prerequisites']) && options.evidence !== undefined) {
+            const listed = body['prerequisites'].flatMap((one): Listed[] => {
+              if (typeof one !== 'object' || one === null) return []
+              const it = one as { id?: unknown; name?: unknown }
+              return typeof it.id === 'string' && typeof it.name === 'string' ? [{ id: it.id, name: it.name }] : []
+            })
+            const known = { taught: [] as string[], answered: [] as string[], pleaded: [] as string[] }
+            for (const one of listed) {
+              const seen = options.evidence.recall({ studentId: who.studentId, tabId: 'any', lessonId: one.id }, one.id)
+              if (seen.length > 0) known.taught.push(one.id)
+              if (seen.some((turn) => turn.kind === 'answer')) known.answered.push(one.id)
+              if (seen.some((turn) => turn.kind === 'plea')) known.pleaded.push(one.id)
+            }
+            const blockers = blocking(listed, known).map((one) => ({ id: one.id, name: one.name }))
+            if (blockers.length > 0) {
+              teachFirst = blockers
+              console.log(`[prerequisite] blocking: ${blockers.map((one) => one.id).join(', ')}`)
+            }
+          }
+          console.log(`[diagnosis] ${top.diagnosis} (${top.confidence.toFixed(2)}) -> ${strategy}: ${top.because}`)
+          if (nonEmptyString(body['topicId'])) {
+            options.evidence?.remember?.({ studentId: who.studentId, tabId: 'any', lessonId: body['topicId'] }, body['topicId'], strategy)
+          }
+        }
+      }
+      const taughtReply = await lessonFrom({
         question: body['question'],
         ...(nonEmptyString(body['askedInside']) ? { askedInside: body['askedInside'] } : {}),
         /* THE NEXT PART OF A LESSON IN PROGRESS, when the browser sends what
@@ -1973,8 +2340,59 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
          * for; with them it writes ONE step, after reading what she just said.
          * See `briefFor` and invariant I3. */
         ...(nonEmptyString(body['taught']) ? { taught: body['taught'] } : {}),
-        ...(nonEmptyString(body['justSaid']) ? { justSaid: body['justSaid'] } : {}),
+        ...(said !== '' ? { justSaid: said } : {}),
+        ...(plea ? { notUnderstood: said } : {}),
+        ...(mayHold.length > 0 ? { mayHold } : {}),
+        ...(decided.strategy === undefined ? {} : { strategy: decided.strategy }),
+        /* One at a time: the tutor is told the hardest blocker only. */
+        ...(teachFirst.length > 0 ? { teachFirst: teachFirst.slice(0, 1) } : {}),
       }, 'answer')
+      return taughtReply.status === 200
+        ? { ...taughtReply, body: { ...taughtReply.body, studentId: who.studentId, ...decided, ...(teachFirst.length > 0 ? { teachFirst } : {}) } }
+        : taughtReply
+    }
+
+    /* C3: A TURN INSIDE A LESSON IS EVIDENCE. What she typed, filed under the
+       topic as what it observably is -- a plea, an answer, a question, or
+       nothing -- and never as a mark. The reply names the kind and the student
+       so the caller can see what was filed. */
+    if (req.path === '/api/evidence') {
+      if (!nonEmptyString(body['topicId'])) return reply(400, { error: 'topicId is required' })
+      if (typeof body['said'] !== 'string') return reply(400, { error: 'said is required' })
+      const said = body['said'].trim()
+      const kind: 'plea' | 'answer' | 'question' | 'empty' =
+        said === '' ? 'empty' : isPlea(said) ? 'plea' : said.includes('?') ? 'question' : 'answer'
+      const owner = { studentId: who.studentId, tabId: 'any', lessonId: body['topicId'] }
+      options.evidence?.record(owner, body['topicId'], {
+        said,
+        kind,
+        at: new Date().toISOString(),
+        ...(nonEmptyString(body['beat']) ? { beat: body['beat'] } : {}),
+        /* WHICH LESSON ON HER CANVAS she was reading. `assurance.ts` needs it
+           to tell "lost three times in one lesson" -- which questions the
+           teaching -- from "lost once in each of three lessons", which is an
+           ordinary hard week. */
+        ...(typeof body['artifactSeq'] === 'number' ? { artifactSeq: body['artifactSeq'] } : {}),
+      })
+      return reply(200, { kind, studentId: who.studentId })
+    }
+    /* G3: WHAT SHOULD SHE DO NEXT. The canvas knows the curriculum and sends
+       it; the server knows what she has shown and ranks it. Derived every
+       time, never stored: a schedule goes stale the moment she learns
+       something. See `priority.ts`. */
+    if (req.path === '/api/next') {
+      const sent = body['syllabus']
+      if (typeof sent !== 'object' || sent === null || !Array.isArray((sent as { topics?: unknown }).topics)) {
+        return reply(400, { error: 'syllabus is required' })
+      }
+      const syllabus = sent as Syllabus
+      const seen = new Map(
+        syllabus.topics.map((topic) => [
+          topic.id,
+          options.evidence?.recall({ studentId: who.studentId, tabId: 'any', lessonId: topic.id }, topic.id) ?? [],
+        ]),
+      )
+      return reply(200, { next: whatToDoNext(syllabus, seen), studentId: who.studentId })
     }
 
     if (req.path === '/api/day') {
@@ -2094,6 +2512,71 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     return reply(webReply.status, parsed as Record<string, unknown>)
   }
 
+  /* THE LESSON AS IT IS WRITTEN, FOR A CALLER THAT ASKED FOR IT.
+   *
+   * Everything the plain route does still happens -- the identity, the
+   * controller, the veto, the shelf, authoring, validation, repair, the memory
+   * writes -- through the very same `route`. The only difference is that it
+   * runs inside an async context that carries `onDelta`, so the authoring
+   * model streams its first attempt into `lessonStream`, and those events are
+   * yielded as they come. When `route` settles, its reply -- whatever status
+   * it would have sent -- is the last event. Nothing is answered twice and
+   * nothing is answered differently. */
+  async function routeMaybeStreaming(req: ServerRequest, who: Identified): Promise<ServerResponse> {
+    const asked =
+      req.path === '/api/ask' &&
+      req.method === 'POST' &&
+      /text\/event-stream/i.test(req.accept ?? '') &&
+      options.model.chatStream !== undefined
+    if (!asked) return route(req, who)
+
+    const scanner = lessonStream()
+    const queue: StreamEvent[] = []
+    const askedAt = Date.now()
+    let firstWordAt: number | null = null
+    let wake: (() => void) | null = null
+    const push = (events: readonly StreamEvent[]): void => {
+      queue.push(...events)
+      const waiting = wake
+      wake = null
+      waiting?.()
+    }
+    let settled: ServerResponse | null = null
+    void streaming.run(
+      (text: string) => {
+        if (firstWordAt === null) {
+          firstWordAt = Date.now()
+          console.log(`[timing] first streamed word after ${firstWordAt - askedAt}ms`)
+        }
+        push(scanner.push(text))
+      },
+      () => route(req, who),
+    ).then(
+      (response) => {
+        settled = response
+        push([])
+      },
+      (error: unknown) => {
+        console.error('[almanac] unhandled error while streaming a lesson:', error)
+        settled = reply(500, { error: 'internal error' })
+        push([])
+      },
+    )
+    async function* events(): AsyncGenerator<StreamEvent> {
+      for (;;) {
+        while (queue.length > 0) yield queue.shift()!
+        if (settled !== null) {
+          yield { type: 'done', reply: { status: settled.status, body: settled.body } }
+          return
+        }
+        await new Promise<void>((resolve) => {
+          wake = resolve
+        })
+      }
+    }
+    return { status: 200, body: {}, stream: events() }
+  }
+
   return async function handle(req: ServerRequest): Promise<ServerResponse> {
     const who = resolveIdentity(req)
 
@@ -2132,8 +2615,48 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
 
     const response = who.proven && claimed !== undefined && claimed !== who.studentId
       ? reply(403, { error: 'that student id is not yours' })
-      : await route(req, who)
+      : await routeMaybeStreaming(req, who)
 
     return who.setCookie === undefined ? response : { ...response, setCookie: who.setCookie }
   }
+}
+
+/**
+ * A stored artifact as `assurance.ts` needs to see it.
+ *
+ * `says` is every word of the lesson flattened, because the content signals ask
+ * questions about what a lesson SAYS and the block structure is beside the
+ * point for that. Anything unreadable becomes an empty lesson, which no signal
+ * fires on -- a damaged row is a problem for the page that draws it, not a
+ * reason to suspect the teaching.
+ */
+function asOnCanvas(seq: number, stored: unknown): OnCanvas {
+  const row = (typeof stored === 'object' && stored !== null ? stored : {}) as Record<string, unknown>
+  const kinds = new Set(['scope', 'lesson', 'answer', 'correction', 'note'])
+  const states = new Set(['verified', 'suspect', 'corrected'])
+  return {
+    seq,
+    kind: kinds.has(String(row['kind'])) ? (row['kind'] as OnCanvas['kind']) : 'lesson',
+    question: typeof row['question'] === 'string' ? row['question'] : '',
+    state: states.has(String(row['state'])) ? (row['state'] as OnCanvas['state']) : 'verified',
+    /* The pages this lesson was grounded on, when it recorded any. Older
+       artifacts have none, and a lesson with no sources simply cannot trip the
+       source-changed signal -- which is correct, not a gap. */
+    ...(Array.isArray(row['sources'])
+      ? { sources: (row['sources'] as unknown[]).filter((u): u is string => typeof u === 'string') }
+      : {}),
+    ...(typeof row['knowledgeVersion'] === 'number' ? { knowledgeVersion: row['knowledgeVersion'] } : {}),
+    says: everyWordOf(row['payload']),
+  }
+}
+
+/** Every string in a lesson, joined. Depth-limited: a lesson is a document. */
+function everyWordOf(payload: unknown, depth = 0): string {
+  if (depth > 6) return ''
+  if (typeof payload === 'string') return payload
+  if (Array.isArray(payload)) return payload.map((x) => everyWordOf(x, depth + 1)).join(' ')
+  if (typeof payload === 'object' && payload !== null) {
+    return Object.values(payload).map((x) => everyWordOf(x, depth + 1)).join(' ')
+  }
+  return ''
 }

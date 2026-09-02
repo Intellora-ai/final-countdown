@@ -40,7 +40,7 @@
  * from Phase 1 and `memoryKey` from Phase 1.
  */
 
-import { memoryKey } from './key.ts'
+import { fittedLessonId, memoryKey } from './key.ts'
 import type { MemoryStore } from './sqliteStore.ts'
 
 /** One phrasing, and the subject the controller decided it meant. */
@@ -94,7 +94,7 @@ function keyFor(context: string, said: string): string {
     tabId: 'any',
     /* Both parts encoded before joining, so a context containing the separator
        cannot be read back as a different context plus a different phrasing. */
-    lessonId: `meant:${encodeURIComponent(context)}:${encodeURIComponent(phrasing(said))}`,
+    lessonId: fittedLessonId(`meant:${encodeURIComponent(context)}:`, encodeURIComponent(phrasing(said)), phrasing(said)),
   })
 }
 

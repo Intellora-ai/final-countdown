@@ -139,6 +139,28 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     return this.props.storage !== undefined ? this.props.storage : defaultStorage()
   }
 
+  /* A CRASHED SCREEN IS NOT A CRASHED APP.
+   *
+   * This boundary mounts outside the router, so a hash change never remounts
+   * it and a caught error stayed caught: MEASURED 2026-09-02, one unknown
+   * chapter address showed "Something went wrong", and so did /today and every
+   * address after it, until a reload. The app is a HashRouter; the address
+   * changing is the one signal that she has gone somewhere else, so the error
+   * is let go on that signal. If the new screen throws too, it is caught
+   * again -- nothing here hides a real failure, it only stops one from
+   * outliving the screen it belonged to. */
+  override componentDidMount(): void {
+    if (typeof window !== 'undefined') window.addEventListener('hashchange', this.recover)
+  }
+
+  override componentWillUnmount(): void {
+    if (typeof window !== 'undefined') window.removeEventListener('hashchange', this.recover)
+  }
+
+  private recover = (): void => {
+    if (this.state.error !== null) this.setState({ error: null, resetFailed: false })
+  }
+
   private reload = (): void => {
     if (this.props.reload) {
       this.props.reload()

@@ -32,6 +32,30 @@ const PLEAS = [
   /^(?:no\s+idea|not\s+sure|confused|stuck)\b/,
 ]
 
+/* A PLEA IS HEARD WHEREVER IT SITS. C3, decided 2026-09-02: a question is
+   asked only when the learner did not understand, so the plea is the one
+   signal the whole diagnosis depends on. The patterns above anchor at the
+   start of the sentence; "i still dont get why there are two", typed on a
+   live canvas, was read as an answer and advanced the lesson. */
+const PLEAS_ANYWHERE = [
+  /\b(?:do\s*n[o']?t|don[o']?t|dont|did\s*n[o']?t|didnt|can[o']?t|cannot|still\s+don[o']?t)\s+(?:get|understand|follow|see)\b/,
+  /\b(?:not|never)\s+(?:get|understand|follow|getting|understanding)(?:\s+it|\s+this|\s+that)?\b/,
+  /\b(?:makes?|making)\s+no\s+sense\b/,
+  /\bconfus(?:ed|ing)\b/,
+  /\b(?:lost|stuck)\b/,
+  /\bno\s+idea\b/,
+  /\bnever\s+(?:learnt|learned|seen|done|did|covered|taught|met)\b/,
+  /\bwhat\s+does\s+(?:that|this|it)\s+mean\b/,
+  /\b(?:huh|unclear)\b/,
+]
+
+/** True when the learner is saying, in any words, that it did not land. */
+export function isPlea(text: string): boolean {
+  const lower = text.trim().toLowerCase()
+  if (lower === '') return false
+  return PLEAS.some((pattern) => pattern.test(lower)) || PLEAS_ANYWHERE.some((pattern) => pattern.test(lower))
+}
+
 export function classifyTurn(text: string): Turn {
   const trimmed = text.trim()
   if (trimmed === '') return 'empty'
@@ -39,7 +63,7 @@ export function classifyTurn(text: string): Turn {
   if (trimmed.includes('?')) return 'question'
 
   const lower = trimmed.toLowerCase()
-  if (PLEAS.some((pattern) => pattern.test(lower))) return 'question'
+  if (isPlea(lower)) return 'question'
 
   const first = lower.split(/[^a-z']+/).filter(Boolean)[0]
   if (first !== undefined && OPENERS.includes(first)) return 'question'

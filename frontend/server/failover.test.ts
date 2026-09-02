@@ -201,6 +201,53 @@ describe('the shape of the product does not change with the weather', () => {
     await expect(model.chat!('sys', 'q')).resolves.toBe('taught')
   })
 
+  it('streams from the vendor that answers, and never changes who that is', async () => {
+    /* WORDS APPEAR AS THEY ARE WRITTEN -- the owner's decision, 2026-09-02.
+       A vendor that can stream exposes `chatStream`. The wrapper forwards it
+       in VENDOR ORDER: a first vendor without streaming still answers first,
+       whole, as one piece; only when the answering vendor can stream do the
+       pieces arrive one by one. Routing around a non-streaming primary would
+       send every canvas question to the laptop. */
+    const wholeOnly: Model = { lesson: async () => ({}), chat: async () => 'whole' }
+    const streams: Model = {
+      ...answers('taught'),
+      chatStream: async (_system, _user, onDelta) => {
+        onDelta('tau')
+        onDelta('ght')
+        return 'taught'
+      },
+    }
+    const primaryCannot = failover([line('groq', wholeOnly), line('moonshot', streams)])
+    const heardWhole: string[] = []
+    await expect(primaryCannot.chatStream!('sys', 'q', (piece) => heardWhole.push(piece))).resolves.toBe('whole')
+    expect(heardWhole).toEqual(['whole'])
+
+    const primaryCan = failover([line('moonshot', streams), line('groq', wholeOnly)])
+    const heardPieces: string[] = []
+    await expect(primaryCan.chatStream!('sys', 'q', (piece) => heardPieces.push(piece))).resolves.toBe('taught')
+    expect(heardPieces).toEqual(['tau', 'ght'])
+  })
+
+  it('asks a vendor that is nearly out of tokens LAST, before it has to refuse', async () => {
+    /* The 429 is the vendor's last word, not its first: it had been reporting
+       what was left on every reply. A vendor that says it is nearly out is
+       ordered behind the others until it says the budget has reset. */
+    const nearlyOut = vi.fn(async () => 'from the nearly-out vendor')
+    const fresh = vi.fn(async () => 'from the fresh vendor')
+    const model = failover([
+      line('groq', { ...answers('x'), chat: nearlyOut, budgetLeft: () => ({ remainingTokens: 200, resetInMs: 60_000 }) }),
+      line('moonshot', { ...answers('x'), chat: fresh }),
+    ])
+    await expect(model.chat!('sys', 'q')).resolves.toBe('from the fresh vendor')
+    expect(nearlyOut).not.toHaveBeenCalled()
+
+    const recovered = failover([
+      line('groq', { ...answers('x'), chat: nearlyOut, budgetLeft: () => ({ remainingTokens: 200_000, resetInMs: 0 }) }),
+      line('moonshot', { ...answers('x'), chat: fresh }),
+    ])
+    await expect(recovered.chat!('sys', 'q')).resolves.toBe('from the nearly-out vendor')
+  })
+
   it('hands a single vendor straight back, unwrapped', async () => {
     /* One vendor needs no roll-call sentence in front of its failures. */
     const only = answers('solo')

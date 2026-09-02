@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useExamChoice } from './practice/examChoice'
-import { plannedSubjects, primePlannedCurriculum, isPlannedCurriculumReady } from './almanac/plannedCurriculum'
+import { isPlannedCurriculumReady, plannedSubjects, primePlannedCurriculum } from './almanac/plannedCurriculum'
+import { prerequisitesOf, topicNamed } from './almanac/topic'
+import { examSubjects, primeExamCurriculum } from './almanac/examSubjects'
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useStore, useNarrow } from './hooks/useStore'
 import CURRICULUM from './data/curriculum'
 import { Sidebar } from './components/Sidebar'
 import { SetupFlow } from './components/SetupFlow'
 import { TodayView } from './components/TodayView'
-import { ChapterView } from './components/ChapterView'
 import { Placeholder } from './components/Placeholder'
 
 /* THE SCENE IS LOADED ON DEMAND, AND THE BUDGET IS WHY.
@@ -71,9 +72,6 @@ const TutorView = React.lazy(() => import('./tutor/TutorView'))
  *
  * Imported eagerly, it took the initial bundle from 70 KB to 186 KB and the
  * budget gate refused the change -- correctly. */
-const LearnView = React.lazy(() =>
-  import('./canvas/learn/LearnView').then((m) => ({ default: m.LearnView })),
-)
 
 /* Ask-anything shares the teaching screen's machinery, so it shares its chunk
  * boundary too: a learner on /today pays for neither. */
@@ -145,6 +143,27 @@ export default function App() {
       live = false
     }
   }, [st?.cls])
+
+  /* G1: the exam's syllabus, loaded the same way the class's is. A student
+     sitting JEE gets subjects, chapters and topics in the sidebar and a canvas
+     for every one -- the four syllabi used to be reachable only by the
+     practice screen. */
+  const [examReady, setExamReady] = useState(false)
+  useEffect(() => {
+    let live = true
+    void primeExamCurriculum(examChoice).then(() => {
+      if (!live) return
+      /* Same reason the class's effect bumps the store: anything computed FROM
+         a curriculum that arrives after the first render holds the empty
+         answer for the rest of the session otherwise. */
+      store.bump()
+      setExamReady(examSubjects(examChoice).length > 0)
+    })
+    return () => {
+      live = false
+    }
+  }, [examChoice])
+  void examReady
   useEffect(() => {
     if (st && Object.keys(open).length === 0 && st.subjects.length) setOpen({ [st.subjects[0]]: true })
   }, [st && st.id])
@@ -168,10 +187,63 @@ export default function App() {
     return <Navigate to="/canvas" replace />
   }
 
-  if (loc.pathname === '/canvas') {
+  /* ONE CANVAS PER TOPIC. `#/canvas` alone is the free canvas -- anything at
+   * all. `#/canvas/<topicId>` is THAT topic's canvas, and the id becomes the
+   * topic's name HERE, from the class curriculum, before the canvas sees it:
+   * the canvas teaches from the name, and the id alone would ask the model to
+   * teach a database key. An id this device does not know is passed with no
+   * name so the canvas can SAY so -- never `return null`, which is how
+   * `ChapterView` produced a truly empty page: an early return before its
+   * later hooks threw "Rendered fewer hooks than expected", and the error
+   * boundary replaced the whole app (measured 2026-09-02 at
+   * `#/chapter/science/life-processes` for a student whose plan has no
+   * science). */
+  const canvasAddress = /^\/canvas(?:\/([^/]+))?$/.exec(loc.pathname)
+  if (canvasAddress !== null) {
+    const topicId = canvasAddress[1]
+    const cls = st?.cls ?? null
+    /* The curriculum chunk is still on its way: waiting is honest, and a
+       "does not know" sentence that flickers into the name a moment later is
+       not. With no class there is nothing to wait for. */
+    if (topicId !== undefined && cls !== null && !isPlannedCurriculumReady(cls)) {
+      return <SceneFallback />
+    }
+    const topic =
+      topicId === undefined
+        ? undefined
+        : {
+            id: topicId,
+            /* G1: a topic id can belong to the class curriculum or to the exam
+               the student is sitting. One resolver, both sources, no special
+               case -- which is what makes "every topic opens" checkable. */
+            name:
+              topicNamed(plannedSubjects(cls), topicId)?.name ??
+              topicNamed(examSubjects(examChoice), topicId)?.name ??
+              null,
+          }
     return (
       <React.Suspense fallback={<SceneFallback />}>
-        <CanvasRoute search={searchTheWeb} examId={examChoice} />
+        {/* Keyed by topic: one topic's canvas must never inherit another's state. */}
+        <CanvasRoute
+          key={topic === undefined ? 'free' : topic.id}
+          search={searchTheWeb}
+          examId={examChoice}
+          /* MEASURED 2026-09-03: `CanvasRoute` has accepted `classId` since it
+             was written and this file never passed it, so `scopedQuery` was
+             handed `null` for the class on every single search. A declared
+             prop that is never supplied is worse than a missing one, because
+             it reads as wired. */
+          classId={cls}
+          {...(topic === undefined ? {} : { topic })}
+          {...(topicId === undefined
+            ? {}
+            : {
+                prerequisites: [
+                  ...prerequisitesOf(plannedSubjects(cls), topicId),
+                  ...prerequisitesOf(examSubjects(examChoice), topicId),
+                ],
+              })}
+        />
       </React.Suspense>
     )
   }
@@ -225,7 +297,7 @@ export default function App() {
       >
         <div data-shell="row" style={{ display: 'flex', alignItems: 'stretch', minHeight: '100vh' }}>
           {drawerOpen && <>
-            <Sidebar open={open} setOpen={setOpen} onNavigate={closeOnPhone} />
+            <Sidebar open={open} setOpen={setOpen} onNavigate={closeOnPhone} examId={examChoice} />
             <div data-shell="scrim" onClick={() => setDrawer(false)} aria-hidden="true" />
           </>}
           <main data-shell="main" role="main" style={{ flex: 1, minWidth: 0 }}>
@@ -234,15 +306,11 @@ export default function App() {
               <Route path="/" element={<Navigate to="/today" replace />} />
               <Route path="/today" element={<TodayView />} />
 
-              <Route
-              path="/learn/:conceptId"
-              element={
-                <React.Suspense fallback={<SceneFallback />}>
-                  <LearnView cls={st?.cls ?? null} />
-                </React.Suspense>
-              }
-            />
-              <Route path="/chapter/:subjectId/:chapterId" element={<ChapterView />} />
+              {/* `/chapter/...` and `/learn/...` are gone: a topic's canvas took
+                  both their places (`#/canvas/<topicId>`, above the shell). An
+                  old bookmark lands on the catch-all below, on /today -- never
+                  again on the blank page `ChapterView` made of an unknown
+                  subject. */}
               <Route
                 path="/practice"
                 element={

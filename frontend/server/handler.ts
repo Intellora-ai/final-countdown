@@ -74,6 +74,7 @@ import { NotStorable } from './memory/record.ts'
 import type { CanvasMemory } from './memory/store.ts'
 import { candidateIntelligence } from './intelligence/candidate.ts'
 import { legacyIntelligence } from './intelligence/legacy.ts'
+import type { LearningIntelligence } from './intelligence/LearningIntelligence.ts'
 import { shadowObserver } from './intelligence/shadow.ts'
 
 export interface LessonRequest {
@@ -257,6 +258,12 @@ export interface HandlerOptions {
    * without one must refuse to start; see `index.ts`.
    */
   readonly identitySecret: string
+  /** The two brains the shadow bridge compares. Absent, the real candidate and the real legacy chooser, on this server's model. */
+  readonly intelligence?: {
+    readonly candidate: LearningIntelligence
+    readonly legacy: LearningIntelligence
+    readonly log?: (line: string) => void
+  }
   /**
    * Plant the identity cookie with `Secure`, so a browser only ever sends it
    * over TLS. Off by default because this server speaks plain HTTP on a
@@ -462,10 +469,10 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
      call so a running server can be switched. Asked only after a reply is
      formed, so nothing here can reach the student. */
   const observeInShadow = shadowObserver({
-    candidate: candidateIntelligence({ model: options.model, search: options.search }),
-    legacy: legacyIntelligence({ model: options.model }),
+    candidate: options.intelligence?.candidate ?? candidateIntelligence({ model: options.model, search: options.search }),
+    legacy: options.intelligence?.legacy ?? legacyIntelligence({ model: options.model }),
     mode: () => process.env['INTELLIGENCE_MODE'] ?? 'off',
-    log: (line) => console.log(line),
+    log: options.intelligence?.log ?? ((line) => console.log(line)),
     now: Date.now,
   })
   const secrets = options.secrets ?? []

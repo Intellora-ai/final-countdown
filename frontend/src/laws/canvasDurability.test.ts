@@ -8,6 +8,8 @@ import { createHandler, type ModelPort, type SearchPort } from '../../server/han
 import { canvasMemory } from '../../server/memory/store.ts'
 import { sqliteMemoryStore } from '../../server/memory/sqliteStore.ts'
 
+import type { LearningIntelligence } from '../../server/intelligence/LearningIntelligence.ts'
+
 import { appendToCanvas, readCanvas, type NewArtifact } from '../canvas/api/memoryClient'
 
 /**
@@ -70,6 +72,8 @@ interface Server {
   refuse(times: number): void
   /** The process that held the database is gone; a new one opens the same file. */
   stopAndStartAgain(): void
+  /** What the shadow bridge wrote to the log, if anything. */
+  readonly shadowLog: string[]
   /**
    * Drop the signed identity cookie, so the NEXT request is a different
    * student on the same machine and the same database. This is what a shared
@@ -102,14 +106,26 @@ let scratch = ''
  * requests -- and because two students sharing a machine is a real-life case
  * one of these laws asserts.
  */
+/* A candidate that proposes a WHOLE, valid lesson for every question -- the
+   most a shadow brain could want to put on a canvas. Floor F1 says it cannot. */
+const aProposingCandidate: LearningIntelligence = {
+  name: 'proposing-candidate',
+  propose: async (r) => ({
+    actions: [{ kind: 'explain', because: 'shadow proposes', risk: 0, evidence: [], payload: { answer: `${r.question} is answered here in one plain sentence.`, representations: ['prose'] } }],
+    unknowns: [], rationale: 'shadow', capabilities: { selected: ['knowledge'], rejected: [] }, cost: { ms: 1, modelCalls: 1 }, trace: {},
+  }),
+}
+
 function startServer(path: string): Server {
   let store = sqliteMemoryStore(path)
+  const shadowLog: string[] = []
   closeStore = () => store.close()
   const openHandler = () => createHandler({
     model,
     search,
     memory: canvasMemory({ store, log: () => {} }),
     identitySecret: A_TEST_SECRET,
+    intelligence: { candidate: aProposingCandidate, legacy: aProposingCandidate, log: (line) => { shadowLog.push(line) } },
   })
   let handle = openHandler()
 
@@ -146,6 +162,7 @@ function startServer(path: string): Server {
     breakTheNetwork: (times: number) => { breakFor = times },
     refuse: (times: number) => { refuseFor = times },
     forgetWhoIsSignedIn: () => { cookie = '' },
+    shadowLog,
     stopAndStartAgain: () => {
       /* What a deploy, a crash and the owner's `preview_stop` all do. The
          student keeps her cookie; the server keeps nothing but the file. */
@@ -402,6 +419,34 @@ describe('LAW C — nothing leaves the canvas without an explicit deletion', () 
     }
     expect(mentions.length, 'no server file mentions the artifacts table, so this check is looking at nothing').toBeGreaterThan(0)
     expect(offending, 'the store gained a way to unwrite a lesson').toEqual([])
+  })
+})
+
+/* ================================================================== */
+/* FLOOR F1 — A SHADOW BRAIN CANNOT TOUCH THE CANVAS                  */
+/* ================================================================== */
+
+describe('FLOOR F1 — a brain running in shadow adds nothing to the canvas, however much it proposes', () => {
+  it('leaves the row count exactly where the student s own asks put it', async () => {
+    /* The shadow is switched on for this law only, with a candidate that
+       proposes a whole valid lesson for every question. The live brain here
+       has no model, so every ask is refused -- and the shadow is asked
+       regardless, which is the point: it runs, it proposes, and the canvas
+       does not move. */
+    const before = process.env['INTELLIGENCE_MODE']
+    process.env['INTELLIGENCE_MODE'] = 'shadow'
+    try {
+      await appendToCanvas('optics', anAsk('her own first lesson'))
+      for (let n = 0; n < 5; n += 1) {
+        await fetch('/api/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ question: `what is refraction ${n}`, topicId: 'optics', classId: '10' }) })
+      }
+      await new Promise((r) => setTimeout(r, 20))
+      expect(server.shadowLog.length, 'the shadow never ran, so this law checked nothing').toBeGreaterThan(0)
+      expect(server.shadowLog.join('\n')).toMatch(/candidate explain/)
+      expect((await whatIsOnTheCanvas('optics')).map((a) => a.question)).toEqual(['her own first lesson'])
+    } finally {
+      if (before === undefined) delete process.env['INTELLIGENCE_MODE']; else process.env['INTELLIGENCE_MODE'] = before
+    }
   })
 })
 

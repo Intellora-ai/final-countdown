@@ -11,6 +11,7 @@
  *
  * What it records today is one line. M6 gives it a table of its own.
  */
+import { toArtifact } from './canvasAdapter.ts'
 import { learningAction } from './ir.ts'
 import type { LearningIntelligence, Proposal, TeachingRequest } from './LearningIntelligence.ts'
 
@@ -33,7 +34,7 @@ export function shadowObserver(ports: ShadowPorts): ShadowObserver {
     void Promise.allSettled([ports.candidate.propose(request), ports.legacy.propose(request)])
       .then(([candidate, legacy]) => {
         const ms = ports.now() - startedAt
-        ports.log(`[shadow] ${ms}ms live ${liveDid}; ${said('candidate', candidate)}; ${said('legacy', legacy)}`)
+        ports.log(`[shadow] ${ms}ms live ${liveDid}; ${said('candidate', candidate, request)}; ${said('legacy', legacy, request)}`)
       })
       .catch((error: unknown) => {
         ports.log(`[shadow] could not record: ${error instanceof Error ? error.message : String(error)}`)
@@ -41,7 +42,7 @@ export function shadowObserver(ports: ShadowPorts): ShadowObserver {
   }
 }
 
-function said(name: string, outcome: PromiseSettledResult<Proposal>): string {
+function said(name: string, outcome: PromiseSettledResult<Proposal>, request: TeachingRequest): string {
   if (outcome.status === 'rejected') {
     const reason: unknown = outcome.reason
     return `${name} failed: ${reason instanceof Error ? reason.message : String(reason)}`
@@ -53,6 +54,13 @@ function said(name: string, outcome: PromiseSettledResult<Proposal>): string {
   if (misfit !== undefined && !misfit.success) {
     return `${name} malformed: ${misfit.error.issues.map((i) => `${i.path.join('.')} ${i.message}`).join(', ')}`
   }
-  const kinds = outcome.value.actions.map((a) => a.kind).join('+')
+  /* DRY RUN through the canvas adapter: what the canvas would have been
+     handed, or the gate's own reason it would not. Nothing is written. */
+  const kinds = outcome.value.actions
+    .map((a) => {
+      const adapted = toArtifact(a, request)
+      return adapted.ok ? `${a.kind}→${adapted.artifact.kind}` : `${a.kind}→refused(${adapted.issues.join('; ')})`
+    })
+    .join('+')
   return `${name} ${kinds.length > 0 ? kinds : 'nothing'} (${outcome.value.unknowns.length} unknown, ${outcome.value.cost.modelCalls} model calls)`
 }

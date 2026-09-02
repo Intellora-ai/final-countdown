@@ -9,20 +9,39 @@ import { defineConfig, devices } from '@playwright/test'
  * these tests would still be the right tests, because they are about the human
  * outcome and not about the implementation that happens to produce it.
  *
- * WHY THE API SERVER IS NOT STARTED HERE, AND IT IS NOT AN OVERSIGHT.
+ * THE API SERVER IS STARTED HERE, KEYLESS -- AND FOR A LONG TIME IT WAS NOT.
  *
  * `playwright.config.ts` starts `dist-server/index.js` with
- * `ANTHROPIC_API_KEY=CANARY-e2e-must-not-leak`. That is why the existing e2e
- * suite has never once seen what a person without a key sees. Measured on this
- * machine: `npm run server` exits 1 with "no model is configured", the browser
- * gets `POST /api/day -> 500`, and the home screen reads "the planner answered
- * 500".
+ * `ANTHROPIC_API_KEY=CANARY-e2e-must-not-leak`, so the e2e suite has never once
+ * seen what a person without a key sees. Most people who clone this repo will
+ * not have a key. That state IS real life, so it is the state these laws run
+ * in, and that part of the reasoning is unchanged.
  *
- * Most people who clone this repo will not have a key. That state IS real life,
- * so it is the state these tests run in. A suite that can only run in the one
- * configuration where everything is provided is a suite that cannot find this
- * class of defect at all.
+ * What changed is a measurement that went stale. This header once said the
+ * server could not be started at all without a key -- "npm run server exits 1
+ * with 'no model is configured'" -- and so no server was started, and every
+ * `/api/*` request Vite proxied went to a port nobody was listening on. That
+ * is not "a person without a key". That is "a person whose server crashed",
+ * and twelve laws passed against it for one reason: an honest "could not be
+ * reached" satisfies a law about honest refusal. Law G was the first law that
+ * needed the server to REMEMBER something, and it failed in four browsers on
+ * four consecutive CI runs while every server-side test of the same route
+ * passed -- because there was no server. Measured through the law itself:
+ * `page.request.get('/api/situation')` answered 500, the dev server's word for
+ * "upstream is not there".
+ *
+ * `server/boot.test.ts` proves the built server starts with no model key and
+ * says `listening on`. So the server runs here with every model key set to
+ * blank -- which `provider.ts` reads as unset -- and the laws finally run
+ * against the product a keyless person actually has: a server that refuses
+ * honestly, asks back when it cannot tell what was meant, and remembers.
  */
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+/* Fresh per run, outside the checkout, so a law never reads yesterday's
+   memory and a developer's own `data/` is never written to by a test. */
+const scratch = join(tmpdir(), `learning-canvas-laws-${process.pid}`)
 export default defineConfig({
   testDir: './tests/integration',
   retries: 0,
@@ -130,10 +149,39 @@ export default defineConfig({
     },
   ],
 
-  webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 5183 --strictPort',
-    url: 'http://127.0.0.1:5183',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: [
+    /* THE API SERVER, KEYLESS. See the header for why it is here and why it
+       was not. `npm run server` builds `dist-server/index.js` and boots it;
+       readiness is the PORT accepting a connection rather than a health URL,
+       because a keyless server's health reply is allowed to be honest about
+       having no model and Playwright treats a 5xx as "not up yet".
+
+       Every model key is set to BLANK rather than unset: Playwright's `env`
+       can only add, and `provider.ts` reads blank as unset, so a developer's
+       own GROQ_API_KEY in the shell cannot quietly turn these laws into the
+       keyed suite. `reuseExistingServer` matches the Vite entry below -- on a
+       laptop an already-running server is used as-is, which is the one way to
+       run the laws against a keyed server, and it is a choice, not a default. */
+    {
+      command: 'npm run server',
+      port: 8787,
+      reuseExistingServer: !process.env.CI,
+      timeout: 180_000,
+      env: {
+        HOST: '127.0.0.1',
+        PORT: '8787',
+        CANVAS_MEMORY_DB: join(scratch, 'canvas-memory.db'),
+        ALMANAC_IDENTITY_SECRET_FILE: join(scratch, 'identity-secret'),
+        ANTHROPIC_API_KEY: '',
+        GROQ_API_KEY: '',
+        OLLAMA_MODEL: '',
+      },
+    },
+    {
+      command: 'npm run dev -- --host 127.0.0.1 --port 5183 --strictPort',
+      url: 'http://127.0.0.1:5183',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+  ],
 })

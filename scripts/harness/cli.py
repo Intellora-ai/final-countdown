@@ -24,6 +24,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from harness.evidence import Store  # noqa: E402
+from harness.memory import remember  # noqa: E402
 from harness.state import PHASES, POLICIES, RISKS, Blocked, Task, advance, load, next_phase, save, start  # noqa: E402
 from harness.verify import ATTACK_OUTCOMES, Verdict, run  # noqa: E402
 
@@ -36,7 +37,8 @@ def root() -> Path:
 
 
 def now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    """Microseconds, the same resolution the hooks write; see `hooks/_common.now`."""
+    return datetime.now(timezone.utc).isoformat(timespec="microseconds")
 
 
 def head_commit() -> str:
@@ -160,13 +162,37 @@ def cmd_verify(args: argparse.Namespace) -> int:
 
 
 def cmd_done(args: argparse.Namespace) -> int:
-    verdict = run(root(), now=now(), commit=True)
+    where = root()
+    task = load(where)
+    verdict = run(where, now=now(), commit=True)
     show(verdict)
     if verdict.status == "PASS":
+        if task is not None:
+            _remember_what_was_learned(where, task)
         print("complete")
         return 0
     print("not complete: the gaps above are what the verifier needs")
     return 1
+
+
+def _remember_what_was_learned(where: Path, task: Task) -> None:
+    """Failure memory: every fingerprint this task's test runs carried is filed
+    under the last hypothesis and the commit that closed the task."""
+    evidence = Store(where).read()
+    fingerprints: list[str] = []
+    for record in evidence:
+        for found in record.get("fingerprints") or []:
+            if isinstance(found, str) and found not in fingerprints:
+                fingerprints.append(found)
+    if not fingerprints:
+        return
+    hypotheses = [str(r.get("text", "")) for r in evidence if r.get("kind") == "hypothesis"]
+    remember(
+        where, fingerprints,
+        root_cause=hypotheses[-1] if hypotheses else task.title,
+        fix_commit=head_commit(), title=task.title, now=now(),
+    )
+    print(f"remembered {len(fingerprints)} fingerprint(s): {', '.join(fingerprints)}")
 
 
 def cmd_abandon(args: argparse.Namespace) -> int:

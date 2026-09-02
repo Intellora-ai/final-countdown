@@ -48,6 +48,11 @@ test-results/
 # only exists on one laptop is a convention, and conventions are what this
 # repository keeps replacing with structure.
 !.claude/agents/
+# The hook wiring travels too, for the same reason: a hook that only exists on
+# one laptop enforces nothing anywhere else, and tests/test_harness_wiring.py
+# reads this file in CI. Only the shareable settings file -- never
+# settings.local.json, which stays per-machine.
+!.claude/settings.json
 
 # Local sandbox evidence. Every `make sandbox-*` run writes argv, exit codes, durations
 # and captured output here. It is generated, machine-local, and regenerated on demand;

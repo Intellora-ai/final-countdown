@@ -175,6 +175,40 @@ class TestDoneIsTheVerifierNotAClaim:
         assert task_on_disk(project)["phase"] == "spec"
 
 
+class TestTheAttackerAndTheMemory:
+    def test_attack_prints_the_prompt_filled_with_this_tasks_diff(self, project: Path) -> None:
+        harness(project, "start", "feature", "export button", "--risk", "high")
+        (project / "README.md").write_text("hello\nchanged line\n", encoding="utf-8")
+        done = harness(project, "attack")
+        assert done.returncode == 0, done.stderr
+        assert "How could this implementation pass these tests while being wrong" in done.stdout
+        assert "export button" in done.stdout and "feature" in done.stdout
+        assert "+changed line" in done.stdout
+        assert "{DIFF}" not in done.stdout and "{TITLE}" not in done.stdout
+
+    def test_done_files_the_fingerprints_under_the_last_hypothesis(self, project: Path) -> None:
+        harness(project, "start", "bug", "M4 locked")
+        harness(project, "hypothesis", "the write lock is released before COMMIT")
+        store = Store(project / ".harness")
+        for record in (
+            {"at": _at(1), "kind": "reproduction", "how": "pytest -k m4"},
+            {"at": _at(2), "kind": "file_change", "path": "tests/test_x.py", "role": "test"},
+            {"at": _at(3), "kind": "command", "command": "pytest", "exit_code": 1, "fingerprints": ["FP-82c05b"],
+             "test_run": {"runner": "pytest", "passed": 0, "failed": 1, "errors": 0}},
+            {"at": _at(4), "kind": "file_change", "path": "src/x.py", "role": "production"},
+            {"at": _at(5), "kind": "command", "command": "pytest", "exit_code": 0, "fingerprints": [],
+             "test_run": {"runner": "pytest", "passed": 1, "failed": 0, "errors": 0}},
+            {"at": _at(6), "kind": "command", "command": "ruff check src", "exit_code": 0, "test_run": None},
+        ):
+            store.append(record)
+        done = harness(project, "done")
+        assert done.returncode == 0, done.stdout + done.stderr
+        assert "FP-82c05b" in done.stdout
+        filed = json.loads((project / ".harness" / "memory" / "FP-82c05b.json").read_text(encoding="utf-8"))
+        assert filed["root_cause"] == "the write lock is released before COMMIT"
+        assert filed["title"] == "M4 locked" and filed["fix_commit"]
+
+
 class TestAbandoning:
     def test_abandon_closes_the_task_with_the_reason_on_record(self, project: Path) -> None:
         harness(project, "start", "bug", "x")

@@ -151,8 +151,20 @@ def green_after_last_change(task: Task, evidence: list[dict[str, Any]]) -> RuleR
     return RuleResult("GREEN_AFTER_LAST_CHANGE", True, f"latest run green at {_at(latest)}")
 
 
+def _entered_red_at(task: Task) -> str:
+    """When the task's own red phase began. A bug's reproduction run is a
+    failing run too, but it comes BEFORE the regression test is written; the
+    change that writes that test must not be audited as a change after red."""
+    for entry in task.history:
+        if entry.get("to") == "red":
+            return str(entry.get("at", task.started_at))
+    return task.started_at
+
+
 def tests_not_quietly_changed(task: Task, evidence: list[dict[str, Any]]) -> RuleResult:
-    first_red = _first_red_at(evidence)
+    since_red_began = _entered_red_at(task)
+    reds = [_at(r) for r in _test_runs(evidence) if _is_red(r) and _at(r) >= since_red_began]
+    first_red = min(reds) if reds else None
     if first_red is None:
         return RuleResult("TESTS_NOT_QUIETLY_CHANGED", True, "no red run yet, so no test change to audit")
     reasons = [_at(r) for r in _kind(evidence, "reason")]

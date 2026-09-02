@@ -1,0 +1,60 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "h=scripts/harness/hooks/route.py; for d in \"$PWD\" \"$CLAUDE_PROJECT_DIR\" \"$CLAUDE_PROJECT_DIR\"/*; do if [ -f \"$d/$h\" ]; then exec python3 \"$d/$h\"; fi; done; exit 0",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "h=scripts/harness/hooks/precondition.py; for d in \"$PWD\" \"$CLAUDE_PROJECT_DIR\" \"$CLAUDE_PROJECT_DIR\"/*; do if [ -f \"$d/$h\" ]; then exec python3 \"$d/$h\"; fi; done; exit 0",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "h=scripts/harness/hooks/record_command.py; for d in \"$PWD\" \"$CLAUDE_PROJECT_DIR\" \"$CLAUDE_PROJECT_DIR\"/*; do if [ -f \"$d/$h\" ]; then exec python3 \"$d/$h\"; fi; done; exit 0",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "h=scripts/harness/hooks/record_change.py; for d in \"$PWD\" \"$CLAUDE_PROJECT_DIR\" \"$CLAUDE_PROJECT_DIR\"/*; do if [ -f \"$d/$h\" ]; then exec python3 \"$d/$h\"; fi; done; exit 0",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "h=scripts/harness/hooks/completion_gate.py; for d in \"$PWD\" \"$CLAUDE_PROJECT_DIR\" \"$CLAUDE_PROJECT_DIR\"/*; do if [ -f \"$d/$h\" ]; then exec python3 \"$d/$h\"; fi; done; exit 0",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}

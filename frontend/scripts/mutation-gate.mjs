@@ -988,11 +988,24 @@ const MUTANTS = [
   },
 
   /* M1 + M4 — DURABILITY AND ATOMICITY. */
+  /*
+   * RETARGETED A SECOND TIME, FOR THE SAME REASON AS THE ONE BELOW.
+   *
+   * It read `from: "      db.exec('BEGIN IMMEDIATE')"`. That line is gone:
+   * the store now takes its write lock with a deferred BEGIN followed by a
+   * write that matches no row (see `takeTheWriteLock` for the three CI runs
+   * that decided it), so this mutant reported "the mutation target no longer
+   * exists" on run 33606543047's shard 8/8 -- the very first run on which the
+   * gate could say that out loud. The defect it restores is unchanged: a
+   * transaction that holds no lock across the read. Removing the probe is
+   * exactly that defect now, and the two-process and queue proofs kill it.
+   * Approved by the repository owner on 2026-09-02.
+   */
   {
     id: 'memory-transaction-takes-no-write-lock',
     file: 'server/memory/sqliteStore.ts',
-    from: "      db.exec('BEGIN IMMEDIATE')",
-    to: "      db.exec('BEGIN')",
+    from: "      db.exec(\"UPDATE canvas_memory SET updated_at = updated_at WHERE memory_key = ''\")",
+    to: '      /* the write that took the lock, removed: BEGIN alone holds nothing */',
     breaks: 'a plain BEGIN takes no lock until the first write, so a second server can slip between the read and the write of one save and undo progress that was already acknowledged',
   },
   /*

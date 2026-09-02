@@ -98,6 +98,19 @@ const LESSONS = [
 ] as const satisfies readonly { id: string; label: string; spec: unknown; teaching: TeachingLevel }[]
 
 /**
+ * Three ordinary topics, offered ONLY to a learner the tutor has asked back
+ * twice running.
+ *
+ * NOT A MENU, AND THE DIFFERENCE MATTERS. Nothing here is authored in advance:
+ * each one is written by the model when it is pressed, exactly as anything
+ * typed into the box is. They exist because a learner who has been asked the
+ * same question twice needs a door rather than a third sentence -- and they are
+ * deliberately from three unrelated subjects, so the screen cannot be read as
+ * "these are the things it knows".
+ */
+const EXAMPLE_TOPICS = ['photosynthesis', 'quadratic equations', 'the French Revolution'] as const
+
+/**
  * How the canvas reaches a source outside the lesson, if it has one.
  *
  * A FUNCTION PASSED IN, NOT A MODULE IMPORTED HERE. Two reasons, both real.
@@ -491,6 +504,20 @@ export default function CanvasRoute({
    * answered it.
    */
   const [askedBack, setAskedBack] = useState<string | null>(null)
+  /*
+   * HOW MANY TIMES IN A ROW IT HAS ASKED BACK, AND WHY THAT IS COUNTED.
+   *
+   * MEASURED, on a real machine, by a person trying to use this: eleven
+   * consecutive `ASK_CLARIFICATION` in the server log, each rendering the SAME
+   * sentence with no control on the screen for any of the four things it
+   * offers to do. From the chair it is indistinguishable from a frozen page --
+   * he typed "hi", then "no", then gave up and reported the product broken.
+   *
+   * The veto itself is right: a tutor must not teach "hi". What was missing is
+   * that the second refusal looked exactly like the first, so nothing on the
+   * screen proved his words had even arrived.
+   */
+  const [askedBackTimes, setAskedBackTimes] = useState(0)
   const [authoring, setAuthoring] = useState(false)
   const [authorFailed, setAuthorFailed] = useState<Issue[] | null>(null)
 
@@ -690,6 +717,8 @@ export default function CanvasRoute({
           setAuthoredLevel(written.teaching)
           setTurn(written.turn)
           setAuthored(written.lesson)
+          /* A lesson arrived, so the run of unanswered asks is over. */
+          setAskedBackTimes(0)
           /* The debt for this question, if any, is settled by a real lesson. */
           situation.resolved(question)
         } else if ('clarify' in written) {
@@ -700,6 +729,9 @@ export default function CanvasRoute({
           setAuthored(null)
           setAuthorFailed(null)
           setAskedBack(written.clarify)
+          /* Counted, not reset: two in a row is the state the screen has to
+             look different in. See `askedBackTimes`. */
+          setAskedBackTimes((times) => times + 1)
           /* BUT HER QUESTION IS STILL UNANSWERED, so the debt is recorded the
              same as a refusal's. This was the one ending of an ask that left
              no trace, and it is the ending every off-curriculum question meets
@@ -1221,6 +1253,43 @@ export default function CanvasRoute({
           <div className="lc-blank">
             <h2>{askedBack}</h2>
             {askBox}
+            {askedBackTimes > 1 && (
+              /*
+               * ASKED BACK TWICE RUNNING: SAY THE ONE MISSING THING, AND SHOW
+               * A WAY THROUGH THAT CANNOT FAIL.
+               *
+               * The controller's own sentence stays above, verbatim. This adds
+               * what it never says: that a SUBJECT is the thing it is waiting
+               * for. Without it the second refusal is character-for-character
+               * the first, and a learner reasonably reads a frozen page.
+               *
+               * The examples are pressable because a stuck learner needs a
+               * door, not more prose -- and they are ordinary topics, not a
+               * menu the canvas is limited to. Anything typed in the box above
+               * is written the same way these are.
+               */
+              <div className="lc-blank__stuck">
+                <p className="lc-caption">
+                  It is waiting for a subject — a thing to be taught. Type any topic at all
+                  above, or start with one of these.
+                </p>
+                <div className="lc-ask-examples">
+                  {EXAMPLE_TOPICS.map((example) => (
+                    <button
+                      key={example}
+                      type="button"
+                      disabled={authoring}
+                      onClick={() => {
+                        setTopic(example)
+                        void askForALesson(example)
+                      }}
+                    >
+                      {example}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : stage === 'writing' ? (
           /*

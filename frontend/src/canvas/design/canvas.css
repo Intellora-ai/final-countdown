@@ -827,6 +827,39 @@
 
 .lc-blank .lc-caption { margin: 0; }
 
+/* ASKED BACK TWICE RUNNING. See `askedBackTimes` in `CanvasRoute.tsx`: the
+ * second identical question is what a learner reads as a frozen page, so the
+ * screen has to change. Below the box, never beside it -- the box is still the
+ * answer, and these are the door for someone who has stopped believing it. */
+.lc-blank__stuck {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-sm, 8px);
+  width: 100%;
+}
+
+.lc-ask-examples {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-sm, 8px);
+}
+
+.lc-ask-examples button {
+  padding: var(--s-xs, 6px) var(--s-md, 16px);
+  border: 1px solid var(--c-line, #24323a);
+  border-radius: 999px;
+  background: var(--c-panel);
+  color: var(--c-ink);
+  font-family: var(--lc-sans);
+  font-size: var(--type-caption-size, 0.85rem);
+  cursor: pointer;
+}
+
+.lc-ask-examples button:hover:not(:disabled) { border-color: var(--c-accent); }
+.lc-ask-examples button:disabled { opacity: 0.5; cursor: default; }
+
 /* THE TUTOR'S FOLLOW-UP. See `TutorTurn` in `CanvasRoute.tsx`.
    Separated from the lesson by a rule rather than by a card: it is the same
    voice continuing, not a different component talking. */

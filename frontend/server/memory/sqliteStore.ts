@@ -30,11 +30,37 @@ import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
+/* THE APPEND-ONLY HALF, AND WHY IT IS A SECOND TABLE RATHER THAN A COLUMN.
+ *
+ * `canvas_memory` below is a KEY-VALUE table: one row per key, replaced whole
+ * on every save. That is correct for progress -- there is one current answer to
+ * "how far has she got" -- and it is catastrophic for learning history, which
+ * is what the audit measured. Every save of a canvas replaced the entire canvas,
+ * so every save was an opportunity to destroy it, and a client that had read
+ * badly wrote the damage back.
+ *
+ * Here one row is one ARTIFACT: one lesson, one correction, one note. `seq` is
+ * assigned by the database, so ordering is a fact rather than an array index,
+ * and two writers cannot land on the same position.
+ *
+ * NOTHING IN THIS FILE PREPARES AN UPDATE OR A DELETE AGAINST THIS TABLE, and
+ * that is the guarantee, not a habit. Laws B, C and E in
+ * `src/canvas/api/durability.laws.test.ts` are about what a student keeps; this
+ * is the reason they can hold. A future change that needs to retract something
+ * appends a retraction -- which is also what a person does. */
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS canvas_memory (
   memory_key TEXT PRIMARY KEY,
   record     TEXT NOT NULL,
   updated_at TEXT NOT NULL
+);
+
+CREATE TEMP TABLE IF NOT EXISTS canvas_artifacts (
+  memory_key TEXT    NOT NULL,
+  seq        INTEGER NOT NULL,
+  artifact   TEXT    NOT NULL,
+  created_at TEXT    NOT NULL,
+  PRIMARY KEY (memory_key, seq)
 );
 `
 
@@ -237,7 +263,29 @@ export interface MemoryStore {
    * A throw rolls everything back and reaches the caller unchanged.
    */
   update(key: string, at: string, change: (current: string | undefined) => string | undefined): void
+  /**
+   * Add one artifact to the end of this key's history. Returns its position.
+   *
+   * THE POSITION IS THE DATABASE'S TO GIVE, NOT THE CALLER'S. A caller that
+   * chose its own would have to read the current end first, and two callers
+   * reading the same end is precisely how the whole-canvas save lost a tab's
+   * work. Here the read and the insert are ONE statement, so the number handed
+   * back was never available to anybody else.
+   *
+   * There is no matching remove, and there is not going to be one: see the
+   * table's own note in `SCHEMA`.
+   */
+  append(key: string, text: string, at: string): number
+  /** Every artifact for this key after `after`, oldest first. */
+  list(key: string, after?: number): readonly StoredArtifact[]
   close(): void
+}
+
+/** One artifact as it was stored: its position, its text, and when it landed. */
+export interface StoredArtifact {
+  readonly seq: number
+  readonly text: string
+  readonly createdAt: string
 }
 
 /**
@@ -331,6 +379,26 @@ export function sqliteMemoryStore(path: string): MemoryStore {
      ON CONFLICT(memory_key) DO UPDATE SET record = excluded.record, updated_at = excluded.updated_at`,
   )
 
+  /* ONE STATEMENT AGAIN, AND FOR A STRONGER REASON THAN ABOVE.
+   *
+   * The next position is computed inside the INSERT, so there is no window
+   * between deciding it and using it. `RETURNING` hands back the number that
+   * was actually used, which is the only number a caller may believe. And the
+   * PRIMARY KEY makes a repeated position impossible even under a race that
+   * SQLite's own serialisation somehow let through -- the second insert would
+   * fail loudly rather than overwrite the first quietly.
+   *
+   * Verified on this machine, Node v26: two appends to one key returned 1 then
+   * 2, and an append to a different key returned 1. */
+  const appendOne = db.prepare(
+    `INSERT INTO canvas_artifacts (memory_key, seq, artifact, created_at)
+     VALUES (?, (SELECT COALESCE(MAX(seq), 0) + 1 FROM canvas_artifacts WHERE memory_key = ?), ?, ?)
+     RETURNING seq`,
+  )
+  const listAfter = db.prepare(
+    'SELECT seq, artifact, created_at FROM canvas_artifacts WHERE memory_key = ? AND seq > ? ORDER BY seq',
+  )
+
   return {
     read(key) {
       const row = readOne.get(key) as { record?: unknown } | undefined
@@ -376,6 +444,22 @@ export function sqliteMemoryStore(path: string): MemoryStore {
         try { db.exec('ROLLBACK') } catch { /* already unwound */ }
         throw thrown
       }
+    },
+
+    append(key, text, at) {
+      const row = appendOne.get(key, key, text, at) as { seq?: unknown } | undefined
+      const seq = row?.seq
+      /* A number is the whole point of this call. Returning something else
+       * would let a caller record an artifact at a position nothing agreed to. */
+      if (typeof seq !== 'number') {
+        throw new Error('the store could not give this artifact a position')
+      }
+      return seq
+    },
+
+    list(key, after = 0) {
+      const rows = listAfter.all(key, after) as { seq: number; artifact: string; created_at: string }[]
+      return rows.map((row) => ({ seq: row.seq, text: row.artifact, createdAt: row.created_at }))
     },
 
     close() {

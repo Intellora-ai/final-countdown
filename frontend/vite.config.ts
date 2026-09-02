@@ -52,9 +52,24 @@ export default defineConfig({
        * never stored, so the return card had nothing to return. Every route
        * the canvas fetches from the API server has to be named here, one at a
        * time, for the reason above. */
-      ['/api/day', '/api/done', '/api/lesson', '/api/ask', '/api/health', '/api/situation'].map((route) => [
+      /* `/api/memory` IS ON THIS LIST BEFORE THE BROWSER CALLS IT, for the
+       * same reason `/api/situation` was added after the fact: the server has
+       * answered on it since the memory store landed, and the one thing that
+       * kept every per-topic memory on this machine at zero rows was that no
+       * request could reach it. Named now, so the first caller does not spend
+       * a day on a 200 that is index.html. */
+      /* `/api/canvas` IS ON THIS LIST FOR THE SAME REASON, AND IT MATTERS
+         MORE THAN THE OTHERS: it carries a student's learning history. Left
+         off, Vite's SPA fallback answers it with index.html and a 200, the
+         client reads "not the shape I expected" and reports that the canvas
+         could not be read -- correctly, and for a reason nobody would guess.
+         The route must be named the day it is added, not after. */
+      ['/api/day', '/api/done', '/api/lesson', '/api/ask', '/api/health', '/api/situation', '/api/memory', '/api/canvas', '/api/evidence', '/api/next'].map((route) => [
         route,
-        { target: 'http://127.0.0.1:8787', changeOrigin: false },
+        /* `API_TARGET` points a second dev server at a second API build,
+           so two builds can be compared on one machine without touching the
+           default. Unset, it is the API server everyone runs. */
+        { target: process.env['API_TARGET'] ?? 'http://127.0.0.1:8787', changeOrigin: false },
       ]),
     ),
   },

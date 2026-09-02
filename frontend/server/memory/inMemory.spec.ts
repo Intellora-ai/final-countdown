@@ -30,8 +30,20 @@ import type { MemoryStore } from './sqliteStore.ts'
 
 export function inMemoryStore(): MemoryStore & { readonly rows: Map<string, string> } {
   const rows = new Map<string, string>()
+  /* THE APPEND-ONLY HALF IS MODELLED TOO, not left to the cast to hide.
+     A double that answers `undefined` where the real store answers a position
+     is a double that lets a caller pass here and fail in front of a learner. */
+  const history = new Map<string, { seq: number; text: string; createdAt: string }[]>()
   return {
     rows,
+    append: (key: string, text: string, at: string) => {
+      const kept = history.get(key) ?? []
+      const seq = (kept[kept.length - 1]?.seq ?? 0) + 1
+      kept.push({ seq, text, createdAt: at })
+      history.set(key, kept)
+      return seq
+    },
+    list: (key: string, after = 0) => (history.get(key) ?? []).filter((row) => row.seq > after),
     read: (key: string) => rows.get(key),
     write: (key: string, value: string) => {
       rows.set(key, value)

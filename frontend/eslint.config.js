@@ -200,4 +200,44 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     },
   },
+
+  /*
+   * `src/laws` — the product's promises to a student, asserted end to end.
+   *
+   * It holds no shipped code: every file here is a test that drives the real
+   * browser client against the real server and the real database. It is linted
+   * anyway, and for a specific reason. These files are the last thing anybody
+   * would think to look at when they are wrong, because a law that is subtly
+   * broken still goes green -- so the ordinary checks that catch a stray `any`
+   * or a variable that is written and never read matter MORE here than in
+   * code somebody reads every day.
+   *
+   * `design-value` is not applied: nothing here renders.
+   */
+  /*
+   * `src/knowledge` — the canonical answer to "what is inside this topic".
+   *
+   * It is read by the canvas and by the offline build, and it decides what a
+   * student is told a topic contains. A stray `any` here is a claim about
+   * curriculum that nothing checked. `design-value` is not applied to the
+   * schema and loader, but the scope view lives in `src/canvas` and gets it
+   * there, which is where the colours are.
+   */
+  {
+    files: ['src/knowledge/**/*.{ts,tsx}'],
+    extends: [...tseslint.configs.recommended],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
+
+  {
+    files: ['src/laws/**/*.{ts,tsx}'],
+    extends: [...tseslint.configs.recommended],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
 )

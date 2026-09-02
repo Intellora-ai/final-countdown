@@ -8,25 +8,21 @@ import { webResolver, type SearchResult } from './teach/webResolver'
 import { fetchOpenLoops, situationClient, type OpenLoop } from './teach/situation'
 import { modelResolver } from './teach/modelResolver'
 import { cssVariables } from './design/tokens'
-import { billBecomesLaw } from './lessons/billBecomesLaw'
-import { classifierEvaluation } from './lessons/classifierEvaluation'
-import { gasPressure } from './lessons/gasPressure'
-import { logarithms } from './lessons/logarithms'
-import { tenses } from './lessons/tenses'
 /* Engine output, not hand-authored. `learning-os` generates these from two
    learners with IDENTICAL knowledge and different histories — see
    `learning_os/api/demo.py`, whose `--check` keeps them from drifting. The
    picker shows the ENGINE choosing differently, not a human writing twice. */
-import learnerA from './lessons/generated/learner-a-first-attempt.json'
-import learnerB from './lessons/generated/learner-b-preferred-mechanism-failed.json'
 /* NOT engine output. Prose written by hand to the same contract, because the
    fake model writes badly on purpose (see `llm/client.py`) and thin skeletons
    cannot show what the contract does to real sentences. Labelled as
    hand-written wherever it appears, so nobody reads it as a model's work. */
-import byHand from './lessons/handwritten/contract-honoured-by-hand.json'
 import { validateLesson, type Issue, type TeachingLevel } from './spec/validate'
+import { appendToCanvas, bringForwardTheOldCanvas, readCanvas } from './api/memoryClient'
+import { CanvasEntry } from './learn/CanvasEntry'
+import { TopicScope } from './learn/TopicScope'
+import { useZoom } from './learn/useZoom'
 import { chatOnce } from '../agent/ports/httpModel'
-import { sourcesFrom } from './teach/researched'
+import { groundingFrom, howWellSourcesAgree } from './teach/researched'
 import type { Source } from './teach/grounding'
 import { explainAgain, NOTHING_YET, type Remembered } from './teach/again'
 import { scopedQuery } from './teach/level'
@@ -83,19 +79,49 @@ import './route.css'
  * level is a property of what a thing IS, so it is recorded here beside the
  * thing rather than assumed at the call site.
  */
-const LESSONS = [
-  { id: 'logs', label: 'Maths', spec: logarithms, teaching: 'lesson' },
-  { id: 'tenses', label: 'English', spec: tenses, teaching: 'lesson' },
-  { id: 'gas', label: 'Physics', spec: gasPressure, teaching: 'lesson' },
-  { id: 'bill', label: 'Civics', spec: billBecomesLaw, teaching: 'lesson' },
-  { id: 'ml', label: 'Machine learning', spec: classifierEvaluation, teaching: 'lesson' },
-  // The last three are the engine's, not an author's. A and B share a knowledge
-  // state and differ only in what has already been tried on them, so the two
-  // sitting side by side is the adaptation claim rendered rather than asserted.
-  { id: 'engine-a', label: 'Engine: first attempt', spec: learnerA, teaching: 'lesson' },
-  { id: 'engine-b', label: 'Engine: preferred mechanism failed', spec: learnerB, teaching: 'lesson' },
-  { id: 'by-hand', label: 'Same contract, written by hand', spec: byHand, teaching: 'answer' },
-] as const satisfies readonly { id: string; label: string; spec: unknown; teaching: TeachingLevel }[]
+/* NOTHING IS WRITTEN IN ADVANCE. This was `LESSONS`: eight built-in lessons
+ * -- Maths, English, Physics, Civics, Machine learning, two engine fixtures
+ * and one written by hand -- offered as a row of buttons, and the flagship
+ * law drove them. The owner's decision (2026-09-02): a student types anything
+ * and it is written for them; nothing else is offered. What remains is the
+ * stand-in the stage holds before anything has been asked, and it is never
+ * rendered: every screen with nothing authored is `inviting`, `writing`,
+ * `asking` or `refused`, none of which shows a lesson. */
+/* THERE IS NO CAP, AND THERE MUST NOT BE ONE.
+ *
+ * This was `MOST_ENTRIES_KEPT = 40`, applied with `.slice(-40)` on every
+ * append, and it did not merely hide lesson one -- the shortened array was
+ * then saved over the canvas, so lesson forty-one DELETED lesson one from the
+ * database. A student's first day of a topic was destroyed by her forty-first
+ * question, silently, with no way back.
+ *
+ * A display bound is a fine thing and this was not one. If a page cannot show
+ * a thousand lessons at once it loads them as she scrolls; it does not throw
+ * them away. Law E in `src/laws/canvasDurability.test.ts` pins the number 40
+ * by name so the regression cannot return quietly. */
+
+/**
+ * ONE THING ON THIS TOPIC'S CANVAS.
+ *
+ * `seq` is the server's, not this page's: it is the artifact's permanent place
+ * in the canvas, so two tabs appending at once cannot land on one position and
+ * a reload cannot renumber anything.
+ *
+ * `lesson` is `null` for an artifact this build cannot draw -- a payload from a
+ * newer version, a half-written row. It is still HER work and it still shows,
+ * with a line saying what happened. The shipped canvas dropped such entries
+ * and saved the shortened list, which made the loss permanent.
+ */
+interface OnCanvas {
+  readonly seq: number
+  readonly question: string
+  readonly teaching: TeachingLevel
+  readonly lesson: Lesson | null
+  /** Why it could not be drawn, when it could not. Shown, not swallowed. */
+  readonly why?: string
+}
+
+const NOTHING_ON_STAGE = { id: 'nothing-yet', spec: {}, teaching: 'lesson' as TeachingLevel }
 
 /**
  * Three ordinary topics, offered ONLY to a learner the tutor has asked back
@@ -171,10 +197,99 @@ const OWN_MODEL_NOTE =
  * catch as `(model)`, blaming a model that was never asked -- the same wrong
  * blame that disabling this control was originally meant to avoid.
  */
+/**
+ * ONE REQUEST TO /api/ask, ANSWERED EITHER AS A DOCUMENT OR AS A STREAM.
+ *
+ * With `onText`, the request asks for an event stream and the words of the
+ * first block are handed over as the server writes them; the stream's last
+ * event carries exactly the reply the plain route would have sent, so what
+ * follows this function is the same either way. Without `onText` -- or from
+ * a server that answers plain JSON, which is every fake in the tests and
+ * every server without a streaming model -- it is the one JSON reply it has
+ * always been. Transport failures throw, for the caller's own catch.
+ */
+/**
+ * WHICH CANVAS A REQUEST BELONGS TO.
+ *
+ * MEASURED 2026-09-03: `/api/ask` was sent `{question, alreadyUsed}` and
+ * nothing else. The topic id and name that `App.tsx` had already resolved, and
+ * the class the student is in, never left the browser. So the server could not
+ * scope a search to her class, could not file what it learnt against the topic
+ * she was actually on, and had no way to tell one canvas from another. The
+ * plea path sent `topicId` already, which made the gap worse rather than
+ * better: it looked wired.
+ *
+ * EVERY FIELD IS OPTIONAL AND ABSENT MEANS ABSENT. A canvas opened with no
+ * topic -- typed straight into the box -- sends no topic, rather than an empty
+ * string. The server records evidence under what it is given, and `''` is a
+ * key that quietly collects everybody's stray questions in one place.
+ */
+export interface WhichCanvas {
+  readonly topicId?: string
+  readonly topicName?: string
+  readonly classId?: string
+  readonly examId?: string
+}
+
+async function fetchAsk(
+  question: string,
+  alreadyUsed: readonly string[],
+  where: WhichCanvas,
+  onText?: (blockIndex: number, text: string) => void,
+): Promise<{ status: number; ok: boolean; body: unknown }> {
+  const response = await fetch('/api/ask', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      ...(onText === undefined ? {} : { accept: 'text/event-stream' }),
+    },
+    body: JSON.stringify({ question, alreadyUsed, ...where }),
+  })
+  const type = response.headers?.get?.('content-type') ?? ''
+  const reader = /text\/event-stream/i.test(type) ? response.body?.getReader() : undefined
+  if (onText === undefined || reader === undefined) {
+    return { status: response.status, ok: response.ok, body: await response.json() }
+  }
+  const decoder = new TextDecoder()
+  let pending = ''
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    pending += decoder.decode(value, { stream: true })
+    let cut = pending.indexOf('\n\n')
+    while (cut >= 0) {
+      const frame = pending.slice(0, cut)
+      pending = pending.slice(cut + 2)
+      cut = pending.indexOf('\n\n')
+      const data = frame
+        .split('\n')
+        .filter((line) => line.startsWith('data:'))
+        .map((line) => line.slice(5).trim())
+        .join('\n')
+      if (data === '') continue
+      const event = JSON.parse(data) as {
+        type: string
+        blockIndex?: number
+        text?: string
+        reply?: { status: number; body: unknown }
+      }
+      if (event.type === 'text' && typeof event.text === 'string') onText(event.blockIndex ?? 0, event.text)
+      if (event.type === 'done' && event.reply !== undefined) {
+        return { status: event.reply.status, ok: event.reply.status >= 200 && event.reply.status < 300, body: event.reply.body }
+      }
+    }
+  }
+  throw new Error('the stream ended before the lesson did')
+}
+
 async function askTheServer(
   question: string,
   /** Routes already spent on this topic, so the server can pick a fresh one. */
   alreadyUsed: readonly string[],
+  /** Which canvas this is. See `WhichCanvas`. */
+  where: WhichCanvas,
+  /** Where the words go as they are written; absent means one JSON reply. */
+  onText?: (blockIndex: number, text: string) => void,
 ): Promise<
   | {
       ok: true
@@ -218,18 +333,14 @@ async function askTheServer(
     question?: unknown
   }
   try {
-    const response = await fetch('/api/ask', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ question, alreadyUsed }),
-    })
-    body = (await response.json()) as { lesson?: unknown; error?: unknown }
-    if (!response.ok) {
+    const answered = await fetchAsk(question, alreadyUsed, where, onText)
+    body = answered.body as { lesson?: unknown; error?: unknown }
+    if (!answered.ok) {
       /* The server's own words where it gave them. Replacing them with a status
          code would throw away the only description of what went wrong. */
       const said = typeof body?.error === 'string' && body.error.trim() !== ''
         ? body.error
-        : `the server answered ${response.status} and said nothing more`
+        : `the server answered ${answered.status} and said nothing more`
 
       /*
        * THREE FAILURES THAT MUST NOT WEAR EACH OTHER'S SENTENCE.
@@ -244,7 +355,7 @@ async function askTheServer(
 
       /* BUSY IS NOT BROKEN. A 429 means it answered, promptly, that it has too
          much on. The only useful thing to tell her is to come back. */
-      if (response.status === 429) {
+      if (answered.status === 429) {
         return { ok: false, issues: [{ path: '(busy)', message: said }] }
       }
 
@@ -410,10 +521,76 @@ export default function CanvasRoute({
   search,
   examId = null,
   classId = null,
-}: { search?: WebSearch; examId?: string | null; classId?: string | null } = {}) {
+  /* `topic` is already this component's STATE -- the question she typed. The
+     prop keeps the public name; inside it is the topic the canvas is FOR. */
+  topic: forTopic = null,
+  prerequisites = [],
+}: {
+  search?: WebSearch
+  examId?: string | null
+  classId?: string | null
+  /** The topic this canvas is FOR, when it is one topic's canvas: its id and
+      its curriculum name -- or a `null` name for an id this device does not
+      know, which the canvas says out loud rather than rendering nothing. */
+  topic?: { readonly id: string; readonly name: string | null } | null
+  /** D3: what the curriculum lists before this topic, from `prerequisitesOf`.
+      The server checks them against what she has actually done. */
+  prerequisites?: readonly { readonly id: string; readonly name: string }[]
+} = {}) {
   const navigate = useNavigate()
   const [mode, setMode] = useState<'2d' | '3d'>('2d')
-  const [lessonId, setLessonId] = useState<string>(LESSONS[0].id)
+  /* The words of the lesson being written, per block, as they arrive. Shown
+     on the writing screen and cleared the moment the lesson lands or fails --
+     they are the first thing she reads, never the thing she keeps. */
+  const [streamed, setStreamed] = useState<readonly string[]>([])
+  /* THE CANVAS BUILDS UP. Everything learned on this topic, in order, oldest
+     first; the last entry is the lesson `TeachView` is showing. Kept on the
+     server under `<topic>#canvas` and brought back on return, exactly as it
+     was left, with nothing added. Decided 2026-09-02. */
+  const [entries, setEntries] = useState<readonly OnCanvas[]>([])
+  /* WHICH ARTIFACT IS ON STAGE, BY ITS OWN NUMBER.
+     This used to be "the last one", expressed as `entries.slice(0, -1)`. It
+     stopped being true when the stage began showing the last DRAWABLE lesson:
+     a damaged artifact at the end was then sliced off the list AND absent from
+     the stage, so it appeared nowhere at all. Naming the one on stage is the
+     only way the list can leave out exactly that one and nothing else. */
+  const [stagedSeq, setStagedSeq] = useState<number | null>(null)
+  /* Lessons of hers that something real has put in question. Marked, never
+     hidden and never rewritten: see `server/assurance.ts`. */
+  const [questioned, setQuestioned] = useState<ReadonlyMap<number, string>>(new Map())
+  /* HOW FAR OUT SHE IS LOOKING. A transform over blocks that are already drawn
+     and already checked -- see `useZoom`, which states the rule it keeps. */
+  const { scale } = useZoom(forTopic?.id ?? null)
+  /* NUMBERS FOR LESSONS THE SERVER HAS NOT ACCEPTED YET.
+     Negative, counting down, so they can never collide with a server `seq`
+     (always 1 or more) or with each other. A single shared stand-in was tried
+     and it was worse than the bug it replaced: two lessons that both failed to
+     save shared one number, and the one on stage took the other off the screen
+     with it. A thing on her canvas needs its own name even when the save that
+     would have given it one did not happen. */
+  const unsavedSeq = useRef(0)
+  /* Said out loud when a save or a read did not work. The shipped canvas never
+     looked at either result, so past the old size ceiling every save failed
+     forever and nothing on screen ever said a word about it. */
+  const [memoryTrouble, setMemoryTrouble] = useState<string | null>(null)
+  const topicId = forTopic === null ? null : forTopic.id
+
+  /* WHO THIS CANVAS IS, sent with every teaching request. Built once here so
+     there is one answer rather than four call sites each deciding. A field is
+     left OUT when it is not known -- never sent as an empty string, because
+     the server files evidence under whatever key it is handed. */
+  const whichCanvas = useMemo(
+    () => ({
+      ...(forTopic === null ? {} : { topicId: forTopic.id }),
+      ...(forTopic?.name == null ? {} : { topicName: forTopic.name }),
+      ...(classId == null || classId === '' ? {} : { classId }),
+      ...(examId == null || examId === '' ? {} : { examId }),
+    }),
+    [forTopic, classId, examId],
+  )
+  /* What the server already holds. Entries that came FROM it are never sent
+     back: coming back to a canvas changes nothing, so it writes nothing. */
+  const alreadyKept = useRef<readonly unknown[] | null>(null)
   /*
    * WHETHER SHE HAS ASKED FOR ANYTHING YET.
    *
@@ -656,6 +833,7 @@ export default function CanvasRoute({
 
     setAuthoring(true)
     setAuthorFailed(null)
+    setStreamed([])
     /* The previous topic's follow-up must not sit under the next topic's
        lesson. Cleared as the question is asked, not when the answer lands. */
     setTurn(null)
@@ -705,7 +883,14 @@ export default function CanvasRoute({
          */
         const key = question.toLowerCase()
         const before = alreadyTaught.current.get(key) ?? NOTHING_YET
-        const written = await askTheServer(question, before.routes)
+        const written = await askTheServer(question, before.routes, whichCanvas, (index, text) =>
+          setStreamed((prev) => {
+            const next = [...prev]
+            next[index] = (next[index] ?? '') + text
+            return next
+          }),
+        )
+        setStreamed([])
         if (written.ok) {
           alreadyTaught.current.set(key, {
             /* An unnamed route is not recorded. Storing '' would make the next
@@ -717,6 +902,24 @@ export default function CanvasRoute({
           setAuthoredLevel(written.teaching)
           setTurn(written.turn)
           setAuthored(written.lesson)
+          /* APPENDED, HERE, EXPLICITLY. This used to set state and let an
+             effect PUT the whole array back; that whole-array save is the
+             single defect the durability laws exist to make impossible. One
+             lesson is now one row, and the server gives it its place. */
+          void appendToCanvas(topicId ?? '', {
+            kind: 'lesson',
+            question,
+            payload: written.lesson,
+            teaching: written.teaching,
+          }).then((saved) => {
+            const seq = saved.ok ? saved.seq : (unsavedSeq.current -= 1)
+            setEntries((previous) => [
+              ...previous,
+              { seq, question, lesson: written.lesson, teaching: written.teaching },
+            ])
+            setStagedSeq(seq)
+            setMemoryTrouble(saved.ok ? null : `${saved.reason}. It is on this screen, not yet on the server.`)
+          })
           /* A lesson arrived, so the run of unanswered asks is over. */
           setAskedBackTimes(0)
           /* The debt for this question, if any, is settled by a real lesson. */
@@ -798,7 +1001,19 @@ export default function CanvasRoute({
            * still pass a badly-pitched one that scored in band. Scoping the
            * query means wrong-level material never reaches the model at all.
            */
-          sources = sourcesFrom(await search(scopedQuery(question, examId, classId), {}))
+          /* F2: the sources AND how well they agree. The verdict used to be
+             dropped here, so a lesson from one shaky page was written exactly
+             like one from two independent sources that agree. */
+          const grounded = groundingFrom(await search(scopedQuery(question, examId, classId), {}))
+          sources = grounded.sources
+          /* F2: the verdict rides into the author's own sources on the server
+             (`groundingPort`), which is where the lesson's grounding happens.
+             Here it is added to the page the answerer quotes, so an in-lesson
+             answer resting on one source says so too. */
+          const agreement = howWellSourcesAgree(grounded.check)
+          if (agreement !== '') {
+            sources = sources.map((one, index) => (index === 0 ? { ...one, text: `${one.text}\n\n[${agreement}]` } : one))
+          }
         } catch {
           /* The search layer's own failure is not this learner's problem, and
              it is already reported by the doubt chain when they ask one. */
@@ -879,7 +1094,9 @@ export default function CanvasRoute({
     }
   }
 
-  const chosen = LESSONS.find((l) => l.id === lessonId) ?? LESSONS[0]
+  /* `NOTHING_YET` is already the name of an EMPTY MEMORY (`teach/again`); the
+     empty STAGE is named apart so the two can never be handed to each other. */
+  const chosen = NOTHING_ON_STAGE
 
   /*
    * THE LESSON THE LEARNER IS ACTUALLY LOOKING AT — WHICH WAS NOT `chosen`.
@@ -926,26 +1143,48 @@ export default function CanvasRoute({
    * keyed by `chosen.id` so part three of physics can never appear inside
    * civics.
    */
-  const [grown, setGrown] = useState<{ id: string; blocks: readonly unknown[] }>(
-    { id: onStage.id, blocks: [] },
+  const [grown, setGrown] = useState<{ id: string; parts: readonly { after: string | null; blocks: readonly unknown[] }[] }>(
+    { id: onStage.id, parts: [] },
   )
-  const added = grown.id === onStage.id ? grown.blocks : []
+  /* A PART KNOWS WHERE IT GOES. "More" is appended at the end. The tutor's
+     answer to a plea goes right after the beat she was on -- she pleaded at
+     beat two of four, so the other way of saying it comes next, before the
+     lesson's own closing summary; appended after the summary it would be
+     "core material after the end", which the gate refuses, and rightly. */
+  const parts = grown.id === onStage.id ? grown.parts : []
+  const added = parts.flatMap((part) => part.blocks)
 
   const picked = useMemo(() => {
     const base = onStage.spec as { blocks: readonly unknown[] }
+    let merged: readonly unknown[] = base.blocks
+    const isSummary = (block: unknown): boolean => {
+      const b = block as { kind?: unknown; role?: unknown }
+      return b.kind === 'summary' || b.role === 'summary'
+    }
+    for (const part of parts) {
+      let at = part.after === null ? -1 : merged.findIndex((block) => (block as { id?: unknown }).id === part.after)
+      if (at === -1) {
+        merged = [...merged, ...part.blocks]
+        continue
+      }
+      /* Never after a summary: a short lesson is one beat, and that beat's
+         last block IS the summary. The other way of saying it goes before it. */
+      while (at >= 0 && isSummary(merged[at])) at -= 1
+      merged = [...merged.slice(0, at + 1), ...part.blocks, ...merged.slice(at + 1)]
+    }
     /* Re-validated WITH the new blocks in place, by the same gate as everything
      * else. A part the model wrote is not trusted further than an authored one:
      * if it carries appearance, or a dangling relation, the whole thing is
      * refused and she is told, rather than a bad block being painted because it
      * arrived late. */
     return validateLesson(
-      added.length === 0 ? onStage.spec : { ...base, blocks: [...base.blocks, ...added] },
+      added.length === 0 ? onStage.spec : { ...base, blocks: merged },
       /* `{ teaching }` is main's, and it is not decoration: `validateLesson`
          applies a different shape to a lesson than to an answer, so validating
          without it judges an authored lesson by the wrong rules. */
       { teaching: onStage.teaching },
     )
-  }, [onStage, added])
+  }, [onStage, parts, added.length])
 
   /* An authored lesson has ALREADY been through `validateLesson` inside
      `authorLesson` -- that is what "ok" means there. Re-parsing it would be work
@@ -970,6 +1209,77 @@ export default function CanvasRoute({
    * advance. `TeachView` calls it when she asks to carry on and no authored
    * beat is left; before it existed, that press did nothing at all.
    */
+  /* C3: WHAT SHE TYPES INSIDE A LESSON IS EVIDENCE, FILED UNDER THE TOPIC.
+     A statement goes to `/api/evidence` and the lesson goes on. A plea goes to
+     the tutor with everything already taught; whatever comes back grows the
+     lesson, and the ONE question the tutor ended with is shown below it, as
+     words, never a button. On the free canvas the lesson stands in for the
+     topic. Decided 2026-09-02. */
+  const topicForEvidence = forTopic === null ? onStage.id : forTopic.id
+  const said = useCallback(
+    ({ said, beat }: { said: string; beat: string }): void => {
+      void fetch('/api/evidence', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        /* `artifactSeq` says WHICH lesson she was reading. Without it, three
+           pleas about one lesson and three pleas spread across three lessons
+           are indistinguishable -- and the first questions the teaching while
+           the second is an ordinary hard week. See `server/assurance.ts`. */
+        body: JSON.stringify({ topicId: topicForEvidence, said, beat, ...(stagedSeq === null ? {} : { artifactSeq: stagedSeq }) }),
+      }).catch(() => undefined)
+    },
+    [topicForEvidence],
+  )
+  const notUnderstood = useCallback(
+    async ({ taught, justSaid, beat, afterBlock, beatTitles, suspects }: { taught: string; justSaid: string; beat: string; afterBlock: string; beatTitles: readonly string[]; suspects: readonly string[] }): Promise<{ grown: boolean; question: string | null }> => {
+      const asked = onStage.spec as { question?: string }
+      try {
+        const response = await fetch('/api/ask', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            question: asked.question ?? 'this lesson',
+            askedInside: asked.question ?? '',
+            taught,
+            justSaid,
+            topicId: topicForEvidence,
+            beat,
+            suspects,
+            prerequisites,
+          }),
+        })
+        if (!response.ok) return { grown: false, question: null }
+        const body = (await response.json()) as { lesson?: { blocks?: readonly unknown[] }; checkpoint?: string }
+        const blocks = body.lesson?.blocks
+        const grown = Array.isArray(blocks) && blocks.length > 0
+        if (grown) {
+          setGrown((previous) => ({
+            id: onStage.id,
+            parts: [...(previous.id === onStage.id ? previous.parts : []), { after: afterBlock, blocks }],
+          }))
+        }
+        /* A QUESTION IS THE SOFTWARE'S GUARANTEE when she pleaded. The tutor's
+           own is preferred; when it wrote none (measured live: the laptop
+           model did), the canvas asks which of the parts she was reading did
+           not land -- by their names, so it is about her lesson and nothing
+           else. Decided 2026-09-02: questions are rare, and this is the case. */
+        const written = typeof body.checkpoint === 'string' && body.checkpoint.trim() !== '' ? body.checkpoint.trim() : null
+        const names = beatTitles.filter((name) => name.trim() !== '')
+        const question =
+          written ??
+          (names.length > 1
+            ? `Which of these did not land: ${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}?`
+            : names.length === 1
+              ? `What about "${names[0]}" did not land -- the words, or the idea?`
+              : 'Which sentence of the last part did not land?')
+        setTurn(question === null ? null : { checkpoint: question, next: [] })
+        return { grown, question }
+      } catch {
+        return { grown: false, question: null }
+      }
+    },
+    [onStage.id, onStage.spec, topicForEvidence, prerequisites],
+  )
   const needNextPart = useCallback(
     async ({ taught, justSaid }: { taught: string; justSaid: string }): Promise<boolean> => {
       const asked = onStage.spec as { question?: string }
@@ -990,7 +1300,7 @@ export default function CanvasRoute({
         if (!Array.isArray(blocks) || blocks.length === 0) return false
         setGrown((previous) => ({
           id: onStage.id,
-          blocks: [...(previous.id === onStage.id ? previous.blocks : []), ...blocks],
+          parts: [...(previous.id === onStage.id ? previous.parts : []), { after: null, blocks }],
         }))
         return true
       } catch {
@@ -1021,14 +1331,125 @@ export default function CanvasRoute({
      above `writing` because a question that has arrived is not a lesson still
      being written -- and below `inviting`, because someone who has not opened
      anything has not been asked anything either. */
-  const stage: 'inviting' | 'asking' | 'writing' | 'showing' =
+  /* `refused` sits above `writing`: an ask that has FAILED is not a lesson
+     still being written, and reading `authored === null` alone could not tell
+     the two apart. MEASURED in a real browser on 2026-09-02: the server
+     answered 502, the refusal banner rendered, and this value stayed 'writing'
+     -- so the moving bar and "Writing this for you now" sat under the refusal,
+     permanently, and `result` fell through to the picker's logarithms. The
+     screen-reader region below already said "No lesson is being shown"; the
+     sighted learner was the only one not told. */
+  /* BROUGHT BACK AS IT WAS LEFT. On a topic canvas, what the server kept is
+     read once; every entry is re-checked by the same gate that let it on
+     the canvas the first time, and the last one becomes the lesson on stage.
+     Nothing is asked, nothing is added. */
+  useEffect(() => {
+    if (topicId === null) return
+    let live = true
+    /* THE OLD CANVAS IS BROUGHT FORWARD FIRST, and only when the new one is
+       genuinely empty. A student who was learning yesterday must not open a
+       topic today and find it blank because the storage underneath it
+       changed. `bringForwardTheOldCanvas` returns 0 both for "there was
+       nothing" and for "it could not be read", and both mean the same next
+       step: read the artifacts and show whatever is there. */
+    void (async () => {
+      const first = await readCanvas(topicId)
+      if (!live) return
+      if (first.ok && first.artifacts.length === 0) {
+        const moved = await bringForwardTheOldCanvas(topicId)
+        if (!live) return
+        if (moved > 0) return show(await readCanvas(topicId))
+      }
+      show(first)
+    })()
+
+    function show(read: Awaited<ReturnType<typeof readCanvas>>): void {
+      if (!live) return
+
+      /* A READ THAT FAILED IS NOT AN EMPTY CANVAS, and this branch is the
+         whole of Law A on the page. The shipped client answered `[]` to an
+         outage; the next lesson then replaced a term of work with one entry.
+         Here nothing is set, nothing is written, and she is told. */
+      if (!read.ok) {
+        setMemoryTrouble(`${read.reason}. Nothing is lost. It is on the server, and this page will show it as soon as it can reach it.`)
+        return
+      }
+      setMemoryTrouble(null)
+      setQuestioned(new Map(read.questioned.map((q) => [q.artifactSeq, q.why])))
+      if (read.artifacts.length === 0) return
+
+      const brought = read.artifacts.map((artifact): OnCanvas => {
+        const teaching: TeachingLevel = artifact.teaching === 'answer' ? 'answer' : 'lesson'
+        const result = validateLesson(artifact.payload, { teaching })
+        /* A LESSON THAT WILL NOT VALIDATE IS KEPT, NOT DROPPED. It used to be
+           silently removed from the list AND the shortened list saved back, so
+           one bad row erased itself permanently. It is hers; it stays, and the
+           page says which one it could not draw. */
+        if (result.ok) return { seq: artifact.seq, question: artifact.question, teaching, lesson: result.lesson }
+        /* THE REASON IS KEPT AND SHOWN. A page that says only "could not draw
+           this" gives nobody anything to act on -- found live, where twelve
+           saved lessons each said exactly that and nothing said why. */
+        const first = result.issues[0]
+        return {
+          seq: artifact.seq,
+          question: artifact.question,
+          teaching,
+          lesson: null,
+          why: first === undefined ? 'it did not pass this build\u2019s checks' : `${first.path}: ${first.message}`,
+        }
+      })
+      alreadyKept.current = brought
+      setEntries(brought)
+
+      /* The last one that can actually be drawn becomes the lesson on stage.
+         If none can, the canvas still opens and still shows what it has. */
+      const last = [...brought].reverse().find((entry) => entry.lesson !== null)
+
+      /* FOUND LIVE: opening a canvas whose lessons this build cannot draw left
+         `authored` null while `askedForATopic` was true, which is the state
+         called 'writing' -- so the moving bar and "writing this for you now"
+         sat over a canvas that was not writing anything and never would. That
+         is the same dead end A4 removed from the refusal path, reintroduced
+         here. The canvas is only "opened" when there is something on stage;
+         with nothing drawable it stays inviting, with her saved work above the
+         box and the reason under each one. */
+      if (last?.lesson == null) {
+        setStagedSeq(null)
+        setOpened(false)
+        setAskedForATopic(false)
+        return
+      }
+      setStagedSeq(last.seq)
+      setOpened(true)
+      setAskedForATopic(true)
+      setAuthoredLevel(last.teaching)
+      setTurn(null)
+      setAuthored(last.lesson)
+    }
+
+    return () => {
+      live = false
+    }
+  }, [topicId])
+
+  /* THE WHOLE-CANVAS SAVE IS GONE, and its absence is the fix.
+   *
+   * It read: if the entries changed, PUT all of them. Every save was therefore
+   * able to destroy every lesson -- and a client that had read badly wrote the
+   * damage back. Appending happens at the one place a lesson is actually
+   * written, above, one row at a time. There is no code here, and there is not
+   * going to be any. */
+
+  const stage: 'inviting' | 'asking' | 'refused' | 'writing' | 'showing' =
     !opened
       ? 'inviting'
       : askedBack !== null
         ? 'asking'
-        : askedForATopic && authored === null
-          ? 'writing'
-          : 'showing'
+        : authorFailed !== null
+          ? 'refused'
+          : askedForATopic && authored === null
+            ? 'writing'
+            : 'showing'
 
   /*
    * ASKED BACK OR REFUSED TWICE RUNNING: SAY THE ONE MISSING THING, AND SHOW
@@ -1118,7 +1539,7 @@ export default function CanvasRoute({
       <div className="lc-sr-only" role="status" aria-live="polite" aria-busy={authoring}>
         {authoring
           ? 'Writing your lesson.'
-          : stage === 'writing'
+          : stage === 'refused'
             ? 'No lesson is being shown. See the reason above.'
             : ''}
       </div>
@@ -1128,27 +1549,6 @@ export default function CanvasRoute({
           Back
         </button>
 
-        <div className="lc-toggle" role="group" aria-label="Lesson">
-          {LESSONS.map((lesson) => (
-            <button
-              key={lesson.id}
-              type="button"
-              aria-pressed={opened && !askedForATopic && lessonId === lesson.id}
-              onClick={() => {
-                setAuthored(null)
-                setAuthorFailed(null)
-                setTurn(null)
-                setLessonId(lesson.id)
-                setOpened(true)
-                /* Their question is over; this lesson IS the picker's, so the
-                   stage is allowed to show a hand-authored one again. */
-                setAskedForATopic(false)
-              }}
-            >
-              {lesson.label}
-            </button>
-          ))}
-        </div>
 
         {/*
           ANY SUBJECT, NOT A PICKED ONE.
@@ -1233,6 +1633,18 @@ export default function CanvasRoute({
         </div>
       )}
 
+      {/* WHAT HAPPENED TO HER WORK, SAID OUT LOUD.
+           The shipped canvas answered an outage with a blank page that looked
+           exactly like a topic she had never opened, and answered a failed
+           save with nothing at all. Both are states a person can act on -- wait
+           a minute, check the server, do not close the tab -- and neither can
+           be acted on by somebody who is not told. `role="status"` rather than
+           `alert`: it is news, not a refusal, and the lesson beside it is
+           still perfectly good. */}
+      {memoryTrouble !== null && (
+        <p className="lc-memory-trouble" role="status">{memoryTrouble}</p>
+      )}
+
       {authorFailed !== null && (
         <div className="lc-refusal" role="alert">
           <h2>That lesson was refused</h2>
@@ -1273,6 +1685,40 @@ export default function CanvasRoute({
         the screenshot baselines taken before it are still valid.
       */}
       <main className="lc-stage">
+        {/* THE ZOOM WRAPPER. Everything she can read sits inside it, so one
+            transform moves the whole column and nothing inside is re-rendered
+            or re-measured. `transform-origin` is the top so zooming out pulls
+            the canvas up towards what she was reading rather than away. */}
+        <div className="lc-zoom" style={scale === 1 ? undefined : { transform: `scale(${scale})` }}>
+        {/* WHAT THIS TOPIC IS ABOUT, and it stays: it is the canvas's heading,
+            not a splash screen that a first lesson replaces. Renders nothing at
+            all for a topic no checked model describes. */}
+        <TopicScope topicId={topicId} topicName={forTopic?.name ?? null} />
+        {/* Everything already learned on this topic, oldest first, above the
+            lesson being read. While something is being written or was
+            refused, the last entry is still on the canvas too. */}
+        {(stage === 'showing' ? entries.filter((entry) => entry.seq !== stagedSeq) : entries).map((entry) =>
+          entry.lesson === null ? (
+            /* Kept, named, and honest about what happened to it. Removing it
+               would be the silent deletion Law C forbids. */
+            <section className="lc-entry" key={entry.seq} aria-label={entry.question}>
+              <h2 className="lc-entry__question">{entry.question}</h2>
+              <p className="lc-caption">This lesson is saved, and this page could not draw it. {entry.why}</p>
+            </section>
+          ) : (
+            <div key={entry.seq}>
+              <CanvasEntry question={entry.question} lesson={entry.lesson} mode={mode} />
+              {questioned.has(entry.seq) && (
+                /* QUIET, AND ON THE LESSON ITSELF. Not an alert: the lesson may
+                   well be right, and telling her in red that her own work is
+                   suspect would be worse than the doubt it reports. */
+                <p className="lc-questioned" role="status">
+                  Looking at this one again — {questioned.get(entry.seq)}
+                </p>
+              )}
+            </div>
+          ),
+        )}
         {stage === 'inviting' ? (
           /*
            * NOTHING, AND SAYING SO IN WORDS.
@@ -1284,10 +1730,21 @@ export default function CanvasRoute({
            * enabled for everybody -- see `herOwnModel`.
            */
           <div className="lc-blank">
-            <h2>What do you want to learn?</h2>
+            {forTopic === null ? (
+              <h2>What do you want to learn?</h2>
+            ) : forTopic.name === null ? (
+              /* SAID, NOT BLANKED. An address this device cannot name is a
+                 sentence she can act on; `ChapterView`'s `return null` for the
+                 same case was the truly empty page a learner reported. */
+              <h2>This device does not know a topic called {forTopic.id}.</h2>
+            ) : (
+              <h2 className="lc-writing-topic">{forTopic.name}</h2>
+            )}
             {askBox}
             <p className="lc-caption">
-              Anything at all — it is written for you when you ask, not chosen in advance.
+              {forTopic === null || forTopic.name === null
+                ? 'Anything at all — it is written for you when you ask, not chosen in advance.'
+                : 'Ask anything about it — it is written for you when you ask, not chosen in advance.'}
             </p>
           </div>
         ) : stage === 'asking' ? (
@@ -1303,6 +1760,13 @@ export default function CanvasRoute({
             {askBox}
             {stuckDoor}
           </div>
+        ) : stage === 'refused' ? (
+          /* The refusal itself is rendered above the stage, with the reason and
+             the door out, and the box to ask again is in the route bar. The
+             stage carries nothing, because the two things it could carry are
+             both wrong: the writing screen reports work that is not happening,
+             and `result` would fall through to the picker's logarithms. */
+          null
         ) : stage === 'writing' ? (
           /*
            * WAITING IS NOT NOTHING, AND A BLANK SCREEN SAYS NOTHING.
@@ -1326,6 +1790,15 @@ export default function CanvasRoute({
               Writing this for you now. It is being written from scratch, so it takes a few
               seconds.
             </p>
+            {streamed.some((text) => text !== undefined && text !== '') && (
+              /* THE FIRST WORDS, AS THEY ARRIVE. Prose is text: it is shown the
+                 moment it exists, and replaced by the checked lesson when that
+                 lands. Nothing structured is drawn here -- a table or a figure
+                 waits for its own check. */
+              <div className="lc-streamed" aria-live="polite">
+                {streamed.map((text, index) => (text ? <p key={index}>{text}</p> : null))}
+              </div>
+            )}
             <div className="lc-writing-bar" aria-hidden="true">
               <span />
             </div>
@@ -1343,6 +1816,7 @@ export default function CanvasRoute({
                lesson opened at the beat the last one had reached. */
             key={onStage.id}
             lesson={result.lesson}
+            {...(forTopic === null ? {} : { memoryKey: forTopic.id })}
             /* THE LEVEL THIS ROUTE JUST JUDGED IT BY. `TeachView` re-validates
                and defaults to `'lesson'`, so without this a concept clears the
                gate above and is refused by the identical gate one component
@@ -1355,6 +1829,8 @@ export default function CanvasRoute({
             resolvers={resolvers}
             situation={situation}
             onNeedNextPart={needNextPart}
+            onNotUnderstood={notUnderstood}
+            onSaid={said}
           />
         ) : (
           <Refusal title="This lesson was refused" issues={result.issues} />
@@ -1381,25 +1857,14 @@ export default function CanvasRoute({
               <p className="lc-turn-check">{turn.checkpoint}</p>
             )}
             {turn.next.length > 0 && (
-              <div className="lc-turn-next">
-                <span className="lc-caption">Where next?</span>
-                {turn.next.map((branch) => (
-                  <button
-                    key={branch.id}
-                    type="button"
-                    disabled={authoring}
-                    onClick={() => {
-                      setTopic(branch.label)
-                      void askForALesson(branch.label)
-                    }}
-                  >
-                    {branch.label}
-                  </button>
-                ))}
-              </div>
+              <p className="lc-turn-next">
+                <span className="lc-caption">You could ask: </span>
+                {turn.next.map((branch) => branch.label).join(' · ')}
+              </p>
             )}
           </section>
         )}
+        </div>
       </main>
     </div>
   )

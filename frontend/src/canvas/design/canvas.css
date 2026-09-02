@@ -928,3 +928,112 @@
   0% { transform: translateX(-100%); }
   100% { transform: translateX(250%); }
 }
+
+/* The words of a lesson as they are written, on the writing screen. Plain,
+   left-aligned reading text; the checked lesson replaces it when it lands. */
+.lc-streamed {
+  width: 100%;
+  max-width: 640px;
+  margin-top: var(--s-md);
+  text-align: left;
+}
+.lc-streamed p {
+  margin: 0 0 var(--s-sm);
+  color: var(--c-ink);
+  font-family: var(--lc-sans);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+/* An earlier lesson kept on the topic's canvas: whole, still, above the one
+   being read. Same grid as the teaching view, so nothing changes shape when
+   a lesson stops being the current one. */
+.lc-entry {
+  width: 100%;
+  padding: var(--s-lg) 0;
+  border-bottom: 1px solid var(--c-line);
+}
+.lc-entry__question {
+  margin: 0 0 var(--s-md);
+  font-family: var(--font-display);
+  color: var(--c-ink);
+}
+
+/* WHAT HAPPENED TO HER WORK. Quiet, not alarming: the lesson beside it is
+   still good and she is not in trouble. It sits above the stage so it is read
+   before the canvas, and it is prose rather than a banner because a banner
+   reads as a failure of the teaching, which it is not. */
+.lc-memory-trouble {
+  margin: 0 var(--s-xxl) var(--s-md);
+  padding: var(--s-sm) var(--s-md);
+  border-left: 2px solid var(--c-line);
+  color: var(--c-ink-soft, var(--c-ink));
+  font-size: 0.9rem;
+}
+
+/* WHAT THIS TOPIC IS ABOUT.
+   The owner's decision, 2026-09-03: text, in the canvas's own type, and it
+   stays while she learns. Deliberately NOT a card, a panel or a box -- those
+   read as a widget to interact with, and there is nothing here to press. It is
+   the heading of the page, so it is set like one. */
+.lc-scope {
+  margin: 0 0 var(--s-xxl);
+  padding: 0 0 var(--s-lg);
+  border-bottom: 1px solid var(--c-line);
+}
+
+.lc-scope__lead,
+.lc-scope__one {
+  margin: 0 0 var(--s-sm);
+  color: var(--c-ink-soft, var(--c-ink));
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lc-scope__one {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 1rem;
+}
+
+.lc-scope__list {
+  margin: 0;
+  padding-left: var(--s-lg);
+  color: var(--c-ink);
+  line-height: 1.7;
+}
+
+/* The parts inside a part. One step in, and no deeper: the schema stops at two
+   levels, so the styling cannot need a third. */
+.lc-scope__list--inner {
+  padding-left: var(--s-lg);
+  color: var(--c-ink-soft, var(--c-ink));
+  font-size: 0.95rem;
+}
+
+/* THE ZOOM WRAPPER. One transform over the whole column.
+   `transform-origin` is the TOP so zooming out pulls the canvas up towards
+   whatever she was reading rather than away from it; centred origin makes the
+   text she was looking at fly off the screen.
+   `width: 100%` keeps the untransformed layout identical at scale 1, so this
+   wrapper changes nothing until she actually pinches. */
+.lc-zoom {
+  width: 100%;
+  transform-origin: top center;
+  /* Nothing animates: a lesson that slides while she is reading it is worse
+     than one that simply changes size. */
+  will-change: transform;
+}
+
+/* A LESSON SOMETHING HAS PUT IN QUESTION.
+   Deliberately quiet. It is not an error and it is not her fault: the lesson
+   may well be right, and a red banner over a child's own work would be worse
+   than the doubt it reports. */
+.lc-questioned {
+  margin: calc(-1 * var(--s-md)) 0 var(--s-lg);
+  padding-left: var(--s-md);
+  border-left: 2px solid var(--c-line);
+  color: var(--c-ink-soft, var(--c-ink));
+  font-size: 0.88rem;
+}

@@ -31,6 +31,28 @@ export interface CanvasMemory {
   read(owner: MemoryOwner): Storable | undefined
   /** Store a memory for this owner. Returns only once it is durably written. */
   write(owner: MemoryOwner, record: unknown): void
+  /**
+   * Add one artifact to the end of this owner's learning history.
+   *
+   * SEPARATE FROM `write` ON PURPOSE. `write` replaces; this one only ever
+   * adds. Progress needs replacing -- there is one answer to "how far has she
+   * got". Learning history must never be replaced, because a replacement is
+   * indistinguishable from a deletion once it has happened, and the audit
+   * found sixteen ways that mattered.
+   */
+  append(owner: MemoryOwner, artifact: unknown): StoredArtifactRecord
+  /** This owner's whole history, oldest first. Never partial, never trimmed. */
+  list(owner: MemoryOwner): readonly StoredArtifactRecord[]
+}
+
+/** One artifact, with the identity the server gave it. */
+export interface StoredArtifactRecord {
+  /** Its position in this canvas. Assigned by the database, unique, permanent. */
+  readonly seq: number
+  /** When it landed, in the server's clock, not the browser's. */
+  readonly createdAt: string
+  /** Exactly what was appended. */
+  readonly artifact: Storable
 }
 
 export interface CanvasMemoryOptions {
@@ -87,5 +109,47 @@ export function canvasMemory(options: CanvasMemoryOptions): CanvasMemory {
        * because a student's work does not belong in an operator's terminal. */
       log(`memory written: key=${key} at=${at} bytes=${text.length}`)
     },
+
+    append(owner, artifact) {
+      const key = memoryKey(owner)
+      const at = now()
+
+      /* CHECKED BEFORE IT IS APPENDED, exactly as `write` checks before it
+       * stores: an artifact that cannot survive the round trip must not reach
+       * the disk, because a history with one unreadable row in it is a history
+       * that a future reader has to guess about.
+       *
+       * THE CEILING NOW APPLIES PER ARTIFACT, WHICH IS THE POINT. It used to
+       * apply to the WHOLE canvas: past 256 KB every save failed, silently and
+       * forever, and the failure was reported as the student's bad request.
+       * One lesson is nowhere near the limit; a term of them used to be. */
+      const text = toStoredText(artifact)
+      const seq = options.store.append(key, text, at)
+
+      log(`artifact appended: key=${key} seq=${seq} at=${at} bytes=${text.length}`)
+      return { seq, createdAt: at, artifact: fromStoredText(text) }
+    },
+
+    list(owner) {
+      const key = memoryKey(owner)
+      return options.store.list(key).map((row) => ({
+        seq: row.seq,
+        createdAt: row.createdAt,
+        /* A row that will not parse is a real state and it is NOT a reason to
+         * drop the rest. The shipped client discarded the whole canvas for one
+         * bad entry and then saved the loss; this hands the damage over named,
+         * so the page can say which one it could not draw and keep the others. */
+        artifact: readable(row.text),
+      }))
+    },
+  }
+}
+
+/** Stored text as a value, or a marker saying plainly that it could not be read. */
+function readable(text: string): Storable {
+  try {
+    return fromStoredText(text)
+  } catch {
+    return { unreadable: true }
   }
 }

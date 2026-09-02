@@ -136,13 +136,45 @@ def _say_why_a_real_model_did_not_answer(scenario_name: str, raw_documents) -> N
             for key in ("outcome", "refusal", "cause", "violations", "issues", "error", "reason")
             if key in document
         }
+        # THE ENVELOPE, so the reader knows the KIND before the words: a quota
+        # is EXTERNAL and a fix in the code is the wrong move; an "unmappable"
+        # under a live provider is the product working and is classified CODE
+        # only because nothing else claims it -- the outcome word says the rest.
+        env = _envelope_of(scenario_name, why)
         # One line, no newlines: a workflow command ends at the first newline.
-        message = _json.dumps(why, ensure_ascii=True)[:900].replace("\n", " ")
+        message = _json.dumps(why, ensure_ascii=True)[:800].replace("\n", " ")
         print(
-            f"::warning title=real-tutor did not answer ({provider})::"
-            f"{scenario_name}: {message}",
+            f"::warning title={env.title(f'real-tutor did not answer ({provider})')}::"
+            f"{scenario_name}: {message} {env.trailer()}",
             flush=True,
         )
+
+
+def _envelope_of(scenario_name: str, why: dict[str, object]):  # noqa: ANN202 - behave, untyped
+    """The Python envelope module, loaded by path: behave runs from the repo root."""
+    import importlib.util as _util
+    import sys as _sys
+
+    module = _sys.modules.get("failure_envelope")
+    if module is None:
+        spec = _util.spec_from_file_location(
+            "failure_envelope", REPO / "learning-os" / "tests" / "failure_envelope.py"
+        )
+        assert spec is not None and spec.loader is not None
+        module = _util.module_from_spec(spec)
+        # Registered before it runs: its slots dataclasses resolve annotations
+        # through sys.modules, and an unregistered module is None there.
+        _sys.modules["failure_envelope"] = module
+        spec.loader.exec_module(module)
+    text = " ".join(str(why.get(k, "")) for k in ("cause", "refusal", "error", "outcome"))
+    return module.envelope(
+        runner="behave",
+        test=scenario_name,
+        file="features/tutor.feature",
+        message=text,
+        known=module.known_failures(REPO / "frontend" / "scripts" / "known-failures.json"),
+        commit="",
+    )
 
 
 def after_scenario(context, scenario) -> None:

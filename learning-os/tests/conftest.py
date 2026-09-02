@@ -25,7 +25,7 @@ import os
 import pathlib
 import socket
 from collections.abc import Generator, Iterator
-from typing import NoReturn
+from typing import Any, NoReturn
 
 import pytest
 
@@ -103,7 +103,60 @@ _PROPERTY_LEDGER = (
 _executed_properties: set[str] = set()
 
 
+#: The failure envelopes this session produced, written once at the end.
+_envelopes: list[Any] = []
+
+
+def _say_what_failed(report: pytest.TestReport) -> None:
+    """THE FLIGHT RECORDER: one `::error` per failure, carrying its envelope.
+
+    The matcher that turns pytest's own frames into annotations keeps only the
+    error's class, and the log that holds the rest is admin-only. Two causes on
+    this repository (a socket guard, a vendor quota) each cost a full CI round
+    to read. This line carries the fingerprint, the kind, the headline and the
+    exact rerun command, so a reader of the run has everything the log had.
+    """
+    from failure_envelope import envelope, workflow_command
+
+    message = str(report.longreprtext) if hasattr(report, "longreprtext") else str(report.longrepr)
+    path, line, _ = report.location
+    env = envelope(
+        runner="pytest",
+        test=report.nodeid,
+        file=f"learning-os/{path}".replace("\\", "/"),
+        message=message,
+        known=_known(),
+        commit=os.environ.get("GITHUB_SHA", ""),
+    )
+    _envelopes.append(env)
+    # A LEADING NEWLINE, and it is load-bearing: pytest has just written the
+    # progress character ("F") for this test with no line break after it, so
+    # without one the command would print as `F::error ...` -- and GitHub
+    # only reads a workflow command that starts its own line. Measured.
+    print(
+        "\n"
+        + workflow_command(
+            "error",
+            env.file,
+            (line + 1) if isinstance(line, int) else None,
+            env.title(f"pytest: {report.nodeid}"),
+            f"{env.headline}\n{env.trailer()}",
+        ),
+        flush=True,
+    )
+
+
+def _known() -> dict[str, dict[str, str]]:
+    from failure_envelope import known_failures
+
+    return known_failures(
+        pathlib.Path(__file__).resolve().parents[2] / "frontend" / "scripts" / "known-failures.json"
+    )
+
+
 def pytest_runtest_logreport(report: pytest.TestReport) -> None:
+    if report.failed and report.when in {"call", "setup"}:
+        _say_what_failed(report)
     if report.when != "call":
         return
     if report.outcome not in {"passed", "failed"}:
@@ -142,6 +195,9 @@ def pytest_sessionfinish(session: pytest.Session) -> None:
         # note on _PROPERTY_LEDGER for why writing here double-counts.
         return
 
+    from failure_envelope import record
+
+    record(_envelopes, pathlib.Path("test-results"))
     _PROPERTY_LEDGER.parent.mkdir(parents=True, exist_ok=True)
     _PROPERTY_LEDGER.write_text(
         json.dumps(

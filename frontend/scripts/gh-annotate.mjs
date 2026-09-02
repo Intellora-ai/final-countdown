@@ -48,7 +48,9 @@
  * to decide whether a given interpolation is the dangerous kind.
  */
 
-import { readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+
+import { envelope, titleFor, trailer } from './failure-envelope.mjs'
 
 /** Workflow commands are line-based, so a literal newline would split one. */
 function esc(s) {
@@ -152,23 +154,59 @@ function annotateVitest(text) {
     return NaN
   }
   let n = 0
+  const envelopes = []
   for (const suite of report.testResults ?? []) {
     for (const t of suite.assertionResults ?? []) {
       if (t.status === 'passed' || t.status === 'pending') continue
       const first = (t.failureMessages ?? [])[0] ?? 'failed'
       /* Recover a source location from the stack when vitest supplies one. */
       const at = pickFrame(first)
+      const name = [...(t.ancestorTitles ?? []), t.title].join(' > ')
+      /* THE ENVELOPE: fingerprint, kind, and the exact rerun -- on the
+       * annotation, so nobody needs the job log to know what this was. See
+       * failure-envelope.mjs for the four rounds that paid for it. */
+      const env = envelope({
+        runner: 'vitest', test: name, file: prefix(suite.name), message: first,
+        known: knownFailures(), commit: process.env.GITHUB_SHA ?? '',
+      })
+      envelopes.push(env)
       emit('error', {
         file: at ? at.file : prefix(suite.name),
         line: at ? at.line : undefined,
         col: at ? at.col : undefined,
-        title: `vitest: ${[...(t.ancestorTitles ?? []), t.title].join(' > ')}`,
-        message: first.split('\n').slice(0, 6).join('\n'),
+        title: titleFor(`vitest: ${name}`, env),
+        message: `${first.split('\n').slice(0, 6).join('\n')}\n${trailer(env)}`,
       })
       n++
     }
   }
+  recordEnvelopes(envelopes)
   return n
+}
+
+/** `known-failures.json` beside this script, or nothing: a missing file is no flakes. */
+function knownFailures() {
+  try {
+    return JSON.parse(readFileSync(new URL('./known-failures.json', import.meta.url), 'utf8'))
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * `test-results/failures.json`: the same envelopes, on disk, for a rerun to
+ * read back. Written beside the package (the directory is gitignored) and
+ * never allowed to fail the annotator -- the annotation already carried the
+ * facts; the file is the second channel, not the only one.
+ */
+function recordEnvelopes(envelopes) {
+  if (envelopes.length === 0) return
+  try {
+    mkdirSync('test-results', { recursive: true })
+    writeFileSync('test-results/failures.json', `${JSON.stringify({ schema: 1, failures: envelopes }, null, 2)}\n`)
+  } catch {
+    /* see above */
+  }
 }
 
 /* Every source location in a stack, parenthesised (`at fn (/p:1:2)`) or bare

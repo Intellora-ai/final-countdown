@@ -53,6 +53,7 @@ import pathlib
 import os
 
 from collections.abc import Generator
+from typing import Any
 
 import hypothesis
 from pathlib import Path
@@ -207,6 +208,66 @@ _PROPERTY_LEDGER = pathlib.Path(".property-ledger") / "property-execution-root.j
 #: Node ids of property tests whose call phase completed in this session.
 _executed_properties: set[str] = set()
 
+#: The failure envelopes this session produced, written once at the end.
+_envelopes: list[object] = []
+
+
+def _flight_recorder() -> object:
+    """The envelope module, loaded by path: it lives with the learning-os suite
+    and the root suite has no import path to it. One module, two suites, so
+    both classify a failure by the same sentences."""
+    import importlib.util
+    import sys
+
+    already = sys.modules.get("failure_envelope")
+    if already is not None:
+        return already
+    spec = importlib.util.spec_from_file_location(
+        "failure_envelope", REPO / "learning-os" / "tests" / "failure_envelope.py"
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    # REGISTERED BEFORE IT RUNS. The module's dataclasses use `slots=True`
+    # under `from __future__ import annotations`, and `dataclasses` resolves
+    # those annotations through `sys.modules[cls.__module__].__dict__` -- a
+    # module executed without being registered is `None` there, and the
+    # import dies with "'NoneType' object has no attribute '__dict__'".
+    sys.modules["failure_envelope"] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _say_what_failed(report: pytest.TestReport) -> None:
+    """THE FLIGHT RECORDER: one `::error` per failure, carrying its envelope --
+    fingerprint, kind, headline, exact rerun -- so a reader of the run has what
+    the admin-only log has. See learning-os/tests/failure_envelope.py."""
+    fe: Any = _flight_recorder()
+    message = str(report.longreprtext) if hasattr(report, "longreprtext") else str(report.longrepr)
+    path, line, _ = report.location
+    env = fe.envelope(
+        runner="pytest",
+        test=report.nodeid,
+        file=str(path).replace("\\", "/"),
+        message=message,
+        known=fe.known_failures(REPO / "frontend" / "scripts" / "known-failures.json"),
+        commit=os.environ.get("GITHUB_SHA", ""),
+    )
+    _envelopes.append(env)
+    # A leading newline: pytest has just written this test's progress
+    # character with no line break, and GitHub reads a workflow command only
+    # at the start of a line. Measured -- see learning-os/tests/conftest.py.
+    print(
+        "\n"
+        + fe.workflow_command(
+            "error",
+            env.file,
+            (line + 1) if isinstance(line, int) else None,
+            env.title(f"pytest: {report.nodeid}"),
+            f"{env.headline}\n{env.trailer()}",
+        ),
+        flush=True,
+    )
+
 
 def pytest_runtest_logreport(report: pytest.TestReport) -> None:
     """Record property tests that actually RAN.
@@ -215,6 +276,8 @@ def pytest_runtest_logreport(report: pytest.TestReport) -> None:
     setup errored never reached its `@given` body and did not exercise a single
     generated example.
     """
+    if report.failed and report.when in {"call", "setup"}:
+        _say_what_failed(report)
     if report.when != "call":
         return
     if report.outcome not in {"passed", "failed"}:
@@ -260,6 +323,8 @@ def pytest_sessionfinish(session: pytest.Session) -> None:
     Written even when tests failed: the gate's question is "did property tests
     run", and a suite that ran them and found a bug is a suite where they ran.
     """
+    fe: Any = _flight_recorder()
+    fe.record(_envelopes, pathlib.Path("test-results"))
     _PROPERTY_LEDGER.parent.mkdir(parents=True, exist_ok=True)
     _PROPERTY_LEDGER.write_text(
         json.dumps(

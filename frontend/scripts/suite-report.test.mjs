@@ -188,7 +188,9 @@ describe('the same evidence as workflow-command annotations', () => {
 
   /** The `file=` property of one annotation, read the way GitHub reads it. */
   function fileProperty(line) {
-    const found = line.match(/^::error file=([^,]*),title=baseline not green::/)
+    /* The title now carries the failure's envelope -- fingerprint and kind --
+       after the fixed words; the file property is what this helper reads. */
+    const found = line.match(/^::error file=([^,]*),title=baseline not green(?: \[FP-[0-9a-f]{6} [A-Z]+\])?::/)
     return found === null ? null : found[1]
   }
 

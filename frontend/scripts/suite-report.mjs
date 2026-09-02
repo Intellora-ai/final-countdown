@@ -27,6 +27,8 @@
  * again, forever. Living here is what makes the evidence assertable at all.
  */
 
+import { envelope, titleFor, trailer } from './failure-envelope.mjs'
+
 /** Console output beyond this many lines is a suite log, not a finding. */
 const MAX_OUTPUT_LINES = 40
 
@@ -128,7 +130,7 @@ function failures(report) {
  * value, plus `:` and `,` inside a property. Unescaped, a message with a
  * comma in it silently truncates the annotation.
  */
-export function notGreenAnnotations(report, output) {
+export function notGreenAnnotations(report, output, known = {}) {
   const data = (text) => String(text).replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A')
   const prop = (text) => data(text).replace(/:/g, '%3A').replace(/,/g, '%2C')
   if (report === null || report === undefined) {
@@ -149,8 +151,16 @@ export function notGreenAnnotations(report, output) {
   }
   return named.map((failure) => {
     const why = failure.why[0] ?? ''
-    return `::error file=${prop(repoRelative(failure.file))},title=baseline not green::${data(failure.what)}`
+    /* Fingerprint and kind on the title, the rerun on the message: a red
+     * baseline is usually a FLAKE or an ENVIRONMENT fact, and naming which is
+     * the difference between a rerun and a wasted round. */
+    const env = envelope({
+      runner: 'vitest', test: failure.what.split(': ').slice(1).join(': ') || failure.what,
+      file: repoRelative(failure.file), message: failure.why.join('\n'), known,
+    })
+    return `::error file=${prop(repoRelative(failure.file))},title=${prop(titleFor('baseline not green', env))}::${data(failure.what)}`
       + (why === '' ? '' : ` — ${data(why.slice(0, 700))}`)
+      + ` ${data(trailer(env))}`
   })
 }
 

@@ -53,10 +53,18 @@ describe('the evaluation', () => {
     expect(report.floors.gatePassRate.holds).toBe(false)
     expect(report.floors.gatePassRate.candidate).toBe(0)
     expect(report.floors.fabricatedFacts.holds).toBe('unmeasured')
+    expect(report.floors.fabricatedFacts.measured).toBe(0)
     expect(report.floors.durability.holds).toBe('see the laws suite')
     expect(typeof report.floors.latencyP95.candidate).toBe('number')
     expect(typeof report.floors.latencyP95.legacy).toBe('number')
     expect(report.promotion).toBe('never automatic')
+  })
+
+  it('the fabricated-facts floor is measured from verdicts: unmeasured with none, false on any unverified risk-1/2 artifact, true only when every one is verified', () => {
+    expect(evaluateRuns(real).floors.fabricatedFacts).toEqual({ holds: 'unmeasured', measured: 0, verified: 0 })
+    const withVerdicts = (verified: boolean): ListedRun => variant(9, { candidate: r2.candidate.ok === true ? { ...r2.candidate, adapted: [{ kind: 'explain', ok: true, artifact: 'lesson', risk: 2, verified, verdicts: [{ check: 'critic', verdict: verified ? 'sound' : 'could-not-check', because: 'x' }] }] } : r2.candidate })
+    expect(evaluateRuns([withVerdicts(true)]).floors.fabricatedFacts).toEqual({ holds: true, measured: 1, verified: 1 })
+    expect(evaluateRuns([withVerdicts(true), withVerdicts(false)]).floors.fabricatedFacts).toEqual({ holds: false, measured: 2, verified: 1 })
   })
 
   it('a candidate that the adapter accepted more often than live taught passes the gate floor, and no more than that', () => {

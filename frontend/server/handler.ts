@@ -80,6 +80,7 @@ import { shadowObserver } from './intelligence/shadow.ts'
 import { costsFrom } from './intelligence/cost.ts'
 import { evaluateRuns } from './intelligence/evaluate.ts'
 import { experienceOf } from './intelligence/experience.ts'
+import { criticOn } from './intelligence/critic.ts'
 import { capabilityRegistry } from './intelligence/registry.ts'
 import { sufficientPath } from './intelligence/sufficiency.ts'
 import { knownTopicCount } from '../src/knowledge/load.ts'
@@ -498,6 +499,8 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     log: options.intelligence?.log ?? ((line) => console.log(line)),
     now: Date.now,
     ...(options.shadowRuns === undefined ? {} : { record: (run: ShadowRun) => { options.shadowRuns?.record(run) } }),
+    /* The critic is the reasoner in a second mode, on the same JSON-mode chat. */
+    ...(options.model.chat === undefined ? {} : { critic: criticOn(options.model.chat) }),
     /* The gate looks exactly where the live path looks. A store that is not
        configured is a shelf with nothing on it, which is also what the live
        path sees. */

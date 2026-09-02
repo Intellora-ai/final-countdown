@@ -40,8 +40,8 @@ export interface Floors {
   readonly gatePassRate: { readonly candidate: number; readonly live: number; readonly holds: boolean | 'unmeasured' }
   /** Floor 4: the candidate's p95 proposal time is within the live decision's (the legacy wrapper IS that decision). */
   readonly latencyP95: { readonly candidate: number | null; readonly legacy: number | null; readonly holds: boolean | 'unmeasured' }
-  /** Floor 3: every risk-1/2 artifact carries a verdict that is not could-not-check. Measured from M9. */
-  readonly fabricatedFacts: { readonly holds: 'unmeasured' }
+  /** Floor 3: every accepted risk-1/2 artifact is verified -- a claim check or a critic said sound, nothing could-not-check. Unmeasured until one such artifact was recorded. */
+  readonly fabricatedFacts: { readonly holds: boolean | 'unmeasured'; readonly measured: number; readonly verified: number }
   /** Floors F1-F5 and the gibberish laws live in the test suite, not in runs. */
   readonly durability: { readonly holds: 'see the laws suite' }
 }
@@ -140,11 +140,23 @@ export function evaluateRuns(listed: readonly ListedRun[]): Report {
   const l95 = p95(msOf(runs, 'legacy'))
   const latencyP95 = { candidate: c95, legacy: l95, holds: c95 === null || l95 === null ? ('unmeasured' as const) : c95 <= l95 }
 
+  let measured = 0
+  let verifiedCount = 0
+  for (const r of runs) {
+    if (r.candidate.ok !== true) continue
+    for (const a of r.candidate.adapted) {
+      if (!a.ok || a.risk === undefined || a.risk < 1) continue
+      measured += 1
+      if (a.verified === true) verifiedCount += 1
+    }
+  }
+  const fabricatedFacts = { holds: measured === 0 ? ('unmeasured' as const) : verifiedCount === measured, measured, verified: verifiedCount }
+
   return {
     ...all,
     holdout,
     recent,
-    floors: { gatePassRate, latencyP95, fabricatedFacts: { holds: 'unmeasured' }, durability: { holds: 'see the laws suite' } },
+    floors: { gatePassRate, latencyP95, fabricatedFacts, durability: { holds: 'see the laws suite' } },
     promotion: 'never automatic',
   }
 }

@@ -255,6 +255,11 @@ function restsOnAWorkedNumber(artifact: OnCanvas): Suspicion | null {
  */
 const A_STATED_VALUE = /\b(?:the\s+)?([a-z][a-z\s]{3,40}?)\s+is\s+((?:-?\d+(?:\.\d+)?(?:\s*[a-z]+)?)|(?:-?[a-z]\s*\/\s*[a-z]))\b/gi
 
+/** Whether a text states a quantity as a value -- the one shape above, offered to the risk tiers so there is exactly one notion of it. */
+export function statesAValue(text: string): boolean {
+  return new RegExp(A_STATED_VALUE.source, 'i').test(text)
+}
+
 /**
  * Words that join clauses, and therefore end a subject.
  *

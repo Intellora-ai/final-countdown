@@ -82,6 +82,27 @@ describe('the shadow bridge', () => {
     expect(lines).toHaveLength(1)
   })
 
+  it('verifies each accepted artifact by its risk tier and records the verdicts; without a critic a risk-2 artifact is recorded unverified', async () => {
+    const teaching = aBrain('candidate', async () => ({ ...(await emptyProposal()), actions: [{ kind: 'explain', because: 'r', risk: 0, evidence: [], payload: { answer: 'The sum of the zeros is -b/a. So for x^2 - 5x + 6 the sum is 5.', representations: ['prose'] } }] }))
+    const legacy = aBrain('legacy', emptyProposal)
+    const kept: ShadowRun[] = []
+    const observe = shadowObserver({ candidate: teaching, legacy, mode: () => 'shadow', log: () => {}, now: () => 0, record: (run) => { kept.push(run) } })
+    observe(request, { status: 502, body: {} })
+    await settle(); await settle(); await settle()
+    const adapted = kept[0]?.candidate.ok === true ? kept[0].candidate.adapted[0] : undefined
+    expect(adapted?.ok).toBe(true)
+    expect(adapted?.risk).toBe(2)
+    expect(adapted?.verified).toBe(false)
+    expect(adapted?.verdicts?.some((v) => v.check === 'critic' && v.verdict === 'could-not-check')).toBe(true)
+
+    const kept2: ShadowRun[] = []
+    const observe2 = shadowObserver({ candidate: teaching, legacy, mode: () => 'shadow', log: () => {}, now: () => 0, record: (run) => { kept2.push(run) }, critic: async () => ({ verdict: 'sound', because: 'right for class 10' }) })
+    observe2(request, { status: 502, body: {} })
+    await settle(); await settle(); await settle()
+    const adapted2 = kept2[0]?.candidate.ok === true ? kept2[0].candidate.adapted[0] : undefined
+    expect(adapted2?.verified).toBe(true)
+  })
+
   it('keeps a whole run when given somewhere to keep it: the request, what live did, both outcomes', async () => {
     const candidate = aBrain('candidate', emptyProposal)
     const legacy = aBrain('legacy', () => Promise.reject(new Error('no chooser')))

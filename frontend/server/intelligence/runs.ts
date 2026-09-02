@@ -11,6 +11,7 @@ import { z } from 'zod'
 import type { MemoryStore } from '../memory/sqliteStore.ts'
 import { learningAction } from './ir.ts'
 import type { Proposal, TeachingRequest } from './LearningIntelligence.ts'
+import type { Checked, Risk } from './risk.ts'
 import type { SufficiencyVerdict } from './sufficiency.ts'
 
 /** What became of one learning action at the canvas adapter, in dry mode. */
@@ -19,6 +20,10 @@ export interface AdaptedInRun {
   readonly ok: boolean
   readonly artifact?: string
   readonly issues?: readonly string[]
+  /** M9: the tier read from the content, the checks made, and whether every one said sound. Absent on runs before M9. */
+  readonly risk?: Risk
+  readonly verdicts?: readonly Checked[]
+  readonly verified?: boolean
 }
 
 export type Outcome =
@@ -47,7 +52,7 @@ const proposalShape = z.object({
   trace: z.unknown(),
 })
 const outcomeShape = z.union([
-  z.object({ ok: z.literal(true), proposal: proposalShape, adapted: z.array(z.object({ kind: z.string(), ok: z.boolean(), artifact: z.string().optional(), issues: z.array(z.string()).optional() })) }),
+  z.object({ ok: z.literal(true), proposal: proposalShape, adapted: z.array(z.object({ kind: z.string(), ok: z.boolean(), artifact: z.string().optional(), issues: z.array(z.string()).optional(), risk: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(), verdicts: z.array(z.object({ check: z.enum(['arithmetic', 'claim', 'critic']), verdict: z.enum(['sound', 'unsound', 'could-not-check']), because: z.string() })).optional(), verified: z.boolean().optional() })) }),
   z.object({ ok: z.literal(false), failed: z.string() }),
   z.object({ ok: z.literal('skipped'), because: z.string() }),
 ])

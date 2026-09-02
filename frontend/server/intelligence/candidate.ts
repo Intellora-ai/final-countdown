@@ -82,7 +82,10 @@ export function candidateIntelligence(options: CandidateOptions): LearningIntell
         ...Object.entries(out.result.plan.rationale).map(([cap, why]) => `${cap}: ${why}`),
         ...reasoned.compose.map((c) => `reasoner: ${c.capability} because ${c.because}`),
       ].join('; ')
-      const actions: LearningAction[] = notAnAnswer !== null ? [] : [
+      /* When the loop ASKS, its `answer` is a preface to the question, not
+         teaching (live run 3), so no explanation is proposed -- only the ask. */
+      const asksFirst = out.result.question !== undefined
+      const actions: LearningAction[] = notAnAnswer !== null || asksFirst ? [] : [
         {
           kind: 'explain',
           because: rationale.length > 0 ? rationale : 'the loop answered',

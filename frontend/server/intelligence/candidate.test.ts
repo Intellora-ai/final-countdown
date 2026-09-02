@@ -132,6 +132,18 @@ describe('the candidate intelligence', () => {
     expect(unclear.rationale).toMatch(/reasoner: diagnose/)
   })
 
+  it('when the loop asks instead of answering, it proposes the question and NOT an explanation', async () => {
+    /* Live run 3: for "why does it have at most two zeros" the loop asked
+       what "it" was, and its `answer` was the preface "Before I answer: ...".
+       The wrapper turned that preface into an explain action, and the canvas
+       gate accepted it as a lesson. A preface is not teaching. */
+    const model: ModelPort = { lesson: async () => { throw new Error('no') }, chat: async () => JSON.stringify({ answer: 'x' }) }
+    const candidate = candidateIntelligence({ model, search: noSearch, now: () => '2026-09-03T00:00:00.000Z' })
+    const proposal = await candidate.propose(aRequest('why does it have at most two zeros'))
+    expect(proposal.actions.map((a) => a.kind)).toEqual(['ask'])
+    expect(String(proposal.actions[0]?.payload?.['question'])).toMatch(/"it"/)
+  })
+
   it('counts its cost from what actually happened', async () => {
     const model = aReasoner()
     let tick = 0

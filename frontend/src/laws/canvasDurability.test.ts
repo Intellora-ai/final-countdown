@@ -479,7 +479,7 @@ describe('FLOOR F1 — a brain running in shadow adds nothing to the canvas, how
 /* FLOORS F2-F5 -- THE STUDENT CANNOT TELL THE SHADOW IS THERE          */
 /* ================================================================== */
 
-async function inMode<T>(mode: 'off' | 'shadow', run: () => Promise<T>): Promise<T> {
+async function inMode<T>(mode: 'off' | 'shadow' | 'canary' | 'primary', run: () => Promise<T>): Promise<T> {
   const before = process.env['INTELLIGENCE_MODE']
   process.env['INTELLIGENCE_MODE'] = mode
   try {
@@ -550,6 +550,22 @@ describe('THE GATE -- code decides when no brain is needed, and the shadow recor
     const run = server.runsKept().slice(before)[0]?.run
     expect(run?.gate?.path).toBe(5)
     expect(run?.candidate.ok).toBe(true)
+  })
+})
+
+describe('THE MIGRATION LAW -- a canvas written before the flip reads the same after it', () => {
+  it('reads byte-identically under off, shadow, canary and primary, and nothing about the flip writes a row', async () => {
+    /* M12. The store, the route and the client do not know which brain is
+       answering; promotion is a person setting a mode, and a term of work
+       written under the old brain must be untouched by it. */
+    for (let n = 1; n <= 5; n += 1) await appendToCanvas('waves', anAsk(`written before the flip ${n}`))
+    const before = JSON.stringify(await whatIsOnTheCanvas('waves'))
+    const rows = server.rowsIn('canvas_artifacts')
+    for (const mode of ['shadow', 'canary', 'primary'] as const) {
+      const after = await inMode(mode, () => whatIsOnTheCanvas('waves'))
+      expect(JSON.stringify(after), mode).toBe(before)
+      expect(server.rowsIn('canvas_artifacts'), mode).toBe(rows)
+    }
   })
 })
 

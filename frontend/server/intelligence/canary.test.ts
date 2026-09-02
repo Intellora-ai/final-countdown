@@ -69,11 +69,12 @@ describe('a canary student', () => {
     return { store, runs, ask }
   }
 
-  it('is served the candidate s verified lesson through the same reply shape, and the live brain is never asked', async () => {
+  it('is served the candidate s verified lesson through the same reply shape, and the live brain is never asked -- in canary at 100%, and in primary', async () => {
+    for (const [mode, percent] of [['canary', '100'], ['primary', undefined]] as const) {
     const candidate = proposing(A_DEFINITION)
     const s = await server(candidate)
     try {
-      const res = await inMode('canary', '100', () => s.ask('what is a zero of a polynomial'))
+      const res = await inMode(mode, percent, () => s.ask('what is a zero of a polynomial'))
       expect(res.status).toBe(200)
       expect(res.body['canary']).toBe(true)
       expect((res.body['lesson'] as { blocks?: unknown[] })?.blocks?.length).toBeGreaterThan(0)
@@ -81,6 +82,7 @@ describe('a canary student', () => {
       await new Promise((r) => setTimeout(r, 20))
       expect(s.runs.list()[0]?.run?.served).toBe('candidate')
     } finally { s.store.close() }
+    }
   })
 
   it('out of the bucket, or in shadow mode, gets the live brain exactly as before', async () => {

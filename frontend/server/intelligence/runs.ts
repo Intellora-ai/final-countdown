@@ -38,6 +38,8 @@ export interface ShadowRun {
   /** What the sufficiency gate said before any brain was asked. Absent on runs recorded before the gate existed (M3). */
   readonly gate?: SufficiencyVerdict
   readonly live: { readonly did: string; readonly status: number }
+  /** Who answered the student: the live brain, or (canary/primary) the candidate. Absent before M11. */
+  readonly served?: 'live' | 'candidate'
   readonly candidate: Outcome
   readonly legacy: Outcome
   readonly ms: number
@@ -74,6 +76,7 @@ const runShape = z.object({
   }),
   gate: z.object({ path: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]), because: z.string() }).optional(),
   live: z.object({ did: z.string(), status: z.number() }),
+  served: z.enum(['live', 'candidate']).optional(),
   candidate: outcomeShape,
   legacy: outcomeShape,
   ms: z.number(),

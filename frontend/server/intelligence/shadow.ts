@@ -33,11 +33,19 @@ export interface ShadowPorts {
   readonly critic?: Critic
 }
 
-export type ShadowObserver = (request: TeachingRequest, live: { readonly status: number; readonly body: Record<string, unknown> }) => void
+export type ShadowObserver = (request: TeachingRequest, live: {
+  readonly status: number
+  readonly body: Record<string, unknown>
+  readonly served?: 'live' | 'candidate'
+  /** In canary the candidate already proposed for this request; record THAT rather than asking it again. */
+  readonly candidateProposal?: Proposal
+}) => void
 
 export function shadowObserver(ports: ShadowPorts): ShadowObserver {
   return (request, live) => {
-    if (ports.mode() !== 'shadow') return
+    /* Observed in every mode past off: shadow, canary and primary all keep
+       the record that the evaluation reads. */
+    if (ports.mode() === 'off') return
     const startedAt = ports.now()
     const liveDid = 'lesson' in live.body ? 'taught' : 'clarify' in live.body ? 'asked' : 'refused'
     const gate: SufficiencyVerdict = ports.sufficiency?.(request) ?? { path: 5, because: 'no gate was given, so nothing is assumed' }
@@ -45,7 +53,7 @@ export function shadowObserver(ports: ShadowPorts): ShadowObserver {
       /* CODE DECIDED. No brain is asked; the run records that this request
          needed none, which is a fact about the product worth counting. */
       const skipped: Outcome = { ok: 'skipped', because: gate.because }
-      const run: ShadowRun = { at: new Date(startedAt).toISOString(), request, gate, live: { did: liveDid, status: live.status }, candidate: skipped, legacy: skipped, ms: ports.now() - startedAt }
+      const run: ShadowRun = { at: new Date(startedAt).toISOString(), request, gate, live: { did: liveDid, status: live.status }, served: live.served ?? 'live', candidate: skipped, legacy: skipped, ms: ports.now() - startedAt }
       ports.log(`[shadow] code sufficed (path ${gate.path}): ${gate.because}; live ${liveDid}`)
       try {
         ports.record?.(run)
@@ -54,7 +62,8 @@ export function shadowObserver(ports: ShadowPorts): ShadowObserver {
       }
       return
     }
-    void Promise.allSettled([ports.candidate.propose(request), ports.legacy.propose(request)])
+    const candidateAsked = live.candidateProposal === undefined ? ports.candidate.propose(request) : Promise.resolve(live.candidateProposal)
+    void Promise.allSettled([candidateAsked, ports.legacy.propose(request)])
       .then(async ([candidate, legacy]) => {
         const [c, l] = await Promise.all([outcomeOf(candidate, request, ports), outcomeOf(legacy, request, ports)])
         const ms = ports.now() - startedAt
@@ -63,6 +72,7 @@ export function shadowObserver(ports: ShadowPorts): ShadowObserver {
           request,
           gate,
           live: { did: liveDid, status: live.status },
+          served: live.served ?? 'live',
           candidate: c,
           legacy: l,
           ms,

@@ -74,12 +74,13 @@ import { NotStorable } from './memory/record.ts'
 import type { CanvasMemory } from './memory/store.ts'
 import { candidateIntelligence } from './intelligence/candidate.ts'
 import { legacyIntelligence } from './intelligence/legacy.ts'
-import type { LearningIntelligence } from './intelligence/LearningIntelligence.ts'
+import type { LearningIntelligence, Proposal } from './intelligence/LearningIntelligence.ts'
 import type { ShadowRun, ShadowRuns } from './intelligence/runs.ts'
 import { shadowObserver } from './intelligence/shadow.ts'
 import { costsFrom } from './intelligence/cost.ts'
 import { evaluateRuns } from './intelligence/evaluate.ts'
 import { experienceOf } from './intelligence/experience.ts'
+import { candidateTakes, serveFromCandidate } from './intelligence/canary.ts'
 import { criticOn } from './intelligence/critic.ts'
 import { capabilityRegistry } from './intelligence/registry.ts'
 import { sufficientPath } from './intelligence/sufficiency.ts'
@@ -392,6 +393,9 @@ const DEFAULT_MAX_BODY_BYTES = 256 * 1024
  * exactly one place -- the authoring model inside `conceptFor`. */
 const streaming = new AsyncLocalStorage<(text: string) => void>()
 
+/** How long a canary student waits for the candidate before the live brain answers. */
+const CANDIDATE_BUDGET_MS = 20_000
+
 const ROUTES = new Set(['/api/lesson', '/api/ask', SEARCH_ROUTE, '/api/day', '/api/done', '/api/health', '/api/memory', '/api/canvas', '/api/situation', '/api/evidence', '/api/next', '/api/intelligence/report'])
 
 /* The one route that answers a GET.
@@ -478,8 +482,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
   /* THE SHADOW BRIDGE. Off unless `INTELLIGENCE_MODE=shadow`; read on every
      call so a running server can be switched. Asked only after a reply is
      formed, so nothing here can reach the student. */
-  const observeInShadow = shadowObserver({
-    candidate: options.intelligence?.candidate ?? candidateIntelligence({
+  const theCandidate = options.intelligence?.candidate ?? candidateIntelligence({
       model: options.model,
       search: options.search,
       /* What THIS server has, so every contract's availability is honest. */
@@ -493,14 +496,18 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         concepts: options.concepts !== undefined,
         verifiedTopics: knownTopicCount(),
       }, () => costsFrom(options.shadowRuns?.list() ?? [])),
-    }),
+    })
+  const theCritic = options.model.chat === undefined ? undefined : criticOn(options.model.chat)
+  const shadowLog = options.intelligence?.log ?? ((line: string) => console.log(line))
+  const observeInShadow = shadowObserver({
+    candidate: theCandidate,
     legacy: options.intelligence?.legacy ?? legacyIntelligence({ model: options.model }),
     mode: () => process.env['INTELLIGENCE_MODE'] ?? 'off',
-    log: options.intelligence?.log ?? ((line) => console.log(line)),
+    log: shadowLog,
     now: Date.now,
     ...(options.shadowRuns === undefined ? {} : { record: (run: ShadowRun) => { options.shadowRuns?.record(run) } }),
     /* The critic is the reasoner in a second mode, on the same JSON-mode chat. */
-    ...(options.model.chat === undefined ? {} : { critic: criticOn(options.model.chat) }),
+    ...(theCritic === undefined ? {} : { critic: theCritic }),
     /* The gate looks exactly where the live path looks. A store that is not
        configured is a shelf with nothing on it, which is also what the live
        path sees. */
@@ -2304,25 +2311,37 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         if (resolved !== null) {
           console.log(`[concept] ${resolved.how} ${resolved.id}${resolved.how === 'new' ? '' : ` (${resolved.nearness.toFixed(2)})`}`)
         }
-        const answered = await conceptFor(body['question'], spent, who, 'ask', undefined, {
-          classId: nonEmptyString(body['classId']) ? body['classId'] : null,
-          examId: nonEmptyString(body['examId']) ? body['examId'] : null,
-        })
         const shadowTopic = nonEmptyString(body['topicId']) ? body['topicId'] : null
-        observeInShadow({
+        const shadowRequest = {
           question: body['question'],
           topicId: shadowTopic,
           ...(nonEmptyString(body['topicName']) ? { topicName: body['topicName'] } : {}),
-          /* What followed earlier teaching on this topic, from the evidence she
-             filed. The ask path carries no browser id, so only artifacts the
-             evidence names are known here. */
           ...(shadowTopic === null || options.evidence === undefined ? {} : { experience: experienceOf(options.evidence.recall({ studentId: who.studentId, tabId: 'any', lessonId: shadowTopic }, shadowTopic)) }),
           classId: nonEmptyString(body['classId']) ? body['classId'] : null,
           examId: nonEmptyString(body['examId']) ? body['examId'] : null,
           alreadyUsed: spent,
           askedFrom: 'ask',
           studentId: who.studentId,
-        }, { status: answered.status, body: answered.body })
+        }
+        /* CANARY / PRIMARY: the candidate is asked first and served only when
+           its lesson is verified; otherwise the live brain answers below,
+           inside this same request. The client appends what it is served. */
+        let alreadyProposed: Proposal | undefined
+        if (candidateTakes(process.env, who.studentId)) {
+          const fromCandidate = await serveFromCandidate(shadowRequest, { candidate: theCandidate, budgetMs: CANDIDATE_BUDGET_MS, now: Date.now, ...(theCritic === undefined ? {} : { critic: theCritic }) })
+          if (fromCandidate.served) {
+            const body200 = resolved === null ? fromCandidate.body : { ...fromCandidate.body, concept: resolved }
+            observeInShadow(shadowRequest, { status: 200, body: body200, served: 'candidate', candidateProposal: fromCandidate.proposal })
+            return reply(200, body200)
+          }
+          shadowLog(`[canary] the live brain answers instead: ${fromCandidate.because}`)
+          alreadyProposed = fromCandidate.proposal
+        }
+        const answered = await conceptFor(body['question'], spent, who, 'ask', undefined, {
+          classId: nonEmptyString(body['classId']) ? body['classId'] : null,
+          examId: nonEmptyString(body['examId']) ? body['examId'] : null,
+        })
+        observeInShadow(shadowRequest, { status: answered.status, body: answered.body, ...(alreadyProposed === undefined ? {} : { candidateProposal: alreadyProposed }) })
         return resolved === null || answered.status !== 200
           ? answered
           : { ...answered, body: { ...answered.body, concept: resolved } }

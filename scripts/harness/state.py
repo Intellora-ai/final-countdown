@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 #: Phase sequences per task type, ending in `complete`, which only the verifier
 #: may write (see `advance`).
@@ -263,13 +263,13 @@ def load(root: Path) -> Task | None:
     task, because a hook that raises takes the session down with it."""
     path = root / TASK_FILE
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
+        raw: Any = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
     if not isinstance(raw, dict):
         return None
+    data = cast(dict[str, Any], raw)
     try:
-        data: dict[str, Any] = raw
         task = Task(
             type=str(data["type"]),
             title=str(data["title"]),
@@ -278,7 +278,11 @@ def load(root: Path) -> Task | None:
             policy=str(data["policy"]),
             started_at=str(data["started_at"]),
             start_commit=str(data.get("start_commit", "")),
-            history=[dict(h) for h in data.get("history", [])],
+            history=[
+                {str(k): str(v) for k, v in cast(dict[str, Any], h).items()}
+                for h in cast(list[Any], data.get("history", []))
+                if isinstance(h, dict)
+            ],
         )
     except (KeyError, TypeError, ValueError):
         return None

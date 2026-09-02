@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
 import sys
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -24,6 +23,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from harness.evidence import Store  # noqa: E402
+from harness.gitinfo import head_commit as head_commit_of  # noqa: E402
 from harness.memory import remember  # noqa: E402
 from harness.state import PHASES, POLICIES, RISKS, Blocked, Task, advance, load, next_phase, save, start  # noqa: E402
 from harness.verify import ATTACK_OUTCOMES, Verdict, run  # noqa: E402
@@ -42,13 +42,8 @@ def now() -> str:
 
 
 def head_commit() -> str:
-    try:
-        done = subprocess.run(  # noqa: S603 - argv only, no shell
-            ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=False, timeout=10,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return ""
-    return done.stdout.strip() if done.returncode == 0 else ""
+    """Read from `.git` by hand: the harness runs no subprocess anywhere."""
+    return head_commit_of(Path.cwd())
 
 
 def open_task(where: Path) -> Task | None:
@@ -181,7 +176,10 @@ def _remember_what_was_learned(where: Path, task: Task) -> None:
     evidence = Store(where).read()
     fingerprints: list[str] = []
     for record in evidence:
-        for found in record.get("fingerprints") or []:
+        carried = record.get("fingerprints")
+        if not isinstance(carried, list):
+            continue
+        for found in carried:
             if isinstance(found, str) and found not in fingerprints:
                 fingerprints.append(found)
     if not fingerprints:
@@ -206,18 +204,17 @@ def cmd_abandon(args: argparse.Namespace) -> int:
 
 
 def cmd_attack(args: argparse.Namespace) -> int:
+    """The attacker prompt for this task. The diff is named by the command
+    that produces it rather than inlined: the harness runs no subprocess, and
+    the attacker -- a person or a subagent with a shell -- runs it fresh."""
     where = root()
     task = require_task(where)
     template = ATTACKER_PROMPT.read_text(encoding="utf-8")
     base = task.start_commit or "HEAD"
-    try:
-        diff = subprocess.run(  # noqa: S603 - argv only, no shell
-            ["git", "diff", base, "--", "."], capture_output=True, text=True, check=False, timeout=30,
-        ).stdout
-    except (OSError, subprocess.SubprocessError):
-        diff = ""
-    if not diff.strip():
-        diff = "(no diff against " + base + ")"
+    diff = (
+        f"Run this first and read all of it -- the diff since the task began at {base}:\n\n"
+        f"    git diff {base} -- .\n"
+    )
     print(template.replace("{TITLE}", task.title).replace("{TYPE}", task.type).replace("{DIFF}", diff))
     return 0
 

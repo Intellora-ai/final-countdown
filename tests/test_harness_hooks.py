@@ -277,6 +277,33 @@ class TestRoute:
             assert done.returncode == 0
             assert load(project / ".harness") is None, prompt
 
+    def test_a_pasted_report_that_quotes_failure_words_opens_nothing(self, project: Path) -> None:
+        """MEASURED in the router's first hour: the owner pasted a status report
+        whose table quoted 'failed' and 'error' and ended with a question, and a
+        bug task was opened with the report's first eighty characters as its
+        title. A report is not an ask."""
+        pasted = (
+            "What exists now, mapped to your phases\n\n"
+            "| Phase | Built as |\n|---|---|\n| 1 | tests failed with ModuleNotFoundError, then passed |\n\n"
+            "the end-to-end test drives one bug from prompt to complete\n"
+            "/goal what works now and what happens when i send a task spec"
+        )
+        hook(project, "route", event(project, "UserPromptSubmit", prompt=pasted))
+        assert load(project / ".harness") is None
+
+    def test_a_bug_report_followed_by_a_long_paste_still_opens_a_bug(self, project: Path) -> None:
+        """The ask is the first line a person types; what follows may be the log."""
+        prompt = "fix the crash when saving a lesson, here is the log:\n" + "\n".join(f"line {i}" for i in range(80))
+        hook(project, "route", event(project, "UserPromptSubmit", prompt=prompt))
+        task = load(project / ".harness")
+        assert task is not None and task.type == "bug"
+        assert task.title.startswith("fix the crash when saving a lesson")
+
+    def test_a_code_block_is_never_an_ask(self, project: Path) -> None:
+        prompt = "fix this\n```\nError: broken\n```"
+        hook(project, "route", event(project, "UserPromptSubmit", prompt=prompt))
+        assert load(project / ".harness") is None
+
     def test_the_suggestion_is_recorded_as_evidence(self, project: Path) -> None:
         hook(project, "route", event(project, "UserPromptSubmit", prompt="fix the crash when saving"))
         kinds = [r["kind"] for r in evidence(project)]

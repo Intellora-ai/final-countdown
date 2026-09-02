@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 MEMORY_DIR = "memory"
 _FINGERPRINT = re.compile(r"\bFP-[0-9a-f]{6}\b")
@@ -55,10 +55,9 @@ def recall(root: Path, fingerprints: list[str]) -> list[dict[str, Any]]:
     for fingerprint in fingerprints:
         path = root / MEMORY_DIR / f"{fingerprint}.json"
         try:
-            loaded = json.loads(path.read_text(encoding="utf-8"))
+            loaded: Any = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
         if isinstance(loaded, dict):
-            record: dict[str, Any] = loaded
-            out.append(record)
+            out.append(cast(dict[str, Any], loaded))
     return out

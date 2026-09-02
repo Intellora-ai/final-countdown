@@ -744,6 +744,12 @@ export default function CanvasRoute({
         } else {
           setAuthored(null)
           setAuthorFailed(written.issues)
+          /* A refusal is a non-answer too. MEASURED by Law H on run eb0edcee,
+             in all four browsers: with no model reachable, "hi" and then "no"
+             met two refusals, not two questions back, and the door only
+             opened for questions -- so the child with no model got the same
+             dead end the door was built to end. */
+          setAskedBackTimes((times) => times + 1)
           /* She asked and was not answered: the product owes her. WHICH word
              is `chain.ts`'s distinction, kept: a server that read her question
              and refused is 'refused'; a server nothing could reach is 'failed'.
@@ -859,11 +865,13 @@ export default function CanvasRoute({
       } else {
         setAuthored(null)
         setAuthorFailed(written.issues)
+        setAskedBackTimes((times) => times + 1)
         situation.opened({ question, lesson: '', stalled: 'refused' })
       }
     } catch (e) {
       setAuthored(null)
       setAuthorFailed([{ path: '(model)', message: e instanceof Error ? e.message : String(e) }])
+      setAskedBackTimes((times) => times + 1)
       /* Nothing could be reached; `chain.ts`'s own distinction, kept here. */
       situation.opened({ question, lesson: '', stalled: 'failed' })
     } finally {
@@ -1021,6 +1029,45 @@ export default function CanvasRoute({
         : askedForATopic && authored === null
           ? 'writing'
           : 'showing'
+
+  /*
+   * ASKED BACK OR REFUSED TWICE RUNNING: SAY THE ONE MISSING THING, AND SHOW
+   * A WAY THROUGH THAT CANNOT FAIL.
+   *
+   * The tutor's own sentence stays above, verbatim. This adds what it never
+   * says: that a SUBJECT is the thing it is waiting for. Without it the second
+   * non-answer is character-for-character the first, and a learner reasonably
+   * reads a frozen page.
+   *
+   * The examples are pressable because a stuck learner needs a door, not more
+   * prose -- and they are ordinary topics, not a menu the canvas is limited
+   * to. Anything typed in the box is written the same way these are. One
+   * element, rendered under a question back and under a refusal alike.
+   */
+  const stuckDoor =
+    askedBackTimes > 1 ? (
+      <div className="lc-blank__stuck">
+        <p className="lc-caption">
+          It is waiting for a subject — a thing to be taught. Type any topic at all
+          above, or start with one of these.
+        </p>
+        <div className="lc-ask-examples">
+          {EXAMPLE_TOPICS.map((example) => (
+            <button
+              key={example}
+              type="button"
+              disabled={authoring}
+              onClick={() => {
+                setTopic(example)
+                void askForALesson(example)
+              }}
+            >
+              {example}
+            </button>
+          ))}
+        </div>
+      </div>
+    ) : null
 
   const askBox = (
   <form
@@ -1206,6 +1253,7 @@ export default function CanvasRoute({
               </li>
             ))}
           </ul>
+          {stuckDoor}
         </div>
       )}
 
@@ -1253,43 +1301,7 @@ export default function CanvasRoute({
           <div className="lc-blank">
             <h2>{askedBack}</h2>
             {askBox}
-            {askedBackTimes > 1 && (
-              /*
-               * ASKED BACK TWICE RUNNING: SAY THE ONE MISSING THING, AND SHOW
-               * A WAY THROUGH THAT CANNOT FAIL.
-               *
-               * The controller's own sentence stays above, verbatim. This adds
-               * what it never says: that a SUBJECT is the thing it is waiting
-               * for. Without it the second refusal is character-for-character
-               * the first, and a learner reasonably reads a frozen page.
-               *
-               * The examples are pressable because a stuck learner needs a
-               * door, not more prose -- and they are ordinary topics, not a
-               * menu the canvas is limited to. Anything typed in the box above
-               * is written the same way these are.
-               */
-              <div className="lc-blank__stuck">
-                <p className="lc-caption">
-                  It is waiting for a subject — a thing to be taught. Type any topic at all
-                  above, or start with one of these.
-                </p>
-                <div className="lc-ask-examples">
-                  {EXAMPLE_TOPICS.map((example) => (
-                    <button
-                      key={example}
-                      type="button"
-                      disabled={authoring}
-                      onClick={() => {
-                        setTopic(example)
-                        void askForALesson(example)
-                      }}
-                    >
-                      {example}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            {stuckDoor}
           </div>
         ) : stage === 'writing' ? (
           /*

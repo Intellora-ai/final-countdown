@@ -42,11 +42,22 @@ SUGGESTED: dict[str, str] = {
 
 
 def classify(prompt: str) -> str | None:
-    text = prompt.strip().lower()
-    if not text or text.startswith("/") or len(text) < 8:
+    """The kind of work the FIRST LINE asks for, or None.
+
+    Only the first line, and never a paste. MEASURED, in the first hour the
+    router was live: the owner pasted a status report that quoted the words
+    'failed' and 'error' and ended with a question, and the router opened a
+    bug task titled with the report's first eighty characters. A report, a
+    log or a diff is not an ask; the ask is the sentence a person types."""
+    stripped = prompt.strip()
+    if not stripped or stripped.startswith("/") or "```" in stripped:
+        return None
+    lines = [line.strip() for line in stripped.splitlines() if line.strip()]
+    head = lines[0].lower()[:200] if lines else ""
+    if len(head) < 8 or head.startswith("|") or head.startswith("#"):
         return None
     for name, pattern in _CLASSES:
-        if pattern.search(text):
+        if pattern.search(head):
             return name
     return None
 

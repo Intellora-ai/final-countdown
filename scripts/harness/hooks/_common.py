@@ -2,8 +2,9 @@
 
 A hook is a process Claude Code runs with JSON on stdin. If it raises, the
 session pays for it. So every entry point runs under `guarded`, which turns
-any exception into a silent exit 0 -- the harness records nothing rather
-than breaking the tool that would have done the recording.
+any exception into a line on stderr (Claude Code's debug log) and exit 0 --
+the harness records nothing rather than breaking the tool that would have
+done the recording.
 
 No subprocess is run from a hook. The commit is read from `.git` by hand.
 """
@@ -13,10 +14,18 @@ from __future__ import annotations
 import json
 import os
 import sys
+import traceback
 from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
+
+from harness.gitinfo import head_commit
+
+__all__ = [
+    "EDIT_TOOLS", "REPO", "context", "emit", "guarded", "head_commit", "now", "project_dir",
+    "read_event", "relative", "root", "tool_file",
+]
 
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit"}
 
@@ -29,13 +38,12 @@ REPO = Path(__file__).resolve().parents[3]
 
 def read_event() -> dict[str, Any] | None:
     try:
-        loaded = json.load(sys.stdin)
+        loaded: Any = json.load(sys.stdin)
     except (ValueError, OSError):
         return None
     if not isinstance(loaded, dict):
         return None
-    event: dict[str, Any] = loaded
-    return event
+    return cast(dict[str, Any], loaded)
 
 
 def project_dir(event: dict[str, Any]) -> Path:
@@ -80,26 +88,6 @@ def relative(path: str, event: dict[str, Any]) -> str:
     return best if best is not None else path
 
 
-def head_commit(project: Path) -> str:
-    """The short HEAD commit, read from `.git` without running git."""
-    try:
-        head = (project / ".git" / "HEAD").read_text(encoding="utf-8").strip()
-        if head.startswith("ref: "):
-            ref = head[5:]
-            ref_file = project / ".git" / ref
-            if ref_file.exists():
-                return ref_file.read_text(encoding="utf-8").strip()[:8]
-            packed = (project / ".git" / "packed-refs").read_text(encoding="utf-8")
-            for line in packed.splitlines():
-                parts = line.split()
-                if len(parts) == 2 and parts[1] == ref:
-                    return parts[0][:8]
-            return ""
-        return head[:8]
-    except OSError:
-        return ""
-
-
 def emit(payload: dict[str, Any]) -> None:
     sys.stdout.write(json.dumps(payload) + "\n")
     sys.stdout.flush()
@@ -113,13 +101,16 @@ def tool_file(event: dict[str, Any]) -> str | None:
     tool_input = event.get("tool_input")
     if not isinstance(tool_input, dict):
         return None
-    path = tool_input.get("file_path")
+    path = cast(dict[str, Any], tool_input).get("file_path")
     return path if isinstance(path, str) and path else None
 
 
 def guarded(main: Callable[[], None]) -> None:
+    """Run the hook; on any exception say so on stderr and still exit 0. A
+    hook that raises takes the session down; one that explains on stderr
+    and steps aside costs nothing but one recording."""
     try:
         main()
-    except Exception:  # noqa: BLE001 - a hook that raises takes the session down; silence is the design
-        pass
+    except Exception:  # noqa: BLE001 - every failure mode of a hook ends the same way: recorded, not raised
+        sys.stderr.write("harness hook failed:\n" + traceback.format_exc())
     sys.exit(0)

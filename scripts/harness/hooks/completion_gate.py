@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -36,13 +36,12 @@ def _evidence_count(where: Path) -> int:
 
 def _budget(where: Path) -> dict[str, Any]:
     try:
-        loaded = json.loads((where / GATE_FILE).read_text(encoding="utf-8"))
+        loaded: Any = json.loads((where / GATE_FILE).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {"evidence_count": -1, "blocks": 0}
     if not isinstance(loaded, dict):
         return {"evidence_count": -1, "blocks": 0}
-    budget: dict[str, Any] = loaded
-    return budget
+    return cast(dict[str, Any], loaded)
 
 
 def main() -> None:

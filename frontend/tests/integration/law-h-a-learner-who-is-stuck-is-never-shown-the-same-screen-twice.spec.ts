@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test'
-import { sheOpensTheApp, sheStartsFresh, sheAsks, thingsSheCanPress } from './person'
+import { test, expect, type Locator } from '@playwright/test'
+import { sheOpensTheApp, sheStartsFresh, sheAsks, thingsSheCanPress, whatSheCanRead } from './person'
 
 /**
  * LAW H -- A LEARNER WHO IS STUCK IS NEVER SHOWN THE SAME SCREEN TWICE.
@@ -88,36 +88,36 @@ test.describe('Law H -- a learner who is stuck is never shown the same screen tw
     }
   })
 
-  test('the second stumble adds more to press than the first did', async ({ page }) => {
+  test('the second stumble gives her something new to press, and pressing it goes somewhere', async ({ page }) => {
     await sheOpensTheApp(page, '/#/canvas')
     await sheStartsFresh(page, '/#/canvas')
 
     /*
-     * THREE READINGS, TWO GROWTHS, ONE COMPARISON.
+     * TWO EARLIER SHAPES OF THIS CASE WERE WRONG, AND THE RUNS SAY HOW.
      *
-     * The first version of this law counted controls before and after ONE ask
-     * and allowed a growth of one. It went red in all four browsers on run
-     * 11a5fe0a: opening the canvas at all adds two controls (the header's own
-     * topic box and its button appear once something has been asked), which
-     * has nothing to do with rescue and everything to do with a number the
-     * law had no business pinning.
+     * Run 11a5fe0a pinned a control count and broke on the two controls that
+     * opening the canvas adds by itself. Run eb0edcee compared growth after
+     * the first ask with growth after the second, and broke on a control that
+     * DISAPPEARED on the second ask (11 -> 13 -> 12): a subtraction the law
+     * had not imagined, in a product that had not opened the door at all,
+     * because with no model reachable the second ask met a refusal and the
+     * door only opened for questions back.
      *
-     * So the law no longer pins any count. It compares the two growths:
+     * So the law now says exactly two things, both about what she can do:
      *
-     *   growth1 = controls after the 1st ask  - controls at the start
-     *   growth2 = controls after the 2nd ask  - controls after the 1st
+     *   1. after the second stumble there is a control she did not have after
+     *      the first -- by its words, not by counting; and
+     *   2. pressing it changes the screen -- a door, not a decoration.
      *
-     * and requires growth2 > growth1. That holds both directions at once. An
-     * app that dumps help on every keystroke has a large growth1 and a zero
-     * growth2, and fails. An app that never helps has a zero growth2, and
-     * fails. Only "the second stumble gets something the first did not" passes,
-     * and that is the whole law in one inequality, with no magic number.
+     * The other direction -- that ONE stumble is left alone -- is held by the
+     * unit test beside the component, where a single ask can be observed
+     * without the browser adding controls of its own.
      */
-    const atStart = (await thingsSheCanPress(page)).length
     const first = await sheAsks(page, WHAT_SOMEONE_LOST_TYPES[0] as string)
-    const afterFirst = (await thingsSheCanPress(page)).length
+    const afterFirst = await Promise.all((await thingsSheCanPress(page)).map((c) => c.innerText().catch(() => '')))
     const second = await sheAsks(page, WHAT_SOMEONE_LOST_TYPES[1] as string)
-    const afterSecond = (await thingsSheCanPress(page)).length
+    const controls = await thingsSheCanPress(page)
+    const afterSecond = await Promise.all(controls.map((c) => c.innerText().catch(() => '')))
 
     /* If the product decided to teach her, the law does not apply: she is not
      * stuck any more, and a lesson is the best possible outcome. */
@@ -126,14 +126,18 @@ test.describe('Law H -- a learner who is stuck is never shown the same screen tw
       'the canvas taught one of these after all, so nobody is stuck',
     )
 
-    const growth1 = afterFirst - atStart
-    const growth2 = afterSecond - afterFirst
+    const seen = new Set(afterFirst.map((t) => t.trim()))
+    const fresh = controls.filter((_, i) => !seen.has((afterSecond[i] ?? '').trim()) && (afterSecond[i] ?? '').trim() !== '')
     expect(
-      growth2,
-      `the second stumble added ${growth2} controls and the first added ${growth1}. `
-      + 'Either she was rescued on her first mistype -- noise for everyone who hit the '
-      + 'wrong key -- or her second was met with prose and nothing to press. '
-      + `Controls: ${atStart} at start, ${afterFirst} after one ask, ${afterSecond} after two.`,
-    ).toBeGreaterThan(growth1)
+      fresh.length,
+      'after two asks that named no subject she was given prose and nothing new to press. '
+      + `Controls after one ask: ${JSON.stringify(afterFirst)}; after two: ${JSON.stringify(afterSecond)}.`,
+    ).toBeGreaterThan(0)
+
+    const before = await whatSheCanRead(page)
+    await (fresh[0] as Locator).click()
+    await page.waitForTimeout(2500)
+    const after = await whatSheCanRead(page)
+    expect(after, 'the new control did nothing when pressed: a decoration, not a door').not.toBe(before)
   })
 })

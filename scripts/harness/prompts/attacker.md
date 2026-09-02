@@ -9,9 +9,7 @@ Task: {TITLE} ({TYPE})
 
 ## The diff under attack
 
-```diff
 {DIFF}
-```
 
 ## Attacks to try, in this order
 

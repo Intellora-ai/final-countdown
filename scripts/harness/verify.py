@@ -13,6 +13,7 @@ No subprocess, no model, no clock of its own.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -211,7 +212,9 @@ def attack_reviewed(task: Task, evidence: list[dict[str, Any]]) -> RuleResult:
     return RuleResult("ATTACK_REVIEWED", True, f"attack review {outcome} at {_at(latest)}")
 
 
-_RULES_BY_TYPE: dict[str, tuple[Any, ...]] = {
+Rule = Callable[[Task, list[dict[str, Any]]], RuleResult]
+
+_RULES_BY_TYPE: dict[str, tuple[Rule, ...]] = {
     "bug": (root_cause_recorded, red_before_green, green_after_last_change, tests_not_quietly_changed, verification_ran),
     "feature": (red_before_green, green_after_last_change, tests_not_quietly_changed, verification_ran),
     "refactor": (green_after_last_change, verification_ran),
@@ -222,7 +225,7 @@ _RULES_BY_TYPE: dict[str, tuple[Any, ...]] = {
 
 
 def verify(task: Task, evidence: list[dict[str, Any]]) -> Verdict:
-    rules = list(_RULES_BY_TYPE[task.type])
+    rules: list[Rule] = list(_RULES_BY_TYPE[task.type])
     if task.risk == "high":
         rules.append(attack_reviewed)
     results = [rule(task, evidence) for rule in rules]

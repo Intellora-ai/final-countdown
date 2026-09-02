@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 EVIDENCE_FILE = "evidence.jsonl"
 
@@ -42,11 +42,11 @@ class Store:
             if not line.strip():
                 continue
             try:
-                parsed = json.loads(line)
+                parsed: Any = json.loads(line)
             except ValueError:
                 continue
             if isinstance(parsed, dict):
-                out.append(parsed)
+                out.append(cast(dict[str, Any], parsed))
         return out
 
 

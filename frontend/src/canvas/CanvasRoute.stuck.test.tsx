@@ -261,6 +261,19 @@ describe('she types something that is not a subject, twice', () => {
     expect(asked[asked.length - 1], 'the button asked for something other than its own label').toBe(labels[0])
   })
 
+  it('opens the same door after two refusals, which is what a child with no model meets', async () => {
+    /* Law H on run eb0edcee, all four browsers: the laws run with no model
+       reachable, so "hi" then "no" met two REFUSALS, not two questions back,
+       and the door only opened for questions. A non-answer is a non-answer. */
+    theAskAnswers = () => jsonResponse(503, { error: 'the tutor is not configured on this server' })
+    canvas()
+    await settle()
+    await sheTypes('hi')
+    expect(doorsOut(), 'one refusal was met with a rescue screen').toHaveLength(0)
+    await sheTypes('no')
+    expect(doorsOut().length, 'two refusals running and still no way through').toBeGreaterThan(0)
+  })
+
   it('takes the help away once a lesson arrives, and offers it again only if she gets stuck again', async () => {
     canvas()
     await settle()

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any, cast
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -26,7 +27,10 @@ def _has_red_since(where: Path, since: str) -> bool:
         if record.get("kind") != "command" or str(record.get("at", "")) < since:
             continue
         counts = record.get("test_run")
-        if isinstance(counts, dict) and (int(counts.get("failed", 0)) > 0 or int(counts.get("errors", 0)) > 0):
+        if not isinstance(counts, dict):
+            continue
+        run = cast(dict[str, Any], counts)
+        if int(run.get("failed", 0)) > 0 or int(run.get("errors", 0)) > 0:
             return True
     return False
 

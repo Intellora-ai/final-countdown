@@ -176,14 +176,18 @@ class TestDoneIsTheVerifierNotAClaim:
 
 
 class TestTheAttackerAndTheMemory:
-    def test_attack_prints_the_prompt_filled_with_this_tasks_diff(self, project: Path) -> None:
+    def test_attack_prints_the_prompt_naming_this_tasks_diff(self, project: Path) -> None:
+        """The diff is named by the command that produces it, against the commit
+        the task started at, rather than inlined: the harness runs no
+        subprocess, and the attacker has a shell of its own."""
         harness(project, "start", "feature", "export button", "--risk", "high")
-        (project / "README.md").write_text("hello\nchanged line\n", encoding="utf-8")
+        head = subprocess.run(["git", "-C", str(project), "rev-parse", "--short", "HEAD"],
+                              capture_output=True, text=True, check=True).stdout.strip()
         done = harness(project, "attack")
         assert done.returncode == 0, done.stderr
         assert "How could this implementation pass these tests while being wrong" in done.stdout
         assert "export button" in done.stdout and "feature" in done.stdout
-        assert "+changed line" in done.stdout
+        assert f"git diff {head} -- ." in done.stdout
         assert "{DIFF}" not in done.stdout and "{TITLE}" not in done.stdout
 
     def test_done_files_the_fingerprints_under_the_last_hypothesis(self, project: Path) -> None:

@@ -85,13 +85,16 @@ def test_the_runtime_directory_is_ignored_by_git() -> None:
     assert done.returncode == 0, ".harness/ is not gitignored"
 
 
-def test_no_hook_imports_a_way_to_spawn_a_process() -> None:
+def test_nothing_in_the_harness_imports_a_way_to_spawn_a_process() -> None:
     """Hooks must finish in milliseconds and never spawn anything: the spec's
-    'cheap, deterministic, narrow'. Judged from the import graph, not from
-    the words in the file -- a docstring may say 'subprocess'; code may not
-    import it."""
+    'cheap, deterministic, narrow'. The rest of the package follows, because
+    the security gate verifies every subprocess call in scripts/ against a
+    registry, and admitting new code to that registry is editing a gate. The
+    commit is read from .git by hand instead. Judged from the import graph,
+    not from the words in the file -- a docstring may say 'subprocess'; code
+    may not import it."""
     forbidden = {"subprocess", "os.system", "os.popen", "pty", "multiprocessing"}
-    for path in HOOKS.glob("*.py"):
+    for path in HOOKS.parent.rglob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         imported: set[str] = set()
         for node in ast.walk(tree):

@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -29,14 +29,15 @@ def _text_and_exit(response: Any) -> tuple[str, int | None]:
         return response, None
     if not isinstance(response, dict):
         return "", None
+    fields = cast(dict[str, Any], response)
     parts: list[str] = []
     for key in ("stdout", "output", "stderr"):
-        value = response.get(key)
+        value = fields.get(key)
         if isinstance(value, str) and value:
             parts.append(value)
     exit_code: int | None = None
     for key in _EXIT_KEYS:
-        value = response.get(key)
+        value = fields.get(key)
         if isinstance(value, bool):
             continue
         if isinstance(value, int):
@@ -49,17 +50,20 @@ def _recorded_fingerprints(project: Path) -> list[str]:
     """What the flight recorder wrote for the last run, if it wrote anything."""
     path = project / "test-results" / "failures.json"
     try:
-        loaded = json.loads(path.read_text(encoding="utf-8"))
+        loaded: Any = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return []
     found: list[str] = []
-    failures = loaded.get("failures") if isinstance(loaded, dict) else None
-    if isinstance(failures, list):
-        for item in failures:
-            if isinstance(item, dict):
-                fingerprint = item.get("fingerprint")
-                if isinstance(fingerprint, str) and fingerprint not in found:
-                    found.append(fingerprint)
+    if not isinstance(loaded, dict):
+        return found
+    failures = cast(dict[str, Any], loaded).get("failures")
+    if not isinstance(failures, list):
+        return found
+    for item in failures:
+        if isinstance(item, dict):
+            fingerprint = cast(dict[str, Any], item).get("fingerprint")
+            if isinstance(fingerprint, str) and fingerprint not in found:
+                found.append(fingerprint)
     return found
 
 

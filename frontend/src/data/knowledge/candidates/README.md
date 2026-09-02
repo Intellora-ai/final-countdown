@@ -32,6 +32,39 @@ for it. Every model records which one wrote it in `generatedBy`.
 This is the reason a first batch is run at all, and it is an argument about
 model size rather than about prompts: both halves got the identical brief.
 
+## The web check, and what it is worth
+
+`scripts/knowledge/webcheck.mjs` asks the different question `gate:knowledge`
+cannot: not "was this quoted from the page" but "is this an idea the world
+recognises". It searches each concept name and asks whether **two independent
+sites** name the whole thing.
+
+Run on 2026-09-03 over 104 concepts from 38 of these models:
+
+| verdict | count |
+|---|---|
+| recognised (two or more independent sites) | 15 |
+| unrecognised | 53 |
+| could not check (the search did not answer) | 36 |
+
+**Read the "unrecognised" column with care, because the check has a measured
+bias.** Every one of the fifteen it confirmed has a short name — CPU, Fungi,
+SMTP, TCP/IP, Internet, Measurement, Mole Concept. Every longer name failed,
+including ones that are plainly real: "Web Servers" found only one site,
+"Network Protocols" none, "Capital and revenue receipts" could not be checked at
+all. The check requires every word of a name to appear inside one short search
+snippet, and a long name rarely does.
+
+So it is a **positive signal and not a gate**: `recognised` means something,
+`unrecognised` mostly means the name was too long to confirm this way. It does
+not promote anything and it must not be used to reject anything on its own.
+
+The other half of the reason is the search itself. Measured the same day: one
+engine returned US court records and Fresno crime news for "Fundamental Theorem
+of Arithmetic mathematics class 10". Adding the subject and class to a query
+does not narrow it, it replaces it — the same finding that moved the reading
+level out of the question in `server/openweb.ts`, arrived at twice.
+
 ## Promoting one
 
 Move the model into `src/data/knowledge/cbse/class-<n>/<subject>.json`, set

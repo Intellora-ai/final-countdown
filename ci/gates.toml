@@ -864,6 +864,8 @@ artifact = ""
 
 "ci-findings.yml::reconcile" = "DELIBERATE. Triggered by workflow_run, so it starts only after another workflow has finished. A required check cannot be satisfied by a job that runs after the run it reports on."
 
+"preview.yml::preview" = "DELIBERATE. A preview URL per pull request, not a verdict: it deploys the built canvas so the owner, the assistant and CI open ONE address instead of arguing over localhost (2026-09-02, fifteen hours lost to an IPv4/IPv6 door). It cannot judge a change, and it cannot run at all until the owner adds two Cloudflare secrets, so requiring it would block every merge until then."
+
 "deep-verify.yml::gate" = "DELIBERATE. Deep verification is also workflow_dispatch and is heavier than a per-PR gate. verify.yml carries the blocking checks."
 "deep-verify.yml::deep-verify" = "DELIBERATE. The lane behind the gate above."
 

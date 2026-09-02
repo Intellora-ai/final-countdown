@@ -1,0 +1,106 @@
+# ONE ENVIRONMENT PER PULL REQUEST.
+#
+# WHY THIS FILE EXISTS. On 2026-09-02 the canvas was demonstrated "working" from
+# a browser pane that reached 127.0.0.1, while the owner's Chrome resolved
+# `localhost` to ::1 and was refused by an IPv4-only dev server. Same laptop,
+# same server, two different doors, fifteen hours lost arguing over which one
+# was real. A preview URL removes the second door: the owner, the assistant and
+# CI all open the same address, and "it works" becomes something the owner
+# checks in one click rather than something anyone has to take on trust.
+#
+# WHAT THIS IS NOT. It is not a required check and it is not a gate. The
+# ruleset's 22 required contexts are untouched. If this job fails, the PR is
+# not blocked; it simply has no preview, and the summary says so.
+#
+# WHAT IT NEEDS, ONCE, FROM THE OWNER (repository secrets and one Pages
+# variable). Nothing here runs until they exist, and this workflow says which
+# one is missing rather than failing on a blank value:
+#   secrets.CLOUDFLARE_API_TOKEN   -- a token with "Cloudflare Pages: Edit"
+#   secrets.CLOUDFLARE_ACCOUNT_ID  -- the account the Pages project lives in
+#   Pages project variable API_ORIGIN -- the https origin of a running API
+#     server (this repository's `npm run server`, hosted anywhere), which the
+#     tiny function under frontend/functions proxies /api/* to. Without it the
+#     preview shows the canvas and every ask answers with the honest "the tutor
+#     is not configured" message, which is the product's own behaviour.
+#
+# UNVERIFIED AT THE TIME OF WRITING: this workflow has never run, because the
+# secrets above did not exist. The first green run of `preview` is its proof;
+# until then treat it as a draft that a real run will correct.
+name: preview
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/preview.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Say plainly if the deploy cannot happen yet
+        id: ready
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          missing=""
+          [ -z "$TOKEN" ] && missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -z "$ACCOUNT" ] && missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          if [ -n "$missing" ]; then
+            echo "::notice title=preview not deployed::missing repository secret(s):$missing -- add them and re-run"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.ready.outputs.ok == 'true'
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        if: steps.ready.outputs.ok == 'true'
+        run: npm ci
+
+      - name: Build the canvas
+        if: steps.ready.outputs.ok == 'true'
+        run: npm run build
+
+      - name: Deploy this commit as a preview
+        if: steps.ready.outputs.ok == 'true'
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: frontend
+          command: pages deploy dist --project-name=final-countdown-canvas --branch=pr-${{ github.event.pull_request.number }} --commit-hash=${{ github.event.pull_request.head.sha }}
+
+      - name: Put the address where a person will see it
+        if: steps.ready.outputs.ok == 'true'
+        env:
+          URL: ${{ steps.deploy.outputs.deployment-url }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "## Preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit \`${SHA:0:8}\`: ${URL}/#/canvas" >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=preview::${URL}/#/canvas (commit ${SHA:0:8})"

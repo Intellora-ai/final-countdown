@@ -72,6 +72,21 @@ workflow or skill unless the user asked for it.
   it, do not trust a document about it.
 - State plainly which claims you did NOT verify.
 
+## Claims (added 2026-09-02 after 15 lost hours; see git log for the day)
+- Never write "works", "verified", "green" or "fixed" without, in the same
+  sentence, the exact thing that proved it: a CI check name + commit, a
+  command + its output, or what the USER's own screen showed. No proof
+  named = write "unverified".
+- If the user says "it doesn't work" after you said it does, your next
+  message must contain either a question asking for the exact words on
+  their screen, or a tool call that inspects THEIR environment. Never a
+  repeat of the claim.
+- For anything user-facing, "done" means the user opened the URL and saw
+  it. Your own browser pane is not their screen.
+- Never push a test you could not run. If this machine cannot run it, say
+  so and stop; do not let CI be the first run.
+- Run `coderabbit review --agent` on the diff before pushing a fix commit.
+
 ## Engineering Rules
 - Prefer incremental iteration over ground-up rewrites.
 - Understand the dependency graph before adding or modifying dependencies.

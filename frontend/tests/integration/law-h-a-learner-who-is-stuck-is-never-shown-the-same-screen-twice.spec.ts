@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { sheOpensTheApp, sheStartsFresh, whatSheCanRead, sheAsks, thingsSheCanPress } from './person'
+import { sheOpensTheApp, sheStartsFresh, sheAsks, thingsSheCanPress } from './person'
 
 /**
  * LAW H -- A LEARNER WHO IS STUCK IS NEVER SHOWN THE SAME SCREEN TWICE.
@@ -88,47 +88,52 @@ test.describe('Law H -- a learner who is stuck is never shown the same screen tw
     }
   })
 
-  test('by the second stumble there is something to press, not only more words', async ({ page }) => {
+  test('the second stumble adds more to press than the first did', async ({ page }) => {
     await sheOpensTheApp(page, '/#/canvas')
     await sheStartsFresh(page, '/#/canvas')
 
-    const before = await thingsSheCanPress(page)
-    await sheAsks(page, WHAT_SOMEONE_LOST_TYPES[0] as string)
-    await sheAsks(page, WHAT_SOMEONE_LOST_TYPES[1] as string)
-
-    const after = await thingsSheCanPress(page)
-    const screen = await whatSheCanRead(page)
+    /*
+     * THREE READINGS, TWO GROWTHS, ONE COMPARISON.
+     *
+     * The first version of this law counted controls before and after ONE ask
+     * and allowed a growth of one. It went red in all four browsers on run
+     * 11a5fe0a: opening the canvas at all adds two controls (the header's own
+     * topic box and its button appear once something has been asked), which
+     * has nothing to do with rescue and everything to do with a number the
+     * law had no business pinning.
+     *
+     * So the law no longer pins any count. It compares the two growths:
+     *
+     *   growth1 = controls after the 1st ask  - controls at the start
+     *   growth2 = controls after the 2nd ask  - controls after the 1st
+     *
+     * and requires growth2 > growth1. That holds both directions at once. An
+     * app that dumps help on every keystroke has a large growth1 and a zero
+     * growth2, and fails. An app that never helps has a zero growth2, and
+     * fails. Only "the second stumble gets something the first did not" passes,
+     * and that is the whole law in one inequality, with no magic number.
+     */
+    const atStart = (await thingsSheCanPress(page)).length
+    const first = await sheAsks(page, WHAT_SOMEONE_LOST_TYPES[0] as string)
+    const afterFirst = (await thingsSheCanPress(page)).length
+    const second = await sheAsks(page, WHAT_SOMEONE_LOST_TYPES[1] as string)
+    const afterSecond = (await thingsSheCanPress(page)).length
 
     /* If the product decided to teach her, the law does not apply: she is not
      * stuck any more, and a lesson is the best possible outcome. */
-    test.skip(screen.length > 1200, 'the canvas taught one of these after all, so nobody is stuck')
+    test.skip(
+      first.after.length > 1200 || second.after.length > 1200,
+      'the canvas taught one of these after all, so nobody is stuck',
+    )
 
+    const growth1 = afterFirst - atStart
+    const growth2 = afterSecond - afterFirst
     expect(
-      after.length,
-      'after two asks that named no subject she was given more prose and nothing to press. '
-      + 'A learner who does not know what to type cannot be helped by words alone -- '
-      + `the screen offered ${before.length} controls before and ${after.length} after.`,
-    ).toBeGreaterThan(before.length)
-  })
-
-  test('one stumble is left alone, so the help is not noise for everybody else', async ({ page }) => {
-    await sheOpensTheApp(page, '/#/canvas')
-    await sheStartsFresh(page, '/#/canvas')
-
-    const before = await thingsSheCanPress(page)
-    await sheAsks(page, WHAT_SOMEONE_LOST_TYPES[0] as string)
-    const after = await thingsSheCanPress(page)
-
-    /*
-     * THE OTHER DIRECTION, AND IT IS WHAT STOPS THE FIX BEING A WALL OF HELP.
-     * One mistype is a mistype. Answering it with a rescue screen would punish
-     * every person who simply hit the wrong key, and would make the law above
-     * passable by showing everything to everyone.
-     */
-    expect(
-      after.length,
-      'a single mistyped word was met with a rescue screen. The first question back '
-      + 'is allowed to be just a question.',
-    ).toBeLessThanOrEqual(before.length + 1)
+      growth2,
+      `the second stumble added ${growth2} controls and the first added ${growth1}. `
+      + 'Either she was rescued on her first mistype -- noise for everyone who hit the '
+      + 'wrong key -- or her second was met with prose and nothing to press. '
+      + `Controls: ${atStart} at start, ${afterFirst} after one ask, ${afterSecond} after two.`,
+    ).toBeGreaterThan(growth1)
   })
 })

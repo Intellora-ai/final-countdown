@@ -1102,9 +1102,10 @@ export function extractExpression(text: string): string | null {
   const percent = text.match(/(-?\d+(?:\.\d+)?)\s*%\s*of\s*(-?\d+(?:\.\d+)?)/i)
   if (percent) return truncated(text, percent) ? null : `${percent[1]} / 100 * ${percent[2]}`
 
-  const bare = text.match(/(-?\d+(?:\.\d+)?(?:\s*[-+*/^]\s*\(?\s*-?\d+(?:\.\d+)?\s*\)?)+)/)
+  /* × and ÷ are how a student writes a sum; the calculator reads * and /. */
+  const bare = text.match(/(-?\d+(?:\.\d+)?(?:\s*[-+*/^×÷]\s*\(?\s*-?\d+(?:\.\d+)?\s*\)?)+)/)
   if (!bare) return null
-  return truncated(text, bare) ? null : (bare[1]?.trim() ?? null)
+  return truncated(text, bare) ? null : (bare[1]?.trim().replace(/×/g, '*').replace(/÷/g, '/') ?? null)
 }
 
 /** How much of a read file is carried as a claim. Enough to ground an answer. */

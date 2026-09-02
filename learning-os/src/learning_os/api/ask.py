@@ -279,6 +279,19 @@ def answer(raw: str) -> dict[str, Any]:
 
     if resolution.outcome is not DoubtOutcome.ANSWERED:
         base["refusal"] = resolution.refusal or _explain(resolution.outcome)
+        # THE VALIDATOR'S OWN WORDS, BESIDE THE LEARNER'S SENTENCE. `refusal`
+        # is for the learner and says nothing about which rule the draft
+        # broke; that lived only in `Turn.violations`, which this document
+        # dropped on the floor. With a live model in CI that meant the receipt
+        # counted zero answers and the reason stayed in a log nobody could
+        # download. Machine-readable, kind and detail, so a reader of the
+        # document -- the behave receipt, an annotation, a person -- can see
+        # exactly what the contract refused without a second run.
+        turn = resolution.turn
+        if turn is not None and turn.violations:
+            base["violations"] = [
+                f"{violation.kind.value}: {violation.detail}" for violation in turn.violations
+            ]
         return base
 
     turn = resolution.turn

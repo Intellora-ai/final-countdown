@@ -185,7 +185,15 @@ async function askTheServer(
    * refused. It is a turn in a conversation.
    */
   | { ok: false; clarify: string }
-  | { ok: false; issues: Issue[] }
+  /**
+   * `unreachable` marks the one refusal that is not the server's: nothing
+   * answered at all. The banner does not branch on it -- the '(server)' issue
+   * already carries the sentence she reads -- but the open-loop ledger does,
+   * because `chain.ts`'s own two words are 'refused' and 'failed', and a dead
+   * server is the second one. Recording it as the first would tell her, on
+   * her return, that her question was judged when nothing ever read it.
+   */
+  | { ok: false; issues: Issue[]; unreachable?: true }
 > {
   let body: {
     lesson?: unknown
@@ -242,6 +250,7 @@ async function askTheServer(
   } catch (thrown) {
     return {
       ok: false,
+      unreachable: true,
       issues: [{
         path: '(server)',
         message: thrown instanceof Error ? thrown.message : String(thrown),
@@ -703,8 +712,16 @@ export default function CanvasRoute({
         } else {
           setAuthored(null)
           setAuthorFailed(written.issues)
-          /* She asked, the gate refused every draft: the product owes her. */
-          situation.opened({ question, lesson: '', stalled: 'refused' })
+          /* She asked and was not answered: the product owes her. WHICH word
+             is `chain.ts`'s distinction, kept: a server that read her question
+             and refused is 'refused'; a server nothing could reach is 'failed'.
+             The card she sees on return is the same either way -- the word is
+             for whoever reads the ledger and asks why. */
+          situation.opened({
+            question,
+            lesson: '',
+            stalled: 'unreachable' in written && written.unreachable ? 'failed' : 'refused',
+          })
         }
         return
       }

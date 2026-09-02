@@ -103,6 +103,48 @@ def before_scenario(context, scenario) -> None:
     _TALLY["scenarios"] += 1
 
 
+def _say_why_a_real_model_did_not_answer(scenario_name: str, raw_documents) -> None:
+    """Put a live provider's non-answer where a CI reader can see it.
+
+    The job log is admin-only on this repository, so a scenario that ran a
+    real model and got a refusal back was, until now, evidence nobody could
+    read: the receipt counted zero and the reason stayed in a log nobody can
+    download. GitHub turns a `::warning` line on stdout into an annotation on
+    the run, no workflow change required -- so the reply's own words about why
+    it did not answer (its outcome, its refusal sentence, any violations it
+    lists) are printed in that form, once per non-answering reply.
+
+    Only LIVE providers are reported. The offline fake refusing an
+    off-curriculum question is the product working, not a finding.
+    """
+    import json as _json
+
+    for raw in raw_documents:
+        try:
+            document = _json.loads(raw)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(document, dict):
+            continue
+        provider = document.get("provider")
+        if not isinstance(provider, str) or provider in _OFFLINE_PROVIDERS:
+            continue
+        if document.get("outcome") == "answered":
+            continue
+        why = {
+            key: document[key]
+            for key in ("outcome", "refusal", "violations", "issues", "error", "reason")
+            if key in document
+        }
+        # One line, no newlines: a workflow command ends at the first newline.
+        message = _json.dumps(why, ensure_ascii=True)[:900].replace("\n", " ")
+        print(
+            f"::warning title=real-tutor did not answer ({provider})::"
+            f"{scenario_name}: {message}",
+            flush=True,
+        )
+
+
 def after_scenario(context, scenario) -> None:
     # Every step helper starts at least one process; the classroom scenario
     # starts one per student. Counted from what actually ran.
@@ -110,16 +152,20 @@ def after_scenario(context, scenario) -> None:
     if classroom:
         _TALLY["processes"] += len(classroom)
         # Each classroom row is (learner, question, code, stdout, stderr).
-        _TALLY["real_answers"] += _real_answers_in(row[3] for row in classroom)
+        replies = [row[3] for row in classroom]
+        _TALLY["real_answers"] += _real_answers_in(replies)
+        _say_why_a_real_model_did_not_answer(scenario.name, replies)
         return
     answers = getattr(context, "answers", None)
     if answers:
         _TALLY["processes"] += len(answers)
         _TALLY["real_answers"] += _real_answers_in(answers)
+        _say_why_a_real_model_did_not_answer(scenario.name, answers)
         return
     if getattr(context, "stdout", None) is not None:
         _TALLY["processes"] += 1
         _TALLY["real_answers"] += _real_answers_in([context.stdout])
+        _say_why_a_real_model_did_not_answer(scenario.name, [context.stdout])
 
 
 def after_all(context) -> None:

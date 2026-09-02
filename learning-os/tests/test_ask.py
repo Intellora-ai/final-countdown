@@ -467,3 +467,50 @@ def test_a_failed_generation_is_worded_as_a_refusal_to_show(
     monkeypatch.setattr(ask, "resolve", _failed)
     result = run(DOUBT, monkeypatch)
     assert "willing" in result["refusal"]
+
+
+def test_a_failed_generation_names_the_rules_the_draft_broke(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The validator's words travel with the learner's sentence, machine-readable.
+
+    Both directions: a turn that carries violations puts them in the document
+    as ``kind: detail``; a turn that carries none puts no key there, so a reader
+    never has to tell an empty list from an absent one.
+    """
+    from typing import cast
+    from unittest.mock import MagicMock
+
+    from learning_os.llm.validation import Violation, ViolationKind
+    from learning_os.runtime.loop import Turn
+    from learning_os.session.doubt import DoubtOutcome, Resolution
+
+    broke = MagicMock(spec=Turn)
+    broke.violations = (
+        Violation(kind=ViolationKind.UNKNOWN_BLOCK_KIND, detail="block 1 is a 'figure'"),
+        Violation(kind=ViolationKind.MISSING_REQUIRED_TERM, detail="never says 'pressure'"),
+    )
+
+    def _failed_with_reasons(*_args: Any, **_kwargs: Any) -> Resolution:
+        return Resolution(
+            outcome=DoubtOutcome.GENERATION_FAILED, resume_at="beat-0", turn=cast(Turn, broke)
+        )
+
+    monkeypatch.setattr(ask, "resolve", _failed_with_reasons)
+    result = run(DOUBT, monkeypatch)
+    assert result["violations"] == [
+        "unknown_block_kind: block 1 is a 'figure'",
+        "missing_required_term: never says 'pressure'",
+    ], result
+
+    clean = MagicMock(spec=Turn)
+    clean.violations = ()
+
+    def _failed_without_reasons(*_args: Any, **_kwargs: Any) -> Resolution:
+        return Resolution(
+            outcome=DoubtOutcome.GENERATION_FAILED, resume_at="beat-0", turn=cast(Turn, clean)
+        )
+
+    monkeypatch.setattr(ask, "resolve", _failed_without_reasons)
+    result = run(DOUBT, monkeypatch)
+    assert "violations" not in result, result

@@ -37,6 +37,22 @@ test('law G -- the question she was refused is waiting when she returns, and pre
   await theBoxSheTypesIn(page).waitFor({ timeout: 15_000 })
   await sheAsks(page, HER_QUESTION)
 
+  /* THE LEDGER IS READ DIRECTLY BEFORE THE CARD IS LOOKED FOR, so a red run
+     names WHICH half broke. Four CI runs said only "element(s) not found"
+     while the server, the route and the client each passed their own tests;
+     the join is what was untested, and a law that asks the server "what do
+     you owe her?" through her own cookie jar splits the join in two: either
+     the ask never wrote the debt, or the debt was written and the canvas did
+     not paint it. `page.request` shares the page's cookies, so this is her
+     identity asking, not a stranger's. */
+  const owed = await page.request.get('/api/situation')
+  expect(owed.status(), 'the ledger route did not answer through the dev server').toBe(200)
+  const ledger = (await owed.json()) as { openLoops?: Array<{ question?: string }> }
+  expect(
+    (ledger.openLoops ?? []).map((loop) => loop.question),
+    'she asked and was not answered, and the server recorded no debt',
+  ).toContain(HER_QUESTION)
+
   /* SHE COMES BACK. Same child, same machine: a reload keeps her identity,
      which is the whole premise -- the card follows the person, not the tab. */
   await sheOpensTheApp(page, '/#/canvas')

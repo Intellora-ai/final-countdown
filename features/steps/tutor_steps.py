@@ -50,6 +50,7 @@ TRACEBACK_TELLS = ("Traceback (most recent call last)", 'File "', "  at ")
 
 def _ask(question: str | None, *, learner: str, raw: str | None = None,
          drop_keys: bool = True,
+         keyless: bool = False,
          extra_env: dict[str, str] | None = None) -> tuple[int, str, str]:
     payload = raw if raw is not None else json.dumps(
         {"text": question, "learner_id": learner, "session_id": f"session-{learner}"}
@@ -60,6 +61,21 @@ def _ask(question: str | None, *, learner: str, raw: str | None = None,
         for key in ("ANTHROPIC_API_KEY", "GEMINI_API_KEY",
                     "GOOGLE_API_KEY", "OPENAI_API_KEY"):
             env.pop(key, None)
+    if keyless:
+        # "NO API KEY" MEANS NO KEY THE ENGINE CAN READ, AND THE ENGINE READS
+        # THE PREFIXED NAMES. `drop_keys` strips the bare vendor spellings and
+        # leaves `LEARNING_OS_*_API_KEY` alone on purpose -- that is what lets
+        # a live run be live. The one scenario that is ABOUT having no key
+        # therefore ran the live model whenever one was configured: on CI run
+        # 33606543047 "A school laptop with no API key" answered via gemini
+        # and then met a quota ceiling, for a scenario whose whole claim is
+        # that the offline provider answers and says so. Every prefixed key
+        # and the explicit provider choice go too, so the child sees exactly
+        # what a laptop with nothing configured sees.
+        for key in list(env):
+            if key.startswith("LEARNING_OS_") and key.endswith("_API_KEY"):
+                env.pop(key, None)
+        env.pop("LEARNING_OS_LLM_PROVIDER", None)
     if extra_env:
         env.update(extra_env)
 
@@ -91,9 +107,12 @@ def step_a_student(context, name: str) -> None:
 
 @given("there is no API key configured")
 def step_no_api_key(context) -> None:
-    # Already the default in `_ask`; stated here because the scenario is about
-    # this condition and a reader must see it is real, not assumed.
-    context.drop_keys = True
+    # NOT "already the default". `_ask` strips only the bare vendor names by
+    # default and keeps the prefixed ones the engine actually reads, so under a
+    # live run this scenario used to ask the live model -- see `keyless` in
+    # `_ask` for the run that showed it. This flag is what makes the condition
+    # real for the child process rather than assumed by the reader.
+    context.no_key = True
 
 
 def _an_engine_serving(context, results: list[dict[str, str]]) -> None:
@@ -188,6 +207,7 @@ def step_she_asks(context, question: str) -> None:
     context.question = question
     context.returncode, context.stdout, context.stderr = _ask(
         question, learner=getattr(context, "learner", "ada"),
+        keyless=getattr(context, "no_key", False),
         extra_env=getattr(context, "search_env", None),
     )
     context.answers.append(context.stdout)

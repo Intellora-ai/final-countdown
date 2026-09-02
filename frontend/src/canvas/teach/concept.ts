@@ -951,6 +951,24 @@ export function conceptRequest(
     '- a table column "type": text | number | percent | currency',
     '  ("percentage" is NOT one of them)',
     '- "relations[].kind": supports | contrasts | leads-to | exemplifies',
+    /*
+     * THE FOURTH TIME THE SAME CLASS IS PAID FOR IN THIS FILE, measured on a
+     * real Gemini answer (run 33596363576): the model chose kind "figure" --
+     * which the list above legally offers -- and then wrote `"as": "figure"`,
+     * because nothing had ever told it that a figure block demands an exact
+     * name from a 137-entry representation registry plus a payload matching
+     * that name. The registry is too large to quote and an example that names
+     * one entry "teaches the model to name one wrong" (the EXAMPLE_FOR_ROUTE
+     * header, on why no example shows a figure). So the contract is stated
+     * the only honest way left: say the cost of "figure", and point the
+     * uncertain at the four kinds whose payloads this prompt fully teaches.
+     */
+    '- "figure" is the one kind with an extra cost: its "as" field must be an',
+    '  EXACT name from the canvas representation registry (137 names such as',
+    '  flowchart, timeline, vennDiagram, freeBodyDiagram) and its "data" must',
+    '  match that name\'s payload shape. If you do not know the exact registry',
+    '  name for what you want to draw, do NOT guess one: use "chart", "table"',
+    '  or "flow" instead — they need no registry and are always legal.',
     '',
     /*
      * THE ID RULE, AND IT IS THE COMMONEST FAILURE IN THE MEASURED RUN.

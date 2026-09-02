@@ -691,6 +691,15 @@ export default function CanvasRoute({
           setAuthored(null)
           setAuthorFailed(null)
           setAskedBack(written.clarify)
+          /* BUT HER QUESTION IS STILL UNANSWERED, so the debt is recorded the
+             same as a refusal's. This was the one ending of an ask that left
+             no trace, and it is the ending every off-curriculum question meets
+             when no model is reachable: the veto answers with a question back,
+             she closes the laptop, and the product used to forget -- Law G
+             measured exactly that, in all four browsers. If this sitting goes
+             on to answer her, `resolved` settles it; if she leaves instead,
+             the question is waiting on her return, which is the promise. */
+          situation.opened({ question, lesson: '', stalled: 'refused' })
         } else {
           setAuthored(null)
           setAuthorFailed(written.issues)

@@ -386,7 +386,10 @@ def test_the_bridge_document_end_to_end_with_an_injected_transport(
     document = answer(json.dumps({"text": OFF_CURRICULUM, "resume_at": "b1"}))
 
     assert document["outcome"] == "answered", document
-    assert document["sources"] == [A_SOURCE.url]
+    assert document["sources"] == [A_SOURCE.url], (
+        "the answer's sources are not exactly the engine's one page: "
+        f"{document.get('sources')!r} (full document: {document!r})"
+    )
     assert A_SOURCE.url in json.dumps(document["lesson"])
     assert seen and "chocolate" in seen[0], "the learner's own words never reached the engine"
 
@@ -452,7 +455,10 @@ def test_the_bridge_answers_the_cake_question_with_a_source(
     document = answer(json.dumps({"text": OFF_CURRICULUM, "resume_at": "b1"}))
 
     assert document["outcome"] == "answered", document
-    assert document["sources"] == [A_SOURCE.url]
+    assert document["sources"] == [A_SOURCE.url], (
+        "the answer's sources are not exactly the engine's one page: "
+        f"{document.get('sources')!r} (full document: {document!r})"
+    )
     lesson = json.dumps(document["lesson"])
     assert A_SOURCE.url in lesson, "the lesson never names the source a learner could check"
 

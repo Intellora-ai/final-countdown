@@ -1,0 +1,31 @@
+{
+  "curriculum": "cbse-class-12",
+  "subjectId": "chemistry",
+  "models": [
+    {
+      "topicId": "unit-4--d-and-f-block-elements-position-in-the-periodic-table",
+      "topicName": "d and f Block Elements Position in the Periodic Table",
+      "curriculum": "cbse-class-12",
+      "subjectId": "chemistry",
+      "chapterId": "unit-4",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "position-in-the-periodic-table",
+          "name": "Position in the Periodic Table",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 8,
+              "quote": "Position in the Periodic Table, Electronic configuration of the d-Block Elements, General properties of the Transition Elements (d-Block), Some Important Compounds of Transition Elements, The Lanthanoids, The Actinoids, Some Applications of d- and f- Block Elements."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

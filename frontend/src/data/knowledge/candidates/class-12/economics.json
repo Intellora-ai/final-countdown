@@ -1,0 +1,31 @@
+{
+  "curriculum": "cbse-class-12",
+  "subjectId": "economics",
+  "models": [
+    {
+      "topicId": "part-a--statistics-for-economics-in-this-course",
+      "topicName": "Statistics for Economics In this course",
+      "curriculum": "cbse-class-12",
+      "subjectId": "economics",
+      "chapterId": "part-a",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "introduction-to-economics",
+          "name": "Introduction to Economics",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "economics",
+              "page": 2,
+              "quote": "What is Economics?\nMeaning, scope, functions and importance of statistics in Economics"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

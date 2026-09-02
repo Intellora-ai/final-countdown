@@ -1,0 +1,31 @@
+{
+  "curriculum": "cbse-class-11",
+  "subjectId": "mathematics",
+  "models": [
+    {
+      "topicId": "sections-of-a-cone--circles",
+      "topicName": "circles",
+      "curriculum": "cbse-class-11",
+      "subjectId": "mathematics",
+      "chapterId": "sections-of-a-cone",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "circles",
+          "name": "Circles",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "maths-senior",
+              "page": 4,
+              "quote": "Sections of a cone: circles, ellipse, parabola, hyperbola, a point, a straight line and a pair of intersecting lines as a degenerated case of a conic section. Standard equations and simple properties of parabola, ellipse and hyperbola. Standard equation of a circle."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/gemma3:12b"
+    }
+  ]
+}

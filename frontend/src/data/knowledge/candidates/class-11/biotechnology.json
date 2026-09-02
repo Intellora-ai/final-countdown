@@ -1,0 +1,67 @@
+{
+  "curriculum": "cbse-class-11",
+  "subjectId": "biotechnology",
+  "models": [
+    {
+      "topicId": "unit-i-biotechnology--an-overview-5",
+      "topicName": "An overview 5",
+      "curriculum": "cbse-class-11",
+      "subjectId": "biotechnology",
+      "chapterId": "unit-i-biotechnology",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "biotechnology-an-overview",
+          "name": "Historical Perspectives",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 2,
+              "quote": "Historical Perspectives"
+            }
+          ]
+        },
+        {
+          "id": "biotechnology-an-overview",
+          "name": "Technology and Applications of Biotechnology",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 2,
+              "quote": "Technology and Applications of Biotechnology"
+            }
+          ]
+        },
+        {
+          "id": "biotechnology-an-overview",
+          "name": "Global market",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 2,
+              "quote": "Global market"
+            }
+          ]
+        },
+        {
+          "id": "biotechnology-an-overview",
+          "name": "Biotech Products",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 2,
+              "quote": "Biotech Products"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/gemma3:12b"
+    }
+  ]
+}

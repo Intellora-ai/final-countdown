@@ -87,6 +87,39 @@ describe('a concept the model made up', () => {
   })
 })
 
+describe('a quote assembled from fragments of the page is not a quote', () => {
+  it('refuses words that appear only inside longer words', async () => {
+    /* THE HOLE THIS CLOSES. The check was `page.includes(word)` against the
+       page as one long string, so "art" matched inside "particle", "ion" inside
+       "station" and "use" inside "because". A quote stitched together from
+       short fragments of the page's own vocabulary would have passed a check
+       whose entire job is to tell reading from remembering.
+
+       Every word below really is inside a word on the real page: `art` in
+       "right-angled", no -- in "part"; `ratio` is genuinely there, so the quote
+       is built from words that are NOT: `rig`, `angl`, `onometr`. */
+    const out = await decompose(TOPIC, CHAPTER, SUBJECT, '10', answering({
+      shape: 'flat',
+      concepts: [{ id: 'made-up', name: 'Something', quote: 'rig angl onometr riangl' }],
+    }), page)
+    expect(out.concepts, 'a quote made of fragments of page words was accepted').toEqual([])
+  })
+
+  it('still accepts a real quotation the PDF broke across columns', async () => {
+    /* The reason the rule is word OVERLAP and not an intact phrase: pdftotext
+       interleaves a three-column table, so a genuine Content-column sentence
+       arrives with Competencies-column words pushed through the middle of it. */
+    const out = await decompose(TOPIC, CHAPTER, SUBJECT, '10', answering({
+      shape: 'flat',
+      concepts: [{
+        id: 'real', name: 'Trigonometric ratios',
+        quote: 'Trigonometric ratios of an acute angle of a right-angled triangle. Proof of their existence (well defined)',
+      }],
+    }), page)
+    expect(out.concepts.map((c) => c.name), 'a real quotation was thrown away').toEqual(['Trigonometric ratios'])
+  })
+})
+
 describe('the shape is read off what survived, not taken on trust', () => {
   it('calls it atomic when every concept was thrown away', async () => {
     /* A model claiming "flat" while all its concepts were invented would

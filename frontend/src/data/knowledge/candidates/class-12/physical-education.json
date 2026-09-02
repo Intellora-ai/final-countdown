@@ -1,0 +1,31 @@
+{
+  "curriculum": "cbse-class-12",
+  "subjectId": "physical-education",
+  "models": [
+    {
+      "topicId": "load--over-training-load",
+      "topicName": "Over Training Load",
+      "curriculum": "cbse-class-12",
+      "subjectId": "physical-education",
+      "chapterId": "load",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "over-load",
+          "name": "Over Load",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physical-education",
+              "page": 11,
+              "quote": "•   Training Load, Over Load, Adaptation, and Recovery concepts."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

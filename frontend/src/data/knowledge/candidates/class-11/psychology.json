@@ -1,0 +1,31 @@
+{
+  "curriculum": "cbse-class-11",
+  "subjectId": "psychology",
+  "models": [
+    {
+      "topicId": "understanding-psychology--introduction",
+      "topicName": "Introduction",
+      "curriculum": "cbse-class-11",
+      "subjectId": "psychology",
+      "chapterId": "understanding-psychology",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "introduction-to-psychology",
+          "name": "Introduction to Psychology",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "1. Introduction"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

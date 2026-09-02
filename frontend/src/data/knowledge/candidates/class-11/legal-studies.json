@@ -1,0 +1,31 @@
+{
+  "curriculum": "cbse-class-11",
+  "subjectId": "legal-studies",
+  "models": [
+    {
+      "topicId": "unit-4-judiciary--constitutional",
+      "topicName": "Constitutional",
+      "curriculum": "cbse-class-11",
+      "subjectId": "legal-studies",
+      "chapterId": "unit-4-judiciary",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "independence-and-impartiality-of-the-supreme-court",
+          "name": "Independence and Impartiality of the Supreme Court",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "legal-studies",
+              "page": 4,
+              "quote": "a) Independence and Impartiality of the Supreme Court"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "curriculum": "cbse-class-12",
+  "subjectId": "sociology",
+  "models": [
+    {
+      "topicId": "prescribed--sociology-society-and-its-relationship-with-other-social-sciences",
+      "topicName": "Sociology, Society and its Relationship with other Social Sciences",
+      "curriculum": "cbse-class-12",
+      "subjectId": "sociology",
+      "chapterId": "prescribed",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "society-individuals-collectivities",
+          "name": "Individuals and collectivities",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "sociology",
+              "page": 3,
+              "quote": "Introducing Society: Individuals and collectivities. Pluralities and Inequalities among societies."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

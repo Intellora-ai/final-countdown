@@ -144,11 +144,38 @@ async function askOllama(prompt) {
 /** As much of a quote as must really be on the page; see `verify.mjs`. */
 const ENOUGH_OF_A_QUOTE = 0.8
 
+/** Every word on a page, as words rather than as a run of characters. */
+function wordsOf(text) {
+  return text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2)
+}
+
+/**
+ * Whether a quotation's words are really on the page.
+ *
+ * WHOLE WORDS, NOT SUBSTRINGS, and the difference is not academic. This was
+ * `flat.includes(word)` against the page as one long string, so "art" matched
+ * inside "particle", "ion" inside "station", "use" inside "because". A quote
+ * assembled from short fragments of the page's vocabulary would have passed a
+ * check whose entire job is to tell reading from remembering.
+ *
+ * MEASURED on the 137 quotations two real models produced for this batch: not
+ * one of them passed only because of substring matching, and whole-word
+ * overlap came out at a median of 1.00 and a minimum of 0.94. So closing the
+ * hole costs nothing today. It is closed because it is the kind of hole that
+ * costs nothing until the day it costs everything.
+ *
+ * OVERLAP RATHER THAN A CONTIGUOUS PHRASE, which was measured too:
+ * `pdftotext` interleaves a three-column syllabus table, so a genuine quotation
+ * from the Content column arrives with words from the Competencies column
+ * pushed through the middle of it. Requiring the phrase intact would have
+ * thrown away "Fundamental Theorem of Arithmetic - statements after reviewing
+ * work done earlier", which is real and is printed exactly as quoted.
+ */
 function quoteIsOnThePage(quote, page) {
-  const flat = page.replace(/\s+/g, ' ').toLowerCase()
-  const words = quote.replace(/\s+/g, ' ').toLowerCase().split(' ').filter((w) => w.length > 2)
+  const onThePage = new Set(wordsOf(page))
+  const words = wordsOf(quote)
   if (words.length === 0) return false
-  return words.filter((w) => flat.includes(w)).length / words.length >= ENOUGH_OF_A_QUOTE
+  return words.filter((w) => onThePage.has(w)).length / words.length >= ENOUGH_OF_A_QUOTE
 }
 
 const anId = (raw) =>

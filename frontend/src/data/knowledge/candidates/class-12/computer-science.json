@@ -1,0 +1,67 @@
+{
+  "curriculum": "cbse-class-12",
+  "subjectId": "computer-science",
+  "models": [
+    {
+      "topicId": "unit-3--society",
+      "topicName": "Society",
+      "curriculum": "cbse-class-12",
+      "subjectId": "computer-science",
+      "chapterId": "unit-3",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "digital-footprints",
+          "name": "Digital Footprints",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-science",
+              "page": 3,
+              "quote": "Digital Footprints"
+            }
+          ]
+        },
+        {
+          "id": "net-etiquettes",
+          "name": "Net Etiquettes",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-science",
+              "page": 3,
+              "quote": "Digital Society and Netizen: net etiquettes, communication etiquettes, social media etiquettes"
+            }
+          ]
+        },
+        {
+          "id": "communication-etiquettes",
+          "name": "Communication Etiquettes",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-science",
+              "page": 3,
+              "quote": "Digital Society and Netizen: net etiquettes, communication etiquettes, social media etiquettes"
+            }
+          ]
+        },
+        {
+          "id": "social-media-etiquettes",
+          "name": "Social Media Etiquettes",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-science",
+              "page": 3,
+              "quote": "Digital Society and Netizen: net etiquettes, communication etiquettes, social media etiquettes"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

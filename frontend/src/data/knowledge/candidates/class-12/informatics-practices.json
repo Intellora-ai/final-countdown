@@ -1,0 +1,31 @@
+{
+  "curriculum": "cbse-class-12",
+  "subjectId": "informatics-practices",
+  "models": [
+    {
+      "topicId": "introduction-to-computer-and-computing--evolution-of-computing-devices",
+      "topicName": "evolution of computing devices",
+      "curriculum": "cbse-class-12",
+      "subjectId": "informatics-practices",
+      "chapterId": "introduction-to-computer-and-computing",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "evolution-of-computing-devices",
+          "name": "Evolution of Computing Devices",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "informatics-practices",
+              "page": 1,
+              "quote": "evolution of computing devices"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

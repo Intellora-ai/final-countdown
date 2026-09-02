@@ -1,0 +1,31 @@
+{
+  "curriculum": "cbse-class-12",
+  "subjectId": "home-science",
+  "models": [
+    {
+      "topicId": "unit-i--livelihood-and-career",
+      "topicName": "Livelihood and Career",
+      "curriculum": "cbse-class-12",
+      "subjectId": "home-science",
+      "chapterId": "unit-i",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "work-livelihood-and-career",
+          "name": "Work, Livelihood and Career",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "home-science",
+              "page": 15,
+              "quote": "Ch. Work, Livelihood and Career"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

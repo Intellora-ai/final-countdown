@@ -1,0 +1,31 @@
+{
+  "curriculum": "cbse-class-12",
+  "subjectId": "political-science",
+  "models": [
+    {
+      "topicId": "class-xii--for-scrutiny-by-the-board",
+      "topicName": "for scrutiny by the Board",
+      "curriculum": "cbse-class-12",
+      "subjectId": "political-science",
+      "chapterId": "class-xii",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "imposition-of-emergency",
+          "name": "Imposition of Emergency in India",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 20,
+              "quote": "Imposition of Emergency in India"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

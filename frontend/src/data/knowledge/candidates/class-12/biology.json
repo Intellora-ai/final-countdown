@@ -1,0 +1,31 @@
+{
+  "curriculum": "cbse-class-12",
+  "subjectId": "biology",
+  "models": [
+    {
+      "topicId": "chapter-1--sexual-reproduction-in-flowering-plants-flower-structure",
+      "topicName": "Sexual Reproduction in Flowering Plants Flower structure",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "flower-structure",
+          "name": "Flower structure",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "Flower structure; development of male and female gametophytes; pollination - types, agencies and examples; out breeding devices; pollen-pistil interaction; double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

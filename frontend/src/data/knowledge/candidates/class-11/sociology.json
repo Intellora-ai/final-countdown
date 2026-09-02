@@ -1,0 +1,31 @@
+{
+  "curriculum": "cbse-class-11",
+  "subjectId": "sociology",
+  "models": [
+    {
+      "topicId": "time--80-units-marks",
+      "topicName": "80 Units Marks",
+      "curriculum": "cbse-class-11",
+      "subjectId": "sociology",
+      "chapterId": "time",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "child-centric-approach",
+          "name": "Child-centric approach",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "sociology",
+              "page": 2,
+              "quote": "The chapters shall seek for a child centric approach that makes it possible to connect the lived reality of children with social structures and social processes that Sociology studies."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

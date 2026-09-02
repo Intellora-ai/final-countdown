@@ -1,0 +1,43 @@
+{
+  "curriculum": "cbse-class-12",
+  "subjectId": "geography",
+  "models": [
+    {
+      "topicId": "book--fundamentals-of-human-geography",
+      "topicName": "Fundamentals of Human Geography",
+      "curriculum": "cbse-class-12",
+      "subjectId": "geography",
+      "chapterId": "book",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "human-geography-nature-and-scope",
+          "name": "Nature and Scope of Human Geography",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "geography",
+              "page": 12,
+              "quote": "Nature of Human Geography"
+            }
+          ]
+        },
+        {
+          "id": "human-geography-schools-of-thought",
+          "name": "Schools of Thought in Human Geography",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "geography",
+              "page": 12,
+              "quote": "Schools of thought in Human Geography"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

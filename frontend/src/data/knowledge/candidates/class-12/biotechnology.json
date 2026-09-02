@@ -1,0 +1,31 @@
+{
+  "curriculum": "cbse-class-12",
+  "subjectId": "biotechnology",
+  "models": [
+    {
+      "topicId": "chapter-1--recombinant-dna-technology-introduction",
+      "topicName": "Recombinant DNA Technology Introduction",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biotechnology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "recombinant-dna-technology-introduction",
+          "name": "Introduction to Recombinant DNA Technology",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Introduction, Tool of Recombinant DNA technology, making rDNA molecule, Introduction of recombinant DNA into host cells, Identification of recombinants, Polymerase Chain Reaction (PCR), DNA Sequencing."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

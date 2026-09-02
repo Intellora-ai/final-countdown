@@ -1,0 +1,67 @@
+{
+  "curriculum": "cbse-class-11",
+  "subjectId": "political-science",
+  "models": [
+    {
+      "topicId": "syllabus--indian-constitution-at-work",
+      "topicName": "Indian Constitution at Work:",
+      "curriculum": "cbse-class-11",
+      "subjectId": "political-science",
+      "chapterId": "syllabus",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "historical-circumstances",
+          "name": "Understand the historical circumstances and the processes in which the Constitution was drafted.",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 1,
+              "quote": "Understand the historical circumstances and the processes in which the Constitution was drafted."
+            }
+          ]
+        },
+        {
+          "id": "diverse-perspectives",
+          "name": "Be familiar with the diverse perspectives that guided the makers of the Indian Constitution.",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 1,
+              "quote": "Be familiar with the diverse perspectives that guided the makers of the Indian Constitution."
+            }
+          ]
+        },
+        {
+          "id": "working-of-democracy",
+          "name": "Analyze the working of the three pillars of democracy: Legislature, Executive, and Judiciary and their role with changing times.",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 1,
+              "quote": "Analyze the working of the three pillars of democracy: Legislature, Executive, and Judiciary and their role with changing times."
+            }
+          ]
+        },
+        {
+          "id": "key-features-comparison",
+          "name": "Identify the key features of the Indian Constitution and compare these to other constitutions in the world.",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 1,
+              "quote": "Identify the key features of the Indian Constitution and compare these to other constitutions in the world."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

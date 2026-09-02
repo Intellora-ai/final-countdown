@@ -1,0 +1,31 @@
+{
+  "curriculum": "cbse-class-12",
+  "subjectId": "english-core",
+  "models": [
+    {
+      "topicId": "syllabus--one-unseen-passage-to-assess-comprehension-interpretation-analysis-inference-and",
+      "topicName": "One unseen passage to assess comprehension, interpretation, analysis, inference and vocabulary. The passage may be factual, descriptive or literary",
+      "curriculum": "cbse-class-12",
+      "subjectId": "english-core",
+      "chapterId": "syllabus",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "reading-comprehension",
+          "name": "Reading Comprehension",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "english-core",
+              "page": 6,
+              "quote": "One unseen passage to assess comprehension, interpretation, analysis, inference and vocabulary. The passage may be factual, descriptive or literary."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

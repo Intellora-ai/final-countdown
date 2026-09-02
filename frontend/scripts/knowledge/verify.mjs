@@ -167,8 +167,13 @@ async function main() {
               faults.push(`${shown}: ${part.id} cites ${evidence.pdf} page ${evidence.page}, which could not be read`)
               continue
             }
-            const words = asWords(evidence.quote).split(' ').filter((w) => w.length > 2)
-            const found = words.filter((w) => page.includes(w)).length
+            /* WHOLE WORDS, NOT SUBSTRINGS: `page.includes(word)` matched "art"
+               inside "particle" and "ion" inside "station", which is no check at
+               all on a dense page. See `build.mjs`, which carries the
+               measurement. */
+            const onThePage = new Set(page.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2))
+            const words = asWords(evidence.quote).replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2)
+            const found = words.filter((w) => onThePage.has(w)).length
             if (words.length === 0 || found / words.length < ENOUGH_OF_A_QUOTE) {
               faults.push(
                 `${shown}: ${part.id} quotes "${evidence.quote.slice(0, 60)}" as being on ` +

@@ -1,0 +1,31 @@
+{
+  "curriculum": "cbse-class-12",
+  "subjectId": "psychology",
+  "models": [
+    {
+      "topicId": "variations-in-psychological-attributes--individual-differences-in-human-functioning",
+      "topicName": "Individual Differences in Human Functioning",
+      "curriculum": "cbse-class-12",
+      "subjectId": "psychology",
+      "chapterId": "variations-in-psychological-attributes",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "individual-differences-in-human-functioning",
+          "name": "Individual Differences in Human Functioning",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "2. Individual Differences in Human Functioning"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

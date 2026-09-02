@@ -1,0 +1,31 @@
+{
+  "curriculum": "cbse-class-12",
+  "subjectId": "entrepreneurship",
+  "models": [
+    {
+      "topicId": "unit-1-entrepreneurship--concept-and-functions-15",
+      "topicName": "Concept and Functions 15",
+      "curriculum": "cbse-class-12",
+      "subjectId": "entrepreneurship",
+      "chapterId": "unit-1-entrepreneurship",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "entrepreneurship-concept",
+          "name": "Entrepreneurship: Concept and Functions",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "entrepreneurship",
+              "page": 2,
+              "quote": "Entrepreneurship: Concept and Functions        15"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

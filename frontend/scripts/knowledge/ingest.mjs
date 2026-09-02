@@ -73,7 +73,11 @@ for (const topic of batch) {
     status: 'candidate',
     shape: out.shape,
     concepts: out.concepts,
-    generatedBy: 'ollama/gemma3:12b',
+    /* WHICH MODEL ACTUALLY ANSWERED, not a default. Half this batch ran on
+       gemma3:12b and half on qwen2.5:7b, because the machine ran out of memory
+       partway through; a reviewer comparing two candidates needs to know which
+       is which. */
+    generatedBy: `ollama/${said.model ?? 'gemma3:12b'}`,
   })
 }
 

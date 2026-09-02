@@ -1,8 +1,311 @@
 {
  "recordedAt": "2026-09-03",
- "model": "gemma3:12b",
- "note": "The first real batch: one topic per subject, asked with the brief scripts/knowledge/build.mjs composes, given the sha256-locked syllabus page each topic records. Stopped at 20 of 60 because the machine was at 12% free memory. Kept because it is real model output, and every fixture written by hand is shaped like what its author expected.",
+ "models": {
+  "gemma3:12b": 22,
+  "qwen2.5:7b": 23
+ },
+ "note": "The first real batch: one topic per subject across all four classes, asked with the brief scripts/knowledge/build.mjs composes, given the sha256-locked syllabus page each topic records. Half ran on gemma3:12b; the machine reached 11% free memory so the rest ran on qwen2.5:7b, which is roughly half the size. Kept because it is real model output, and every fixture written by hand is shaped like what its author expected.",
  "answers": {
+  "unit-1--some-basic-concepts-of-chemistry-importance-of-chemistry": {
+   "topic": "Some Basic Concepts of Chemistry Importance of Chemistry",
+   "subject": "chemistry",
+   "cls": "11",
+   "pdf": "chemistry",
+   "page": 2,
+   "seconds": 33,
+   "model": "gemma3:12b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"importance-of-chemistry\",\"name\":\"Importance of Chemistry\",\"quote\":\"Importance of Chemistry\"},{\"id\":\"nature-of-matter\",\"name\":\"Nature of Matter\",\"quote\":\"Nature of Matter\"},{\"id\":\"properties-of-matter\",\"name\":\"Properties of Matter\",\"quote\":\"Properties of Matter\"},{\"id\":\"measurement\",\"name\":\"Measurement\",\"quote\":\"their Measurement\"},{\"id\":\"laws-of-chemical-combination\",\"name\":\"Laws of Chemical Combination\",\"quote\":\"Laws of Chemical Combination\"},{\"id\":\"daltons-atomic-theory\",\"name\":\"Dalton's Atomic Theory\",\"quote\":\"Dalton's Atomic Theory\"},{\"id\":\"atomic-and-molecular-masses\",\"name\":\"Atomic and Molecular Masses\",\"quote\":\"Atomic and Molecular Masses\"},{\"id\":\"mole-concept\",\"name\":\"Mole Concept\",\"quote\":\"Mole Concept\"}]}"
+  },
+  "chapter-2--biological-classification-five-kingdom-classification": {
+   "topic": "Biological Classification Five kingdom classification",
+   "subject": "biology",
+   "cls": "11",
+   "pdf": "biology",
+   "page": 3,
+   "seconds": 16,
+   "model": "gemma3:12b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"five-kingdom-classification\",\"name\":\"Five kingdom classification\",\"quote\":\"Five kingdom classification\"},{\"id\":\"monera\",\"name\":\"Monera\",\"quote\":\"Salient features and classification of Monera\"}, {\"id\":\"protista\",\"name\":\"Protista\",\"quote\":\"Salient features and classification of Protista\"}, {\"id\":\"fungi\",\"name\":\"Fungi\",\"quote\":\"Salient features and classification of Fungi\"}, {\"id\":\"lichens\",\"name\":\"Lichens\",\"quote\":\"Lichens\"}, {\"id\":\"viruses\",\"name\":\"Viruses\",\"quote\":\"Viruses\"}, {\"id\":\"viroids\",\"name\":\"Viroids\",\"quote\":\"Viroids\"}]}"
+  },
+  "unit-i-biotechnology--an-overview-5": {
+   "topic": "An overview 5",
+   "subject": "biotechnology",
+   "cls": "11",
+   "pdf": "biotechnology",
+   "page": 2,
+   "seconds": 9,
+   "model": "gemma3:12b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"biotechnology-an-overview\",\"name\":\"Historical Perspectives\",\"quote\":\"Historical Perspectives\"}, {\"id\":\"biotechnology-an-overview\",\"name\":\"Technology and Applications of Biotechnology\",\"quote\":\"Technology and Applications of Biotechnology\"}, {\"id\":\"biotechnology-an-overview\",\"name\":\"Global market\",\"quote\":\"Global market\"}, {\"id\":\"biotechnology-an-overview\",\"name\":\"Biotech Products\",\"quote\":\"Biotech Products\"}]}"
+  },
+  "sections-of-a-cone--circles": {
+   "topic": "circles",
+   "subject": "mathematics",
+   "cls": "11",
+   "pdf": "maths-senior",
+   "page": 4,
+   "seconds": 7,
+   "model": "gemma3:12b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"circles\",\"name\":\"Circles\",\"quote\":\"Sections of a cone: circles, ellipse, parabola, hyperbola, a point, a straight line and a pair of intersecting lines as a degenerated case of a conic section. Standard equations and simple properties of parabola, ellipse and hyperbola. Standard equation of a circle.\"}]}"
+  },
+  "syllabus--1-binary-numbers": {
+   "topic": "1 Binary Numbers",
+   "subject": "applied-mathematics",
+   "cls": "12",
+   "pdf": "applied-maths",
+   "page": 3,
+   "seconds": 14,
+   "model": "gemma3:12b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"introduction-to-binary-number-system\",\"name\":\"Introduction to Binary Number System\",\"quote\":\"● Introduction to Binary Number System\"},{\"id\":\"relation-between-decimal-and-binary\",\"name\":\"Relation between Decimal and Binary\",\"quote\":\"● Understand the relation between decimal and binary number system.\"},{\"id\":\"conversion-of-decimal-numbers-to-binary\",\"name\":\"Conversion of Decimal to Binary\",\"quote\":\"● Conversion of decimal numbers to binary system and vice-versa\"},{\"id\":\"application-of-binary-number-system\",\"name\":\"Application of Binary Number System\",\"quote\":\"● Understand the application of Binary number system in programming, coding, machine learning etc.\"}]}"
+  },
+  "theory--20-marks-units-marks": {
+   "topic": "20 Marks Units Marks",
+   "subject": "accountancy",
+   "cls": "12",
+   "pdf": "accountancy",
+   "page": 2,
+   "seconds": 29,
+   "model": "gemma3:12b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"accounting-concept\",\"name\":\"Accounting Concept\",\"quote\":\"•      describe the meaning, significance, objectives, advantages and limitations of accounting in the modem economic environment with varied types of business and non-business economic entities.\"},{\"id\":\"accounting-users\",\"name\":\"Users of Accounting Information\",\"quote\":\"•      identify / recognise the individual(s) and entities that use accounting information for serving their needs of decision making.\"},{\"id\":\"accounting-terms\",\"name\":\"Accounting Terms\",\"quote\":\"•      explain the various terms used in accounting and differentiate between different related terms like current and non-current, capital and revenue.\"},{\"id\":\"business-transaction\",\"name\":\"Business Transaction\",\"quote\":\"•      give examples of terms like business transaction, liabilities, assets, expenditure and purchases.\"},{\"id\":\"income-profits-gains\",\"name\":\"Income, Profits, and Gains\",\"quote\":\"•      differentiate among income, profits and gains.\"},{\"id\":\"fundamental-accounting-assumptions\",\"name\":\"Fundamental Accounting Assumptions\",\"quote\":\"•   Fundamental accounting assumptions: GAAP: Concept\"},{\"id\":\"business-entity\",\"name\":\"Business Entity\",\"quote\":\"•      explain that sales/purchases include both cash and credit sales/purchases relating to the accounting year.\"}]}"
+  },
+  "theory--20-marks": {
+   "topic": "20 Marks",
+   "subject": "business-studies",
+   "cls": "12",
+   "pdf": "business-studies",
+   "page": 2,
+   "seconds": 43,
+   "model": "gemma3:12b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"nature-and-purpose-of-business\",\"name\":\"Nature and Purpose of Business\",\"quote\":\"Nature and Purpose of Business\"},{\"id\":\"forms-of-business-organisations\",\"name\":\"Forms of Business Organisations\",\"quote\":\"Forms of Business Organisations\"},{\"id\":\"public-private-and-global-enterprises\",\"name\":\"Public, Private and Global Enterprises\",\"quote\":\"Public, Private and Global Enterprises\"},{\"id\":\"business-services\",\"name\":\"Business Services\",\"quote\":\"Business Services\"},{\"id\":\"emerging-modes-of-business\",\"name\":\"Emerging Modes of Business\",\"quote\":\"Emerging Modes of Business\"},{\"id\":\"social-responsibility-of-business-and-business-ethics\",\"name\":\"Social Responsibility of Business and Business Ethics\",\"quote\":\"Social Responsibility of Business and Business Ethics\"},{\"id\":\"sources-of-business-finance\",\"name\":\"Sources of Business Finance\",\"quote\":\"Sources of Business Finance\"},{\"id\":\"small-business\",\"name\":\"Small Business\",\"quote\":\"Small Business\"},{\"id\":\"internal-trade\",\"name\":\"Internal Trade\",\"quote\":\"Internal Trade\"},{\"id\":\"international-business\",\"name\":\"International Business\",\"quote\":\"International Business\"}]}"
+  },
+  "part-a--statistics-for-economics-in-this-course": {
+   "topic": "Statistics for Economics In this course",
+   "subject": "economics",
+   "cls": "12",
+   "pdf": "economics",
+   "page": 2,
+   "seconds": 20,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"introduction-to-economics\",\"name\":\"Introduction to Economics\",\"quote\":\"What is Economics?\\nMeaning, scope, functions and importance of statistics in Economics\"}]}"
+  },
+  "syllabus--focus-on-some-important-developments-in-different-spheres-political-social-cultu": {
+   "topic": "Focus on some important developments in different spheres-political, social, cultural, and economic. Classes XI-XII (2026-27)2",
+   "subject": "history",
+   "cls": "11",
+   "pdf": "history",
+   "page": 1,
+   "seconds": 14,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"focus-on-important-developments\",\"name\":\"Focus on some important developments in different spheres-political, social, cultural, and economic.\",\"quote\":\"1.   Focus on some important developments in different spheres-political, social, cultural, and economic.\"}]}"
+  },
+  "unit-iv-natural-hazards-and-disasters--causes-consequences-and-management": {
+   "topic": "Causes Consequences and Management",
+   "subject": "geography",
+   "cls": "11",
+   "pdf": "geography",
+   "page": 4,
+   "seconds": 11,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"natural-hazards-and-disasters\",\"name\":\"Natural Hazards and Disasters\",\"quote\":\"Natural Hazards and Disasters (To be tested through _ internal assessment in the form of Projects and presentation)\"}]}"
+  },
+  "syllabus--indian-constitution-at-work": {
+   "topic": "Indian Constitution at Work:",
+   "subject": "political-science",
+   "cls": "11",
+   "pdf": "political-science",
+   "page": 1,
+   "seconds": 36,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"historical-circumstances\",\"name\":\"Understand the historical circumstances and the processes in which the Constitution was drafted.\",\"quote\":\"Understand the historical circumstances and the processes in which the Constitution was drafted.\"},{\"id\":\"diverse-perspectives\",\"name\":\"Be familiar with the diverse perspectives that guided the makers of the Indian Constitution.\",\"quote\":\"Be familiar with the diverse perspectives that guided the makers of the Indian Constitution.\"},{\"id\":\"working-of-democracy\",\"name\":\"Analyze the working of the three pillars of democracy: Legislature, Executive, and Judiciary and their role with changing times.\",\"quote\":\"Analyze the working of the three pillars of democracy: Legislature, Executive, and Judiciary and their role with changing times.\"},{\"id\":\"key-features-comparison\",\"name\":\"Identify the key features of the Indian Constitution and compare these to other constitutions in the world.\",\"quote\":\"Identify the key features of the Indian Constitution and compare these to other constitutions in the world.\"}]}"
+  },
+  "time--80-units-marks": {
+   "topic": "80 Units Marks",
+   "subject": "sociology",
+   "cls": "11",
+   "pdf": "sociology",
+   "page": 2,
+   "seconds": 12,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"child-centric-approach\",\"name\":\"Child-centric approach\",\"quote\":\"The chapters shall seek for a child centric approach that makes it possible to connect the lived reality of children with social structures and social processes that Sociology studies.\"}]}"
+  },
+  "understanding-psychology--introduction": {
+   "topic": "Introduction",
+   "subject": "psychology",
+   "cls": "11",
+   "pdf": "psychology",
+   "page": 2,
+   "seconds": 7,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"introduction-to-psychology\",\"name\":\"Introduction to Psychology\",\"quote\":\"1. Introduction\"}]}"
+  },
+  "unit-4-judiciary--constitutional": {
+   "topic": "Constitutional",
+   "subject": "legal-studies",
+   "cls": "12",
+   "pdf": "legal-studies",
+   "page": 4,
+   "seconds": 11,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"independence-and-impartiality-of-the-supreme-court\",\"name\":\"Independence and Impartiality of the Supreme Court\",\"quote\":\"a) Independence and Impartiality of the Supreme Court\"}]}"
+  },
+  "unit-3--society": {
+   "topic": "Society",
+   "subject": "computer-science",
+   "cls": "12",
+   "pdf": "computer-science",
+   "page": 3,
+   "seconds": 25,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"digital-footprints\",\"name\":\"Digital Footprints\",\"quote\":\"Digital Footprints\"},{\"id\":\"net-etiquettes\",\"name\":\"Net Etiquettes\",\"quote\":\"Digital Society and Netizen: net etiquettes, communication etiquettes, social media etiquettes\"},{\"id\":\"communication-etiquettes\",\"name\":\"Communication Etiquettes\",\"quote\":\"Digital Society and Netizen: net etiquettes, communication etiquettes, social media etiquettes\"},{\"id\":\"social-media-etiquettes\",\"name\":\"Social Media Etiquettes\",\"quote\":\"Digital Society and Netizen: net etiquettes, communication etiquettes, social media etiquettes\"}]}"
+  },
+  "introduction-to-computer-and-computing--evolution-of-computing-devices": {
+   "topic": "evolution of computing devices",
+   "subject": "informatics-practices",
+   "cls": "12",
+   "pdf": "informatics-practices",
+   "page": 1,
+   "seconds": 8,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"evolution-of-computing-devices\",\"name\":\"Evolution of Computing Devices\",\"quote\":\"evolution of computing devices\"}]}"
+  },
+  "syllabus--one-unseen-passage-to-assess-comprehension-interpretation-analysis-inference-and": {
+   "topic": "One unseen passage to assess comprehension, interpretation, analysis, inference and vocabulary. The passage may be factual, descriptive or literary",
+   "subject": "english-core",
+   "cls": "12",
+   "pdf": "english-core",
+   "page": 6,
+   "seconds": 11,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"reading-comprehension\",\"name\":\"Reading Comprehension\",\"quote\":\"One unseen passage to assess comprehension, interpretation, analysis, inference and vocabulary. The passage may be factual, descriptive or literary.\"}]}"
+  },
+  "unit-1-entrepreneurship--concept-and-functions-15": {
+   "topic": "Concept and Functions 15",
+   "subject": "entrepreneurship",
+   "cls": "12",
+   "pdf": "entrepreneurship",
+   "page": 2,
+   "seconds": 8,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"entrepreneurship-concept\",\"name\":\"Entrepreneurship: Concept and Functions\",\"quote\":\"Entrepreneurship: Concept and Functions        15\"}]}"
+  },
+  "load--over-training-load": {
+   "topic": "Over Training Load",
+   "subject": "physical-education",
+   "cls": "12",
+   "pdf": "physical-education",
+   "page": 11,
+   "seconds": 10,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"over-load\",\"name\":\"Over Load\",\"quote\":\"•   Training Load, Over Load, Adaptation, and Recovery concepts.\"}]}"
+  },
+  "course-structure--70-marks": {
+   "topic": "70 Marks",
+   "subject": "home-science",
+   "cls": "11",
+   "pdf": "home-science",
+   "page": 3,
+   "seconds": 14,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"course-structure-theory\",\"name\":\"Theory\",\"quote\":\"Theory: 70 Marks\"},{\"id\":\"course-structure-practical\",\"name\":\"Practical\",\"quote\":\"Practical: 30 Marks\"},{\"id\":\"course-structure-grand-total\",\"name\":\"Grand Total\",\"quote\":\"Grand Total 100\"}]}"
+  },
+  "unit-4--d-and-f-block-elements-position-in-the-periodic-table": {
+   "topic": "d and f Block Elements Position in the Periodic Table",
+   "subject": "chemistry",
+   "cls": "12",
+   "pdf": "chemistry",
+   "page": 8,
+   "seconds": 17,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"position-in-the-periodic-table\",\"name\":\"Position in the Periodic Table\",\"quote\":\"Position in the Periodic Table, Electronic configuration of the d-Block Elements, General properties of the Transition Elements (d-Block), Some Important Compounds of Transition Elements, The Lanthanoids, The Actinoids, Some Applications of d- and f- Block Elements.\"}]}"
+  },
+  "chapter-1--sexual-reproduction-in-flowering-plants-flower-structure": {
+   "topic": "Sexual Reproduction in Flowering Plants Flower structure",
+   "subject": "biology",
+   "cls": "12",
+   "pdf": "biology",
+   "page": 9,
+   "seconds": 21,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"flower-structure\",\"name\":\"Flower structure\",\"quote\":\"Flower structure; development of male and female gametophytes; pollination - types, agencies and examples; out breeding devices; pollen-pistil interaction; double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation.\"}]}"
+  },
+  "chapter-1--recombinant-dna-technology-introduction": {
+   "topic": "Recombinant DNA Technology Introduction",
+   "subject": "biotechnology",
+   "cls": "12",
+   "pdf": "biotechnology",
+   "page": 4,
+   "seconds": 15,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"recombinant-dna-technology-introduction\",\"name\":\"Introduction to Recombinant DNA Technology\",\"quote\":\"Introduction, Tool of Recombinant DNA technology, making rDNA molecule, Introduction of recombinant DNA into host cells, Identification of recombinants, Polymerase Chain Reaction (PCR), DNA Sequencing.\"}]}"
+  },
+  "types-of-relations--reflexive": {
+   "topic": "reflexive",
+   "subject": "mathematics",
+   "cls": "12",
+   "pdf": "maths-senior",
+   "page": 7,
+   "seconds": 9,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"reflexive\",\"name\":\"Reflexive Relations\",\"quote\":\"Types of relations: reflexive, symmetric, transitive and equivalence relations.\"}]}"
+  },
+  "mature-harappan-sites--harappa": {
+   "topic": "Harappa",
+   "subject": "history",
+   "cls": "12",
+   "pdf": "history",
+   "page": 13,
+   "seconds": 18,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"mature-harappan-sites\",\"name\":\"Mature Harappan sites\",\"quote\":\"Mature Harappan sites: Harappa, Banawali, Kalibangan, Balakot, Rakhigarhi, Dholavira, Nageshwar, Lothal, Mohenjodaro, Chanhudaro, Kot Diji.\"}]}"
+  },
+  "book--fundamentals-of-human-geography": {
+   "topic": "Fundamentals of Human Geography",
+   "subject": "geography",
+   "cls": "12",
+   "pdf": "geography",
+   "page": 12,
+   "seconds": 13,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"human-geography-nature-and-scope\",\"name\":\"Nature and Scope of Human Geography\",\"quote\":\"Nature of Human Geography\"},{\"id\":\"human-geography-schools-of-thought\",\"name\":\"Schools of Thought in Human Geography\",\"quote\":\"Schools of thought in Human Geography\"}]}"
+  },
+  "class-xii--for-scrutiny-by-the-board": {
+   "topic": "for scrutiny by the Board",
+   "subject": "political-science",
+   "cls": "12",
+   "pdf": "political-science",
+   "page": 20,
+   "seconds": 8,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"imposition-of-emergency\",\"name\":\"Imposition of Emergency in India\",\"quote\":\"Imposition of Emergency in India\"}]}"
+  },
+  "prescribed--sociology-society-and-its-relationship-with-other-social-sciences": {
+   "topic": "Sociology, Society and its Relationship with other Social Sciences",
+   "subject": "sociology",
+   "cls": "12",
+   "pdf": "sociology",
+   "page": 3,
+   "seconds": 10,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"society-individuals-collectivities\",\"name\":\"Individuals and collectivities\",\"quote\":\"Introducing Society: Individuals and collectivities. Pluralities and Inequalities among societies.\"}]}"
+  },
+  "variations-in-psychological-attributes--individual-differences-in-human-functioning": {
+   "topic": "Individual Differences in Human Functioning",
+   "subject": "psychology",
+   "cls": "12",
+   "pdf": "psychology",
+   "page": 8,
+   "seconds": 9,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"individual-differences-in-human-functioning\",\"name\":\"Individual Differences in Human Functioning\",\"quote\":\"2. Individual Differences in Human Functioning\"}]}"
+  },
+  "unit-i--livelihood-and-career": {
+   "topic": "Livelihood and Career",
+   "subject": "home-science",
+   "cls": "12",
+   "pdf": "home-science",
+   "page": 15,
+   "seconds": 8,
+   "model": "qwen2.5:7b",
+   "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"work-livelihood-and-career\",\"name\":\"Work, Livelihood and Career\",\"quote\":\"Ch. Work, Livelihood and Career\"}]}"
+  },
   "cg-1--understands-numbers-natural-whole-integer-rational-irrational-and-real": {
    "topic": "Understands numbers (natural, whole, integer, rational, irrational, and real)",
    "subject": "mathematics",
@@ -10,6 +313,7 @@
    "pdf": "maths-ix",
    "page": 2,
    "seconds": 13,
+   "model": "gemma3:12b",
    "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"numbers\",\"name\":\"Numbers\",\"quote\":\"Understands numbers (natural, whole, integer, rational, irrational, and real)\"},{\"id\":\"real-numbers\",\"name\":\"Real Numbers\",\"quote\":\"Develops understanding of numbers, including the set of real numbers and its properties.\"}]}"
   },
   "example-1--whose-first-term-is-3-and-common-difference-is-4": {
@@ -19,6 +323,7 @@
    "pdf": "maths-advanced",
    "page": 5,
    "seconds": 11,
+   "model": "gemma3:12b",
    "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"arithmetic-progression\",\"name\":\"Arithmetic Progression (A.P.)\",\"quote\":\"Set of first 4 terms of the A.P., whose first term is –3 and common difference is 4\",\"subConcepts\":[]},{\"id\":\"first-term\",\"name\":\"First Term\",\"quote\":\"whose first term is –3\",\"subConcepts\":[]},{\"id\":\"common-difference\",\"name\":\"Common Difference\",\"quote\":\"common difference is 4\",\"subConcepts\":[]}]}"
   },
   "tissues--importance-meristematic-and-permanent-tissues": {
@@ -28,6 +333,7 @@
    "pdf": "science-ix-x",
    "page": 5,
    "seconds": 10,
+   "model": "gemma3:12b",
    "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"meristematic-tissues\",\"name\":\"Meristematic Tissues\",\"quote\":\"• Meristematic tissues (types and function of each)\"},{\"id\":\"permanent-tissues\",\"name\":\"Permanent Tissues\",\"quote\":\"• Permanent tissues (types, structure and function of each)\"},{\"id\":\"differentiation\",\"name\":\"Differentiation\",\"quote\":\"• Differentiate between plant and animal tissues; meristematic and permanent tissues; simple and complex tissues;\"}]}"
   },
   "engineering-life--miracles-in-biotechnology": {
@@ -37,6 +343,7 @@
    "pdf": "science-advanced",
    "page": 70,
    "seconds": 36,
+   "model": "gemma3:12b",
    "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"introduction-to-biotechnology\",\"name\":\"Introduction to Biotechnology\",\"quote\":\"Biotechnology refers to the judicious use of living organisms, such as microbes, or their cellular components, to produce substances beneficial to humans.\"}, {\"id\":\"historical-use-of-biotechnology\",\"name\":\"Historical Use of Biotechnology\",\"quote\":\"Human beings have been using biotechnology for a long time. Selective breeding and using the fermentation process for the production of cheese, beer and wine have been practiced since centuries.\"}, {\"id\":\"traditional-fermented-foods\",\"name\":\"Traditional Fermented Foods\",\"quote\":\"Today, microbes are not only used to make traditional fermented foods but are also widely exploited in industrial biotechnology\"}, {\"id\":\"industrial-biotechnology\",\"name\":\"Industrial Biotechnology\",\"quote\":\"Today, microbes are not only used to make traditional fermented foods but are also widely exploited in industrial biotechnology for the production of valuable substances such as antibiotics, enzymes, improving the nutritional quality of food items, biofuels and the production of eco – friendly products.\"}, {\"id\":\"genetic-modification\",\"name\":\"Genetic Modification\",\"quote\":\"As early as 1973, scientists observed that the genes from microbes can be taken out from one organism and can be inserted in different organism to get a desired altered gene.\"}, {\"id\":\"genetic-engineering\",\"name\":\"Genetic Engineering\",\"quote\":\"This branch of biotechnology is called genetic modification/ genetic engineering/ recombinant DNA (rDNA) technology\"}, {\"id\":\"recombinant-dna-technology\",\"name\":\"Recombinant DNA Technology\",\"quote\":\"This branch of biotechnology is called genetic modification/ genetic engineering/ recombinant DNA (rDNA) technology\"}, {\"id\":\"applications-of-biotechnology\",\"name\":\"Applications of Biotechnology\",\"quote\":\"Thus, Biotechnology has led to advancements in many fields such as medicine, agriculture, animal science and environmental science.\"}]}"
   },
   "puzzle--luxury-of-goods-and-services-goods": {
@@ -46,6 +353,7 @@
    "pdf": "social-science-ix",
    "page": 11,
    "seconds": 31,
+   "model": "gemma3:12b",
    "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"luxury-of-goods\",\"name\":\"Luxury of goods\",\"quote\":\"necessities, luxury goods\"}, {\"id\":\"real-world-deviations\",\"name\":\"Real-world deviations\",\"quote\":\"Real-world deviations from textbook theory, such as in case of necessities, luxury goods, perishable items, expectations\"}, {\"id\":\"expectations\",\"name\":\"Expectations\",\"quote\":\"necessities, luxury goods, perishable items, expectations\"}]}"
   },
   "cg-1--uses-language-appropriate-to-social-effective-communication-through-context": {
@@ -55,6 +363,7 @@
    "pdf": "english-ix",
    "page": 3,
    "seconds": 29,
+   "model": "gemma3:12b",
    "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"uses-language-appropriate-to-social-context\",\"name\":\"Uses language appropriate to social context\",\"quote\":\"C-1.1: Uses language appropriate to social context, expresses agreement and disagreement with reasons, and arrives at conclusions through discussion and debate.\"}]}"
   },
   "unit-1--characteristics-of-a-computer": {
@@ -64,6 +373,7 @@
    "pdf": "computer-applications-ix",
    "page": 1,
    "seconds": 28,
+   "model": "gemma3:12b",
    "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"characteristics-of-a-computer\",\"name\":\"Characteristics of a computer\",\"quote\":\"characteristics of a computer\"}, {\"id\":\"cpu\",\"name\":\"CPU\",\"quote\":\"components of a computer system – CPU\"}, {\"id\":\"memory\",\"name\":\"Memory\",\"quote\":\"components of a computer system – memory\"}, {\"id\":\"storage-devices\",\"name\":\"Storage devices\",\"quote\":\"components of a computer system – storage devices\"}, {\"id\":\"i-o-devices\",\"name\":\"I/O devices\",\"quote\":\"components of a computer system – I/O devices\"}]}"
   },
   "theory--30-marks": {
@@ -73,6 +383,7 @@
    "pdf": "elements-of-business-x",
    "page": 1,
    "seconds": 38,
+   "model": "gemma3:12b",
    "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"practical-project\",\"name\":\"Practical/Project\",\"quote\":\"Practical/ Project: 30 Marks\"},{\"id\":\"project-chart\",\"name\":\"Project/ chart\",\"quote\":\"Project/ chart should be brief and should be of 20-30 pages, preferably handwritten.\"},{\"id\":\"viva\",\"name\":\"Viva\",\"quote\":\"• Viva                                                                       (10 Marks)\"},{\"id\":\"project-evaluation\",\"name\":\"Project Evaluation Parameters\",\"quote\":\"The project will be evaluated on the following parameters:\"},{\"id\":\"project-topic\",\"name\":\"Project Topic\",\"quote\":\"• Prepare a chart / Project on any one topic from syllabus\"},{\"id\":\"project-pages\",\"name\":\"Project Page Length\",\"quote\":\"Project/ chart should be brief and should be of 20-30 pages, preferably handwritten.\"}]}"
   },
   "introduction-to-book-keeping-and-accounting--objectives": {
@@ -82,6 +393,7 @@
    "pdf": "elements-of-accountancy-ix",
    "page": 1,
    "seconds": 41,
+   "model": "gemma3:12b",
    "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"need-of-book-keeping\",\"name\":\"Need of Book Keeping\",\"quote\":\"● Identify the need of Book Keeping.\"},{\"id\":\"objectives-of-book-keeping\",\"name\":\"Objectives of Book Keeping\",\"quote\":\"● Understand the Objectives of Book Keeping.\"},{\"id\":\"advantages-of-book-keeping\",\"name\":\"Advantages of Book Keeping\",\"quote\":\"● Appreciate the advantages of Book Keeping.\"},{\"id\":\"meaning-of-accounting\",\"name\":\"Meaning of Accounting\",\"quote\":\"● Describe the meaning, objectives and advantages of accounting.\"},{\"id\":\"objectives-of-accounting\",\"name\":\"Objectives of Accounting\",\"quote\":\"● Describe the meaning, objectives and advantages of accounting.\"},{\"id\":\"advantages-of-accounting\",\"name\":\"Advantages of Accounting\",\"quote\":\"● Describe the meaning, objectives and advantages of accounting.\"}]}"
   },
   "real-numbers--fundamental-theorem-of-arithmetic-statements-after-reviewing-work-done-earlier-a": {
@@ -91,6 +403,7 @@
    "pdf": "maths-x",
    "page": 3,
    "seconds": 25,
+   "model": "gemma3:12b",
    "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"fundamental-theorem-of-arithmetic\",\"name\":\"Fundamental Theorem of Arithmetic\",\"quote\":\"Fundamental Theorem of Arithmetic - statements after reviewing work done earlier and after illustrating and motivating through examples\"},{\"id\":\"irrationality-of-numbers\",\"name\":\"Irrationality of Numbers\",\"quote\":\"Prove algebraically the Irrationality of numbers like √2, √3, √5, 3 + 2√5 etc.\"}]}"
   },
   "economies-and-subtopics--1-to-1-3-pre-modern-world-to-societies-conquest": {
@@ -100,6 +413,7 @@
    "pdf": "social-science-x",
    "page": 1,
    "seconds": 23,
+   "model": "gemma3:12b",
    "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"livelihoods\",\"name\":\"Livelihoods\",\"quote\":\"Livelihoods, Economies and Societies\"},{\"id\":\"pre-modern-world\",\"name\":\"Pre Modern World\",\"quote\":\"Subtopics: 1 to 1.3 Pre Modern World\"},{\"id\":\"conquest\",\"name\":\"Conquest\",\"quote\":\"to Conquest\"},{\"id\":\"disease\",\"name\":\"Disease\",\"quote\":\"disease\"},{\"id\":\"trade\",\"name\":\"Trade\",\"quote\":\"and trade\"}]}"
   },
   "syllabus--discursive-passage-of-400-450-words-10-marks": {
@@ -109,6 +423,7 @@
    "pdf": "english-x",
    "page": 2,
    "seconds": 36,
+   "model": "gemma3:12b",
    "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"discursive-passage\",\"name\":\"Discursive Passage\",\"quote\":\"Discursive passage of 400-450 words.\",\"subConcepts\":[]},{\"id\":\"word-count\",\"name\":\"Word Count\",\"quote\":\"of 400-450 words.\",\"subConcepts\":[]},{\"id\":\"marks-allocation\",\"name\":\"Marks Allocation\",\"quote\":\"10 marks\",\"subConcepts\":[]},{\"id\":\"assessment-skills\",\"name\":\"Assessment Skills\",\"quote\":\"to assess comprehension, interpretation, analysis, inference, evaluation and vocabulary.\",\"subConcepts\":[]},{\"id\":\"question-types\",\"name\":\"Question Types\",\"quote\":\"Multiple Choice Questions / Objective Type Questions, and Short Answer Questions\",\"subConcepts\":[]},{\"id\":\"answer-length\",\"name\":\"Answer Length\",\"quote\":\"to be answered in 30-40 words\",\"subConcepts\":[]}]}"
   },
   "syllabus--understand-the-components-of-computer-networking-including-web-servers-and-netwo": {
@@ -118,6 +433,7 @@
    "pdf": "computer-applications-x",
    "page": 1,
    "seconds": 50,
+   "model": "gemma3:12b",
    "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"computer-networking\",\"name\":\"Computer Networking\",\"quote\":\"1. Understand the components of Computer Networking including web servers and network protocols.\"},{\"id\":\"web-servers\",\"name\":\"Web Servers\",\"quote\":\"Understand the components of Computer Networking including web servers and network protocols.\"},{\"id\":\"network-protocols\",\"name\":\"Network Protocols\",\"quote\":\"Understand the components of Computer Networking including web servers and network protocols.\"},{\"id\":\"internet\",\"name\":\"Internet\",\"quote\":\"• Internet: World Wide Web, web servers, web clients, web sites, web pages, web browsers, blogs, news groups, HTML, web address, e-mail address, downloading and uploading files from a remote site.\"},{\"id\":\"tcp-ip\",\"name\":\"TCP/IP\",\"quote\":\"•    Internet protocols: TCP/IP, SMTP, POP3, HTTP, HTTPS.\"},{\"id\":\"smtp\",\"name\":\"SMTP\",\"quote\":\"•    Internet protocols: TCP/IP, SMTP, POP3, HTTP, HTTPS.\"},{\"id\":\"pop3\",\"name\":\"POP3\",\"quote\":\"•    Internet protocols: TCP/IP, SMTP, POP3, HTTP, HTTPS.\"},{\"id\":\"http\",\"name\":\"HTTP\",\"quote\":\"•    Internet protocols: TCP/IP, SMTP, POP3, HTTP, HTTPS.\"}]}"
   },
   "capital-and-revenue--capital-and-revenue-receipts": {
@@ -127,6 +443,7 @@
    "pdf": "elements-of-accountancy-x",
    "page": 1,
    "seconds": 23,
+   "model": "gemma3:12b",
    "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"capital-and-revenue-receipts\",\"name\":\"Capital and revenue receipts\",\"quote\":\"Capital and revenue : Capital and revenue receipts, capital and revenue expenditure and deferred revenue expenditure\"},{\"id\":\"capital\",\"name\":\"Capital\",\"quote\":\"Recapitulate the meaning of the terms ‘Capital’ and ‘Revenue’\"},{\"id\":\"revenue\",\"name\":\"Revenue\",\"quote\":\"Recapitulate the meaning of the terms ‘Capital’ and ‘Revenue’\"}]}"
   },
   "need-for-measurement--units-of-measurement": {
@@ -136,6 +453,7 @@
    "pdf": "physics",
    "page": 3,
    "seconds": 32,
+   "model": "gemma3:12b",
    "answer": "{\"shape\":\"flat\",\"concepts\":[{\"id\":\"need-for-measurement\",\"name\":\"Need for measurement\",\"quote\":\"Need for measurement\"}, {\"id\":\"units-of-measurement\",\"name\":\"Units of measurement\",\"quote\":\"Units of measurement\"}, {\"id\":\"systems-of-units\",\"name\":\"Systems of units\",\"quote\":\"systems of units\"}, {\"id\":\"si-units\",\"name\":\"SI units\",\"quote\":\"SI units\"}, {\"id\":\"fundamental-units\",\"name\":\"Fundamental units\",\"quote\":\"fundamental units\"}, {\"id\":\"derived-units\",\"name\":\"Derived units\",\"quote\":\"derived units\"}, {\"id\":\"significant-figures\",\"name\":\"Significant figures\",\"quote\":\"significant figures\"}, {\"id\":\"determining-uncertainty\",\"name\":\"Determining the uncertainty in result\",\"quote\":\"Determining the uncertainty in result\"}]}"
   }
  }

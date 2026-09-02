@@ -1,0 +1,31 @@
+{
+  "curriculum": "cbse-class-11",
+  "subjectId": "history",
+  "models": [
+    {
+      "topicId": "syllabus--focus-on-some-important-developments-in-different-spheres-political-social-cultu",
+      "topicName": "Focus on some important developments in different spheres-political, social, cultural, and economic. Classes XI-XII (2026-27)2",
+      "curriculum": "cbse-class-11",
+      "subjectId": "history",
+      "chapterId": "syllabus",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "focus-on-important-developments",
+          "name": "Focus on some important developments in different spheres-political, social, cultural, and economic.",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 1,
+              "quote": "1.   Focus on some important developments in different spheres-political, social, cultural, and economic."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

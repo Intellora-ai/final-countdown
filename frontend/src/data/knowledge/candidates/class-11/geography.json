@@ -1,0 +1,31 @@
+{
+  "curriculum": "cbse-class-11",
+  "subjectId": "geography",
+  "models": [
+    {
+      "topicId": "unit-iv-natural-hazards-and-disasters--causes-consequences-and-management",
+      "topicName": "Causes Consequences and Management",
+      "curriculum": "cbse-class-11",
+      "subjectId": "geography",
+      "chapterId": "unit-iv-natural-hazards-and-disasters",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "natural-hazards-and-disasters",
+          "name": "Natural Hazards and Disasters",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "geography",
+              "page": 4,
+              "quote": "Natural Hazards and Disasters (To be tested through _ internal assessment in the form of Projects and presentation)"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen2.5:7b"
+    }
+  ]
+}

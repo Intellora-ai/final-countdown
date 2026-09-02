@@ -43,7 +43,8 @@ workflow or skill unless the user asked for it.
   writing.
 
 ### 7. Tests are proof
-- Write tests alongside code. Verification is types, tests, and green builds.
+- Tests before code, improve code not weaken tests. Verification is types,
+  tests, and green builds.
 - Stop when verification passes; never trust output without evidence.
 
 ### 8. Know your boundaries

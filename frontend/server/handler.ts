@@ -43,6 +43,7 @@ import { chooseStrategy, type Strategy } from './teaching.ts'
 import { subjectsFor, SUPPORTED_CLASSES, type SchoolClass } from './almanac/curriculum.ts'
 import type { Ledger } from './almanac/ledger.ts'
 import type { OpenLoops } from './openLoops.ts'
+import { ENDPOINT as SEARCH_ROUTE } from './openweb.ts'
 import {
   IDENTITY_COOKIE,
   identityCookie,
@@ -298,7 +299,12 @@ async function askWithinBudget(model: ModelPort, request: LessonRequest): Promis
 /** 256 KB is far above any real request and far below anything that hurts. */
 const DEFAULT_MAX_BODY_BYTES = 256 * 1024
 
-const ROUTES = new Set(['/api/lesson', '/api/ask', '/api/search', '/api/day', '/api/done', '/api/health', '/api/memory', '/api/situation'])
+/* `SEARCH_ROUTE` is imported from `openweb.ts` rather than spelled again: the
+ * dev middleware mounts on that constant (vite-plugin-search.ts) and this set
+ * is what lets the production server answer the same path, so a route that
+ * exists twice as prose is a route that can drift. One declaration, two
+ * servers. */
+const ROUTES = new Set(['/api/lesson', '/api/ask', SEARCH_ROUTE, '/api/day', '/api/done', '/api/health', '/api/memory', '/api/situation'])
 
 /* The one route that answers a GET.
  *

@@ -141,6 +141,45 @@ function switchTheJournalToWal(db: DatabaseSync): void {
   }
 }
 
+/**
+ * Take the transaction's write lock, waiting out another PROCESS that holds it.
+ *
+ * WHY `busy_timeout` IS NOT ENOUGH FOR THIS STATEMENT EITHER.
+ *
+ *   The same clause that covers the WAL switch above covers `BEGIN IMMEDIATE`:
+ *   "If SQLite determines that invoking the busy handler could result in a
+ *   deadlock, it will go ahead and return SQLITE_BUSY." A second operating-
+ *   system process hammering the same file is exactly when that determination
+ *   gets made, and the timeout is then set, honoured, and beside the point.
+ *
+ *   MEASURED, on CI run 33596355320: `m4-consistency.test.ts`'s two-process
+ *   proof ("never shows a partly written record while a second operating-system
+ *   process writes the same key") died with "database is locked", errcode 5,
+ *   on this exact statement -- with `busy_timeout = 5000` in force the whole
+ *   time. The child process was writing in a loop, so every refusal was of the
+ *   "come back" kind, and coming back is what this loop does.
+ *
+ *   Backing off converges the same way the WAL switch does: the other writer's
+ *   COMMIT is milliseconds away, and not one retry is needed after it lands.
+ */
+function takeTheWriteLock(db: DatabaseSync): void {
+  const giveUpAt = Date.now() + A_WAL_SWITCH_IS_RETRIED_FOR_MS
+  let pause = 1
+  for (;;) {
+    try {
+      db.exec('BEGIN IMMEDIATE')
+      return
+    } catch (thrown) {
+      /* Only contention is worth coming back for. See `SQLITE_BUSY`. */
+      const code = (thrown as { errcode?: unknown }).errcode
+      if (code !== SQLITE_BUSY && code !== SQLITE_LOCKED) throw thrown
+      if (Date.now() >= giveUpAt) throw thrown
+      rest(pause)
+      pause = Math.min(pause * 2, A_RETRY_WAITS_AT_MOST_MS)
+    }
+  }
+}
+
 export interface MemoryStore {
   /** The stored text for this key, or undefined if nothing was ever written. */
   read(key: string): string | undefined
@@ -280,8 +319,10 @@ export function sqliteMemoryStore(path: string): MemoryStore {
        * and the second overwrites the first's decision -- with SQLite raising
        * nothing, because neither did anything illegal on its own. Taking the
        * write lock up front is what makes the read part of this transaction
-       * mean anything. */
-      db.exec('BEGIN IMMEDIATE')
+       * mean anything. Taken through the retry, because a second PROCESS
+       * holding it answers with the SQLITE_BUSY the busy handler is forbidden
+       * to wait on -- `takeTheWriteLock` carries the measurement. */
+      takeTheWriteLock(db)
       try {
         const row = readOne.get(key) as { record?: unknown } | undefined
         const current = typeof row?.record === 'string' ? row.record : undefined

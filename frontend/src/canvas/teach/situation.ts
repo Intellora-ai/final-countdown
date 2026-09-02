@@ -81,6 +81,14 @@ export function situationClient(fetchImpl?: FetchLike): SituationPort {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
+      /* THE ONE WRITE THAT RACES A DEPARTURE. A refusal is the last thing a
+       * disappointed child reads before closing the tab or going elsewhere,
+       * and a navigation aborts every plain in-flight fetch -- so the ledger
+       * entry recording the debt would be the first casualty of the very mood
+       * it exists to answer. `keepalive` hands the request to the browser to
+       * finish after the page is gone. Law G measures this edge: she asks,
+       * she leaves, and the question must be waiting when she returns. */
+      keepalive: true,
     }).catch(() => {
       /* A ledger write that failed is a courtesy that did not happen. */
     })

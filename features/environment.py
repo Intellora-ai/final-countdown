@@ -45,13 +45,50 @@ CANVAS_COMPOSE = REPO / "docker-compose.canvas.yml"
 #: shadow that is then thrown away. Measured: after fifteen passing scenarios
 #: the counter still read 0 in `after_all`, so no receipt was written at all
 #: and the run looked, to the gate, exactly like a suite that never ran.
-_TALLY = {"scenarios": 0, "processes": 0, "started_at": ""}
+_TALLY = {"scenarios": 0, "processes": 0, "real_answers": 0, "started_at": ""}
+
+#: The providers whose answers count as "a real model answered". `fake` is the
+#: deterministic offline client and is excluded BY NAME, not by default: a new
+#: real vendor added to `PROVIDERS` should start counting without anyone
+#: remembering this file, and a new kind of fake must be added here before its
+#: answers can masquerade as evidence.
+_OFFLINE_PROVIDERS = frozenset({"fake"})
+
+
+def _real_answers_in(raw_documents) -> int:
+    """How many of these engine replies are answers a real model produced.
+
+    Counted from the reply itself -- every reply carries `provider` (the
+    engine's own `configured_provider()`) and `outcome`. Only a document that
+    both NAMES a live provider and actually ANSWERED counts; a refusal under a
+    live provider proves the provider was configured, not that a model taught
+    anything, and the preflight status document has no outcome at all. This is
+    deliberately a lower bound: the receipt's job is to prove "at least one
+    real answer happened", never to flatter the count.
+    """
+    import json as _json
+
+    counted = 0
+    for raw in raw_documents:
+        try:
+            document = _json.loads(raw)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(document, dict):
+            continue
+        provider = document.get("provider")
+        if not isinstance(provider, str) or provider in _OFFLINE_PROVIDERS:
+            continue
+        if document.get("outcome") == "answered":
+            counted += 1
+    return counted
 
 
 def before_all(context) -> None:
     _TALLY["started_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     _TALLY["scenarios"] = 0
     _TALLY["processes"] = 0
+    _TALLY["real_answers"] = 0
 
     from steps.tutor_steps import PYTHON as python
 
@@ -69,13 +106,20 @@ def before_scenario(context, scenario) -> None:
 def after_scenario(context, scenario) -> None:
     # Every step helper starts at least one process; the classroom scenario
     # starts one per student. Counted from what actually ran.
-    for attribute in ("classroom_results", "answers"):
-        value = getattr(context, attribute, None)
-        if value:
-            _TALLY["processes"] += len(value)
-            return
+    classroom = getattr(context, "classroom_results", None)
+    if classroom:
+        _TALLY["processes"] += len(classroom)
+        # Each classroom row is (learner, question, code, stdout, stderr).
+        _TALLY["real_answers"] += _real_answers_in(row[3] for row in classroom)
+        return
+    answers = getattr(context, "answers", None)
+    if answers:
+        _TALLY["processes"] += len(answers)
+        _TALLY["real_answers"] += _real_answers_in(answers)
+        return
     if getattr(context, "stdout", None) is not None:
         _TALLY["processes"] += 1
+        _TALLY["real_answers"] += _real_answers_in([context.stdout])
 
 
 def after_all(context) -> None:
@@ -93,6 +137,10 @@ def after_all(context) -> None:
                 "finished_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "scenarios_run": _TALLY["scenarios"],
                 "real_os_processes_started": _TALLY["processes"],
+                # The field the receipt gate reads. Counted from each reply's
+                # own `provider` and `outcome`, so a run answered entirely by
+                # the offline fake records 0 here and the gate stays failable.
+                "real_model_answers": _TALLY["real_answers"],
                 "what_was_real": (
                     "Every scenario started a separate operating-system process "
                     "running the shipped entry point and drove it over stdin and "

@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createHandler, type ModelPort, type SearchPort } from '../../server/handler.ts'
@@ -65,6 +68,8 @@ interface Server {
   breakTheNetwork(times: number): void
   /** Make the next `times` requests answer 503, the way a restarting server does. */
   refuse(times: number): void
+  /** The process that held the database is gone; a new one opens the same file. */
+  stopAndStartAgain(): void
   /**
    * Drop the signed identity cookie, so the NEXT request is a different
    * student on the same machine and the same database. This is what a shared
@@ -87,6 +92,7 @@ function memoryStorage(): Storage {
 
 let server: Server
 let closeStore: () => void
+let scratch = ''
 
 /**
  * Wire `fetch` to the real handler.
@@ -96,15 +102,16 @@ let closeStore: () => void
  * requests -- and because two students sharing a machine is a real-life case
  * one of these laws asserts.
  */
-function startServer(): Server {
-  const store = sqliteMemoryStore(':memory:')
+function startServer(path: string): Server {
+  let store = sqliteMemoryStore(path)
   closeStore = () => store.close()
-  const handle = createHandler({
+  const openHandler = () => createHandler({
     model,
     search,
     memory: canvasMemory({ store, log: () => {} }),
     identitySecret: A_TEST_SECRET,
   })
+  let handle = openHandler()
 
   const sent: { method: string; path: string; body?: unknown }[] = []
   let cookie = ''
@@ -139,16 +146,29 @@ function startServer(): Server {
     breakTheNetwork: (times: number) => { breakFor = times },
     refuse: (times: number) => { refuseFor = times },
     forgetWhoIsSignedIn: () => { cookie = '' },
+    stopAndStartAgain: () => {
+      /* What a deploy, a crash and the owner's `preview_stop` all do. The
+         student keeps her cookie; the server keeps nothing but the file. */
+      store.close()
+      store = sqliteMemoryStore(path)
+      closeStore = () => store.close()
+      handle = openHandler()
+    },
   }
 }
 
 beforeEach(() => {
   Object.defineProperty(window, 'localStorage', { value: memoryStorage(), configurable: true })
-  server = startServer()
+  /* A REAL FILE, not `:memory:`. One connection to an in-memory database
+     cannot tell a TEMP table from a permanent one, and that blindness let a
+     TEMP table ship. The file is what a student's canvas actually lives in. */
+  scratch = mkdtempSync(join(tmpdir(), 'canvas-laws-'))
+  server = startServer(join(scratch, 'canvas-memory.db'))
 })
 afterEach(() => {
   closeStore()
   vi.unstubAllGlobals()
+  rmSync(scratch, { recursive: true, force: true })
 })
 
 /** Read, and fail the test if the read itself failed. Laws that are ABOUT a
@@ -237,6 +257,23 @@ describe('LAW B — what was on the canvas is still on the canvas', () => {
     const all = await whatIsOnTheCanvas('thermo')
     expect(all).toHaveLength(60)
     expect(all[0]?.question).toBe('big 0')
+  })
+
+  it('survives the server being stopped and started again, which is every deploy', async () => {
+    /* The shipped table was declared TEMP. SQLite keeps a TEMP table only for
+       the connection that made it, so every lesson saved onto a canvas left
+       with the process that held it. The owner's own database file had no
+       artifacts table in it at all (`sqlite3 data/canvas-memory.db`, 2026-09-03),
+       which is how this was found -- and the earlier laws could not see it,
+       because in one process TEMP and permanent behave identically. */
+    const before = [1, 2, 3, 4, 5, 6, 7].map((n) => `before ${n}`)
+    for (const q of before) await appendToCanvas('waves', anAsk(q))
+    server.stopAndStartAgain()
+    expect((await whatIsOnTheCanvas('waves')).map((a) => a.question)).toEqual(before)
+    /* And it carries on from where it was, rather than starting a second
+       canvas at position one beside the first. */
+    await appendToCanvas('waves', anAsk('after'))
+    expect((await whatIsOnTheCanvas('waves')).map((a) => a.question)).toEqual([...before, 'after'])
   })
 })
 
@@ -336,6 +373,10 @@ describe('LAW C — nothing leaves the canvas without an explicit deletion', () 
      * test that came first waved through a `tidyCanvas()` that deleted
      * everything, and this one caught it.
      *
+     * A TEMP table is a delete with a delay: SQLite drops it with the
+     * connection, so it is every lesson gone at the next restart. It shipped,
+     * and the owner's own database proved it on 2026-09-03.
+     *
      * Read through Vite's own module graph rather than the filesystem, so it
      * checks the same files however the suite is started and from wherever.
      */
@@ -354,7 +395,7 @@ describe('LAW C — nothing leaves the canvas without an explicit deletion', () 
       for (const line of text.split('\n')) {
         if (!/canvas_artifacts/i.test(line)) continue
         mentions.push(path)
-        if (/\b(DELETE|UPDATE|DROP|TRUNCATE|REPLACE)\b/i.test(line)) {
+        if (/\b(DELETE|UPDATE|DROP|TRUNCATE|REPLACE|TEMP|TEMPORARY)\b/i.test(line)) {
           offending.push(`${path}: ${line.trim()}`)
         }
       }

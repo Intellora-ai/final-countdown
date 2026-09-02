@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS canvas_memory (
   updated_at TEXT NOT NULL
 );
 
-CREATE TEMP TABLE IF NOT EXISTS canvas_artifacts (
+CREATE TABLE IF NOT EXISTS canvas_artifacts (
   memory_key TEXT    NOT NULL,
   seq        INTEGER NOT NULL,
   artifact   TEXT    NOT NULL,

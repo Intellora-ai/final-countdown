@@ -208,7 +208,12 @@ export default defineConfig({
   projects: [
     {
       name: `a-person-on-${browserName}-${platformName}`.replace(/\s+/g, '-').toLowerCase(),
-      use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
+      /* No `devices['Desktop Chrome']` spread here. That descriptor carries a
+       * Chrome user agent, and `SELENIUM_REMOTE_CAPABILITIES` may just as well
+       * have named MicrosoftEdge -- an Edge run reporting a Chrome UA is a
+       * report about a browser nobody tested. The viewport is the one thing the
+       * project genuinely decides. */
+      use: { viewport: { width: 1440, height: 900 } },
     },
   ],
 

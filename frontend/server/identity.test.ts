@@ -24,6 +24,9 @@
  */
 
 import { describe, expect, it } from 'vitest'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 import { seededRandom } from './memory/generate.test.ts'
 import {
@@ -31,7 +34,9 @@ import {
   identityCookie,
   newStudentId,
   NoIdentitySecret,
+  persistSecretUnlessPresent,
   readCookie,
+  resolveIdentitySecret,
   signIdentity,
   verifyIdentity,
 } from './identity.ts'
@@ -195,5 +200,61 @@ describe('the cookie the server plants', () => {
     const value = planted.slice(planted.indexOf('=') + 1, planted.indexOf(';'))
     expect(value).not.toContain(' ')
     expect(decodeURIComponent(value)).toBe('a b;c,d=e')
+  })
+
+  it('is Secure only when the deployment says it terminates TLS', () => {
+    /* Both directions, because both are load-bearing: `Secure` on a plain-HTTP
+     * development server means every request arrives with no cookie and mints
+     * a new student; no `Secure` behind TLS means a bearer cookie the browser
+     * will also send in the clear to the same host. */
+    const token = signIdentity(newStudentId(), A_SECRET)
+    expect(identityCookie(token)).not.toMatch(/;\s*Secure\b/)
+    expect(identityCookie(token, { secure: false })).not.toMatch(/;\s*Secure\b/)
+    expect(identityCookie(token, { secure: true })).toMatch(/;\s*Secure\b/)
+    /* The flag is appended, never spliced into the value. */
+    expect(identityCookie(token, { secure: true })).toContain(`${IDENTITY_COOKIE}=${encodeURIComponent(token)}; `)
+  })
+})
+
+describe('the secret file, when two servers boot at once', () => {
+  /* The race, made deterministic: process A found no file and generated a
+   * secret; before it could write, process B did the same and won. What A must
+   * do is USE B's secret, not overwrite it -- otherwise two servers sign with
+   * two keys and a student is "not her" on every other request. */
+  it('keeps the secret another process wrote first, instead of overwriting it', () => {
+    const path = join(mkdtempSync(join(tmpdir(), 'identity-')), 'secret')
+    const theirs = 'b'.repeat(64)
+    writeFileSync(path, `${theirs}\n`, { encoding: 'utf8' })
+
+    const mine = 'a'.repeat(64)
+    expect(persistSecretUnlessPresent(path, mine)).toBe(theirs)
+    expect(readFileSync(path, 'utf8').trim(), 'the winner’s secret was overwritten').toBe(theirs)
+  })
+
+  it('writes its own secret when it really is first', () => {
+    const path = join(mkdtempSync(join(tmpdir(), 'identity-')), 'secret')
+    const mine = 'a'.repeat(64)
+    expect(persistSecretUnlessPresent(path, mine)).toBe(mine)
+    expect(readFileSync(path, 'utf8').trim()).toBe(mine)
+  })
+
+  it('replaces an empty file, which is a half-written secret and not a secret', () => {
+    const path = join(mkdtempSync(join(tmpdir(), 'identity-')), 'secret')
+    writeFileSync(path, '', { encoding: 'utf8' })
+    const mine = 'a'.repeat(64)
+    expect(persistSecretUnlessPresent(path, mine)).toBe(mine)
+    expect(readFileSync(path, 'utf8').trim()).toBe(mine)
+  })
+
+  it('two resolutions of the same absent path agree, and the file says why', () => {
+    /* The whole function, end to end: whoever resolves second reads the first
+     * one's secret back, and reports that it did not generate. */
+    const path = join(mkdtempSync(join(tmpdir(), 'identity-')), 'nested', 'secret')
+    const first = resolveIdentitySecret(path)
+    const second = resolveIdentitySecret(path)
+    expect(first.generated).toBe(true)
+    expect(second.generated).toBe(false)
+    expect(second.secret).toBe(first.secret)
+    expect(readFileSync(path, 'utf8').trim()).toBe(first.secret)
   })
 })

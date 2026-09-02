@@ -120,10 +120,39 @@ export function resolveIdentitySecret(path: string): { secret: string; generated
 
   const made = randomBytes(32).toString('hex')
   mkdirSync(dirname(path), { recursive: true })
-  /* 0o600: owner read/write, nobody else. A secret world-readable on a shared
-   * machine is every account on that machine able to forge every student. */
-  writeFileSync(path, `${made}\n`, { encoding: 'utf8', mode: 0o600 })
-  return { secret: made, generated: true }
+  const kept = persistSecretUnlessPresent(path, made)
+  return { secret: kept, generated: kept === made }
+}
+
+/**
+ * Write `made` as the secret, unless another process got there first.
+ *
+ * `wx` -- create, and FAIL if the file exists -- is the whole point. Two
+ * replicas booting together both find no file, both generate a secret, and
+ * with a plain write the second one silently overwrites the first: two
+ * processes, two secrets, and every cookie minted by one is "not her" to the
+ * other, so a student loses her identity whenever a request lands on the
+ * other server. The operating system arbitrates `wx` in one indivisible step,
+ * so exactly one writer wins and the loser reads back what the winner wrote.
+ *
+ * A file that exists but is EMPTY is the one case the loser may overwrite: it
+ * is the half-written leftover `resolveIdentitySecret` already refuses to use,
+ * and rereading it forever would refuse to start with no secret at all.
+ *
+ * 0o600: owner read/write, nobody else. A secret world-readable on a shared
+ * machine is every account on that machine able to forge every student.
+ */
+export function persistSecretUnlessPresent(path: string, made: string): string {
+  try {
+    writeFileSync(path, `${made}\n`, { encoding: 'utf8', mode: 0o600, flag: 'wx' })
+    return made
+  } catch (error) {
+    if ((error as { code?: unknown }).code !== 'EEXIST') throw error
+    const theirs = readFileSync(path, 'utf8').trim()
+    if (theirs !== '') return theirs
+    writeFileSync(path, `${made}\n`, { encoding: 'utf8', mode: 0o600 })
+    return made
+  }
 }
 
 /** The signature for an id under this secret. */
@@ -228,12 +257,16 @@ export function readCookie(header: string | undefined, name: string): string | u
  *             cookie with no expiry is discarded by some browsers on close,
  *             which would silently lose her memory every evening.
  *
- * `Secure` is NOT set here and that is deliberate: this server is served over
- * plain HTTP on a development machine, and a `Secure` cookie is dropped on the
- * floor there -- every request would arrive with no identity and mint a new
- * one. It belongs on the deployment that terminates TLS, not in this file.
+ * `Secure` is NOT set by default and that is deliberate: this server is served
+ * over plain HTTP on a development machine, and a `Secure` cookie is dropped on
+ * the floor there -- every request would arrive with no identity and mint a new
+ * one. The deployment that terminates TLS asks for it explicitly, through
+ * `secure: true` (set from `IDENTITY_COOKIE_SECURE` in `index.ts`), because a
+ * bearer cookie a browser will also send over plain HTTP to the same host is a
+ * bearer cookie anyone on that network can read.
  */
-export function identityCookie(token: string): string {
+export function identityCookie(token: string, options: { secure?: boolean } = {}): string {
   const year = 365 * 24 * 60 * 60
-  return `${IDENTITY_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${year}`
+  const flags = `Path=/; HttpOnly; SameSite=Lax; Max-Age=${year}`
+  return `${IDENTITY_COOKIE}=${encodeURIComponent(token)}; ${flags}${options.secure ? '; Secure' : ''}`
 }

@@ -97,6 +97,84 @@ describe('a ledger on a real file', () => {
   })
 })
 
+describe('two servers on one ledger file: a day plan and a mark at the same moment', () => {
+  /* THE RACE, MADE DETERMINISTIC.
+   *
+   * Replica A is planning a day: load, plan, save the whole file. Replica B
+   * marks a concept done in between. With no lock around A's read-modify-write,
+   * A's save writes the file it loaded BEFORE the mark existed, and the mark is
+   * gone -- while B was told "saved".
+   *
+   * The interleaving is forced rather than hoped for: A's store is wrapped so
+   * its `load` waits on a gate the test holds. While A is held after its load,
+   * B runs a full `addDone` through a second store on the same file. Then the
+   * gate opens and A saves. If the mark survives, A's whole span was under the
+   * same lock B needs. */
+  const subject = {
+    id: 'maths',
+    name: 'maths',
+    chapters: [{
+      id: 'maths-ch1',
+      name: 'c',
+      concepts: ['m1', 'm2', 'm3'].map((c) => ({ id: c, name: c, minutes: 15, deps: [] })),
+    }],
+  }
+  const request = { studentId: 'stu_1', date: '2026-09-02', dailyMinutes: 60, subjects: [subject] }
+
+  it('keeps the mark that landed while the day was being planned', async () => {
+    const raw = fileStore(path)
+    let release!: () => void
+    const held = new Promise<void>((resolve) => { release = resolve })
+    let loaded!: () => void
+    const loadedOnce = new Promise<void>((resolve) => { loaded = resolve })
+    /* Replica A: the same store, with a load that pauses after reading. The
+       `exclusively` lock and everything else pass straight through. */
+    const slow = {
+      ...raw,
+      async load() {
+        const data = await raw.load()
+        loaded()
+        await held
+        return data
+      },
+    }
+    const replicaA = createLedger(slow)
+    const replicaB = fileStore(path)
+
+    const planning = replicaA.dayFor(request)
+    await loadedOnce
+
+    /* Replica B marks while A is holding its loaded copy. This must either
+       finish (no lock held by A: the old bug) or WAIT for A (the fix); the
+       gate is released on a timer so a waiting B is never a hung test. */
+    const marking = replicaB.addDone?.('stu_1', 'm1') ?? Promise.resolve()
+    setTimeout(release, 50)
+
+    await Promise.all([planning, marking])
+
+    const after = await fileStore(path).load()
+    expect(after.done['stu_1'], 'the mark written during the day plan was lost').toEqual(['m1'])
+    expect(after.days['stu_1']?.['2026-09-02'], 'the day plan itself was lost').toBeDefined()
+  })
+
+  it('and the reverse: a day planned while a mark is being written survives too', async () => {
+    const replicaA = createLedger(fileStore(path))
+    const replicaB = fileStore(path)
+    /* Twenty rounds, because this direction is not gated: the lock either
+       serialises every interleaving or it does not. */
+    for (let round = 0; round < 20; round += 1) {
+      const date = `2026-10-${String(round + 1).padStart(2, '0')}`
+      await Promise.all([
+        replicaA.dayFor({ ...request, date }),
+        replicaB.addDone?.('stu_1', `m${round}`),
+      ])
+    }
+    const after = await fileStore(path).load()
+    expect(after.done['stu_1']?.length, 'a mark was lost under a day plan').toBe(20)
+    expect(Object.keys(after.days['stu_1'] ?? {}).length, 'a day plan was lost under a mark').toBe(20)
+  })
+})
+
 describe('the very first write, on a machine that has never run this', () => {
   it('creates the directory instead of failing', async () => {
     /* THE DEFECT THIS PINS. The server starts, prints "listening", and then

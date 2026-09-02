@@ -976,6 +976,41 @@ describe('nothing typed is lost', () => {
     ).not.toBeNull()
   })
 
+  it('keeps her draft while the next part is being written, instead of swallowing it', async () => {
+    /* The lesson has run out of parts and the model is composing the next one.
+       Sent, and deliberately never resolved -- a slow model, which is the
+       normal case rather than the edge. */
+    let asked = 0
+    const stillWriting = () => {
+      asked += 1
+      return new Promise<boolean>(() => {})
+    }
+    render(<TeachView lesson={fixture()} mode="2d" onNeedNextPart={stillWriting} />)
+    await settle()
+
+    /* Answer every beat until the lesson asks for a part it does not have. */
+    for (let step = 0; step < 12 && asked === 0; step += 1) await answerBeat()
+    expect(asked, 'the lesson never asked for a next part').toBe(1)
+
+    const field = screen.getByLabelText('Answer the question, or ask one of your own') as HTMLInputElement
+    /* THE BOX IS BUSY, AND SAYS SO. It used to stay enabled for the whole model
+       call -- `busy` carried only the doubt path -- so nothing told her a part
+       was on its way. */
+    expect(field.disabled, 'the box stayed open while the next part was being written').toBe(true)
+
+    /* Enter pressed anyway -- keyboard focus was already in the box. Before
+       this guard, `submit` read the text as an answer, cleared the draft, and
+       `advance` then refused because a part was already in flight: her words
+       gone, nothing moved, nothing announced. */
+    fireEvent.change(field, { target: { value: 'the false positives were the cost' } })
+    fireEvent.submit(field.closest('form') as HTMLFormElement)
+    await settle()
+    expect(field.value, 'her draft was cleared by a submit that did nothing').toBe(
+      'the false positives were the cost',
+    )
+    expect(asked, 'a second next-part request was sent while the first was in flight').toBe(1)
+  })
+
   it('does not re-fire the struggle signal for a session that already fired it', async () => {
     let struggled = 0
     const answered = async () => ({ ok: true, text: 'An answer from the model.' })

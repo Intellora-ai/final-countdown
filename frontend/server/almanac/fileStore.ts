@@ -201,6 +201,18 @@ export function fileStore(path: string): LedgerStore {
         await store.save({ ...data, done: { ...data.done, [studentId]: [...already] } })
       })
     },
+
+    /**
+     * THE SAME LOCK, LENT TO THE LEDGER'S OWN READ-MODIFY-WRITE.
+     *
+     * `addDone` above made one mark safe. `dayFor` in `ledger.ts` still did
+     * load, plan, save of the whole file with no lock at all, so a mark from
+     * the other replica that landed between its load and its save was gone
+     * when the save wrote the older copy back. Lending the lock is the fix
+     * with the fewest moving parts: the ledger holds it across exactly the
+     * span that must be indivisible, and this file stays the only place that
+     * knows how the lock works. */
+    exclusively: holdingTheLock,
   }
 
   return store

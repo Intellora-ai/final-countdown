@@ -96,7 +96,10 @@ TRACEBACK_TELLS = (
 
 #: An absolute path in an answer tells a stranger the layout of the machine, and
 #: is the other half of what a leaked traceback gives away.
-PATH_TELL = re.compile(r"(/Users/|/home/|[A-Za-z]:\\\\)")
+#: `\\` in a raw string is ONE literal backslash, which is what `C:\Users` has.
+#: It was `\\\\` -- two -- so the Windows alternative could never match and P3
+#: was only ever checking the Unix shapes.
+PATH_TELL = re.compile(r"(/Users/|/home/|[A-Za-z]:\\)")
 
 
 # --------------------------------------------------------------------------

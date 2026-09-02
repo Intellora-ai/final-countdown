@@ -57,8 +57,10 @@ Read `CLAUDE.md` at the repo root and obey it. In particular:
 - No global styling leaks. `fillStyle`, `strokeStyle`, `globalAlpha`,
   `lineWidth`, `font` and friends persist on the context — every drawing routine
   is wrapped in `save`/`restore` so one element cannot change the next.
-- Path ordering is `beginPath()` → `moveTo()` → path → `fill()`/`stroke()` →
-  `closePath()`. A path left open corrupts every draw after it.
+- Path ordering is `beginPath()` → `moveTo()` → path → `closePath()` (for a
+  closed shape) → `fill()`/`stroke()`. `closePath()` after `stroke()` cannot
+  close the stroke that was already drawn, and a missing `beginPath()` makes
+  the next draw repaint every earlier subpath.
 
 ## 3 · Rendering determinism
 

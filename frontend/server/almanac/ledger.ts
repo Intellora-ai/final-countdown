@@ -58,6 +58,19 @@ export interface LedgerStore {
    * each. Only a store whose smallest write is one mark fixes that.
    */
   addDone?(studentId: string, conceptId: string): Promise<void>
+
+  /**
+   * Run a whole-document read-modify-write while nothing else -- in this
+   * process OR another -- can write the document.
+   *
+   * `addDone` made one mark indivisible across replicas, and left `dayFor`'s
+   * load-plan-save of the WHOLE file outside that lock: a mark landing between
+   * a day plan's load and its save was written away by the save, and a plan
+   * landing between a mark's load and save lost the plan. A store that has a
+   * cross-process lock offers it here; `dayFor` runs inside it when present
+   * and inside `alone()` alone when not, which is exactly as safe as it was.
+   */
+  exclusively?<T>(work: () => Promise<T>): Promise<T>
 }
 
 export interface DayRequest {
@@ -167,7 +180,13 @@ export function createLedger(store: LedgerStore, options: LedgerOptions = {}): L
     },
 
     dayFor(request) {
-      return alone(async () => {
+      /* Under the store's own cross-process lock when it has one -- see
+         `LedgerStore.exclusively` -- so a mark from another replica cannot land
+         between this load and this save and be overwritten by it. */
+      const guarded = store.exclusively === undefined
+        ? <T,>(work: () => Promise<T>) => work()
+        : store.exclusively.bind(store)
+      return alone(() => guarded(async () => {
       const data = await store.load()
 
       const existing = data.days[request.studentId]?.[request.date]
@@ -187,7 +206,7 @@ export function createLedger(store: LedgerStore, options: LedgerOptions = {}): L
       data.days[request.studentId][request.date] = stored
       await store.save(data)
       return stored
-      })
+      }))
     },
   }
 }

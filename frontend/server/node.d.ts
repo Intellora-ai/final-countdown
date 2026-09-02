@@ -21,6 +21,7 @@ declare module 'node:http' {
     method?: string
     headers: Record<string, string | string[] | undefined>
     [Symbol.asyncIterator](): AsyncIterableIterator<unknown>
+    iterator(options?: { destroyOnReturn?: boolean }): AsyncIterableIterator<unknown>
     destroy(): void
   }
 
@@ -49,6 +50,9 @@ declare module 'node:http' {
 declare module 'node:stream' {
   export interface Readable {
     [Symbol.asyncIterator](): AsyncIterableIterator<unknown>
+    /* The explicit iterator, for the one caller that must leave the stream
+     * alive after returning early: `readJsonBody` and its 413. */
+    iterator(options?: { destroyOnReturn?: boolean }): AsyncIterableIterator<unknown>
     destroy?(): void
     headers?: Record<string, string | string[] | undefined>
   }
@@ -210,10 +214,13 @@ declare module 'pg' {
  * around a synchronous SQLite store. */
 declare module 'node:fs' {
   export function readFileSync(path: string, encoding: 'utf8'): string
+  /* `flag: 'wx'` is create-or-fail: the one write the identity secret needs,
+   * because two servers booting together must not overwrite each other's key.
+   * See `persistSecretUnlessPresent` in `identity.ts`. */
   export function writeFileSync(
     path: string,
     data: string,
-    options?: { encoding?: 'utf8'; mode?: number },
+    options?: { encoding?: 'utf8'; mode?: number; flag?: 'w' | 'wx' },
   ): void
   export function existsSync(path: string): boolean
   export function mkdirSync(path: string, options?: { recursive?: boolean }): void

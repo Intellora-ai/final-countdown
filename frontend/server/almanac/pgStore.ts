@@ -87,9 +87,23 @@ export function pgStore(options: PgStoreOptions): LedgerStore & {
   let prepared: Promise<void> | null = null
 
   /* Created once per process, and every caller awaits the SAME promise. Two
-   * requests arriving before the schema exists must not both run CREATE. */
+   * requests arriving before the schema exists must not both run CREATE.
+   *
+   * CLEARED ON FAILURE. `??=` stores the promise before it settles, so a first
+   * CREATE that failed -- the database not yet accepting connections at boot,
+   * or two replicas racing `CREATE TABLE IF NOT EXISTS` into a catalog
+   * duplicate -- would otherwise stay cached as a rejection, and every later
+   * load, save and mark would await that same rejection for the life of the
+   * process. One bad first call was a permanent outage that only a restart
+   * cleared. Now the next caller tries again. */
   const ready = (): Promise<void> => {
-    prepared ??= pool.query(SCHEMA).then(() => undefined)
+    prepared ??= pool.query(SCHEMA).then(
+      () => undefined,
+      (error: unknown) => {
+        prepared = null
+        throw error
+      },
+    )
     return prepared
   }
 

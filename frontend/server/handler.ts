@@ -205,6 +205,14 @@ export interface HandlerOptions {
    * without one must refuse to start; see `index.ts`.
    */
   readonly identitySecret: string
+  /**
+   * Plant the identity cookie with `Secure`, so a browser only ever sends it
+   * over TLS. Off by default because this server speaks plain HTTP on a
+   * development machine, where a `Secure` cookie is silently dropped and every
+   * request would mint a new student. The deployment that terminates TLS turns
+   * it on; see `IDENTITY_COOKIE_SECURE` in `index.ts` and `identityCookie`.
+   */
+  readonly secureCookies?: boolean
   /** Strings that must never appear in a response, whatever produced them. */
   readonly secrets?: readonly string[]
   readonly maxBodyBytes?: number
@@ -1378,9 +1386,16 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     /* The floor. Nothing of the model's survived a check that only removes, so
        there is genuinely nothing true to show -- and saying so is the honest
        last rung rather than a silent blank. */
+    /* Redacted the same way `lessonFrom` redacts its 502: `judge` interpolates
+       values from the model's reply into these messages, and a browser must
+       never be handed the model's words through an error field. The operator
+       already has the full text on the console above. */
     return reply(502, {
       error: 'the model returned a lesson that failed validation',
-      issues: written.issues,
+      issues: written.issues.map((issue) => ({
+        path: issue.path,
+        message: safeMessage(issue.message),
+      })),
     })
   }
 
@@ -1601,8 +1616,12 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         if (rest !== undefined) return { lesson: rest }
       }
 
-      /* 4. The floor: the honest sentence, and nothing of the model's. */
-      return { lesson: served(noteOnly(question), 'answer') } as { lesson: Lesson } | undefined
+      /* 4. The floor: the honest sentence, and nothing of the model's.
+         Said as `undefined` when even the note does not validate, never as
+         `{ lesson: undefined }`: the cast that used to sit here turned that
+         case into a 200 carrying no lesson at all. */
+      const floor = served(noteOnly(question), 'answer')
+      return floor === undefined ? undefined : { lesson: floor }
     }
     return undefined
   }
@@ -1638,7 +1657,9 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     return {
       studentId: minted,
       proven: false,
-      setCookie: identityCookie(signIdentity(minted, options.identitySecret)),
+      setCookie: identityCookie(signIdentity(minted, options.identitySecret), {
+        secure: options.secureCookies === true,
+      }),
     }
   }
 

@@ -412,8 +412,13 @@ export function TeachView({
 
   function submit(text: string): void {
     /* First, before the text is even classified -- an empty stray Enter must be
-       dropped, not counted. See `answerInFlight`. */
-    if (answerInFlight) return
+       dropped, not counted. See `answerInFlight`.
+
+       `nextPartInFlight` too. `advance` refuses while a part is being written,
+       so a submit let through here would clear her draft and move nothing:
+       her words gone, the lesson still, no announcement. The box is disabled
+       for the same span below, and this guard is what holds when it is not. */
+    if (answerInFlight || nextPartInFlight) return
 
     const kind = classifyTurn(text)
     if (current === undefined) return
@@ -681,7 +686,7 @@ export function TeachView({
           draft={draft}
           onDraft={setDraft}
           onAsk={submit}
-          busy={answerInFlight}
+          busy={answerInFlight || nextPartInFlight}
           closingRef={closingRef}
         />
       )}

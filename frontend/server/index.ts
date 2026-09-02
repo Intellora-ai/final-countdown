@@ -56,7 +56,12 @@ export async function readJsonBody(stream: Readable, maxBytes: number): Promise<
   const chunks: Buffer[] = []
   let bytes = 0
 
-  for await (const chunk of stream) {
+  /* `destroyOnReturn: false`, because the default iterator DESTROYS the stream
+   * when this loop returns early -- and on an `IncomingMessage` that is the
+   * socket the 413 below has to travel back on. The comment inside the loop
+   * explains why the caller, not this function, decides when that socket
+   * closes; this option is what keeps that promise on every Node version. */
+  for await (const chunk of stream.iterator({ destroyOnReturn: false })) {
     /* The stream's async iterator is typed as unknown: it yields Buffers in
      * practice, and strings when an encoding has been set on it. Both are
      * handled rather than assumed. */
@@ -112,6 +117,8 @@ export interface ServerOptions {
   readonly aliases?: SubjectAliases
   /** The key identities are signed with. No default; see `identity.ts`. */
   readonly identitySecret: string
+  /** Plant the identity cookie with `Secure`. Only behind TLS; see `handler.ts`. */
+  readonly secureCookies?: boolean
   readonly secrets?: readonly string[]
 }
 
@@ -186,6 +193,7 @@ export function createServer(options: ServerOptions): Server {
     ...(options.lessons === undefined ? {} : { lessons: options.lessons }),
     ...(options.aliases === undefined ? {} : { aliases: options.aliases }),
     identitySecret: options.identitySecret,
+    ...(options.secureCookies === undefined ? {} : { secureCookies: options.secureCookies }),
     secrets: options.secrets,
     maxBodyBytes: MAX_BODY_BYTES,
   })
@@ -523,7 +531,17 @@ function main(): void {
     : { secret: configuredSecret, generated: false }
   const identitySecret = resolved.secret
 
-  const server = createServer({ model, search, openWeb, loops, almanac, memory, explanations, lessons, aliases, identitySecret, secrets })
+  /* `Secure` ON THE COOKIE, ONLY WHEN THE DEPLOYMENT SAYS SO.
+   *
+   * Explicit, never inferred: this process cannot see whether a proxy in front
+   * of it terminates TLS, and guessing from a forwarded header is trusting a
+   * header anyone can send. Set `IDENTITY_COOKIE_SECURE=1` where the browser
+   * reaches this server over https; leave it unset on a plain-HTTP development
+   * machine, where a `Secure` cookie is dropped and every request would mint a
+   * new student. */
+  const secureCookies = /^(1|true|yes)$/i.test((process.env['IDENTITY_COOKIE_SECURE'] ?? '').trim())
+
+  const server = createServer({ model, search, openWeb, loops, almanac, memory, explanations, lessons, aliases, identitySecret, secureCookies, secrets })
   server.listen(port, host, () => {
     console.log(`almanac server listening on http://${host}:${port}`)
     console.log(`  memory: ${memoryPath} (sqlite, safe for many servers)`)

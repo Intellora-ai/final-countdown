@@ -780,12 +780,12 @@ export function createGroqModel(options: GroqOptions): Model {
     /*
      * ONE TURN, TEXT IN, TEXT OUT -- the shape `authorConcept` asks for.
      *
-     * No `response_format` and no schema. The concept prompt carries a worked
-     * example of the shape it wants and `extractJson` reads the reply
-     * defensively, which is what the browser-side author has always done. The
-     * 2800 input tokens a schema costs buy nothing here: `handler.ts` puts
-     * every reply through `validateLesson` regardless, so the vendor was never
-     * the gate.
+     * JSON mode, but no schema -- see the `response_format` note below. The
+     * concept prompt carries a worked example of the shape it wants and
+     * `extractJson` reads the reply defensively, which is what the
+     * browser-side author has always done. The 2800 input tokens a schema
+     * costs buy nothing here: `handler.ts` puts every reply through
+     * `validateLesson` regardless, so the vendor was never the gate.
      *
      * `priorAssistant` is the repair turn. Sending back what the model wrote
      * makes "fix these problems" a correction of a document it can see;

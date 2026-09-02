@@ -78,6 +78,7 @@ import type { LearningIntelligence } from './intelligence/LearningIntelligence.t
 import type { ShadowRun, ShadowRuns } from './intelligence/runs.ts'
 import { shadowObserver } from './intelligence/shadow.ts'
 import { costsFrom } from './intelligence/cost.ts'
+import { evaluateRuns } from './intelligence/evaluate.ts'
 import { capabilityRegistry } from './intelligence/registry.ts'
 import { sufficientPath } from './intelligence/sufficiency.ts'
 import { knownTopicCount } from '../src/knowledge/load.ts'
@@ -389,7 +390,7 @@ const DEFAULT_MAX_BODY_BYTES = 256 * 1024
  * exactly one place -- the authoring model inside `conceptFor`. */
 const streaming = new AsyncLocalStorage<(text: string) => void>()
 
-const ROUTES = new Set(['/api/lesson', '/api/ask', SEARCH_ROUTE, '/api/day', '/api/done', '/api/health', '/api/memory', '/api/canvas', '/api/situation', '/api/evidence', '/api/next'])
+const ROUTES = new Set(['/api/lesson', '/api/ask', SEARCH_ROUTE, '/api/day', '/api/done', '/api/health', '/api/memory', '/api/canvas', '/api/situation', '/api/evidence', '/api/next', '/api/intelligence/report'])
 
 /* The one route that answers a GET.
  *
@@ -1899,6 +1900,14 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     }
     if (!ROUTES.has(req.path)) {
       return reply(404, { error: 'no such route' })
+    }
+    /* THE SHADOW'S REPORT. Not a route at all while the shadow is off, so a
+       server that never ran it shows nothing. Counts only; no student's words. */
+    if (req.path === '/api/intelligence/report') {
+      const mode = process.env['INTELLIGENCE_MODE'] ?? 'off'
+      if (mode === 'off') return reply(404, { error: 'no such route' })
+      if (req.method !== 'GET') return reply(405, { error: 'the report is read with GET' })
+      return reply(200, { ...evaluateRuns(options.shadowRuns?.list() ?? []) })
     }
     if (req.path === HEALTH && req.method === 'GET') {
       /* Enough to diagnose, and nothing more. A health endpoint is the most

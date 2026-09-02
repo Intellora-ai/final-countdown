@@ -10,7 +10,7 @@ import { canvasMemory } from '../../server/memory/store.ts'
 import { sqliteMemoryStore } from '../../server/memory/sqliteStore.ts'
 
 import type { LearningIntelligence } from '../../server/intelligence/LearningIntelligence.ts'
-import { shadowRuns } from '../../server/intelligence/runs.ts'
+import { shadowRuns, type ListedRun } from '../../server/intelligence/runs.ts'
 
 import { appendToCanvas, readCanvas, type NewArtifact } from '../canvas/api/memoryClient'
 
@@ -78,6 +78,8 @@ interface Server {
   readonly shadowLog: string[]
   /** Swap the shadow's candidate on the running server, keeping the store. */
   withCandidate(candidate: LearningIntelligence): void
+  /** Every shadow run kept so far, read back through the runs reader. */
+  runsKept(): readonly ListedRun[]
   /** Rows in a table, counted through a SECOND connection to the file. */
   rowsIn(table: 'canvas_memory' | 'canvas_artifacts' | 'shadow_runs'): number
   /**
@@ -172,6 +174,7 @@ function startServer(path: string): Server {
     forgetWhoIsSignedIn: () => { cookie = '' },
     shadowLog,
     withCandidate: (next) => { candidate = next; handle = openHandler() },
+    runsKept: () => shadowRuns(store).list(),
     rowsIn: (table) => {
       const peek = new DatabaseSync(path)
       try {
@@ -501,6 +504,33 @@ describe('FLOOR F2 -- the reply is the same, byte for byte, with the shadow on a
       expect(on.status, question).toBe(off.status)
       expect(JSON.stringify(on.body), question).toBe(JSON.stringify(off.body))
     }
+  })
+})
+
+describe('THE GATE -- code decides when no brain is needed, and the shadow records that too', () => {
+  it('small talk in shadow mode is one run that says code sufficed, and no brain was asked', async () => {
+    const before = server.runsKept().length
+    await inMode('shadow', async () => {
+      await ask('hi')
+      await new Promise((r) => setTimeout(r, 20))
+    })
+    const runs = server.runsKept().slice(before)
+    expect(runs).toHaveLength(1)
+    expect(runs[0]?.run?.gate.path).toBe(0)
+    expect(runs[0]?.run?.live).toEqual({ did: 'asked', status: 200 })
+    expect(runs[0]?.run?.candidate).toEqual({ ok: 'skipped', because: runs[0]?.run?.gate.because })
+    expect(server.shadowLog.join('\n')).not.toMatch(/candidate explain/)
+  })
+
+  it('a fresh question nobody decided is path 5, and both brains are asked', async () => {
+    const before = server.runsKept().length
+    await inMode('shadow', async () => {
+      await ask('what is total internal reflection')
+      await new Promise((r) => setTimeout(r, 20))
+    })
+    const run = server.runsKept().slice(before)[0]?.run
+    expect(run?.gate.path).toBe(5)
+    expect(run?.candidate.ok).toBe(true)
   })
 })
 

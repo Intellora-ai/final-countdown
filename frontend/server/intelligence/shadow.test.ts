@@ -66,6 +66,22 @@ describe('the shadow bridge', () => {
     expect(lines[0], 'a malformed proposal was recorded as if it were one').not.toMatch(/candidate explain/)
   })
 
+  it('asks no brain at all when the gate says code sufficed, and the run says so', async () => {
+    const candidate = aBrain('candidate', emptyProposal)
+    const legacy = aBrain('legacy', emptyProposal)
+    const kept: ShadowRun[] = []
+    const lines: string[] = []
+    const observe = shadowObserver({ candidate, legacy, mode: () => 'shadow', log: (l) => lines.push(l), now: () => 0, record: (run) => { kept.push(run) }, sufficiency: () => ({ path: 0, because: 'small talk' }) })
+    observe(request, { status: 200, body: { clarify: true } })
+    await settle(); await settle()
+    expect(candidate.asked).toEqual([])
+    expect(legacy.asked).toEqual([])
+    expect(kept).toHaveLength(1)
+    expect(kept[0]?.gate).toEqual({ path: 0, because: 'small talk' })
+    expect(kept[0]?.candidate).toEqual({ ok: 'skipped', because: 'small talk' })
+    expect(lines).toHaveLength(1)
+  })
+
   it('keeps a whole run when given somewhere to keep it: the request, what live did, both outcomes', async () => {
     const candidate = aBrain('candidate', emptyProposal)
     const legacy = aBrain('legacy', () => Promise.reject(new Error('no chooser')))

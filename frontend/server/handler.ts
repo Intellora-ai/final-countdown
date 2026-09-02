@@ -77,6 +77,7 @@ import { legacyIntelligence } from './intelligence/legacy.ts'
 import type { LearningIntelligence } from './intelligence/LearningIntelligence.ts'
 import type { ShadowRun, ShadowRuns } from './intelligence/runs.ts'
 import { shadowObserver } from './intelligence/shadow.ts'
+import { sufficientPath } from './intelligence/sufficiency.ts'
 
 export interface LessonRequest {
   readonly concept?: string
@@ -478,6 +479,15 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     log: options.intelligence?.log ?? ((line) => console.log(line)),
     now: Date.now,
     ...(options.shadowRuns === undefined ? {} : { record: (run: ShadowRun) => { options.shadowRuns?.record(run) } }),
+    /* The gate looks exactly where the live path looks. A store that is not
+       configured is a shelf with nothing on it, which is also what the live
+       path sees. */
+    sufficiency: (request) => sufficientPath(request, {
+      smallTalk,
+      isPlea,
+      subjectFor: (context, said) => options.aliases?.subjectFor(context, said) ?? null,
+      unseenOnShelf: (subject, spent) => (options.lessons?.findUnseen(subject, spent) ?? null) !== null,
+    }),
   })
   const secrets = options.secrets ?? []
   const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES
@@ -2193,7 +2203,11 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
          it is -- a sentence back and the box to type in. */
       if (!nonEmptyString(body['askedInside'])) {
         const talk = smallTalk(body['question'])
-        if (talk !== null) return reply(200, { clarify: true, question: SMALL_TALK_REPLY[talk] })
+        if (talk !== null) {
+          const answered = reply(200, { clarify: true, question: SMALL_TALK_REPLY[talk] })
+          observeInShadow({ question: body['question'], topicId: null, classId: null, examId: null, alreadyUsed: [], askedFrom: 'ask', studentId: who.studentId }, { status: answered.status, body: answered.body })
+          return answered
+        }
       }
       /* `askedInside` is the lesson she was reading. It is what lets the model
        * judge whether her question belongs here, which is the judgement the

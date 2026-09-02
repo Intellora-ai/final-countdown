@@ -20,6 +20,7 @@ function aRun(n: number): ShadowRun {
   return {
     at: `2026-09-03T00:00:0${n}.000Z`,
     request: { question: `question ${n}`, topicId: null, classId: '10', examId: null, alreadyUsed: [], askedFrom: 'ask', studentId: 's' },
+    gate: { path: 5, because: 'no phrasing on record' },
     live: { did: 'refused', status: 502 },
     candidate: { ok: true, proposal: { actions: [], unknowns: [], rationale: 'r', capabilities: { selected: [], rejected: [] }, cost: { ms: 1, modelCalls: 0 }, trace: {} }, adapted: [] },
     legacy: { ok: false, failed: 'no chooser' },

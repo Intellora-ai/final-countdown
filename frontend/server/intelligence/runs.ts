@@ -11,6 +11,7 @@ import { z } from 'zod'
 import type { MemoryStore } from '../memory/sqliteStore.ts'
 import { learningAction } from './ir.ts'
 import type { Proposal, TeachingRequest } from './LearningIntelligence.ts'
+import type { SufficiencyVerdict } from './sufficiency.ts'
 
 /** What became of one learning action at the canvas adapter, in dry mode. */
 export interface AdaptedInRun {
@@ -23,10 +24,14 @@ export interface AdaptedInRun {
 export type Outcome =
   | { readonly ok: true; readonly proposal: Proposal; readonly adapted: readonly AdaptedInRun[] }
   | { readonly ok: false; readonly failed: string }
+  /** Not asked, because the gate said code sufficed. Not a failure. */
+  | { readonly ok: 'skipped'; readonly because: string }
 
 export interface ShadowRun {
   readonly at: string
   readonly request: TeachingRequest
+  /** What the sufficiency gate said before any brain was asked. */
+  readonly gate: SufficiencyVerdict
   readonly live: { readonly did: string; readonly status: number }
   readonly candidate: Outcome
   readonly legacy: Outcome
@@ -44,6 +49,7 @@ const proposalShape = z.object({
 const outcomeShape = z.union([
   z.object({ ok: z.literal(true), proposal: proposalShape, adapted: z.array(z.object({ kind: z.string(), ok: z.boolean(), artifact: z.string().optional(), issues: z.array(z.string()).optional() })) }),
   z.object({ ok: z.literal(false), failed: z.string() }),
+  z.object({ ok: z.literal('skipped'), because: z.string() }),
 ])
 const runShape = z.object({
   at: z.string(),
@@ -56,6 +62,7 @@ const runShape = z.object({
     askedFrom: z.string(),
     studentId: z.string(),
   }),
+  gate: z.object({ path: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]), because: z.string() }),
   live: z.object({ did: z.string(), status: z.number() }),
   candidate: outcomeShape,
   legacy: outcomeShape,

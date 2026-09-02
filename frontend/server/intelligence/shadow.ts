@@ -15,6 +15,7 @@ import { toArtifact } from './canvasAdapter.ts'
 import { learningAction } from './ir.ts'
 import type { LearningIntelligence, Proposal, TeachingRequest } from './LearningIntelligence.ts'
 import type { AdaptedInRun, Outcome, ShadowRun } from './runs.ts'
+import { codeSuffices, type SufficiencyVerdict } from './sufficiency.ts'
 
 export interface ShadowPorts {
   readonly candidate: LearningIntelligence
@@ -25,6 +26,8 @@ export interface ShadowPorts {
   readonly now: () => number
   /** Where a run is kept. Absent, the log line is all there is. */
   readonly record?: (run: ShadowRun) => void
+  /** The sufficiency gate. Absent, nothing is assumed and both brains are asked. */
+  readonly sufficiency?: (request: TeachingRequest) => SufficiencyVerdict
 }
 
 export type ShadowObserver = (request: TeachingRequest, live: { readonly status: number; readonly body: Record<string, unknown> }) => void
@@ -34,12 +37,27 @@ export function shadowObserver(ports: ShadowPorts): ShadowObserver {
     if (ports.mode() !== 'shadow') return
     const startedAt = ports.now()
     const liveDid = 'lesson' in live.body ? 'taught' : 'clarify' in live.body ? 'asked' : 'refused'
+    const gate: SufficiencyVerdict = ports.sufficiency?.(request) ?? { path: 5, because: 'no gate was given, so nothing is assumed' }
+    if (codeSuffices(gate)) {
+      /* CODE DECIDED. No brain is asked; the run records that this request
+         needed none, which is a fact about the product worth counting. */
+      const skipped: Outcome = { ok: 'skipped', because: gate.because }
+      const run: ShadowRun = { at: new Date(startedAt).toISOString(), request, gate, live: { did: liveDid, status: live.status }, candidate: skipped, legacy: skipped, ms: ports.now() - startedAt }
+      ports.log(`[shadow] code sufficed (path ${gate.path}): ${gate.because}; live ${liveDid}`)
+      try {
+        ports.record?.(run)
+      } catch (error: unknown) {
+        ports.log(`[shadow] could not record: ${error instanceof Error ? error.message : String(error)}`)
+      }
+      return
+    }
     void Promise.allSettled([ports.candidate.propose(request), ports.legacy.propose(request)])
       .then(([candidate, legacy]) => {
         const ms = ports.now() - startedAt
         const run: ShadowRun = {
           at: new Date(startedAt).toISOString(),
           request,
+          gate,
           live: { did: liveDid, status: live.status },
           candidate: outcomeOf(candidate, request),
           legacy: outcomeOf(legacy, request),
@@ -76,6 +94,7 @@ function outcomeOf(settled: PromiseSettledResult<Proposal>, request: TeachingReq
 }
 
 function said(name: string, outcome: Outcome): string {
+  if (outcome.ok === 'skipped') return `${name} skipped: ${outcome.because}`
   if (!outcome.ok) return `${name} ${outcome.failed.startsWith('malformed') ? outcome.failed : `failed: ${outcome.failed}`}`
   const kinds = outcome.adapted.map((a) => (a.ok ? `${a.kind}→${a.artifact ?? '?'}` : `${a.kind}→refused(${(a.issues ?? []).join('; ')})`)).join('+')
   return `${name} ${kinds.length > 0 ? kinds : 'nothing'} (${outcome.proposal.unknowns.length} unknown, ${outcome.proposal.cost.modelCalls} model calls)`

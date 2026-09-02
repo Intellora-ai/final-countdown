@@ -72,6 +72,9 @@ import { noveltyAgainst } from './memory/variation.ts'
 import { NotConsistent } from './memory/progress.ts'
 import { NotStorable } from './memory/record.ts'
 import type { CanvasMemory } from './memory/store.ts'
+import { candidateIntelligence } from './intelligence/candidate.ts'
+import { legacyIntelligence } from './intelligence/legacy.ts'
+import { shadowObserver } from './intelligence/shadow.ts'
 
 export interface LessonRequest {
   readonly concept?: string
@@ -455,6 +458,16 @@ function nonEmptyString(value: unknown): value is string {
 const DECISION_MAX_TOKENS = 600
 
 export function createHandler(options: HandlerOptions): (req: ServerRequest) => Promise<ServerResponse> {
+  /* THE SHADOW BRIDGE. Off unless `INTELLIGENCE_MODE=shadow`; read on every
+     call so a running server can be switched. Asked only after a reply is
+     formed, so nothing here can reach the student. */
+  const observeInShadow = shadowObserver({
+    candidate: candidateIntelligence({ model: options.model, search: options.search }),
+    legacy: legacyIntelligence({ model: options.model }),
+    mode: () => process.env['INTELLIGENCE_MODE'] ?? 'off',
+    log: (line) => console.log(line),
+    now: Date.now,
+  })
   const secrets = options.secrets ?? []
   const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES
 
@@ -2240,6 +2253,15 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
           classId: nonEmptyString(body['classId']) ? body['classId'] : null,
           examId: nonEmptyString(body['examId']) ? body['examId'] : null,
         })
+        observeInShadow({
+          question: body['question'],
+          topicId: nonEmptyString(body['topicId']) ? body['topicId'] : null,
+          classId: nonEmptyString(body['classId']) ? body['classId'] : null,
+          examId: nonEmptyString(body['examId']) ? body['examId'] : null,
+          alreadyUsed: spent,
+          askedFrom: 'ask',
+          studentId: who.studentId,
+        }, answered.body)
         return resolved === null || answered.status !== 200
           ? answered
           : { ...answered, body: { ...answered.body, concept: resolved } }

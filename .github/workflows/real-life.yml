@@ -97,25 +97,22 @@ jobs:
           # package blocked the merge of everything behind it.
           pip install --quiet --require-hashes -r learning-os/requirements-behave.lock
 
-      # GROQ, AND THE PROVIDER IS THE FIX RATHER THAN A PREFERENCE.
+      # GEMINI, AND THE HISTORY GOES BOTH WAYS -- WRITTEN DOWN SO IT STOPS.
       #
-      # This step selected `gemini` and failed on every run, correctly and for
-      # the reason written below: it fails closed on an absent credential, and
-      # `secrets.GEMINI_API_KEY` is not set on this repository. The credential
-      # that IS set is `GROQ_API_KEY` -- `real-planner` in this same file has
-      # been using it to prove the TypeScript half of the product all along. So
-      # the engine was configured for a provider nobody could reach from CI
-      # while a working one sat unused two jobs down.
+      # This step once selected `gemini` and failed on every run because no
+      # Gemini credential existed; it was moved to `groq` because that was the
+      # one key the repository held. Then Groq's DAILY TOKEN BUDGET spent
+      # itself on 2026-09-01 and this job failed six consecutive reruns across
+      # five hours -- a required check red about a vendor's clock while every
+      # law in the suite was green. The owner then provisioned Gemini, Mistral
+      # and Z.AI credentials and approved this switch, in those words: the
+      # receipts must not be welded to one vendor's quota.
       #
-      # `learning-os/src/learning_os/llm/groq_client.py` is the adapter, and it
-      # is deliberately SDK-free: it speaks the same OpenAI-compatible endpoint
-      # as `frontend/server/groq.ts` over `urllib`. That is what makes it
-      # runnable HERE. The install step above is `requirements-learning-os.lock`
-      # plus `behave` and nothing else -- a hash-locked set that contains no
-      # vendor SDK, because `tests/test_supply_chain.py` forbids any pip install
-      # that is not `--require-hashes -r <lock>`. An adapter needing
-      # `pip install groq` would fail `api/ask.py`'s pre-flight with `no_sdk`
-      # before a single scenario ran.
+      # `gemini_client.py` needs `google.genai`, which the base lock refuses on
+      # purpose (its own header says why: the OFFLINE job must stay SDK-free).
+      # THIS job is the live-model job, so it installs the live lock -- hash-
+      # locked like every install in this repository, which is exactly the
+      # shape `tests/test_supply_chain.py` permits.
       #
       # FAIL-CLOSED ON A MISSING CREDENTIAL, AND NOT SILENTLY SKIPPED.
       #
@@ -131,20 +128,21 @@ jobs:
       # anyway, so a missing key can never quietly become a fake-answered pass.
       #
       # THE VARIABLE IS PREFIXED AND THE SECRET IS NOT, AND THAT IS ON PURPOSE.
-      # `secrets.GROQ_API_KEY` is the one credential, used by both halves of the
-      # product. It reaches the engine as `LEARNING_OS_GROQ_API_KEY` because
-      # that is the only name `groq_client.py` reads, and because
+      # The prefixed spelling is the only name the engine reads, and
       # `features/steps/tutor_steps.py` strips the UNPREFIXED vendor names from
-      # the child process to prove the offline path -- a bare `GROQ_API_KEY`
-      # here would be stripped by the very step that is meant to exercise it.
+      # the child process to prove the offline path -- a bare vendor key here
+      # would be stripped by the very step that is meant to exercise it.
+      - name: Install the live-model SDK, hash-locked like everything else
+        run: pip install --quiet --require-hashes -r learning-os/requirements-live.lock
+
       - name: The real-life suite, answered by a real model
         env:
-          LEARNING_OS_GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          LEARNING_OS_LLM_PROVIDER: groq
+          LEARNING_OS_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          LEARNING_OS_LLM_PROVIDER: gemini
           PYTHONHASHSEED: '0'
         run: |
-          if [ -z "${LEARNING_OS_GROQ_API_KEY}" ]; then
-            echo "::error title=no credential::secrets.GROQ_API_KEY is not set on this repository, so the real-life suite cannot reach a model. Add it in Settings > Secrets and variables > Actions. This job fails rather than skipping, because a skipped required check reads as green."
+          if [ -z "${LEARNING_OS_GEMINI_API_KEY}" ]; then
+            echo "::error title=no credential::secrets.GEMINI_API_KEY is not set on this repository, so the real-life suite cannot reach a model. Add it in Settings > Secrets and variables > Actions. This job fails rather than skipping, because a skipped required check reads as green."
             exit 1
           fi
           behave features/ --no-capture
@@ -261,8 +259,11 @@ jobs:
       # on `real-tutor`'s credential step above and is not repeated here.
       #
       # WHAT A PASS MEANS, STATED SO A GREEN TICK CANNOT BE OVERREAD.
-      #   * the credential exists and Groq accepted it;
-      #   * `chooseProvider` picked the groq branch, printed at boot;
+      #   * the credential exists and Gemini accepted it;
+      #   * `chooseProvider` picked the gemini branch, printed at boot --
+      #     gemini is FIRST in `provider.ts`'s VENDORS, so a present Gemini key
+      #     is the primary by construction, and the other keys below are the
+      #     standbys `failover.ts` was built for;
       #   * a real model returned a lesson that `validateLesson` ACCEPTED.
       #
       # The third clause is the one with teeth. `handler.ts` answers 502 with
@@ -280,14 +281,26 @@ jobs:
       # is printed without the key beside it.
       - name: A real model writes a lesson the validator accepts
         env:
+          # THE SECOND GEMINI KEY, WHEN ONE EXISTS. Two live jobs sharing one
+          # key share one quota, and one vendor's clock blocking a merge for a
+          # night is the exact failure this whole block was rewritten to end.
+          # The `||` falls back to the first key, so one key is enough to run.
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_2 || secrets.GEMINI_API_KEY }}
+          # THE STANDBYS, EVERY SLOT A PLACEHOLDER. `provider.ts` treats a
+          # blank as unset ("Blank and whitespace-only are unset"), so a secret
+          # that does not exist renders empty here and its vendor is skipped:
+          # each line is inert until the owner supplies the secret, and a real
+          # standby in `failover.ts`'s chain from the moment they do.
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           PORT: '8788'
         shell: bash
         run: |
           set -euo pipefail
 
-          if [ -z "${GROQ_API_KEY}" ]; then
-            echo "::error file=.github/workflows/real-life.yml,title=no credential::secrets.GROQ_API_KEY is not set on this repository, so the planner cannot reach a model. Add it in Settings > Secrets and variables > Actions. This job fails rather than skipping, because a skipped required check reads as green."
+          if [ -z "${GEMINI_API_KEY}" ]; then
+            echo "::error file=.github/workflows/real-life.yml,title=no credential::secrets.GEMINI_API_KEY is not set on this repository, so the planner cannot reach a model. Add it in Settings > Secrets and variables > Actions. This job fails rather than skipping, because a skipped required check reads as green."
             exit 1
           fi
 
@@ -316,8 +329,8 @@ jobs:
             exit 1
           fi
 
-          if ! grep -q "via groq" "$RUNNER_TEMP/planner.log"; then
-            echo "::error file=frontend/server/provider.ts,title=wrong provider::the planner booted without choosing the groq branch, so whatever answered below was not the model this job is meant to exercise"
+          if ! grep -q "via gemini" "$RUNNER_TEMP/planner.log"; then
+            echo "::error file=frontend/server/provider.ts,title=wrong provider::the planner booted without choosing the gemini branch, so whatever answered below was not the model this job is meant to exercise"
             exit 1
           fi
 

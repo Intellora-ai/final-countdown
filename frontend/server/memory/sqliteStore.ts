@@ -62,6 +62,12 @@ CREATE TABLE IF NOT EXISTS canvas_artifacts (
   created_at TEXT    NOT NULL,
   PRIMARY KEY (memory_key, seq)
 );
+
+CREATE TABLE IF NOT EXISTS shadow_runs (
+  seq        INTEGER PRIMARY KEY AUTOINCREMENT,
+  run        TEXT    NOT NULL,
+  created_at TEXT    NOT NULL
+);
 `
 
 /**
@@ -278,6 +284,9 @@ export interface MemoryStore {
   append(key: string, text: string, at: string): number
   /** Every artifact for this key after `after`, oldest first. */
   list(key: string, after?: number): readonly StoredArtifact[]
+  /** One shadow run, appended. INSERT only, like the canvas: a run is never rewritten. */
+  recordShadowRun(text: string, at: string): number
+  listShadowRuns(after?: number): readonly StoredArtifact[]
   close(): void
 }
 
@@ -398,6 +407,8 @@ export function sqliteMemoryStore(path: string): MemoryStore {
   const listAfter = db.prepare(
     'SELECT seq, artifact, created_at FROM canvas_artifacts WHERE memory_key = ? AND seq > ? ORDER BY seq',
   )
+  const recordRun = db.prepare('INSERT INTO shadow_runs (run, created_at) VALUES (?, ?) RETURNING seq')
+  const listRuns = db.prepare('SELECT seq, run, created_at FROM shadow_runs WHERE seq > ? ORDER BY seq')
 
   return {
     read(key) {
@@ -460,6 +471,16 @@ export function sqliteMemoryStore(path: string): MemoryStore {
     list(key, after = 0) {
       const rows = listAfter.all(key, after) as { seq: number; artifact: string; created_at: string }[]
       return rows.map((row) => ({ seq: row.seq, text: row.artifact, createdAt: row.created_at }))
+    },
+
+    recordShadowRun(text, at) {
+      const row = recordRun.get(text, at) as { seq: number }
+      return row.seq
+    },
+
+    listShadowRuns(after = 0) {
+      const rows = listRuns.all(after) as { seq: number; run: string; created_at: string }[]
+      return rows.map((r) => ({ seq: r.seq, text: r.run, createdAt: r.created_at }))
     },
 
     close() {

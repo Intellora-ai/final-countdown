@@ -2,6 +2,7 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createHandler, type ModelPort, type SearchPort } from '../../server/handler.ts'
@@ -9,6 +10,7 @@ import { canvasMemory } from '../../server/memory/store.ts'
 import { sqliteMemoryStore } from '../../server/memory/sqliteStore.ts'
 
 import type { LearningIntelligence } from '../../server/intelligence/LearningIntelligence.ts'
+import { shadowRuns } from '../../server/intelligence/runs.ts'
 
 import { appendToCanvas, readCanvas, type NewArtifact } from '../canvas/api/memoryClient'
 
@@ -74,6 +76,10 @@ interface Server {
   stopAndStartAgain(): void
   /** What the shadow bridge wrote to the log, if anything. */
   readonly shadowLog: string[]
+  /** Swap the shadow's candidate on the running server, keeping the store. */
+  withCandidate(candidate: LearningIntelligence): void
+  /** Rows in a table, counted through a SECOND connection to the file. */
+  rowsIn(table: 'canvas_memory' | 'canvas_artifacts' | 'shadow_runs'): number
   /**
    * Drop the signed identity cookie, so the NEXT request is a different
    * student on the same machine and the same database. This is what a shared
@@ -119,13 +125,15 @@ const aProposingCandidate: LearningIntelligence = {
 function startServer(path: string): Server {
   let store = sqliteMemoryStore(path)
   const shadowLog: string[] = []
+  let candidate: LearningIntelligence = aProposingCandidate
   closeStore = () => store.close()
   const openHandler = () => createHandler({
     model,
     search,
     memory: canvasMemory({ store, log: () => {} }),
     identitySecret: A_TEST_SECRET,
-    intelligence: { candidate: aProposingCandidate, legacy: aProposingCandidate, log: (line) => { shadowLog.push(line) } },
+    intelligence: { candidate, legacy: aProposingCandidate, log: (line) => { shadowLog.push(line) } },
+    shadowRuns: shadowRuns(store),
   })
   let handle = openHandler()
 
@@ -163,6 +171,16 @@ function startServer(path: string): Server {
     refuse: (times: number) => { refuseFor = times },
     forgetWhoIsSignedIn: () => { cookie = '' },
     shadowLog,
+    withCandidate: (next) => { candidate = next; handle = openHandler() },
+    rowsIn: (table) => {
+      const peek = new DatabaseSync(path)
+      try {
+        const row = peek.prepare(`SELECT count(*) AS n FROM ${table}`).get() as { n: number }
+        return row.n
+      } finally {
+        peek.close()
+      }
+    },
     stopAndStartAgain: () => {
       /* What a deploy, a crash and the owner's `preview_stop` all do. The
          student keeps her cookie; the server keeps nothing but the file. */
@@ -447,6 +465,96 @@ describe('FLOOR F1 — a brain running in shadow adds nothing to the canvas, how
     } finally {
       if (before === undefined) delete process.env['INTELLIGENCE_MODE']; else process.env['INTELLIGENCE_MODE'] = before
     }
+  })
+})
+
+/* ================================================================== */
+/* FLOORS F2-F5 -- THE STUDENT CANNOT TELL THE SHADOW IS THERE          */
+/* ================================================================== */
+
+async function inMode<T>(mode: 'off' | 'shadow', run: () => Promise<T>): Promise<T> {
+  const before = process.env['INTELLIGENCE_MODE']
+  process.env['INTELLIGENCE_MODE'] = mode
+  try {
+    return await run()
+  } finally {
+    if (before === undefined) delete process.env['INTELLIGENCE_MODE']; else process.env['INTELLIGENCE_MODE'] = before
+  }
+}
+
+async function ask(question: string): Promise<{ status: number; body: unknown; ms: number }> {
+  const t0 = performance.now()
+  const res = await fetch('/api/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ question, topicId: 'optics', classId: '10' }) })
+  const body: unknown = await res.json()
+  return { status: res.status, body, ms: performance.now() - t0 }
+}
+
+function aCandidateThat(behave: () => Promise<void>): LearningIntelligence {
+  return { name: 'test-candidate', propose: async (r) => { await behave(); return aProposingCandidate.propose(r) } }
+}
+
+describe('FLOOR F2 -- the reply is the same, byte for byte, with the shadow on and off', () => {
+  it('for a question the live brain refused, and for small talk', async () => {
+    for (const question of ['what is refraction', 'hi']) {
+      const off = await inMode('off', () => ask(question))
+      const on = await inMode('shadow', () => ask(question))
+      expect(on.status, question).toBe(off.status)
+      expect(JSON.stringify(on.body), question).toBe(JSON.stringify(off.body))
+    }
+  })
+})
+
+describe('FLOOR F3 -- the shadow writes to its own table and nothing else', () => {
+  it('after five observed asks: five runs, and the two canvas tables exactly as they were', async () => {
+    await appendToCanvas('optics', anAsk('hers'))
+    const memoryBefore = server.rowsIn('canvas_memory')
+    const artifactsBefore = server.rowsIn('canvas_artifacts')
+    const runsBefore = server.rowsIn('shadow_runs')
+    await inMode('shadow', async () => {
+      for (let n = 0; n < 5; n += 1) await ask(`what is refraction ${n}`)
+      await new Promise((r) => setTimeout(r, 30))
+    })
+    expect(server.rowsIn('shadow_runs') - runsBefore, 'the shadow did not record its runs').toBe(5)
+    expect(server.rowsIn('canvas_memory')).toBe(memoryBefore)
+    expect(server.rowsIn('canvas_artifacts')).toBe(artifactsBefore)
+  })
+
+  it('has no statement under server/intelligence that names a canvas table, and none anywhere that unwrites a run', () => {
+    const sources = import.meta.glob('../../server/**/*.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
+    const looked = Object.entries(sources).filter(([path]) => !/\.(test|spec)\.ts$/.test(path))
+    const offending: string[] = []
+    let runsMentioned = 0
+    for (const [path, text] of looked) {
+      for (const line of text.split('\n')) {
+        if (/server\/intelligence\//.test(path) && /canvas_memory|canvas_artifacts/.test(line)) offending.push(`${path}: ${line.trim()}`)
+        if (!/shadow_runs/.test(line)) continue
+        runsMentioned += 1
+        if (/\b(DELETE|UPDATE|DROP|TRUNCATE|REPLACE|TEMP|TEMPORARY)\b/i.test(line)) offending.push(`${path}: ${line.trim()}`)
+      }
+    }
+    expect(runsMentioned, 'no server file mentions shadow_runs, so this checked nothing').toBeGreaterThan(0)
+    expect(offending).toEqual([])
+  })
+})
+
+describe('FLOOR F4 -- the shadow never makes her wait', () => {
+  it('a candidate that takes two seconds adds nothing to the reply', async () => {
+    const off = await inMode('off', () => ask('what is refraction'))
+    server.withCandidate(aCandidateThat(() => new Promise((r) => setTimeout(r, 2000))))
+    const on = await inMode('shadow', () => ask('what is refraction'))
+    expect(on.status).toBe(off.status)
+    expect(on.ms, `shadow on took ${on.ms.toFixed(0)}ms, off took ${off.ms.toFixed(0)}ms`).toBeLessThan(Math.max(off.ms * 3, off.ms + 200))
+  })
+})
+
+describe('FLOOR F5 -- a brain that crashes is invisible', () => {
+  it('the reply is identical, and the crash is one log line', async () => {
+    const off = await inMode('off', () => ask('what is refraction'))
+    server.withCandidate(aCandidateThat(() => Promise.reject(new Error('the reasoner fell over'))))
+    const on = await inMode('shadow', () => ask('what is refraction'))
+    await new Promise((r) => setTimeout(r, 20))
+    expect(JSON.stringify(on.body)).toBe(JSON.stringify(off.body))
+    expect(server.shadowLog.filter((l) => /fell over/.test(l))).toHaveLength(1)
   })
 })
 

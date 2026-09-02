@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import type { ShadowRun } from './runs.ts'
 import { shadowObserver } from './shadow.ts'
 import type { LearningIntelligence, Proposal, TeachingRequest } from './LearningIntelligence.ts'
 
@@ -26,7 +27,7 @@ describe('the shadow bridge', () => {
     const legacy = aBrain('legacy', emptyProposal)
     const lines: string[] = []
     const observe = shadowObserver({ candidate, legacy, mode: () => 'off', log: (l) => lines.push(l), now: () => 0 })
-    observe(request, { lesson: 'x' })
+    observe(request, { status: 200, body: { lesson: 'x' } })
     await settle()
     expect(candidate.asked).toEqual([])
     expect(legacy.asked).toEqual([])
@@ -38,7 +39,7 @@ describe('the shadow bridge', () => {
     const candidate = aBrain('candidate', () => new Promise<Proposal>((r) => { release = () => emptyProposal().then(r) }))
     const legacy = aBrain('legacy', emptyProposal)
     const observe = shadowObserver({ candidate, legacy, mode: () => 'shadow', log: () => {}, now: () => 0 })
-    const returned = observe(request, {})
+    const returned = observe(request, { status: 502, body: {} })
     expect(returned, 'the bridge returned a promise the caller might be tempted to await').toBeUndefined()
     release()
   })
@@ -47,7 +48,7 @@ describe('the shadow bridge', () => {
     const candidate = aBrain('candidate', emptyProposal)
     const legacy = aBrain('legacy', emptyProposal)
     const observe = shadowObserver({ candidate, legacy, mode: () => 'shadow', log: () => {}, now: () => 0 })
-    observe(request, {})
+    observe(request, { status: 502, body: {} })
     await settle()
     expect(candidate.asked).toEqual([request])
     expect(legacy.asked).toEqual([request])
@@ -58,11 +59,25 @@ describe('the shadow bridge', () => {
     const legacy = aBrain('legacy', emptyProposal)
     const lines: string[] = []
     const observe = shadowObserver({ candidate: lying, legacy, mode: () => 'shadow', log: (l) => lines.push(l), now: () => 0 })
-    observe(request, {})
+    observe(request, { status: 502, body: {} })
     await settle(); await settle()
     expect(lines).toHaveLength(1)
     expect(lines[0], lines[0]).toMatch(/candidate malformed/)
     expect(lines[0], 'a malformed proposal was recorded as if it were one').not.toMatch(/candidate explain/)
+  })
+
+  it('keeps a whole run when given somewhere to keep it: the request, what live did, both outcomes', async () => {
+    const candidate = aBrain('candidate', emptyProposal)
+    const legacy = aBrain('legacy', () => Promise.reject(new Error('no chooser')))
+    const kept: ShadowRun[] = []
+    const observe = shadowObserver({ candidate, legacy, mode: () => 'shadow', log: () => {}, now: () => 1_700_000_000_000, record: (run) => { kept.push(run) } })
+    observe(request, { status: 200, body: { lesson: {} } })
+    await settle(); await settle()
+    expect(kept).toHaveLength(1)
+    expect(kept[0]?.request).toEqual(request)
+    expect(kept[0]?.live).toEqual({ did: 'taught', status: 200 })
+    expect(kept[0]?.candidate.ok).toBe(true)
+    expect(kept[0]?.legacy).toEqual({ ok: false, failed: 'no chooser' })
   })
 
   it('a brain that throws is invisible: one log line, nothing thrown, nothing unhandled', async () => {
@@ -77,7 +92,7 @@ describe('the shadow bridge', () => {
     node.on('unhandledRejection', onUnhandled)
     try {
       const observe = shadowObserver({ candidate, legacy, mode: () => 'shadow', log: (l) => lines.push(l), now: () => 0 })
-      expect(() => observe(request, {})).not.toThrow()
+      expect(() => observe(request, { status: 502, body: {} })).not.toThrow()
       await settle(); await settle()
     } finally {
       node.off('unhandledRejection', onUnhandled)

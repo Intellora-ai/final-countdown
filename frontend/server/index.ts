@@ -32,6 +32,7 @@ import { conceptsIn, type ConceptIndex } from './memory/concepts.ts'
 import { embeddingsFrom } from './embed.ts'
 import { writtenLessons, type WrittenLessons } from './memory/lessons.ts'
 import { subjectAliases, type SubjectAliases } from './memory/aliases.ts'
+import { shadowRuns, type ShadowRuns } from './intelligence/runs.ts'
 import { CONTROLLER_SYSTEM } from './controller.ts'
 import { conceptIssues, conceptRequest } from '../src/canvas/teach/concept.ts'
 import { validateLesson } from '../src/canvas/spec/validate.ts'
@@ -124,6 +125,8 @@ export interface ServerOptions {
   /** What a phrasing was decided to mean. Absent means every ask pays for the
       controller before the shelf can be read. See `memory/aliases.ts`. */
   readonly aliases?: SubjectAliases
+  /** Where shadow runs are kept -- the same file as everything else. */
+  readonly shadowRuns?: ShadowRuns
   /** The key identities are signed with. No default; see `identity.ts`. */
   readonly identitySecret: string
   /** Plant the identity cookie with `Secure`. Only behind TLS; see `handler.ts`. */
@@ -206,6 +209,7 @@ export function createServer(options: ServerOptions): Server {
     ...(options.concepts === undefined ? {} : { concepts: options.concepts }),
     ...(options.lessons === undefined ? {} : { lessons: options.lessons }),
     ...(options.aliases === undefined ? {} : { aliases: options.aliases }),
+    ...(options.shadowRuns === undefined ? {} : { shadowRuns: options.shadowRuns }),
     identitySecret: options.identitySecret,
     ...(options.secureCookies === undefined ? {} : { secureCookies: options.secureCookies }),
     ...(options.vendors === undefined ? {} : { vendors: options.vendors }),
@@ -600,7 +604,7 @@ function main(): void {
    * new student. */
   const secureCookies = /^(1|true|yes)$/i.test((process.env['IDENTITY_COOKIE_SECURE'] ?? '').trim())
 
-  const server = createServer({ model, search, openWeb, loops, almanac, memory, explanations, evidence, misconceptions, concepts, lessons, aliases, identitySecret, secureCookies, secrets, vendors })
+  const server = createServer({ model, search, openWeb, loops, almanac, memory, explanations, evidence, misconceptions, concepts, lessons, aliases, shadowRuns: shadowRuns(memoryStore), identitySecret, secureCookies, secrets, vendors })
   server.listen(port, host, () => {
     console.log(`almanac server listening on http://${host}:${port}`)
     console.log(`  memory: ${memoryPath} (sqlite, safe for many servers)`)

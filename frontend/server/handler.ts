@@ -75,6 +75,7 @@ import type { CanvasMemory } from './memory/store.ts'
 import { candidateIntelligence } from './intelligence/candidate.ts'
 import { legacyIntelligence } from './intelligence/legacy.ts'
 import type { LearningIntelligence } from './intelligence/LearningIntelligence.ts'
+import type { ShadowRun, ShadowRuns } from './intelligence/runs.ts'
 import { shadowObserver } from './intelligence/shadow.ts'
 
 export interface LessonRequest {
@@ -264,6 +265,8 @@ export interface HandlerOptions {
     readonly legacy: LearningIntelligence
     readonly log?: (line: string) => void
   }
+  /** Where shadow runs are kept. Absent, the log line is all there is. */
+  readonly shadowRuns?: ShadowRuns
   /**
    * Plant the identity cookie with `Secure`, so a browser only ever sends it
    * over TLS. Off by default because this server speaks plain HTTP on a
@@ -474,6 +477,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     mode: () => process.env['INTELLIGENCE_MODE'] ?? 'off',
     log: options.intelligence?.log ?? ((line) => console.log(line)),
     now: Date.now,
+    ...(options.shadowRuns === undefined ? {} : { record: (run: ShadowRun) => { options.shadowRuns?.record(run) } }),
   })
   const secrets = options.secrets ?? []
   const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES
@@ -2268,7 +2272,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
           alreadyUsed: spent,
           askedFrom: 'ask',
           studentId: who.studentId,
-        }, answered.body)
+        }, { status: answered.status, body: answered.body })
         return resolved === null || answered.status !== 200
           ? answered
           : { ...answered, body: { ...answered.body, concept: resolved } }

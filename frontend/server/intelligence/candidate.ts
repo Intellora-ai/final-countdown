@@ -59,7 +59,12 @@ export function candidateIntelligence(options: CandidateOptions): LearningIntell
         generate: async (req) => {
           modelCalls += 1
           const prompt = buildPrompt(req)
-          const reply = await chat(`${prompt.system}\n\nReply as a JSON object with exactly one key, "answer", whose value is your whole reply as plain text.`, prompt.user)
+          const reply = await chat(
+            `${prompt.system}\n\nReply as a JSON object with exactly one key, "answer", whose value is your whole reply as plain text. ` +
+              'The claims list above may be empty; then answer from your own knowledge, as a teacher would. ' +
+              'If you genuinely cannot answer, leave "answer" empty -- never explain why you cannot.',
+            prompt.user,
+          )
           const unwrapped = answerIn(reply)
           if (unwrapped.kind === 'not-an-answer') notAnAnswer = unwrapped.because
           return unwrapped.kind === 'answer' ? unwrapped.text : ''
@@ -104,7 +109,7 @@ export function candidateIntelligence(options: CandidateOptions): LearningIntell
         actions.push({ kind: 'ask', because: 'the loop wants one thing settled first', risk: 0, evidence: [], payload: { question: out.result.question } })
       }
       const unknowns: Unknown[] = [
-        ...(notAnAnswer === null ? [] : [{ what: 'the reasoner gave no answer', because: notAnAnswer, blocking: true }]),
+        ...(notAnAnswer === null ? [] : [{ what: 'the reasoner gave no answer (declined)', because: notAnAnswer, blocking: true }]),
         ...reasoned.unknowns,
         ...out.trace.understanding.ambiguities.map((a) => ({ what: a.what, because: 'the understanding stage could not settle it', blocking: a.blocking })),
         ...Object.entries(out.trace.unmet).map(([capability, why]) => ({ what: capability, because: why, blocking: false })),
@@ -125,6 +130,10 @@ export function candidateIntelligence(options: CandidateOptions): LearningIntell
 }
 
 
+/* A reply that opens by declining is not an answer, whatever follows it.
+   Live run 5: "I cannot establish ... as there are no claims available". */
+const DECLINES = /^(?:i\s+(?:cannot|can't|can not|am unable to|do not have|don't have|couldn't|could not)|unable to|there (?:is|are) no (?:claims?|information))\b/i
+
 /** What a JSON-mode reply holds, by the one agreed key. */
 function answerIn(reply: string): { kind: 'answer'; text: string } | { kind: 'not-an-answer'; because: string } {
   let parsed: unknown
@@ -135,6 +144,8 @@ function answerIn(reply: string): { kind: 'answer'; text: string } | { kind: 'no
   }
   if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
     const answer = (parsed as Record<string, unknown>)['answer']
+    if (typeof answer === 'string' && answer.trim().length === 0) return { kind: 'not-an-answer', because: 'the reasoner left the answer empty: it declined' }
+    if (typeof answer === 'string' && DECLINES.test(answer.trim())) return { kind: 'not-an-answer', because: `the reasoner declined: "${answer.trim().slice(0, 100)}"` }
     if (typeof answer === 'string' && answer.trim().length > 0) return { kind: 'answer', text: answer }
     return { kind: 'not-an-answer', because: `the reply is a JSON object with keys ${Object.keys(parsed as object).join(', ') || '(none)'} and no "answer"` }
   }

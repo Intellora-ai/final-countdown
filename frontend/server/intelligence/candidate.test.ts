@@ -158,6 +158,27 @@ describe('the candidate intelligence', () => {
     expect((untold.trace as { context?: { memoryHits?: number } }).context?.memoryHits ?? 0).toBe(0)
   })
 
+  it('a reply that declines to answer is an Unknown in the reasoner s own words, never an explanation', async () => {
+    /* Live run 5: "I cannot establish the sum of the zeros ... as there are
+       no claims available to reference" was proposed as an explanation, hit
+       tier 0 (a refusal carries no number), and was recorded VERIFIED. */
+    for (const reply of ['I cannot establish the sum of the zeros of the given quadratic equation based on the provided claims, as there are no claims available to reference.', 'I am unable to answer this without more information.', '']) {
+      const model: ModelPort = { lesson: async () => { throw new Error('no') }, chat: async () => JSON.stringify({ answer: reply }) }
+      const candidate = candidateIntelligence({ model, search: noSearch, now: () => '2026-09-03T00:00:00.000Z' })
+      const proposal = await candidate.propose(aRequest('what is the sum of the zeros of x^2 - 5x + 6'))
+      expect(proposal.actions.filter((a) => a.kind === 'explain'), reply.slice(0, 30)).toEqual([])
+      expect(proposal.unknowns.some((u) => /declined|no answer/i.test(u.what)), JSON.stringify(proposal.unknowns)).toBe(true)
+    }
+  })
+
+  it('tells the reasoner to answer from its own knowledge when no claims are given, and to leave the answer empty rather than explain why it cannot', async () => {
+    let seen = ''
+    const model: ModelPort = { lesson: async () => { throw new Error('no') }, chat: async (system: string) => { seen = system; return JSON.stringify({ answer: 'A zero makes it zero.' }) } }
+    await candidateIntelligence({ model, search: noSearch, now: () => '2026-09-03T00:00:00.000Z' }).propose(aRequest('what is a zero of a polynomial'))
+    expect(seen).toMatch(/own knowledge/i)
+    expect(seen).toMatch(/empty/i)
+  })
+
   it('counts its cost from what actually happened', async () => {
     const model = aReasoner()
     let tick = 0

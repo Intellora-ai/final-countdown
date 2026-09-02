@@ -466,6 +466,29 @@ def test_the_bridge_answers_the_cake_question_with_a_source(
     monkeypatch.setenv(websearch.ENDPOINT_ENV, loopback_engine)
     monkeypatch.delenv("LEARNING_OS_LLM_PROVIDER", raising=False)
 
+    # THE FETCH'S OWN FAILURE, MADE VISIBLE. `sources_from` swallows every
+    # transport error into an empty tuple on purpose (a learner is never told
+    # the machinery's biography), which on CI meant this test failed as a bare
+    # "unmappable" with the real reason -- whatever urllib met on the runner --
+    # discarded before anyone could read it. The real transport still runs;
+    # this only says out loud what it raised, as an annotation, on the way.
+    real_fetch = websearch._default_fetch_json
+
+    def loud_fetch(url: str, headers: Mapping[str, str]) -> object:
+        try:
+            body = real_fetch(url, headers)
+        except Exception as failure:
+            print(
+                "::warning title=the cake bridge's fetch raised::"
+                f"{type(failure).__name__}: {str(failure)[:600]} (url={url[:200]})",
+                flush=True,
+            )
+            raise
+        print(f"::notice title=the cake bridge fetched::{json.dumps(body)[:300]}", flush=True)
+        return body
+
+    monkeypatch.setattr(websearch, "_default_fetch_json", loud_fetch)
+
     document = answer(json.dumps({"text": OFF_CURRICULUM, "resume_at": "b1"}))
 
     if document.get("outcome") != "answered":

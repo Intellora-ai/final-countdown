@@ -58,12 +58,96 @@ leaked through a log line.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+import re
+import time
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from learning_os.llm.anthropic_client import BUILDABLE, SYSTEM, build_prompt
 from learning_os.llm.client import GEMINI_API_KEY_ENV, GeneratedContent, LLMUnavailable
 from learning_os.llm.contract import InstructionContract
+from learning_os.llm.groq_client import WAIT_BEFORE_RETRY_SECONDS, worth_another_try
+
+#: `retryDelay: '19s'` -- the shape Google's RESOURCE_EXHAUSTED error carries
+#: its own reset figure in, buried in the SDK's stringified detail. Read from
+#: the service rather than guessed, for the reason `groq_client.py` records:
+#: both hand-picked waits there expired before the budget came back.
+_RETRY_DELAY = re.compile(r"retryDelay['\"]?\s*:\s*['\"]?(\d+(?:\.\d+)?)s")
+
+#: A pause longer than this is not a retry, it is a hang in front of a child.
+_LONGEST_WAIT_SECONDS = 30.0
+
+
+class Unreachable(LLMUnavailable):
+    """`LLMUnavailable`, plus what the service said about trying again.
+
+    `status` is the HTTP code the SDK's error carried (None when it carried
+    none), and `asked_to_wait` is the service's own reset figure in seconds
+    when the error named one. Both exist so the retry decision in `generate`
+    can be the service's rather than a guess, and both are optional so a
+    vendor error of any shape still arrives as the one exception the runtime
+    knows how to route around.
+    """
+
+    def __init__(
+        self, message: str, *, status: int | None = None, asked_to_wait: float | None = None
+    ) -> None:
+        super().__init__(message)
+        self.status = status
+        self.asked_to_wait = asked_to_wait
+
+
+def _status_of(error: BaseException) -> int | None:
+    """The HTTP status an SDK error carries, read without importing the SDK."""
+    code = getattr(error, "code", None)
+    return code if isinstance(code, int) else None
+
+
+def _wait_named_in(error: BaseException) -> float | None:
+    found = _RETRY_DELAY.search(str(error))
+    if found is None:
+        return None
+    # Half a second past what was asked for: landing exactly on the reset
+    # instant races it, and losing the race spends the whole attempt.
+    return min(float(found.group(1)) + 0.5, _LONGEST_WAIT_SECONDS)
+
+
+def generate_with_retries(
+    send: Callable[[], GeneratedContent],
+    *,
+    sleep: Callable[[float], None],
+    waits: tuple[float, ...] = WAIT_BEFORE_RETRY_SECONDS,
+) -> GeneratedContent:
+    """One attempt, then one more per wait, for the failures a retry fixes.
+
+    WHY THIS EXISTS, MEASURED ON CI RUN 33596448923 (real-tutor): "the whole
+    class asks at once" and "Ada refreshes and asks again" both came back
+    `unavailable` -- "I could not reach the part of me that writes
+    explanations" -- while every single-ask scenario answered. That is a
+    burst meeting Google's requests-per-minute ceiling: a 429 with its own
+    `retryDelay`, which `_send` used to fold into a bare LLMUnavailable on
+    the first attempt. Groq's client had learned the same lesson already and
+    this mirrors it exactly: retry only what the service says is worth a
+    second attempt (429, 413, 5xx -- never 401, 404 or a bad request), wait
+    what the service asks for when it says, and stop at the same ceiling.
+
+    Split out of `generate` so it is reachable without the SDK, a key, or a
+    socket -- the same reason `_send` and `_content_of` are.
+    """
+    last: Unreachable | None = None
+    for attempt in range(len(waits) + 1):
+        if attempt:
+            asked = last.asked_to_wait if last is not None else None
+            sleep(asked if asked is not None else waits[attempt - 1])
+        try:
+            return send()
+        except Unreachable as refused:
+            last = refused
+            if refused.status is None or not worth_another_try(refused.status, ""):
+                raise
+    assert last is not None  # the loop body always runs at least once
+    raise last
 
 __all__ = [
     "BUILDABLE",
@@ -247,6 +331,9 @@ class GeminiClient:
 
     model: str = MODEL
     max_tokens: int = MAX_TOKENS
+    #: Injectable so the retry path is testable without waiting through it --
+    #: the same reason `GroqClient.sleep` is.
+    sleep: Callable[[float], None] = field(default=time.sleep)
 
     def generate(self, contract: InstructionContract) -> GeneratedContent:
         """One call. Any provider problem arrives as `LLMUnavailable`.
@@ -293,7 +380,10 @@ class GeminiClient:
         # once a socket is opened.
         client = genai.Client(api_key=key)
 
-        return _content_of(_send(client, self.model, contract, self.max_tokens))
+        return generate_with_retries(
+            lambda: _content_of(_send(client, self.model, contract, self.max_tokens)),
+            sleep=self.sleep,
+        )
 
 
 class _Models(Protocol):
@@ -346,8 +436,14 @@ def _send(
         # Deliberately broad. The SDK raises its own exception hierarchy and
         # this layer's contract is "any provider problem is LLMUnavailable";
         # letting one vendor's class escape would make the runtime's retry
-        # decision depend on which vendor is configured.
-        raise LLMUnavailable(f"the model could not be reached: {error}") from error
+        # decision depend on which vendor is configured. What the error SAID
+        # about trying again travels with it, so `generate` can act on the
+        # service's word without ever seeing the vendor's class.
+        raise Unreachable(
+            f"the model could not be reached: {error}",
+            status=_status_of(error),
+            asked_to_wait=_wait_named_in(error),
+        ) from error
 
 
 def _content_of(response: object) -> GeneratedContent:

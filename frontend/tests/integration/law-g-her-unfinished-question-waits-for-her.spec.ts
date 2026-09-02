@@ -46,7 +46,10 @@ test('law G -- the question she was refused is waiting when she returns, and pre
      not paint it. `page.request` shares the page's cookies, so this is her
      identity asking, not a stranger's. */
   const owed = await page.request.get('/api/situation')
-  expect(owed.status(), 'the ledger route did not answer through the dev server').toBe(200)
+  expect(
+    owed.status(),
+    `the ledger route did not answer through the dev server; it said: ${(await owed.text()).slice(0, 400)}`,
+  ).toBe(200)
   const ledger = (await owed.json()) as { openLoops?: Array<{ question?: string }> }
   expect(
     (ledger.openLoops ?? []).map((loop) => loop.question),

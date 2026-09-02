@@ -141,6 +141,53 @@ function switchTheJournalToWal(db: DatabaseSync): void {
   }
 }
 
+/**
+ * How long a save keeps trying for the write lock against another PROCESS
+ * that will not let go of it.
+ *
+ * Three times `busy_timeout`, because `busy_timeout` alone was MEASURED to
+ * lose: a child process writing in a hot loop (m4-consistency, "never shows a
+ * partly written record while a second operating-system process writes the
+ * same key") releases the lock for microseconds between saves, and one
+ * five-second wait inside SQLite came back "database is locked" on CI runs
+ * 33596355320 and 33596363576 -- the handler's own retry cadence kept waking
+ * exactly when the child held the file again. A save that waits fifteen
+ * seconds under that adversary is still a queued save; a save that gives up
+ * at five is a student told her work did not save.
+ */
+const A_WRITE_LOCK_IS_RETRIED_FOR_MS = 3 * A_WAL_SWITCH_IS_RETRIED_FOR_MS
+
+/**
+ * Take the transaction's write lock, waiting out another PROCESS that holds it.
+ *
+ * `BEGIN IMMEDIATE` does honour `busy_timeout` -- the queue test proves it
+ * against a 1,200ms hold -- so each attempt below already waits up to five
+ * seconds inside SQLite. This loop exists for what one wait cannot cover: an
+ * adversary whose release-and-reacquire cadence a fixed backoff falls into
+ * step with. The pause is JITTERED for exactly that reason -- a deterministic
+ * 1, 2, 4, 8 ms schedule was measured to miss every gap a hot-loop child left
+ * open, and randomness is the standard cure for two schedules phase-locking.
+ *
+ * Only contention is retried. A corrupt file or an unwritable directory is a
+ * real failure, and waiting cannot turn it into a success.
+ */
+function takeTheWriteLock(db: DatabaseSync): void {
+  const giveUpAt = Date.now() + A_WRITE_LOCK_IS_RETRIED_FOR_MS
+  let pause = 1
+  for (;;) {
+    try {
+      db.exec('BEGIN IMMEDIATE')
+      return
+    } catch (thrown) {
+      const code = (thrown as { errcode?: unknown }).errcode
+      if (code !== SQLITE_BUSY && code !== SQLITE_LOCKED) throw thrown
+      if (Date.now() >= giveUpAt) throw thrown
+      rest(pause + Math.floor(Math.random() * pause))
+      pause = Math.min(pause * 2, A_RETRY_WAITS_AT_MOST_MS)
+    }
+  }
+}
+
 export interface MemoryStore {
   /** The stored text for this key, or undefined if nothing was ever written. */
   read(key: string): string | undefined
@@ -260,21 +307,6 @@ export function sqliteMemoryStore(path: string): MemoryStore {
      ON CONFLICT(memory_key) DO UPDATE SET record = excluded.record, updated_at = excluded.updated_at`,
   )
 
-  /* The two guarded halves of `update()`'s compare-and-swap. Each is one
-   * statement, atomic by construction like `writeOne`, and each SAYS when it
-   * lost: `changes` is 0 if the row appeared (for the insert) or moved (for
-   * the update) since the caller read it, and 1 only when the write landed on
-   * exactly the state the caller decided against. */
-  const insertIfAbsent = db.prepare(
-    `INSERT INTO canvas_memory (memory_key, record, updated_at)
-     VALUES (?, ?, ?)
-     ON CONFLICT(memory_key) DO NOTHING`,
-  )
-  const writeIfStill = db.prepare(
-    `UPDATE canvas_memory SET record = ?, updated_at = ?
-     WHERE memory_key = ? AND record = ?`,
-  )
-
   return {
     read(key) {
       const row = readOne.get(key) as { record?: unknown } | undefined
@@ -290,49 +322,35 @@ export function sqliteMemoryStore(path: string): MemoryStore {
     },
 
     update(key, at, change) {
-      /* COMPARE-AND-SWAP, NOT A TRANSACTION -- AND THE TRANSACTION WAS TRIED.
+      /* IMMEDIATE, NOT DEFERRED. A plain `BEGIN` takes no lock until the first
+       * write, so two writers both READ the old value, both decide against it,
+       * and the second overwrites the first's decision -- with SQLite raising
+       * nothing, because neither did anything illegal on its own. Taking the
+       * write lock up front is what makes the read part of this transaction
+       * mean anything.
        *
-       * The read-decide-write here must be atomic: two writers both reading
-       * the old value and both deciding against it is the lost-update bug the
-       * almanac ledger had. The first shape of that atomicity was
-       * `BEGIN IMMEDIATE`, and a second OPERATING-SYSTEM process killed it
-       * twice on CI (runs 33596355320 and 33596363576, m4-consistency's
-       * two-process proof): SQLite refuses to run the busy handler for a lock
-       * promotion it judges deadlock-prone, so the statement fails "database
-       * is locked" with busy_timeout set, honoured, and beside the point --
-       * and a retry loop around it starved for five straight seconds against
-       * a child process writing in a hot loop.
-       *
-       * So the atomicity moved INTO the statement, where this file already
-       * trusts it: the write lands only if the row still holds the value the
-       * decision was made against (or is still absent, for the insert). A
-       * single guarded statement queues fairly under `busy_timeout` like
-       * every other write -- there is no lock promotion left to refuse -- and
-       * `changes === 0` says the ground moved, so read again and re-decide.
-       * The loop converges for the same reason the WAL-switch retry does: the
-       * competing commit that invalidated this attempt is also the thing that
-       * un-blocks the next one. */
-      const giveUpAt = Date.now() + A_WAL_SWITCH_IS_RETRIED_FOR_MS
-      let pause = 1
-      for (;;) {
+       * AND THE LOCK IS HELD ACROSS `change`, WHICH IS THE CONTRACT. A
+       * compare-and-swap was tried here (single guarded statements, no
+       * transaction) and it kept lost updates impossible -- but it held
+       * nothing while `change` ran, so "a busy database is a queue" stopped
+       * being true: a second writer sailed past a save that was mid-decision.
+       * m4-consistency measured thirteen ways that matters. The queue is the
+       * product; the lock stays. */
+      takeTheWriteLock(db)
+      try {
         const row = readOne.get(key) as { record?: unknown } | undefined
         const current = typeof row?.record === 'string' ? row.record : undefined
         const next = change(current)
-        /* The change refusing to write is a decision, not a retry. */
-        if (next === undefined) return
-        const landed =
-          current === undefined
-            ? insertIfAbsent.run(key, next, at)
-            : writeIfStill.run(next, at, key, current)
-        if (landed.changes === 1) return
-        if (Date.now() >= giveUpAt) {
-          throw new Error(
-            `the record under ${key} kept being replaced by another writer for ` +
-              `${A_WAL_SWITCH_IS_RETRIED_FOR_MS}ms, so this update never landed`,
-          )
-        }
-        rest(pause)
-        pause = Math.min(pause * 2, A_RETRY_WAITS_AT_MOST_MS)
+        if (next !== undefined) writeOne.run(key, next, at)
+        db.exec('COMMIT')
+      } catch (thrown) {
+        /* ROLLED BACK BEFORE THE ERROR IS RE-THROWN, so a refused save leaves
+         * the previous record exactly as it was. Its own failure is swallowed
+         * deliberately: if the rollback cannot run the connection is already
+         * broken, and reporting THAT instead of why the save was refused would
+         * replace a useful message with a confusing one. */
+        try { db.exec('ROLLBACK') } catch { /* already unwound */ }
+        throw thrown
       }
     },
 

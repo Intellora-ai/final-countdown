@@ -44,7 +44,15 @@ export default defineConfig({
    * request really came from. */
   server: {
     proxy: Object.fromEntries(
-      ['/api/day', '/api/done', '/api/lesson', '/api/ask', '/api/health'].map((route) => [
+      /* `/api/situation` IS ON THIS LIST BECAUSE IT WAS NOT, AND LAW G MEASURED
+       * THE GAP in all four browsers (run 33596363576 and the two before it):
+       * the canvas's GET and PUT to /api/situation never reached the server --
+       * Vite's SPA fallback answered them with index.html and a 200, the
+       * client read "not JSON" as "no loops", and her unfinished question was
+       * never stored, so the return card had nothing to return. Every route
+       * the canvas fetches from the API server has to be named here, one at a
+       * time, for the reason above. */
+      ['/api/day', '/api/done', '/api/lesson', '/api/ask', '/api/health', '/api/situation'].map((route) => [
         route,
         { target: 'http://127.0.0.1:8787', changeOrigin: false },
       ]),

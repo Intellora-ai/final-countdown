@@ -385,6 +385,20 @@ def test_the_bridge_document_end_to_end_with_an_injected_transport(
 
     document = answer(json.dumps({"text": OFF_CURRICULUM, "resume_at": "b1"}))
 
+    if document.get("outcome") != "answered":
+        # THE DOCUMENT ITSELF, AS AN ANNOTATION. This assert failed on four CI
+        # runs and every one of them said only "AssertionError": the matcher
+        # keeps the error's class, the job log that holds the message is
+        # admin-only, and the socket this test needs is forbidden in the
+        # sandbox, so the reason could be read nowhere. A ::warning line on
+        # stdout is turned into an annotation by GitHub with no workflow
+        # change, so the reply's own words -- outcome, refusal, violations --
+        # reach the run before the assert below refuses it.
+        print(
+            "::warning title=the cake bridge did not answer::"
+            + json.dumps(document, ensure_ascii=True)[:900].replace("\n", " "),
+            flush=True,
+        )
     assert document["outcome"] == "answered", document
     assert document["sources"] == [A_SOURCE.url], (
         "the answer's sources are not exactly the engine's one page: "
@@ -454,6 +468,20 @@ def test_the_bridge_answers_the_cake_question_with_a_source(
 
     document = answer(json.dumps({"text": OFF_CURRICULUM, "resume_at": "b1"}))
 
+    if document.get("outcome") != "answered":
+        # THE DOCUMENT ITSELF, AS AN ANNOTATION. This assert failed on four CI
+        # runs and every one of them said only "AssertionError": the matcher
+        # keeps the error's class, the job log that holds the message is
+        # admin-only, and the socket this test needs is forbidden in the
+        # sandbox, so the reason could be read nowhere. A ::warning line on
+        # stdout is turned into an annotation by GitHub with no workflow
+        # change, so the reply's own words -- outcome, refusal, violations --
+        # reach the run before the assert below refuses it.
+        print(
+            "::warning title=the cake bridge did not answer::"
+            + json.dumps(document, ensure_ascii=True)[:900].replace("\n", " "),
+            flush=True,
+        )
     assert document["outcome"] == "answered", document
     assert document["sources"] == [A_SOURCE.url], (
         "the answer's sources are not exactly the engine's one page: "

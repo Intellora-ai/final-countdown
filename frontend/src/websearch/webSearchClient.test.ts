@@ -585,3 +585,39 @@ describe('when the route cannot be reached, wikipedia answers and says so', () =
     expect(out.fallback).toBeUndefined()
   })
 })
+
+/*
+ * FOUND 2026-09-03. The search route used to drop a page it had read and
+ * judged off-subject; two never-run socket laws (`m7-control`, `m9-truth`)
+ * were red about it, so the route now REPORTS every page and marks which may
+ * be cited. The same duty lands here: this client feeds the in-lesson
+ * answerer, and a page that is reported but not citable must not become one of
+ * its sources. A cookie wall carries no instruction, so the `suspicious`
+ * filter alone would have let it through the moment the route stopped hiding
+ * it.
+ */
+describe('a page the route reported but marked uncitable', () => {
+  it('is not handed to the reader, however innocent its words are', async () => {
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith({
+        pages: [
+          { ...page('https://good.example/a', 'Gas pressure rises with temperature.'), aboutTheSubject: true },
+          { ...page('https://wall.example/b', 'Cookies must be enabled to continue.'), aboutTheSubject: false },
+        ],
+        engineFailed: false,
+      }),
+    })
+    expect(out.results.map((r) => r.finalUrl), 'a page the route marked uncitable reached the reader')
+      .toEqual(['https://good.example/a'])
+  })
+
+  it('keeps every page from a reply that never mentions the field, so an older server is unchanged', async () => {
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith({
+        pages: [page('https://a.example/a', 'Gas pressure rises with temperature.'), page('https://b.example/b', 'Boyle measured it.')],
+        engineFailed: false,
+      }),
+    })
+    expect(out.results).toHaveLength(2)
+  })
+})

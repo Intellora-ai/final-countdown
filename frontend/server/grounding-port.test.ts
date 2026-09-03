@@ -146,3 +146,30 @@ describe('F2 — how well the sources agree is carried to the author', () => {
     expect(found[0]?.agreement).toBeUndefined()
   })
 })
+
+/*
+ * FOUND 2026-09-03. The search route used to DROP a page it had read and
+ * judged off-subject; two never-run socket laws were red about it, so the
+ * route now reports every page and says which may be cited. That put a new
+ * duty here: a page that is reported but not citable must not become a source.
+ * A cookie wall is not `suspicious` -- it carries no instruction -- so the
+ * suspicious filter alone would have let it through the moment the route
+ * stopped hiding it.
+ */
+describe('the grounding port cites only what may be cited', () => {
+  it('leaves out a page the route reported as not about the subject, however innocent it looks', async () => {
+    const port = searchPortFrom(async () =>
+      ({
+        status: 200,
+        body: JSON.stringify({
+          pages: [
+            { title: 'A', url: 'https://a.example/x', domain: 'a.example', text: 'Sugars are made in the Calvin cycle.', suspicious: false, aboutTheSubject: true },
+            { title: 'Cookies', url: 'https://wall.example/y', domain: 'wall.example', text: 'Cookies must be enabled to continue.', suspicious: false, aboutTheSubject: false },
+          ],
+        }),
+      }),
+    )
+    const sources = await port.search('photosynthesis')
+    expect(sources.map((s) => s.url), 'a page the route marked uncitable was handed to the author').toEqual(['https://a.example/x'])
+  })
+})

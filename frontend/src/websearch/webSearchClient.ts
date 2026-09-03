@@ -65,6 +65,13 @@ interface RoutePage {
   readonly domain: string
   readonly text: string
   readonly suspicious: boolean
+  /**
+   * Whether the route judged this page to be about the question. Since
+   * 2026-09-03 the route REPORTS every page it read rather than dropping the
+   * off-topic ones, so a reader-facing client has to honour the judgement
+   * instead of relying on the route to have hidden it.
+   */
+  readonly aboutTheSubject: boolean
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -87,6 +94,10 @@ function toRoutePage(value: unknown): RoutePage | null {
     domain: str(record['domain']),
     text,
     suspicious: record['suspicious'] === true,
+    /* ABSENT MEANS CITABLE. A reply from an older server, or any reply written
+       before the field existed, must behave exactly as it did; only the
+       route's explicit `false` withholds a page. */
+    aboutTheSubject: record['aboutTheSubject'] !== false,
   }
 }
 
@@ -271,7 +282,11 @@ async function askTheRoute(
     return failure('the search route sent something this client could not read')
   }
 
-  const routePages = raw.map(toRoutePage).filter((p): p is RoutePage => p !== null)
+  const routePages = raw
+    .map(toRoutePage)
+    /* Reported is not citable: a page the route read and judged off-subject is
+       in the reply so nothing is hidden, and is not a source for a lesson. */
+    .filter((p): p is RoutePage => p !== null && p.aboutTheSubject)
   const results = routePages.map(toReaderPage)
 
   if (record?.['engineFailed'] === true) {
@@ -387,6 +402,9 @@ export async function searchTheWeb(
       domain: '',
       text: r.readerText,
       suspicious: r.suspicious,
+      /* The Wikipedia fallback answers the question it was given, so every
+         page on this path is about the subject by construction. */
+      aboutTheSubject: true,
     })),
     wiki.results,
     query,

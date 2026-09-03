@@ -118,6 +118,19 @@ export interface SearchedPage {
    * cannot show that a pattern family quietly fell out of the list.
    */
   readonly signals: readonly string[]
+  /**
+   * WHETHER THIS PAGE MAY BE CITED. A page that was read and turned out to be
+   * about something else -- a cookie wall, an order aimed at this software, a
+   * page that matched the reading level rather than the subject -- is REPORTED
+   * with this false, never removed.
+   *
+   * Removing it was the defect two never-run laws (`m7-control`, `m9-truth`)
+   * were both red on: `guard.ts` argues that a detector which DELETES what it
+   * matches silently edits the source, and dropping the page did exactly that
+   * one layer up. Being reported is not being trusted; this field is the
+   * difference, stated rather than implied by omission.
+   */
+  readonly aboutTheSubject: boolean
 }
 
 export interface SearchReplyBody {
@@ -564,13 +577,18 @@ export async function searchTheOpenWeb(
    * which of these is true happens downstream, against the question, using more
    * than one of them.
    */
-  /* `usableSources` and not `r.ok` alone: a page that was read and turned out
-     to be about something else -- a cookie wall, a page that matched the
-     reading level rather than the subject -- is still in `result.retrieved` so
-     the retrieval benchmark can grade it, and must never leave here as a
-     source a lesson could cite. Measured live 2026-09-03; see `pipeline.ts`. */
-  const pages: SearchedPage[] = usableSources(result.retrieved)
-    .filter((r) => r.text.trim().length > 0)
+  /* EVERY PAGE THAT WAS READ, and `aboutTheSubject` says which may be cited.
+     A page that turned out to be about something else -- a cookie wall, an
+     order aimed at this software, a page that matched the reading level rather
+     than the subject -- is reported with that field false. It was FILTERED OUT
+     here until 2026-09-03, which is what `m7-control` and `m9-truth` were both
+     red about: the web served a page and nothing downstream could see it. The
+     citing rule is unchanged and now explicit -- `check` below still reads
+     agreement from `usableSources` alone, and every consumer filters on the
+     field. See `pipeline.ts`. */
+  const citable = new Set(usableSources(result.retrieved).map((r) => r.finalUrl || r.hit.url))
+  const pages: SearchedPage[] = result.retrieved
+    .filter((r) => r.ok && r.text.trim().length > 0)
     .map((r) => ({
       title: r.title || r.hit.title,
       url: r.finalUrl || r.hit.url,
@@ -582,6 +600,7 @@ export async function searchTheOpenWeb(
       text: r.text,
       signals: r.signals.map((signal) => signal.kind),
       suspicious: r.suspicious,
+      aboutTheSubject: citable.has(r.finalUrl || r.hit.url),
     }))
 
   return reply(

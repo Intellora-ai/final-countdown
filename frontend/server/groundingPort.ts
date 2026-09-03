@@ -23,11 +23,20 @@
 import type { OpenWebReply, SearchPort, SearchResult } from './handler.ts'
 
 /** What the pipeline says about one page, read for the two fields used here. */
-function asPage(value: unknown): { url: string; text: string; suspicious: boolean } | null {
+function asPage(value: unknown): { url: string; text: string; suspicious: boolean; aboutTheSubject: boolean } | null {
   if (typeof value !== 'object' || value === null) return null
   const page = value as Record<string, unknown>
   if (typeof page['url'] !== 'string' || typeof page['text'] !== 'string') return null
-  return { url: page['url'], text: page['text'], suspicious: page['suspicious'] === true }
+  return {
+    url: page['url'],
+    text: page['text'],
+    suspicious: page['suspicious'] === true,
+    /* ABSENT MEANS CITABLE, and deliberately so: an older server, or any reply
+       that predates the field, must keep grounding lessons exactly as it did.
+       Only an explicit `false` -- the route's own judgement -- withholds a
+       page. */
+    aboutTheSubject: page['aboutTheSubject'] !== false,
+  }
 }
 
 export interface GroundingOptions {
@@ -112,8 +121,14 @@ export function searchPortFrom(
         .map(asPage)
         /* A page the pipeline flagged as addressing this software is not a
            source. Grounding a lesson on it would hand a stranger's
-           instructions to the author under the name of a citation. */
-        .filter((page): page is { url: string; text: string; suspicious: boolean } => page !== null && !page.suspicious)
+           instructions to the author under the name of a citation.
+           And nor is a page the route reported as NOT about the subject: since
+           2026-09-03 the route reports every page it read rather than dropping
+           the ones it judged off-topic, so the judgement has to be honoured
+           here instead of relied on there. A cookie wall carries no
+           instruction, so `suspicious` alone would let it through. */
+        .filter((page): page is { url: string; text: string; suspicious: boolean; aboutTheSubject: boolean } =>
+          page !== null && !page.suspicious && page.aboutTheSubject)
         .map((page) => ({ url: page.url, content: page.text, ...(agreement === undefined ? {} : { agreement }) }))
     },
   }

@@ -1039,7 +1039,7 @@ describe('M7 · no credential leaves by any door', () => {
     }
   })
 
-  it('PINNED GAP: an oversized body is answered cleanly, then poisons the connection it arrived on', async () => {
+  it('answers an oversized body cleanly and leaves the connection it arrived on usable', async () => {
     /* TWO FINDINGS IN ONE PLACE, AND ONLY ONE OF THEM IS A GUARANTEE.
      *
      * WHAT HOLDS. The 413 itself is a proper reply: it arrives, it is JSON, it
@@ -1076,11 +1076,14 @@ describe('M7 · no credential leaves by any door', () => {
      *
      * WHEN THE HOLE IS CLOSED — by sending `Connection: close` on the 413 and
      * letting Node end the socket cleanly rather than destroying the request —
-     * `RESETS_THIS_DEFECT_STILL_CAUSES` becomes 0 and "PINNED GAP" leaves the
+     * `RESETS_THIS_DEFECT_CAUSES` becomes 0 and "PINNED GAP" leaves the
      * title. Do not raise the number instead. */
     const HOW_MANY_MARKS_BEFORE = 0
-    /** One. A second would mean the connection is poisoned for good, not once. */
-    const RESETS_THIS_DEFECT_STILL_CAUSES = 1
+    /** ZERO, since 2026-09-03: the 413 now carries `Connection: close` and Node
+     *  ends the socket itself, so the client retires it instead of pooling a
+     *  connection the server had already destroyed. This constant is the pin.
+     *  If it ever has to rise again, the defect is back -- fix the server. */
+    const RESETS_THIS_DEFECT_CAUSES = 0
 
     const live = await aLiveServer({ secrets: EVERY_FAKE_KEY })
     started.push(live)
@@ -1112,7 +1115,7 @@ describe('M7 · no credential leaves by any door', () => {
      * damage is permanent and this test fails loudly. */
     let resets = 0
     let answered: Reply | undefined
-    for (let attempt = 0; attempt <= RESETS_THIS_DEFECT_STILL_CAUSES; attempt += 1) {
+    for (let attempt = 0; attempt <= RESETS_THIS_DEFECT_CAUSES; attempt += 1) {
       try {
         answered = await send(live.origin, '/api/health', { method: 'GET', jar })
         break
@@ -1129,7 +1132,7 @@ describe('M7 · no credential leaves by any door', () => {
       .toBeDefined()
     expect(answered?.status, 'the server is alive but no longer healthy after a 413').toBe(200)
     expect(resets, 'PINNED GAP is stale — a 413 no longer resets the connection. Rewrite this test.')
-      .toBeLessThanOrEqual(RESETS_THIS_DEFECT_STILL_CAUSES)
+      .toBeLessThanOrEqual(RESETS_THIS_DEFECT_CAUSES)
   }, A_GENEROUS_TIMEOUT_MS)
 
   it('redacts a credential a child stored, when it is handed back to her', async () => {

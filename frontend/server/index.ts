@@ -37,6 +37,10 @@ import { CONTROLLER_SYSTEM } from './controller.ts'
 import { conceptIssues, conceptRequest } from '../src/canvas/teach/concept.ts'
 import { validateLesson } from '../src/canvas/spec/validate.ts'
 import type { Readable } from 'node:stream'
+import { readFile, stat } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { join, normalize, extname, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { createHandler, type ModelPort, type OpenWebReply, type SearchPort } from './handler.ts'
 import { searchTheOpenWeb } from './openweb.ts'
@@ -175,6 +179,109 @@ export interface ServerOptions {
   /** See `HandlerOptions`: booleans only, for /api/health. */
   readonly cloudConfigured?: boolean
   readonly localConfigured?: boolean
+  /** The built frontend (Vite `dist/`) served for non-API GET/HEAD, so one
+      deploy answers both the app and its `/api/*`. Absent = API-only. */
+  readonly staticDir?: string
+}
+
+/** Content types for the files a Vite build actually emits. Anything else is
+    served as a byte stream -- honest, and never sniffed. */
+const STATIC_TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.map': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.avif': 'image/avif',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.wasm': 'application/wasm',
+  '.txt': 'text/plain; charset=utf-8',
+}
+
+/**
+ * ONE SERVICE, ONE URL. The built frontend is served by this same process, so a
+ * single deploy answers both the app and its `/api/*`. A GET/HEAD for a path
+ * that is not an API route names either a file in the build or -- when it names
+ * no file -- an app route, whose answer is the SPA shell `index.html`.
+ *
+ * Three outcomes, and the third is why this is not a one-liner:
+ *   - a real file under the build   -> that file, with its type
+ *   - a missing path with NO extension (an app route like `/canvas`) -> the
+ *     SPA shell, 200, so client-side routing and a browser refresh both work
+ *   - a missing path WITH an extension (a stale `/assets/x.js`) -> 404, never
+ *     the HTML shell: handing HTML back for a missing script is the footgun
+ *     where the browser tries to run `<!doctype html>` as JavaScript
+ *
+ * Returns true when it wrote a response. Returns false ONLY when no build is
+ * present (no readable `index.html`), so a server booted without a frontend
+ * build -- every unit test does this -- stays exactly the API-only server it
+ * was, rather than 500ing on every page.
+ */
+async function serveStatic(res: ServerResponse, staticDir: string, urlPath: string, headOnly: boolean): Promise<boolean> {
+  /* Path traversal is refused by construction, not sanitised into a different
+     file: decode, normalise, strip every leading `..` and slash, then verify
+     the join still sits inside the root. A probe for `/../../etc/passwd` gets
+     the SPA shell, never a file above the build. */
+  let decoded: string
+  try {
+    decoded = decodeURIComponent(urlPath)
+  } catch {
+    decoded = urlPath
+  }
+  const rel = normalize(decoded).replace(/^(?:\.\.(?:[/\\]|$))+/, '').replace(/^[/\\]+/, '')
+  const full = join(staticDir, rel)
+  const withinRoot = full === staticDir || full.startsWith(staticDir + sep)
+  const ext = extname(full).toLowerCase()
+
+  const write = (status: number, data: Buffer, type: string): boolean => {
+    res.writeHead(status, {
+      'content-type': type,
+      'content-length': data.length,
+      'x-content-type-options': 'nosniff',
+    })
+    if (headOnly) res.end()
+    else res.end(data)
+    return true
+  }
+
+  // The real file, if there is one. A directory or a trailing slash is not a
+  // file -- it falls through to the shell.
+  if (withinRoot && rel !== '' && !urlPath.endsWith('/')) {
+    try {
+      const info = await stat(full)
+      if (info.isFile()) {
+        const data = await readFile(full)
+        return write(200, data, STATIC_TYPES[ext] ?? 'application/octet-stream')
+      }
+    } catch {
+      // Not there. Fall through -- the kind of "not there" is decided below.
+    }
+  }
+
+  // No file. Reading the shell doubles as the build-presence probe: if it is
+  // unreadable there is no build here, and this server stays API-only.
+  let index: Buffer
+  try {
+    index = await readFile(join(staticDir, 'index.html'))
+  } catch {
+    return false
+  }
+  // A missing path that named an extension is a missing asset, not an app
+  // route: 404, never the shell.
+  if (ext !== '' && rel !== '') {
+    return write(404, Buffer.from('not found'), 'text/plain; charset=utf-8')
+  }
+  return write(200, index, STATIC_TYPES['.html'])
 }
 
 /**
@@ -259,6 +366,10 @@ export function createServer(options: ServerOptions): Server {
     maxBodyBytes: MAX_BODY_BYTES,
   })
 
+  /* The built frontend this process also serves. Absent (unit tests) means
+     API-only, exactly as before. */
+  const staticDir = options.staticDir
+
   const send = (res: ServerResponse, status: number, body: unknown, setCookie?: string, closeConnection = false): void => {
     const payload = JSON.stringify(body)
     res.writeHead(status, {
@@ -335,6 +446,15 @@ export function createServer(options: ServerOptions): Server {
       const accept = Array.isArray(rawAccept) ? rawAccept.join(', ') : rawAccept
 
       if (!carriesABody) {
+        /* ONE SERVICE, ONE URL. A non-API GET/HEAD is a request for the built
+           frontend, not for the API. Served here so a single deploy answers
+           both; `/api/*` still goes to the handler. When no build is present
+           `serveStatic` returns false and the handler answers as it always
+           did. */
+        if (staticDir !== undefined && (method === 'GET' || method === 'HEAD') && !path.startsWith('/api/')) {
+          const served = await serveStatic(res, staticDir, path, method === 'HEAD')
+          if (served) return
+        }
         const response = await handle({ method, path, query, cookie, ...(accept === undefined ? {} : { accept }) })
         await deliver(res, response)
         return
@@ -679,7 +799,14 @@ function main(): void {
    * new student. */
   const secureCookies = /^(1|true|yes)$/i.test((process.env['IDENTITY_COOKIE_SECURE'] ?? '').trim())
 
-  const server = createServer({ model, search, openWeb, loops, almanac, memory, explanations, evidence, misconceptions, concepts, lessons, aliases, shadowRuns: shadowRuns(memoryStore), identitySecret, secureCookies, secrets, cloudConfigured, localConfigured })
+  /* The built frontend to serve alongside `/api/*`. Defaults next to this
+     bundle -- `dist-server/index.js` -> `../dist` -- so it is right whether the
+     server runs from source (tests) or from the build (deploy), regardless of
+     the working directory. STATIC_DIR overrides it for a host that lays the
+     files out differently. */
+  const staticDir = process.env['STATIC_DIR'] ?? fileURLToPath(new URL('../dist', import.meta.url))
+
+  const server = createServer({ model, search, openWeb, loops, almanac, memory, explanations, evidence, misconceptions, concepts, lessons, aliases, shadowRuns: shadowRuns(memoryStore), identitySecret, secureCookies, secrets, cloudConfigured, localConfigured, staticDir })
   server.listen(port, host, () => {
     console.log(`almanac server listening on http://${host}:${port}`)
     console.log(`  memory: ${memoryPath} (sqlite, safe for many servers)`)
@@ -697,6 +824,14 @@ function main(): void {
       databaseUrl === undefined || databaseUrl.trim() === ''
         ? `  ledger: ${ledgerPath} (one file — safe for ONE server only)`
         : '  ledger: postgres (shared, safe for many servers)',
+    )
+    /* SAID, NOT ASSUMED. Whether this one URL also serves the app depends on a
+       build existing where the server looked. A silent no here is the whole
+       "the page is blank in prod but /api/health is 200" mystery. */
+    console.log(
+      existsSync(join(staticDir, 'index.html'))
+        ? `  frontend: ${staticDir} (served at / — one service, one URL)`
+        : `  frontend: none at ${staticDir} (API-only — run "npm run build" first)`,
     )
     console.log(
       provider.kind === 'ollama'

@@ -28,7 +28,9 @@ declare module 'node:http' {
   export interface ServerResponse {
     headersSent: boolean
     writeHead(status: number, headers?: Record<string, string | number>): void
-    end(chunk?: string): void
+    /** A string for JSON/SSE replies, a Buffer for a served static file, or
+        nothing for a HEAD. See `index.ts serveStatic`. */
+    end(chunk?: string | Buffer): void
     /** One piece of a streamed reply; see `index.ts deliver`. */
     write(chunk: string): boolean
   }
@@ -143,12 +145,23 @@ declare module 'node:path' {
    * than pulled in with @types/node for the same reason as everything else in
    * this file: these are the calls actually made. */
   export function dirname(path: string): string
+  /* The three the static-file server uses to turn a URL path into a safe path
+     inside the build: collapse `..`, read the extension, know the separator.
+     See `index.ts serveStatic`. */
+  export function normalize(path: string): string
+  export function extname(path: string): string
+  export const sep: string
 }
 
 /* The file surface the ledger and its tests use. Same reasoning as above:
  * these are the calls actually made, not a dependency. */
 declare module 'node:fs/promises' {
   export function readFile(path: string, encoding: 'utf8'): Promise<string>
+  /** No encoding: the raw bytes, for serving a static file. See `serveStatic`. */
+  export function readFile(path: string): Promise<Buffer>
+  /** Only `isFile` is used: to tell a real file from a directory or a miss
+      before serving it. See `index.ts serveStatic`. */
+  export function stat(path: string): Promise<{ isFile(): boolean }>
   export function writeFile(path: string, data: string, encoding: 'utf8'): Promise<void>
   export function rename(from: string, to: string): Promise<void>
   export function unlink(path: string): Promise<void>

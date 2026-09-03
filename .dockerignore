@@ -1,0 +1,42 @@
+# Keep the Docker build context small and the image reproducible. The image
+# builds ONLY the frontend (its sources + lockfile); everything below is either
+# huge, rebuilt inside the image, secret, or irrelevant to the running server.
+
+.git
+**/node_modules
+**/.venv
+.venv
+
+# Rebuilt inside the image — never ship a host build into it.
+frontend/dist
+frontend/dist-server
+
+# Local-only Claude Code machinery and worktrees (the ~47 worktrees are gigabytes).
+.claude/worktrees
+.claude/agents
+.claude/workflows
+
+# Python tooling caches and the whole assurance/harness side — the Node server
+# needs none of it at runtime.
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+.hypothesis
+.coverage
+.evidence
+.goal-loop
+.harness
+.property-ledger
+.serena
+
+# Test output, backups, logs, secrets.
+frontend/test-results
+frontend/playwright-report
+backups
+*.log
+**/.env
+**/.env.*
+!**/.env.example
+.DS_Store
+**/.DS_Store

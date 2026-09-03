@@ -24,6 +24,7 @@ import { execFile, spawn } from 'node:child_process'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
+import { VENDORS } from './provider.ts'
 
 const run = promisify(execFile)
 const FRONTEND = fileURLToPath(new URL('..', import.meta.url))
@@ -77,7 +78,36 @@ const BUNDLE = join(FRONTEND, 'dist-server', 'index.js')
  * makes the result identical everywhere. It is not a carve-out for the failing
  * case — it removes a dependency the tests were never entitled to.
  */
-const EVERY_MODEL_KEY = ['ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'OLLAMA_MODEL'] as const
+/*
+ * EVERY WAY A MODEL CAN BE CONFIGURED, DERIVED FROM THE PRODUCT ITSELF.
+ *
+ * This was a hand-written list of three, and on 2026-09-03 -- the first time
+ * this file was ever run on this machine -- it made the no-provider test fail
+ * for the second time in the same way. The header below records the first: a
+ * `GROQ_API_KEY` in the developer's shell survived the blanking of the
+ * Anthropic one. The second was `GEMINI_API_KEY`, along with the five other
+ * hosted vendors added since, none of which this list had heard of. The server
+ * started on Gemini and never printed the refusal the test was reading.
+ *
+ * Derived from `VENDORS` and the two Ollama variables, so the tenth vendor
+ * added tomorrow is covered the day it appears rather than the day someone
+ * remembers this line.
+ */
+const EVERY_MODEL_KEY: readonly string[] = [
+  ...VENDORS.flatMap((vendor) => [vendor.keyVar, vendor.modelVar, vendor.urlVar]),
+  'ANTHROPIC_API_KEY',
+  'OLLAMA_MODEL',
+  'OLLAMA_FALLBACK_MODEL',
+  'OLLAMA_CONTROLLER_MODEL',
+]
+
+/** Every name the refusal must print, so somebody can act on it in one line. */
+const EVERY_WAY_TO_SET_ONE: readonly string[] = [
+  ...VENDORS.map((vendor) => vendor.keyVar),
+  'ANTHROPIC_API_KEY',
+  'OLLAMA_MODEL',
+  'OLLAMA_FALLBACK_MODEL',
+]
 
 async function withServer(env, body, until = 'listening on') {
   const port = 8900 + Math.floor(Math.random() * 90)
@@ -154,11 +184,11 @@ describe('the built server', () => {
    */
   it('refuses to start when no provider is configured, and names every way to set one', async () => {
     await withServer(
-      { OLLAMA_MODEL: '', GROQ_API_KEY: '', GROQ_MODEL: '', ANTHROPIC_API_KEY: '' },
+      Object.fromEntries(EVERY_MODEL_KEY.map((name) => [name, ''])),
       async (s) => {
-        expect(s.exitCode()).not.toBe(0)
-        for (const name of ['GROQ_API_KEY', 'ANTHROPIC_API_KEY', 'OLLAMA_MODEL']) {
-          expect(s.output()).toContain(name)
+        expect(s.exitCode(), `the server started anyway:\n${s.output()}`).not.toBe(0)
+        for (const name of EVERY_WAY_TO_SET_ONE) {
+          expect(s.output(), `the refusal never mentions ${name}, so nobody can act on it`).toContain(name)
         }
       },
     )

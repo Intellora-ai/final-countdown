@@ -1,0 +1,116 @@
+{
+  "curriculum": "cbse-class-11",
+  "subjectId": "physics",
+  "models": [
+    {
+      "topicId": "need-for-measurement--units-of-measurement",
+      "topicName": "Units of measurement",
+      "curriculum": "cbse-class-11",
+      "subjectId": "physics",
+      "chapterId": "need-for-measurement",
+      "version": 1,
+      "status": "verified",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "need-for-measurement",
+          "name": "Need for measurement",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physics",
+              "page": 3,
+              "quote": "Need for measurement"
+            }
+          ]
+        },
+        {
+          "id": "units-of-measurement",
+          "name": "Units of measurement",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physics",
+              "page": 3,
+              "quote": "Units of measurement"
+            }
+          ]
+        },
+        {
+          "id": "systems-of-units",
+          "name": "Systems of units",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physics",
+              "page": 3,
+              "quote": "systems of units"
+            }
+          ]
+        },
+        {
+          "id": "si-units",
+          "name": "SI units",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physics",
+              "page": 3,
+              "quote": "SI units"
+            }
+          ]
+        },
+        {
+          "id": "fundamental-units",
+          "name": "Fundamental units",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physics",
+              "page": 3,
+              "quote": "fundamental units"
+            }
+          ]
+        },
+        {
+          "id": "derived-units",
+          "name": "Derived units",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physics",
+              "page": 3,
+              "quote": "derived units"
+            }
+          ]
+        },
+        {
+          "id": "significant-figures",
+          "name": "Significant figures",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physics",
+              "page": 3,
+              "quote": "significant figures"
+            }
+          ]
+        },
+        {
+          "id": "determining-uncertainty",
+          "name": "Determining the uncertainty in result",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physics",
+              "page": 3,
+              "quote": "Determining the uncertainty in result"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/gemma3:12b",
+      "verifiedAt": "2026-09-03T00:00:00.000Z"
+    }
+  ]
+}

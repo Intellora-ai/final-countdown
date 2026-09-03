@@ -1,0 +1,92 @@
+{
+  "curriculum": "cbse-class-9",
+  "subjectId": "elements-of-book-keeping-accountancy",
+  "models": [
+    {
+      "topicId": "introduction-to-book-keeping-and-accounting--objectives",
+      "topicName": "objectives",
+      "curriculum": "cbse-class-9",
+      "subjectId": "elements-of-book-keeping-accountancy",
+      "chapterId": "introduction-to-book-keeping-and-accounting",
+      "version": 1,
+      "status": "verified",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "need-of-book-keeping",
+          "name": "Need of Book Keeping",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "elements-of-accountancy-ix",
+              "page": 1,
+              "quote": "● Identify the need of Book Keeping."
+            }
+          ]
+        },
+        {
+          "id": "objectives-of-book-keeping",
+          "name": "Objectives of Book Keeping",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "elements-of-accountancy-ix",
+              "page": 1,
+              "quote": "● Understand the Objectives of Book Keeping."
+            }
+          ]
+        },
+        {
+          "id": "advantages-of-book-keeping",
+          "name": "Advantages of Book Keeping",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "elements-of-accountancy-ix",
+              "page": 1,
+              "quote": "● Appreciate the advantages of Book Keeping."
+            }
+          ]
+        },
+        {
+          "id": "meaning-of-accounting",
+          "name": "Meaning of Accounting",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "elements-of-accountancy-ix",
+              "page": 1,
+              "quote": "● Describe the meaning, objectives and advantages of accounting."
+            }
+          ]
+        },
+        {
+          "id": "objectives-of-accounting",
+          "name": "Objectives of Accounting",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "elements-of-accountancy-ix",
+              "page": 1,
+              "quote": "● Describe the meaning, objectives and advantages of accounting."
+            }
+          ]
+        },
+        {
+          "id": "advantages-of-accounting",
+          "name": "Advantages of Accounting",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "elements-of-accountancy-ix",
+              "page": 1,
+              "quote": "● Describe the meaning, objectives and advantages of accounting."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/gemma3:12b",
+      "verifiedAt": "2026-09-03T00:00:00.000Z"
+    }
+  ]
+}

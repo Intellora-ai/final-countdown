@@ -1,0 +1,104 @@
+{
+  "curriculum": "cbse-class-11",
+  "subjectId": "biology",
+  "models": [
+    {
+      "topicId": "chapter-2--biological-classification-five-kingdom-classification",
+      "topicName": "Biological Classification Five kingdom classification",
+      "curriculum": "cbse-class-11",
+      "subjectId": "biology",
+      "chapterId": "chapter-2",
+      "version": 1,
+      "status": "verified",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "five-kingdom-classification",
+          "name": "Five kingdom classification",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 3,
+              "quote": "Five kingdom classification"
+            }
+          ]
+        },
+        {
+          "id": "monera",
+          "name": "Monera",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 3,
+              "quote": "Salient features and classification of Monera"
+            }
+          ]
+        },
+        {
+          "id": "protista",
+          "name": "Protista",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 3,
+              "quote": "Salient features and classification of Protista"
+            }
+          ]
+        },
+        {
+          "id": "fungi",
+          "name": "Fungi",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 3,
+              "quote": "Salient features and classification of Fungi"
+            }
+          ]
+        },
+        {
+          "id": "lichens",
+          "name": "Lichens",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 3,
+              "quote": "Lichens"
+            }
+          ]
+        },
+        {
+          "id": "viruses",
+          "name": "Viruses",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 3,
+              "quote": "Viruses"
+            }
+          ]
+        },
+        {
+          "id": "viroids",
+          "name": "Viroids",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 3,
+              "quote": "Viroids"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/gemma3:12b",
+      "verifiedAt": "2026-09-03T00:00:00.000Z"
+    }
+  ]
+}

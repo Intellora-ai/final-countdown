@@ -1,0 +1,116 @@
+{
+  "curriculum": "cbse-class-10",
+  "subjectId": "computer-applications",
+  "models": [
+    {
+      "topicId": "syllabus--understand-the-components-of-computer-networking-including-web-servers-and-netwo",
+      "topicName": "Understand the components of Computer Networking including web servers and network protocols",
+      "curriculum": "cbse-class-10",
+      "subjectId": "computer-applications",
+      "chapterId": "syllabus",
+      "version": 1,
+      "status": "verified",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "computer-networking",
+          "name": "Computer Networking",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-applications-x",
+              "page": 1,
+              "quote": "1. Understand the components of Computer Networking including web servers and network protocols."
+            }
+          ]
+        },
+        {
+          "id": "web-servers",
+          "name": "Web Servers",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-applications-x",
+              "page": 1,
+              "quote": "Understand the components of Computer Networking including web servers and network protocols."
+            }
+          ]
+        },
+        {
+          "id": "network-protocols",
+          "name": "Network Protocols",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-applications-x",
+              "page": 1,
+              "quote": "Understand the components of Computer Networking including web servers and network protocols."
+            }
+          ]
+        },
+        {
+          "id": "internet",
+          "name": "Internet",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-applications-x",
+              "page": 1,
+              "quote": "• Internet: World Wide Web, web servers, web clients, web sites, web pages, web browsers, blogs, news groups, HTML, web address, e-mail address, downloading and uploading files from a remote site."
+            }
+          ]
+        },
+        {
+          "id": "tcp-ip",
+          "name": "TCP/IP",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-applications-x",
+              "page": 1,
+              "quote": "•    Internet protocols: TCP/IP, SMTP, POP3, HTTP, HTTPS."
+            }
+          ]
+        },
+        {
+          "id": "smtp",
+          "name": "SMTP",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-applications-x",
+              "page": 1,
+              "quote": "•    Internet protocols: TCP/IP, SMTP, POP3, HTTP, HTTPS."
+            }
+          ]
+        },
+        {
+          "id": "pop3",
+          "name": "POP3",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-applications-x",
+              "page": 1,
+              "quote": "•    Internet protocols: TCP/IP, SMTP, POP3, HTTP, HTTPS."
+            }
+          ]
+        },
+        {
+          "id": "http",
+          "name": "HTTP",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-applications-x",
+              "page": 1,
+              "quote": "•    Internet protocols: TCP/IP, SMTP, POP3, HTTP, HTTPS."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/gemma3:12b",
+      "verifiedAt": "2026-09-03T00:00:00.000Z"
+    }
+  ]
+}

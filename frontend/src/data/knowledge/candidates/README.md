@@ -71,3 +71,56 @@ Move the model into `src/data/knowledge/cbse/class-<n>/<subject>.json`, set
 `status` to `verified` and add a `verifiedAt` date. The schema refuses a
 `verified` model with no date, and `gate:knowledge` will check its quotations,
 its topic id and its name against the curriculum.
+
+---
+
+## What was promoted on 2026-09-03, and what was not
+
+The owner handed this gate over ("do it yourself"), so it was read and decided
+here rather than waiting. Ten topics are now `verified` and on screen; the
+rest stay candidates, each for a reason.
+
+**The bar, applied in this order.** A model had to clear all four:
+
+1. the topic passes `teachable.ts` (all twenty did -- this refuses nothing here)
+2. at least TWO concepts that are not the topic's own name said again
+3. no two concepts the same, and no two sharing an id
+4. the concepts are right for that subject at that level, read one by one
+
+**Promoted (10 distinct topics, 65 concepts, every quotation re-checked against
+the locked PDFs by `npm run gate:knowledge`):** computer networking and the
+characteristics of a computer (Computer Applications, 9 and 10); the five
+kingdoms (Biology 11); some basic concepts of chemistry (Chemistry 11); units
+of measurement (Physics 11, which Class 12 resolves too); binary numbers
+(Applied Mathematics 11, likewise); meristematic and permanent tissues
+(Science 9/10); miracles in biotechnology (Science at Advanced Level 9/10);
+book-keeping objectives (Class 9); and the pre-modern world (Social Science 10).
+
+**Left as candidates, with the reason:**
+
+| topic | why it stayed |
+|---|---|
+| Capital and revenue receipts (10) | two of its three concepts are the topic's name and then "Capital" and "Revenue" -- it says nothing the title did not |
+| Fundamental Theorem of Arithmetic (10) | one real concept beyond the name; a two-item scope where one item is the title |
+| circles (11) | one concept, and it is the topic's name. If this topic really is one idea it should be `shape: atomic` with no concepts at all, which is a different fix |
+| Uses language appropriate to social context (9) | the one concept is the topic restated |
+| Understands numbers, natural to real (9) | "Numbers" and "Real Numbers" for a title that already names six kinds |
+| An overview 5 (Biotechnology 11) | **a generator defect, not a judgement** -- see below |
+| the 29 `qwen2.5:7b` models | 1.3 concepts per topic, 25 of 29 giving only the topic's name back. Re-run them on a larger model; do not read them one by one |
+
+**The generator defect, found by promoting.** Every concept in the
+Biotechnology "An overview 5" model carries the id `biotechnology-an-overview`
+-- the TOPIC's slug, four times, instead of each concept's own. The names are
+the model's contribution and they are fine; the ids are `build.mjs`'s and they
+are wrong. It went back to candidates rather than being repaired by hand,
+because hand-editing model output is exactly what the verify-then-promote
+pipeline exists to avoid. `build.mjs` should slug each concept's name.
+
+**One topic id can belong to two classes, and one model serves both.** Class 11
+and 12 share `syllabus--1-binary-numbers`; Classes 9 and 10 share the tissues
+and biotechnology topics -- one syllabus PDF generates both. The loader keys by
+topic id alone and calls a second copy "described twice", correctly. The lower
+class holds the file; both classes resolve it. Promoting both copies is what
+made `load.ts` report five broken files, and its own test caught it before any
+of this was committed.
+

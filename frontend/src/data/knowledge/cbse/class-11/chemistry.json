@@ -1,0 +1,116 @@
+{
+  "curriculum": "cbse-class-11",
+  "subjectId": "chemistry",
+  "models": [
+    {
+      "topicId": "unit-1--some-basic-concepts-of-chemistry-importance-of-chemistry",
+      "topicName": "Some Basic Concepts of Chemistry Importance of Chemistry",
+      "curriculum": "cbse-class-11",
+      "subjectId": "chemistry",
+      "chapterId": "unit-1",
+      "version": 1,
+      "status": "verified",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "importance-of-chemistry",
+          "name": "Importance of Chemistry",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 2,
+              "quote": "Importance of Chemistry"
+            }
+          ]
+        },
+        {
+          "id": "nature-of-matter",
+          "name": "Nature of Matter",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 2,
+              "quote": "Nature of Matter"
+            }
+          ]
+        },
+        {
+          "id": "properties-of-matter",
+          "name": "Properties of Matter",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 2,
+              "quote": "Properties of Matter"
+            }
+          ]
+        },
+        {
+          "id": "measurement",
+          "name": "Measurement",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 2,
+              "quote": "their Measurement"
+            }
+          ]
+        },
+        {
+          "id": "laws-of-chemical-combination",
+          "name": "Laws of Chemical Combination",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 2,
+              "quote": "Laws of Chemical Combination"
+            }
+          ]
+        },
+        {
+          "id": "daltons-atomic-theory",
+          "name": "Dalton's Atomic Theory",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 2,
+              "quote": "Dalton's Atomic Theory"
+            }
+          ]
+        },
+        {
+          "id": "atomic-and-molecular-masses",
+          "name": "Atomic and Molecular Masses",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 2,
+              "quote": "Atomic and Molecular Masses"
+            }
+          ]
+        },
+        {
+          "id": "mole-concept",
+          "name": "Mole Concept",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 2,
+              "quote": "Mole Concept"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/gemma3:12b",
+      "verifiedAt": "2026-09-03T00:00:00.000Z"
+    }
+  ]
+}

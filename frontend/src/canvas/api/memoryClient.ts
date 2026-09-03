@@ -202,14 +202,110 @@ function anArtifact(row: unknown, seq: number, createdAt: string): CanvasArtifac
 
 const KINDS = new Set<ArtifactKind>(['scope', 'lesson', 'answer', 'correction', 'note'])
 
+/* ---------------------------------------------------------------------- */
+/* What this browser already holds of a canvas, so the next open is cheap  */
+/* ---------------------------------------------------------------------- */
+
+/**
+ * ONE KEY, THE LAST TOPIC OPENED. Not one key per topic: `teachStore.ts`
+ * refused per-lesson keys because they grow `localStorage` without bound, and
+ * the same is true here. One topic's artifacts are bounded by that topic --
+ * measured at 32 KB for 200 -- and opening another topic replaces it.
+ *
+ * WHY IT EXISTS. A canvas is read once per open (`CanvasRoute`), so the only
+ * read that can be made cheaper is the NEXT open. Holding what was merged last
+ * time lets that open ask the server for `after=<highest seq held>` and
+ * receive only what is new. The server is still the truth: what deserves
+ * another look is recomputed there over the whole canvas on every read.
+ *
+ * WHOSE IT IS, AND THIS IS THE PART THAT MUST NOT BE SIMPLIFIED. A shared
+ * school computer has one browser profile and many students. The server tags
+ * every canvas reply with an opaque, keyed name for the student it belongs
+ * to; the cache records that tag; a read uses the cache ONLY when the reply
+ * carries the same tag back. A different cookie is a different tag, and the
+ * cache is thrown away and the canvas read again from nothing. A reply with
+ * no tag at all -- an older server, a test double -- is never cached and
+ * never merged with a cache: it cannot say whose it is.
+ */
+export const CANVAS_CACHE_KEY = 'canvas-artifacts-cache'
+
+interface CachedCanvas {
+  readonly topicId: string
+  /** The server's opaque tag for the student this was read as. */
+  readonly student: string
+  readonly artifacts: readonly CanvasArtifact[]
+}
+
+function cachedCanvasFor(topicId: string): CachedCanvas | null {
+  let raw: string | null
+  try {
+    raw = window.localStorage.getItem(CANVAS_CACHE_KEY)
+  } catch {
+    return null
+  }
+  if (raw === null) return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    /* A cache that will not parse is no cache. It is never content. */
+    return null
+  }
+  if (typeof parsed !== 'object' || parsed === null) return null
+  const kept = parsed as Record<string, unknown>
+  if (kept['topicId'] !== topicId) return null
+  if (typeof kept['student'] !== 'string' || kept['student'] === '') return null
+  if (!Array.isArray(kept['artifacts'])) return null
+  const artifacts = (kept['artifacts'] as unknown[]).flatMap((row): CanvasArtifact[] => {
+    if (typeof row !== 'object' || row === null) return []
+    const one = row as Record<string, unknown>
+    if (typeof one['seq'] !== 'number' || !Number.isInteger(one['seq']) || one['seq'] < 1) return []
+    return [anArtifact(one, one['seq'], typeof one['createdAt'] === 'string' ? one['createdAt'] : '')]
+  })
+  return { topicId, student: kept['student'], artifacts }
+}
+
+function rememberCanvas(cache: CachedCanvas): void {
+  try {
+    window.localStorage.setItem(CANVAS_CACHE_KEY, JSON.stringify(cache))
+  } catch {
+    /* Quota, private mode, a refusing storage: the next open pays a full
+       read, exactly as it did before this existed. Nothing else changes. */
+    forgetCanvasCache()
+  }
+}
+
+function forgetCanvasCache(): void {
+  try {
+    window.localStorage.removeItem(CANVAS_CACHE_KEY)
+  } catch {
+    /* Nothing to do: a storage that refuses removal also refused the write. */
+  }
+}
+
+/** Held ∪ new, by `seq`, oldest first. `seq` is unique and permanent, so a
+    collision is the same artifact and the newer copy is kept. */
+function mergeArtifacts(held: readonly CanvasArtifact[], fresh: readonly CanvasArtifact[]): CanvasArtifact[] {
+  const bySeq = new Map<number, CanvasArtifact>()
+  for (const one of held) bySeq.set(one.seq, one)
+  for (const one of fresh) bySeq.set(one.seq, one)
+  return [...bySeq.values()].sort((a, b) => a.seq - b.seq)
+}
+
 /**
  * What this topic's canvas holds. A failure says so; it never says "empty".
  *
  * There is no catch that turns an outage into a value here, and that absence
- * is the point: see `CanvasRead`.
+ * is the point: see `CanvasRead`. A cache is never an answer to an outage.
  */
 export async function readCanvas(topicId: string): Promise<CanvasRead> {
+  return readCanvasWith(topicId, cachedCanvasFor(topicId))
+}
+
+async function readCanvasWith(topicId: string, held: CachedCanvas | null): Promise<CanvasRead> {
   const query = new URLSearchParams({ tabId: browserId(), lessonId: canvasKey(topicId) })
+  const highest = held === null ? 0 : held.artifacts.reduce((top, one) => Math.max(top, one.seq), 0)
+  if (highest > 0) query.set('after', String(highest))
   let response: Response
   try {
     response = await fetch(`/api/canvas?${query.toString()}`)
@@ -219,9 +315,9 @@ export async function readCanvas(topicId: string): Promise<CanvasRead> {
   if (!response.ok) {
     return { ok: false, reason: `the canvas could not be read (${response.status})` }
   }
-  let body: { artifacts?: unknown; needsAnotherLook?: unknown }
+  let body: { artifacts?: unknown; needsAnotherLook?: unknown; student?: unknown }
   try {
-    body = (await response.json()) as { artifacts?: unknown; needsAnotherLook?: unknown }
+    body = (await response.json()) as { artifacts?: unknown; needsAnotherLook?: unknown; student?: unknown }
   } catch {
     return { ok: false, reason: 'the canvas came back in a shape this page could not read' }
   }
@@ -229,9 +325,31 @@ export async function readCanvas(topicId: string): Promise<CanvasRead> {
   if (!Array.isArray(rows)) {
     return { ok: false, reason: 'the canvas came back without its artifacts' }
   }
+  const student = typeof body?.student === 'string' && body.student !== '' ? body.student : null
+
+  /* THE CACHE IS USED ONLY WHEN THE SERVER SAYS THE SAME NAME BACK. Anything
+     else -- another student's cookie, a server that does not tag -- and what
+     this browser held is forgotten and the canvas is read again from nothing.
+     One extra round trip, only when the person at the keyboard has changed. */
+  if (highest > 0 && (student === null || student !== held?.student)) {
+    forgetCanvasCache()
+    return readCanvasWith(topicId, null)
+  }
+
   /* EVERY ROW IS KEPT, INCLUDING ONE THAT MAKES NO SENSE. The shipped client
      ran `.every()` over the list and discarded ALL of it for one bad entry,
      then wrote the loss back. One damaged lesson is one damaged lesson. */
+  const fresh = rows.map((row, at) => {
+    const kept = (typeof row === 'object' && row !== null ? row : {}) as Record<string, unknown>
+    return anArtifact(
+      kept['artifact'],
+      typeof kept['seq'] === 'number' ? kept['seq'] : highest + at + 1,
+      typeof kept['createdAt'] === 'string' ? kept['createdAt'] : '',
+    )
+  })
+  const artifacts = highest > 0 && held !== null ? mergeArtifacts(held.artifacts, fresh) : fresh
+  if (student !== null) rememberCanvas({ topicId, student, artifacts })
+
   const raised = Array.isArray(body?.['needsAnotherLook'] as unknown) ? (body['needsAnotherLook'] as unknown[]) : []
   return {
     ok: true,
@@ -241,14 +359,7 @@ export async function readCanvas(topicId: string): Promise<CanvasRead> {
         ? [{ artifactSeq: kept['artifactSeq'], kind: String(kept['kind'] ?? ''), why: String(kept['why'] ?? '') }]
         : []
     }),
-    artifacts: rows.map((row, at) => {
-      const kept = (typeof row === 'object' && row !== null ? row : {}) as Record<string, unknown>
-      return anArtifact(
-        kept['artifact'],
-        typeof kept['seq'] === 'number' ? kept['seq'] : at + 1,
-        typeof kept['createdAt'] === 'string' ? kept['createdAt'] : '',
-      )
-    }),
+    artifacts,
   }
 }
 

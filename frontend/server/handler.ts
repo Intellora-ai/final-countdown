@@ -84,6 +84,9 @@ import { candidateTakes, serveFromCandidate } from './intelligence/canary.ts'
 import { criticOn } from './intelligence/critic.ts'
 import { capabilityRegistry } from './intelligence/registry.ts'
 import { sufficientPath } from './intelligence/sufficiency.ts'
+import { askOf } from './memory/lessons.ts'
+import { readTheAsk } from '../src/canvas/teach/intent.ts'
+import { createHmac } from 'node:crypto'
 import { knownTopicCount } from '../src/knowledge/load.ts'
 
 export interface LessonRequest {
@@ -514,7 +517,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       smallTalk,
       isPlea,
       subjectFor: (context, said) => options.aliases?.subjectFor(context, said) ?? null,
-      unseenOnShelf: (subject, spent) => (options.lessons?.findUnseen(subject, spent) ?? null) !== null,
+      unseenOnShelf: (subject, spent, ask) => (options.lessons?.findUnseen(subject, spent, ask) ?? null) !== null,
     }),
   })
   const secrets = options.secrets ?? []
@@ -742,10 +745,14 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     const meant = options.aliases?.subjectFor(askedFrom, question) ?? null
     if (meant !== null) {
       const had = options.explanations?.priorFor(owner, meant).explanations ?? []
+      /* OF THE SHAPE SHE ASKED FOR. The memo decided what this phrasing MEANS;
+         `readTheAsk` reads what it WANTS -- a definition, an example, a
+         comparison, the whole thing -- and the shelf is asked for that. A
+         whole lesson no longer answers "what is it". See `Written.asked`. */
       const onShelf =
         options.lessons?.findUnseen(meant, [
           ...new Set([...had.map((one) => one.route), ...alreadyUsed]),
-        ]) ?? null
+        ], readTheAsk(question).ask) ?? null
       if (onShelf !== null) {
         console.log(`[controller] SHELF target="${meant}" (phrasing already decided, no model call)`)
         return offShelf(onShelf, meant, false)
@@ -1110,7 +1117,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
        on the veto's override path the two disagreed: an overruled target read
        an empty history and the shelf handed back a route the learner had
        already been given -- the mismatch `spentFinal` exists to close. */
-    const ready = options.lessons?.findUnseen(finalKey, spentFinal) ?? null
+    const ready = options.lessons?.findUnseen(finalKey, spentFinal, readTheAsk(question).ask) ?? null
     if (ready !== null) {
       return offShelf(ready, finalKey, !decision.guessed && decision.subjectNamed && !appSupplied)
     }
@@ -1349,6 +1356,10 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
             route: written.route,
             lesson: written.lesson,
             checkpoint: written.concept.checkpoint,
+            /* THE SHAPE THE MODEL SAID IT WROTE, so the shelf can serve it
+               only to an ask of that shape. `conceptIssues` already refused
+               anything outside the readings; absent reads as `teach`. */
+            ...askOf(written.concept.asked),
             next: written.concept.next,
             at,
           })
@@ -2005,13 +2016,46 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
 
       if (req.method === 'GET') {
         const asked = new URLSearchParams(req.query ?? '')
+        /*
+         * `after`: THE HIGHEST SEQ THE BROWSER ALREADY HOLDS, so only what is
+         * newer crosses the wire. Measured before this existed: a topic of 200
+         * artifacts was 32,113 bytes on every open, forever.
+         *
+         * READ STRICTLY. A cursor this cannot read is refused with a 400, not
+         * rounded to 0 (which would silently re-send everything) and not to
+         * "nothing new" (which would look exactly like an empty canvas -- the
+         * Law D failure this route exists to keep out). `seq` is a whole
+         * number the database assigned, so that is the only shape accepted.
+         */
+        const cursor = asked.get('after')
+        if (cursor !== null && !/^(?:0|[1-9]\d*)$/.test(cursor)) {
+          return reply(400, { error: 'after must be the whole number of artifacts already held, or absent' })
+        }
+        const after = cursor === null ? 0 : Number(cursor)
         try {
-          const artifacts = options.memory.list(canvasOwner(asked.get('tabId'), asked.get('lessonId')))
+          /* THE WHOLE CANVAS IS STILL READ HERE, and that is deliberate: what
+           * deserves another look is a judgement about the canvas as a whole --
+           * lesson 41 can put lesson 1 in question -- so it is never computed
+           * over a slice. Only the payload is cut to what she has not got. */
+          const whole = options.memory.list(canvasOwner(asked.get('tabId'), asked.get('lessonId')))
+          const artifacts = after === 0 ? whole : whole.filter((row) => row.seq > after)
           /* An empty history is a real answer -- she has not opened this topic
            * yet. It is NOT the same answer as "this could not be read", and
            * keeping those two apart is Law D. A failure leaves here as a
            * non-200 and never as an empty list. */
-          return reply(200, { artifacts, needsAnotherLook: whatDeservesAnotherLook(asked.get('lessonId') ?? '', artifacts) })
+          return reply(200, {
+            artifacts,
+            needsAnotherLook: whatDeservesAnotherLook(asked.get('lessonId') ?? '', whole),
+            /* WHO THIS CANVAS BELONGS TO, as an opaque tag the browser can hold
+             * beside what it cached. A shared school computer keeps one
+             * localStorage for every student who sits down; the browser uses a
+             * cached canvas only when the server says the same tag back, and a
+             * different student -- a different cookie -- gets a different tag,
+             * so what A left in the browser is never shown to B. Keyed and
+             * domain-separated from the cookie signature: it is not a
+             * credential and cannot be turned into one. */
+            student: createHmac('sha256', options.identitySecret).update(`canvas-cache:${who.studentId}`).digest('hex').slice(0, 16),
+          })
         } catch (thrown) {
           if (thrown instanceof BadMemoryKey) return reply(400, { error: thrown.message })
           throw thrown

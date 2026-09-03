@@ -12,6 +12,7 @@
  * through the looks it is given, and it never treats "could not look" as
  * "nothing there" (Law D, one layer over): a shelf that throws is path 5.
  */
+import { readTheAsk, type Ask } from '../../src/canvas/teach/intent.ts'
 import type { SmallTalk } from '../smallTalk.ts'
 import type { TeachingRequest } from './LearningIntelligence.ts'
 
@@ -26,7 +27,10 @@ export interface Looks {
   smallTalk(said: string): SmallTalk | null
   isPlea(said: string): boolean
   subjectFor(context: string, said: string): string | null
-  unseenOnShelf(subject: string, spent: readonly string[]): boolean
+  /** A lesson of the shape asked for, unseen by her. The live path asks the
+      same question with the same shape (`handler.ts`), so the gate cannot
+      say "one row" about a shelf the live path would not serve. */
+  unseenOnShelf(subject: string, spent: readonly string[], ask: Ask): boolean
 }
 
 /** The paths on which no model is called at all. */
@@ -55,7 +59,7 @@ export function sufficientPath(request: TeachingRequest, looks: Looks): Sufficie
 
   let unseen: boolean
   try {
-    unseen = looks.unseenOnShelf(subject, request.alreadyUsed)
+    unseen = looks.unseenOnShelf(subject, request.alreadyUsed, readTheAsk(said).ask)
   } catch (error: unknown) {
     return { path: 5, because: `the lesson shelf could not be looked at (${reasonOf(error)}), so nothing is assumed` }
   }

@@ -30,8 +30,14 @@
  * there.
  */
 
+import { ASKS, type Ask } from '../../src/canvas/teach/intent.ts'
 import { fittedLessonId, memoryKey } from './key.ts'
 import type { MemoryStore } from './sqliteStore.ts'
+
+/** The shape a reply reported, if it is one of the readings; else nothing. */
+export function askOf(value: unknown): { asked: Ask } | Record<string, never> {
+  return typeof value === 'string' && (ASKS as readonly string[]).includes(value) ? { asked: value as Ask } : {}
+}
 
 /** One lesson as it was served, with the tutor turn that went with it. */
 export interface Written {
@@ -45,6 +51,24 @@ export interface Written {
   readonly next?: unknown
   /** ISO 8601, so a row reads in order without a clock. */
   readonly at: string
+  /**
+   * THE SHAPE IT WAS WRITTEN IN -- the reading the model reported as `asked`
+   * (`intent.ts`): a whole explanation, a definition, an example, practice,
+   * a comparison, a chain of reasons, or help for someone stuck.
+   *
+   * MEASURED BEFORE THIS EXISTED (`src/laws/baseline.test.tsx`, row 9): with
+   * one whole lesson on the shelf for a subject, "define it", "what is it",
+   * "why does it", "it vs that", "give me an example" and "quiz me" -- six
+   * asks of five shapes -- were all answered with that same lesson, and no
+   * model saw the new demand. The shelf was keyed by subject alone, so the
+   * shape was thrown away the moment the subject was found. A lesson is
+   * served only to an ask of its own shape now; see `findUnseen`.
+   *
+   * ABSENT MEANS `teach`. Rows written before this field existed were all
+   * written as whole lessons, so that is what they are -- never "unknown",
+   * which would make a term's worth of shelf unreadable overnight.
+   */
+  readonly asked?: Ask
   /**
    * WHICH RECIPE WROTE IT. See `writtenLessons`.
    *
@@ -153,6 +177,9 @@ function shelfFrom(stored: string | undefined): Record<string, Written> {
       recipe: it['recipe'],
       ...(typeof it['checkpoint'] === 'string' ? { checkpoint: it['checkpoint'] } : {}),
       ...(Array.isArray(it['next']) ? { next: it['next'] } : {}),
+      /* A shape that is not one of the readings reads as no shape -- `teach`
+         -- rather than as a row to refuse. */
+      ...askOf(it['asked']),
     }
   }
   return out
@@ -164,7 +191,11 @@ export interface WrittenLessons {
    *
    * `spent` is that learner's own list, so a hit is always new TO THEM.
    */
-  findUnseen(concept: string, spent: readonly string[]): Written | null
+  /**
+   * A lesson of the shape asked for, not yet seen by her. `ask` absent means
+   * a whole explanation, the shape every row was before shapes existed.
+   */
+  findUnseen(concept: string, spent: readonly string[], ask?: Ask): Written | null
   /** Keep one that passed the gate whole. The recipe is stamped for you. */
   keep(concept: string, written: Omit<Written, 'recipe'>): void
 }
@@ -184,9 +215,13 @@ export interface WrittenLessons {
  */
 export function writtenLessons(store: MemoryStore, recipe: string): WrittenLessons {
   return {
-    findUnseen(concept, spent) {
+    findUnseen(concept, spent, ask) {
       const shelf = shelfFrom(store.read(keyFor(concept)))
       const already = new Set(spent)
+      /* THE SHAPE SHE ASKED FOR. A definition on the shelf does not answer
+         "explain", and a whole lesson does not answer "what is" -- see
+         `Written.asked`. Both sides default to `teach`. */
+      const wanted: Ask = ask ?? 'teach'
       /* OLDEST FIRST, so a concept's ways in are handed out in a stable order
          rather than by whichever was written most recently. Two learners at the
          same point in their history get the same lesson, which is what makes a
@@ -195,6 +230,7 @@ export function writtenLessons(store: MemoryStore, recipe: string): WrittenLesso
         /* Written by a different recipe, so it is not this product's lesson any
            more however good it was. */
         .filter((one) => one.recipe === recipe)
+        .filter((one) => (one.asked ?? 'teach') === wanted)
         .filter((one) => !already.has(one.route))
         .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0))
       return unseen[0] ?? null

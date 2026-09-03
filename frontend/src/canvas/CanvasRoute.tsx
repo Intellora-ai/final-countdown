@@ -1374,7 +1374,15 @@ export default function CanvasRoute({
         setMemoryTrouble(`${read.reason}. Nothing is lost. It is on the server, and this page will show it as soon as it can reach it.`)
         return
       }
-      setMemoryTrouble(null)
+      /* A READ THAT SUCCEEDED DOES NOT CLEAR A SAVE THAT FAILED. This read
+         starts at mount; a lesson can be asked for and fail to save before it
+         resolves -- a slow network, or just a slow read -- and clearing here
+         then wiped "not yet on the server" from a lesson that still is not.
+         Found when the read path gained one more tick and the existing test
+         for that message went red: the defect was always there, the timing
+         just stopped hiding it. `unsavedSeq` goes below zero once for every
+         lesson this screen holds that the server does not. */
+      if (unsavedSeq.current === 0) setMemoryTrouble(null)
       setQuestioned(new Map(read.questioned.map((q) => [q.artifactSeq, q.why])))
       if (read.artifacts.length === 0) return
 

@@ -118,7 +118,7 @@ describe('LAW S7 -- one broken block never sinks a lesson', () => {
     const { status, body } = await ask()
     expect(status, JSON.stringify(body).slice(0, 300)).toBe(200)
     expect(body['lesson']).toBeDefined()
-    expect(blockOf(body, 'pressure-vs-temperature')?.chartType, 'the mendable chart was pruned or left as bars').toBe('line')
+    expect(blockOf(body, 'pressure-vs-temperature')?.chartType, `the mendable chart was pruned or left as bars -- reply: ${JSON.stringify({ keys: Object.keys(body), partial: body['partial'], kinds: kindsOf(body) })}`).toBe('line')
     expect(kindsOf(body)).toHaveLength((gasPressure.blocks as readonly unknown[]).length)
     expect(body['partial'], 'a lesson mended without inventing content is whole, not partial').toBeUndefined()
   })

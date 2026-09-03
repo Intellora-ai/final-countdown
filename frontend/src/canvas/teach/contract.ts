@@ -68,6 +68,13 @@ export interface Beat {
    * it must not find out by comparing against a length.
    */
   isLast: boolean
+  /**
+   * This beat's checkpoint OFFERS deeper material rather than checking the
+   * beat landed: the core has ended, and what follows is shown only if she
+   * says yes. `TeachView` honours a no here and nowhere else. Set by
+   * `deriveBeats` at the core/deeper boundary; absent everywhere else.
+   */
+  offersDeeper?: boolean
 }
 
 /**

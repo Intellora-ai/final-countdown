@@ -18,6 +18,7 @@ import { createAnswering, type AskPort } from './answering'
 import type { Block, Lesson } from '../spec/spec'
 import { validateLesson, type Issue, type TeachingLevel } from '../spec/validate'
 import { deriveBeats } from './beats'
+import { declines } from './turn'
 import {
   checkBeats,
   type Beat,
@@ -515,6 +516,15 @@ export function TeachView({
     if (kind === 'answer') {
       onSaid?.({ said: text.trim(), beat: current.id })
       setDraft('')
+      /* AN OFFER DECLINED IS HONOURED. The core has ended and this beat's
+         question offered the deeper material by name; "no" means no. Nothing
+         moves, the offer stays on screen, and a later yes still opens it.
+         Measured before this existed: any answer here advanced, and "no
+         thanks" put every deeper block on the screen. */
+      if (current.offersDeeper === true && declines(text)) {
+        setAnnouncement('That is the end of this one. Say the word, and I will go on.')
+        return
+      }
       advance()
       return
     }

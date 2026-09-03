@@ -1566,7 +1566,15 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
      */
     const asLesson = (value: unknown): unknown => {
       if (typeof value !== 'object' || value === null) return undefined
-      const { checkpoint: _checkpoint, next: _next, ...rest } = value as Record<string, unknown>
+      /* EVERYTHING THE CONCEPT CARRIES BESIDE THE LESSON comes off here, not
+         only the two that were first noticed. The writer also reports `asked`
+         and `shown`; the lesson schema is `.strict()`; so with those two left
+         on, `repairLesson`'s own validation refused every draft and the ladder
+         fell straight to the note-only floor -- every salvaged reply was one
+         prose block. Found by `oneBrokenBlock.test.ts`, which asked for a
+         chart mended into a line and got a note. The two words still reach the
+         reply, read from `rescued` below. */
+      const { checkpoint: _checkpoint, next: _next, asked: _asked, shown: _shown, ...rest } = value as Record<string, unknown>
       return { ...rest, relations: rest['relations'] ?? [] }
     }
 
@@ -1620,7 +1628,10 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       return reply(200, {
         lesson: salvaged.lesson,
         route: written.route,
-        partial: true,
+        /* `partial` only when something is actually missing. A draft mended
+           by its own rule's remedy (bars over a numeric axis drawn as a
+           line) is served whole, and said so. */
+        ...(salvaged.whole === true ? {} : { partial: true }),
         ...(typeof rescued?.checkpoint === 'string' ? { checkpoint: rescued.checkpoint } : {}),
         ...(Array.isArray(rescued?.next) ? { next: rescued.next } : {}),
         /* The draft's own two words, read the same strict way -- except that
@@ -1862,7 +1873,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
     issues: readonly Issue[],
     teaching: TeachingLevel,
     question: string,
-  ): { lesson: Lesson } | undefined {
+  ): { lesson: Lesson; whole?: true } | undefined {
     const served = (candidate: unknown, level: TeachingLevel): Lesson | undefined => {
       const checked = validateLesson(candidate, { teaching: level })
       return checked.ok ? checked.lesson : undefined
@@ -1875,7 +1886,9 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
 
         /* 1. Good enough for the route that was asked. Whole lesson, no note. */
         const whole = served(mended.lesson, teaching)
-        if (whole !== undefined) return { lesson: whole }
+        /* Mended without inventing content and passing the gate whole: not a
+           part of the lesson, the lesson. The reply must not say `partial`. */
+        if (whole !== undefined) return { lesson: whole, whole: true }
       }
 
       const best = mended?.lesson ?? produced
@@ -1897,6 +1910,26 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
          case into a 200 carrying no lesson at all. */
       const floor = served(noteOnly(question), 'answer')
       return floor === undefined ? undefined : { lesson: floor }
+    }
+    /*
+     * A FAULT THE SCHEMA RAISED, CONFINED TO THE BLOCKS IT NAMES.
+     *
+     * The ladder above runs only when every issue is a teaching rule. A block
+     * whose points are not numbers, or whose kind is not one of the twelve,
+     * is a SCHEMA fault -- the commonest thing a small model gets wrong -- and
+     * it fell through to `undefined`: a 502 for the whole lesson because one
+     * block did not parse. Measured by `oneBrokenBlock.test.ts`.
+     *
+     * The block that does not parse is dropped, with everything that referred
+     * to it, and the rest is served as an answer with the note -- the same
+     * rung the teaching rules already have. A fault that names no block (the
+     * whole reply is not a lesson) still returns nothing: there is nothing to
+     * keep.
+     */
+    const pruned = withoutRefusedBlocks(produced, issues)
+    if (pruned !== undefined) {
+      const rest = served(withNote(pruned, PART_OF_IT), 'answer')
+      if (rest !== undefined) return { lesson: rest }
     }
     return undefined
   }

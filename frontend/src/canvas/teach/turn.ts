@@ -56,6 +56,26 @@ export function isPlea(text: string): boolean {
   return PLEAS.some((pattern) => pattern.test(lower)) || PLEAS_ANYWHERE.some((pattern) => pattern.test(lower))
 }
 
+/**
+ * DECLINING AN OFFER. The core of a lesson ends with "I can go further into
+ * <name> — shall I?" (`beats.ts`), and the authoring rule behind it says the
+ * learner is asked by name before any deeper material is shown. Asked means
+ * a no is honoured. Measured before this existed (`deeperByName.test.tsx`):
+ * "no thanks" revealed every deeper block, because any answer advanced.
+ *
+ * A SHORT, EXPLICIT LIST, in the languages this product's learners type.
+ * Anything not on it is read as before -- a statement advances, a question
+ * is a doubt -- so a decline that is not recognised costs one extra part,
+ * never a lost answer. "not really" and "no idea" are NOT declines: the
+ * first is an answer, the second is someone stuck.
+ */
+const DECLINES = /^(?:no(?:pe|t now| thanks?| thank you)?|nah|nay|enough|that(?:'s| is) enough|(?:i(?:'m| am) )?done|(?:maybe )?later|stop|skip(?: it)?|leave it|nahi|nahin|nai|nako|bas|venda|beda|illa)\b[.!]*$/i
+
+/** Did she decline an offer? See `DECLINES`. */
+export function declines(text: string): boolean {
+  return DECLINES.test(text.trim().toLowerCase())
+}
+
 export function classifyTurn(text: string): Turn {
   const trimmed = text.trim()
   if (trimmed === '') return 'empty'

@@ -251,6 +251,14 @@ function cutIntoRuns(lesson: Lesson): Run[] {
        agreed to see in the same breath as material they have. */
     if (previous[0].depth !== run[0].depth) continue
 
+    /* THE FOLD IS NOT OPTIONAL. Every beat must show something (`checkBeats`);
+     * a picture-less run refused a fold would be a beat that fails that rule
+     * and refuses the whole lesson. So the cap yields here whatever the tier:
+     * `logarithms`' deeper section carries one figure across seven blocks, and
+     * those seven are ONE beat because they cannot be split into parts that
+     * each show something. "Never the whole lesson at once" is kept by the
+     * offer that gates them (see `offersDeeper` below), not by cutting the
+     * deeper material finer than its own pictures allow. */
     runs.splice(i - 1, 2, [...previous, ...run] as Run)
   }
 
@@ -487,6 +495,10 @@ export function deriveBeats(lesson: Lesson): Beats {
       blockIds: run.map((block) => block.id),
       checkpoint: checkpointFor(run[0], next === undefined ? undefined : next[0]),
       isLast: next === undefined,
+      /* The core/deeper boundary: this checkpoint is an OFFER ("I can go
+         further into … — shall I?"), and the view honours a no here. Same
+         condition `checkpointFor` phrases the offer on. */
+      ...(run[0].depth === 'core' && next?.[0]?.depth === 'deeper' ? { offersDeeper: true } : {}),
     }
   })
 }

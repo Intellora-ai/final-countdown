@@ -269,9 +269,18 @@ export function repairLesson(produced: unknown, issues: readonly Issue[]): Repai
 /* -------------------------------------------------------------------------- */
 
 /** The block index an issue points at, where it points at one. */
+/**
+ * Which block an issue is about, in either of the two path dialects the gate
+ * speaks: `blocks[6]` from the teaching rules, `blocks.6.series.0.points.0.y`
+ * from the schema. The second was unread, so a block whose points were not
+ * numbers -- the commonest thing a small model gets wrong -- could not be
+ * pruned and the whole lesson was refused (S7, `oneBrokenBlock.test.ts`).
+ */
 function blockIndex(path: string): number | undefined {
-  const found = /^blocks\[(\d+)\]/.exec(path)
-  return found ? Number(found[1]) : undefined
+  const found = /^blocks(?:\[(\d+)\]|\.(\d+)(?:\.|$))/.exec(path)
+  if (found === null) return undefined
+  const at = found[1] ?? found[2]
+  return at === undefined ? undefined : Number(at)
 }
 
 /**

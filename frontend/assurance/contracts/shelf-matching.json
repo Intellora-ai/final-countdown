@@ -1,0 +1,20 @@
+{
+  "decision": "shelf_lookup",
+  "identity_site": { "file": "server/memory/lessons.ts", "fn": "findUnseen" },
+  "inputs": ["subject", "asked", "alreadyUsed"],
+  "identity": { "fields": ["subject", "asked"] },
+  "code_names": { "subject": "concept", "asked": "ask", "alreadyUsed": "spent" },
+  "decision_relevant": ["subject", "asked"],
+  "discarded": {
+    "alreadyUsed": "a per-learner FILTER over which routes she has already been shown, not part of the artifact's identity -- justified"
+  },
+  "distinguishing_pairs": [
+    { "a": { "subject": "gravity", "asked": "explain" }, "b": { "subject": "gravity", "asked": "why" }, "differ": true },
+    { "a": { "subject": "gravity", "asked": "define" }, "b": { "subject": "gravity", "asked": "define" }, "differ": false }
+  ],
+  "invariants": ["semantic_mismatch_must_not_reuse"],
+  "canaries": ["explain_gravity", "graph_gravity", "practice_gravity"],
+  "assertions": {
+    "subject_alone_is_not_identity": { "maturity": "shadow", "evidence": null }
+  }
+}

@@ -232,23 +232,6 @@ export default tseslint.config(
     },
   },
 
-  /*
-   * `cto` -- the engineering environment this repo is built IN, rather than
-   * part of what it ships. It never reaches a browser and never reaches a
-   * student, and it is linted anyway for the same reason `src/laws` is: it is
-   * the thing that decides what I am allowed to call known, so a stray `any`
-   * or an unread variable here is a fault in every claim made afterwards.
-   *
-   * `design-value` is not applied: nothing here renders.
-   */
-  {
-    files: ['cto/**/*.ts'],
-    extends: [...tseslint.configs.recommended],
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'error',
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-    },
-  },
 
   {
     files: ['src/laws/**/*.{ts,tsx}'],

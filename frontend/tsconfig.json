@@ -50,10 +50,6 @@
   },
   "include": [
     "src",
-    /* `cto` — the engineering environment this repo is built IN. It ships to
-       nobody, but it decides what may be called known, so it is typechecked
-       with everything else rather than trusted. */
-    "cto",
     /* A test under `src` imports `server/handler.ts`, so TypeScript follows the
        chain into `server/` and typechecks files this project does not list.
        Those files depend on the ambient Node declarations that live beside

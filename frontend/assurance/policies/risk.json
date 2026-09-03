@@ -1,0 +1,12 @@
+{
+  "note": "Which changed paths make a diff HIGH risk, and which decision they touch. HIGH runs the full semantic attack; MEDIUM runs the corpus + contract; LOW runs the contract self-test only. Keeps the gate fast: a typo does not trigger a semantic investigation.",
+  "decision_paths": [
+    { "pattern": "server/memory/lessons.ts", "decision": "shelf_lookup" },
+    { "pattern": "server/memory/aliases.ts", "decision": "shelf_lookup" },
+    { "pattern": "server/memory/key.ts", "decision": "shelf_lookup" },
+    { "pattern": "server/intelligence/sufficiency.ts", "decision": "shelf_lookup" },
+    { "pattern": "server/handler.ts", "decision": "shelf_lookup" }
+  ],
+  "high_risk_keywords": ["cache", "lookup", "identity", "routing", "dedup", "normali", "fallback", "concurren", "memoiz", "alias"],
+  "medium_risk_paths": ["server/memory/", "server/intelligence/", "assurance/"]
+}

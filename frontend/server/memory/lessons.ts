@@ -30,7 +30,7 @@
  * there.
  */
 
-import { ASKS, type Ask } from '../../src/canvas/teach/intent.ts'
+import { ASKS, shownOf, type Ask, type Shown } from '../../src/canvas/teach/intent.ts'
 import { fittedLessonId, memoryKey } from './key.ts'
 import type { MemoryStore } from './sqliteStore.ts'
 
@@ -69,6 +69,10 @@ export interface Written {
    * which would make a term's worth of shelf unreadable overnight.
    */
   readonly asked?: Ask
+  /** What the writer said this lesson SHOWS (`intent.ts` `Shown`), so a shelf
+      reply can say it the way an authored one does. Absent means nothing in
+      particular. */
+  readonly shown?: Shown
   /**
    * WHICH RECIPE WROTE IT. See `writtenLessons`.
    *
@@ -180,6 +184,7 @@ function shelfFrom(stored: string | undefined): Record<string, Written> {
       /* A shape that is not one of the readings reads as no shape -- `teach`
          -- rather than as a row to refuse. */
       ...askOf(it['asked']),
+      ...shownOf(it['shown']),
     }
   }
   return out

@@ -40,7 +40,9 @@
  * from Phase 1 and `memoryKey` from Phase 1.
  */
 
+import type { Ask } from '../../src/canvas/teach/intent.ts'
 import { fittedLessonId, memoryKey } from './key.ts'
+import { askOf } from './lessons.ts'
 import type { MemoryStore } from './sqliteStore.ts'
 
 /** One phrasing, and the subject the controller decided it meant. */
@@ -60,9 +62,32 @@ interface Meant {
    * re-learn, guaranteed nothing would ever go back and ask again.
    */
   readonly recipe: string
+  /**
+   * WHAT THE MODEL READ THIS PHRASING AS WANTING, made in the same decision.
+   *
+   * The shelf serves a lesson only to an ask of its own shape (`lessons.ts`
+   * `Written.asked`). On the fast path no model runs, so without this the
+   * shape asked of the shelf was the rules' guess -- which "got five of
+   * eight real student strings wrong" (`intent.ts`) -- and the model's better
+   * reading, made once, was thrown away. Kept here it is a memo of a decision
+   * the model already made, under the same key and the same condition as the
+   * subject: still not a second decision-maker. Absent reads as `teach`.
+   */
+  readonly asked?: Ask
+}
+
+/** The reading a phrasing was memoed with. */
+export interface Reading {
+  readonly asked?: Ask
 }
 
 export interface SubjectAliases {
+  /**
+   * What the model read this phrasing as wanting, or nothing -- nothing being
+   * the normal answer for a phrasing never decided, or decided before shapes
+   * were kept. The caller falls back to the rules' reading.
+   */
+  readingFor(context: string, said: string): Reading | null
   /**
    * The subject this phrasing was decided to mean, or nothing.
    *
@@ -71,8 +96,9 @@ export interface SubjectAliases {
    * before this existed.
    */
   subjectFor(context: string, said: string): string | null
-  /** Remember that the controller read this phrasing as this subject. */
-  learn(context: string, said: string, subject: string, at: string): void
+  /** Remember that the controller read this phrasing as this subject -- and,
+      when the writer reported one, the shape it read the phrasing as wanting. */
+  learn(context: string, said: string, subject: string, at: string, reading?: Reading): void
 }
 
 /**
@@ -116,7 +142,7 @@ function meantFrom(stored: string | undefined): Meant | null {
   /* A row written before recipes existed cannot be vouched for and reads as
      absent -- the same rule `lessons.ts` applies to a lesson with no recipe. */
   if (typeof it['recipe'] !== 'string') return null
-  return { subject: it['subject'], at: it['at'], recipe: it['recipe'] }
+  return { subject: it['subject'], at: it['at'], recipe: it['recipe'], ...askOf(it['asked']) }
 }
 
 /**
@@ -136,7 +162,14 @@ export function subjectAliases(store: MemoryStore, recipe: string): SubjectAlias
       return meant === null || meant.recipe !== recipe ? null : meant.subject
     },
 
-    learn(context, said, subject, at) {
+    readingFor(context, said) {
+      if (phrasing(said) === '') return null
+      const meant = meantFrom(store.read(keyFor(context, said)))
+      if (meant === null || meant.recipe !== recipe) return null
+      return meant.asked === undefined ? null : { asked: meant.asked }
+    },
+
+    learn(context, said, subject, at, reading) {
       /* Nothing to key by, or nothing to remember. Both are the caller having
          no decision worth memoing, and neither is an error. */
       if (phrasing(said) === '' || subject.trim() === '') return
@@ -149,7 +182,7 @@ export function subjectAliases(store: MemoryStore, recipe: string): SubjectAlias
        * every other writer.
        */
       store.update(keyFor(context, said), at, () =>
-        JSON.stringify({ subject: subject.trim(), at, recipe } satisfies Meant),
+        JSON.stringify({ subject: subject.trim(), at, recipe, ...askOf(reading?.asked) } satisfies Meant),
       )
     },
   }

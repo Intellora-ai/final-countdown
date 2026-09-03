@@ -27,6 +27,11 @@ export interface Looks {
   smallTalk(said: string): SmallTalk | null
   isPlea(said: string): boolean
   subjectFor(context: string, said: string): string | null
+  /** The shape the model memoed for this phrasing, if any -- the live path
+      asks the shelf for it before falling back to the rules, and so does the
+      gate (`handler.ts`: one `shape`, both lookups). Optional so a stub that
+      never memoes reads as "nothing memoed". */
+  readingFor?(context: string, said: string): { readonly asked?: Ask } | null
   /** A lesson of the shape asked for, unseen by her. The live path asks the
       same question with the same shape (`handler.ts`), so the gate cannot
       say "one row" about a shelf the live path would not serve. */
@@ -59,7 +64,7 @@ export function sufficientPath(request: TeachingRequest, looks: Looks): Sufficie
 
   let unseen: boolean
   try {
-    unseen = looks.unseenOnShelf(subject, request.alreadyUsed, readTheAsk(said).ask)
+    unseen = looks.unseenOnShelf(subject, request.alreadyUsed, looks.readingFor?.(request.askedFrom, said)?.asked ?? readTheAsk(said).ask)
   } catch (error: unknown) {
     return { path: 5, because: `the lesson shelf could not be looked at (${reasonOf(error)}), so nothing is assumed` }
   }

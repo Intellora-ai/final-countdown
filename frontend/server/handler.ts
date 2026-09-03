@@ -517,6 +517,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       smallTalk,
       isPlea,
       subjectFor: (context, said) => options.aliases?.subjectFor(context, said) ?? null,
+      readingFor: (context, said) => options.aliases?.readingFor(context, said) ?? null,
       unseenOnShelf: (subject, spent, ask) => (options.lessons?.findUnseen(subject, spent, ask) ?? null) !== null,
     }),
   })
@@ -705,7 +706,9 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
        */
       if (memo) {
         try {
-          options.aliases?.learn(askedFrom, question, key, at)
+          /* With the shape served, so the next learner typing these words is
+             asked the shelf for that shape and not the regex's guess. */
+          options.aliases?.learn(askedFrom, question, key, at, { asked: ready.asked ?? 'teach' })
         } catch {
           /* The next learner pays for a decision. Nobody goes untaught. */
         }
@@ -715,6 +718,11 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         route: ready.route,
         ...(ready.checkpoint === undefined ? {} : { checkpoint: ready.checkpoint }),
         ...(ready.next === undefined ? {} : { next: ready.next }),
+        /* The shape this lesson IS, and what it shows -- said the way an
+           authored reply says it, so the canvas cannot tell the two apart. A
+           row written before shapes were kept is a whole lesson. */
+        asked: ready.asked ?? 'teach',
+        ...shownDrawn(ready.shown, Array.isArray((ready.lesson as { blocks?: unknown })?.blocks) ? ((ready.lesson as { blocks: { kind?: unknown }[] }).blocks) : []),
         ...(strategy === undefined ? {} : { strategy }),
       })
     }
@@ -743,6 +751,11 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
      * applies. A miss here costs one extra SQLite read and nothing else.
      */
     const meant = options.aliases?.subjectFor(askedFrom, question) ?? null
+    /* THE SHAPE ASKED OF THE SHELF: the reading the model gave this phrasing
+       when it last wrote for it (memoed beside the subject), else the rules'
+       free reading. Computed once and used by both shelf lookups below, so the
+       memo path and the controller path can never ask for different shapes. */
+    const askedShape = options.aliases?.readingFor(askedFrom, question)?.asked ?? readTheAsk(question).ask
     if (meant !== null) {
       const had = options.explanations?.priorFor(owner, meant).explanations ?? []
       /* OF THE SHAPE SHE ASKED FOR. The memo decided what this phrasing MEANS;
@@ -752,7 +765,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
       const onShelf =
         options.lessons?.findUnseen(meant, [
           ...new Set([...had.map((one) => one.route), ...alreadyUsed]),
-        ], readTheAsk(question).ask) ?? null
+        ], askedShape) ?? null
       if (onShelf !== null) {
         console.log(`[controller] SHELF target="${meant}" (phrasing already decided, no model call)`)
         return offShelf(onShelf, meant, false)
@@ -1117,7 +1130,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
        on the veto's override path the two disagreed: an overruled target read
        an empty history and the shelf handed back a route the learner had
        already been given -- the mismatch `spentFinal` exists to close. */
-    const ready = options.lessons?.findUnseen(finalKey, spentFinal, readTheAsk(question).ask) ?? null
+    const ready = options.lessons?.findUnseen(finalKey, spentFinal, askedShape) ?? null
     if (ready !== null) {
       return offShelf(ready, finalKey, !decision.guessed && decision.subjectNamed && !appSupplied)
     }
@@ -1351,7 +1364,10 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
              ever asks for, and an alias to it would send them to an empty
              shelf. Filed together so the two can never disagree about which
              subject this sentence meant. See `memory/aliases.ts`. */
-          options.aliases?.learn(askedFrom, question, finalKey, at)
+          /* WITH THE SHAPE THE WRITER READ, so the next learner typing these
+             words is served that shape from the shelf and never the regex's
+             guess. Same key, same condition, same decision. */
+          options.aliases?.learn(askedFrom, question, finalKey, at, askOf(written.concept.asked))
           options.lessons?.keep(finalKey, {
             route: written.route,
             lesson: written.lesson,
@@ -1360,6 +1376,8 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
                only to an ask of that shape. `conceptIssues` already refused
                anything outside the readings; absent reads as `teach`. */
             ...askOf(written.concept.asked),
+            /* And what it said it shows, for the shelf reply to repeat. */
+            ...shownOf(written.concept.shown),
             next: written.concept.next,
             at,
           })

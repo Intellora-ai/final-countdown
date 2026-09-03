@@ -19,7 +19,7 @@
     "test:saucelabs": "playwright test --config=playwright.saucelabs.config.ts --headed",
     "budget": "node scripts/canvas-bundle-budget.mjs",
     "gate:reachability": "node scripts/reachability-gate.mjs --product",
-    "lint": "eslint src/canvas src/practice src/agent src/websearch src/tutor src/almanac src/api src/laws src/knowledge --max-warnings 0",
+    "lint": "eslint src/canvas src/practice src/agent src/websearch src/tutor src/almanac src/api src/laws src/knowledge cto --max-warnings 0",
     "curriculum:fetch": "node scripts/curriculum/fetch.mjs",
     "curriculum:verify": "node scripts/curriculum/fetch.mjs --verify",
     "curriculum:extract": "node scripts/curriculum/extract-all.mjs",
@@ -31,7 +31,8 @@
     "exams:build": "node scripts/curriculum/build-exams.mjs",
     "gate:eval": "vitest run src/websearch/evalGate.test.ts",
     "probe:ollama": "vitest run --config vitest.probe.config.ts",
-    "probe:fit": "vitest run --config vitest.probe.config.ts src/practice/topicFit.probe.ts"
+    "probe:fit": "vitest run --config vitest.probe.config.ts src/practice/topicFit.probe.ts",
+    "cto": "node cto/cto.ts"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",

@@ -172,6 +172,13 @@ export default defineConfig({
        * a second, not one that needs five browsers. The include is narrowed to
        * `util/` so it can never reach a spec. */
       'e2e/util/**/*.test.ts',
+      /* AND A SEVENTH: `cto/`, the engineering environment this repo is built
+       * IN rather than part of what it ships. It never reaches a browser and
+       * never reaches a student, but it is the thing that decides what I am
+       * allowed to call known — so a fault in it is a fault in every claim
+       * made afterwards. It runs here for the same reason `server/` does: one
+       * command proves the whole tree. */
+      'cto/**/*.test.ts',
     ],
     exclude: ['e2e/**/*.spec.ts', 'node_modules/**', 'dist/**'],
 

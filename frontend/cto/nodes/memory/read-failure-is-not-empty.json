@@ -1,0 +1,38 @@
+{
+  "id": "read-failure-is-not-empty",
+  "type": "INVARIANT",
+  "system": "memory",
+  "state": "KNOWN",
+  "level": "L3",
+  "statement": "A read that failed and a canvas that is genuinely empty must never be represented by the same value.",
+  "body": {
+    "problem": "The shipped canvas returned [] when a read failed, so one 503 on open followed by one save overwrote a term of a student's work with a single entry.",
+    "mechanism": "readCanvas returns {ok:true,artifacts} or {ok:false,reason}. There is no catch that turns an outage into a value.",
+    "whenNotToUse": "Nowhere. This is an invariant of the product, not a technique to be weighed.",
+    "failureModes": [
+      "any code path that treats an error as an absence",
+      "a caller that checks .length before it checks .ok"
+    ]
+  },
+  "evidence": [
+    {
+      "kind": "code",
+      "path": "src/laws/canvasDurability.test.ts",
+      "symbol": "LAW D — \"I could not read it\" and \"there is nothing here\" are different answers",
+      "at": "2026-09-03T00:00:00.000Z"
+    },
+    {
+      "kind": "experiment",
+      "experiment": "stage-h-live-outage",
+      "measurement": "12 real lessons on a canvas; API stopped; the page said \"the canvas could not be read (500). Nothing is lost.\" and wrote nothing; server restarted; one save produced 13 rows with question 1 still at seq 1. The shipped code would have left exactly 1.",
+      "at": "2026-09-03T00:00:00.000Z"
+    }
+  ],
+  "status": "active",
+  "links": [
+    { "relation": "prevents", "to": "temp-table-lost-every-lesson" },
+    { "relation": "validated_by", "to": "canvas-durability-laws" }
+  ],
+  "falsifiedBy": "A canvas where a failed read and an empty canvas produce the same observable state on screen.",
+  "confidence": { "sourceStrength": 1, "extraction": 1, "corroboration": 1, "scopeClarity": 1, "freshness": 1 }
+}

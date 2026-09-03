@@ -4,7 +4,7 @@ import { mendSpelling } from './mend'
 import { extractJson, type LessonModel } from './authorLesson'
 import { groundingPreamble, type Source } from './grounding'
 import { nextRoute, routeDirective } from './route'
-import { ASKS, askMenu, readTheAsk, type Ask } from './intent'
+import { ASKS, KIND_FOR_SHOWN, SHOWNS, askMenu, readTheAsk, readTheShown, shownMenu, type Ask, type Shown } from './intent'
 import { mayShowNothing } from './necessity'
 import { wrongSums } from '../spec/arithmetic'
 import { MAX_DEFINITION_WORDS, MAX_EXAMPLE_WORDS, MAX_RUN_WORDS } from './teaching'
@@ -89,6 +89,8 @@ export interface Concept {
    * to carry it.
    */
   readonly asked?: string
+  /** What she asked to SEE, as the model read it. See `intent.ts` `Shown`. */
+  readonly shown?: string
 }
 
 export type ConceptResult =
@@ -260,6 +262,31 @@ export function conceptIssues(concept: Concept): Issue[] {
         `"${concept.asked}" is not one of the readings. Use exactly one of: ${ASKS.join(', ')}`,
       rule: 'unreadable-ask',
     })
+  }
+
+  /* WHAT SHE ASKED TO SEE, HELD TO. The second word the writer reports. A word
+     outside the list is refused like an unreadable ask; a kind reported and
+     not drawn is refused too, because a reply that says "graph" and shows
+     none has answered the question she did not ask. `none` is always
+     allowed. See `intent.ts` `Shown`. */
+  const shownWord = typeof concept.shown === 'string' ? concept.shown.trim().toLowerCase() : ''
+  if (shownWord !== '' && !(SHOWNS as readonly string[]).includes(shownWord)) {
+    out.push({
+      path: 'shown',
+      message: `"${concept.shown}" is not something this canvas can show. Use exactly one of: ${SHOWNS.join(', ')}`,
+      rule: 'unreadable-shown',
+    })
+  } else if (shownWord !== '' && shownWord !== 'none') {
+    const kindOwed = KIND_FOR_SHOWN[shownWord as Exclude<Shown, 'none'>]
+    if (!blocks.some((b) => String(b.kind) === kindOwed)) {
+      out.push({
+        path: 'shown',
+        message:
+          `"shown" says ${shownWord}, but no block of kind "${kindOwed}" is in the reply. Draw it, ` +
+          `or say "none" if the idea has nothing of that kind to draw`,
+        rule: 'shown-but-not-drawn',
+      })
+    }
   }
 
   /* F1: NO NUMBER REACHES A LEARNER UNCHECKED. `evaluate` and
@@ -778,7 +805,9 @@ export function conceptRequest(
   /* All seven readings, and the pattern check's guess as a hint it may
      override. See `askMenu`: the model reads the student's own words, which is
      the only thing in this system that can read a misspelling or Hinglish. */
-    const menu = askMenu(ask ?? readTheAsk(question).ask)
+    /* AND WHAT SHE ASKED TO SEE, by the same mechanism: a free hint, the
+       closed list, the model's own reading reported back. */
+    const menu = askMenu(ask ?? readTheAsk(question).ask) + shownMenu(readTheShown(question))
 
   /*
    * THE ASK SHAPES THE REPLY. IT DOES NOT GET TO CHOOSE THE WAY IN.
@@ -906,6 +935,8 @@ export function conceptRequest(
        by the rules for a lecture. Omitting it is safe and strict: an
        undeclared reply is held to the full arc. */
     `- "asked" is which of the readings above you chose: ${ASKS.join(' | ')}`,
+    `- "shown" is what the student asked to SEE, from the list above: ${SHOWNS.join(' | ')}`,
+    '  "none" when nothing in particular was asked for. What you report, you draw.',
     '- a block with "role":"example" must have exactly ONE relation of kind',
     '  "exemplifies" running FROM it TO the block it is an example of.',
     '  An example that points at nothing does not say what it is an example of',

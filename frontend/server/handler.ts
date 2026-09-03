@@ -85,7 +85,7 @@ import { criticOn } from './intelligence/critic.ts'
 import { capabilityRegistry } from './intelligence/registry.ts'
 import { sufficientPath } from './intelligence/sufficiency.ts'
 import { askOf } from './memory/lessons.ts'
-import { readTheAsk } from '../src/canvas/teach/intent.ts'
+import { readTheAsk, shownDrawn, shownOf } from '../src/canvas/teach/intent.ts'
 import { createHmac } from 'node:crypto'
 import { knownTopicCount } from '../src/knowledge/load.ts'
 
@@ -1396,6 +1396,12 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         route: written.route,
         checkpoint: written.concept.checkpoint,
         next: written.concept.next,
+        /* THE TWO WORDS THE WRITER REPORTED -- what kind of answer it read
+           the ask as, and what it was asked to show -- carried beside the
+           lesson so the canvas and a live log can see what was understood.
+           Both already passed `conceptIssues`; absent means teach / none. */
+        ...askOf(written.concept.asked),
+        ...shownOf(written.concept.shown),
         ...(strategy === undefined ? {} : { strategy }),
       })
     }
@@ -1564,7 +1570,7 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
        * simply means no turn -- `tutorTurnFrom` in `CanvasRoute` already treats
        * that as "nothing to show" rather than as an error.
        */
-      const rescued = parsed as { checkpoint?: unknown; next?: unknown } | undefined
+      const rescued = parsed as { checkpoint?: unknown; next?: unknown; asked?: unknown; shown?: unknown } | undefined
       /* SHE WAS SHOWN THIS WAY IN, SO IT IS SPENT. Measured 2026-09-02 by the
          gibberish law: most answers come back salvaged, because the model's
          first draft is imperfect most of the time -- and this path wrote
@@ -1588,6 +1594,11 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         partial: true,
         ...(typeof rescued?.checkpoint === 'string' ? { checkpoint: rescued.checkpoint } : {}),
         ...(Array.isArray(rescued?.next) ? { next: rescued.next } : {}),
+        /* The draft's own two words, read the same strict way -- except that
+           a salvaged reply may only claim a kind its blocks actually hold:
+           the draft's "shown" may be the very claim the gate refused. */
+        ...askOf(rescued?.asked),
+        ...shownDrawn(rescued?.shown, salvaged.lesson.blocks),
         ...(strategy === undefined ? {} : { strategy }),
       })
     }

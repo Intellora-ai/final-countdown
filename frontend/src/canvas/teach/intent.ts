@@ -318,3 +318,122 @@ function oneReading(hint: Ask): string {
     `The other readings, if one fits better: ${ASKS.filter((a) => a !== hint).join(', ')}.`,
   ].join('\n')
 }
+
+/* -------------------------------------------------------------------------- */
+/* What she asked to SEE                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * WHAT THE LEARNER ASKED TO SEE, IF ANYTHING -- the second axis of the ask.
+ *
+ * `Ask` says what KIND of answer she wants. This says what she asked to be
+ * SHOWN: "graph how pressure changes with temperature", "animate it", "in
+ * 3D", "as a timeline", "put them side by side". Verified by grep before this
+ * existed: nothing read any of that -- the only "show me" pattern was "show me
+ * an example" -- so the demand never reached the model and was never checked
+ * on the way back.
+ *
+ * SAME MECHANISM AS `asked`, DELIBERATELY. The patterns are a free hint and
+ * never the answer; the model is shown the closed list inside the one
+ * authoring call and reports `"shown"` beside `"asked"`; `conceptIssues`
+ * refuses a word outside the list and a kind claimed but not drawn. No second
+ * call, no new decision-maker.
+ *
+ * `none` IS AN ANSWER. Most questions ask to see nothing in particular, and a
+ * model may decline a hint that does not fit the idea. The 29 rules then decide
+ * what is shown, exactly as they did before this axis existed.
+ */
+export type Shown = 'none' | 'graph' | 'table' | 'equation' | 'simulation' | 'animation' | 'diagram' | 'timeline' | '3d'
+
+/** Every value, for the writer's menu and for anything that must cover them all. */
+export const SHOWNS: readonly Shown[] = ['none', 'graph', 'table', 'equation', 'simulation', 'animation', 'diagram', 'timeline', '3d']
+
+/**
+ * The block kind that answers each request, in the vocabulary the gate and
+ * the renderer already share (`spec/spec.ts` block kinds). "animation" and
+ * "3d" are both the simulation block -- 3D is its opt-in view
+ * (`SimulationView` `mode`), and a screen that cannot show it shows the 2D
+ * schematic, silently. "timeline" is a flow, "diagram" a figure.
+ */
+export const KIND_FOR_SHOWN: Readonly<Record<Exclude<Shown, 'none'>, string>> = {
+  graph: 'chart',
+  table: 'table',
+  equation: 'equation',
+  simulation: 'simulation',
+  animation: 'simulation',
+  diagram: 'figure',
+  timeline: 'flow',
+  '3d': 'simulation',
+}
+
+/**
+ * ORDERED, MOST SPECIFIC FIRST. "3d" before "simulation" so "a 3D simulation"
+ * keeps the view she asked for; "animate" before "graph" so "animate the
+ * graph" is the motion. Broad words ("draw", "table", "formula") are hints the
+ * model may decline -- "the periodic table" is not a request for a table.
+ */
+const WANTS: readonly { shown: Exclude<Shown, 'none'>; test: RegExp }[] = [
+  { shown: '3d', test: /\b(?:in )?3-? ?d\b|\bthree[- ]dimensional\b/i },
+  { shown: 'animation', test: /\b(?:animat(?:e|ed|ion)|see it (?:move|moving)|in motion|watch it move)\b/i },
+  { shown: 'simulation', test: /\b(?:simulat(?:e|ed|ion|or)|interactive|let me (?:change|play with|try)|slider|play with)\b/i },
+  { shown: 'timeline', test: /\b(?:timeline|time line|year by year|over the years|chronolog(?:y|ical))\b/i },
+  { shown: 'graph', test: /\b(?:graph|plot|chart)\b/i },
+  { shown: 'table', test: /\b(?:side by side|in a table|as a table|tabulate)\b/i },
+  { shown: 'equation', test: /\b(?:the formula|an equation|as an equation|mathematically|the equation for)\b/i },
+  { shown: 'diagram', test: /\b(?:diagram|sketch|draw(?:ing)? (?:a |an |the )?(?:diagram|picture|labell?ed)|labell?ed (?:diagram|drawing))\b/i },
+]
+
+/** What she asked to see, by the rules. `none` is the usual answer. */
+export function readTheShown(question: string): Shown {
+  const said = question.trim()
+  if (said === '') return 'none'
+  for (const want of WANTS) {
+    if (want.test.test(said)) return want.shown
+  }
+  return 'none'
+}
+
+/**
+ * The menu the writer is shown, beside the readings. The hint is offered and
+ * explicitly overridable, for the same reason `askMenu` gives: the model reads
+ * her exact words, and the patterns do not.
+ */
+export function shownMenu(hint: Shown): string {
+  return [
+    '',
+    'WHAT SHE ASKED TO SEE. Besides "asked", report "shown": what the student',
+    'asked to be shown, from this closed list and nothing else:',
+    `  ${SHOWNS.join(' | ')}`,
+    `The patterns read her words as: ${hint}. They are a hint. If her words ask`,
+    'for something else, say that instead; if the idea genuinely has nothing of',
+    'that kind to draw, say "none". Whatever you report other than "none", the',
+    'blocks must include it: graph -> a chart block, table -> table, equation ->',
+    'equation, simulation / animation / 3d -> simulation, diagram -> figure,',
+    'timeline -> flow. A word reported and not drawn is refused.',
+  ].join('\n')
+}
+
+/** The word the reply reported as shown, if it is one of the values; else nothing.
+    The reply carries it beside the lesson so the canvas -- and a person reading
+    a live log -- can see what was read, without the strict lesson schema
+    learning a new key. */
+export function shownOf(value: unknown): { shown: Shown } | Record<string, never> {
+  return typeof value === 'string' && (SHOWNS as readonly string[]).includes(value) ? { shown: value as Shown } : {}
+}
+
+/**
+ * The reported word, kept only if the blocks actually contain that kind.
+ *
+ * FOR THE SALVAGE PATH. `handler.ts` serves a refused draft's sound blocks
+ * rather than a blank screen; the draft's own "shown" may be the very claim
+ * the gate refused ("diagram", no figure). A served reply never carries a
+ * claim its blocks do not honour: the word is dropped, and the canvas reads
+ * that as "nothing in particular".
+ */
+export function shownDrawn(value: unknown, blocks: readonly { readonly kind?: unknown }[]): { shown: Shown } | Record<string, never> {
+  const word = shownOf(value)
+  if (!('shown' in word)) return {}
+  if (word.shown === 'none') return word
+  const owed = KIND_FOR_SHOWN[word.shown]
+  return blocks.some((b) => String(b.kind) === owed) ? word : {}
+}

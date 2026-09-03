@@ -156,9 +156,15 @@ jobs:
       # failed test lands as an ::error on its exact file and line, message
       # included, beside the tsc matcher and ruff's native annotations -- so
       # every way this job can go red now names its line in the PR view.
-      - name: The server and canvas suites
+      - name: The server, canvas and laws suites
         working-directory: frontend
-        run: npx vitest run server src/canvas --maxWorkers=4 --reporter=default --reporter=github-actions
+        # `src/laws` holds the end-to-end product PROMISES -- the canvas
+        # durability laws, the S9 shelf-shape laws, and the assurance engine's
+        # equivalence and canary laws. They ran locally and via the `assurance`
+        # job but NOT here, so a break in a law reached main unless the
+        # assurance check happened to be required. Enforced by the main suite
+        # now, so every law is a required gate regardless of branch protection.
+        run: npx vitest run server src/canvas src/laws --maxWorkers=4 --reporter=default --reporter=github-actions
 
   # CHAOS RUNS ON EVERY PUSH, AS ITS OWN NAMED CHECK.
   #

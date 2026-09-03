@@ -1,8 +1,8 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-import { loadContract, selfTest } from './contract.mjs'
+import { graduationMissing, loadContract, selfTest } from './contract.mjs'
 
 /**
  * AG0 -- A CONTRACT EARNS AUTHORITY ONLY IF IT IS CONSISTENT.
@@ -61,6 +61,20 @@ describe('AG0 -- the contract self-test is the base of the engine', () => {
     const verdict = selfTest(c)
     expect(verdict.ok, 'an inconsistent contract was granted authority').toBe(false)
     expect(verdict.failures.length).toBeGreaterThan(0)
+  })
+
+  it('the real required assertion points at graduation evidence that actually exists (AG4)', () => {
+    const contract = JSON.parse(readFileSync(SHELF, 'utf8'))
+    const exists = (rel) => existsSync(fileURLToPath(new URL(`../../assurance/${rel}`, import.meta.url)))
+    const missing = graduationMissing(contract, { exists })
+    expect(missing, `a required assertion has no real graduation evidence: ${JSON.stringify(missing)}`).toEqual([])
+  })
+
+  it('a required assertion whose evidence file is missing is reported', () => {
+    const c = aGoodContract()
+    c.assertions.some_claim = { maturity: 'required', evidence: 'regressions/does/not/exist.json' }
+    const missing = graduationMissing(c, { exists: () => false })
+    expect(missing.map((m) => m.assertion)).toContain('some_claim')
   })
 
   it('a malformed file is refused, never trusted as empty', () => {

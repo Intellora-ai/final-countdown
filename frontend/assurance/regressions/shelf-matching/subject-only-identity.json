@@ -1,0 +1,13 @@
+{
+  "decision": "shelf_lookup",
+  "assertion": "subject_alone_is_not_identity",
+  "discovered": "the shelf bug -- findUnseen(subject) served one lesson for define/why/graph asks alike",
+  "known_bad": {
+    "identity_fn_body_omits": ["asked"],
+    "pair": { "a": { "subject": "gravity", "asked": "explain" }, "b": { "subject": "gravity", "asked": "why" } },
+    "observed_when_bugged": "b was served a's artifact (route-teach) -- an equivalence collapse",
+    "reproduction": "revert findUnseen's `.filter((one) => (one.asked ?? 'teach') === wanted)` to `.filter(() => true)`; the AG2 equivalence detector reports the violation; restoring the filter clears it"
+  },
+  "expected": "the equivalence detector MUST report a violation for this known-bad shape, forever",
+  "graduation": "RED (bug present) then GREEN (S9 fix) recorded 2026-09-03 -- this promotes subject_alone_is_not_identity to required"
+}

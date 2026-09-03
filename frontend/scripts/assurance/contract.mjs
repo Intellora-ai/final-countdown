@@ -36,6 +36,25 @@ export function codeNameOf(contract, field) {
   return typeof map[field] === 'string' && map[field].length > 0 ? map[field] : field
 }
 
+/**
+ * The SUBSTANCE behind rule 7: every `required` assertion's evidence file must
+ * actually exist. The pure self-test can only check the claim's shape (a
+ * non-empty string); this confirms the graduation evidence is real. Split out
+ * so the runner (which has fs) enforces it while the self-test stays pure.
+ * `deps.exists(relPathFromAssuranceRoot) -> boolean`. Returns the missing ones.
+ */
+export function graduationMissing(contract, deps) {
+  const assertions = asObject(asObject(contract).assertions)
+  const missing = []
+  for (const [name, a] of Object.entries(assertions)) {
+    const spec = asObject(a)
+    if (spec.maturity !== 'required') continue
+    const evidence = typeof spec.evidence === 'string' ? spec.evidence : ''
+    if (evidence === '' || !deps.exists(evidence)) missing.push({ assertion: name, evidence })
+  }
+  return missing
+}
+
 const asArray = (v) => (Array.isArray(v) ? v : [])
 const asObject = (v) => (v !== null && typeof v === 'object' && !Array.isArray(v) ? v : {})
 const subset = (small, big) => small.every((x) => big.includes(x))

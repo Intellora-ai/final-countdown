@@ -180,7 +180,9 @@ describe('LAW S9-M1 -- a lesson on the shelf is served only to an ask of its own
     server.keep('teach', TEACH_ROUTE)
     /* No memo for this phrasing: the controller names the subject, and the
        second shelf lookup (`handler.ts` ~L1113) must ask for the shape. */
-    const reply = await ask('what exactly is meant by gas pressure')
+    /* Reads as `define` by the rules (`intent.test.ts`: "define X"); nothing
+       memoed for it, so the controller names the subject first. */
+    const reply = await ask('define gas pressure for me')
     expect(server.calls.decide).toBe(1)
     expect(servedTheShelf(reply, TEACH_ROUTE), 'the controller path served the teach lesson for a define ask').toBe(false)
     expect(server.calls.chat).toBeGreaterThanOrEqual(1)

@@ -143,8 +143,11 @@ const ROUTES = [
 describe.each(ROUTES)('LAW S2 on $name -- what reaching the shelf costs', (route) => {
   it('a phrasing the memo holds: no decision, no authoring', async () => {
     server.keepOnShelf()
-    server.learnPhrasing(route.context, 'why does a hot gas push harder')
-    const { status, body } = await route.request('why does a hot gas push harder')
+    /* Phrasings that ask for the WHOLE explanation: the lesson on the shelf
+       is a whole lesson, and since S9-M1 the shelf answers only its own
+       shape. "why does…" would be a chain of reasons, and rightly refused. */
+    server.learnPhrasing(route.context, 'explain how a hot gas pushes harder')
+    const { status, body } = await route.request('explain how a hot gas pushes harder')
     expect(status, JSON.stringify(body).slice(0, 200)).toBe(200)
     expect(body['lesson']).toBeDefined()
     expect(server.calls).toEqual({ decide: 0, chat: 0 })
@@ -152,13 +155,13 @@ describe.each(ROUTES)('LAW S2 on $name -- what reaching the shelf costs', (route
 
   it('a new phrasing of a shelved subject: one decision, no authoring -- and the next time is free', async () => {
     server.keepOnShelf()
-    const first = await route.request('what makes the pressure in a sealed can go up when it warms')
+    const first = await route.request('explain the pressure in a sealed can as it warms')
     expect(first.status, JSON.stringify(first.body).slice(0, 200)).toBe(200)
     expect(first.body['lesson'], 'the shelf lesson was not served').toBeDefined()
     expect(server.calls, 'a shelf hit through the controller costs exactly one decision and never the writer').toEqual({ decide: 1, chat: 0 })
 
     server.reset()
-    const again = await route.request('what makes the pressure in a sealed can go up when it warms')
+    const again = await route.request('explain the pressure in a sealed can as it warms')
     expect(again.status).toBe(200)
     expect(server.calls, 'the memo did not learn the phrasing, so she paid the decision twice').toEqual({ decide: 0, chat: 0 })
   })
@@ -166,7 +169,7 @@ describe.each(ROUTES)('LAW S2 on $name -- what reaching the shelf costs', (route
   it('a subject with nothing on the shelf: the decision, then the writer', async () => {
     /* Nothing kept. The controller still names the subject; the shelf is
        empty; the writer is the only thing left, and it is asked. */
-    const { status } = await route.request('why does a hot gas push harder')
+    const { status } = await route.request('explain how a hot gas pushes harder')
     expect(server.calls.decide).toBe(1)
     expect(server.calls.chat, 'nothing on the shelf and the writer was never asked').toBeGreaterThanOrEqual(1)
     /* The writer here refuses, so the reply is a refusal -- and a refusal is

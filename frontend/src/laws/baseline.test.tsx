@@ -45,7 +45,10 @@ const A_TEST_SECRET = 'baseline-secret-not-used-anywhere-real'
 const RECIPE = 'baseline-recipe'
 const SUBJECT = 'gas-pressure'
 const TEACH_ROUTE = 'baseline-route'
-const THE_PHRASING = 'why does increasing temperature increase pressure in a gas?'
+/* A phrasing that asks for the WHOLE explanation. "why does…" reads as a chain
+   of reasons (`intent.ts`), and since S9-M1 a whole lesson on the shelf does
+   not answer that -- so this row measures the shape the shelf lesson has. */
+const THE_PHRASING = 'explain how temperature and pressure are linked in a gas'
 
 const search: SearchPort = { search: async () => [] }
 

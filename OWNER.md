@@ -16,6 +16,13 @@ cd frontend && npx vitest run server/ src/api/
 **First run: 81 files, 1,087 tests, 6 failed.** All six were real, all six are
 fixed at the root, and the suite is now **81 files, 1,096 tests, 0 failed**.
 
+One caveat, measured rather than waved away: `m4-startup-contention` waits 30
+seconds for a second process to release a lock, and under load it runs out of
+time. Alone on an idle machine it is 3 tests in 4.5 seconds, green; inside a
+loaded full run it failed 2 of 4 times today, and both failures were runs that
+took 34 seconds instead of 21. Its budget was left alone. Re-run it by itself
+(the `one-socket-test` entry) before believing a failure.
+
 | what was wrong | where |
 |---|---|
 | a page the web served was dropped from the search reply instead of being returned and flagged | `openweb.ts`, and both consumers |

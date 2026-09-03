@@ -229,6 +229,50 @@ jobs:
           path: frontend/src/canvas/chaos
           if-no-files-found: ignore
 
+  # THE UNPASSABLE GATE -- semantic assurance, the automatic authority.
+  #
+  # This is the merge check for the class of bug ordinary tests cannot see: a
+  # decision that discards information that mattered (the shelf served one
+  # lesson for define/why/graph alike). It runs the engine at
+  # `frontend/scripts/assurance/` -- a self-tested contract, a static
+  # information-loss tripwire, and the runtime EQUIVALENCE detector that drives
+  # the real handler and refuses to let one artifact be reused for a
+  # semantically different request. It is default-false and fail-closed: a
+  # proven violation of a `required` assertion exits non-zero and blocks. The
+  # detector is proven to catch the real historical bug (revert findUnseen's
+  # asked-filter and this job goes red). ASSURANCE_FORCE=HIGH means the
+  # authority never skips the deterministic attack -- risk-tiering is only a
+  # local speed optimisation, and correctness beats speed here.
+  #
+  # ONE required status, not six: the engine fans out to the attacks internally
+  # and returns one verdict, so branch protection stays simple.
+  assurance:
+    name: assurance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The gate diffs against the base to classify risk; the full history
+          # of the base ref is needed. The attack itself is forced regardless.
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: The Unpassable Gate
+        working-directory: frontend
+        env:
+          # The authority runs the full semantic attack every time; a proven
+          # violation of a required assertion blocks the merge.
+          ASSURANCE_FORCE: HIGH
+        run: npm run gate:assurance
+
   # THE NAME IS STUCK; WHAT IT CHECKS IS NOT.
   #
   # This job used to run `tests/test_skills_present.py`, which asserted six

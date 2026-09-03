@@ -44,7 +44,14 @@ function readJson(path) {
 function main() {
   const policy = existsSync(POLICY_PATH) ? readJson(POLICY_PATH) : {}
   const changed = changedFiles()
-  const risk = classifyRisk(changed, policy)
+  /* The AUTHORITY never skips the deterministic attack. Risk-tiering is a LOCAL
+     speed optimisation; in CI (ASSURANCE_FORCE=HIGH) correctness beats speed, so
+     the runtime attack always runs regardless of what the diff appears to
+     touch. */
+  const forced = process.env.ASSURANCE_FORCE
+  const risk = forced
+    ? { tier: forced, reason: 'forced by ASSURANCE_FORCE (CI authority runs the full attack)', affected_decisions: [] }
+    : classifyRisk(changed, policy)
 
   const failures = []
   const advisories = []

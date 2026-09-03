@@ -104,6 +104,46 @@ export async function readJsonBody(stream: Readable, maxBytes: number): Promise<
   }
 }
 
+/**
+ * HOW MUCH OF AN OVERSIZED BODY IS READ AND THROWN AWAY so the sender can
+ * finish writing and then read its refusal.
+ *
+ * WHY ANY AT ALL. `readJsonBody` stops collecting at the limit, and a client
+ * that is still sending has nowhere to put the rest: its socket buffer fills,
+ * its write blocks, and when the server then closes the connection the write
+ * fails with EPIPE -- before the client has read a single byte of the 413.
+ * Measured 2026-09-03 on `m7-control` and `m8-response`, the first time either
+ * had ever been run: a 2 MB body against a 256 KB limit, and `fetch` rejected
+ * with `write EPIPE` rather than returning the refusal the server had already
+ * written.
+ *
+ * WHY BOUNDED. Reading forever is what the limit exists to prevent. Past this
+ * much, or this long, the sender is not a person saving too much and the
+ * connection is dropped -- which is the right answer to a flood, and the wrong
+ * one to a mistake.
+ */
+const DISCARD_AT_MOST_BYTES = 8 * 1024 * 1024
+const DISCARD_FOR_AT_MOST_MS = 3000
+
+/** Read and throw away what is left, so the sender can finish. True when it did. */
+export async function discardTheRest(stream: Readable, now: () => number = Date.now): Promise<boolean> {
+  const until = now() + DISCARD_FOR_AT_MOST_MS
+  let thrownAway = 0
+  try {
+    for await (const chunk of stream.iterator({ destroyOnReturn: false })) {
+      const buffer: Buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk))
+      thrownAway += buffer.length
+      if (thrownAway > DISCARD_AT_MOST_BYTES || now() > until) return false
+    }
+  } catch {
+    /* The sender gave up mid-flood. Nothing to wait for and nothing to report:
+       the refusal below is written to a socket that may already be gone, and
+       failing to deliver it to a client that left is not a failure. */
+    return false
+  }
+  return true
+}
+
 export interface ServerOptions {
   readonly model: ModelPort
   readonly search: SearchPort
@@ -132,8 +172,9 @@ export interface ServerOptions {
   /** Plant the identity cookie with `Secure`. Only behind TLS; see `handler.ts`. */
   readonly secureCookies?: boolean
   readonly secrets?: readonly string[]
-  /** See `HandlerOptions.vendors`: names only, for /api/health. */
-  readonly vendors?: readonly string[]
+  /** See `HandlerOptions`: booleans only, for /api/health. */
+  readonly cloudConfigured?: boolean
+  readonly localConfigured?: boolean
 }
 
 /**
@@ -212,16 +253,21 @@ export function createServer(options: ServerOptions): Server {
     ...(options.shadowRuns === undefined ? {} : { shadowRuns: options.shadowRuns }),
     identitySecret: options.identitySecret,
     ...(options.secureCookies === undefined ? {} : { secureCookies: options.secureCookies }),
-    ...(options.vendors === undefined ? {} : { vendors: options.vendors }),
+    ...(options.cloudConfigured === undefined ? {} : { cloudConfigured: options.cloudConfigured }),
+    ...(options.localConfigured === undefined ? {} : { localConfigured: options.localConfigured }),
     secrets: options.secrets,
     maxBodyBytes: MAX_BODY_BYTES,
   })
 
-  const send = (res: ServerResponse, status: number, body: unknown, setCookie?: string): void => {
+  const send = (res: ServerResponse, status: number, body: unknown, setCookie?: string, closeConnection = false): void => {
     const payload = JSON.stringify(body)
     res.writeHead(status, {
       'content-type': 'application/json; charset=utf-8',
       'content-length': Buffer.byteLength(payload),
+      /* Sent when the rest of the request will never be read, so the client
+         retires this connection rather than pooling one the server is about to
+         end. See the 413 path. */
+      ...(closeConnection ? { connection: 'close' } : {}),
       /* Nothing here is ever a document, so nothing here should be sniffed. */
       'x-content-type-options': 'nosniff',
       /* Sent only when the handler minted an identity. Spread rather than set
@@ -297,16 +343,37 @@ export function createServer(options: ServerOptions): Server {
       const body = await readJsonBody(req, MAX_BODY_BYTES)
       if (!body.ok) {
         const status = body.reason === 'too-large' ? 413 : 400
+        /*
+         * ANSWER, THEN CLOSE THE CONNECTION -- CLEANLY, AND SAYING SO.
+         *
+         * The rest of an oversized body is still arriving and nothing will
+         * read it, so this connection cannot be reused. It used to be handled
+         * by `req.destroy()` after the write, which tears the socket down
+         * without telling the client. The client is entitled to believe a
+         * connection it was not told about survived: browsers pool
+         * connections, so the NEXT request -- the one carrying her next answer
+         * -- was dispatched onto a socket the server had already reset, and
+         * failed with ECONNRESET or, when it was still writing the oversized
+         * body, EPIPE.
+         *
+         * `Connection: close` states it in the reply, and Node then ends the
+         * socket itself once the response is written. The client retires the
+         * connection instead of reusing it, and nothing after the 413 fails.
+         * Measured 2026-09-03: `m7-control` and `m8-response` were both red on
+         * exactly this, the first time either had ever been run.
+         */
+        /* LET THE SENDER FINISH, THEN ANSWER, THEN CLOSE. The rest is read and
+           thrown away so the sender's write can complete; without that it
+           blocks on a full buffer and dies with EPIPE before it can read this
+           reply. Bounded: past the cap the connection is dropped instead. */
+        const finished = body.reason === 'too-large' ? await discardTheRest(req) : true
+        if (!finished && typeof req.destroy === 'function') {
+          req.destroy()
+          return
+        }
         send(res, status, {
           error: body.reason === 'too-large' ? 'request too large' : 'body must be a JSON object',
-        })
-        /* ANSWER FIRST, THEN CUT THE FLOOD OFF. The rest of an oversized body
-         * is still arriving and nothing will read it, so the socket is closed
-         * once the reply is written -- in that order, because closing first is
-         * what stopped the reply being delivered at all. */
-        if (body.reason === 'too-large' && typeof req.destroy === 'function') {
-          req.destroy()
-        }
+        }, undefined, body.reason === 'too-large')
         return
       }
 
@@ -344,14 +411,21 @@ function main(): void {
   let model
   /* The hosted clients this process can send to, or none. Read once; see below. */
   let hosted: readonly OpenAiCompatible[] = []
-  /* What /api/health reports, in the order vendors are tried. Names only. */
-  let vendors: readonly string[] = []
+  /* WHAT /api/health REPORTS: whether there is a cloud and whether there is a
+     model on this machine. Two booleans, set by the branches below as they
+     actually configure things, so they cannot drift from what was configured.
+     This was a list of vendor NAMES until 2026-09-03; `m7-control.test.ts`
+     forbids a value of any kind on that route, and it was right. The operator
+     still gets the model and the vendor by name in the startup log below,
+     which is on this machine and not on a public route. */
+  let cloudConfigured = false
+  let localConfigured = false
   if (provider.kind === 'ollama') {
     model = createOllamaModel({
       model: provider.model,
       ...(provider.endpoint === undefined ? {} : { endpoint: provider.endpoint }),
     })
-    vendors = [`ollama (${provider.model})`]
+    localConfigured = true
   } else if (provider.kind === 'openai-compatible') {
     /* One client, five hosts. See `provider.ts`: Groq, Moonshot (Kimi), Z.ai
        (GLM), NVIDIA NIM and DeepSeek all speak this exact shape, and a second
@@ -383,10 +457,11 @@ function main(): void {
       value(process.env, 'OLLAMA_ENDPOINT'),
     )
     model = failover(standbys)
-    vendors = standbys.map((each) => each.vendor)
+    cloudConfigured = true
+    localConfigured = standbys.some((each) => each.vendor.startsWith('ollama'))
   } else {
     model = createModel({ apiKey: provider.apiKey })
-    vendors = ['anthropic']
+    cloudConfigured = true
   }
   /* The decision from a faster local model, when one is named; see
      `controllerModel`. The port keeps every other method it had. */
@@ -397,7 +472,7 @@ function main(): void {
       ...(value(process.env, 'OLLAMA_ENDPOINT') === undefined ? {} : { endpoint: value(process.env, 'OLLAMA_ENDPOINT') as string }),
     })
     model = Object.assign(model, { decide: decider.chat.bind(decider) })
-    vendors = [...vendors, `controller: ollama (${deciding})`]
+    localConfigured = true
   }
 
   /* Only a real credential is worth scrubbing from responses. There is none in
@@ -604,7 +679,7 @@ function main(): void {
    * new student. */
   const secureCookies = /^(1|true|yes)$/i.test((process.env['IDENTITY_COOKIE_SECURE'] ?? '').trim())
 
-  const server = createServer({ model, search, openWeb, loops, almanac, memory, explanations, evidence, misconceptions, concepts, lessons, aliases, shadowRuns: shadowRuns(memoryStore), identitySecret, secureCookies, secrets, vendors })
+  const server = createServer({ model, search, openWeb, loops, almanac, memory, explanations, evidence, misconceptions, concepts, lessons, aliases, shadowRuns: shadowRuns(memoryStore), identitySecret, secureCookies, secrets, cloudConfigured, localConfigured })
   server.listen(port, host, () => {
     console.log(`almanac server listening on http://${host}:${port}`)
     console.log(`  memory: ${memoryPath} (sqlite, safe for many servers)`)

@@ -285,11 +285,10 @@ export interface HandlerOptions {
   readonly secureCookies?: boolean
   /** Strings that must never appear in a response, whatever produced them. */
   readonly secrets?: readonly string[]
-  /** The names of the vendors that can answer, in the order they are tried --
-      "groq", "ollama (qwen2.5:7b)". Names only, never a key or a base URL:
-      /api/health repeats this list verbatim, and health is the most public
-      thing a server has. Absent reads as an empty list, never as "unknown". */
-  readonly vendors?: readonly string[]
+  /** Whether any hosted vendor is configured. A boolean; /api/health names no vendor. */
+  readonly cloudConfigured?: boolean
+  /** Whether a model on this machine is configured, as primary or as the last resort. */
+  readonly localConfigured?: boolean
   readonly maxBodyBytes?: number
 }
 
@@ -1928,10 +1927,17 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         ok: true,
         planner: options.almanac !== undefined,
         model: true,
-        /* WHICH vendors, not just whether. `model: true` alone could not say
-           that the laptop was answering in place of a spent cloud budget, and
-           that silence is the one thing a silent fallback must never add to. */
-        vendors: options.vendors ?? [],
+        /* WHETHER a cloud is configured and whether a local model is, and not
+           one word about WHICH. `model: true` alone could not say that the
+           laptop was answering in place of a spent cloud budget, and that
+           silence is the one thing a silent fallback must never add to --
+           `cloud: false, local: true` says it and names nothing.
+           This route carried `vendors: ['groq', 'ollama (qwen2.5:7b)']` from
+           Part I until 2026-09-03, which named the vendor and the local model
+           on the most public route the server has. `m7-control.test.ts` had
+           always forbidden it; nobody had ever been able to run that file. */
+        cloud: options.cloudConfigured ?? false,
+        local: options.localConfigured ?? false,
       })
     }
 

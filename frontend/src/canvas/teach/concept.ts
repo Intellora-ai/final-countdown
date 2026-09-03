@@ -780,6 +780,24 @@ export function conceptRequest(
    * gets and what every existing caller keeps.
    */
   ask?: Ask,
+  /**
+   * HER OWN WORDS, when the subject above is not them.
+   *
+   * `handler.ts` hands this function the controller's SUBJECT as `question`
+   * -- deliberately, so "hi" cannot become a lesson about "hi". The cost went
+   * unnoticed: the hints below read the subject, and the sentence she typed
+   * never reached the writer, so `askMenu`'s premise -- the model reads her
+   * exact words, misspellings and Hinglish included -- had quietly stopped
+   * being true. Found by the S8 law: "show me a 3D simulation of…" reached
+   * the writer as "gas-pressure" with the hint "none".
+   *
+   * The subject is still what is taught. Her words are context for the two
+   * readings, and nothing else.
+   */
+  said?: string,
+  /** What the rules read her words as wanting to see, decided by the caller
+      on her words for the same reason `ask` is. */
+  shownHint?: Shown,
 ): string {
   /*
    * A DIFFERENT WAY IN EACH TIME, and it reaches the model or it is nothing.
@@ -807,7 +825,14 @@ export function conceptRequest(
      the only thing in this system that can read a misspelling or Hinglish. */
     /* AND WHAT SHE ASKED TO SEE, by the same mechanism: a free hint, the
        closed list, the model's own reading reported back. */
-    const menu = askMenu(ask ?? readTheAsk(question).ask) + shownMenu(readTheShown(question))
+    const herWords = said !== undefined && said.trim() !== '' && said.trim() !== question.trim() ? said.trim() : undefined
+    const menu =
+      askMenu(ask ?? readTheAsk(herWords ?? question).ask)
+      + shownMenu(shownHint ?? readTheShown(herWords ?? question))
+      + (herWords === undefined
+        ? ''
+        : `\n\nHER OWN WORDS, exactly as typed: "${herWords.replace(/"/g, '\'')}". Read "asked" and "shown" from THESE. `
+          + 'The subject above is what those words were decided to mean, and it is what you teach.')
 
   /*
    * THE ASK SHAPES THE REPLY. IT DOES NOT GET TO CHOOSE THE WAY IN.
@@ -1290,6 +1315,10 @@ export async function authorConcept(
    * down. Absent falls back to the patterns.
    */
   ask?: Ask,
+  /** Her own words and what the rules read them as wanting to see -- passed
+      through to `conceptRequest`, which says why. */
+  said?: string,
+  shownHint?: Shown,
 ): Promise<ConceptResult> {
   /*
    * The SAME choice `conceptRequest` makes, made once and named, because the
@@ -1297,7 +1326,7 @@ export async function authorConcept(
    * twice with the same state cannot disagree with itself.
    */
   const taken = nextRoute({ seed, alreadyUsed })
-  const system = conceptRequest(question, sources, alreadyUsed, seed, alreadySaid, ask)
+  const system = conceptRequest(question, sources, alreadyUsed, seed, alreadySaid, ask, said, shownHint)
   let user = question
   let prior: string | undefined
   let last: { raw: string; issues: Issue[] } = { raw: '', issues: [] }

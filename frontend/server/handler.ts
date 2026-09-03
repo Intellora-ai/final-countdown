@@ -85,7 +85,7 @@ import { criticOn } from './intelligence/critic.ts'
 import { capabilityRegistry } from './intelligence/registry.ts'
 import { sufficientPath } from './intelligence/sufficiency.ts'
 import { askOf } from './memory/lessons.ts'
-import { readTheAsk, shownDrawn, shownOf } from '../src/canvas/teach/intent.ts'
+import { readTheAsk, readTheShown, shownDrawn, shownOf } from '../src/canvas/teach/intent.ts'
 import { createHmac } from 'node:crypto'
 import { knownTopicCount } from '../src/knowledge/load.ts'
 
@@ -1228,6 +1228,11 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
         wordsFinal,
         /* The shape the controller's action calls for. See `shape` above. */
         asked as never,
+        /* HER OWN WORDS, as context for what she asked for and asked to see.
+           The subject above is still what is taught; `conceptRequest` says
+           why both are needed. */
+        question,
+        readTheShown(question),
       )
     } catch (thrown) {
       /* The vendor's message is still dropped -- it quotes the request and
@@ -1312,6 +1317,12 @@ export function createHandler(options: HandlerOptions): (req: ServerRequest) => 
              * it is the exact wording that was judged too close.
              */
             [...wordsFinal, readableText(written.lesson)],
+            /* No action shape here (the first call passes the controller's);
+               her words and what she asked to see travel exactly as they did
+               on the first call, so the retry reads the same request. */
+            undefined,
+            question,
+            readTheShown(question),
           )
           /* Only if it ARRIVED. A second attempt that is refused, or that
              repeats as well, leaves the first lesson standing -- she is

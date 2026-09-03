@@ -202,7 +202,7 @@ jobs:
       # reads reports rather than job conclusions.
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-preflight
           path: |
@@ -265,7 +265,7 @@ jobs:
           '
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-axle-verify
           path: |
@@ -295,7 +295,7 @@ jobs:
         run: python3 scripts/run_gate.py --name spec-strength -- python3 scripts/check_composition.py specs/add_spec.lean specs/addid_spec.lean specs/addsucc_spec.lean specs/clamp_spec.lean specs/clampid_spec.lean specs/mulid_spec.lean specs/multiply_spec.lean specs/subpred_spec.lean specs/subself_spec.lean specs/subtract_spec.lean --min-strength 0.9
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-spec-strength
           path: |
@@ -325,7 +325,7 @@ jobs:
         run: python3 scripts/run_gate.py --name spec-composition -- bash scripts/verify_per_function.sh scripts/check_composition.py --min-strength 0.9
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-spec-composition
           path: |
@@ -355,7 +355,7 @@ jobs:
         run: python3 scripts/run_gate.py --name vacuity-check -- python3 scripts/check_vacuity.py specs/add_spec.lean specs/addid_spec.lean specs/addsucc_spec.lean specs/clamp_spec.lean specs/clampid_spec.lean specs/mulid_spec.lean specs/multiply_spec.lean specs/subpred_spec.lean specs/subself_spec.lean specs/subtract_spec.lean
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-vacuity-check
           path: |
@@ -385,7 +385,7 @@ jobs:
         run: python3 scripts/run_gate.py --name counterexample-search -- python3 scripts/find_counterexample.py specs/add_spec.lean specs/addid_spec.lean specs/addsucc_spec.lean specs/clamp_spec.lean specs/clampid_spec.lean specs/mulid_spec.lean specs/multiply_spec.lean specs/subpred_spec.lean specs/subself_spec.lean specs/subtract_spec.lean
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-counterexample-search
           path: |
@@ -417,7 +417,7 @@ jobs:
         run: python3 scripts/run_gate.py --name honest-report -- bash scripts/verify_per_function.sh scripts/honest_report.py --min-strength 0.9
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-honest-report
           path: |
@@ -468,7 +468,7 @@ jobs:
         run: python3 scripts/property_gate.py --suite root
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-coverage
           # test-results/ is listed second and the upload does not require it:
@@ -548,7 +548,7 @@ jobs:
           '
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-pyright
           path: |
@@ -775,7 +775,7 @@ jobs:
           category: bandit
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-bandit
           path: |
@@ -807,7 +807,7 @@ jobs:
         run: python3 scripts/run_gate.py --name mutmut -- bash scripts/verify_per_function.sh scripts/mutation_gate.py --min-score 0.95
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-mutmut
           path: |
@@ -872,7 +872,7 @@ jobs:
           '
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-correspondence
           path: |
@@ -995,7 +995,7 @@ jobs:
             --job-conclusions job-conclusions.json
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-full
           path: |
@@ -1091,7 +1091,7 @@ jobs:
 
       - name: Upload the evidence dossier
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-merge-evidence
           path: |

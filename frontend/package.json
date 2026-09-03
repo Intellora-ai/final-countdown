@@ -28,6 +28,7 @@
     "gate:knowledge": "node scripts/knowledge/verify.mjs",
     "gate:secrets": "node scripts/secret-exposure-gate.mjs",
     "gate:assurance": "node scripts/assurance/verify.mjs",
+    "prove:assurance": "node scripts/assurance/prove.mjs",
     "server:build": "vite build --config vite.server.config.ts",
     "exams:build": "node scripts/curriculum/build-exams.mjs",
     "gate:eval": "vitest run src/websearch/evalGate.test.ts",

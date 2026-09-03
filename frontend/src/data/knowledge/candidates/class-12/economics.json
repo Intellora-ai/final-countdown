@@ -13,19 +13,240 @@
       "shape": "flat",
       "concepts": [
         {
-          "id": "introduction-to-economics",
-          "name": "Introduction to Economics",
+          "id": "statistics-for-economics",
+          "name": "Statistics for Economics",
           "evidence": [
             {
               "kind": "syllabus",
               "pdf": "economics",
               "page": 2,
-              "quote": "What is Economics?\nMeaning, scope, functions and importance of statistics in Economics"
+              "quote": "In this course, the learners are expected to acquire skills in collection, organisation and presentation of quantitative and qualitative information pertaining to various simple economic aspects systematically. It also intends to provide some basic statistical tools to analyse, and interpret any economic information and draw appropriate inferences. In this process, the learners are expected to understand the behaviour of various economic data."
             }
           ]
         }
       ],
-      "generatedBy": "ollama/qwen2.5:7b"
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "part-a--the-learners-are-expected-to-acquire-skills-in-collection",
+      "topicName": "the learners are expected to acquire skills in collection",
+      "curriculum": "cbse-class-12",
+      "subjectId": "economics",
+      "chapterId": "part-a",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "collection-of-data",
+          "name": "Collection of data",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "economics",
+              "page": 2,
+              "quote": "Collection of data - sources of data - primary and secondary; how basic data is collected with concepts of Sampling; methods of collecting data; some important sources of secondary data: Census of India and National Sample Survey Organisation."
+            }
+          ]
+        },
+        {
+          "id": "sources-of-data",
+          "name": "Sources of data",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "economics",
+              "page": 2,
+              "quote": "Collection of data - sources of data - primary and secondary; how basic data is collected with concepts of Sampling; methods of collecting data; some important sources of secondary data: Census of India and National Sample Survey Organisation."
+            }
+          ]
+        },
+        {
+          "id": "primary-and-secondary-data",
+          "name": "Primary and secondary data",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "economics",
+              "page": 2,
+              "quote": "Collection of data - sources of data - primary and secondary; how basic data is collected with concepts of Sampling; methods of collecting data; some important sources of secondary data: Census of India and National Sample Survey Organisation."
+            }
+          ]
+        },
+        {
+          "id": "sampling-concept",
+          "name": "Concepts of Sampling",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "economics",
+              "page": 2,
+              "quote": "Collection of data - sources of data - primary and secondary; how basic data is collected with concepts of Sampling; methods of collecting data; some important sources of secondary data: Census of India and National Sample Survey Organisation."
+            }
+          ]
+        },
+        {
+          "id": "methods-of-collecting-data",
+          "name": "Methods of collecting data",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "economics",
+              "page": 2,
+              "quote": "Collection of data - sources of data - primary and secondary; how basic data is collected with concepts of Sampling; methods of collecting data; some important sources of secondary data: Census of India and National Sample Survey Organisation."
+            }
+          ]
+        },
+        {
+          "id": "important-sources-of-secondary-data",
+          "name": "Important sources of secondary data",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "economics",
+              "page": 2,
+              "quote": "Collection of data - sources of... secondary data: Census of India and National Sample Survey Organisation."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "part-a--the-learners-are-also-expected-to-understand-the-behaviour-of-various-economic-d",
+      "topicName": "the learners are also expected to understand the behaviour of various economic data",
+      "curriculum": "cbse-class-12",
+      "subjectId": "economics",
+      "chapterId": "part-a",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "understanding-behaviour-of-economic-data",
+          "name": "Understanding the behaviour of various economic data",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "economics",
+              "page": 2,
+              "quote": "In this process, the learners are also expected to understand the behaviour of various economic data."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "part-a--introductory-macroeconomics",
+      "topicName": "Introductory Macroeconomics",
+      "curriculum": "cbse-class-12",
+      "subjectId": "economics",
+      "chapterId": "part-a",
+      "version": 1,
+      "status": "candidate",
+      "shape": "hierarchical",
+      "concepts": [
+        {
+          "id": "basic-concepts-in-macroeconomics",
+          "name": "Basic Concepts in Macroeconomics",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "economics",
+              "page": 6,
+              "quote": "Basic concepts in macroeconomics: consumption goods, capital goods, final goods, intermediate goods; stocks and flows; gross investment and depreciation."
+            }
+          ],
+          "subConcepts": [
+            {
+              "id": "consumption-goods",
+              "name": "Consumption Goods",
+              "evidence": [
+                {
+                  "kind": "syllabus",
+                  "pdf": "economics",
+                  "page": 6,
+                  "quote": "Basic concepts in macroeconomics: consumption goods, capital goods, final goods, intermediate goods; stocks and flows; gross investment and depreciation."
+                }
+              ]
+            },
+            {
+              "id": "capital-goods",
+              "name": "Capital Goods",
+              "evidence": [
+                {
+                  "kind": "syllabus",
+                  "pdf": "economics",
+                  "page": 6,
+                  "quote": "Basic concepts in macro, economics: consumption goods, capital goods, final goods, intermediate goods; stocks and flows; gross investment and depreciation."
+                }
+              ]
+            },
+            {
+              "id": "final-goods",
+              "name": "Final Goods",
+              "evidence": [
+                {
+                  "kind": "syllabus",
+                  "pdf": "economics",
+                  "page": 6,
+                  "quote": "Basic concepts in macroeconomics: consumption goods, capital goods, final goods, intermediate goods; stocks and flows; gross investment and depreciation."
+                }
+              ]
+            },
+            {
+              "id": "intermediate-goods",
+              "name": "Intermediate Goods",
+              "evidence": [
+                {
+                  "kind": "syllabus",
+                  "pdf": "economics",
+                  "page": 6,
+                  "quote": "Basic concepts in macroeconomics: consumption goods, capital goods, final goods, intermediate goods; stocks and flows; gross investment and depreciation."
+                }
+              ]
+            },
+            {
+              "id": "stocks-and-flows",
+              "name": "Stocks and Flows",
+              "evidence": [
+                {
+                  "kind": "syllabus",
+                  "pdf": "economics",
+                  "page": 6,
+                  "quote": "Basic concepts in macroeconomics: consumption goods, capital goods, final goods, intermediate goods; stocks and flows; gross investment and depreciation."
+                }
+              ]
+            },
+            {
+              "id": "gross-investment",
+              "name": "Gross Investment",
+              "evidence": [
+                {
+                  "kind": "syllabus",
+                  "pdf": "economics",
+                  "page": 6,
+                  "quote": "Basic concepts in macroeconomics: consumption goods, capital goods, final goods, intermediate goods; stocks and flows; gross investment and depreciation."
+                }
+              ]
+            },
+            {
+              "id": "depreciation",
+              "name": "Depreciation",
+              "evidence": [
+                {
+                  "kind": "syllabus",
+                  "pdf": "economics",
+                  "page": 6,
+                  "quote": "Basic concepts in macroeconomics: consumption goods, capital goods, final goods, intermediate goods; stocks and flows; gross investment and depreciation."
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
     }
   ]
 }

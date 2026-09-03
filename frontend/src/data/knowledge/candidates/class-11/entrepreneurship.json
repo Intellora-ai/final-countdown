@@ -13,19 +13,43 @@
       "shape": "flat",
       "concepts": [
         {
-          "id": "entrepreneurship-concept",
+          "id": "entrepreneurship-concept-and-functions",
           "name": "Entrepreneurship: Concept and Functions",
           "evidence": [
             {
               "kind": "syllabus",
               "pdf": "entrepreneurship",
               "page": 2,
-              "quote": "Entrepreneurship: Concept and Functions        15"
+              "quote": "Unit 1 Entrepreneurship: Concept and Functions 15"
+            }
+          ]
+        },
+        {
+          "id": "entrepreneurship-concept",
+          "name": "Concept of Entrepreneurship",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "entrepreneurship",
+              "page": 2,
+              "quote": "Unit 1 Entrepreneurship: Concept and Functions 15"
+            }
+          ]
+        },
+        {
+          "id": "entrepreneurship-functions",
+          "name": "Functions of Entrepreneurship",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "entrepreneurship",
+              "page": 2,
+              "quote": "Unit 1 Entrepreneurship: Concept and Functions 15"
             }
           ]
         }
       ],
-      "generatedBy": "ollama/qwen2.5:7b"
+      "generatedBy": "ollama/qwen3:8b"
     }
   ]
 }

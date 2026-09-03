@@ -25,8 +25,8 @@
           ]
         },
         {
-          "id": "net-etiquettes",
-          "name": "Net Etiquettes",
+          "id": "digital-society-and-netizen",
+          "name": "Digital Society and Netizen",
           "evidence": [
             {
               "kind": "syllabus",
@@ -37,31 +37,212 @@
           ]
         },
         {
-          "id": "communication-etiquettes",
-          "name": "Communication Etiquettes",
+          "id": "data-protection",
+          "name": "Data Protection",
           "evidence": [
             {
               "kind": "syllabus",
               "pdf": "computer-science",
               "page": 3,
-              "quote": "Digital Society and Netizen: net etiquettes, communication etiquettes, social media etiquettes"
+              "quote": "Data Protection: Intellectual property rights (copyright, patent, trademark), violation of IPR (plagiarism, copyright infringement, trademark infringement), open source software and licensing (Creative Commons, GPL and Apache)"
             }
           ]
         },
         {
-          "id": "social-media-etiquettes",
-          "name": "Social Media Etiquettes",
+          "id": "cyber-crime",
+          "name": "Cyber Crime",
           "evidence": [
             {
               "kind": "syllabus",
               "pdf": "computer-science",
               "page": 3,
-              "quote": "Digital Society and Netizen: net etiquettes, communication etiquettes, social media etiquettes"
+              "quote": "Cyber Crime: definition, hacking, eavesdropping, phishing and fraud emails, ransomware, cyber trolls, cyber bullying"
+            }
+          ]
+        },
+        {
+          "id": "cyber-safety",
+          "name": "Cyber Safety",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-science",
+              "page": 3,
+              "quote": "Cyber safety: safely browsing the web, identity protection, confidentiality"
+            }
+          ]
+        },
+        {
+          "id": "malware",
+          "name": "Malware",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-science",
+              "page": 3,
+              "quote": "Malware: viruses, trojans, adware"
+            }
+          ]
+        },
+        {
+          "id": "e-waste-management",
+          "name": "E-waste Management",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-science",
+              "page": 3,
+              "quote": "E-waste management: proper disposal of used electronic gadgets."
+            }
+          ]
+        },
+        {
+          "id": "information-technology-act",
+          "name": "Information Technology Act",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-science",
+              "page": 3,
+              "quote": "Information Technology Act (IT Act)"
+            }
+          ]
+        },
+        {
+          "id": "technology-and-society",
+          "name": "Technology and Society",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-science",
+              "page": 3,
+              "quote": "Technology and society: Gender and disability issues while teaching and using computers"
             }
           ]
         }
       ],
-      "generatedBy": "ollama/qwen2.5:7b"
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "unit-3--law-and-ethics",
+      "topicName": "Law and Ethics",
+      "curriculum": "cbse-class-12",
+      "subjectId": "computer-science",
+      "chapterId": "unit-3",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "digital-footprints",
+          "name": "Digital Footprints",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-science",
+              "page": 3,
+              "quote": "Digital Footprints"
+            }
+          ]
+        },
+        {
+          "id": "digital-society-and-netizen",
+          "name": "Digital Society and Netizen",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-science",
+              "page": 3,
+              "quote": "Digital Society and Netizen: net etiquettes, communication etiquettes, social media etiquettes"
+            }
+          ]
+        },
+        {
+          "id": "data-protection",
+          "name": "Data Protection",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-science",
+              "page": 3,
+              "quote": "Data Protection: Intellectual property rights (copyright, patent, trademark), violation of IPR (plagiarism, copyright infringement, trademark infringement), open source software and licensing (Creative Commons, GPL and Apache)"
+            }
+          ]
+        },
+        {
+          "id": "cyber-crime",
+          "name": "Cyber Crime",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-science",
+              "page": 3,
+              "quote": "Cyber Crime: definition, hacking, eavesdropping, phishing and fraud emails, ransomware, cyber trolls, cyber bullying"
+            }
+          ]
+        },
+        {
+          "id": "cyber-safety",
+          "name": "Cyber Safety",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-science",
+              "page": 3,
+              "quote": "Cyber safety: safely browsing the web, identity protection, confidentiality"
+            }
+          ]
+        },
+        {
+          "id": "malware",
+          "name": "Malware",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-science",
+              "page": 3,
+              "quote": "Malware: viruses, trojans, adware"
+            }
+          ]
+        },
+        {
+          "id": "e-waste-management",
+          "name": "E-waste Management",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-science",
+              "page": 3,
+              "quote": "E-waste management: proper disposal of used electronic gadgets."
+            }
+          ]
+        },
+        {
+          "id": "information-technology-act",
+          "name": "Information Technology Act",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-science",
+              "page": 3,
+              "quote": "Information Technology Act (IT Act)"
+            }
+          ]
+        },
+        {
+          "id": "technology-and-society",
+          "name": "Technology and Society",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "computer-science",
+              "page": 3,
+              "quote": "Technology and society: Gender and disability issues while teaching and using computers"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
     }
   ]
 }

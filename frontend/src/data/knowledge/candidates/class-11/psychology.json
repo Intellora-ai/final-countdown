@@ -13,19 +13,363 @@
       "shape": "flat",
       "concepts": [
         {
-          "id": "introduction-to-psychology",
-          "name": "Introduction to Psychology",
+          "id": "introduction",
+          "name": "Introduction",
           "evidence": [
             {
               "kind": "syllabus",
               "pdf": "psychology",
               "page": 2,
-              "quote": "1. Introduction"
+              "quote": "Unit I           Understanding Psychology\\n                 The topics in this unit are:\\n                    1. Introduction"
             }
           ]
         }
       ],
-      "generatedBy": "ollama/qwen2.5:7b"
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "understanding-psychology--nature-of-psychology",
+      "topicName": "Nature of Psychology:",
+      "curriculum": "cbse-class-11",
+      "subjectId": "psychology",
+      "chapterId": "understanding-psychology",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "psychology-as-a-discipline",
+          "name": "Psychology as a Discipline",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Psychology as a Discipline"
+            }
+          ]
+        },
+        {
+          "id": "psychology-as-a-natural-science",
+          "name": "Psychology as a Natural Science",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Psychology as a Natural Science"
+            }
+          ]
+        },
+        {
+          "id": "psychology-as-a-social-science",
+          "name": "Psychology as a Social Science",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Psychology as a Social Science"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "understanding-psychology--understanding-mind-and-behaviour",
+      "topicName": "Understanding Mind and Behaviour",
+      "curriculum": "cbse-class-11",
+      "subjectId": "psychology",
+      "chapterId": "understanding-psychology",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "understanding-mind-and-behaviour",
+          "name": "Understanding Mind and Behaviour",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Understanding Mind and Behaviour"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "understanding-psychology--popular-notions-about-the-discipline-of-psychology",
+      "topicName": "Popular Notions about the Discipline of Psychology",
+      "curriculum": "cbse-class-11",
+      "subjectId": "psychology",
+      "chapterId": "understanding-psychology",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "popular-notions-about-the-discipline-of-psychology",
+          "name": "Popular Notions about the Discipline of Psychology",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Popular Notions about the Discipline of Psychology"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "understanding-psychology--evolution-of-psychology",
+      "topicName": "Evolution of Psychology",
+      "curriculum": "cbse-class-11",
+      "subjectId": "psychology",
+      "chapterId": "understanding-psychology",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "evolution-of-psychology",
+          "name": "Evolution of Psychology",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Unit I           Understanding Psychology\n                 The topics in this unit are:\n                    1. Introduction\n                    2. Nature of Psychology:\n                        ● Psychology as a Discipline\n                        ● Psychology as a Natural Science\n                        ● Psychology as a Social Science\n                    3. Understanding Mind and Behaviour\n                    4. Popular Notions about the Discipline of Psychology\n                    5. Evolution of Psychology\n                    6. Development of Psychology in India\n                    7. Branches of Psychology\n                    8. Psychology and Other Disciplines\n                    9. Psychology in Everyday Life"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "understanding-psychology--development-of-psychology-in-india",
+      "topicName": "Development of Psychology in India",
+      "curriculum": "cbse-class-11",
+      "subjectId": "psychology",
+      "chapterId": "understanding-psychology",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "development-of-psychology-in-india",
+          "name": "Development of Psychology in India",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Development of Psychology in India"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "understanding-psychology--branches-of-psychology",
+      "topicName": "Branches of Psychology",
+      "curriculum": "cbse-class-11",
+      "subjectId": "psychology",
+      "chapterId": "understanding-psychology",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "branches-of-psychology",
+          "name": "Branches of Psychology",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Branches of Psychology"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "understanding-psychology--psychology-and-other-disciplines",
+      "topicName": "Psychology and Other Disciplines",
+      "curriculum": "cbse-class-11",
+      "subjectId": "psychology",
+      "chapterId": "understanding-psychology",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "psychology-and-other-disciplines",
+          "name": "Psychology and Other Disciplines",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Psychology and Other Disciplines"
+            }
+          ]
+        },
+        {
+          "id": "psychology-as-a-discipline",
+          "name": "Psychology as a Discipline",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Psychology as a Discipline"
+            }
+          ]
+        },
+        {
+          "id": "psychology-as-a-natural-science",
+          "name": "Psychology as a Natural Science",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Psychology as a Natural Science"
+            }
+          ]
+        },
+        {
+          "id": "psychology-as-a-social-science",
+          "name": "Psych,ology as a Social Science",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Psychology as a Social Science"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "understanding-psychology--psychology-in-everyday-life",
+      "topicName": "Psychology in Everyday Life",
+      "curriculum": "cbse-class-11",
+      "subjectId": "psychology",
+      "chapterId": "understanding-psychology",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "psychology-in-everyday-life",
+          "name": "Psychology in Everyday Life",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Psychology in Everyday Life"
+            }
+          ]
+        },
+        {
+          "id": "psychology-in-everyday-life-branch-of-psychology",
+          "name": "Branches of Psychology",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Branches of Psychology"
+            }
+          ]
+        },
+        {
+          "id": "psychology-in-everyday-life-psychology-and-other-disciplines",
+          "name": "Psychology and Other Disciplines",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Psychology and Other Disciplines"
+            }
+          ]
+        },
+        {
+          "id": "psychology-in-everyday-life-popular-notions",
+          "name": "Popular Notions about the Discipline of Psychology",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Popular Notions about the Discipline of Psychology"
+            }
+          ]
+        },
+        {
+          "id": "psychology-in-everyday-life-evolution-of-psychology",
+          "name": "Evolution of Psychology",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Evolution of Psychology"
+            }
+          ]
+        },
+        {
+          "id": "psychology-in-everyday-life-development-of-psychology-in-ind",
+          "name": "Development of Psychology in India",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Development of Psychology in India"
+            }
+          ]
+        },
+        {
+          "id": "psych-ology-in-everyday-life-understanding-mind-and-behaviou",
+          "name": "Understanding Mind and Behaviour",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Understanding Mind and Behaviour"
+            }
+          ]
+        },
+        {
+          "id": "psychology-in-everyday-life-nature-of-psychology",
+          "name": "Nature of Psychology",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 2,
+              "quote": "Nature of Psychology"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
     }
   ]
 }

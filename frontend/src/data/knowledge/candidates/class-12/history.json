@@ -25,7 +25,232 @@
           ]
         }
       ],
-      "generatedBy": "ollama/qwen2.5:7b"
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "mature-harappan-sites--banawali",
+      "topicName": "Banawali",
+      "curriculum": "cbse-class-12",
+      "subjectId": "history",
+      "chapterId": "mature-harappan-sites",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "mature-harappan-sites-banawali",
+          "name": "Banawali as a Mature Harappan Site",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 13,
+              "quote": "Mature Harappan sites: Harappa, Banawali, Kalibangan, Balakot, Rakhigarhi, Dholavira, Nageshwar, Lothal, Mohenjodaro, Chanhudaro, Kot Diji."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "mature-harappan-sites--kalibangan",
+      "topicName": "Kalibangan",
+      "curriculum": "cbse-class-12",
+      "subjectId": "history",
+      "chapterId": "mature-harappan-sites",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "mature-harappan-sites",
+          "name": "Mature Harappan sites",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 13,
+              "quote": "Mature Harappan sites: Harappa, Banawali, Kalibangan, Balakot, Rakhigarhi, Dholavira, Nageshwar, Lothal, Mohenjodaro, Chanhudaro, Kot Diji."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "mature-harappan-sites--balakot",
+      "topicName": "Balakot",
+      "curriculum": "cbse-class-12",
+      "subjectId": "history",
+      "chapterId": "mature-harappan-sites",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "mature-harappan-sites",
+          "name": "Mature Harappan sites",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 13,
+              "quote": "Mature Harappan sites: Harappa, Banawali, Kalibangan, Balakot, Rakhigarhi, Dholavira, Nageshwar, Lothal, Mohenjodaro, Chanhudaro, Kot Diji."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "mature-harappan-sites--dholavira",
+      "topicName": "Dholavira",
+      "curriculum": "cbse-class-12",
+      "subjectId": "history",
+      "chapterId": "mature-harappan-sites",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "mature-harappan-sites",
+          "name": "Mature Harappan sites",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 13,
+              "quote": "Mature Harappan sites: Harappa, Banawali, Kalibangan, Balakot, Rakhigarhi, Dholavira, Nageshwar, Lothal, Mohenjodaro, Chanhudaro, Kot Diji."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "mature-harappan-sites--nageshwar",
+      "topicName": "Nageshwar",
+      "curriculum": "cbse-class-12",
+      "subjectId": "history",
+      "chapterId": "mature-harappan-sites",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "mature-harappan-sites",
+          "name": "Mature Harappan sites",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 13,
+              "quote": "Mature Harappan sites: Harappa, Banawali, Kalibangan, Balakot, Rakhigarhi, Dholavira, Nageshwar, Lothal, Mohenjodaro, Chanhudaro, Kot Diji."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "mature-harappan-sites--lothal",
+      "topicName": "Lothal",
+      "curriculum": "cbse-class-12",
+      "subjectId": "history",
+      "chapterId": "mature-harappan-sites",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "mature-harappan-sites",
+          "name": "Mature Harappan sites",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 13,
+              "quote": "Mature Harappan sites: Harappa, Banawali, Kalibangan, Balakot, Rakhigarhi, Dholavira, Nageshwar, Lothal, Mohenjodaro, Chanhudaro, Kot Diji."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "mature-harappan-sites--mohenjodaro",
+      "topicName": "Mohenjodaro",
+      "curriculum": "cbse-class-12",
+      "subjectId": "history",
+      "chapterId": "mature-harappan-sites",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "mature-harappan-sites",
+          "name": "Mature Harappan sites",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 13,
+              "quote": "Mature Harappan sites: Harappa, Banawali, Kalibangan, Balakot, Rakhigarhi, Dholavira, Nageshwar, Lothal, Mohenjodaro, Chanhudaro, Kot Diji."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "mature-harappan-sites--chanhudaro",
+      "topicName": "Chanhudaro",
+      "curriculum": "cbse-class-12",
+      "subjectId": "history",
+      "chapterId": "mature-harappan-sites",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "mature-harappan-sites",
+          "name": "Mature Harappan sites",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 13,
+              "quote": "Mature Harappan sites: Harappa, Banawali, Kalibangan, Balakot, Rakhigarhi, Dholavira, Nageshwar, Lothal, Mohenjodaro, Chanhudaro, Kot Diji."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "mature-harappan-sites--kot-diji",
+      "topicName": "Kot Diji",
+      "curriculum": "cbse-class-12",
+      "subjectId": "history",
+      "chapterId": "mature-harappan-sites",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "mature-harappan-sites",
+          "name": "Mature Harappan sites",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 13,
+              "quote": "Mature Harappan sites: Harappa, Banawali, Kalibangan, Balakot, Rakhigarhi, Dholavira, Nageshwar, Lothal, Mohenjodaro, Chanhudaro, Kot Diji."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
     }
   ]
 }

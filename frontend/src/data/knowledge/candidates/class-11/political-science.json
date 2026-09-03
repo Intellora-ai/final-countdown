@@ -13,8 +13,8 @@
       "shape": "flat",
       "concepts": [
         {
-          "id": "historical-circumstances",
-          "name": "Understand the historical circumstances and the processes in which the Constitution was drafted.",
+          "id": "understanding-historical-circumstances",
+          "name": "Understanding the historical circumstances and the processes in which the Constitution was drafted",
           "evidence": [
             {
               "kind": "syllabus",
@@ -25,8 +25,8 @@
           ]
         },
         {
-          "id": "diverse-perspectives",
-          "name": "Be familiar with the diverse perspectives that guided the makers of the Indian Constitution.",
+          "id": "familiar-with-diverse-perspectives",
+          "name": "Be familiar with the diverse perspectives that guided the makers of the Indian Constitution",
           "evidence": [
             {
               "kind": "syllabus",
@@ -37,20 +37,20 @@
           ]
         },
         {
-          "id": "working-of-democracy",
-          "name": "Analyze the working of the three pillars of democracy: Legislature, Executive, and Judiciary and their role with changing times.",
+          "id": "analyse-working-of-three-pillars-of-democracy",
+          "name": "Analyse the working of the three pillars of democracy: Legislature, Executive, and Judiciary and their role with changing times",
           "evidence": [
             {
               "kind": "syllabus",
               "pdf": "political-science",
               "page": 1,
-              "quote": "Analyze the working of the three pillars of democracy: Legislature, Executive, and Judiciary and their role with changing times."
+              "quote": "Analyse the working of the three pillars of democracy: Legislature, Executive, and Judiciary and their role with changing times."
             }
           ]
         },
         {
-          "id": "key-features-comparison",
-          "name": "Identify the key features of the Indian Constitution and compare these to other constitutions in the world.",
+          "id": "identify-key-features-of-indian-constitution",
+          "name": "Identify the key features of the Indian Constitution and compare these to other constitutions in the world",
           "evidence": [
             {
               "kind": "syllabus",
@@ -61,7 +61,371 @@
           ]
         }
       ],
-      "generatedBy": "ollama/qwen2.5:7b"
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "syllabus--political-theory",
+      "topicName": "Political Theory:",
+      "curriculum": "cbse-class-11",
+      "subjectId": "political-science",
+      "chapterId": "syllabus",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "recognise-ideas-concepts-values",
+          "name": "Recognise the ideas, concepts, and values inherent in the political life of a citizen",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 2,
+              "quote": "Recognise the ideas, concepts, and values inherent in the political life of a citizen."
+            }
+          ]
+        },
+        {
+          "id": "systematic-reflection-critical-analysis",
+          "name": "Systematic reflection and critical analysis of the political phenomenon",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 2,
+              "quote": "Systematic reflection and critical analysis of the political phenomenon."
+            }
+          ]
+        },
+        {
+          "id": "provide-clarity-political-social-economic-moral",
+          "name": "Provide clarity on what is 'political' in relation to 'social', 'economic', 'moral', and the like",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 2,
+              "quote": "Provide clarity on what is 'political' in relation to 'social', 'economic', 'moral', and the like."
+            }
+          ]
+        },
+        {
+          "id": "augment-ability-build-good-state-society",
+          "name": "Augment the ability of students to build a good state in a good society, and create processes, procedures, institutions, and structures which could be rationally achievable",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 2,
+              "quote": "Augment the ability of students to build a good state in a good society, and create processes, procedures, institutions, and structures which could be rationally achievable."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "syllabus--politics-in-india-since-independence",
+      "topicName": "Politics in India since Independence",
+      "curriculum": "cbse-class-11",
+      "subjectId": "political-science",
+      "chapterId": "syllabus",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "understanding-constitutional-institutions",
+          "name": "Understanding and Analyzing Constitutional Institutions and Their Working in the Post-Independence Era",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 2,
+              "quote": "Understand and analyse constitutional institutions and their working in the post-independence era."
+            }
+          ]
+        },
+        {
+          "id": "appreciating-contribution-of-political-leaders",
+          "name": "Appreciating the Contribution of Political Leaders in Nation Building",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 2,
+              "quote": "Appreciate the contribution of political leaders in Nation Building."
+            }
+          ]
+        },
+        {
+          "id": "linking-government-structure-processes-policies-with-reality",
+          "name": "Developing the Capacity to Link Government Structure, Processes, and Their Policies with Contemporary Political Realities",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 2,
+              "quote": "Develop the capacity to link Government structure, processes, and their policies with contemporary political realities."
+            }
+          ]
+        },
+        {
+          "id": "acquainting-students-to-changing-trends-developments-in-indi",
+          "name": "Acquainting Students to the Changing Trends and Developments in India",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 2,
+              "quote": "Acquaint the students to the changing trends and developments in India."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "syllabus--indian-constitution-at-work-class-xi-published-by-ncert",
+      "topicName": "Indian Constitution at Work, Class XI, Published by NCERT",
+      "curriculum": "cbse-class-11",
+      "subjectId": "political-science",
+      "chapterId": "syllabus",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "nationalism-introducing",
+          "name": "Introducing Nationalism",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 9,
+              "quote": "a) Introducing Nationalism"
+            }
+          ]
+        },
+        {
+          "id": "nationalism-nations-and-nationalism",
+          "name": "Nations and Nationalism",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 9,
+              "quote": "b) Nations and Nationalism"
+            }
+          ]
+        },
+        {
+          "id": "nationalism-national-self-determination",
+          "name": "National self-determination",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 9,
+              "quote": "c) National self-determination"
+            }
+          ]
+        },
+        {
+          "id": "nationalism-nationalism-and-pluralism",
+          "name": "Nationalism and Pluralism",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 9,
+              "quote": "d) Nationalism and Pluralism"
+            }
+          ]
+        },
+        {
+          "id": "secularism-what-is-secularism",
+          "name": "What is Secularism?",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 9,
+              "quote": "a) What is Secularism?"
+            }
+          ]
+        },
+        {
+          "id": "secularism-inter-religious-domination",
+          "name": "Inter-religious Domination",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 9,
+              "quote": "b) Inter-religious Domination"
+            }
+          ]
+        },
+        {
+          "id": "secularism-intra-religious-domination",
+          "name": "Intra-religious Domination",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 9,
+              "quote": "b) Intra-religious Domination"
+            }
+          ]
+        },
+        {
+          "id": "secularism-secular-state",
+          "name": "Secular State",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 9,
+              "quote": "d) Secular State"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "syllabus--political-theory-class-xi-published-by-ncert",
+      "topicName": "Political Theory, Class XI, Published by NCERT",
+      "curriculum": "cbse-class-11",
+      "subjectId": "political-science",
+      "chapterId": "syllabus",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "what-is-secularism",
+          "name": "What is Secularism?",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 9,
+              "quote": "a) What is Secularism?"
+            }
+          ]
+        },
+        {
+          "id": "inter-religious-domination",
+          "name": "Inter-religious Domination",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 9,
+              "quote": "b) Inter-religious Domination"
+            }
+          ]
+        },
+        {
+          "id": "intra-religious-domination",
+          "name": "Intra-religious Domination",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 9,
+              "quote": "c) Intra-religious Domination"
+            }
+          ]
+        },
+        {
+          "id": "secular-state",
+          "name": "Secular State",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 9,
+              "quote": "d) Secular State"
+            }
+          ]
+        },
+        {
+          "id": "western-model-of-secularism",
+          "name": "Western Model of Secularism",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 9,
+              "quote": " The western model of secularism"
+            }
+          ]
+        },
+        {
+          "id": "indian-model-of-sec-ularism",
+          "name": "Indian Model of Secularism",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 9,
+              "quote": " The Indian model of secularism"
+            }
+          ]
+        },
+        {
+          "id": "criticisms-of-indian-secularism",
+          "name": "Criticisms of Indian Secularism",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 9,
+              "quote": "e) Criticisms of Indian secularism"
+            }
+          ]
+        },
+        {
+          "id": "western-import-and-minoritism",
+          "name": "Western Import and Minoritism",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 9,
+              "quote": " Western Import and Minoritism"
+            }
+          ]
+        },
+        {
+          "id": "interventionist",
+          "name": "Interventionist",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 9,
+              "quote": " Interventionist"
+            }
+          ]
+        },
+        {
+          "id": "vote-bank-politics",
+          "name": "Vote Bank Politics",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "political-science",
+              "page": 9,
+              "quote": " Vote Bank Politics"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
     }
   ]
 }

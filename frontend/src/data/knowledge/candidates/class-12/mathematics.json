@@ -13,8 +13,45 @@
       "shape": "flat",
       "concepts": [
         {
-          "id": "reflexive",
+          "id": "reflexive-relations",
           "name": "Reflexive Relations",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "maths-senior",
+              "page": 7,
+              "quote": "Types of relations: reflexive, symmetric, transitive and equivalence relations."
+            }
+          ]
+        },
+        {
+          "id": "one-to-one-functions",
+          "name": "One to One Functions",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "maths-senior",
+              "page": 7,
+              "quote": "One to one and onto functions."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "types-of-relations--symmetric",
+      "topicName": "symmetric",
+      "curriculum": "cbse-class-12",
+      "subjectId": "mathematics",
+      "chapterId": "types-of-relations",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "symmetric-relations",
+          "name": "Symmetric Relations",
           "evidence": [
             {
               "kind": "syllabus",
@@ -25,7 +62,68 @@
           ]
         }
       ],
-      "generatedBy": "ollama/qwen2.5:7b"
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "types-of-relations--transitive-and-equivalence-relations-one-to-one-and-onto-functions",
+      "topicName": "transitive and equivalence relations. One to one and onto functions",
+      "curriculum": "cbse-class-12",
+      "subjectId": "mathematics",
+      "chapterId": "types-of-relations",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "transitive-relations",
+          "name": "Transitive Relations",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "maths-senior",
+              "page": 7,
+              "quote": "Types of relations: reflexive, symmetric, transitive and equivalence relations. One to one and onto functions."
+            }
+          ]
+        },
+        {
+          "id": "equivalence-relations",
+          "name": "Equivalence Relations",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "maths-senior",
+              "page": 7,
+              "quote": "Types of relations: reflexive, symmetric, transitive and equivalence relations. One to one and onto functions."
+            }
+          ]
+        },
+        {
+          "id": "one-to-one-functions",
+          "name": "One to One Functions",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "maths-senior",
+              "page": 7,
+              "quote": "Types of relations: reflex, symmetric, transitive and equivalence relations. One to one and onto functions."
+            }
+          ]
+        },
+        {
+          "id": "onto-functions",
+          "name": "Onto Functions",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "maths-senior",
+              "page": 7,
+              "quote": "Types of relations: reflexive, symmetric, transitive and equivalence relations. One to one and onto functions."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
     }
   ]
 }

@@ -124,3 +124,44 @@ class holds the file; both classes resolve it. Promoting both copies is what
 made `load.ts` report five broken files, and its own test caught it before any
 of this was committed.
 
+---
+
+## The re-run on `qwen3:8b`, and why none of it was promoted
+
+The 29 weak groups were re-run on 2026-09-03 with `KNOWLEDGE_MODEL=qwen3:8b`
+(the `knowledge-rebatch` entry in `.claude/launch.json`). It produced **121
+models, 397 concepts, 511 quotations all verified against the locked PDFs**.
+
+| model | topics | mean concepts | gave only one |
+|---|---|---|---|
+| `qwen2.5:7b` (first batch) | 29 | 1.3 | 25 |
+| `gemma3:12b` (first batch) | 20 | 4.9 | 2 |
+| `qwen3:8b` (this re-run) | 121 | 3.3 | 55 |
+
+**More concepts, and a new way of being wrong.** Read one by one, the bigger
+model frequently answers with the CHAPTER's contents attached to one topic --
+exactly what the brief forbids ("Not the chapter. Not the subject. That
+topic."). Three measurements say it plainly:
+
+- **11% of the models give a concept list identical to another topic's in the
+  same subject.** In Class 12 History, all nine Harappan sites -- Harappa,
+  Kalibangan, Balakot, Dholavira, Nageshwar, Lothal, Mohenjodaro, Chanhudaro,
+  Kot Diji -- received the same list. In Computer Science, "Society" and "Law
+  and Ethics" received the same nine.
+- "double fertilization" was answered with Apomixis, Parthenocarpy,
+  Polyembryony and seed dispersal -- the rest of the chapter, not what is
+  inside that topic.
+- "One unseen passage to assess comprehension, interpretation, analysis,
+  inference and vocabulary" was answered by splitting its own sentence into
+  Comprehension / Interpretation / Analysis / Inference / Vocabulary.
+
+**The quotation gate cannot catch any of this**, because those concepts really
+are quoted from the page. The gate proves a concept was READ; it cannot prove
+it belongs to THIS topic rather than its neighbour.
+
+**So nothing from this batch was promoted, and the fix is not a bigger model.**
+It is a check the pipeline does not have yet: a concept that also fits the
+topic next door is evidence of a chapter-level answer, and two topics in one
+chapter receiving the same list should be refused outright. That check can be
+written and tested without a GPU, the way every other rule here was.
+

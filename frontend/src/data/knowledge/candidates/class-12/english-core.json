@@ -20,12 +20,146 @@
               "kind": "syllabus",
               "pdf": "english-core",
               "page": 6,
+              "quote": "Reading Comprehension through Unseen Passages 10+8=18 Marks"
+            }
+          ]
+        },
+        {
+          "id": "unseen-passage",
+          "name": "Unseen Passage",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "english-core",
+              "page": 6,
               "quote": "One unseen passage to assess comprehension, interpretation, analysis, inference and vocabulary. The passage may be factual, descriptive or literary."
+            }
+          ]
+        },
+        {
+          "id": "comprehension",
+          "name": "Comprehension",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "english-core",
+              "page": 6,
+              "quote": "One unseen passage to assess comprehension, interpretation, analysis, inference and vocabulary. The passage may be factual, descriptive or literary."
+            }
+          ]
+        },
+        {
+          "id": "interpretation",
+          "name": "Interpretation",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "english-core",
+              "page": 6,
+              "quote": "One unseen passage to assess comprehension, interpretation, analysis, inference and vocabulary. The passage may be factual, descriptive or literary."
+            }
+          ]
+        },
+        {
+          "id": "analysis",
+          "name": "Analysis",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "english-core",
+              "page": 6,
+              "quote": "One unseen passage to assess comprehension, interpretation, analysis, inference and vocabulary. The passage may be factual, descriptive or literary."
+            }
+          ]
+        },
+        {
+          "id": "inference",
+          "name": "Inference",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "english-core",
+              "page": 6,
+              "quote": "One unseen passage to assess comprehension, interpretation, analysis, inference and vocabulary. The passage may be factual, descriptive or literary."
+            }
+          ]
+        },
+        {
+          "id": "vocabulary",
+          "name": "Vocabulary",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "english-core",
+              "page": 6,
+              "quote": "One unseen passage to assess comprehension, interpretation, analysis, inference and vocabulary. The passage may be factual, descriptive or literary."
+            }
+          ]
+        },
+        {
+          "id": "passage-type",
+          "name": "Passage Type",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "english-core",
+              "page": 6,
+              "quote": "The passage may be factual, descriptive or literary."
             }
           ]
         }
       ],
-      "generatedBy": "ollama/qwen2.5:7b"
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "syllabus--questions-on-gap-filling-tenses-clauses",
+      "topicName": "Questions on Gap filling (Tenses, Clauses)",
+      "curriculum": "cbse-class-12",
+      "subjectId": "english-core",
+      "chapterId": "syllabus",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "gap-filling-clauses",
+          "name": "Gap Filling with Clauses",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "english-core",
+              "page": 6,
+              "quote": "Questions on Gap filling (Tenses, Clauses)"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "syllabus--questions-on-re-ordering-transformation-of-sentences",
+      "topicName": "Questions on re-ordering/transformation of sentences",
+      "curriculum": "cbse-class-12",
+      "subjectId": "english-core",
+      "chapterId": "syllabus",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "sentence-re-ordering",
+          "name": "Re-ordering of Sentences",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "english-core",
+              "page": 6,
+              "quote": "Questions on re-ordering/transformation of sentences"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
     }
   ]
 }

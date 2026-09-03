@@ -13,19 +13,518 @@
       "shape": "flat",
       "concepts": [
         {
-          "id": "individual-differences-in-human-functioning",
+          "id": "individual-differences-human-functioning",
           "name": "Individual Differences in Human Functioning",
           "evidence": [
             {
               "kind": "syllabus",
               "pdf": "psychology",
               "page": 8,
-              "quote": "2. Individual Differences in Human Functioning"
+              "quote": "Individual Differences in Human Functioning"
+            }
+          ]
+        },
+        {
+          "id": "assessment-psychological-attributes",
+          "name": "Assessment of Psychological Attributes",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Assessment of Psychological Attributes"
+            }
+          ]
+        },
+        {
+          "id": "intelligence",
+          "name": "Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Intelligence"
+            }
+          ]
+        },
+        {
+          "id": "psychometric-theories-intelligence",
+          "name": "Psychometric Theories of Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Psychometric Theories of Intelligence, Information Processing Theory:..."
+            }
+          ]
+        },
+        {
+          "id": "individual-differences-intelligence",
+          "name": "Individual Differences in Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Individual Differences in Intelligence"
+            }
+          ]
+        },
+        {
+          "id": "culture-intelligence",
+          "name": "Culture and Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Culture and Intelligence"
+            }
+          ]
+        },
+        {
+          "id": "emotional-intelligence",
+          "name": "Emotional Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Emotional Intelligence"
+            }
+          ]
+        },
+        {
+          "id": "special-abilities-aptitude",
+          "name": "Special Abilities: Aptitude: Nature and Measurement",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Special Abilities: Aptitude: Nature and Measurement"
             }
           ]
         }
       ],
-      "generatedBy": "ollama/qwen2.5:7b"
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "variations-in-psychological-attributes--assessment-of-psychological-attributes",
+      "topicName": "Assessment of Psychological Attributes",
+      "curriculum": "cbse-class-12",
+      "subjectId": "psychology",
+      "chapterId": "variations-in-psychological-attributes",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "assessment-psychological-attributes",
+          "name": "Assessment of Psychological Attributes",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Assessment of Psychological Attributes"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "variations-in-psychological-attributes--intelligence",
+      "topicName": "Intelligence",
+      "curriculum": "cbse-class-12",
+      "subjectId": "psychology",
+      "chapterId": "variations-in-psychological-attributes",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "psychometric-theories-of-intelligence",
+          "name": "Psychometric Theories of Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Psychometric Theories of Intelligence, Information Processing Theory: Planning, Attention-arousal and Simultaneous successive Model of Intelligence, Triarchic Theory of Intelligence; Theory of Multiple Intelligences."
+            }
+          ]
+        },
+        {
+          "id": "information-processing-theory",
+          "name": "Information Processing Theory",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Psychometric Theories of Intelligence, Information Processing Theory: Planning, Attention-arousal and Simultaneous successive Model of Intelligence, Triarchic Theory of Intelligence; Theory of Multiple Intelligences."
+            }
+          ]
+        },
+        {
+          "id": "planning-attention-arousal-and-simultaneous-successive-model",
+          "name": "Planning, Attention-Arousal and Simultaneous Successive Model of Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Psychometric Theories of Intelligence, Information Processing Theory: Planning, Attention-arousal and Simultaneous successive Model of Intelligence, Triarchic Theory of Intelligence; Theory of Multiple Intelligences."
+            }
+          ]
+        },
+        {
+          "id": "triarchic-theory-of-intelligence",
+          "name": "Triarchic Theory of Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Psychometric Theories of Intelligence, Information Processing Theory: Planning, Attention-arousal and Simultaneous successive Model of Intelligence, Triarchic Theory of Intelligence; Theory of Multiple Intelligences."
+            }
+          ]
+        },
+        {
+          "id": "theory-of-multiple-intelligences",
+          "name": "Theory of Multiple Intelligences",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Psychometric Theories of Intelligence, Information Processing Theory: Planning, Attention-arousal and Simultaneous successive Model of Intelligence, Triarchic Theory of Intelligence; Theory of Multiple Intelligences."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "variations-in-psychological-attributes--individual-differences-in-intelligence",
+      "topicName": "Individual Differences in Intelligence",
+      "curriculum": "cbse-class-12",
+      "subjectId": "psychology",
+      "chapterId": "variations-in-psychological-attributes",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "individual-differences-in-intelligence",
+          "name": "Individual Differences in Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Individual Differences in Intelligence"
+            }
+          ]
+        },
+        {
+          "id": "psychometric-theories-of-intelligence",
+          "name": "Psychometric Theories of Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Psychometric Theories of Intelligence, Information Processing Theory: Planning, Attention-arousal and Simultaneous successive Model of Intelligence, Triarchic Theory of Intelligence; Theory of Multiple Intelligences."
+            }
+          ]
+        },
+        {
+          "id": "information-processing-theory",
+          "name": "Information Processing Theory",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Psychometric Theories of Intelligence, Information Processing Theory: Planning, Attention-arousal and Simultaneous successive Model of Intelligence, Triarchic Theory of Intelligence; Theory of Multiple Intelligences."
+            }
+          ]
+        },
+        {
+          "id": "planning-attention-arousal-and-simultaneous-successive-model",
+          "name": "Planning, Attention-Arousal and Simultaneous Successive Model of Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Psychometric Theories of Intelligence, Information Processing Theory: Planning, Attention-arousal and Simultaneous successive Model of Intelligence, Triarchic Theory of Intelligence; Theory of Multiple Intelligences."
+            }
+          ]
+        },
+        {
+          "id": "triarchic-theory-of-intelligence",
+          "name": "Triarchic Theory of Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Psychometric Theories of Intelligence, Information Processing Theory: Planning, Attention-arousal and Simultaneous successive Model of Intelligence, Triarchic Theory of Intelligence; Theory of Multiple Intelligences."
+            }
+          ]
+        },
+        {
+          "id": "theory-of-multiple-intelligences",
+          "name": "Theory of Multiple Intelligences",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Psychometric Theories of Intelligence, Information Processing Theory: Planning, Attention-arousal and Simultaneous successive Model of Intelligence, Triarchic Theory of Intelligence; Theory of Multiple Intelligences."
+            }
+          ]
+        },
+        {
+          "id": "culture-and-intelligence",
+          "name": "Culture and Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Culture and Intelligence"
+            }
+          ]
+        },
+        {
+          "id": "emotional-intelligence",
+          "name": "Emotional Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Emotional Intelligence"
+            }
+          ]
+        },
+        {
+          "id": "special-abilities-aptitude-nature-and-measurement",
+          "name": "Special Abilities: Aptitude: Nature and Measurement",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Special Abilities: Aptitude: Nature and Measurement"
+            }
+          ]
+        },
+        {
+          "id": "creativity",
+          "name": "Creativity",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Creativity"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "variations-in-psychological-attributes--culture-and-intelligence",
+      "topicName": "Culture and Intelligence",
+      "curriculum": "cbse-class-12",
+      "subjectId": "psychology",
+      "chapterId": "variations-in-psychological-attributes",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "culture-and-intelligence",
+          "name": "Culture and Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Culture and Intelligence"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "variations-in-psychological-attributes--emotional-intelligence",
+      "topicName": "Emotional Intelligence",
+      "curriculum": "cbse-class-12",
+      "subjectId": "psychology",
+      "chapterId": "variations-in-psychological-attributes",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "emotional-intelligence",
+          "name": "Emotional Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "9. Emotional Intelligence"
+            }
+          ]
+        },
+        {
+          "id": "psychometric-theories-of-intelligence",
+          "name": "Psychometric Theories of Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "5. Psychometric Theories of Intelligence, Information Processing Theory:..."
+            }
+          ]
+        },
+        {
+          "id": "information-processing-theory",
+          "name": "Information Processing Theory",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "5. Psychometric Theories of Intelligence, Information Processing Theory:..."
+            }
+          ]
+        },
+        {
+          "id": "planning-attention-arousal-and-simultaneous-successive-model",
+          "name": "Planning, Attention-Arousal and Simultaneous Successive Model of Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "5. Psychometric Theories of Intelligence, Information Processing Theory:..."
+            }
+          ]
+        },
+        {
+          "id": "triarchic-theory-of-intelligence",
+          "name": "Triarchic Theory of Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "5. Psychometric Theories of Intelligence, Information Processing Theory:..."
+            }
+          ]
+        },
+        {
+          "id": "theory-of-multiple-intelligences",
+          "name": "Theory of Multiple Intelligences",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "5. Psychometric Theories of Intelligence, Information Processing Theory:..."
+            }
+          ]
+        },
+        {
+          "id": "individual-differences-in-intelligence",
+          "name": "Individual Differences in Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "6. Individual Differences in Intelligence"
+            }
+          ]
+        },
+        {
+          "id": "culture-and-intelligence",
+          "name": "Culture and Intelligence",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "7. Culture and Intelligence"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "variations-in-psychological-attributes--special-abilities-aptitude-nature-and-measurement",
+      "topicName": "Special Abilities: Aptitude: Nature and Measurement",
+      "curriculum": "cbse-class-12",
+      "subjectId": "psychology",
+      "chapterId": "variations-in-psychological-attributes",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "special-abilities-aptitude-nature-and-measurement",
+          "name": "Special Abilities: Aptitude: Nature and Measurement",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "Special Abilities: Aptitude: Nature and Measurement"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "variations-in-psychological-attributes--creativity",
+      "topicName": "Creativity",
+      "curriculum": "cbse-class-12",
+      "subjectId": "psychology",
+      "chapterId": "variations-in-psychological-attributes",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "creativity",
+          "name": "Creativity",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "psychology",
+              "page": 8,
+              "quote": "10. Creativity"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
     }
   ]
 }

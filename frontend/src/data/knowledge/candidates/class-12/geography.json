@@ -14,30 +14,115 @@
       "concepts": [
         {
           "id": "human-geography-nature-and-scope",
-          "name": "Nature and Scope of Human Geography",
+          "name": "Human Geography: Nature and Scope",
           "evidence": [
             {
               "kind": "syllabus",
               "pdf": "geography",
               "page": 12,
-              "quote": "Nature of Human Geography"
+              "quote": "Unit 1: Chapter-1 Human Geography: Nature and Scope ● Introduction to Human Geography ● Approaches to study Human Geography Regional and Systematic Geography, Dualism ● Nature of Human Geography ● Naturalisation of Humans and Humanisation of Nature ● Schools of thought in Human Geography ● Fields and subfields of Human Geography"
             }
           ]
         },
         {
-          "id": "human-geography-schools-of-thought",
-          "name": "Schools of Thought in Human Geography",
+          "id": "world-population-distribution-density-and-growth",
+          "name": "The World Population Distribution, Density and Growth",
           "evidence": [
             {
               "kind": "syllabus",
               "pdf": "geography",
               "page": 12,
-              "quote": "Schools of thought in Human Geography"
+              "quote": "Unit 2: Chapter- 2 The World Population Distribution, Density and Growth ● Population-distribution and density ● Factors influencing the distribution of population ● Population Growth ● Components of Population Change"
             }
           ]
         }
       ],
-      "generatedBy": "ollama/qwen2.5:7b"
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "book--people-and-economy",
+      "topicName": "People and Economy",
+      "curriculum": "cbse-class-12",
+      "subjectId": "geography",
+      "chapterId": "book",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "population-distribution",
+          "name": "Population Distribution",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "geography",
+              "page": 14,
+              "quote": "Distribution of Population"
+            }
+          ]
+        },
+        {
+          "id": "population-density",
+          "name": "Population Density",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "geography",
+              "page": 14,
+              "quote": "Density of Population"
+            }
+          ]
+        },
+        {
+          "id": "population-growth",
+          "name": "Population Growth",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "geography",
+              "page": 14,
+              "quote": "Growth of population"
+            }
+          ]
+        },
+        {
+          "id": "population-composition",
+          "name": "Population Composition",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "geography",
+              "page": 14,
+              "quote": "Population Composition: Rural – Urban Composition, Linguistic Composition, Religious Composition"
+            }
+          ]
+        },
+        {
+          "id": "working-population-composition",
+          "name": "Composition of Working Population",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "geography",
+              "page": 14,
+              "quote": "Composition of Working Population"
+            }
+          ]
+        },
+        {
+          "id": "beti-bachao-beti-padhao",
+          "name": "Beti Bachao–Beti Padhao Social Campaign",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "geography",
+              "page": 14,
+              "quote": "Promoting Gender Sensitivity through ‘Beti Bachao–Beti Padhao’ Social Campaign."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
     }
   ]
 }

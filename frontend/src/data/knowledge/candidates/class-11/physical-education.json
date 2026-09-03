@@ -13,6 +13,55 @@
       "shape": "flat",
       "concepts": [
         {
+          "id": "training-load-overload",
+          "name": "Training Load and Overload",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physical-education",
+              "page": 11,
+              "quote": "To make students learn and understand the Training Load, Over Load, Adaptation, and Recovery concepts."
+            }
+          ]
+        },
+        {
+          "id": "adaptation",
+          "name": "Adaptation",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physical-education",
+              "page": 11,
+              "quote": "To make students learn and understand the Training Load, Over Load, Adaptation, and Recovery concepts."
+            }
+          ]
+        },
+        {
+          "id": "recovery",
+          "name": "Recovery",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physical-education",
+              "page": 11,
+              "quote": "To make students learn and understand the Training Load, Over Load, Adaptation, and Recovery concepts."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "load--over-load",
+      "topicName": "Over Load",
+      "curriculum": "cbse-class-11",
+      "subjectId": "physical-education",
+      "chapterId": "load",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
           "id": "over-load",
           "name": "Over Load",
           "evidence": [
@@ -20,12 +69,257 @@
               "kind": "syllabus",
               "pdf": "physical-education",
               "page": 11,
-              "quote": "•   Training Load, Over Load, Adaptation, and Recovery concepts."
+              "quote": "Training Load: Over Load, Adaptation, and Recovery concepts."
             }
           ]
         }
       ],
-      "generatedBy": "ollama/qwen2.5:7b"
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "load--learning",
+      "topicName": "learning",
+      "curriculum": "cbse-class-11",
+      "subjectId": "physical-education",
+      "chapterId": "load",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "training-load",
+          "name": "Training Load",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physical-education",
+              "page": 11,
+              "quote": "To make students learn and understand the Training Load, Over Load, Adaptation, and Recovery concepts."
+            }
+          ]
+        },
+        {
+          "id": "over-load",
+          "name": "Over Load",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physical-education",
+              "page": 11,
+              "quote": "To make students learn and understand the Training Load, Over Load, Adaptation, and Recovery concepts."
+            }
+          ]
+        },
+        {
+          "id": "adaptation",
+          "name": "Adaptation",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physical-education",
+              "page": 11,
+              "quote": "To make students learn and understand the Training Load, Over Load, Adaptation, and Recovery concepts."
+            }
+          ]
+        },
+        {
+          "id": "recovery",
+          "name": "Recovery",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physical-education",
+              "page": 11,
+              "quote": "To make students learn and understand the Training Load, Over Load, Adaptation, and Recovery concepts."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "load--adaptation",
+      "topicName": "Adaptation",
+      "curriculum": "cbse-class-11",
+      "subjectId": "physical-education",
+      "chapterId": "load",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "adaptation",
+          "name": "Adaptation",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physical-education",
+              "page": 11,
+              "quote": "Adaptation, and Recovery concepts."
+            }
+          ]
+        },
+        {
+          "id": "recovery",
+          "name": "Recovery",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physical-education",
+              "page": 11,
+              "quote": "Adaptation, and Recovery concepts."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "load--techniques",
+      "topicName": "Techniques",
+      "curriculum": "cbse-class-11",
+      "subjectId": "physical-education",
+      "chapterId": "load",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "concept-of-skill",
+          "name": "Concept of Skill",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physical-education",
+              "page": 11,
+              "quote": "Concept of Skills, Techniques, Tactics, and Strategies to the students"
+            }
+          ]
+        },
+        {
+          "id": "techniques",
+          "name": "Techniques",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physical-education",
+              "page": 11,
+              "quote": "Concept of Skills, Techniques, Tactics, and Strategies to the students"
+            }
+          ]
+        },
+        {
+          "id": "tactics",
+          "name": "Tactics",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physical-education",
+              "page": 11,
+              "quote": "Concept of Skills, Techniques, Tactic and Strategies to the students"
+            }
+          ]
+        },
+        {
+          "id": "strategies",
+          "name": "Strategies",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physical-education",
+              "page": 11,
+              "quote": "Concept of Skills, Techniques, Tactics, and Strategies to the students"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "load--technique",
+      "topicName": "Technique",
+      "curriculum": "cbse-class-11",
+      "subjectId": "physical-education",
+      "chapterId": "load",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "concept-of-skill",
+          "name": "Concept of Skill",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physical-education",
+              "page": 11,
+              "quote": "Concept of Skill, Technique, Technique, Tactics & Strategies to the students"
+            }
+          ]
+        },
+        {
+          "id": "technique",
+          "name": "Technique",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physical-education",
+              "page": 11,
+              "quote": "Concept of Skill, Technique, Technique, Tactics & Strategies to the students"
+            }
+          ]
+        },
+        {
+          "id": "tactics",
+          "name": "Tactics",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physical-education",
+              "page": 11,
+              "quote": "Concept of Skill, Technique, Technique, Tactics & Strategies to the students"
+            }
+          ]
+        },
+        {
+          "id": "strategies",
+          "name": "Strategies",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physical-education",
+              "page": 11,
+              "quote": "Concept of Skill, Technique, Technique, Tactics & Strategies to the students"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "load--method-tactics",
+      "topicName": "method & Tactics",
+      "curriculum": "cbse-class-11",
+      "subjectId": "physical-education",
+      "chapterId": "load",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "method-tactics",
+          "name": "Method & Tactics",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "physical-education",
+              "page": 11,
+              "quote": "Types, Method & Importance."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
     }
   ]
 }

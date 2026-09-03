@@ -13,19 +13,19 @@
       "shape": "flat",
       "concepts": [
         {
-          "id": "imposition-of-emergency",
-          "name": "Imposition of Emergency in India",
+          "id": "project-assessment",
+          "name": "Project Assessment",
           "evidence": [
             {
               "kind": "syllabus",
               "pdf": "political-science",
               "page": 20,
-              "quote": "Imposition of Emergency in India"
+              "quote": "Assessment will be done by external examiner in coordination with internal examiner and the date of Project Assessment will be fixed by CBSE. The project reports are to be preserved by the school till the final results are declared, for scrutiny by the Board."
             }
           ]
         }
       ],
-      "generatedBy": "ollama/qwen2.5:7b"
+      "generatedBy": "ollama/qwen3:8b"
     }
   ]
 }

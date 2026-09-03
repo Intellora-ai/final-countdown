@@ -14,18 +14,261 @@
       "concepts": [
         {
           "id": "focus-on-important-developments",
-          "name": "Focus on some important developments in different spheres-political, social, cultural, and economic.",
+          "name": "Focus on some important developments in different spheres",
           "evidence": [
             {
               "kind": "syllabus",
               "pdf": "history",
               "page": 1,
-              "quote": "1.   Focus on some important developments in different spheres-political, social, cultural, and economic."
+              "quote": "Focus on some important developments in different spheres-political, social, cultural, and economic."
+            }
+          ]
+        },
+        {
+          "id": "political-spheres",
+          "name": "Political spheres",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 1,
+              "quote": "Focus on some important developments in different spheres-political, social, cultural, and economic."
+            }
+          ]
+        },
+        {
+          "id": "social-spheres",
+          "name": "Social spheres",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 1,
+              "quote": "Focus on some important developments in different spheres-political, social, cultural, and economic."
+            }
+          ]
+        },
+        {
+          "id": "cultural-spheres",
+          "name": "Cultural spheres",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 1,
+              "quote": "Focus on some important developments in different spheres-political, social, cultural, and economic."
+            }
+          ]
+        },
+        {
+          "id": "economic-spheres",
+          "name": "Economic spheres",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 1,
+              "quote": "Focus on some important developments in different spheres-political, social, cultural, and economic."
             }
           ]
         }
       ],
-      "generatedBy": "ollama/qwen2.5:7b"
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "syllabus--adetailed-overviewof-the-events-issues-and-processes-under-discussion",
+      "topicName": "Adetailed overviewof the events, issues, and processes under discussion",
+      "curriculum": "cbse-class-11",
+      "subjectId": "history",
+      "chapterId": "syllabus",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "detailed-overview-of-events-issues-and-processes",
+          "name": "Detailed Overview of Events, Issues, and Processes",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 2,
+              "quote": "1. A detailed overview of the events, issues, and processes under discussion."
+            }
+          ]
+        },
+        {
+          "id": "summary-of-present-state-of-research",
+          "name": "Summary of Present State of Research",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 2,
+              "quote": "2. A summary of the present state of research on the theme."
+            }
+          ]
+        },
+        {
+          "id": "account-of-how-knowledge-is-acquired",
+          "name": "Account of How Knowledge is Acquired",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 2,
+              "quote": "3. An account of how knowledge about the theme has been acquired."
+            }
+          ]
+        },
+        {
+          "id": "excerpt-from-primary-source",
+          "name": "Excerpt from Primary Source",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 2,
+              "quote": "4. An excerpt from a primary source related to the theme, explaining how it has been said by historians."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "syllabus--asummary-of-the-present-state-of-research-on-the-theme",
+      "topicName": "Asummary of the present state of research on the theme",
+      "curriculum": "cbse-class-11",
+      "subjectId": "history",
+      "chapterId": "syllabus",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "summary-of-present-state-of-research",
+          "name": "Summary of the present state of research on the theme",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 2,
+              "quote": "The treatment of each theme in class XI would include an overview of the theme under discussion, a more detailed focus on one region of study and an introduction to a critical debate associated with the issue."
+            }
+          ]
+        },
+        {
+          "id": "knowledge-acquired-from-study",
+          "name": "Knowledge about the theme has been acquired",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 2,
+              "quote": "Each theme in class XII will also introduce the students to one type of source for the study of history. Through such a study, students would begin to see what different types of sources can reveal and what they cannot tell."
+            }
+          ]
+        },
+        {
+          "id": "historians-analysis-of-sources",
+          "name": "How historians analyse these sources",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 2,
+              "quote": "They would come to know how historians analyse these sources, the problems, and difficulties of interpreting each type of source, and the way a larger picture of an event, a historical process, or a historical figure, is built by looking at different types of sources."
+            }
+          ]
+        },
+        {
+          "id": "different-types-of-sources",
+          "name": "Different types of sources",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 2,
+              "quote": "Each theme for class XII will be organised around four sub heads: ... 3. An account of how knowledge about the theme has been acquired. 4. An excerpt from a primary source related to the theme, explaining how it has been said by historians."
+            }
+          ]
+        },
+        {
+          "id": "chronological-sequence-and-overlaps",
+          "name": "Chronological sequence and overlaps",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 2,
+              "quote": "While the themes in both the classes (XI and XII) are arranged in a broad chronological sequence, there are overlaps between them. This is intended to convey a sense that chronological divides and periodization do not always operate in a neat fashion."
+            }
+          ]
+        },
+        {
+          "id": "contextualization-of-events",
+          "name": "Contextualization of events",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 2,
+              "quote": "In the textbooks each theme would be located in a specific time and place. But these discussions would be situated within a wider context by……"
+            }
+          ]
+        },
+        {
+          "id": "plotting-events-in-timelines",
+          "name": "Plotting specific events within timelines",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 2,
+              "quote": " Plotting the specific event within timelines."
+            }
+          ]
+        },
+        {
+          "id": "discussing-developments-in-other-places-and-times",
+          "name": "Discussing developments in other places and other times",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 2,
+              "quote": " Discussing the event or process in relation to the developments in other places and other times."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "syllabus--an-account-of-howknowledge-about-the-theme-has-been-acquired",
+      "topicName": "An account of howknowledge about the theme has been acquired",
+      "curriculum": "cbse-class-11",
+      "subjectId": "history",
+      "chapterId": "syllabus",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "how-knowledge-about-the-theme-has-been-acquired",
+          "name": "How knowledge about the theme has been acquired",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "history",
+              "page": 2,
+              "quote": "Each theme in class XII will also introduce the students to one type of source for the study of history. Through such a study, students would begin to see what different types of sources can reveal and what they cannot tell. They would come to know how historians analyse these sources, the problems, and difficulties of interpreting each type of source, and the way a larger picture of an event, a historical process, or a historical figure, is built by looking at different types of sources."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
     }
   ]
 }

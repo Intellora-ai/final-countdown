@@ -23,9 +23,669 @@
               "quote": "Introduction, Tool of Recombinant DNA technology, making rDNA molecule, Introduction of recombinant DNA into host cells, Identification of recombinants, Polymerase Chain Reaction (PCR), DNA Sequencing."
             }
           ]
+        },
+        {
+          "id": "tools-of-recombinant-dna-technology",
+          "name": "Tools of Recombinant DNA Technology",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Introduction, Tool of Recombinant DNA technology, making rDNA molecule, Introduction of recombin, Identification of recombinants, Polymerase Chain Reaction (PCR), DNA Sequencing."
+            }
+          ]
+        },
+        {
+          "id": "making-rdna-molecule",
+          "name": "Making rDNA Molecule",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Introduction, Tool of Recombinant DNA technology, making rDNA molecule, Introduction of recombinant DNA into host cells, Identification of recombinants, Polymerase Chain Reaction (PCR), DNA Sequencing."
+            }
+          ]
+        },
+        {
+          "id": "introduction-of-recombinant-dna-into-host-cells",
+          "name": "Introduction of Recombinant DNA into Host Cells",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Introduction, Tool of Recombinant DNA technology, making rDNA molecule, Introduction of recombinant DNA into host cells, Identification of recombinants, Polymerase Chain Reaction (PCR), DNA Sequencing."
+            }
+          ]
+        },
+        {
+          "id": "identification-of-recombinants",
+          "name": "Identification of Recombinants",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Introduction, Tool of Recombinant DNA technology, making rDNA molecule, Introduction of recombinant DNA into host cells, Identification of recombinants, Polymerase Chain Reaction (PCR), DNA Sequencing."
+            }
+          ]
+        },
+        {
+          "id": "polymerase-chain-reaction-pcr",
+          "name": "Polymerase Chain Reaction (PCR)",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Introduction, Tool of Recombinant DNA technology, making rDNA molecule, Introduction of recombinant DNA into host cells, Identification of recombinants, Polymerase Chain Reaction (PCR), DNA Sequencing."
+            }
+          ]
+        },
+        {
+          "id": "dna-sequencing",
+          "name": "DNA Sequencing",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Introduction, Tool of Recombinant DNA technology, making rDNA molecule, Introduction of recombinant DNA into host cells, Identification of recombinants, Polymerase Chain Reaction (PCR), DNA Sequencing."
+            }
+          ]
         }
       ],
-      "generatedBy": "ollama/qwen2.5:7b"
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--tool-of-recombinant-dna-technology",
+      "topicName": "Tool of Recombinant DNA technology",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biotechnology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "recombinant-dna-technology-tools",
+          "name": "Tools of Recombinant DNA Technology",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Tool of Recombinant DNA technology"
+            }
+          ]
+        },
+        {
+          "id": "making-rdna-molecule",
+          "name": "Making rDNA Molecule",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "making rDNA molecule"
+            }
+          ]
+        },
+        {
+          "id": "introduction-of-recombinant-dna-into-host-cells",
+          "name": "Introduction of Recombinant DNA into Host Cells",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Introduction of recombinant DNA into host cells"
+            }
+          ]
+        },
+        {
+          "id": "identification-of-recombinants",
+          "name": "Identification of Recombinants",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Identification of recombinants"
+            }
+          ]
+        },
+        {
+          "id": "dna-sequencing",
+          "name": "DNA Sequencing",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "DNA Sequencing"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--making-rdna-molecule",
+      "topicName": "making rDNA molecule",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biotechnology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "making-rdna-molecule",
+          "name": "Making rDNA Molecule",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "making rDNA molecule"
+            }
+          ]
+        },
+        {
+          "id": "tools-of-recombinant-dna-technology",
+          "name": "Tools of Recombinant DNA Technology",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Tool of Recombinant DNA technology"
+            }
+          ]
+        },
+        {
+          "id": "introduction-of-recombinant-dna-into-host-cells",
+          "name": "Introduction of Recombinant DNA into Host Cells",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Introduction of recombinant DNA into host cells"
+            }
+          ]
+        },
+        {
+          "id": "identification-of-recombinants",
+          "name": "Identification of Recombinants",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Identification of recombinants"
+            }
+          ]
+        },
+        {
+          "id": "polymerase-chain-reaction-pcr",
+          "name": "Polymerase Chain Reaction (PCR)",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Polymerase Chain Reaction (PCR)"
+            }
+          ]
+        },
+        {
+          "id": "dna-sequencing",
+          "name": "DNA Sequencing",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "DNA Sequencing"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--introduction-of-recombinant-dna-into-host-cells",
+      "topicName": "Introduction of recombinant DNA into host cells",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biotechnology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "introduction-of-recombinant-dna-into-host-cells",
+          "name": "Introduction of recombinant DNA into host cells",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Introduction of recombinant DNA into host cells"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--identification-of-recombinants",
+      "topicName": "Identification of recombinants",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biotechnology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "identification-of-recombinants",
+          "name": "Identification of recombinants",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Identification of recombinants"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--polymerase-chain-reaction-pcr",
+      "topicName": "Polymerase Chain Reaction (PCR)",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biotechnology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "polymerase-chain-reaction",
+          "name": "Polymerase Chain Reaction (PCR)",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Polymerase Chain Reaction (PCR)"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--dna-sequencing",
+      "topicName": "DNA Sequencing",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biotechnology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "dna-sequencing",
+          "name": "DNA Sequencing",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "DNA Sequencing."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--microbial-cell-culture-and-its-applications-introduction",
+      "topicName": "Microbial Cell Culture and its Applications Introduction",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biotechnology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "introduction-to-microbial-cell-culture",
+          "name": "Introduction to Microbial Cell Culture",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Chapter-1: Microbial Cell Culture and its Applications Introduction"
+            }
+          ]
+        },
+        {
+          "id": "microbial-nutrition-and-culture-techniques",
+          "name": "Microbial Nutrition and Culture Techniques",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Chapter-1: Microbial Cell Culture and its Applications Introduction"
+            }
+          ]
+        },
+        {
+          "id": "measurement-and-kinetics-of-microbial-growth",
+          "name": "Measurement and Kinetics of Microbial Growth",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Chapter-1: Microbial Cell Culture and its Applications Introduction"
+            }
+          ]
+        },
+        {
+          "id": "isolation-of-microbial-products",
+          "name": "Isolation of Microbial Products",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Chapter-1: Microbial Cell Culture and its Applications Introduction"
+            }
+          ]
+        },
+        {
+          "id": "strain-isolation-and-improvement",
+          "name": "Strain Isolation and Improvement",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Chapter-1: Microbial Cell Culture and its Applications Introduction"
+            }
+          ]
+        },
+        {
+          "id": "applications-of-microbial-culture-technology",
+          "name": "Applications of Microbial Culture Technology",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Chapter-1: Microbial Cell Culture and its Applications Introduction"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--microbial-nutrition-and-culture-techniques",
+      "topicName": "Microbial nutrition and culture techniques",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biotechnology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "microbial-nutrition",
+          "name": "Microbial Nutrition",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Microbial nutrition and culture techniques"
+            }
+          ]
+        },
+        {
+          "id": "culture-techniques",
+          "name": "Culture Techniques",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Microbial nutrition and culture techniques"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--measurement-and-kinetics-of-microbial-growth",
+      "topicName": "Measurement and kinetics of microbial growth",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biotechnology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "measurement-of-microbial-growth",
+          "name": "Measurement of Microbial Growth",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Measurement and kinetics of microbial growth"
+            }
+          ]
+        },
+        {
+          "id": "microbial-growth-kinetics",
+          "name": "Microbial Growth Kinetics",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Measurement and kinetics of microbial growth"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--isolation-of-microbial-products",
+      "topicName": "Isolation of microbial products",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biotechnology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "microbial-product-isolation",
+          "name": "Isolation of Microbial Products",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Isolation of microbial products, Strain isolation and improvement, Applications of microbial culture technology."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--strain-isolation-and-improvement",
+      "topicName": "Strain isolation and improvement",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biotechnology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "strain-isolation",
+          "name": "Strain Isolation",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Strain isolation and improvement"
+            }
+          ]
+        },
+        {
+          "id": "strain-improvement",
+          "name": "Strain Improvement",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Strain isolation and improvement"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--applications-of-microbial-culture-technology",
+      "topicName": "Applications of microbial culture technology",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biotechnology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "microbial-nutrition",
+          "name": "Microbial Nutrition",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Microbial nutrition and culture techniques"
+            }
+          ]
+        },
+        {
+          "id": "culture-techniques",
+          "name": "Culture Techniques",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Microbial nutrition and culture techniques"
+            }
+          ]
+        },
+        {
+          "id": "measurement-of-growth",
+          "name": "Measurement of Microbial Growth",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Measurement and kinetics of microbial growth"
+            }
+          ]
+        },
+        {
+          "id": "kinetics-of-growth",
+          "name": "Kinetics of Microbial Growth",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Measurement and kinetics of microbial growth"
+            }
+          ]
+        },
+        {
+          "id": "isolation-of-products",
+          "name": "Isolation of Microbial Products",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Isolation of microbial products"
+            }
+          ]
+        },
+        {
+          "id": "strain-isolation",
+          "name": "Strain Isolation",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Strain isolation and improvement"
+            }
+          ]
+        },
+        {
+          "id": "strain-improvement",
+          "name": "Strain Improvement",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Strain isolation and improvement"
+            }
+          ]
+        },
+        {
+          "id": "applications-of-technology",
+          "name": "Applications of Microbial Culture Technology",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biotechnology",
+              "page": 4,
+              "quote": "Applications of microbial culture technology"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
     }
   ]
 }

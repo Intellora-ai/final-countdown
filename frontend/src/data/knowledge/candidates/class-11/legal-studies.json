@@ -13,6 +13,30 @@
       "shape": "flat",
       "concepts": [
         {
+          "id": "constitutional-judiciary",
+          "name": "Constitutional Judiciary",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "legal-studies",
+              "page": 4,
+              "quote": "Judiciary: Constitutional, Civil and Criminal Courts and Processes"
+            }
+          ]
+        },
+        {
+          "id": "constitution-roles-and-impartiality",
+          "name": "Constitution, Roles and Impartiality",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "legal-studies",
+              "page": 4,
+              "quote": "Judiciary: Constitutional, Civil and Criminal Courts and Processes"
+            }
+          ]
+        },
+        {
           "id": "independence-and-impartiality-of-the-supreme-court",
           "name": "Independence and Impartiality of the Supreme Court",
           "evidence": [
@@ -23,9 +47,156 @@
               "quote": "a) Independence and Impartiality of the Supreme Court"
             }
           ]
+        },
+        {
+          "id": "structure-and-hierarchy-of-the-courts-in-india",
+          "name": "Structure and Hierarchy of the Courts in India",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "legal-studies",
+              "page": 4,
+              "quote": "b) Structure and Hierarchy of the Courts in India"
+            }
+          ]
+        },
+        {
+          "id": "civil-process-and-functioning-of-civil-courts",
+          "name": "Civil Process and Functioning of Civil Courts",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "legal-studies",
+              "page": 4,
+              "quote": "c) The Civil Process and functioning of Civil Courts"
+            }
+          ]
+        },
+        {
+          "id": "common-legal-terminologies",
+          "name": "Common Legal Terminologies",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "legal-studies",
+              "page": 4,
+              "quote": "a) Common Legal Terminologies"
+            }
+          ]
+        },
+        {
+          "id": "types-of-jurisdictions",
+          "name": "Types of Jurisdictions",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "legal-studies",
+              "page": 4,
+              "quote": "b) Types of Jurisdictions"
+            }
+          ]
+        },
+        {
+          "id": "res-subjudice-and-res-judicata-in-code-of-civil-procedure-19",
+          "name": "Res Subjudice and Res Judicata in Code of Civil Procedure, 1908",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "legal-studies",
+              "page": 4,
+              "quote": "c) Res subjudice and Res judicata in Code of Civil Procedure, 1908"
+            }
+          ]
         }
       ],
-      "generatedBy": "ollama/qwen2.5:7b"
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "unit-4-judiciary--civil-and-criminal-courts-and-processes",
+      "topicName": "Civil and Criminal Courts and Processes",
+      "curriculum": "cbse-class-11",
+      "subjectId": "legal-studies",
+      "chapterId": "unit-4-judiciary",
+      "version": 1,
+      "status": "candidate",
+      "shape": "hierarchical",
+      "concepts": [
+        {
+          "id": "civil-and-criminal-courts-and-processes",
+          "name": "Civil and Criminal Courts and Processes",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "legal-studies",
+              "page": 4,
+              "quote": "Judiciary: Constitutional, Civil and Criminal Courts and Processes"
+            }
+          ],
+          "subConcepts": [
+            {
+              "id": "civil-process-and-functioning-of-civil-courts",
+              "name": "Civil Process and Functioning of Civil Courts",
+              "evidence": [
+                {
+                  "kind": "syllabus",
+                  "pdf": "legal-studies",
+                  "page": 4,
+                  "quote": "The Civil Process and functioning of Civil Courts"
+                }
+              ]
+            },
+            {
+              "id": "civil-court-structure",
+              "name": "Civil Court Structure",
+              "evidence": [
+                {
+                  "kind": "syllabus",
+                  "pdf": "legal-studies",
+                  "page": 4,
+                  "quote": "The Civil Court Structure"
+                }
+              ]
+            },
+            {
+              "id": "common-legal-terminologies",
+              "name": "Common Legal Terminologies",
+              "evidence": [
+                {
+                  "kind": "syllabus",
+                  "pdf": "legal-studies",
+                  "page": 4,
+                  "quote": "Common Legal Terminologies"
+                }
+              ]
+            },
+            {
+              "id": "types-of-jurisdictions",
+              "name": "Types of Jurisdictions",
+              "evidence": [
+                {
+                  "kind": "syllabus",
+                  "pdf": "legal-studies",
+                  "page": 4,
+                  "quote": "Types of Jurisdictions"
+                }
+              ]
+            },
+            {
+              "id": "res-subjudice-and-res-judicata",
+              "name": "Res Subjudice and Res Judicata",
+              "evidence": [
+                {
+                  "kind": "syllabus",
+                  "pdf": "legal-studies",
+                  "page": 4,
+                  "quote": "Res subjudice and Res judicata in Code of Civil Procedure, 1908"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
     }
   ]
 }

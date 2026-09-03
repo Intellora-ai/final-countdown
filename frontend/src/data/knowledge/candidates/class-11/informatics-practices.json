@@ -20,12 +20,122 @@
               "kind": "syllabus",
               "pdf": "informatics-practices",
               "page": 1,
-              "quote": "evolution of computing devices"
+              "quote": "Introduction to computer and computing: evolution of computing devices, components of a computer system and their interconnections, Input/output devices."
+            }
+          ]
+        },
+        {
+          "id": "components-of-computer-system",
+          "name": "Components of a Computer System",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "informatics-practices",
+              "page": 1,
+              "quote": "Introduction to computer and computing: evolution of computing devices, components of a computer system and their interconnections, Input/output devices."
+            }
+          ]
+        },
+        {
+          "id": "interconnections-of-components",
+          "name": "Interconnections of Components",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "informatics-practices",
+              "page": 1,
+              "quote": "Introduction to computer and computing: evolution of computing devices, components of a computer system and their interconnections, Input/output devices."
+            }
+          ]
+        },
+        {
+          "id": "input-output-devices",
+          "name": "Input/Output Devices",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "informatics-practices",
+              "page": 1,
+              "quote": "Introduction to computer and computing: evolution of computing devices, components of a computer system and their interconnections, Input/output devices."
             }
           ]
         }
       ],
-      "generatedBy": "ollama/qwen2.5:7b"
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "introduction-to-computer-and-computing--components-of-a-computer-system-and-their-interconnections",
+      "topicName": "components of a computer system and their interconnections",
+      "curriculum": "cbse-class-11",
+      "subjectId": "informatics-practices",
+      "chapterId": "introduction-to-computer-and-computing",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "components-of-a-computer-system",
+          "name": "Components of a Computer System",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "informatics-practices",
+              "page": 1,
+              "quote": "components of a computer system and their interconnections"
+            }
+          ]
+        },
+        {
+          "id": "input-output-devices",
+          "name": "Input/Output Devices",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "informatics-practices",
+              "page": 1,
+              "quote": "Input/output devices."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "introduction-to-computer-and-computing--input-output-devices",
+      "topicName": "Input/output devices",
+      "curriculum": "cbse-class-11",
+      "subjectId": "informatics-practices",
+      "chapterId": "introduction-to-computer-and-computing",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "input-devices",
+          "name": "Input Devices",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "informatics-practices",
+              "page": 1,
+              "quote": "Input/output devices."
+            }
+          ]
+        },
+        {
+          "id": "output-devices",
+          "name": "Output Devices",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "informatics-practices",
+              "page": 1,
+              "quote": "Input/output devices."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
     }
   ]
 }

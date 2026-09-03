@@ -13,19 +13,19 @@
       "shape": "flat",
       "concepts": [
         {
-          "id": "natural-hazards-and-disasters",
-          "name": "Natural Hazards and Disasters",
+          "id": "causes-consequences-and-management",
+          "name": "Causes, Consequences and Management",
           "evidence": [
             {
               "kind": "syllabus",
               "pdf": "geography",
               "page": 4,
-              "quote": "Natural Hazards and Disasters (To be tested through _ internal assessment in the form of Projects and presentation)"
+              "quote": "Unit-IV Natural Hazards and Disasters: Causes Consequences and Management (To be tested through _ internal assessments in the form of Projects and presentation)"
             }
           ]
         }
       ],
-      "generatedBy": "ollama/qwen2.5:7b"
+      "generatedBy": "ollama/qwen3:8b"
     }
   ]
 }

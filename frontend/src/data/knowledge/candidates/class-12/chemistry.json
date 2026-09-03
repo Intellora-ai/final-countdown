@@ -20,12 +20,270 @@
               "kind": "syllabus",
               "pdf": "chemistry",
               "page": 8,
+              "quote": "Unit 4: d and f Block Elements Position in the Periodic Table, Electronic configuration of the d-Block Elements, General properties of the Transition Elements (d-Block), Some Important Compounds of Transition Elements, The Lanthanoids, The Actinoids, Some Applications of d- and f- Block Elements."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "unit-4--electronic-configuration-of-the-d-block-elements",
+      "topicName": "Electronic configuration of the d-Block Elements",
+      "curriculum": "cbse-class-12",
+      "subjectId": "chemistry",
+      "chapterId": "unit-4",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "electronic-configuration-of-d-block-elements",
+          "name": "Electronic configuration of the d-Block Elements",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 8,
+              "quote": "Electronic configuration of the d-Block Elements"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "unit-4--general-properties-of-the-transition-elements-d-block",
+      "topicName": "General properties of the Transition Elements (d-Block)",
+      "curriculum": "cbse-class-12",
+      "subjectId": "chemistry",
+      "chapterId": "unit-4",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "general-properties-of-the-transition-elements-d-block",
+          "name": "General Properties of the Transition Elements (d-Block)",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 8,
+              "quote": "Unit 4: d and f Block Elements Position in the Periodic Table, Electronic configuration of the d-Block Elements, General properties of the Transition Elements (d-Block), Some Important Compounds of Transition Elements, The Lanthanoids, The Actinoids, Some Applications of d- and f- Block Elements."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "unit-4--some-important-compounds-of-transition-elements",
+      "topicName": "Some Important Compounds of Transition Elements",
+      "curriculum": "cbse-class-12",
+      "subjectId": "chemistry",
+      "chapterId": "unit-4",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "some-important-compounds-of-transition-elements",
+          "name": "Some Important Compounds of Transition Elements",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 8,
+              "quote": "The topic is \"Some Important Compounds of Transition Elements\"."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "unit-4--the-lanthanoids",
+      "topicName": "The Lanthanoids",
+      "curriculum": "cbse-class-12",
+      "subjectId": "chemistry",
+      "chapterId": "unit-4",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "lanthanoids-position-periodic-table",
+          "name": "Position in the Periodic Table",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 8,
+              "quote": "Position in the Periodic Table, Electronic configuration of the d-Block Elements, General properties of the Transition Elements (d-Block), Some Important Compounds of Transition Elements, The Lanthanoids, The Actinoids, Some Applications of d- and f- Block Elements."
+            }
+          ]
+        },
+        {
+          "id": "lanthanoids-electronic-configuration",
+          "name": "Electronic Configuration",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 8,
+              "quote": "Position in the Periodic Table, Electronic configuration of the d-Block Elements, General properties of the Transition Elements (d-Block), Some Important Compounds of Transition Elements, The Lanthanoids, The Actin,oids, Some Applications of d- and f- Block Elements."
+            }
+          ]
+        },
+        {
+          "id": "lanthanoids-general-properties",
+          "name": "General Properties",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 8,
+              "quote": "Position in the Periodic Table, Electronic configuration of the d-Block Elements, General properties of the Transition Elements (d-Block), Some Important Compounds of Transition Elements, The Lanthanoids, The Actinoids, Some Applications of d- and f- Block Elements."
+            }
+          ]
+        },
+        {
+          "id": "lanthanoids-important-compounds",
+          "name": "Some Important Compounds",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 8,
+              "quote": "Position in the periodic Table, Electronic configuration of the d-Block Elements, General properties of the Transition Elements (d-Block), Some Important Compounds of Transition Elements, The Lanthanoids, The Actinoids, Some Applications of d- and f- Block Elements."
+            }
+          ]
+        },
+        {
+          "id": "lanthanoids-actinoids",
+          "name": "The Actinoids",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 8,
+              "quote": "Position in the Periodic Table, Electronic configuration of the d-Block Elements, General properties of the Transition Elements (d-Block), Some Important Compounds of Transition Elements, The Lanthanoids, The Actinoids, Some Applications of d- and f- Block Elements."
+            }
+          ]
+        },
+        {
+          "id": "lanthanoids-applications",
+          "name": "Some Applications",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 8,
               "quote": "Position in the Periodic Table, Electronic configuration of the d-Block Elements, General properties of the Transition Elements (d-Block), Some Important Compounds of Transition Elements, The Lanthanoids, The Actinoids, Some Applications of d- and f- Block Elements."
             }
           ]
         }
       ],
-      "generatedBy": "ollama/qwen2.5:7b"
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "unit-4--the-actinoids",
+      "topicName": "The Actinoids",
+      "curriculum": "cbse-class-12",
+      "subjectId": "chemistry",
+      "chapterId": "unit-4",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "actinoids-position-in-periodic-table",
+          "name": "Position in the Periodic Table",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 8,
+              "quote": "The Actinoids, Some Applications of d- and f- Block Elements."
+            }
+          ]
+        },
+        {
+          "id": "actinoids-electronic-configuration",
+          "name": "Electronic configuration of the Actinoids",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 8,
+              "quote": "The Actinoids, Some Applications of d- and f- Block Elements."
+            }
+          ]
+        },
+        {
+          "id": "actinoids-general-properties",
+          "name": "General properties of the Actinoids",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 8,
+              "quote": "The Actin, Some Applications of d- and f- Block Elements."
+            }
+          ]
+        },
+        {
+          "id": "actinoids-important-compounds",
+          "name": "Important compounds of the Actinoids",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 8,
+              "quote": "The Actinoids, Some Applications of d- and f- Block Elements."
+            }
+          ]
+        },
+        {
+          "id": "actinoids-applications",
+          "name": "Applications of the Actinoids",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 8,
+              "quote": "The Actinoids, Some Applications of d- and f- Block Elements."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "unit-4--some-applications-of-d-and-f-block-elements",
+      "topicName": "Some Applications of d- and f- Block Elements",
+      "curriculum": "cbse-class-12",
+      "subjectId": "chemistry",
+      "chapterId": "unit-4",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "some-applications-of-d-and-f-block-elements",
+          "name": "Some Applications of d- and f- Block Elements",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "chemistry",
+              "page": 8,
+              "quote": "Some Applications of d- and f- Block Elements."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
     }
   ]
 }

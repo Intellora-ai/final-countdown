@@ -14,7 +14,7 @@
       "concepts": [
         {
           "id": "flower-structure",
-          "name": "Flower structure",
+          "name": "Flower Structure",
           "evidence": [
             {
               "kind": "syllabus",
@@ -25,7 +25,787 @@
           ]
         }
       ],
-      "generatedBy": "ollama/qwen2.5:7b"
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--development-of-male-and-female-gametophytes",
+      "topicName": "development of male and female gametophytes",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "development-of-male-gametophyte",
+          "name": "Development of Male Gametophyte",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "development of male and female gametophytes"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--pollination-types",
+      "topicName": "pollination - types",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "pollination-agencies",
+          "name": "Agencies of Pollination",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "pollination - types, agencies and examples"
+            }
+          ]
+        },
+        {
+          "id": "pollination-examples",
+          "name": "Examples of Pollination",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "pollination - types, agencies and examples"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--agencies-and-examples",
+      "topicName": "agencies and examples",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "agencies-and-examples",
+          "name": "Agencies and Examples",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "agencies and examples"
+            }
+          ]
+        },
+        {
+          "id": "pollination-agencies",
+          "name": "Pollination Agencies",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "agencies"
+            }
+          ]
+        },
+        {
+          "id": "pollination-examples",
+          "name": "Pollination Examples",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "examples"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--out-breeding-devices",
+      "topicName": "out breeding devices",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "out-breeding-devices",
+          "name": "Out Breeding Devices",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "out breeding devices"
+            }
+          ]
+        },
+        {
+          "id": "pollination-agencies",
+          "name": "Pollination Agencies",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "agencies"
+            }
+          ]
+        },
+        {
+          "id": "types-of-pollination",
+          "name": "Types of Pollination",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "types"
+            }
+          ]
+        },
+        {
+          "id": "double-fertilization",
+          "name": "Double Fertilization",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "double fertilization"
+            }
+          ]
+        },
+        {
+          "id": "post-fertilization-events",
+          "name": "Post Fertilization Events",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "post fertilization events"
+            }
+          ]
+        },
+        {
+          "id": "development-of-endosperm",
+          "name": "Development of Endosperm",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "development of endosperm"
+            }
+          ]
+        },
+        {
+          "id": "seed-dispersal-significance",
+          "name": "Significance of Seed Dispersal",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "Significance of seed dispersal"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--pollen-pistil-interaction",
+      "topicName": "pollen-pistil interaction",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "pollen-pistil-interaction",
+          "name": "Pollen-Pistil Interaction",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "pollen-pistil interaction; double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        },
+        {
+          "id": "double-fertilization",
+          "name": "Double Fertilization",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "pollen-pistil interaction; double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomix, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        },
+        {
+          "id": "post-fertilization-events",
+          "name": "Post Fertilization Events",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "pollen-pistil interaction; double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        },
+        {
+          "id": "development-of-endosperm-and-embryo",
+          "name": "Development of Endosperm and Embryo",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "pollen-pistil interaction; double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        },
+        {
+          "id": "development-of-seed-and-formation-of-fruit",
+          "name": "Development of Seed and Formation of Fruit",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "pollen-pistil interaction; double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        },
+        {
+          "id": "special-modes",
+          "name": "Special Modes",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "pollen-pistil interaction; double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        },
+        {
+          "id": "apomixis",
+          "name": "Apomixis",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "pollen-pistil interaction; double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        },
+        {
+          "id": "parthenocarpy",
+          "name": "Parthenocarpy",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "pollen-pistil interaction; double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        },
+        {
+          "id": "polyembryony",
+          "name": "Polyembryony",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "pollen-pistil interaction; double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        },
+        {
+          "id": "significance-of-seed-dispersal-and-fruit-formation",
+          "name": "Significance of Seed Dispersal and Fruit Formation",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "pollen-pistil interaction; double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--double-fertilization",
+      "topicName": "double fertilization",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "double-fertilization",
+          "name": "Double Fertilization",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        },
+        {
+          "id": "endosperm-development",
+          "name": "Development of Endosperm",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomix, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        },
+        {
+          "id": "embryo-development",
+          "name": "Development of Embryo",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        },
+        {
+          "id": "seed-development",
+          "name": "Development of Seed",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        },
+        {
+          "id": "fruit-formation",
+          "name": "Formation of Fruit",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        },
+        {
+          "id": "apomixis",
+          "name": "Apomixis",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        },
+        {
+          "id": "parthenocarpy",
+          "name": "Parthenocarpy",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        },
+        {
+          "id": "polyembryony",
+          "name": "Polyembryony",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        },
+        {
+          "id": "seed-dispersal-significance",
+          "name": "Significance of Seed Dispersal",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        },
+        {
+          "id": "fruit-formation-significance",
+          "name": "Significance of Fruit Formation",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "double fertilization; post fertilization events - development of endosperm and embryo, development of seed and formation of fruit; special modes- apomixis, parthenocarpy, polyembryony; Significance of seed dispersal and fruit formation."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--post-fertilization-events-development-of-endosperm-and-embryo",
+      "topicName": "post fertilization events - development of endosperm and embryo",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "post-fertilization-events",
+          "name": "Post Fertilization Events",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "post fertilization events - development of endosperm and embryo"
+            }
+          ]
+        },
+        {
+          "id": "development-of-endosperm",
+          "name": "Development of Endosperm",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "post fertilization events - development of endosperm and embryo"
+            }
+          ]
+        },
+        {
+          "id": "development-of-embryo",
+          "name": "Development of Embryo",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "post fertilization events - development of endosperm and embryo"
+            }
+          ]
+        },
+        {
+          "id": "seed-formation",
+          "name": "Seed Formation",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "post fertilization events - development of endosperm and embryo"
+            }
+          ]
+        },
+        {
+          "id": "fruit-formation",
+          "name": "Fruit Formation",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "post fertilization, events - development of endosperm and embryo"
+            }
+          ]
+        },
+        {
+          "id": "special-modes",
+          "name": "Special Modes",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "special modes- apomixis, parthenocarpy, polyembryony"
+            }
+          ]
+        },
+        {
+          "id": "significance-of-seed-dispersal",
+          "name": "Significance of Seed Dispersal",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "Significance of seed dispersal and fruit formation."
+            }
+          ]
+        },
+        {
+          "id": "significance-of-fruit-formation",
+          "name": "Significance of Fruit Formation",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "Significance of seed dispersal and fruit formation."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--development-of-seed-and-formation-of-fruit",
+      "topicName": "development of seed and formation of fruit",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "development-of-seed",
+          "name": "Development of Seed",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "development of seed and formation of fruit"
+            }
+          ]
+        },
+        {
+          "id": "formation-of-fruit",
+          "name": "Formation of Fruit",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "development of seed and formation of fruit"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--special-modes-apomixis",
+      "topicName": "special modes- apomixis",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "apomixis",
+          "name": "Apomixis",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "special modes- apomixis, parthenocarpy, polyembryony"
+            }
+          ]
+        },
+        {
+          "id": "parthenocarpy",
+          "name": "Parthenocarpy",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "special modes- apomixis, parthenocarpy, polyembryony"
+            }
+          ]
+        },
+        {
+          "id": "polyembryony",
+          "name": "Polyembryony",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "special modes- apomix, parthenocarpy, polyembryony"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--parthenocarpy",
+      "topicName": "parthenocarpy",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "parthenocarpy",
+          "name": "Parthenocarpy",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "special modes- apomixis, parthenocarpy, polyembryony"
+            }
+          ]
+        },
+        {
+          "id": "special-modes",
+          "name": "Special Modes",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "special modes- apomixis, parthenocarpy, polyembryony"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--polyembryony",
+      "topicName": "polyembryony",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "polyembryony",
+          "name": "Polyembryony",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "special modes- apomixis, parthenocarpy, polyembryony, polyembryony"
+            }
+          ]
+        },
+        {
+          "id": "polyembryony-occurrence",
+          "name": "Occurrence of Polyembryony",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "special modes- apomixis, parthenocarpy, polyembryony, polyembryony"
+            }
+          ]
+        },
+        {
+          "id": "polyembryony-significance",
+          "name": "Significance of Polyembryony",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "special modes- apom, parthenocarpy, polyembryony, polyembryony"
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
+    },
+    {
+      "topicId": "chapter-1--significance-of-seed-dispersal-and-fruit-formation",
+      "topicName": "Significance of seed dispersal and fruit formation",
+      "curriculum": "cbse-class-12",
+      "subjectId": "biology",
+      "chapterId": "chapter-1",
+      "version": 1,
+      "status": "candidate",
+      "shape": "flat",
+      "concepts": [
+        {
+          "id": "significance-of-seed-dispersal-and-fruit-formation",
+          "name": "Significance of seed dispersal and fruit formation",
+          "evidence": [
+            {
+              "kind": "syllabus",
+              "pdf": "biology",
+              "page": 9,
+              "quote": "Significance of seed dispersal and fruit formation."
+            }
+          ]
+        }
+      ],
+      "generatedBy": "ollama/qwen3:8b"
     }
   ]
 }

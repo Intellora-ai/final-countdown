@@ -90,10 +90,11 @@ function main() {
     const t0 = Date.now()
     const result = spawnSync('npx', [
       'vitest', 'run',
-      'src/laws/assuranceEquivalence.test.ts',
-      'scripts/assurance/contract.test.mjs',
-      'scripts/assurance/infoloss.test.mjs',
-      'scripts/assurance/risk.test.mjs',
+      'src/laws/assuranceEquivalence.test.ts', // attack B (equivalence) + AG4 corpus
+      'src/laws/assuranceCanary.test.ts', // attack F (deployment-preservation)
+      'scripts/assurance/contract.test.mjs', // AG0 self-test + AG4 graduation
+      'scripts/assurance/infoloss.test.mjs', // attack A (information-loss)
+      'scripts/assurance/risk.test.mjs', // AG5 risk router
       '--reporter=dot',
     ], { stdio: 'inherit', encoding: 'utf8' })
     const ms = Date.now() - t0

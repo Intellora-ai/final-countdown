@@ -13,7 +13,7 @@
     { "a": { "subject": "gravity", "asked": "define" }, "b": { "subject": "gravity", "asked": "define" }, "differ": false }
   ],
   "invariants": ["semantic_mismatch_must_not_reuse"],
-  "canaries": ["explain_gravity", "graph_gravity", "practice_gravity"],
+  "canaries": ["explain_gravity", "why_gravity", "practice_gravity"],
   "assertions": {
     "subject_alone_is_not_identity": {
       "maturity": "required",

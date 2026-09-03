@@ -1,0 +1,11 @@
+{
+  "decision": "shelf_lookup",
+  "note": "Deployment-preservation canaries. Three asks on ONE subject that differ only in `asked` -- the shelf identity dimension. A correct deployment serves a DISTINCT artifact for each; if two collapse onto one artifact, the deployed build has lost the identity that passed CI. Run against a deployed base URL, or in-process against the real handler.",
+  "subject": "gravity",
+  "canaries": [
+    { "name": "explain_gravity", "asked": "explain", "phrasing": "explain gravity" },
+    { "name": "why_gravity", "asked": "why", "phrasing": "why does gravity happen" },
+    { "name": "practice_gravity", "asked": "practice", "phrasing": "quiz me on gravity" }
+  ],
+  "expect": "the three served artifacts are pairwise distinct (the shelf identity subject+asked is preserved end to end)"
+}

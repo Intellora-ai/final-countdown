@@ -220,4 +220,53 @@ describe('the built server', () => {
       'WARNING',
     )
   })
+
+  /*
+   * SAID AT STARTUP, THE SAME WAY EVERY OTHER SILENT DEGRADATION IS.
+   *
+   * The banner already names `memory:`, `identity:`, `ledger:`, `frontend:` and
+   * `model:` -- every setting whose absence changes what a learner gets without
+   * failing anything. Grounding is exactly such a setting and had no line.
+   *
+   * MEASURED on this machine 2026-09-04: with `WEB_SEARCH_ENDPOINT` unset, the
+   * server booted, said nothing about it, and then logged
+   * `503: web search is not configured on this server` once PER REQUEST while
+   * every lesson was written from the model's memory with
+   * `0 source(s) from 0 domain(s)`. A product whose law is "never answer
+   * without a real source" taught a whole session ungrounded, and the only
+   * notice was buried in per-request logs nobody reads.
+   *
+   * Both directions are asserted: an operator who set it must see that it took,
+   * and an operator who did not must be told the variable's name.
+   */
+  it('says at startup whether it can search the web, and names the variable when it cannot', async () => {
+    await withServer(
+      { ANTHROPIC_API_KEY: 'CANARY-boot-search-unset', WEB_SEARCH_ENDPOINT: '' },
+      async (s) => {
+        expect(s.output()).toContain('listening on')
+        expect(s.output(), 'the banner never mentions search at all').toContain('search:')
+        expect(
+          s.output(),
+          'an ungrounded server does not name the variable that would ground it',
+        ).toContain('WEB_SEARCH_ENDPOINT')
+      },
+    )
+  })
+
+  it('says at startup which search endpoint it will use, when one is set', async () => {
+    await withServer(
+      {
+        ANTHROPIC_API_KEY: 'CANARY-boot-search-set',
+        WEB_SEARCH_ENDPOINT: 'http://127.0.0.1:8080/search?q={query}&format=json',
+      },
+      async (s) => {
+        expect(s.output()).toContain('listening on')
+        expect(s.output(), 'the banner never mentions search at all').toContain('search:')
+        expect(
+          s.output(),
+          'a grounded server does not say where its sources come from',
+        ).toContain('127.0.0.1:8080')
+      },
+    )
+  })
 })

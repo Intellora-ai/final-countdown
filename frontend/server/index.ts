@@ -22,6 +22,7 @@ import { chooseProvider, controllerModel, hostedProviders, value, type OpenAiCom
 import { createOllamaModel, DEFAULT_OLLAMA_ENDPOINT } from './ollama.ts'
 import { createGroqModel, DEFAULT_GROQ_MODEL } from './groq.ts'
 import { failover } from './failover.ts'
+import { ENDPOINT_ENV } from './openweb.ts'
 import { pgStore } from './almanac/pgStore.ts'
 import { sqliteMemoryStore } from './memory/sqliteStore.ts'
 import { canvasMemory, type CanvasMemory } from './memory/store.ts'
@@ -842,6 +843,32 @@ function main(): void {
              spent or which endpoint a failure came from. */
           ? `  model:  ${provider.model} via ${provider.vendor}`
           : '  model:  anthropic',
+    )
+    /*
+     * SAID, NOT ASSUMED -- the same rule as `frontend:` above.
+     *
+     * Grounding is the one remaining setting whose absence changes what a
+     * learner is given without failing anything: the server starts, every
+     * lesson is written, and each one is written from the model's memory with
+     * `0 source(s) from 0 domain(s)`. The only notice was a per-request 503 in
+     * the log. For a product whose law is "never answer without a real source",
+     * a whole ungrounded session should not be discoverable only by reading
+     * request logs.
+     *
+     * THE VARIABLE IS NAMED IN THE ABSENT CASE, because the line exists so
+     * somebody can act on it in one step -- the same reason the no-provider
+     * refusal prints every key that would satisfy it.
+     *
+     * THE TEMPLATE IS PRINTED, THE CREDENTIAL IS NOT. `{key}` is a placeholder
+     * `openweb.ts` substitutes per request from `WEB_SEARCH_API_KEY`, so the
+     * template is normally keyless; an operator who inlined a real one anyway
+     * must not have it echoed by a process that prints no other key.
+     */
+    const searchEndpoint = value(process.env, ENDPOINT_ENV)
+    console.log(
+      searchEndpoint === undefined || searchEndpoint.trim() === ''
+        ? `  search: none — lessons are written with no sources (set ${ENDPOINT_ENV})`
+        : `  search: ${searchEndpoint.replace(/([?&](?:key|api_?key|token|auth)=)(?!\{)[^&]*/gi, '$1<redacted>')}`,
     )
     if (host !== DEFAULT_HOST) {
       console.log(

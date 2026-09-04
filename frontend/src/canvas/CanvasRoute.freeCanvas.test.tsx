@@ -86,6 +86,51 @@ const HER_LESSON = {
   ],
 }
 
+/** A lesson already on her canvas from an earlier day. */
+const OLDER_SENTENCE = 'A lever turns a small push over a long way into a big push over a short way.'
+const AN_OLDER_LESSON = {
+  id: 'what-a-lever-is',
+  question: 'What is a lever?',
+  blocks: [
+    {
+      id: 'what-a-lever-does',
+      kind: 'prose',
+      emphasis: 'primary',
+      role: 'definition',
+      body: OLDER_SENTENCE,
+      terms: [{ text: 'lever', mark: 'key' }],
+    },
+    {
+      id: 'the-lever-steps',
+      kind: 'flow',
+      emphasis: 'supporting',
+      role: 'framework',
+      caption: 'The trade, laid out rather than described.',
+      nodes: [
+        { id: 'push-far', label: 'you push the long arm a long way' },
+        { id: 'pivot', label: 'it turns on the pivot' },
+        { id: 'lift', label: 'the short arm lifts hard, a little way' },
+      ],
+      links: [
+        { from: 'push-far', to: 'pivot' },
+        { from: 'pivot', to: 'lift' },
+      ],
+    },
+    {
+      id: 'worth-keeping-lever',
+      kind: 'summary',
+      emphasis: 'supporting',
+      role: 'summary',
+      mentalModel: 'Distance is traded for force.',
+      progression: ['a long arm moves far', 'the short arm moves little', 'the push there is larger'],
+    },
+  ],
+  relations: [
+    { from: 'the-lever-steps', kind: 'supports', to: 'what-a-lever-does' },
+    { from: 'worth-keeping-lever', kind: 'supports', to: 'what-a-lever-does' },
+  ],
+}
+
 /**
  * The server, as far as this test is concerned: an append-only table of rows,
  * keyed by the `lessonId` the client actually sends.
@@ -96,6 +141,9 @@ const HER_LESSON = {
  */
 let stored: Map<string, { seq: number; createdAt: string; artifact: unknown }[]>
 let readsFor: string[]
+/** When set, the canvas READ waits on this before answering, so a test can put
+ *  a lesson on the canvas while the mount read is still in flight. */
+let holdTheRead: Promise<void> | null
 
 function jsonResponse(status: number, body: unknown): Response {
   return {
@@ -109,6 +157,7 @@ function jsonResponse(status: number, body: unknown): Response {
 beforeEach(() => {
   stored = new Map()
   readsFor = []
+  holdTheRead = null
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: unknown, init?: RequestInit): Promise<Response> => {
@@ -117,8 +166,13 @@ beforeEach(() => {
       if (url.startsWith('/api/canvas?')) {
         const key = new URL(url, 'http://localhost').searchParams.get('lessonId') ?? ''
         readsFor.push(key)
+        /* SNAPSHOT AT REQUEST TIME, as a real query does. Reading the store
+           after the wait would quietly include rows written during it, which is
+           the very thing the race is about. */
+        const snapshot = stored.get(key) ?? []
+        if (holdTheRead !== null) await holdTheRead
         return jsonResponse(200, {
-          artifacts: stored.get(key) ?? [],
+          artifacts: snapshot,
           needsAnotherLook: [],
           student: 'a-student',
         })
@@ -195,6 +249,51 @@ describe('the free canvas keeps what it was given', () => {
     expect(
       onScreenText(),
       'her lesson was saved, and the reopened canvas does not show it',
+    ).toContain(HER_SENTENCE)
+  })
+
+  /*
+   * THE READ MUST NOT UNDO A LESSON WRITTEN WHILE IT WAS IN FLIGHT.
+   *
+   * The mount read ends in `setEntries(brought)`, which REPLACES the list; the
+   * append ends in `setEntries(previous => [...previous, one])`, which adds to
+   * it. Whichever finishes second wins, and on the free canvas the two now race
+   * for the first time -- it is the surface the front door opens onto, so
+   * "arrive and immediately type" is the ordinary case, not the corner one. A
+   * slow read that lands second silently erased a lesson she had just been
+   * given and watched appear.
+   */
+  it('keeps a lesson written while the canvas was still being read', async () => {
+    /* ONE LESSON ALREADY ON THE CANVAS, so the read that lands second is not
+       empty -- `show` returns early on an empty read, which is why the erasure
+       needs a canvas that already has something on it. */
+    stored.set('#canvas', [
+      {
+        seq: 1,
+        createdAt: '2026-09-03T00:00:00.000Z',
+        artifact: { kind: 'lesson', question: 'What is a lever?', payload: AN_OLDER_LESSON, teaching: 'lesson' },
+      },
+    ])
+
+    let letTheReadFinish = (): void => {}
+    holdTheRead = new Promise<void>((resolve) => { letTheReadFinish = () => resolve() })
+
+    openTheCanvas()
+    await settle()
+
+    /* She is taught while the mount read is still open. */
+    await askToBeTaught('how a snake sheds its skin')
+    expect(onScreenText(), 'she was never taught, so there is nothing to lose').toContain(HER_SENTENCE)
+
+    /* Now the canvas read comes back -- with nothing, because it started before
+       she asked. It must not take her lesson away. */
+    letTheReadFinish()
+    await settle()
+    await settle()
+
+    expect(
+      onScreenText(),
+      'a canvas read that landed after her lesson erased it from the screen',
     ).toContain(HER_SENTENCE)
   })
 })

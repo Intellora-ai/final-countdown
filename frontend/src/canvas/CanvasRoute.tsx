@@ -231,10 +231,61 @@ export interface WhichCanvas {
   readonly examId?: string
 }
 
+/**
+ * HOW LONG THE CANVAS WAITS FOR A SERVER THAT HAS GONE QUIET.
+ *
+ * NOT ONE of the three calls to `/api/ask` carried a deadline. A `fetch` whose
+ * promise never settles never rejects, so the `catch` that reports trouble
+ * never runs, `askedForATopic` stays true, and the one control that promises to
+ * teach stays disabled for as long as the tab is open -- no error, no message,
+ * no way back. A dropped mobile connection, a proxy holding the socket, or a
+ * vendor stalling under load all produce exactly that: a request neither
+ * answered nor refused. `src/almanac/client.ts` already treats this as real and
+ * carries its own `LONGEST_WAIT_MS`; the canvas did not.
+ *
+ * IT IS SILENCE THAT IS TIMED, NOT THE WHOLE REQUEST. A lesson streams, and a
+ * long lesson legitimately takes longer than any fixed ceiling worth setting; a
+ * deadline on the whole exchange would cut off a server that is answering
+ * perfectly well. The clock is restarted every time anything arrives, so this
+ * fires only when nothing has come for a full minute -- which covers both the
+ * server that never answers and the stream that stops halfway.
+ *
+ * SIXTY SECONDS, for the reason `client.ts` already measured: the retry inside
+ * `server/groq.ts` can legitimately pause for the vendor's rate-limit reset
+ * before its first word, and its own ceiling is 45s.
+ */
+const LONGEST_SILENCE_MS = 60_000
+
 async function fetchAsk(
   question: string,
   alreadyUsed: readonly string[],
   where: WhichCanvas,
+  onText?: (blockIndex: number, text: string) => void,
+): Promise<{ status: number; ok: boolean; body: unknown }> {
+  /* See `LONGEST_SILENCE_MS`. Cleared on every path, including the throw: a
+     timer left pending keeps its callback alive for a request nobody is waiting
+     on any more. */
+  const stopWaiting = new AbortController()
+  let giveUp: ReturnType<typeof setTimeout> | undefined
+  const waitAgain = (): void => {
+    if (giveUp !== undefined) clearTimeout(giveUp)
+    giveUp = setTimeout(() => { stopWaiting.abort() }, LONGEST_SILENCE_MS)
+  }
+  waitAgain()
+  try {
+    return await streamAsk(question, alreadyUsed, where, stopWaiting.signal, waitAgain, onText)
+  } finally {
+    if (giveUp !== undefined) clearTimeout(giveUp)
+  }
+}
+
+async function streamAsk(
+  question: string,
+  alreadyUsed: readonly string[],
+  where: WhichCanvas,
+  signal: AbortSignal,
+  /** Restart the silence clock: something arrived, so the server is alive. */
+  waitAgain: () => void,
   onText?: (blockIndex: number, text: string) => void,
 ): Promise<{ status: number; ok: boolean; body: unknown }> {
   const response = await fetch('/api/ask', {
@@ -244,7 +295,9 @@ async function fetchAsk(
       ...(onText === undefined ? {} : { accept: 'text/event-stream' }),
     },
     body: JSON.stringify({ question, alreadyUsed, ...where }),
+    signal,
   })
+  waitAgain()
   const type = response.headers?.get?.('content-type') ?? ''
   const reader = /text\/event-stream/i.test(type) ? response.body?.getReader() : undefined
   if (onText === undefined || reader === undefined) {
@@ -255,6 +308,8 @@ async function fetchAsk(
   for (;;) {
     const { value, done } = await reader.read()
     if (done) break
+    /* Words arrived, so the server is not silent. */
+    waitAgain()
     pending += decoder.decode(value, { stream: true })
     let cut = pending.indexOf('\n\n')
     while (cut >= 0) {
@@ -591,6 +646,13 @@ export default function CanvasRoute({
   /* What the server already holds. Entries that came FROM it are never sent
      back: coming back to a canvas changes nothing, so it writes nothing. */
   const alreadyKept = useRef<readonly unknown[] | null>(null)
+  /* HOW MANY LESSONS THIS SCREEN HAS BEEN GIVEN SINCE IT OPENED.
+     The mount read ends in a REPLACE and an append ends in an ADD, so whichever
+     lands second wins. On the free canvas the two now race for the first time --
+     it is the surface the front door opens onto, so "arrive and immediately
+     type" is the ordinary case. This is how the read knows it is no longer the
+     only thing that has written here. */
+  const writtenHere = useRef(0)
   /*
    * WHETHER SHE HAS ASKED FOR ANYTHING YET.
    *
@@ -918,6 +980,7 @@ export default function CanvasRoute({
               { seq, question, lesson: written.lesson, teaching: written.teaching },
             ])
             setStagedSeq(seq)
+            writtenHere.current += 1
             setMemoryTrouble(saved.ok ? null : `${saved.reason}. It is on this screen, not yet on the server.`)
           })
           /* A lesson arrived, so the run of unanswered asks is over. */
@@ -1234,7 +1297,11 @@ export default function CanvasRoute({
     async ({ taught, justSaid, beat, afterBlock, beatTitles, suspects }: { taught: string; justSaid: string; beat: string; afterBlock: string; beatTitles: readonly string[]; suspects: readonly string[] }): Promise<{ grown: boolean; question: string | null }> => {
       const asked = onStage.spec as { question?: string }
       try {
+        /* The same silence deadline the lesson path carries; without it a
+           server that never answers leaves this promise pending for the
+           life of the tab. The catch below already knows what to do. */
         const response = await fetch('/api/ask', {
+          signal: AbortSignal.timeout(LONGEST_SILENCE_MS),
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
@@ -1284,7 +1351,11 @@ export default function CanvasRoute({
     async ({ taught, justSaid }: { taught: string; justSaid: string }): Promise<boolean> => {
       const asked = onStage.spec as { question?: string }
       try {
+        /* The same silence deadline the lesson path carries; without it a
+           server that never answers leaves this promise pending for the
+           life of the tab. The catch below already knows what to do. */
         const response = await fetch('/api/ask', {
+          signal: AbortSignal.timeout(LONGEST_SILENCE_MS),
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
@@ -1424,7 +1495,22 @@ export default function CanvasRoute({
         }
       })
       alreadyKept.current = brought
-      setEntries(brought)
+      /* A READ MAY NOT UNDO A LESSON WRITTEN WHILE IT WAS IN FLIGHT. This was a
+         plain `setEntries(brought)`: a read that began before she asked, and
+         landed after she was answered, put the canvas back to what the server
+         had at request time and her new lesson vanished off the screen while
+         sitting safely in the store. Rows she has that the read did not carry
+         are kept, in the order they arrived. */
+      setEntries((current) => {
+        const inTheRead = new Set(brought.map((one) => one.seq))
+        const sinceTheRead = current.filter((one) => !inTheRead.has(one.seq))
+        return sinceTheRead.length === 0 ? brought : [...brought, ...sinceTheRead]
+      })
+
+      /* AND THE STAGE STAYS ON HERS. Everything below chooses the lesson to
+         show from what the READ carried; with a newer lesson already on stage
+         that is a jump backwards to something she has already been past. */
+      if (writtenHere.current > 0) return
 
       /* The last one that can actually be drawn becomes the lesson on stage.
          If none can, the canvas still opens and still shows what it has. */

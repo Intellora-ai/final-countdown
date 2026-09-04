@@ -93,6 +93,10 @@ const HER_LESSON = {
 /** What every call to `fetch` saw, so a test can say where a request went. */
 let wentTo: { url: string; body: unknown }[]
 
+/** The sequence the default canvas store hands out, one per append. A fixed
+ *  number here made two lessons share a seq, and the canvas is ordered by it. */
+let appendedSeq: number
+
 /** What the next `/api/ask` answers with. Set per test. */
 let answersWith: () => Response | Promise<Response>
 
@@ -119,6 +123,7 @@ function notJson(status = 200): Response {
 
 beforeEach(() => {
   wentTo = []
+  appendedSeq = 0
   answersWith = () => jsonResponse(200, { lesson: HER_LESSON })
   vi.stubGlobal(
     'fetch',
@@ -129,6 +134,19 @@ beforeEach(() => {
         body: init?.body === undefined ? undefined : JSON.parse(String(init.body)),
       })
       if (url === '/api/ask') return answersWith()
+      /* THE FREE CANVAS READS ITS OWN KEY ON MOUNT, and this default router
+         did not model that because it never used to. `CanvasRoute` appends
+         every free-canvas lesson under `#canvas`; the effect that brings a
+         canvas back now reads the same key instead of returning early on a
+         null topic, so a router that throws here turns every default test into
+         one where the canvas is unreachable -- and "the canvas could not be
+         reached just now" then appears on screen in tests about something
+         else entirely. An empty canvas is the truthful answer for a test that
+         has taught nothing yet, and it is what every other router in this file
+         already answers. Assertions are unchanged: the tests that are ABOUT an
+         unreachable canvas still stub their own failing router below. */
+      if (url.startsWith('/api/canvas?')) return jsonResponse(200, { artifacts: [] })
+      if (url === '/api/canvas') return jsonResponse(200, { appended: { seq: (appendedSeq += 1) } })
       throw new Error(`nothing in this test should reach ${url}`)
     }),
   )

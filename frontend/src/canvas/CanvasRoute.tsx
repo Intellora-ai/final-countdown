@@ -1344,7 +1344,24 @@ export default function CanvasRoute({
      the canvas the first time, and the last one becomes the lesson on stage.
      Nothing is asked, nothing is added. */
   useEffect(() => {
-    if (topicId === null) return
+    /* THE FREE CANVAS IS A CANVAS. This began `if (topicId === null) return`,
+       and `topicId` is null for exactly the surface the front door opens onto
+       -- the box that says "What do you want to learn?". Every lesson written
+       there was still SENT: the append below uses `topicId ?? ''`, so it was
+       stored under `#canvas` and the server answered with the row. Nothing ever
+       read it back, so the product saved her work correctly and then refused to
+       look for it.
+
+       MEASURED in a real browser 2026-09-04: two lessons taught on `/canvas`,
+       both on screen, `location.reload()` -- and the page returned to "What do
+       you want to learn?" with both gone while the rows sat on the server.
+
+       One expression, used by the read and the write, cannot disagree with
+       itself; that is the same reason the append spells it `topicId ?? ''`. The
+       decision this restores is the one already written at the top of this
+       file: kept under `<topic>#canvas` and brought back on return, exactly as
+       it was left. */
+    const canvasId = topicId ?? ''
     let live = true
     /* THE OLD CANVAS IS BROUGHT FORWARD FIRST, and only when the new one is
        genuinely empty. A student who was learning yesterday must not open a
@@ -1353,12 +1370,12 @@ export default function CanvasRoute({
        nothing" and for "it could not be read", and both mean the same next
        step: read the artifacts and show whatever is there. */
     void (async () => {
-      const first = await readCanvas(topicId)
+      const first = await readCanvas(canvasId)
       if (!live) return
       if (first.ok && first.artifacts.length === 0) {
-        const moved = await bringForwardTheOldCanvas(topicId)
+        const moved = await bringForwardTheOldCanvas(canvasId)
         if (!live) return
-        if (moved > 0) return show(await readCanvas(topicId))
+        if (moved > 0) return show(await readCanvas(canvasId))
       }
       show(first)
     })()

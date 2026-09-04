@@ -93,6 +93,17 @@ export const SeriesIndex = z.number().int().min(0).max(5)
  */
 export const MOST_BLOCKS = 24
 
+/**
+ * The longest question a lesson can carry.
+ *
+ * Named for the same reason as `MOST_BLOCKS`: the box she types into has to
+ * agree with it. It had no cap at all, and what the extra characters actually
+ * cost is the sources -- the question is searched verbatim, so a 475-character
+ * paste went out as one search and came back with nothing, leaving a lesson
+ * written from the model's memory alone.
+ */
+export const MOST_QUESTION_CHARS = 200
+
 export const Id = z
   .string()
   .min(1)
@@ -487,7 +498,7 @@ export const LessonSpec = z
   .object({
     id: Id,
     /** The question the lesson answers. Rendered as the title. */
-    question: z.string().min(1).max(200),
+    question: z.string().min(1).max(MOST_QUESTION_CHARS),
     subject: Label.optional(),
     blocks: z.array(Block).min(1).max(MOST_BLOCKS),
     relations: z.array(Relation).max(48).default([]),

@@ -314,6 +314,42 @@ describe('the button that promises to teach can reach something that teaches', (
     ).not.toContain('could not be reached')
   })
 
+  it('holds a pasted paragraph down to the length a lesson can carry', async () => {
+    /*
+     * A TOPIC LONGER THAN A LESSON'S OWN QUESTION FIELD COSTS HER THE SOURCES.
+     *
+     * The box had no cap at all (`maxLength` read -1 in the running page) while
+     * `spec.ts` caps a lesson's question at 200. What the extra characters
+     * actually break is grounding: the question is searched verbatim.
+     *
+     * MEASURED live 2026-09-04, a 475-character paste beginning "photosynthesis
+     * and also please explain in great detail...":
+     *
+     *   [controller] START_LESSON target="photosynthesis"          <- narrowed fine
+     *   [grounding] no sources for "photosynthesis and also please explain in great detail the e"
+     *   [grounding] 0 source(s) from 0 domain(s)
+     *
+     * The controller read her real topic correctly, and the search still went
+     * out as the whole paragraph and came back with nothing. So a learner who
+     * pastes a question gets a lesson written from the model's memory alone --
+     * silently, and in a product whose rule is never to answer without a real
+     * source.
+     */
+    canvas()
+    const pasted = `photosynthesis ${'and also every detail of botany '.repeat(20)}`
+    expect(pasted.length, 'this paste is not long enough to test anything').toBeGreaterThan(300)
+    fireEvent.change(topicBox(), { target: { value: pasted } })
+
+    expect(
+      topicBox().value.length,
+      'a pasted paragraph is carried into the question verbatim, and the search comes back empty',
+    ).toBeLessThanOrEqual(200)
+    expect(
+      topicBox().value,
+      'the beginning of what she typed -- the part that names her topic -- was not kept',
+    ).toContain('photosynthesis')
+  })
+
   it('says the server answered, rather than that it could not be reached', async () => {
     /*
      * A SERVER THAT ANSWERED IS NOT A SERVER THAT WAS NEVER REACHED.

@@ -26,7 +26,7 @@ import { groundingFrom, howWellSourcesAgree } from './teach/researched'
 import type { Source } from './teach/grounding'
 import { explainAgain, NOTHING_YET, type Remembered } from './teach/again'
 import { scopedQuery } from './teach/level'
-import { MOST_BLOCKS, type Lesson } from './spec/spec'
+import { MOST_BLOCKS, MOST_QUESTION_CHARS, type Lesson } from './spec/spec'
 import { TeachView } from './teach/TeachView'
 
 import './design/canvas.css'
@@ -1633,7 +1633,12 @@ export default function CanvasRoute({
             <input
               type="text"
               value={topic}
-              onChange={(e) => setTopic(e.target.value)}
+              /* HELD TO THE LENGTH A LESSON CAN CARRY, in the handler and not
+                 only in the attribute: `maxLength` stops typing, and this stops
+                 a paste. What the extra characters cost is her sources -- the
+                 question is searched verbatim, and a 475-character paste came
+                 back with none. */
+              onChange={(e) => setTopic(e.target.value.slice(0, MOST_QUESTION_CHARS))}
               /* ALWAYS THE INVITATION, BECAUSE THERE IS ALWAYS SOMEWHERE TO ASK.
                  This read 'No model configured' and the control was `disabled`
                  for every person who has ever cloned this repository, because
@@ -1643,6 +1648,7 @@ export default function CanvasRoute({
                  `askForALesson` routes to the server when she has no model of her
                  own, so the only thing missing was ever the route, not the
                  ability. */
+              maxLength={MOST_QUESTION_CHARS}
               placeholder="Teach me anything…"
               aria-label="A topic to be taught"
               /* Kept as a hint, not a blocker: it now says where lessons come

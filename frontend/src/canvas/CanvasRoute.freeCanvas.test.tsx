@@ -144,6 +144,9 @@ let readsFor: string[]
 /** When set, the canvas READ waits on this before answering, so a test can put
  *  a lesson on the canvas while the mount read is still in flight. */
 let holdTheRead: Promise<void> | null
+/** When set, the canvas APPEND waits on this, so a test can let the mount read
+ *  land in the window between the lesson appearing and its save coming back. */
+let holdTheAppend: Promise<void> | null
 
 function jsonResponse(status: number, body: unknown): Response {
   return {
@@ -158,6 +161,7 @@ beforeEach(() => {
   stored = new Map()
   readsFor = []
   holdTheRead = null
+  holdTheAppend = null
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: unknown, init?: RequestInit): Promise<Response> => {
@@ -178,6 +182,7 @@ beforeEach(() => {
         })
       }
       if (url === '/api/canvas') {
+        if (holdTheAppend !== null) await holdTheAppend
         const body = JSON.parse(String(init?.body)) as { lessonId: string; artifact: unknown }
         const rows = stored.get(body.lessonId) ?? []
         /* The row shape the real server returns: the artifact NESTED, beside
@@ -263,6 +268,51 @@ describe('the free canvas keeps what it was given', () => {
    * slow read that lands second silently erased a lesson she had just been
    * given and watched appear.
    */
+  /*
+   * THE WINDOW BETWEEN THE LESSON APPEARING AND ITS SAVE COMING BACK.
+   *
+   * The screen counts a lesson as "written here" only once the append has been
+   * answered, but she can SEE it the moment it is authored -- the stage is set
+   * before the request goes out. A read landing inside that window found the
+   * counter still at zero and restored the stage to an older lesson, with hers
+   * on screen a moment earlier. Found by coderabbit on the first fix for this
+   * race; the counter has to be raised when the lesson is written, not when the
+   * server acknowledges it.
+   */
+  it('keeps her lesson when the read lands before the save comes back', async () => {
+    stored.set('#canvas', [
+      {
+        seq: 1,
+        createdAt: '2026-09-03T00:00:00.000Z',
+        artifact: { kind: 'lesson', question: 'What is a lever?', payload: AN_OLDER_LESSON, teaching: 'lesson' },
+      },
+    ])
+
+    let letTheReadFinish = (): void => {}
+    let letTheSaveFinish = (): void => {}
+    holdTheRead = new Promise<void>((resolve) => { letTheReadFinish = () => resolve() })
+    holdTheAppend = new Promise<void>((resolve) => { letTheSaveFinish = () => resolve() })
+
+    openTheCanvas()
+    await settle()
+    await askToBeTaught('how a snake sheds its skin')
+    expect(onScreenText(), 'she was never taught, so there is nothing to lose').toContain(HER_SENTENCE)
+
+    /* The read comes back while her save is still in flight. */
+    letTheReadFinish()
+    await settle()
+    await settle()
+
+    expect(
+      onScreenText(),
+      'a read that landed before her save was acknowledged took her lesson off the screen',
+    ).toContain(HER_SENTENCE)
+
+    letTheSaveFinish()
+    await settle()
+    expect(onScreenText(), 'her lesson did not survive its own save').toContain(HER_SENTENCE)
+  })
+
   it('keeps a lesson written while the canvas was still being read', async () => {
     /* ONE LESSON ALREADY ON THE CANVAS, so the read that lands second is not
        empty -- `show` returns early on an empty read, which is why the erasure

@@ -102,6 +102,49 @@ function mendTable(block: Record<string, unknown>): Record<string, unknown> {
 const A_BLOCK_KIND = new Set<string>(Block.options.map((option) => option.shape.kind.value))
 const A_REPRESENTATION = new Set<string>(REPRESENTATION_NAMES.filter((name) => !A_BLOCK_KIND.has(name)))
 
+/**
+ * A FLOW WHOSE TWO FIELDS ARE NAMED WITH THE OTHER COMMON WORD FOR EACH.
+ *
+ * MEASURED LIVE 2026-09-04, gpt-oss-120b via Groq: two consecutive fresh
+ * lessons lost their diagram to this, in two languages --
+ *
+ *   how a rainbow forms     blocks.1.links.0: Unrecognized key(s): 'source', 'target'
+ *   प्रकाश संश्लेषण क्या है   blocks.1: Unrecognized key(s): 'steps', 'transitions'
+ *
+ * with `kinds written: ["prose","flow"]` both times. The model chose the right
+ * block and drew the right graph; it named the fields `steps`/`transitions` and
+ * the link ends `source`/`target`. The learner got the prose and an apology
+ * where the diagram belonged.
+ *
+ * UNAMBIGUOUS, WHICH IS THE ONLY REASON THIS IS MENDED AND NOT REFUSED. A flow
+ * has no field called `steps`, `transitions`, `source` or `target`, so there is
+ * nothing to guess between. When BOTH names are present the block says two
+ * things at once, and that is the gate's to refuse -- the same rule this file
+ * already keeps for a kind that contradicts a role.
+ */
+function mendFlow(block: Record<string, unknown>): Record<string, unknown> {
+  let mended = block
+  if (mended['nodes'] === undefined && Array.isArray(mended['steps'])) {
+    const { steps: nodes, ...rest } = mended
+    mended = { ...rest, nodes }
+  }
+  if (mended['links'] === undefined && Array.isArray(mended['transitions'])) {
+    const { transitions: links, ...rest } = mended
+    mended = { ...rest, links }
+  }
+  const links = mended['links']
+  if (!Array.isArray(links)) return mended
+  let renamed = false
+  const ends = links.map((one) => {
+    if (!record(one) || one['from'] !== undefined || one['to'] !== undefined) return one
+    if (typeof one['source'] !== 'string' || typeof one['target'] !== 'string') return one
+    const { source: from, target: to, ...rest } = one
+    renamed = true
+    return { ...rest, from, to }
+  })
+  return renamed ? { ...mended, links: ends } : mended
+}
+
 function mendBlock(block: unknown): unknown {
   if (!record(block)) return block
   let mended = block
@@ -133,6 +176,7 @@ function mendBlock(block: unknown): unknown {
     mended = rest
   }
   if (mended['kind'] === 'table') mended = mendTable(mended)
+  if (mended['kind'] === 'flow') mended = mendFlow(mended)
   return mended
 }
 

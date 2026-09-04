@@ -162,6 +162,105 @@ describe('a lesson whose only faults are spelling', () => {
   })
 })
 
+describe('a flow whose keys are synonyms of the real ones', () => {
+  /*
+   * MEASURED LIVE 2026-09-04, gpt-oss-120b via Groq, on the running server.
+   * Two fresh lessons in a row lost their diagram to this, in two languages:
+   *
+   *   how a rainbow forms       blocks.1.links.0: Unrecognized key(s): 'source', 'target'
+   *   प्रकाश संश्लेषण क्या है     blocks.1: Unrecognized key(s): 'steps', 'transitions'
+   *
+   * `kinds written: ["prose","flow"]` both times -- the model chose the right
+   * block and drew the right graph, then named its two fields with the other
+   * common word for each. The learner got the prose and an apology where the
+   * diagram should have been, which for a product whose rule is one
+   * representation per concept is most of the lesson.
+   *
+   * This is the same fault `mendBlock` already exists for -- a word one field
+   * to the left -- and it is unambiguous in exactly the same way: `steps` and
+   * `transitions` are not fields a flow has, so nothing is being guessed at.
+   */
+  const FLOW_WITH_SYNONYM_LINK_ENDS = {
+    id: 'how-a-rainbow-forms',
+    kind: 'flow',
+    role: 'framework',
+    caption: 'The path of one ray through one droplet.',
+    nodes: [
+      { id: 'enters', label: 'sunlight enters the droplet' },
+      { id: 'bends', label: 'it bends as it slows' },
+      { id: 'reflects', label: 'it reflects off the back' },
+    ],
+    links: [
+      { source: 'enters', target: 'bends' },
+      { source: 'bends', target: 'reflects' },
+    ],
+  }
+
+  const FLOW_WITH_SYNONYM_FIELDS = {
+    id: 'prakash-sanshleshan',
+    kind: 'flow',
+    role: 'framework',
+    caption: 'The three steps, laid out.',
+    steps: [
+      { id: 'sunlight', label: 'sunlight falls on the leaf' },
+      { id: 'water', label: 'water arrives from the roots' },
+      { id: 'glucose', label: 'glucose is made' },
+    ],
+    transitions: [
+      { from: 'sunlight', to: 'water' },
+      { from: 'water', to: 'glucose' },
+    ],
+  }
+
+  it('draws a flow whose links say source and target, rather than refusing it', () => {
+    const mended = blocksOf(mendSpelling({ blocks: [FLOW_WITH_SYNONYM_LINK_ENDS] }))[0]!
+    const checked = validateBlock(mended, 0)
+    expect(checked.ok, checked.ok ? '' : JSON.stringify(checked.issues)).toBe(true)
+    expect(
+      (mended['links'] as Record<string, unknown>[])[0],
+      'the two ends of the link did not survive the rename',
+    ).toEqual({ from: 'enters', to: 'bends' })
+  })
+
+  it('draws a flow whose graph is called steps and transitions', () => {
+    const mended = blocksOf(mendSpelling({ blocks: [FLOW_WITH_SYNONYM_FIELDS] }))[0]!
+    const checked = validateBlock(mended, 0)
+    expect(checked.ok, checked.ok ? '' : JSON.stringify(checked.issues)).toBe(true)
+    expect(mended['nodes'], 'the steps did not become the nodes').toHaveLength(3)
+    expect(mended['links'], 'the transitions did not become the links').toHaveLength(2)
+  })
+
+  it('leaves a flow that already spells both right exactly as it was', () => {
+    /* The same guarantee the rest of this file keeps: an untouched lesson comes
+       back as the very same object, so nothing can be quietly rewritten. */
+    const right = {
+      id: 'already-right',
+      kind: 'flow',
+      role: 'framework',
+      caption: 'Nothing to mend here.',
+      nodes: [{ id: 'a', label: 'first' }, { id: 'b', label: 'second' }],
+      links: [{ from: 'a', to: 'b' }],
+    }
+    expect(mendSpelling({ blocks: [right] })).toEqual({ blocks: [right] })
+  })
+
+  it('leaves a flow that says both names for one thing to the gate', () => {
+    /* Two fields disagreeing is an ambiguity, and the gate is the place for
+       those -- the same rule `mendBlock` already keeps for kind against role. */
+    const both = {
+      id: 'ambiguous',
+      kind: 'flow',
+      role: 'framework',
+      caption: 'Two names for one graph.',
+      nodes: [{ id: 'a', label: 'first' }],
+      steps: [{ id: 'z', label: 'other' }],
+      links: [{ from: 'a', to: 'a' }],
+    }
+    const mended = blocksOf(mendSpelling({ blocks: [both] }))[0]!
+    expect(mended['steps'], 'an ambiguous block was rewritten instead of refused').toBeDefined()
+  })
+})
+
 describe('the whole authoring turn', () => {
   it('teaches on the first attempt when the only faults were spelling', async () => {
     const sound = JSON.parse(JSON.stringify(EXAMPLE_FOR_ROUTE['contrast'])) as { blocks: Record<string, unknown>[] }

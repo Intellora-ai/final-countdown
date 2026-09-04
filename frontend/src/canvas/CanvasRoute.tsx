@@ -968,6 +968,13 @@ export default function CanvasRoute({
              effect PUT the whole array back; that whole-array save is the
              single defect the durability laws exist to make impossible. One
              lesson is now one row, and the server gives it its place. */
+          /* RAISED WHEN THE LESSON IS WRITTEN, NOT WHEN THE SERVER SAYS SO.
+             She can see it the moment it is authored -- the stage is set just
+             above, before this request goes out -- so a read landing in the
+             window between those two found the counter still at zero and put
+             the stage back to an older lesson. What the counter answers is
+             "has this screen written anything", and it has. */
+          writtenHere.current += 1
           void appendToCanvas(topicId ?? '', {
             kind: 'lesson',
             question,
@@ -980,7 +987,6 @@ export default function CanvasRoute({
               { seq, question, lesson: written.lesson, teaching: written.teaching },
             ])
             setStagedSeq(seq)
-            writtenHere.current += 1
             setMemoryTrouble(saved.ok ? null : `${saved.reason}. It is on this screen, not yet on the server.`)
           })
           /* A lesson arrived, so the run of unanswered asks is over. */

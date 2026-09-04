@@ -257,7 +257,13 @@ describe('a flow whose keys are synonyms of the real ones', () => {
       links: [{ from: 'a', to: 'a' }],
     }
     const mended = blocksOf(mendSpelling({ blocks: [both] }))[0]!
-    expect(mended['steps'], 'an ambiguous block was rewritten instead of refused').toBeDefined()
+    expect(mended['steps'], 'an ambiguous block was rewritten instead of left alone').toBeDefined()
+    /* AND THE GATE ACTUALLY REFUSES IT. Leaving the block untouched is only
+       half the guarantee; without this the test would still pass if `steps`
+       were silently tolerated, which would mean the ambiguity reached a
+       learner rather than the gate. */
+    const checked = validateBlock(mended, 0)
+    expect(checked.ok, 'a block that names its graph twice was accepted').toBe(false)
   })
 })
 

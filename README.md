@@ -71,6 +71,60 @@ pyright                                             # strict types
 bandit -r src scripts --severity-level low --confidence-level low
 ```
 
+## Run the learning canvas locally
+
+Three processes. The canvas is the page; the API writes the lessons; SearxNG is
+where their sources come from.
+
+```bash
+# 1. Web search, so lessons are grounded. No account, no key.
+docker compose -f frontend/docker-compose.search.yml up -d searxng
+
+# 2. The API. Needs a model key in the environment -- see frontend/.env.example
+#    for every variable it reads and what each one changes.
+cd frontend
+npm install
+npm run server:build
+mkdir -p data/local
+PORT=8787 HOST=127.0.0.1 \
+  WEB_SEARCH_ENDPOINT='http://127.0.0.1:8080/search?q={query}&format=json' \
+  ALMANAC_IDENTITY_SECRET_FILE=data/identity-secret \
+  CANVAS_MEMORY_DB=data/local/canvas-memory.db \
+  ALMANAC_LEDGER=data/local/almanac-ledger.json \
+  node dist-server/index.js
+
+# 3. The canvas, in another shell.
+cd frontend && npm run dev
+```
+
+Vite prints the URL it took; open that with `#/canvas` on the end --
+<http://localhost:5173/#/canvas> unless 5173 was busy, in which case it says so
+and picks the next free port. Type a topic and press **Teach me**.
+
+**Read what the API prints as it starts.** Those lines are its whole
+configuration, stated
+rather than left to be discovered -- and the two that decide whether it can
+teach at all are the last two:
+
+```
+  model:  openai/gpt-oss-120b via groq
+  search: http://127.0.0.1:8080/search?q={query}&format=json
+```
+
+`search: none` means every lesson will be written from the model's memory with
+no sources. The server still starts and still answers; it just stops being a
+product that never answers without a real source.
+
+**Which model answers.** `chooseProvider` takes the FIRST vendor whose key is
+set, in the order listed in `frontend/server/provider.ts` -- Gemini before
+Groq. Every other configured key stays behind it as a failover standby, which
+is what `failover(standbys)` is for, so setting several is the resilient
+choice rather than the confused one. To force a particular vendor while testing,
+unset the ones ahead of it (`env -u GEMINI_API_KEY ...`) and accept that you
+have also removed them as standbys.
+
+The API must be on 8787: `frontend/vite.config.ts` proxies `/api` there.
+
 ### Browser smoke test
 
 There is no web frontend here, so Playwright opens the one artifact this

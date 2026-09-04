@@ -147,6 +147,10 @@ let holdTheRead: Promise<void> | null
 /** When set, the canvas APPEND waits on this, so a test can let the mount read
  *  land in the window between the lesson appearing and its save coming back. */
 let holdTheAppend: Promise<void> | null
+/** An open loop the server remembers, replayed by the "Ask it again" card. */
+let owedQuestion: string | null
+/** Every body posted to /api/ask, so a test can read what actually went out. */
+let askedWith: { question?: unknown }[]
 
 function jsonResponse(status: number, body: unknown): Response {
   return {
@@ -162,11 +166,23 @@ beforeEach(() => {
   readsFor = []
   holdTheRead = null
   holdTheAppend = null
+  owedQuestion = null
+  askedWith = []
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: unknown, init?: RequestInit): Promise<Response> => {
       const url = String(input)
-      if (url === '/api/ask') return jsonResponse(200, { lesson: HER_LESSON })
+      if (url === '/api/situation') {
+        return jsonResponse(200, {
+          openLoops: owedQuestion === null
+            ? []
+            : [{ question: owedQuestion, lesson: '', stalled: 'failed', at: '2026-09-03T00:00:00.000Z' }],
+        })
+      }
+      if (url === '/api/ask') {
+        askedWith.push(JSON.parse(String(init?.body)) as { question?: unknown })
+        return jsonResponse(200, { lesson: HER_LESSON })
+      }
       if (url.startsWith('/api/canvas?')) {
         const key = new URL(url, 'http://localhost').searchParams.get('lessonId') ?? ''
         readsFor.push(key)
@@ -345,5 +361,43 @@ describe('the free canvas keeps what it was given', () => {
       onScreenText(),
       'a canvas read that landed after her lesson erased it from the screen',
     ).toContain(HER_SENTENCE)
+  })
+
+  /*
+   * A QUESTION THE SERVER REMEMBERS IS NOT ONE SHE JUST TYPED.
+   *
+   * The length cap started life in the box's own change handler, which covers
+   * typing and paste and nothing else. "Ask it again" replays an open loop --
+   * `setTopic(owed.question)` then `askForALesson(owed.question)` -- with a
+   * question that was persisted by an older build, before any cap existed. So
+   * the one path whose question is guaranteed NOT to have come through the box
+   * was the one path that could still send a paragraph to /api/ask, and the
+   * whole cost of an oversized question is paid at the search.
+   *
+   * Found by coderabbit. The cap now sits where every path meets:
+   * `askForALesson`, which is the request boundary.
+   */
+  it('holds a remembered question to the cap when it is asked again', async () => {
+    owedQuestion = `why the sky is blue ${'and every detail of atmospheric optics '.repeat(20)}`
+    expect(owedQuestion.length, 'this remembered question is not long enough to test anything').toBeGreaterThan(300)
+
+    openTheCanvas()
+    await settle()
+    await settle()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ask it again' }))
+    await settle()
+    await settle()
+
+    const sent = askedWith[0]
+    expect(sent, 'the remembered question was never asked at all').toBeDefined()
+    expect(
+      String(sent?.question ?? '').length,
+      'a paragraph the server had remembered went out as one search, and comes back with no sources',
+    ).toBeLessThanOrEqual(200)
+    expect(
+      String(sent?.question ?? ''),
+      'the beginning of her question -- the part that names the topic -- was not kept',
+    ).toContain('why the sky is blue')
   })
 })

@@ -340,14 +340,13 @@ describe('the button that promises to teach can reach something that teaches', (
     expect(pasted.length, 'this paste is not long enough to test anything').toBeGreaterThan(300)
     fireEvent.change(topicBox(), { target: { value: pasted } })
 
-    expect(
-      topicBox().value.length,
-      'a pasted paragraph is carried into the question verbatim, and the search comes back empty',
-    ).toBeLessThanOrEqual(200)
+    /* The exact value, not merely its length: a box that kept the LAST 200
+       characters would pass a length check and lose the word that names her
+       topic, which is the half the search actually needs. */
     expect(
       topicBox().value,
-      'the beginning of what she typed -- the part that names her topic -- was not kept',
-    ).toContain('photosynthesis')
+      'a pasted paragraph is carried into the question verbatim, and the search comes back empty',
+    ).toBe(pasted.slice(0, 200))
   })
 
   it('says the server answered, rather than that it could not be reached', async () => {

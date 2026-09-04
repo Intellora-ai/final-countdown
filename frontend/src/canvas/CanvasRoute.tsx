@@ -905,7 +905,15 @@ export default function CanvasRoute({
      * finished. Passing the label explicitly makes the branch press and the
      * request name the same thing.
      */
-    const question = (asked ?? topic).trim()
+    /* HELD TO THE CAP HERE, WHERE EVERY PATH MEETS. The box's own handler
+       covers typing and paste; it does not cover a question the SERVER
+       remembered. "Ask it again" replays an open loop -- persisted by an older
+       build, before any cap existed -- so the one question guaranteed not to
+       have come through the box was the one that could still go out as a
+       paragraph, and the whole cost of an oversized question is paid at the
+       search. This is the request boundary; the attribute and the change
+       handler are the visible half of the same number. */
+    const question = (asked ?? topic).trim().slice(0, MOST_QUESTION_CHARS)
     if (question === '' || authoring) return
 
     setAuthoring(true)

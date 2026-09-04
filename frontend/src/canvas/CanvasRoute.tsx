@@ -26,7 +26,7 @@ import { groundingFrom, howWellSourcesAgree } from './teach/researched'
 import type { Source } from './teach/grounding'
 import { explainAgain, NOTHING_YET, type Remembered } from './teach/again'
 import { scopedQuery } from './teach/level'
-import type { Lesson } from './spec/spec'
+import { MOST_BLOCKS, type Lesson } from './spec/spec'
 import { TeachView } from './teach/TeachView'
 
 import './design/canvas.css'
@@ -328,7 +328,17 @@ async function streamAsk(
         text?: string
         reply?: { status: number; body: unknown }
       }
-      if (event.type === 'text' && typeof event.text === 'string') onText(event.blockIndex ?? 0, event.text)
+      /* AN INDEX NO LESSON COULD HAVE IS NOT WORDS, IT IS AN ALLOCATION. The
+         words are filed by index into an array, so `blockIndex` is the one
+         number in this stream that decides how much memory the next frame
+         copies. A lesson has at most `MOST_BLOCKS` blocks; anything outside
+         that did not come from a lesson, and the only safe thing to do with it
+         is nothing. Measured: 50,000,000 cost 1.5s of the learner's main
+         thread, and 200,000,000 exhausted the heap and took the tab with it. */
+      if (event.type === 'text' && typeof event.text === 'string') {
+        const at = event.blockIndex ?? 0
+        if (Number.isInteger(at) && at >= 0 && at < MOST_BLOCKS) onText(at, event.text)
+      }
       if (event.type === 'done' && event.reply !== undefined) {
         return { status: event.reply.status, ok: event.reply.status >= 200 && event.reply.status < 300, body: event.reply.body }
       }
@@ -370,8 +380,9 @@ async function askTheServer(
   | { ok: false; clarify: string }
   /**
    * `unreachable` marks the one refusal that is not the server's: nothing
-   * answered at all. The banner does not branch on it -- the '(server)' issue
-   * already carries the sentence she reads -- but the open-loop ledger does,
+   * answered at all. The banner tells it apart by the '(unreachable)' issue
+   * token rather than by this flag -- it renders issues, not results -- and
+   * the open-loop ledger reads this flag,
    * because `chain.ts`'s own two words are 'refused' and 'failed', and a dead
    * server is the second one. Recording it as the first would tell her, on
    * her return, that her question was judged when nothing ever read it.
@@ -431,7 +442,11 @@ async function askTheServer(
       ok: false,
       unreachable: true,
       issues: [{
-        path: '(server)',
+        /* ITS OWN TOKEN, BECAUSE THE BANNER HAS TO TELL THESE APART. The reply
+           case a few lines above is a server that ANSWERED with a status this
+           cannot use; this is a request that never arrived anywhere. Both used
+           '(server)', so both wore the outage's sentence. */
+        path: '(unreachable)',
         message: thrown instanceof Error ? thrown.message : String(thrown),
       }],
     }
@@ -1771,9 +1786,14 @@ export default function CanvasRoute({
                 reader looking for a teaching problem that does not exist. */}
             {authorFailed.some((i) => i.path === '(busy)')
               ? 'Our server is busy right now, so the lesson was not written. Try again in a minute.'
-              : authorFailed.some((i) => i.path === '(model)' || i.path === '(server)')
+              : authorFailed.some((i) => i.path === '(model)' || i.path === '(unreachable)')
                 ? 'The model could not be reached, so nothing was written.'
-                : 'The model answered, and what it produced does not teach. It is not being shown.'}
+                : authorFailed.some((i) => i.path === '(server)')
+                  ? /* IT ANSWERED. Saying it could not be reached sent her to wait
+                       out an outage that was not happening, when the reason is in
+                       the line below and is usually something she can act on. */
+                    'Our server answered, but did not write a lesson. Its reason is below.'
+                  : 'The model answered, and what it produced does not teach. It is not being shown.'}
           </p>
           <ul>
             {authorFailed.slice(0, 8).map((issue, i) => (

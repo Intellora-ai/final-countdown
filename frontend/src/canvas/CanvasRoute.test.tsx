@@ -314,6 +314,39 @@ describe('the button that promises to teach can reach something that teaches', (
     ).not.toContain('could not be reached')
   })
 
+  it('says the server answered, rather than that it could not be reached', async () => {
+    /*
+     * A SERVER THAT ANSWERED IS NOT A SERVER THAT WAS NEVER REACHED.
+     *
+     * `askTheServer` uses the same '(server)' issue for two opposite things:
+     * a reply with a status it cannot use (line ~427) and a request that threw
+     * (the catch below it, which also sets `unreachable`). The banner branches
+     * only on the token, so a 400, a 413 or a content refusal all wore the
+     * outage's sentence -- "The model could not be reached, so nothing was
+     * written."
+     *
+     * The comment three lines above that branch says exactly why it matters:
+     * each wrong sentence sends her to do a different wrong thing. Told the
+     * server is down she gives up and waits, when the truth is that it answered
+     * in a fifth of a second and told her the question was too long -- which
+     * she could act on immediately.
+     */
+    answersWith = () => jsonResponse(413, { error: 'that question is longer than this server accepts' })
+    canvas()
+    await askToBeTaught(HER_TOPIC)
+
+    const said = onScreenText()
+    expect(said, 'she was told nothing at all').toContain('That lesson was refused')
+    expect(
+      said,
+      'a server that answered in words was reported as an outage, so she gives up instead of shortening the question',
+    ).not.toContain('could not be reached')
+    expect(
+      said,
+      "the server's own words were thrown away, leaving nothing to act on",
+    ).toContain('longer than this server accepts')
+  })
+
   it('shows the gate’s own refusal when a 200 carries no lesson', async () => {
     answersWith = () => jsonResponse(200, { nothing: 'useful' })
     canvas()
@@ -483,6 +516,64 @@ describe('words appear as they are written', () => {
     expect(onScreenText()).toContain(HER_QUESTION)
     expect(document.querySelector('.lc-writing-bar'), 'the lesson landed and the page still says it is writing').toBeNull()
   })
+
+  /*
+   * A BLOCK NUMBER THAT CANNOT EXIST MUST NOT COST ANYTHING.
+   *
+   * The words arriving from the stream are filed by index into an array:
+   * `next[index] = (next[index] ?? '') + text`. Nothing checked the index, and
+   * a lesson has at most 24 blocks (`spec.ts`, `blocks: z.array(Block).max(24)`).
+   * One frame naming block 9,000,000 therefore allocated an array of nine
+   * million holes, and every frame after it copied all nine million with
+   * `[...prev]` -- on the main thread, between the learner and her own tab.
+   *
+   * A stream is the one input here that is neither the learner's typing nor
+   * this build's own gate: it is whatever the server, a proxy, or a half-open
+   * connection actually wrote.
+   *
+   * MEASURED on this machine, one stray frame followed by three ordinary ones:
+   *
+   *     blockIndex 9,000,000     237ms
+   *     blockIndex 50,000,000  1,348ms
+   *     blockIndex 200,000,000 FATAL: invalid array length, heap out of memory
+   *
+   * So the top of the range is not a slow tab, it is a dead one. TIME IS THE
+   * ASSERTION because time is the symptom: to somebody waiting, "slow" and
+   * "broken" are the same thing, and the margin here is three orders of
+   * magnitude -- the mended path never allocates at all.
+   */
+  it('does not freeze the tab when the stream names a block that cannot exist', async () => {
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    answersWith = () =>
+      eventStream(
+        [
+          'event: text\ndata: {"type":"text","blockIndex":0,"text":"A snake sheds by growing"}\n\n',
+          'event: text\ndata: {"type":"text","blockIndex":50000000,"text":"a block that cannot exist"}\n\n',
+          'event: text\ndata: {"type":"text","blockIndex":0,"text":" a new skin"}\n\n',
+          `event: done\ndata: ${JSON.stringify({ type: 'done', reply: { status: 200, body: { lesson: HER_LESSON } } })}\n\n`,
+        ],
+        gate,
+      )
+    canvas()
+    await askToBeTaught(HER_TOPIC)
+    const startedAt = Date.now()
+    release()
+    await settle()
+    await settle()
+    await settle()
+    const took = Date.now() - startedAt
+
+    expect(onScreenText(), 'the lesson never arrived at all').toContain(HER_QUESTION)
+    expect(
+      onScreenText(),
+      'a block number no lesson can have was rendered as if it were part of one',
+    ).not.toContain('a block that cannot exist')
+    expect(
+      took,
+      `one stray frame cost ${took}ms of the learner's own main thread; at a larger index the same frame kills the tab`,
+    ).toBeLessThan(800)
+  }, 5000)
 })
 
 describe('the canvas builds up; it is not a chat', () => {

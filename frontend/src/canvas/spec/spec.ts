@@ -81,6 +81,18 @@ const MarkedTerm = z
 /** Which token in the fixed series a data series takes. An INDEX, never a hex. */
 export const SeriesIndex = z.number().int().min(0).max(5)
 
+/**
+ * The most blocks one lesson may have.
+ *
+ * Named rather than inline because the streaming reader needs the same number:
+ * words arriving from the server are filed by block index, and an index no
+ * lesson could ever have is the difference between a lesson and an allocation
+ * the size of the number sent. See `CanvasRoute.tsx`, where a single frame
+ * naming block 50,000,000 cost 1.5 seconds of the learner's main thread and
+ * one naming 200,000,000 exhausted the heap.
+ */
+export const MOST_BLOCKS = 24
+
 export const Id = z
   .string()
   .min(1)
@@ -477,7 +489,7 @@ export const LessonSpec = z
     /** The question the lesson answers. Rendered as the title. */
     question: z.string().min(1).max(200),
     subject: Label.optional(),
-    blocks: z.array(Block).min(1).max(24),
+    blocks: z.array(Block).min(1).max(MOST_BLOCKS),
     relations: z.array(Relation).max(48).default([]),
     /**
      * The lesson's technical vocabulary, and where each word is allowed to

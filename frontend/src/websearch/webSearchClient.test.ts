@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { searchTheWeb, SEARCH_ROUTE } from './webSearchClient'
+import { MAX_ORIGINS } from './provenance'
 
 /**
  * The browser half of open-web search.
@@ -435,6 +436,35 @@ describe('provenance labels from the route are checked, not trusted', () => {
       }),
     })
     expect(out.freshness?.origins).toEqual(['recent-cache', 'precomputed'])
+  })
+
+  it('accepts EVERY origin the provenance module declares, not a copy of the list', async () => {
+    /*
+     * THE DRIFT GUARD, and the reason it is driven off `MAX_ORIGINS` rather
+     * than a literal.
+     *
+     * The client held its own `ORIGINS` array. Same three values as
+     * `provenance.MAX_ORIGINS`, written a second time. TypeScript cannot see
+     * that: a `readonly Origin[]` holding three of four union members is
+     * perfectly legal, so adding a fourth origin would have typechecked
+     * everywhere and been SILENTLY DROPPED by this filter on every answer.
+     * `freshness.origins` is what §32 renders to say where an answer came
+     * from, and an incomplete list there is the same class of lie §32 exists
+     * to stop.
+     *
+     * The two tests above pin exact literals and must keep doing so. This one
+     * pins the RELATIONSHIP, so a fourth origin is covered the day it is
+     * declared rather than the day somebody remembers this file.
+     */
+    const declared = [...MAX_ORIGINS]
+    const out = await searchTheWeb(GAS, {
+      fetchImpl: respondWith({
+        pages: [page('https://a.test/1', HOT_A)],
+        engineFailed: false,
+        freshness: { live: false, origins: declared, usableSources: 1 },
+      }),
+    })
+    expect(out.freshness?.origins).toEqual(declared)
   })
 })
 

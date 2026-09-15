@@ -1,0 +1,74 @@
+name: Repo Debug Audit v2
+on:
+  push:
+    branches: ["fix/full-repo-debug-2026-09-15"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Audit structure and source
+        shell: bash
+        run: |
+          {
+            echo '=== GIT ==='
+            git status --short --branch
+            git rev-parse HEAD
+            echo '=== PACKAGE MANIFESTS ==='
+            find . -name package.json -not -path '*/node_modules/*' -print || true
+            echo '=== PYTHON MANIFESTS ==='
+            find . \( -name 'pyproject.toml' -o -name 'requirements*.txt' \) -not -path '*/node_modules/*' -print || true
+            echo '=== FRONTEND SCRIPTS ==='
+            node -e "const p=require('./frontend/package.json'); console.log(JSON.stringify(p.scripts,null,2))" || true
+            echo '=== LAW H REFERENCES ==='
+            git grep -n -E 'askedBackTimes|stuckDoor|Law H|authorFailed' -- frontend || true
+            echo '=== GENERATION REFERENCES ==='
+            git grep -n -E 'generation_failed|concept.?budget|concepts.*budget|MAX_CONCEPT|one.?concept' -- . ':!frontend/node_modules' || true
+            echo '=== FRONTEND ENV EXAMPLE ==='
+            sed -n '1,220p' frontend/.env.example 2>/dev/null || true
+          } | tee audit-report.txt
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Frontend typecheck
+        working-directory: frontend
+        run: |
+          set +e
+          npm run typecheck 2>&1 | tee ../frontend-typecheck.txt
+          status=${PIPESTATUS[0]}
+          echo "typecheck_exit=$status" >> ../audit-status.txt
+          exit 0
+
+      - name: Frontend unit tests
+        working-directory: frontend
+        run: |
+          set +e
+          npm test -- --run 2>&1 | tee ../frontend-tests.txt
+          status=${PIPESTATUS[0]}
+          echo "frontend_tests_exit=$status" >> ../audit-status.txt
+          exit 0
+
+      - name: Upload audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-debug-audit-v2
+          path: |
+            audit-report.txt
+            audit-status.txt
+            frontend-typecheck.txt
+            frontend-tests.txt
+          if-no-files-found: ignore

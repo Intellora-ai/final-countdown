@@ -39,10 +39,14 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: learning-os/requirements-learning-os.lock
+          cache-dependency-path: |
+            learning-os/requirements-learning-os.lock
+            learning-os/requirements-features.lock
 
       - name: Install locked dependencies
-        run: pip install --require-hashes -r requirements-learning-os.lock
+        run: |
+          pip install --require-hashes -r requirements-learning-os.lock
+          pip install --require-hashes -r requirements-features.lock
 
       - name: Run product feature suite
         env:
@@ -69,11 +73,13 @@ jobs:
           cache: pip
           cache-dependency-path: |
             learning-os/requirements-learning-os.lock
+            learning-os/requirements-features.lock
             learning-os/requirements-live.lock
 
       - name: Install locked dependencies
         run: |
           pip install --require-hashes -r requirements-learning-os.lock
+          pip install --require-hashes -r requirements-features.lock
           pip install --require-hashes -r requirements-live.lock
 
       - name: Require the live-model credential

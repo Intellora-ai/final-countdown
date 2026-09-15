@@ -7,6 +7,8 @@ def replace_once(path: str, old: str, new: str) -> None:
     p = ROOT / path
     s = p.read_text()
     if old not in s:
+        if new in s:
+            return
         raise SystemExit(f'{path}: anchor not found: {old[:100]!r}')
     p.write_text(s.replace(old, new, 1))
 

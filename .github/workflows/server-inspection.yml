@@ -1,0 +1,26 @@
+name: Server Generation Inspection
+on:
+  push:
+    branches: ["fix/full-repo-debug-2026-09-15"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect generation pipeline
+        shell: bash
+        run: |
+          set +e
+          for f in learning-os/src/learning_os/session/doubt.py learning-os/tests/test_llm.py frontend/server/handler.ts frontend/server/provider.ts frontend/server/groq.ts frontend/server/failover.ts frontend/server/prompt.ts frontend/server/validateLesson.ts frontend/.env.example; do
+            if [ -f "$f" ]; then
+              echo "===== $f ====="
+              cat "$f"
+            fi
+          done
+          echo '===== GENERATION/VALIDATION REFERENCES ====='
+          git grep -n -E 'concept.?budget|generation_failed|concepts|validateLesson|authorLesson|Gemini|gemini' -- frontend/server learning-os/src learning-os/tests | head -n 600 || true

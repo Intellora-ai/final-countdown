@@ -132,7 +132,7 @@ class TestAdvancingIsGatedByEvidence:
 
     def test_advance_cannot_reach_complete(self, project: Path) -> None:
         harness(project, "start", "spike", "x")
-        assert harness(project, "advance").returncode == 0  # probe -> report needs nothing
+        assert harness(project, "advance").returncode == 0
         blocked = harness(project, "advance")
         assert blocked.returncode == 1
         assert "verifier" in blocked.stdout.lower() or "done" in blocked.stdout.lower()
@@ -151,7 +151,7 @@ class TestDoneIsTheVerifierNotAClaim:
     def test_done_passes_only_on_evidence(self, project: Path) -> None:
         harness(project, "start", "feature", "x")
         store = Store(project / ".harness")
-        for record in (
+        records: list[dict[str, Any]] = [
             {"at": _at(1), "kind": "file_change", "path": "tests/test_x.py", "role": "test"},
             {"at": _at(2), "kind": "command", "command": "pytest", "exit_code": 1,
              "test_run": {"runner": "pytest", "passed": 0, "failed": 1, "errors": 0}},
@@ -159,7 +159,8 @@ class TestDoneIsTheVerifierNotAClaim:
             {"at": _at(4), "kind": "command", "command": "pytest", "exit_code": 0,
              "test_run": {"runner": "pytest", "passed": 1, "failed": 0, "errors": 0}},
             {"at": _at(5), "kind": "command", "command": "ruff check src", "exit_code": 0, "test_run": None},
-        ):
+        ]
+        for record in records:
             store.append(record)
         done = harness(project, "done")
         assert done.returncode == 0, done.stdout + done.stderr
@@ -177,9 +178,6 @@ class TestDoneIsTheVerifierNotAClaim:
 
 class TestTheAttackerAndTheMemory:
     def test_attack_prints_the_prompt_naming_this_tasks_diff(self, project: Path) -> None:
-        """The diff is named by the command that produces it, against the commit
-        the task started at, rather than inlined: the harness runs no
-        subprocess, and the attacker has a shell of its own."""
         harness(project, "start", "feature", "export button", "--risk", "high")
         head = subprocess.run(["git", "-C", str(project), "rev-parse", "--short", "HEAD"],
                               capture_output=True, text=True, check=True).stdout.strip()
@@ -194,7 +192,7 @@ class TestTheAttackerAndTheMemory:
         harness(project, "start", "bug", "M4 locked")
         harness(project, "hypothesis", "the write lock is released before COMMIT")
         store = Store(project / ".harness")
-        for record in (
+        records: list[dict[str, Any]] = [
             {"at": _at(1), "kind": "reproduction", "how": "pytest -k m4"},
             {"at": _at(2), "kind": "file_change", "path": "tests/test_x.py", "role": "test"},
             {"at": _at(3), "kind": "command", "command": "pytest", "exit_code": 1, "fingerprints": ["FP-82c05b"],
@@ -203,7 +201,8 @@ class TestTheAttackerAndTheMemory:
             {"at": _at(5), "kind": "command", "command": "pytest", "exit_code": 0, "fingerprints": [],
              "test_run": {"runner": "pytest", "passed": 1, "failed": 0, "errors": 0}},
             {"at": _at(6), "kind": "command", "command": "ruff check src", "exit_code": 0, "test_run": None},
-        ):
+        ]
+        for record in records:
             store.append(record)
         done = harness(project, "done")
         assert done.returncode == 0, done.stdout + done.stderr

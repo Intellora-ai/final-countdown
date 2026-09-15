@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isPlea, classifyTurn } from '/Users/tanveersidhu/Desktop/FINAL COUNTDOWN/final countdown/frontend/src/canvas/teach/turn'
+import { isPlea, classifyTurn } from './turn'
 
 const sentences = [
   'the energy is lost as heat',

@@ -1,297 +1,52 @@
 name: e2e
 
-# BROWSER-LEVEL SMOKE TEST. Separate from `verify` on purpose.
-#
-# `e2e` IS A REQUIRED CHECK. The header used to say the opposite -- "It is not
-# in `required_checks` and does not become blocking unless the ruleset is
-# edited by hand" -- and that was false. ci/gates.toml lists `e2e` with
-# `mandatory = true` among 17 required_checks, and scripts/check_ruleset.py
-# confirms GitHub enforces the same set live: "ALIGNED: 17 required checks, all
-# pinned, manifest and GitHub agree". A comment in a trusted path that
-# describes a weaker contract than the one in force is the kind of thing this
-# repository exists to catch.
-#
-# It stays in its own workflow, and it cannot join `full`'s `needs:`, because
-# cross-workflow `needs:` does not exist -- separate workflows are separate
-# runs with separate filesystems. So the ruleset enforces it directly, and
-# `full` aggregates only what it can see. Both are required; neither stands in
-# for the other.
-#
-# WHY PYTHON IS INSTALLED IN A BROWSER WORKFLOW.
-# The page under test is this repository's coverage report, and that report is
-# produced by pytest. `.coverage` and `htmlcov/` are both gitignored, so the
-# artifact does not exist on a fresh checkout — it has to be generated before a
-# browser can open it. `-m "not axle"` keeps the run off the AXLE service:
-# the kernel checks are the `verify` workflow's job, and duplicating them here
-# would make this workflow fail for reasons that have nothing to do with the
-# browser.
-
 on:
   pull_request:
   push:
     branches: [main]
 
-# Cancel a run only when a newer commit on the SAME pull request has
-# superseded it. `github.ref` is the PR ref, so runs on different PRs never
-# cancel each other.
-#
-# cancel-in-progress is deliberately conditional. On a push to main the run IS
-# the authoritative verification of a commit that is already merged -- killing
-# it would leave a merged commit with no completed verification, which is the
-# one outcome this repository exists to prevent. Superseding only happens on
-# pull_request, where a newer commit genuinely obsoletes the older result.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 permissions:
   contents: read
 
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   e2e:
+    name: e2e
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # UNIVERSAL FINDING NET -- registered right after checkout, because the
-      # matcher FILE must exist in the workspace before ::add-matcher:: can
-      # read it. The matchers turn any mypy / pytest-frame / eslint / pyright /
-      # gcc-shaped log line into a file-and-line annotation; ci-findings.yml
-      # reconciles what was emitted against what GitHub accepted, post-run.
-      - name: Teach the runner to read tool findings
-        run: echo "::add-matcher::.github/matchers/tools.json"
-
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
-        with:
-          python-version: '3.12'
-          # Every other Python job in this repository caches its wheels; this
-          # one did not, and it installs the same 36-package locked set. Keyed
-          # on requirements.lock, not the default requirements.txt, because the
-          # install below reads the lock -- a cache keyed on a file the install
-          # never reads goes stale without ever saying so.
-          cache: pip
-          cache-dependency-path: requirements.lock
-
-      - name: Install Python dependencies
-        run: pip install --require-hashes -r requirements.lock
-
-      # THE RENDERING FIXTURE, NOT A COVERAGE CERTIFICATION.
-      #
-      # This step used to run the whole 764-test non-AXLE suite --
-      # `pytest --cov=src --cov-branch --cov-report=html -m "not axle" -q` --
-      # purely to produce htmlcov/index.html for the browser to open. Measured
-      # on run 32354712507: 117s of a 146s job, to run a 3s Playwright test.
-      # The `coverage` gate in verify.yml already runs that same selection on
-      # the same commit, so the suite executed twice per pull request and this
-      # execution established no additional full-suite coverage property.
-      #
-      # `--cov=src` measures FIVE files -- four modules plus an empty
-      # `src/__init__.py` -- totalling 1.1 KB. This said "four files" while the
-      # table two lines below it listed five rows, so the sentence disagreed
-      # with its own evidence. Running only the four TEST files that cover them
-      # produces the same five rows at the same values:
-      #
-      #   src/__init__.py 100%   src/add.py 100%   src/clamp.py 100%
-      #   src/multiply.py 100%   src/subtract.py 100%   TOTAL 100%
-      #   measured 0.30s, against "Total coverage: 100.00%" from the full suite
-      #
-      # So the rendered page the browser asserts on is unchanged, and the
-      # browser assertions themselves are unchanged. What is removed is a
-      # duplicated full-suite EXECUTION, not a verification property.
-      #
-      # THIS FIXTURE IS NOT COVERAGE EVIDENCE. It certifies nothing: no
-      # threshold, no full-suite selection. reports/e2e-scope.json says so in
-      # machine-readable form, tests/e2e/smoke.spec.ts refuses to run without
-      # it, and the artifact name below can never be mistaken for the coverage
-      # gate's. `coverage` remains the sole full-suite coverage certification.
-      - name: Generate the browser rendering fixture
-        env:
-          # Through env: rather than inline `${{ }}` in run:, so no expression
-          # is ever spliced into a shell string. These are GitHub-controlled
-          # values, not attacker input, but the rule is worth keeping uniform.
-          E2E_SHA: ${{ github.sha }}
-          E2E_RUN_ID: ${{ github.run_id }}
-          E2E_RUN_ATTEMPT: ${{ github.run_attempt }}
-          E2E_WORKFLOW: ${{ github.workflow }}
-          E2E_JOB: ${{ github.job }}
-        run: |
-          set -euo pipefail
-          # Spelled out rather than expanded from a variable. `$CMD` as a
-          # command relies on unquoted word-splitting: bash splits it, zsh does
-          # not, and shellcheck flags it either way. The literal form runs the
-          # same everywhere and is what the scope file records.
-          # THERE IS DELIBERATELY NO `-m "not axle"` HERE, AND ADDING ONE IS A
-          # REGRESSION. It was added in this change and CI refused it, correctly
-          # -- run 32760600630, tests/e2e/smoke.spec.ts:97.
-          #
-          # `-m "not axle"` is the FULL-SUITE marker: it is what the `coverage`
-          # gate runs across every test in the repository. Its ABSENCE from this
-          # command is one of the four things the smoke test checks, and the
-          # reason is written there: it proves this artifact is a targeted
-          # four-file fixture and can never be mistaken for, or substituted
-          # into, the coverage gate's evidence.
-          #
-          # The concern that prompted the change is real but the fix was wrong:
-          # the promise that this workflow never contacts AXLE does rest on
-          # nobody adding a marked test to these four files. That belongs in an
-          # assertion about the FILES, not in a selector that erases the very
-          # signal distinguishing this run from the full suite.
-          pytest tests/test_add.py tests/test_clamp.py \
-                 tests/test_multiply.py tests/test_subtract.py \
-                 --cov=src --cov-branch --cov-report=html -q
-          test -f htmlcov/index.html
-
-          # THE SHA THE FIXTURE RECORDS IS THE ONE THAT WAS CHECKED OUT.
-          #
-          # `commit_sha` came from `github.sha`, which is what the EVENT claims.
-          # For a provenance record that is the wrong source: it describes the
-          # payload, not the tree the artifact was built from. `deep-verify.yml`
-          # already makes exactly this distinction and refuses when they differ.
-          # They agree here because this workflow sets no `ref:` on checkout --
-          # asserted, not assumed, so the day someone adds one this fails loudly
-          # instead of recording a commit the fixture did not come from.
-          ACTUAL_SHA="$(git rev-parse HEAD)"
-          echo "EVENT_SHA       $E2E_SHA"
-          echo "CHECKED_OUT_SHA $ACTUAL_SHA"
-          if [ "$ACTUAL_SHA" != "$E2E_SHA" ]; then
-            echo "::error title=e2e provenance::checked-out $ACTUAL_SHA is not the event SHA $E2E_SHA; the fixture would record a commit it was not built from"
-            exit 1
-          fi
-          export E2E_ACTUAL_SHA="$ACTUAL_SHA"
-
-          mkdir -p reports
-          python3 - <<'PY'
-          import json, os, pathlib
-          tests = "tests/test_add.py tests/test_clamp.py tests/test_multiply.py tests/test_subtract.py"
-          pathlib.Path("reports/e2e-scope.json").write_text(json.dumps({
-              "schema_version": "1.0",
-              "scope": "e2e-rendering-fixture",
-              # Read back from git, then proven equal to the event SHA above.
-              "commit_sha": os.environ["E2E_ACTUAL_SHA"],
-              "run_id": os.environ["E2E_RUN_ID"],
-              "run_attempt": os.environ["E2E_RUN_ATTEMPT"],
-              "workflow": os.environ["E2E_WORKFLOW"],
-              "job": os.environ["E2E_JOB"],
-              # Must stay equal to the command actually run above, and that
-              # command deliberately carries no `-m` selector -- see the note
-              # on the pytest line. tests/e2e/smoke.spec.ts asserts this string
-              # does NOT contain "not axle", because that marker's absence is
-              # what proves the artifact is a targeted fixture rather than the
-              # full suite.
-              "producer_command":
-                  f"pytest {tests} --cov=src --cov-branch --cov-report=html -q",
-              "coverage_target": "src",
-              "is_full_suite_coverage": False,
-              "purpose": "Playwright rendering and navigation verification only",
-          }, indent=2) + "\n", encoding="utf-8")
-          PY
-          {
-            echo "## e2e rendering fixture"
-            echo ""
-            echo "\`scope=e2e-rendering-fixture\` · \`is_full_suite_coverage=false\`"
-            echo ""
-            echo "This report is a **browser rendering fixture**, generated from four"
-            echo "targeted \`src\` tests. It is NOT full-suite coverage evidence and does"
-            echo "not certify any coverage threshold. The \`coverage\` gate in verify.yml"
-            echo "remains the sole full-suite coverage certification."
-            echo ""
-            echo "    producer: $(python3 -c 'import json;print(json.load(open("reports/e2e-scope.json"))["producer_command"])')"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Setup Node
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
           node-version: '24'
           cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
-      # `npm ci` installs exactly what package-lock.json pins and fails if the
-      # lockfile and package.json disagree. `npm install` would silently
-      # resolve new versions, which is the reproducibility hole this closes.
-      - name: Install Node dependencies from the lockfile
+      - name: Install frontend dependencies
         run: npm ci
-
-      # No `--with-deps`. That flag runs `apt-get update && apt-get install`,
-      # and on the first run here it stalled on the Azure Ubuntu mirror --
-      # repeated `Ign:` lines, then thirteen minutes of silence until the job
-      # timed out. The runner image already ships Chromium's shared libraries,
-      # so downloading the browser is all that is actually required. If a
-      # library is ever genuinely missing, Playwright says which one, and the
-      # answer is to install that one rather than to re-run a package index.
-      # `--no-install`, so this can only ever run the Playwright that
-      # package-lock.json pinned and `npm ci` installed. Bare `npx` falls back
-      # to FETCHING a package when the local one is missing, which would
-      # silently download an unpinned CLI and use it to install a browser --
-      # the exact reproducibility hole `npm ci` was chosen to close two steps
-      # above. If the local package is absent this now fails loudly.
-      # THE BROWSER BINARIES, CACHED. `playwright install` downloads ~150MB of
-      # Chromium on every run of every job that needs a browser -- eight jobs a
-      # push, all fetching the same bytes. The INSTALL STEP STAYS: on a cache
-      # hit it validates and no-ops in seconds, on a miss or a version bump it
-      # downloads exactly as before, so a stale or poisoned cache cannot skip
-      # validation -- this trades seconds, never assurance. Keyed on the
-      # lockfile: any dependency change rebuilds the cache.
-      - name: Cache playwright browsers
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ~/.cache/ms-playwright
-          # Keyed on the ROOT lockfile: this job's npm ci runs at the repo
-          # root, so the playwright version comes from there -- the frontend
-          # key busted this cache for nothing and missed real bumps.
-          key: pw-chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install Chromium
         run: npx --no-install playwright install chromium
 
-      # No `continue-on-error`: Playwright's exit code is the verdict.
-      #
-      # `--fail-on-flaky-tests` IS THE POINT OF THIS STEP, NOT A TIGHTENING.
-      #
-      # playwright.config.ts sets `retries: 1` in CI, and its comment says a
-      # retry should be "visible as a retry rather than hidden by a rerun".
-      # Nothing made it visible: a test that failed once and passed on the
-      # retry produced a green job and a green required check, and the flake
-      # was recorded only inside an HTML report that is uploaded ONLY on
-      # failure -- so on exactly the runs where a flake happened and was
-      # rescued, the evidence was discarded.
-      #
-      # The retry stays: one retry still distinguishes a flake from a hard
-      # failure, and that information is worth having. What changes is that a
-      # rescued test now fails the run instead of passing silently, so "flaky"
-      # becomes a verdict somebody has to act on rather than a fact nobody
-      # sees. `frontend-scenes` in learning-canvas-frontend.yml already runs
-      # with this flag; this workflow was the one without it.
-      - name: Run Playwright
-        run: npm run test:e2e -- --fail-on-flaky-tests
+      - name: Run Canvas browser suite
+        run: npm run test:laws -- --fail-on-flaky-tests
 
-      # THE SCOPE DECLARATION, ALWAYS. Uploaded on green as well as red,
-      # because its job is to say what this run's HTML report IS -- and a
-      # provenance record that only survives failures cannot answer that
-      # question about a passing run.
-      #
-      # The artifact name carries `e2e-rendering-fixture` deliberately. It must
-      # never be mistaken for, or substituted into, the coverage gate's
-      # evidence: `coverage-${{ github.sha }}-...` is a name this workflow may
-      # not use. Nothing here writes reports/coverage.json, and the finalizer's
-      # download-artifact carries no run-id, so it only ever sees verify's own
-      # run -- this artifact cannot reach aggregate_gates.py at all.
-      - name: Upload the fixture scope declaration
+      - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: e2e-rendering-fixture-${{ github.sha }}-${{ github.run_id }}
-          path: reports/e2e-scope.json
-          retention-days: 14
-          if-no-files-found: error
-
-      # Failure evidence only. On a green run there is nothing worth keeping,
-      # and uploading a report nobody opens is just storage.
-      - name: Preserve the report when the browser test fails
-        if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: playwright-report
+          name: canvas-playwright-report-${{ github.sha }}-${{ github.run_id }}
           path: |
-            playwright-report/
-            test-results/
-          retention-days: 7
+            frontend/playwright-report/
+            frontend/test-results/
           if-no-files-found: ignore
+          retention-days: 14

@@ -30,8 +30,8 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Install strict Python verification tools
-        run: python -m pip install --quiet pyright==1.1.411
+      - name: Install Python verification and test dependencies
+        run: python -m pip install --quiet --require-hashes -r requirements.lock
 
       - name: Apply verified Python typing repairs
         run: python3 scripts/repair_pyright.py

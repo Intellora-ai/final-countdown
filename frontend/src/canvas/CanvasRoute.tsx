@@ -697,6 +697,7 @@ export default function CanvasRoute({
   const [askedBackTimes, setAskedBackTimes] = useState(0)
   const [authoring, setAuthoring] = useState(false)
   const [authorFailed, setAuthorFailed] = useState<Issue[] | null>(null)
+  const [lastAttemptedQuestion, setLastAttemptedQuestion] = useState<string | null>(null)
 
   /*
    * WHAT THIS LEARNER HAS ALREADY BEEN TOLD, PER TOPIC.
@@ -831,6 +832,7 @@ export default function CanvasRoute({
     const question = (asked ?? topic).trim()
     if (question === '' || authoring) return
 
+    setLastAttemptedQuestion(question)
     setAuthoring(true)
     setAuthorFailed(null)
     setStreamed([])
@@ -921,6 +923,7 @@ export default function CanvasRoute({
             setMemoryTrouble(saved.ok ? null : `${saved.reason}. It is on this screen, not yet on the server.`)
           })
           /* A lesson arrived, so the run of unanswered asks is over. */
+          setLastAttemptedQuestion(null)
           setAskedBackTimes(0)
           /* The debt for this question, if any, is settled by a real lesson. */
           situation.resolved(question)
@@ -1666,6 +1669,9 @@ export default function CanvasRoute({
                 ? 'The model could not be reached, so nothing was written.'
                 : 'The model answered, and what it produced does not teach. It is not being shown.'}
           </p>
+          {lastAttemptedQuestion !== null && (
+            <p className="lc-caption">Attempted: {lastAttemptedQuestion}</p>
+          )}
           <ul>
             {authorFailed.slice(0, 8).map((issue, i) => (
               <li key={i}>

@@ -33,6 +33,10 @@ POLICIES = ("warn", "block")
 TASK_FILE = "task.json"
 
 
+def _empty_history() -> list[dict[str, str]]:
+    return []
+
+
 class Blocked(Exception):
     """A transition refused for lack of evidence. `gap` names what is missing."""
 
@@ -50,7 +54,7 @@ class Task:
     policy: str
     started_at: str
     start_commit: str
-    history: list[dict[str, str]] = field(default_factory=list)
+    history: list[dict[str, str]] = field(default_factory=_empty_history)
 
 
 def start(
@@ -244,11 +248,14 @@ def complete(task: Task, *, now: str) -> Task:
 
 def _moved(task: Task, target: str, now: str, *, because: str) -> Task:
     return Task(
-        **{
-            **asdict(task),
-            "phase": target,
-            "history": [*task.history, {"at": now, "from": task.phase, "to": target, "because": because}],
-        }
+        type=task.type,
+        title=task.title,
+        phase=target,
+        risk=task.risk,
+        policy=task.policy,
+        started_at=task.started_at,
+        start_commit=task.start_commit,
+        history=[*task.history, {"at": now, "from": task.phase, "to": target, "because": because}],
     )
 
 

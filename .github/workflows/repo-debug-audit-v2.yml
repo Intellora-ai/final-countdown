@@ -21,9 +21,26 @@ jobs:
         with:
           node-version: 22
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
+
+      - name: Install strict Python verification tools
+        run: python -m pip install --quiet pyright==1.1.411
+
+      - name: Apply verified Python typing repairs
+        run: python3 scripts/repair_pyright.py
+
+      - name: Python typecheck
+        run: pyright scripts/harness/cli.py scripts/harness/state.py tests/test_harness_cli.py tests/test_harness_hooks.py tests/test_harness_state.py tests/test_harness_verify.py
+
+      - name: Python harness regression tests
+        run: pytest -q tests/test_harness_cli.py tests/test_harness_hooks.py tests/test_harness_state.py tests/test_harness_verify.py
 
       - name: Patch Law H failure-state identity
         shell: bash
@@ -65,7 +82,7 @@ jobs:
           print('Law H patch applied')
           PY
 
-      - name: Typecheck
+      - name: Frontend typecheck
         working-directory: frontend
         run: npm run typecheck
 
@@ -73,15 +90,15 @@ jobs:
         working-directory: frontend
         run: npx vitest run src/canvas/CanvasRoute.stuck.test.tsx
 
-      - name: Commit verified repair
+      - name: Commit verified repairs
         shell: bash
         run: |
-          if git diff --quiet -- frontend/src/canvas/CanvasRoute.tsx; then
+          if git diff --quiet -- scripts/harness/cli.py scripts/harness/state.py tests/test_harness_cli.py tests/test_harness_hooks.py tests/test_harness_state.py tests/test_harness_verify.py frontend/src/canvas/CanvasRoute.tsx; then
             echo 'No source changes to commit.'
             exit 0
           fi
           git config user.name 'GitHub Actions'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add frontend/src/canvas/CanvasRoute.tsx
-          git commit -m 'fix: make repeated lesson failures visibly distinct'
+          git add scripts/harness/cli.py scripts/harness/state.py tests/test_harness_cli.py tests/test_harness_hooks.py tests/test_harness_state.py tests/test_harness_verify.py frontend/src/canvas/CanvasRoute.tsx
+          git commit -m 'fix: restore cross-machine typing and learner recovery'
           git push origin HEAD:fix/full-repo-debug-2026-09-15

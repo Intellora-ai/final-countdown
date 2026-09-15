@@ -37,8 +37,8 @@ jobs:
       - name: Install Chromium
         run: npx --no-install playwright install chromium
 
-      - name: Run canvas Playwright suite
-        run: npm run test:canvas -- --fail-on-flaky-tests
+      - name: Run Canvas browser suite
+        run: npm run test:laws -- --fail-on-flaky-tests
 
       - name: Upload Playwright report
         if: always()

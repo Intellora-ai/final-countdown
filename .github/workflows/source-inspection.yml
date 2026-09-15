@@ -1,0 +1,38 @@
+name: Source Inspection
+on:
+  push:
+    branches: ["fix/full-repo-debug-2026-09-15"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect exact source regions
+        shell: bash
+        run: |
+          set +e
+          echo '=== ROOT PACKAGE ==='
+          cat package.json
+          echo '=== FRONTEND PACKAGE ==='
+          cat frontend/package.json
+          echo '=== CANVAS MATCH LOCATIONS ==='
+          grep -n -E 'askedBackTimes|setAskedBackTimes|stuckDoor|authorFailed|askForALesson' frontend/src/canvas/CanvasRoute.tsx || true
+          echo '=== CANVAS RELEVANT REGIONS ==='
+          for n in $(grep -n -E 'askedBackTimes|stuckDoor|authorFailed|askForALesson' frontend/src/canvas/CanvasRoute.tsx | cut -d: -f1 | head -n 20); do
+            start=$((n-18)); [ "$start" -lt 1 ] && start=1; end=$((n+35));
+            echo "--- CanvasRoute.tsx:$start-$end ---";
+            sed -n "${start},${end}p" frontend/src/canvas/CanvasRoute.tsx;
+          done
+          echo '=== LAW H E2E TEST ==='
+          cat frontend/tests/integration/law-h-a-learner-who-is-stuck-is-never-shown-the-same-screen-twice.spec.ts
+          echo '=== STUCK UNIT TEST ==='
+          cat frontend/src/canvas/CanvasRoute.stuck.test.tsx
+          echo '=== GENERATION FILES ==='
+          grep -RIl --exclude-dir=.git --exclude-dir=node_modules -E 'generation_failed|concept.?budget|MAX_CONCEPT|one.?concept' frontend learning-os scripts 2>/dev/null | head -n 100
+          echo '=== GENERATION MATCHES ==='
+          grep -RIn --exclude-dir=.git --exclude-dir=node_modules -E 'generation_failed|concept.?budget|MAX_CONCEPT|one.?concept' frontend learning-os scripts 2>/dev/null | head -n 300

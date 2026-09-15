@@ -1,74 +1,87 @@
-name: Repo Debug Audit v2
+name: Repo Debug Repair
 on:
   push:
     branches: ["fix/full-repo-debug-2026-09-15"]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  audit:
+  repair:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Audit structure and source
-        shell: bash
-        run: |
-          {
-            echo '=== GIT ==='
-            git status --short --branch
-            git rev-parse HEAD
-            echo '=== PACKAGE MANIFESTS ==='
-            find . -name package.json -not -path '*/node_modules/*' -print || true
-            echo '=== PYTHON MANIFESTS ==='
-            find . \( -name 'pyproject.toml' -o -name 'requirements*.txt' \) -not -path '*/node_modules/*' -print || true
-            echo '=== FRONTEND SCRIPTS ==='
-            node -e "const p=require('./frontend/package.json'); console.log(JSON.stringify(p.scripts,null,2))" || true
-            echo '=== LAW H REFERENCES ==='
-            git grep -n -E 'askedBackTimes|stuckDoor|Law H|authorFailed' -- frontend || true
-            echo '=== GENERATION REFERENCES ==='
-            git grep -n -E 'generation_failed|concept.?budget|concepts.*budget|MAX_CONCEPT|one.?concept' -- . ':!frontend/node_modules' || true
-            echo '=== FRONTEND ENV EXAMPLE ==='
-            sed -n '1,220p' frontend/.env.example 2>/dev/null || true
-          } | tee audit-report.txt
-
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
 
-      - name: Frontend typecheck
-        working-directory: frontend
+      - name: Patch Law H failure-state identity
+        shell: bash
         run: |
-          set +e
-          npm run typecheck 2>&1 | tee ../frontend-typecheck.txt
-          status=${PIPESTATUS[0]}
-          echo "typecheck_exit=$status" >> ../audit-status.txt
-          exit 0
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('frontend/src/canvas/CanvasRoute.tsx')
+          s = p.read_text()
 
-      - name: Frontend unit tests
+          old = "  const [authorFailed, setAuthorFailed] = useState<Issue[] | null>(null)\n"
+          new = old + "  const [lastAttemptedQuestion, setLastAttemptedQuestion] = useState<string | null>(null)\n"
+          if "lastAttemptedQuestion" not in s:
+              if old not in s:
+                  raise SystemExit('Law H patch anchor 1 not found')
+              s = s.replace(old, new, 1)
+
+          old = "    const question = (asked ?? topic).trim()\n    if (question === '' || authoring) return\n\n    setAuthoring(true)\n"
+          new = "    const question = (asked ?? topic).trim()\n    if (question === '' || authoring) return\n\n    setLastAttemptedQuestion(question)\n    setAuthoring(true)\n"
+          if "setLastAttemptedQuestion(question)" not in s:
+              if old not in s:
+                  raise SystemExit('Law H patch anchor 2 not found')
+              s = s.replace(old, new, 1)
+
+          old = "          /* A lesson arrived, so the run of unanswered asks is over. */\n          setAskedBackTimes(0)\n"
+          new = "          /* A lesson arrived, so the run of unanswered asks is over. */\n          setLastAttemptedQuestion(null)\n          setAskedBackTimes(0)\n"
+          if "setLastAttemptedQuestion(null)" not in s:
+              if old not in s:
+                  raise SystemExit('Law H patch anchor 3 not found')
+              s = s.replace(old, new, 1)
+
+          old = "          </p>\n          <ul>\n            {authorFailed.slice(0, 8).map((issue, i) => (\n"
+          new = "          </p>\n          {lastAttemptedQuestion !== null && (\n            <p className=\"lc-caption\">Attempted: {lastAttemptedQuestion}</p>\n          )}\n          <ul>\n            {authorFailed.slice(0, 8).map((issue, i) => (\n"
+          if "Attempted: {lastAttemptedQuestion}" not in s:
+              if old not in s:
+                  raise SystemExit('Law H patch anchor 4 not found')
+              s = s.replace(old, new, 1)
+
+          p.write_text(s)
+          print('Law H patch applied')
+          PY
+
+      - name: Typecheck
         working-directory: frontend
-        run: |
-          set +e
-          npm test -- --run 2>&1 | tee ../frontend-tests.txt
-          status=${PIPESTATUS[0]}
-          echo "frontend_tests_exit=$status" >> ../audit-status.txt
-          exit 0
+        run: npm run typecheck
 
-      - name: Upload audit
-        uses: actions/upload-artifact@v4
-        with:
-          name: repo-debug-audit-v2
-          path: |
-            audit-report.txt
-            audit-status.txt
-            frontend-typecheck.txt
-            frontend-tests.txt
-          if-no-files-found: ignore
+      - name: Targeted Law H unit tests
+        working-directory: frontend
+        run: npx vitest run src/canvas/CanvasRoute.stuck.test.tsx
+
+      - name: Commit verified repair
+        shell: bash
+        run: |
+          if git diff --quiet -- frontend/src/canvas/CanvasRoute.tsx; then
+            echo 'No source changes to commit.'
+            exit 0
+          fi
+          git config user.name 'GitHub Actions'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add frontend/src/canvas/CanvasRoute.tsx
+          git commit -m 'fix: make repeated lesson failures visibly distinct'
+          git push origin HEAD:fix/full-repo-debug-2026-09-15

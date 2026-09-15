@@ -1,24 +1,3 @@
-# THE FIXER GATE — Claude may push, and may not weaken.
-#
-# Two jobs and one rule between them. `catch-errors` runs the repository's OWN
-# linters, the ones with configs somebody tuned, and reports every failure in
-# one pass. `claude-fix` wakes only when that job is red, repairs the cause
-# using the skills committed at `.claude/skills/`, and pushes.
-#
-# THE PUSH IS THE DANGEROUS PART, SO IT IS THE PART WITH A CHECK ON IT.
-# An agent optimising for "the check went green" has two moves: repair the
-# defect, or delete whatever noticed it. The second is faster and always works.
-# The prompt says not to; the prompt is not what runs the diff. So the diff is
-# read: `no_weakening_gate.py` refuses a push that adds a suppression comment,
-# skips a test, drops assertions, deletes a test file, or turns a CI step into
-# a suggestion. Its own suite is 23 tests and 7/7 mutants killed, because a
-# guard nobody proved is a guard nobody should trust.
-#
-# NOT super-linter. It ships its own linters with default settings and would
-# report thousands of complaints from rules nobody here chose, across 535 files
-# that are fine. A gate people learn to scroll past enforces nothing, and this
-# repository already has ESLint and Ruff configured deliberately.
-
 name: Gate
 
 on:
@@ -31,445 +10,78 @@ permissions:
   contents: read
 
 concurrency:
-  group: gate-${{ github.ref }}
+  group: gate-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+env:
+  NODE_VERSION: '22'
+
 jobs:
-  catch-errors:
-    name: catch-errors
+  frontend:
+    name: frontend
     runs-on: ubuntu-latest
-    steps:
-      # NOT fetch-depth: 0 -- no step in this job reads git history, and the
-      # full clone was ~20s of every PR spent downloading 592 commits nobody
-      # opened. verify.yml and deep-verify.yml keep theirs; they diff history.
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      # UNIVERSAL FINDING NET -- registered right after checkout, because the
-      # matcher FILE must exist in the workspace before ::add-matcher:: can
-      # read it. The matchers turn any mypy / pytest-frame / eslint / pyright /
-      # gcc-shaped log line into a file-and-line annotation; ci-findings.yml
-      # reconciles what was emitted against what GitHub accepted, post-run.
-      - name: Teach the runner to read tool findings
-        run: echo "::add-matcher::.github/matchers/tools.json"
-
-      - name: Setup Node
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Setup Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements.lock
-
-      # `npm ci` installs exactly what the lockfile pins and fails when the
-      # lockfile and package.json disagree. `npm install` would quietly resolve
-      # a different tree and lint code nobody is shipping.
-      - name: Install frontend dependencies
+    timeout-minutes: 20
+    defaults:
+      run:
         working-directory: frontend
-        run: npm ci
-
-      # HASH-LOCKED, because an unpinned install inside the verification system
-      # is a toolchain nobody verified deciding whether the code is verified.
-      # `test_every_pip_install_requires_hashes_and_a_lock` caught the bare
-      # `pip install ruff` this replaced. requirements.lock already pins
-      # ruff==0.16.4, so this is the same tool with its bytes checked.
-      - name: Install Python tooling
-        run: pip install --quiet --require-hashes -r requirements.lock
-
-      # THREE PLAIN STEPS, AND THE FIRST FAILURE STOPS THE JOB.
-      #
-      # The tempting shape is one step per linter with `continue-on-error: true`
-      # so a TypeScript failure does not hide an ESLint one. `gate_integrity.py`
-      # refuses it, and is right to: from outside, a deliberate collector and a
-      # swallowed error are the same YAML. A rule that cannot tell them apart
-      # must forbid the shape rather than trust the author, so it does.
-      #
-      # Wrapping the three in a shell function to collect exit codes fails the
-      # same gate for a subtler reason -- `executes()` requires the pinned
-      # command to be what decides the step's status, and a wrapper takes that
-      # decision away from it.
-      #
-      # Seeing one failure at a time costs nothing here, because the fixer job
-      # runs all three itself and reads every failure in one pass. The place
-      # that needs the full picture gets it.
-      # ANNOTATED WITHOUT WRAPPING. The first version piped tsc through `tee`
-      # to feed an annotator, and `gate_integrity.py` refused it -- correctly,
-      # by its own stated rule: the pinned command must be the thing that
-      # decides the step's status, and a pipe takes that decision away. A
-      # PROBLEM MATCHER annotates from the log as the runner streams it, so the
-      # command stays bare, its exit code stays the verdict, and every tsc
-      # error still lands on its exact file and line in the PR view. Ruff needs
-      # no matcher: `--output-format=github` speaks the annotation syntax
-      # itself, and the flag does not change the exit code.
-      - name: Teach the runner to read tsc findings
-        run: echo "::add-matcher::.github/matchers/tsc.json"
-
-      # THE BARE `npx tsc --noEmit` STEP IS GONE, AND NOTHING IS CHECKED LESS.
-      # It compiled tsconfig.json alone; the "TypeScript, every project" step
-      # below runs `npm run typecheck`, whose first command is the IDENTICAL
-      # compile of the IDENTICAL project, followed by the canvas and server
-      # projects. Two steps compiling the same project was ~40 seconds of the
-      # job re-proving what its later step re-proves anyway -- deleted as
-      # duplicate work, not as a check. The problem matcher registered above
-      # reads any step's log, so typecheck failures still annotate their exact
-      # file and line.
-      - name: ESLint
-        working-directory: frontend
-        run: npm run lint
-
-      - name: Ruff
-        run: ruff check . --output-format=github
-
-      # THE SERVER TYPES, WHICH `tsc -p tsconfig.json` NEVER LOOKED AT.
-      #
-      # The step above compiles the app project. `frontend/server/` is its own
-      # project with its own `tsconfig.server.json`, and nothing in this gate
-      # compiled it -- so every type error in the request handler, the model
-      # clients, the failover chain and the memory stores reached `main` without
-      # a gate reading them. `npm run typecheck` is the repository's own script
-      # and runs all three projects, which is what it was written for.
-      - name: TypeScript, every project
-        working-directory: frontend
-        run: npm run typecheck
-
-      # THE TESTS. THIS GATE HAD NONE, AND THAT IS THE HOLE.
-      #
-      # `catch-errors` ran three linters and stopped. A linter reads shape: it
-      # cannot tell that the veto now refuses a subject the model named, or that
-      # a rate-limited vendor stops the whole failover chain. Both of those were
-      # real, both were found by running the suite, and neither would have moved
-      # a single one of the three steps above.
-      #
-      # `--maxWorkers=4` is not a speed setting. `m4-consistency` spawns five
-      # real processes and asserts they OVERLAP; at full parallelism on a loaded
-      # runner they get serialised and it fails with "the 5 processes never
-      # overlapped, so nothing raced anything" -- a true report about the
-      # machine, not about the code. Bounding the workers leaves it enough CPU
-      # to race, which is the condition the test needs to mean anything.
-      # `--reporter=github-actions` is vitest's own annotation reporter: a
-      # failed test lands as an ::error on its exact file and line, message
-      # included, beside the tsc matcher and ruff's native annotations -- so
-      # every way this job can go red now names its line in the PR view.
-      - name: The server, canvas and laws suites
-        working-directory: frontend
-        # `src/laws` holds the end-to-end product PROMISES -- the canvas
-        # durability laws, the S9 shelf-shape laws, and the assurance engine's
-        # equivalence and canary laws. They ran locally and via the `assurance`
-        # job but NOT here, so a break in a law reached main unless the
-        # assurance check happened to be required. Enforced by the main suite
-        # now, so every law is a required gate regardless of branch protection.
-        run: npx vitest run server src/canvas src/laws --maxWorkers=4 --reporter=default --reporter=github-actions
-
-  # CHAOS RUNS ON EVERY PUSH, AS ITS OWN NAMED CHECK.
-  #
-  # The experiments already execute inside the `frontend` job, because they are
-  # vitest files and that job runs the suite. Giving them a job of their own is
-  # not duplication for its own sake: a chaos failure buried among 8,654 unit
-  # results reads as "a test broke", and the thing worth knowing is WHICH REAL
-  # OUTAGE the software stopped surviving. A check named `chaos` says that in
-  # the PR list without anyone opening a log.
-  #
-  # These are bounded and safe by construction. Every fault is injected into an
-  # in-process fake dependency -- a rejected promise, a truncated string, an
-  # HTML error page -- so nothing touches a network, a database or a deployed
-  # environment. That is what makes it a PR gate rather than a nightly campaign.
-  chaos:
-    name: chaos
-    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # UNIVERSAL FINDING NET -- registered right after checkout, because the
-      # matcher FILE must exist in the workspace before ::add-matcher:: can
-      # read it. The matchers turn any mypy / pytest-frame / eslint / pyright /
-      # gcc-shaped log line into a file-and-line annotation; ci-findings.yml
-      # reconciles what was emitted against what GitHub accepted, post-run.
-      - name: Teach the runner to read tool findings
-        run: echo "::add-matcher::.github/matchers/tools.json"
-
       - name: Setup Node
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        working-directory: frontend
         run: npm ci
 
-      # THE MARKDOWN CHECK IS GONE, AND WHAT IT WAS MEASURING IS WHY.
-      #
-      # This job used to begin by asserting three files exist:
-      #
-      #   test -f .claude/skills/chaos-engineer/SKILL.md
-      #   test -f .claude/skills/chaos-engineering/SKILL.md
-      #   test -f .claude/skills/systematic-debugging/SKILL.md
-      #
-      # So the check named `chaos` went red when three markdown files were
-      # removed, while the fault injection below -- the part that decides
-      # whether the software survives a rejected promise, a truncated string or
-      # an HTML error page -- was untouched and still passing. MEASURED on this
-      # branch: `chaos` was green at dc6312ae and red at e471d64f, and the only
-      # difference between those commits is deleted documentation.
-      #
-      # A check whose colour is dominated by whether a file exists cannot report
-      # on chaos. The skills tree is gone deliberately; the experiments are not,
-      # and they are what this job is for.
-      - name: Inject faults and check the invariant survives
-        working-directory: frontend
-        run: npx vitest run src/canvas/chaos --reporter=verbose
+      - name: Typecheck all TypeScript projects
+        run: npm run typecheck
 
-      - name: Keep the chaos report whatever the verdict
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: chaos-report
-          path: frontend/src/canvas/chaos
-          if-no-files-found: ignore
+      - name: Lint
+        run: npm run lint
 
-  # THE UNPASSABLE GATE -- semantic assurance, the automatic authority.
-  #
-  # This is the merge check for the class of bug ordinary tests cannot see: a
-  # decision that discards information that mattered (the shelf served one
-  # lesson for define/why/graph alike). It runs the engine at
-  # `frontend/scripts/assurance/` -- a self-tested contract, a static
-  # information-loss tripwire, and the runtime EQUIVALENCE detector that drives
-  # the real handler and refuses to let one artifact be reused for a
-  # semantically different request. It is default-false and fail-closed: a
-  # proven violation of a `required` assertion exits non-zero and blocks. The
-  # detector is proven to catch the real historical bug (revert findUnseen's
-  # asked-filter and this job goes red). ASSURANCE_FORCE=HIGH means the
-  # authority never skips the deterministic attack -- risk-tiering is only a
-  # local speed optimisation, and correctness beats speed here.
-  #
-  # ONE required status, not six: the engine fans out to the attacks internally
-  # and returns one verdict, so branch protection stays simple.
-  assurance:
-    name: assurance
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # The gate diffs against the base to classify risk; the full history
-          # of the base ref is needed. The attack itself is forced regardless.
-          fetch-depth: 0
-      - name: Setup Node
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-      - name: The Unpassable Gate
-        working-directory: frontend
-        env:
-          # The authority runs the full semantic attack every time; a proven
-          # violation of a required assertion blocks the merge.
-          ASSURANCE_FORCE: HIGH
+      - name: Unit and law tests
+        run: npm test -- --run
+
+      - name: Reachability gate
+        run: npm run gate:reachability
+
+      - name: Knowledge gate
+        run: npm run gate:knowledge
+
+      - name: Secret exposure gate
+        run: npm run gate:secrets
+
+      - name: Semantic assurance gate
         run: npm run gate:assurance
 
-  # THE NAME IS STUCK; WHAT IT CHECKS IS NOT.
-  #
-  # This job used to run `tests/test_skills_present.py`, which asserted six
-  # `SKILL.md` files existed and were non-empty. The skills tree is now
-  # deliberately removed, so that check asserted a policy this repository no
-  # longer has and went red on every push for ever. A gate that cannot go green
-  # gates nothing: once a check is permanently red nobody can tell a new break
-  # from the standing one, and it turns every other red into noise.
-  #
-  # DELETING THE JOB WAS THE OBVIOUS MOVE AND IT WOULD HAVE BROKEN MERGING.
-  # The live ruleset (id 20990225) requires a status context literally named
-  # `skills`. A required context that never reports is not "absent" to GitHub,
-  # it is PENDING FOR EVER -- so removing this job would have left every pull
-  # request permanently unmergeable, on a check nobody could even find. Renaming
-  # it needs `administration:write`, which this token does not have (the API
-  # answers 403), so the name stays until an admin edits the ruleset.
-  #
-  # SO IT IS POINTED AT SOMETHING WORTH GATING. `test_ci_integrity.py` and
-  # `test_no_weakening_gate.py` are adversarial suites: they sabotage a copy of
-  # the verification system and require it to notice -- a gate deleted while its
-  # job stays green, a report quietly missing, a fixer that suppresses a warning
-  # instead of fixing it. That is a far harder question than whether six
-  # markdown files exist, and nothing else in this workflow asks it.
-  skills:
-    name: skills
+      - name: Production build
+        run: npm run build
+
+  mutation:
+    name: mutation
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # UNIVERSAL FINDING NET -- registered right after checkout, because the
-      # matcher FILE must exist in the workspace before ::add-matcher:: can
-      # read it. The matchers turn any mypy / pytest-frame / eslint / pyright /
-      # gcc-shaped log line into a file-and-line annotation; ci-findings.yml
-      # reconciles what was emitted against what GitHub accepted, post-run.
-      - name: Teach the runner to read tool findings
-        run: echo "::add-matcher::.github/matchers/tools.json"
-
-      - name: Setup Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements.lock
-
-      # THE LOCKFILE, NOT NAMED PACKAGES. `test_every_pip_install_requires_
-      # hashes_and_a_lock` refuses an unpinned install inside the verification
-      # system, and is right to: an unverified toolchain deciding whether
-      # everything else is verified is not a verification system. pytest and
-      # hypothesis are both pinned there, and `tests/conftest.py` imports
-      # hypothesis at module scope, so installing pytest alone dies at
-      # collection with exit 4 -- the weakest possible red.
-      - name: Install pytest and hypothesis
-        run: pip install --quiet --require-hashes -r requirements.lock
-
-      - name: The verification system catches its own sabotage
-        run: python3 -m pytest tests/test_ci_integrity.py tests/test_no_weakening_gate.py -q
-
-  claude-fix:
-    name: claude-fix
-    needs: catch-errors
-    if: failure() && github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-    steps:
-      - name: Checkout the pull request branch
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-
-      # UNIVERSAL FINDING NET -- registered right after checkout, because the
-      # matcher FILE must exist in the workspace before ::add-matcher:: can
-      # read it. The matchers turn any mypy / pytest-frame / eslint / pyright /
-      # gcc-shaped log line into a file-and-line annotation; ci-findings.yml
-      # reconciles what was emitted against what GitHub accepted, post-run.
-      - name: Teach the runner to read tool findings
-        run: echo "::add-matcher::.github/matchers/tools.json"
-
       - name: Setup Node
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Setup Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
-        with:
-          python-version: "3.12"
+      - name: Install dependencies
+        run: npm ci
 
-      # The commit before the fixer touched anything. `no_weakening_gate.py`
-      # reads the range from here to HEAD afterwards, so the guard judges the
-      # fixer's OWN diff and nothing else on the branch.
-      - name: Record the starting commit
-        id: before
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      - name: Fix the failures
-        # PINNED TO A COMMIT, NOT A TAG, AND THE REASON IS SITTING IN THIS JOB:
-        # this action receives the account's OAuth tokens, and a tag can be
-        # moved to point at different code without the reference changing.
-        #
-        # `@v1` was wrong and the run said so -- "unable to find version v1".
-        # The tag was recalled rather than looked up, which is the exact failure
-        # `source-driven-development` names. Real tags stop at v0.0.29.
-        #
-        # WORTH KNOWING: the repository was last pushed 2025-07-02. This is an
-        # unmaintained third-party action holding a credential, so the pin is
-        # also a freeze -- it cannot start doing something new without this line
-        # changing in a commit somebody reads.
-        uses: grll/claude-code-base-action@c021fe71647df64674c9cb587fbde168692c55c8 # v0.0.29
-        with:
-          use_oauth: true
-          claude_access_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_refresh_token: ${{ secrets.CLAUDE_OAUTH_REFRESH_TOKEN }}
-          claude_expires_at: ${{ secrets.CLAUDE_OAUTH_EXPIRES_AT }}
-          allowed_tools: "Bash,Read,Edit,Write,Glob,Grep"
-          timeout_minutes: "30"
-          prompt: |
-            The `catch-errors` job on this pull request is red. TypeScript,
-            ESLint, Ruff, the server typecheck or the test suites reported
-            something. Repair the cause.
-
-            Read `CLAUDE.md` at the repository root; its rules apply to you
-            exactly as they apply to a person. Two of them decide this job:
-            "When a test fails, FIX THE CODE. Never weaken the test. A weakened
-            test is a lie that ships." and "If you cannot name the command that
-            proved it, it is an assumption. Say so."
-
-            Reproduce first. Run the failing command yourself and read the real
-            output rather than guessing from the job name:
-
-              cd frontend && npx tsc --noEmit
-              cd frontend && npm run lint
-              cd frontend && npm run typecheck
-              cd frontend && npx vitest run server src/canvas --maxWorkers=4
-              ruff check .
-
-            YOU MAY NOT MAKE THE ERROR DISAPPEAR. You may only make the cause
-            go away. These are refused by `scripts/no_weakening_gate.py`, which
-            runs on your diff in the next step and fails this job:
-
-              - adding `@ts-ignore`, `eslint-disable`, `# noqa`, `# type: ignore`,
-                `istanbul ignore`, `Stryker disable`, `nosemgrep` or `gitleaks:allow`
-              - adding `.skip`, `.todo`, `xit`, or `@pytest.mark.skip`
-              - deleting assertions, or deleting a test file
-              - adding `continue-on-error`, `|| true`, or `--exit-zero`
-
-            If the honest fix needs a test to change, STOP. Change nothing, and
-            say in your final message which test and why. A test moves on
-            mutation evidence read by a person, never to reach green.
-
-            If you cannot find the cause, say so plainly and change nothing. An
-            unexplained edit is worse than a red check, because the red check is
-            at least honest.
-
-      # THE GUARD. Everything above is a request; this is the control.
-      - name: The fix may not weaken anything
-        run: |
-          set -euo pipefail
-          git diff "${{ steps.before.outputs.sha }}..HEAD" > /tmp/fixer.diff
-          if [ ! -s /tmp/fixer.diff ]; then
-            echo "The fixer changed nothing. Nothing to check." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          python3 scripts/no_weakening_gate.py < /tmp/fixer.diff | tee /tmp/verdict.txt
-          {
-            echo "### The fixer's diff"
-            echo '```'
-            cat /tmp/verdict.txt
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Keep the diff whatever the verdict
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: claude-fix-diff
-          path: /tmp/fixer.diff
-          if-no-files-found: ignore
-
-      # Only reached when the guard passed. A weakening diff dies in the runner
-      # rather than landing on the branch and being argued about later.
-      - name: Push the fix
-        run: |
-          set -euo pipefail
-          if git diff --quiet "${{ steps.before.outputs.sha }}..HEAD"; then
-            echo "Nothing to push."
-            exit 0
-          fi
-          git push origin HEAD:"${{ github.event.pull_request.head.ref }}"
+      - name: Mutation test the verification suite
+        run: npm run test:mutation

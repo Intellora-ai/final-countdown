@@ -17,6 +17,9 @@ jobs:
     name: e2e
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -26,24 +29,24 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
         run: npm ci
 
       - name: Install Chromium
         run: npx --no-install playwright install chromium
 
-      - name: Run Playwright
-        run: npm run test:e2e -- --fail-on-flaky-tests
+      - name: Run canvas Playwright suite
+        run: npm run test:canvas -- --fail-on-flaky-tests
 
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: playwright-report-${{ github.sha }}-${{ github.run_id }}
+          name: canvas-playwright-report-${{ github.sha }}-${{ github.run_id }}
           path: |
-            playwright-report/
-            test-results/
+            frontend/playwright-report/
+            frontend/test-results/
           if-no-files-found: ignore
           retention-days: 14

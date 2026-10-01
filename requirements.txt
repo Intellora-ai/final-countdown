@@ -27,7 +27,7 @@ pytest-cov>=5.0
 # hash-pinned in requirements.lock like everything else.
 pytest-xdist>=3.6
 hypothesis>=6.100
-pyright>=1.1.390
+pyright>=1.1.411
 bandit[sarif]>=1.8
 # mutmut REMOVED. The gate named `mutmut` runs scripts/mutation_gate.py —
 # our own AST mutation scorer — not the mutmut package, which was imported

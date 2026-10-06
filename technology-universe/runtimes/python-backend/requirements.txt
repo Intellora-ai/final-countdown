@@ -18,7 +18,7 @@ click-plugins==1.1.1.2
 click-repl==0.3.0
 croniter==6.2.4
 cryptography==50.0.0
-Django==6.1
+Django==6.1.1
 dramatiq==2.2.0
 duckdb==1.5.5
 Faker==40.36.0

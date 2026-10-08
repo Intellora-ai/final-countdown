@@ -32,7 +32,7 @@ export function Canvas() {
   }, [])
   async function submit(spoken?: string) {
     const value = (spoken ?? question).trim()
-    if (!value || busy) return
+    if (!value || (busy && !spoken)) return
     setBusy(true); setError(''); requestRef.current?.abort(); const controller = new AbortController(); requestRef.current = controller
     try {
       const response = await fetch('/api/lesson', {
@@ -56,6 +56,7 @@ export function Canvas() {
   function listen() {
     if (listening) { stopListeningRef.current(); setListening(false); return }
     if (speaking) { stopSpeaking(); setSpeaking(false) }
+    if (busy) requestRef.current?.abort()
     setVoiceError(''); stopListeningRef.current = startListening(text => { setQuestion(text); void submit(text) }, () => setListening(false), () => { setListening(false); setVoiceError('Microphone input is unavailable in this browser.') }); setListening(true)
   }
   function readAloud() {

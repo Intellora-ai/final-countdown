@@ -21,6 +21,10 @@ export async function generateLesson(input: unknown, config: ModelConfig, send: 
       response_format: { type: 'json_schema', json_schema: { name: 'explanation', schema: zodToJsonSchema(lessonSchema), strict: true } },
       messages: [
         { role: 'system', content: lessonInstructions },
+        ...request.memory.flatMap(turn => [
+          { role: 'user', content: turn.question },
+          { role: 'assistant', content: JSON.stringify(turn.lesson) },
+        ]),
         ...(request.previous ? [{ role: 'assistant', content: JSON.stringify(request.previous) }] : []),
         { role: 'user', content: request.question },
       ],

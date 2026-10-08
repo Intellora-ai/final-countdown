@@ -30,7 +30,11 @@ export function Canvas() {
     try {
       const response = await fetch('/api/lesson', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(65000),
-        body: JSON.stringify({ question: value, ...(followUp && entry ? { previous: entry.lesson } : {}) }),
+        body: JSON.stringify({
+          question: value,
+          memory: entries.slice(-8).map(item => ({ question: item.question, lesson: item.lesson })),
+          ...(followUp && entry ? { previous: entry.lesson } : {}),
+        }),
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error ?? 'The lesson could not be created.')

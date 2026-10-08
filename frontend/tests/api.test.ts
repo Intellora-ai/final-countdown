@@ -22,13 +22,14 @@ describe('one teaching path', () => {
   })
   it('sends the actual question and previous lesson, with credentials only in the server request', async () => {
     const send = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ choices: [{ message: { content: JSON.stringify(example) } }] }))
-    expect(await generateLesson({ question: 'Why does it accelerate?', previous: example }, config, send)).toEqual(example)
+    expect(await generateLesson({ question: 'Why does it accelerate?', previous: example, memory: [{ question: 'What is energy?', lesson: example }] }, config, send)).toEqual(example)
     const options = send.mock.calls[0][1]!
     const payload = JSON.parse(options.body as string)
     expect(payload.response_format.type).toBe('json_schema')
     expect(payload.response_format.json_schema.schema.properties.blocks).toBeTruthy()
     expect(payload.messages.at(-1).content).toBe('Why does it accelerate?')
-    expect(JSON.parse(payload.messages[1].content)).toEqual(example)
+    expect(payload.messages.some((message: { role: string; content: string }) => message.role === 'assistant' && message.content.includes('Energy transfer'))).toBe(true)
+    expect(payload.messages.some((message: { content: string }) => message.content === 'What is energy?')).toBe(true)
     expect(options.headers).toMatchObject({ Authorization: 'Bearer test-only-key' })
     expect(options.redirect).toBe('error')
   })

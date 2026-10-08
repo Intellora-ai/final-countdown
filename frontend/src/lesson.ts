@@ -24,7 +24,11 @@ export const lessonSchema = z.object({
   check: text.optional(),
 })
 export type Lesson = z.infer<typeof lessonSchema>
-export const requestSchema = z.object({ question: text.max(1000), previous: lessonSchema.optional() })
+export const requestSchema = z.object({
+  question: text.max(1000),
+  previous: lessonSchema.optional(),
+  memory: z.array(z.object({ question: text.max(1000), lesson: lessonSchema })).max(8).default([]),
+})
 
 export const lessonInstructions = `Answer the student's actual question accurately, using the shortest explanation that resolves it. Answer directly before adding teaching material. State uncertainty instead of guessing. Use the previous explanation as context for follow-ups.
 Visual blocks are optional. Add a diagram, steps, comparison, or chart only when it makes the answer easier to understand. Use no visual for a simple factual answer. Connect diagram edges only to distinct node IDs that exist in that diagram.

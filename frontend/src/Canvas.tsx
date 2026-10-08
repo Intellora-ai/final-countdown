@@ -23,6 +23,7 @@ export function Canvas() {
   const [listening, setListening] = useState(false)
   const [speaking, setSpeaking] = useState(false)
   const [voiceError, setVoiceError] = useState('')
+  const [conversationMode, setConversationMode] = useState(false)
   const stopListeningRef = useRef<() => void>(() => {})
   const requestRef = useRef<AbortController | null>(null)
   const entry = entries.find(e => e.id === active)
@@ -59,7 +60,7 @@ export function Canvas() {
   }
   function readAloud() {
     if (speaking) { stopSpeaking(); setSpeaking(false); return }
-    if (!entry || !speak(`${entry.lesson.title}. ${entry.lesson.explanation}`, () => setSpeaking(false))) { setVoiceError('Spoken answers are unavailable in this browser.'); return }
+    if (!entry || !speak(`${entry.lesson.title}. ${entry.lesson.explanation}`, () => { setSpeaking(false); if (conversationMode) listen() })) { setVoiceError('Spoken answers are unavailable in this browser.'); return }
     setSpeaking(true)
   }
   return <div className="app">
@@ -75,6 +76,7 @@ export function Canvas() {
       <div className="composer"><form onSubmit={event => { event.preventDefault(); void submit() }}>
         {entry && <label className="follow-up"><input type="checkbox" checked={followUp} onChange={e => setFollowUp(e.target.checked)} /> Use this lesson as context</label>}
         <div className="input-row"><textarea aria-label="Your question" placeholder={entry ? 'Ask a question, or try answering the check…' : 'What would you like to learn?'} value={question} maxLength={1000} disabled={busy} onChange={e => setQuestion(e.target.value)} rows={2} /><div className="composer-actions">{recognitionAvailable() && <button type="button" onClick={listen} disabled={busy}>{listening ? 'Stop' : '🎙️'}</button>}<button type="submit" disabled={busy || !question.trim()}>{busy ? 'Teaching…' : 'Teach me ↗'}</button></div></div>
+        {recognitionAvailable() && <label className="follow-up"><input type="checkbox" checked={conversationMode} onChange={e => setConversationMode(e.target.checked)} /> Conversation mode: listen after each answer</label>}
         {listening && <p role="status">Listening… pause when you finish.</p>}{busy && <p role="status">Working on your question…</p>}{error && <p role="alert">{error}</p>}{voiceError && <p role="alert">{voiceError}</p>}{storageError && <p role="alert">{storageError}</p>}
       </form></div>
     </main>

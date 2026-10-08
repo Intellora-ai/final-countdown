@@ -59,8 +59,8 @@ export function Canvas() {
   }
   function readAloud() {
     if (speaking) { stopSpeaking(); setSpeaking(false); return }
-    if (!entry || !speak(`${entry.lesson.title}. ${entry.lesson.explanation}`)) { setVoiceError('Spoken answers are unavailable in this browser.'); return }
-    setSpeaking(true); window.setTimeout(() => setSpeaking(false), Math.max(1000, entry.lesson.explanation.length * 80))
+    if (!entry || !speak(`${entry.lesson.title}. ${entry.lesson.explanation}`, () => setSpeaking(false))) { setVoiceError('Spoken answers are unavailable in this browser.'); return }
+    setSpeaking(true)
   }
   return <div className="app">
     <aside><a className="brand" href="#canvas"><span>◈</span> Canvas</a><p className="sidebar-note">Understand it. See it. Ask again.</p>

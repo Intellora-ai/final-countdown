@@ -24,17 +24,18 @@ export function Canvas() {
   const [speaking, setSpeaking] = useState(false)
   const [voiceError, setVoiceError] = useState('')
   const stopListeningRef = useRef<() => void>(() => {})
+  const requestRef = useRef<AbortController | null>(null)
   const entry = entries.find(e => e.id === active)
   useEffect(() => {
     fetch('/api/health').then(r => { if (!r.ok) throw new Error(); return r.json() }).then(r => setConnected(r.modelConfigured === true)).catch(() => setError('The teaching server is unavailable. Restart the development server.'))
   }, [])
-  async function submit() {
-    const value = question.trim()
+  async function submit(spoken?: string) {
+    const value = (spoken ?? question).trim()
     if (!value || busy) return
-    setBusy(true); setError('')
+    setBusy(true); setError(''); requestRef.current?.abort(); const controller = new AbortController(); requestRef.current = controller
     try {
       const response = await fetch('/api/lesson', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(65000),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal,
         body: JSON.stringify({
           question: value,
           memory: entries.slice(-8).map(item => ({ question: item.question, lesson: item.lesson })),
@@ -48,12 +49,13 @@ export function Canvas() {
       setEntries(next); setActive(next[next.length - 1].id); setQuestion(''); setFollowUp(true)
       try { localStorage.setItem(storageKey, JSON.stringify(next)); setStorageError('') }
       catch { setStorageError('Browser storage is full or unavailable. This lesson will be lost when this tab closes.') }
-    } catch (err) { setError(err instanceof Error ? err.message : 'The lesson could not be created.') }
-    finally { setBusy(false) }
+    } catch (err) { if ((err as Error).name !== 'AbortError') setError(err instanceof Error ? err.message : 'The lesson could not be created.') }
+    finally { if (requestRef.current === controller) { requestRef.current = null; setBusy(false) } }
   }
   function listen() {
     if (listening) { stopListeningRef.current(); setListening(false); return }
-    setVoiceError(''); stopListeningRef.current = startListening(text => setQuestion(text), () => setListening(false), () => { setListening(false); setVoiceError('Microphone input is unavailable in this browser.') }); setListening(true)
+    if (speaking) { stopSpeaking(); setSpeaking(false) }
+    setVoiceError(''); stopListeningRef.current = startListening(text => { setQuestion(text); void submit(text) }, () => setListening(false), () => { setListening(false); setVoiceError('Microphone input is unavailable in this browser.') }); setListening(true)
   }
   function readAloud() {
     if (speaking) { stopSpeaking(); setSpeaking(false); return }

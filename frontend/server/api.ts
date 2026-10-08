@@ -30,6 +30,7 @@ export async function generateLesson(input: unknown, config: ModelConfig, send: 
         ...(request.previous ? [{ role: 'assistant', content: JSON.stringify(request.previous) }] : []),
         { role: 'user', content: request.question },
       ],
+      options: { num_ctx: Math.max(4096, Math.min(32768, Number(process.env.LESSON_CONTEXT ?? 8192))) },
     }),
   })
   if (!response.ok) throw new Error(`MODEL_HTTP_${response.status}`)

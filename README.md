@@ -1,5 +1,9 @@
 # final-countdown
 
+The student-facing app is now the simplified learning canvas in `frontend/`.
+Start there: [canvas setup and requirements](frontend/README.md). The Python
+verification workflow below is separate and does not power the canvas.
+
 Learning OS. Every function in `src/` carries a Lean 4 specification kernel-checked by
 AXLE; the rest of the repository is gated by coverage, mutation and type checks.
 

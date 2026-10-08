@@ -12,6 +12,7 @@ what a general assistant can do from what this small local product can prove.
 - Render diagrams as safe SVG data, with node selection and edge highlighting.
 - Save and reload lessons in the current browser.
 - Run as one Vite development process or one Node production process.
+- Run bounded arithmetic through the `/api/calculate` tool without executing code.
 
 ## Missing capabilities and the deletion decision
 
@@ -19,7 +20,7 @@ what a general assistant can do from what this small local product can prove.
 | --- | --- | --- | --- |
 | Web search and citations | Useful for current facts and source review | No proof that every question needs the web; adds network, source quality, and privacy costs | Defer until a tested question needs current information |
 | File upload and reading | Useful when the student has their own material | Customer-level request only if supplied; no file workflow exists yet | Defer; do not add upload storage without a concrete use case |
-| Code execution | Useful for calculations and programming questions | A calculator is a smaller validated requirement | Add a bounded calculator first; reject arbitrary code execution |
+| Code execution | Useful for calculations and programming questions | Arbitrary execution is unsafe; arithmetic is common and testable | Bounded calculator added; arbitrary code execution deleted |
 | Image/audio understanding | GPT-like expectation, not a physical requirement | Needs upload, storage, model support, and privacy policy | Defer |
 | Streaming | UX preference; the answer can arrive as one validated object | Not required for correctness | Defer |
 | Cross-device memory/accounts | Convenience requirement | Browser-local memory already proves the core loop | Defer; no database or identity system |

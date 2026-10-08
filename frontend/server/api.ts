@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import { lessonInstructions, lessonSchema, requestSchema } from '../src/lesson'
+import { calculate } from './calculator'
 
 export interface ModelConfig { url?: string; model?: string; key?: string }
 export function modelConfig(): ModelConfig {
@@ -46,6 +47,16 @@ export async function api(req: IncomingMessage, res: ServerResponse, config = mo
   const path = (req.url ?? '').split('?')[0]
   if (path === '/api/health' && req.method === 'GET') {
     json(res, 200, { ok: true, modelConfigured: Boolean(config.url && config.model) }); return
+  }
+  if (path === '/api/calculate' && req.method === 'POST') {
+    let body = ''
+    try {
+      for await (const chunk of req) { body += chunk.toString(); if (Buffer.byteLength(body) > 4096) throw new Error('TOO_LARGE') }
+      const value = JSON.parse(body) as { expression?: unknown }
+      if (typeof value.expression !== 'string') throw new Error('CALCULATION_INVALID')
+      json(res, 200, { expression: value.expression, result: calculate(value.expression) })
+    } catch { json(res, 400, { error: 'Enter a valid arithmetic expression.' }) }
+    return
   }
   if (path !== '/api/lesson' || req.method !== 'POST') {
     json(res, 404, { error: 'Unknown API route.' }); return

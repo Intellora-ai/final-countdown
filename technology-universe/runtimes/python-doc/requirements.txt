@@ -11,7 +11,7 @@ pillow==12.3.0
 prettytable==3.18.0
 pymupdf==1.28.2
 pyparsing==3.3.2
-pypdf==6.16.1
+pypdf==6.19.0
 pyshacl==0.40.1
 rdflib==7.6.0
 scikit-image==0.26.0

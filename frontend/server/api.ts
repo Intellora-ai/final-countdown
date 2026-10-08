@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import { lessonInstructions, lessonSchema, requestSchema } from '../src/lesson'
 import { calculate } from './calculator'
+import { searchWeb } from './tools'
 
 export interface ModelConfig { url?: string; model?: string; key?: string }
 export function modelConfig(): ModelConfig {
@@ -56,6 +57,29 @@ export async function api(req: IncomingMessage, res: ServerResponse, config = mo
       if (typeof value.expression !== 'string') throw new Error('CALCULATION_INVALID')
       json(res, 200, { expression: value.expression, result: calculate(value.expression) })
     } catch { json(res, 400, { error: 'Enter a valid arithmetic expression.' }) }
+    return
+  }
+  if (path === '/api/search' && req.method === 'POST') {
+    let body = ''
+    try {
+      for await (const chunk of req) { body += chunk.toString(); if (Buffer.byteLength(body) > 4096) throw new Error() }
+      const value = JSON.parse(body) as { query?: unknown }
+      if (typeof value.query !== 'string' || !value.query.trim() || value.query.length > 300) throw new Error()
+      json(res, 200, { results: await searchWeb(value.query) })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : ''
+      json(res, message === 'SEARCH_NOT_CONFIGURED' ? 503 : 502, { error: message === 'SEARCH_NOT_CONFIGURED' ? 'Web search is not configured.' : 'Web search failed.' })
+    }
+    return
+  }
+  if (path === '/api/tool' && req.method === 'POST') {
+    let body = ''
+    try {
+      for await (const chunk of req) { body += chunk.toString(); if (Buffer.byteLength(body) > 4096) throw new Error() }
+      const value = JSON.parse(body) as { name?: unknown; input?: unknown }
+      if (value.name !== 'calculator' || typeof value.input !== 'string') throw new Error()
+      json(res, 200, { name: value.name, output: { result: calculate(value.input) } })
+    } catch { json(res, 400, { error: 'Only the bounded calculator tool is available.' }) }
     return
   }
   if (path !== '/api/lesson' || req.method !== 'POST') {

@@ -13,12 +13,14 @@ what a general assistant can do from what this small local product can prove.
 - Save and reload lessons in the current browser.
 - Run as one Vite development process or one Node production process.
 - Run bounded arithmetic through the `/api/calculate` tool without executing code.
+- Expose a provider-neutral `/api/search` adapter with bounded citation results when `SEARCH_API_URL` is configured.
+- Expose a `/api/tool` registry boundary; only the validated calculator is enabled.
 
 ## Missing capabilities and the deletion decision
 
 | Capability | Who wants it / why | Is it necessary now? | Decision |
 | --- | --- | --- | --- |
-| Web search and citations | Useful for current facts and source review | No proof that every question needs the web; adds network, source quality, and privacy costs | Defer until a tested question needs current information |
+| Web search and citations | Useful for current facts and source review | Requires a provider and source-quality policy | Adapter added; disabled until `SEARCH_API_URL` is configured |
 | File upload and reading | Useful when the student has their own material | Customer-level request only if supplied; no file workflow exists yet | Defer; do not add upload storage without a concrete use case |
 | Code execution | Useful for calculations and programming questions | Arbitrary execution is unsafe; arithmetic is common and testable | Bounded calculator added; arbitrary code execution deleted |
 | Image/audio understanding | GPT-like expectation, not a physical requirement | Needs upload, storage, model support, and privacy policy | Defer |

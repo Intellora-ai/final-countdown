@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
 import { lessonSchema, type Lesson } from './lesson'
 import { Visual } from './Visual'
+import { recognitionAvailable, speak, startListening, stopSpeaking } from './voice'
 
 const historySchema = z.array(z.object({ id: z.string(), question: z.string(), lesson: lessonSchema }))
 type Entry = z.infer<typeof historySchema>[number]
@@ -19,6 +20,10 @@ export function Canvas() {
   const [storageError, setStorageError] = useState('')
   const [connected, setConnected] = useState<boolean | null>(null)
   const [followUp, setFollowUp] = useState(() => entries.length > 0)
+  const [listening, setListening] = useState(false)
+  const [speaking, setSpeaking] = useState(false)
+  const [voiceError, setVoiceError] = useState('')
+  const stopListeningRef = useRef<() => void>(() => {})
   const entry = entries.find(e => e.id === active)
   useEffect(() => {
     fetch('/api/health').then(r => { if (!r.ok) throw new Error(); return r.json() }).then(r => setConnected(r.modelConfigured === true)).catch(() => setError('The teaching server is unavailable. Restart the development server.'))
@@ -46,6 +51,15 @@ export function Canvas() {
     } catch (err) { setError(err instanceof Error ? err.message : 'The lesson could not be created.') }
     finally { setBusy(false) }
   }
+  function listen() {
+    if (listening) { stopListeningRef.current(); setListening(false); return }
+    setVoiceError(''); stopListeningRef.current = startListening(text => setQuestion(text), () => setListening(false), () => { setListening(false); setVoiceError('Microphone input is unavailable in this browser.') }); setListening(true)
+  }
+  function readAloud() {
+    if (speaking) { stopSpeaking(); setSpeaking(false); return }
+    if (!entry || !speak(`${entry.lesson.title}. ${entry.lesson.explanation}`)) { setVoiceError('Spoken answers are unavailable in this browser.'); return }
+    setSpeaking(true); window.setTimeout(() => setSpeaking(false), Math.max(1000, entry.lesson.explanation.length * 80))
+  }
   return <div className="app">
     <aside><a className="brand" href="#canvas"><span>◈</span> Canvas</a><p className="sidebar-note">Understand it. See it. Ask again.</p>
       <button className="new-topic" disabled={busy} onClick={() => { setActive(null); setFollowUp(false); setQuestion(''); setError('') }}>+ New topic</button>
@@ -54,12 +68,12 @@ export function Canvas() {
     </aside>
     <main id="canvas"><header><span>LEARNING CANVAS</span><span className="connection">{connected === null ? 'Checking configuration…' : connected ? 'Model configured' : 'Model not configured'}</span></header>
       {connected === false && <p className="notice" role="status">Teaching isn’t connected yet. Ask the person running this canvas to connect a model. You can still open saved lessons.</p>}
-      {entry ? <article><p className="eyebrow">YOU ASKED · {entry.question}</p><h1>{entry.lesson.title}</h1><p className="explanation">{entry.lesson.explanation}</p>{entry.lesson.blocks.length > 0 && <div className="visuals">{entry.lesson.blocks.map((block, i) => <Visual block={block} key={i} />)}</div>}{entry.lesson.check && <section className="check"><span>YOUR TURN</span><p>{entry.lesson.check}</p><button onClick={() => { setFollowUp(true); document.querySelector<HTMLTextAreaElement>('textarea')?.focus() }}>Answer or ask below ↓</button></section>}</article>
+      {entry ? <article><p className="eyebrow">YOU ASKED · {entry.question}</p><div className="lesson-heading"><h1>{entry.lesson.title}</h1><button onClick={readAloud}>{speaking ? 'Stop speaking' : '🔊 Read aloud'}</button></div><p className="explanation">{entry.lesson.explanation}</p>{entry.lesson.blocks.length > 0 && <div className="visuals">{entry.lesson.blocks.map((block, i) => <Visual block={block} key={i} />)}</div>}{entry.lesson.check && <section className="check"><span>YOUR TURN</span><p>{entry.lesson.check}</p><button onClick={() => { setFollowUp(true); document.querySelector<HTMLTextAreaElement>('textarea')?.focus() }}>Answer or ask below ↓</button></section>}</article>
         : <section className="welcome"><span className="eyebrow">A SPACE TO FIGURE THINGS OUT</span><h1>What do you want<br />to understand?</h1><p>Ask anything. Get a clear explanation, with visuals when they help. Then work through your questions together.</p></section>}
       <div className="composer"><form onSubmit={event => { event.preventDefault(); void submit() }}>
         {entry && <label className="follow-up"><input type="checkbox" checked={followUp} onChange={e => setFollowUp(e.target.checked)} /> Use this lesson as context</label>}
-        <div className="input-row"><textarea aria-label="Your question" placeholder={entry ? 'Ask a question, or try answering the check…' : 'What would you like to learn?'} value={question} maxLength={1000} disabled={busy} onChange={e => setQuestion(e.target.value)} rows={2} /><button type="submit" disabled={busy || !question.trim()}>{busy ? 'Teaching…' : 'Teach me ↗'}</button></div>
-        {busy && <p role="status">Working on your question…</p>}{error && <p role="alert">{error}</p>}{storageError && <p role="alert">{storageError}</p>}
+        <div className="input-row"><textarea aria-label="Your question" placeholder={entry ? 'Ask a question, or try answering the check…' : 'What would you like to learn?'} value={question} maxLength={1000} disabled={busy} onChange={e => setQuestion(e.target.value)} rows={2} /><div className="composer-actions">{recognitionAvailable() && <button type="button" onClick={listen} disabled={busy}>{listening ? 'Stop' : '🎙️'}</button>}<button type="submit" disabled={busy || !question.trim()}>{busy ? 'Teaching…' : 'Teach me ↗'}</button></div></div>
+        {listening && <p role="status">Listening… pause when you finish.</p>}{busy && <p role="status">Working on your question…</p>}{error && <p role="alert">{error}</p>}{voiceError && <p role="alert">{voiceError}</p>}{storageError && <p role="alert">{storageError}</p>}
       </form></div>
     </main>
   </div>

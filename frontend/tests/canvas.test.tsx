@@ -24,6 +24,18 @@ it('shows generated content, persists it, and sends the selected lesson with a f
   view.unmount(); render(<Canvas />)
   await screen.findByRole('heading', { name: 'Energy transfer', level: 1 })
 })
+it('lets a learner select and clear a diagram node', async () => {
+  const diagram = { title: 'Energy transfer', explanation: 'Energy moves.', blocks: [{ kind: 'diagram', title: 'Flow', nodes: [{ id: 'a', label: 'Source' }, { id: 'b', label: 'Store' }], edges: [{ from: 'a', to: 'b', label: 'moves' }] }] }
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockImplementation(async url => String(url).endsWith('health') ? Response.json({ modelConfigured: true }) : Response.json({ lesson: diagram })))
+  render(<Canvas />)
+  fireEvent.change(screen.getByLabelText('Your question'), { target: { value: 'Show energy flow' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Teach me ↗' }))
+  await screen.findByRole('button', { name: /Source/ })
+  fireEvent.click(screen.getByRole('button', { name: /Source/ }))
+  expect(screen.getByRole('button', { name: /Clear selection/ })).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: /Clear selection/ }))
+  expect(screen.queryByRole('button', { name: /Clear selection/ })).toBeNull()
+})
 it('keeps the question on failure and never substitutes a stored example', async () => {
   vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockImplementation(async url => String(url).endsWith('health') ? Response.json({ modelConfigured: false }) : Response.json({ error: 'Connect a model.' }, { status: 503 })))
   render(<Canvas />)

@@ -10,7 +10,6 @@ what a general assistant can do from what this small local product can prove.
 - Return text with optional diagrams, steps, comparisons, and charts.
 - Validate model output before rendering it.
 - Render diagrams as safe SVG data, with node selection and edge highlighting.
-- Route visual explanations by need: text, steps, comparisons, charts, or native SVG diagrams; no raster-generation dependency.
 - Save and reload lessons in the current browser.
 - Run as one Vite development process or one Node production process.
 - Run bounded arithmetic through the `/api/calculate` tool without executing code.

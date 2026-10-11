@@ -39,3 +39,18 @@ DOMPurify sanitizes displayed and exported artwork; external resources, HTML,
 CSS stylesheets and animation are excluded. SVG presentation attributes and local
 definitions remain available. This expands composition freedom without promising
 photorealistic raster generation or guaranteed model accuracy.
+
+## Interactive vector exploration
+
+SVG blocks may define up to twelve named slider parameters with labels, bounds,
+defaults and steps. Numeric {{expressions}} in SVG attributes/text are evaluated
+with the shared arithmetic parser, without eval or generated JavaScript. This
+works across subjects: the model defines the variables and relationships.
+Sliders update locally, reset to defaults, and SVG export captures current values.
+Changing a slider does not make another model request. Defaults are saved with
+lessons; temporary slider positions reset when the drawing changes or reloads.
+Invalid arithmetic is reported while controls remain available for recovery.
+Duplicate IDs and missing local SVG definitions are detected before display.
+These controls require no paid API, new package or subject-specific engine.
+
+Object editing, streaming and file/image understanding remain future work.

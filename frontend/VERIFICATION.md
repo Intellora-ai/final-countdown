@@ -39,10 +39,10 @@ npm run build
 npm run test:e2e
 ```
 
-The completed unit/integration run has **119 passing tests in twelve files**.
+The completed unit/integration run has **122 passing tests in twelve files**.
 The build typechecks and produces browser and Node server bundles.
 
-The **ten passing Chromium browser checks** run the following five workflows
+The **twelve passing Chromium browser checks** run the following six workflows
 on desktop and phone:
 
 1. Generated lesson, persistence, reload, and context-carrying follow-up.
@@ -143,3 +143,18 @@ local IDs and references fixed it without weakening sanitization. Two new browse
 checks verify image decoding, zoom, sanitized download, persistence and no
 external resource requests on desktop and phone. These are renderer fixtures,
 not proof that the existing small model generates high-quality SVG.
+
+## Interactive exploration checks
+
+Added named-variable arithmetic bindings, validated slider controls, default reset,
+current-value export, and SVG definition diagnostics. Unit checks verify multiple
+variables, rejected script-shaped expressions, unknown variables, division by zero,
+invalid bounds/defaults/steps, reserved/duplicate control IDs and broken references.
+Desktop and phone browser checks change geometry with the keyboard, inspect the
+updated SVG, download the current geometry, and reset to the default.
+
+The restricted sandbox initially denied listen(127.0.0.1) with EPERM in five API
+checks; rerunning with local-server permissions passed the unchanged API checks.
+All 122 unit/integration checks, 12 browser checks and the build completed.
+No model-quality, real audio hardware, file input or streaming claim follows from
+these tests. Parameters require a model that follows the same JSON drawing schema.

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
+import { modelLessonSchema } from '../src/lesson'
 import { describe, expect, it } from 'vitest'
-import { prepareSvg } from '../src/SvgArtwork'
+import { bindSvg, prepareSvg } from '../src/SvgArtwork'
 const wrap = (content: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400">${content}</svg>`
 describe('general SVG artwork', () => {
   it.each([
@@ -19,5 +20,25 @@ describe('general SVG artwork', () => {
   })
   it.each(['<div>not SVG</div>', '<svg/>', '<svg viewBox="0 0 0 40"/>', '<svg viewBox="0 0 Infinity 40"/>'])('rejects invalid artwork: %s', source => {
     expect(() => prepareSvg(source)).toThrow()
+  })
+})
+
+describe('declarative interactive drawings', () => {
+  it('evaluates multiple named parameters and math without executing code', () => {
+    expect(bindSvg('<circle cx="{{origin+radius*cos(angle)}}" r="{{radius}}"/>', { origin: 20, radius: 10, angle: 0 })).toBe('<circle cx="30" r="10"/>')
+    expect(() => bindSvg('{{window.alert(1)}}', {})).toThrow()
+    expect(() => bindSvg('{{missing}}', {})).toThrow()
+    expect(() => bindSvg('{{1/zero}}', { zero: 0 })).toThrow()
+  })
+  it('detects broken definitions and duplicate IDs instead of displaying incomplete artwork', () => {
+    expect(() => prepareSvg(wrap('<path fill="url(#missing)"/>'))).toThrow(/missing/)
+    expect(() => prepareSvg(wrap('<g id="a"/><g id="a"/>'))).toThrow(/unique/)
+  })
+  it('rejects unusable controls before accepting model output', () => {
+    const p = { id: 'radius', label: 'Radius', min: 1, max: 100, value: 20, step: 1 }
+    const lesson = (parameters: unknown[]) => ({ explanation: 'Explore.', blocks: [{ kind: 'svg', title: 'Explore', source: wrap('<circle r="{{radius}}"/>'), parameters }] })
+    expect(modelLessonSchema.safeParse(lesson([p])).success).toBe(true)
+    for (const invalid of [{ ...p, max: 0 }, { ...p, value: 200 }, { ...p, step: 0 }, { ...p, id: 'sin' }]) expect(modelLessonSchema.safeParse(lesson([invalid])).success).toBe(false)
+    expect(modelLessonSchema.safeParse(lesson([p, p])).success).toBe(false)
   })
 })

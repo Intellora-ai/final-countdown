@@ -36,7 +36,12 @@ const scene = z.object({ kind: z.literal('scene'), title: text, width: z.number(
     if (element.type === 'plot' && (element.xMax <= element.xMin || element.yMax <= element.yMin)) ctx.addIssue({ code: 'custom', path: ['elements', i], message: 'Plot ranges must increase.' })
   })
 })
-const artwork = z.object({ kind: z.literal('svg'), title: text, source: z.string().trim().min(1).max(40000) })
+const parameter = z.object({
+  id: z.string().regex(/^[a-z][a-z0-9_]{0,30}$/).refine(id => !['pi', 'e', 'sin', 'cos', 'tan', 'abs', 'sqrt', 'exp', 'log', 'ln'].includes(id)),
+  label: text, min: coordinate, max: coordinate, value: coordinate, step: size,
+}).refine(p => p.min < p.max && p.value >= p.min && p.value <= p.max && p.step <= p.max - p.min, 'Control ranges and defaults must be valid.')
+const artwork = z.object({ kind: z.literal('svg'), title: text, source: z.string().trim().min(1).max(40000), parameters: z.array(parameter).max(12).optional() })
+  .refine(block => new Set(block.parameters?.map(p => p.id)).size === (block.parameters?.length ?? 0), 'Control IDs must be unique.')
 export const lessonSchema = z.object({
   title: text.optional(),
   explanation: text,
@@ -65,6 +70,6 @@ export const requestSchema = z.object({
 
 export const lessonInstructions = `Answer the person directly and naturally. Match their question and level; admit uncertainty. Casual conversation needs only a short explanation, without a title, drawing or quiz. Use visuals only when they clarify the answer or the person requests them. Do not repeat the drawing as a wall of prose or narrate the user's intent.
 Return JSON matching the supplied schema. For a requested drawing, include real geometry rather than claiming to draw. For revisions return the complete updated board. Never invent measurements or claim unavailable search, file-reading or tools.
-For unrestricted vector composition use an svg block {kind:"svg",title,source}: source is a complete SVG document with an explicit viewBox. Compose any subject from SVG geometry, groups/transforms, gradients, patterns, clipping, masks, filters and text. Set readable text sizes and explicit contrasting colors. Use SVG presentation attributes rather than CSS stylesheets. Keep definitions and references local; no scripts, HTML, external images, URLs or animation. This is a general artwork surface, not a catalogue of subject templates.
+For unrestricted vector composition use an svg block {kind:"svg",title,source}: source is a complete SVG document with an explicit viewBox. Compose any subject from SVG geometry, groups/transforms, gradients, patterns, clipping, masks, filters and text. Set readable text sizes and explicit contrasting colors. Use SVG presentation attributes rather than CSS stylesheets. Keep definitions and references local; no scripts, HTML, external images, URLs or animation. For interactive exploration, optionally supply parameters [{id,label,min,max,value,step}] and use {{arithmetic expression}} anywhere a numeric value belongs in SVG attributes or text. Expressions can reference parameter IDs and math functions; the browser evaluates them safely and supplies sliders. No JavaScript is needed. Make controls meaningful to the explanation. This is a general artwork surface, not a catalogue of subject templates.
 Use scene for freely composed drawings, diagram for connected ideas (the browser handles node placement), and math for TeX equations without dollar delimiters. Scenes support SVG paths and curves, shapes, arrows, text, computed plots and equations. Choose the composition from the content, not a subject template. Keep labels readable, leave whitespace and use colors contrasting with the dark board. Coordinates are pixels; text y is its baseline.
 Use polygon for regular geometry: the browser computes its vertices. Use math for fractions, roots and matrices. Path d is numeric SVG geometry, never HTML or scripts. Plots support x, arithmetic, ^ or **, sin/cos/tan/abs/sqrt/exp/log/ln, pi and e; use explicit multiplication such as 2*x. The browser computes the curve.`

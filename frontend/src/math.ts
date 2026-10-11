@@ -1,6 +1,6 @@
 const MAX_LENGTH = 200
 
-export function calculate(expression: string, x?: number): number {
+export function calculate(expression: string, x?: number, variables: Record<string, number> = {}): number {
   const source = expression.trim()
   if (!source || source.length > MAX_LENGTH) throw new Error('CALCULATION_INVALID')
   let index = 0
@@ -10,9 +10,10 @@ export function calculate(expression: string, x?: number): number {
   const primary = (): number => {
     spaces()
     if (eat('(')) { const value = add(); spaces(); if (!eat(')')) throw new Error('CALCULATION_INVALID'); return value }
-    const name = source.slice(index).match(/^[a-z]+/i)?.[0]
+    const name = source.slice(index).match(/^[a-z][a-z0-9_]*/i)?.[0]
     if (name) {
       index += name.length
+      if (Object.hasOwn(variables, name)) return checked(variables[name])
       if (name === 'x' && x !== undefined) return checked(x)
       if (name === 'pi') return Math.PI
       if (name === 'e') return Math.E

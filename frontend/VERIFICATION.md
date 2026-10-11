@@ -260,3 +260,24 @@ without authentication, serves the authenticated UI, and serves the PDF worker
 with JavaScript MIME type. A runtime module-resolution check confirms PDF.js and
 fflate are absent from Node runtime dependencies (browser assets are bundled).
 The temporary test container was stopped and removed.
+
+## Test-strength audit — 12 October 2026 (India)
+
+Existing examples and browser/provider fixtures are fixed test inputs, not proof
+of universal educational accuracy. Added four invariant tests with reproducibly
+generated vocabulary, document offsets/budgets, archive positions, Unicode
+memory sizes and invalid attachment combinations. Cases are loops within tests;
+they are not counted as hundreds of separate passing tests.
+
+The new excerpt test genuinely failed before the fix: at offset 1889 and budget
+366, selection omitted the matching term. Excerpts now center on matching evidence
+before size limits, prioritize rare query terms and avoid overlapping windows.
+147 unit tests across 16 files and the build pass after the fix. Production
+upload/memory browser checks pass on desktop and phone; production smoke passes.
+
+`npm run test:strength` mutates an isolated temporary checkout copy: returning
+only the start of a document and disabling retrieval both cause the intended
+behavior assertions to fail. The tool checks the failure report, restores its
+copy and removes it; application sources remain untouched. CI now repeats this
+check. This proves detection of those two deliberate faults, not a full mutation
+score, 100% coverage or correctness for every possible input/model response.

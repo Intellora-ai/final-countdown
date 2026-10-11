@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --maxWorkers=4",
     "test:e2e": "playwright test",
-    "test:production": "node scripts/check-production.mjs"
+    "test:production": "node scripts/check-production.mjs",
+    "test:strength": "node scripts/check-test-strength.mjs"
   },
   "dependencies": {
     "@dagrejs/dagre": "3.1.1",

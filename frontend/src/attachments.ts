@@ -2,9 +2,34 @@ import { tokens } from './learner'
 export type Attachment = { name: string; text?: string; image?: string }
 const MAX_FILE = 20 * 1024 * 1024
 export function passages(text: string, question: string, budget = 6000) {
- const terms=tokens(question)
- const chunks=text.match(/[\s\S]{1,1000}/g)??[]
- return chunks.map((text,index)=>({text,index,score:[...tokens(text)].filter(t=>terms.has(t)).length})).sort((a,b)=>b.score-a.score||a.index-b.index).slice(0,Math.ceil(budget/1000)).sort((a,b)=>a.index-b.index).map(c=>c.text).join('\n').slice(0,budget)
+ if (!Number.isFinite(budget) || budget <= 0) return ''
+ budget = Math.floor(budget)
+ const terms = tokens(question)
+ const hits = [...text.matchAll(/[\p{L}\p{N}]{2,}/gu)].filter(match => terms.has(match[0].toLocaleLowerCase()))
+ if (!hits.length) return text.slice(0, budget)
+ const frequency = new Map<string, number>()
+ hits.forEach(hit => { const word = hit[0].toLocaleLowerCase(); frequency.set(word, (frequency.get(word) ?? 0) + 1) })
+ const width = Math.min(1000, budget)
+ // Center windows on evidence before applying the size limit. Prioritize rare
+ // query terms and cap work on repetitive books; never clip a leading chunk
+ // and assume the evidence survived.
+ const candidates = hits.sort((a,b) => frequency.get(a[0].toLocaleLowerCase())! - frequency.get(b[0].toLocaleLowerCase())!)
+   .slice(0, 200).map(hit => {
+     const start = Math.max(0, hit.index! - Math.floor(width / 3))
+     const end = Math.min(text.length, start + width)
+     const excerpt = text.slice(start, end)
+     const score = [...tokens(excerpt)].reduce((sum, word) => sum + (terms.has(word) ? 1 / (frequency.get(word) ?? 1) : 0), 0)
+     return { start, end, excerpt, score }
+   }).sort((a,b) => b.score - a.score || a.start - b.start)
+ const selected: typeof candidates = []
+ let used = 0
+ for (const candidate of candidates) {
+   if (selected.some(other => candidate.start < other.end && candidate.end > other.start)) continue
+   const cost = candidate.excerpt.length + (selected.length ? 1 : 0)
+   if (used + cost > budget) continue
+   selected.push(candidate); used += cost
+ }
+ return selected.sort((a,b) => a.start - b.start).map(c => c.excerpt).join('\n')
 }
 function plain(markup:string, mime:DOMParserSupportedType='text/html') {
  const doc=new DOMParser().parseFromString(markup,mime)

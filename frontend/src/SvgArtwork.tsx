@@ -60,7 +60,7 @@ export default function SvgArtwork({ source, title, parameters = [] }: { source:
     catch (error) { return { svg: '', error: error instanceof Error ? error.message : 'The SVG could not be rendered.' } }
   }, [source, JSON.stringify(values)])
   const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(drawing.svg)}`
-  return <div className="board-drawing">
+  return <div className="board-drawing artwork-surface">
     <div className="drawing-tools" aria-label={`${title} controls`}>
       <button aria-label="Zoom out" onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}>−</button>
       <button onClick={() => setZoom(1)}>Fit</button>

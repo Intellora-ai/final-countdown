@@ -39,7 +39,7 @@ npm run build
 npm run test:e2e
 ```
 
-The completed unit/integration run has **122 passing tests in twelve files**.
+The completed unit/integration run has **123 passing tests in thirteen files**.
 The build typechecks and produces browser and Node server bundles.
 
 The **twelve passing Chromium browser checks** run the following six workflows
@@ -158,3 +158,17 @@ checks; rerunning with local-server permissions passed the unchanged API checks.
 All 122 unit/integration checks, 12 browser checks and the build completed.
 No model-quality, real audio hardware, file input or streaming claim follows from
 these tests. Parameters require a model that follows the same JSON drawing schema.
+
+## Artist notebook presentation
+
+Replaced the dark page with warm paper, dark handwritten ink, quieter controls,
+more spacing, and restrained color accents. Scene export uses the same paper/ink
+colors. Scene stroke hues are darkened when necessary for at least 4.5:1 contrast
+against the paper; this corrects pale colors found during screenshot review.
+Existing general SVG artwork keeps its dark fallback surface for saved content;
+new artwork is instructed to include its own ivory background and explicit colors.
+Composition guidance emphasizes focal drawings, contours, varied line weights,
+negative space, connected annotations and meaningful pigment rather than generic
+box grids. No drawing templates or art-generation service were added.
+These checks demonstrate interface and renderer behavior, not Leonardo-level
+output from the currently configured model.

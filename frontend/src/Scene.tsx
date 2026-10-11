@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Lesson } from './lesson'
+import { paperInk } from './ink'
 import { plotPath, polygonPoints } from './drawing'
 import { wrapText, fontMeasure } from './text-layout'
 const MathNote = lazy(() => import('./MathNote'))
@@ -15,7 +16,7 @@ function Label({ x, y, label, width = 300, size = 28, center = false, color = 'c
   </text>
 }
 function Draw({ element }: { element: Element }) {
-  const color = 'color' in element ? element.color ?? 'currentColor' : 'currentColor'
+  const color = 'color' in element && element.color ? paperInk(element.color) : 'currentColor'
   const stroke = { stroke: color, strokeWidth: ('strokeWidth' in element ? element.strokeWidth : undefined) ?? 2.5, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
   if (element.type === 'math') return <foreignObject x={element.x} y={element.y} width={element.width ?? 500} height={element.height ?? 180}><div style={{ fontSize: element.fontSize ?? 28 }}><Suspense fallback={<p>{element.latex}</p>}><MathNote latex={element.latex} /></Suspense></div></foreignObject>
   if (element.type === 'polygon') return <g><polygon points={polygonPoints(element.x, element.y, element.radius, element.sides, element.rotation)} {...stroke} fill={element.fill ?? 'none'} />{element.label && <Label x={element.x} y={element.y} label={element.label} width={element.radius * 1.4} center />}</g>
@@ -76,11 +77,11 @@ export function Scene({ block }: { block: SceneBlock }) {
       if (!svgRef.current) return
       const clone = svgRef.current.cloneNode(true) as SVGSVGElement
       clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
-      clone.style.cssText = 'color:#f1f3e9;--surface:#203431;--line:#415b54;--muted:#a8b7ad;font-family:Caveat,cursive;font-size:28px'
+      clone.style.cssText = 'color:#292b30;--surface:#fffdf8;--line:#ded8cc;--muted:#82796d;font-family:Caveat,cursive;font-size:28px'
       const values = box.split(' ').map(Number)
       clone.setAttribute('width', String(values[2])); clone.setAttribute('height', String(values[3]))
       const background = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
-      for (const [key, value] of Object.entries({ x: values[0], y: values[1], width: values[2], height: values[3], fill: '#152b27' })) background.setAttribute(key, String(value))
+      for (const [key, value] of Object.entries({ x: values[0], y: values[1], width: values[2], height: values[3], fill: '#fffdf8' })) background.setAttribute(key, String(value))
       clone.prepend(background)
       const font = await fetch('/fonts/Caveat.ttf')
       if (!font.ok) throw new Error('Font unavailable')

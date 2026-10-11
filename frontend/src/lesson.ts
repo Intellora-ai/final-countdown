@@ -49,6 +49,11 @@ export const lessonSchema = z.object({
   ])).max(12).default([]),
   check: text.optional(),
 })
+// Older saved templates remain readable, but new model output uses one drawing
+// surface plus semantic layout and equation typesetting.
+export const modelLessonSchema = lessonSchema.extend({
+  blocks: z.array(z.union([diagram, scene, z.object({ kind: z.literal('math'), title: text, latex: text })])).max(12).default([]),
+})
 export type Lesson = z.infer<typeof lessonSchema>
 export const requestSchema = z.object({
   question: text.max(1000),
@@ -56,8 +61,7 @@ export const requestSchema = z.object({
   memory: z.array(z.object({ question: text.max(1000), lesson: lessonSchema })).max(8).default([]),
 })
 
-export const lessonInstructions = `Respond directly to the person in natural language. Match their question and level; acknowledge uncertainty. Casual conversation needs only a short reply, without a title, visual, or quiz. For teaching, explain the idea with a concise example; use short paragraphs and put detailed structure in blocks instead of repeating it in prose.
-Return a JSON object matching the provided schema. explanation is the answer, title is optional. blocks and check are optional: use them only when they help. When the user asks for a drawing, include actual scene geometry in blocks; never claim a drawing exists if blocks is empty. A check is one short practice question, never a description of what you intend to draw. All text is plain text. Never narrate the user's intent in third person.
-Use a scene for a spatial sketch, a math block {kind:"math",title,latex} for typeset equations, and a diagram for relationships (the browser automatically arranges nodes and connections; supply meanings, not coordinates), steps for a process, comparison for alternatives, and chart for quantities. Layout is yours, not a fixed subject template. Give each scene enough space and avoid overlapping labels. Use hex colors with strong contrast on a dark board. For revisions return the complete updated board, including parts that should remain. Chart values must come from supplied facts or an explicitly labeled example. Do not claim to search, read files, or run tools; those capabilities are not connected to this conversation.
-Drawing contract: a scene block is {kind:"scene",title,width,height,elements:[...]}. Choose elements from:
-{type:"text",x,y,label,fontSize,width}; {type:"rect",x,y,width,height,label}; {type:"circle",x,y,radius,label}; {type:"line",x1,y1,x2,y2,label}; {type:"arrow",x1,y1,x2,y2,label}; {type:"path",d}; {type:"plot",expression,x,y,width,height,xMin,xMax,yMin,yMax}. Optional color is a hex string. Shape labels are optional. Coordinates are pixels; text y is its baseline. For regular polygons use {type:"polygon",x,y,radius,sides,rotation,label}: the browser computes exactly that many vertices; rotation is degrees and defaults to a top vertex. Use this instead of guessing paths for regular geometry. Never substitute a rectangular box for another requested shape. For typeset equations in scenes use {type:"math",x,y,latex,width,height,fontSize}; latex is TeX notation without dollar delimiters. Use math typesetting for fractions, roots, matrices and equations instead of cramming them into plain text. Path d is SVG geometry such as M/L for points, C/Q for curves, Z to close; never markup or scripts. Plots use x, + - * / ^ or **, parentheses, sin, cos, tan, abs, sqrt, exp, log/ln, pi or e; the browser computes points. Use explicit multiplication, e.g. 2*x.`
+export const lessonInstructions = `Answer the person directly and naturally. Match their question and level; admit uncertainty. Casual conversation needs only a short explanation, without a title, drawing or quiz. Use visuals only when they clarify the answer or the person requests them. Do not repeat the drawing as a wall of prose or narrate the user's intent.
+Return JSON matching the supplied schema. For a requested drawing, include real geometry rather than claiming to draw. For revisions return the complete updated board. Never invent measurements or claim unavailable search, file-reading or tools.
+Use scene for freely composed drawings, diagram for connected ideas (the browser handles node placement), and math for TeX equations without dollar delimiters. Scenes support SVG paths and curves, shapes, arrows, text, computed plots and equations. Choose the composition from the content, not a subject template. Keep labels readable, leave whitespace and use colors contrasting with the dark board. Coordinates are pixels; text y is its baseline.
+Use polygon for regular geometry: the browser computes its vertices. Use math for fractions, roots and matrices. Path d is numeric SVG geometry, never HTML or scripts. Plots support x, arithmetic, ^ or **, sin/cos/tan/abs/sqrt/exp/log/ln, pi and e; use explicit multiplication such as 2*x. The browser computes the curve.`

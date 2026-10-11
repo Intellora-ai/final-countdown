@@ -75,7 +75,7 @@ or illustration is correct.
 | Sentence-by-sentence speech queue | Removed. One utterance prevents cancelled audio from restarting and preserves punctuation/decimals. |
 | All saved lessons go into every question | Removed. Only ancestors of the selected answer belong to that conversation. |
 | Permanent sidebar and dark/light style mixture | Removed. History is collapsible; the board uses one readable chalk palette. |
-| Duplicate generic tool route | Removed. The standalone calculator/search endpoints remain, but are not connected to model tool calling. |
+| Duplicate generic tool route | Removed. Disconnected calculator/search endpoints were also removed. |
 | Large string-length grammar constraints upstream | Removed from the wire schema after reproducing an Ollama grammar compiler crash. Local validation still limits content. |
 | Thousands of renamed happy-path tests prove quality | Removed. Keep focused assertions about real rendering, transport, persistence, cancellation, calculation, and failure behavior. |
 

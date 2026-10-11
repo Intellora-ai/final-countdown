@@ -11,12 +11,12 @@
 - Optional plain replies, diagrams, steps, comparisons, charts, and practice checks.
 - Conversation ancestry, bounded recent memory, cancellation, timeout, and preserved drafts.
 - Browser microphone and speech synthesis, automatic next turns, and explicit interruption.
-- Standalone bounded calculator and optional custom search-adapter endpoints.
+- One generation contract: scenes, automatically arranged diagrams, and equations.
+- Older saved step/comparison/chart lessons remain readable.
 
 ## Not implemented
 
-- Model-driven web search, citations, or tool calling. Existing helper endpoints
-  are not connected to the model conversation.
+- Model-driven web search, citations, or tool calling. Disconnected helper endpoints were removed.
 - File upload, image/audio understanding, raster image generation, or video.
 - Streaming, cross-device accounts/memory, or offline recognition guarantees.
 - Automatic model failover, arbitrary code execution, or executable generated HTML.

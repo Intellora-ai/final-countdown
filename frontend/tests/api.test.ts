@@ -15,6 +15,18 @@ async function endpoint(model = {}) {
   return `http://127.0.0.1:${address.port}`
 }
 describe('one teaching path', () => {
+  it('offers only universal drawing blocks to replacement models', async () => {
+    const send = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ choices: [{ message: { content: JSON.stringify(example) } }] }))
+    await generateLesson({ question: 'Draw connections' }, { ...config, model: 'replacement-model' }, send)
+    const payload = JSON.parse(send.mock.calls[0][1]!.body as string)
+    expect(payload.model).toBe('replacement-model')
+    const kinds = payload.response_format.json_schema.schema.properties.blocks.items.anyOf.map((option: { properties: { kind: { const: string } } }) => option.properties.kind.const)
+    expect(kinds).toEqual(['diagram', 'scene', 'math'])
+  })
+  it('returns 404 for removed disconnected tools', async () => {
+    const base = await endpoint()
+    for (const path of ['/api/search', '/api/calculate']) expect((await fetch(base + path, { method: 'POST', body: '{}' })).status).toBe(404)
+  })
   it('allows conversation without a forced title, diagram, or check', async () => {
     const send = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ choices: [{ message: { content: '{"explanation":"Hey!"}' } }] }))
     expect(await generateLesson({ question: 'lol hi' }, config, send)).toEqual({ explanation: 'Hey!', blocks: [] })

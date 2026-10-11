@@ -39,7 +39,7 @@ npm run build
 npm run test:e2e
 ```
 
-The completed unit/integration run has **108 passing tests in eleven files**.
+The completed unit/integration run has **110 passing tests in eleven files**.
 The build typechecks and produces browser and Node server bundles.
 
 The **eight passing Chromium browser checks** run the following four workflows
@@ -115,3 +115,15 @@ requests also produced incorrect geometry despite valid JSON. The application no
 returns HTTP 504 for upstream timeout with a specific message. Automated fixture
 tests validate rendering, not the model's ability to choose correct content.
 These changes do not establish that this model can draw any requested image.
+
+## Focused drawing cleanup
+
+Questioned whether disconnected tool endpoints and six generated block types help
+this drawing goal. Removed search-adapter code and the standalone calculator API;
+plot arithmetic stays because it computes real geometry. New model output now has
+three block kinds: scene, diagram and math. Legacy saved blocks remain readable.
+Deleted duplicated schema examples from the prompt and kept concise composition
+instructions. Model replacement is tested through the same configurable endpoint
+and drawing contract. Server bundle decreased from 19.08 kB to 13.08 kB.
+The last two steps are short feedback cycles and automated checks; no extra
+orchestrator, subject router or retry engine was added.

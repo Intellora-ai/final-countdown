@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { calculate } from '../server/calculator'
+import { calculate } from '../src/math'
 
-describe('calculator tool', () => {
+describe('arithmetic used by computed plots', () => {
   it('evaluates bounded arithmetic without code execution', () => {
     expect(calculate('2 + 3 * (4 ^ 2)')).toBe(50)
     expect(calculate('-2.5 / 0.5')).toBe(-5)

@@ -6,7 +6,7 @@ const SvgArtwork = lazy(() => import('./SvgArtwork'))
 const MathNote = lazy(() => import('./MathNote'))
 
 export function Visual({ block }: { block: Lesson['blocks'][number] }) {
-  return <section className="visual"><h2>{block.title}</h2>
+  return <section className="visual"><h2 className={block.kind === 'svg' ? 'sr-only' : undefined}>{block.title}</h2>
     {block.kind === 'steps' && <ol className="steps">{block.items.map((item, i) => <li key={i}><span>{i + 1}</span><p>{item}</p></li>)}</ol>}
     {block.kind === 'comparison' && <div className="table-scroll"><table><thead><tr>{block.columns.map((label, i) => <th key={i}>{label}</th>)}</tr></thead><tbody>{block.rows.map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j}>{cell}</td>)}</tr>)}</tbody></table></div>}
     {block.kind === 'chart' && <div className="chart" role="img" aria-label={block.points.map(p => `${p.label}: ${p.value} ${block.unit}`).join(', ')}>{block.points.map((point, i) => <div className="bar-row" key={i}><span>{point.label}</span><div className="bar-track"><div className="bar" style={{ width: `${point.value / Math.max(1, ...block.points.map(p => p.value)) * 100}%` }} /></div><span>{point.value} {block.unit}</span></div>)}</div>}

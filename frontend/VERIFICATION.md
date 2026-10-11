@@ -39,10 +39,10 @@ npm run build
 npm run test:e2e
 ```
 
-The completed unit/integration run has **124 passing tests in thirteen files**.
+The completed unit/integration run has **125 passing tests in thirteen files**.
 The build typechecks and produces browser and Node server bundles.
 
-The **twelve passing Chromium browser checks** run the following six workflows
+The **fourteen passing Chromium browser checks** run the following six workflows
 on desktop and phone:
 
 1. Generated lesson, persistence, reload, and context-carrying follow-up.
@@ -184,3 +184,15 @@ transport fixtures verify its payload and local output validation. Plain replies
 need neither title nor canvas. Provider integration tests use fake fetch responses,
 not authenticated Groq/Gemini calls. Existing voice, context and browser regression
 checks remain applicable.
+
+## Canvas-only answers
+
+Removed the visible explanation paragraphs. Generated SVG canvases carry the full
+visible reply; explanation remains the accessible/spoken transcript. Plain replies
+and earlier non-SVG boards receive handwritten SVG text, measured with the local
+font and wrapped to the available width. Plain writing has no duplicate controls.
+A unit regression and desktop/phone browser checks verify SVG text instead of
+chat paragraphs, hidden transcript availability, no extra handwriting buttons and
+no page overflow. Screenshot review includes the phone handwriting view.
+The initial browser run exposed duplicate controls; removing them from the plain
+writing renderer fixed the failure. Final build and fourteen browser checks pass.

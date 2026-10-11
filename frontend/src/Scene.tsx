@@ -52,7 +52,7 @@ function Draw({ element }: { element: Element }) {
     {element.label && <Label x={(element.x1 + element.x2) / 2} y={(element.y1 + element.y2) / 2 - 12} label={element.label} width={240} center />}
   </g>
 }
-export function Scene({ block }: { block: SceneBlock }) {
+export function Scene({ block, controls = true }: { block: SceneBlock; controls?: boolean }) {
   const svgRef = useRef<SVGSVGElement>(null)
   const contentRef = useRef<SVGGElement>(null)
   const [zoom, setZoom] = useState(1)
@@ -95,7 +95,7 @@ export function Scene({ block }: { block: SceneBlock }) {
     } catch { setExportError('The drawing could not be exported. Please try again.') }
   }
   return <div className="board-drawing">
-    <div className="drawing-tools" aria-label={`${block.title} controls`}><button onClick={() => setZoom(z => Math.max(0.5, z - 0.25))} aria-label="Zoom out">−</button><button onClick={() => setZoom(1)}>Fit</button><button onClick={() => setZoom(z => Math.min(4, z + 0.25))} aria-label="Zoom in">+</button><span>{Math.round(zoom * 100)}%</span><button onClick={() => { void download() }}>Save SVG</button></div>
+    {controls && <div className="drawing-tools" aria-label={`${block.title} controls`}><button onClick={() => setZoom(z => Math.max(0.5, z - 0.25))} aria-label="Zoom out">−</button><button onClick={() => setZoom(1)}>Fit</button><button onClick={() => setZoom(z => Math.min(4, z + 0.25))} aria-label="Zoom in">+</button><span>{Math.round(zoom * 100)}%</span><button onClick={() => { void download() }}>Save SVG</button></div>}
     <div className="drawing-viewport" tabIndex={0} aria-label={`Pan ${block.title}`}><svg ref={svgRef} viewBox={box} role="img" aria-label={block.title} style={{ width: `${zoom * 100}%` }}><g ref={contentRef}>{block.elements.map((element, i) => <Draw key={i} element={element} />)}</g></svg></div>
     {exportError && <p role="alert">{exportError}</p>}
   </div>

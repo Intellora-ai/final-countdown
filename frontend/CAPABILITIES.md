@@ -63,3 +63,8 @@ model. Previous formats are retained solely for saved-board compatibility.
 JSON-schema and JSON-object response modes share one OpenAI-compatible model
 endpoint. Groq/Gemini endpoint configuration is documented; authenticated live
 provider requests have not been verified without their credentials.
+
+Visible answers now live on the canvas, not separate explanation paragraphs.
+Plain model replies are rendered as responsive handwritten SVG text. For generated
+SVGs the model supplies the full visible writing and diagrams together; the text
+transcript is retained for screen readers, voice, and conversation context.

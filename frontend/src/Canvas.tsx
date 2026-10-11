@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
 import { lessonSchema, MAX_REQUEST_BYTES, type Lesson } from './lesson'
+import { WrittenReply } from './WrittenReply'
 import { Visual } from './Visual'
 import { recognitionAvailable, speak, startListening, stopSpeaking } from './voice'
 
@@ -153,10 +154,13 @@ export function Canvas() {
       <header><div className="toolbar"><button className="history-toggle" aria-label="Saved lessons" aria-expanded={historyOpen} aria-controls="lesson-history" onClick={() => setHistoryOpen(!historyOpen)}>☰</button><a className="brand" href="#canvas">Blackboard</a></div><div className="toolbar"><span className="connection">{connected === null ? 'Checking connection…' : connected ? 'Model configured' : 'Model not configured'}</span><button className="new-topic" onClick={() => select(null)}>+ New topic</button></div></header>
       {connected === false && <p className="notice" role="status">Teaching isn’t connected yet. Saved lessons still open. The server needs a model endpoint and model name.</p>}
       {entry ? <article key={entry.id}>
-        <p className="eyebrow">{entry.question}</p>
+        <p className="sr-only">Question: {entry.question}</p>
         <div className="lesson-heading">{entry.lesson.title && <h1>{entry.lesson.title}</h1>}<button disabled={busy} onClick={() => speaking ? endVoice() : readAloud(entry.lesson)}>{speaking ? 'Stop speaking' : 'Read aloud'}</button></div>
-        <div className="explanation">{entry.lesson.explanation.split(/\n\s*\n/).map((paragraph, i) => <p key={i}>{paragraph}</p>)}</div>
-        {entry.lesson.blocks.length > 0 && <div className="visuals">{entry.lesson.blocks.map((block, i) => <Visual block={block} key={i} />)}</div>}
+        <section className="answer-board" aria-label="Answer canvas">
+          <p className="sr-only">{entry.lesson.explanation}</p>
+          {(!entry.lesson.blocks.length || entry.lesson.blocks.some(block => block.kind !== 'svg')) && <WrittenReply text={entry.lesson.explanation} />}
+          {entry.lesson.blocks.length > 0 && <div className="visuals">{entry.lesson.blocks.map((block, i) => <Visual block={block} key={i} />)}</div>}
+        </section>
         {entry.lesson.check && <section className="check"><span>Your turn</span><p>{entry.lesson.check}</p><button onClick={() => { setFollowUp(true); inputRef.current?.focus() }}>Try it below ↓</button></section>}
       </article> : <section className="welcome"><h1>What do you want<br />to understand?</h1><p>A blank board for your next idea.<br />Ask, sketch it out, and ask again.</p></section>}
       <div className="composer"><form onSubmit={event => { event.preventDefault(); void submit() }}>

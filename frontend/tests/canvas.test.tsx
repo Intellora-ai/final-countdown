@@ -45,3 +45,13 @@ it('keeps the question on failure and never substitutes a stored example', async
   expect((screen.getByLabelText('Your question') as HTMLTextAreaElement).value).toBe('Explain waves')
   expect(localStorage.getItem('visual-canvas/v1')).toBeNull()
 })
+it('writes a plain reply on the canvas without a separate visible explanation paragraph', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockImplementation(async url => Response.json(String(url).endsWith('health') ? { modelConfigured: true } : { lesson: { explanation: 'Hey! What would you like to explore?', blocks: [] } })))
+  render(<Canvas />)
+  fireEvent.change(screen.getByLabelText('Your question'), { target: { value: 'hi' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+  const board = await screen.findByRole('region', { name: 'Answer canvas' })
+  expect(board.querySelector('svg text')?.textContent).toContain('Hey!')
+  expect(board.querySelector('.explanation')).toBeNull()
+  expect(board.querySelector('.sr-only')?.textContent).toContain('What would you like to explore?')
+})

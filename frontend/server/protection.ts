@@ -1,12 +1,12 @@
-import { createHash, timingSafeEqual } from 'node:crypto'
+import { timingSafeEqual } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
 export function authenticated(header: string | undefined, password: string) {
   if (!header?.startsWith('Basic ')) return false
-  const credentials = Buffer.from(header.slice(6), 'base64').toString('utf8')
-  const digest = (text: string) => createHash('sha256').update(text).digest()
-  return timingSafeEqual(digest(credentials), digest(`canvas:${password}`))
+  const credentials = Buffer.from(header.slice(6), 'base64')
+  const expected = Buffer.from(`canvas:${password}`, 'utf8')
+  return credentials.length === expected.length && timingSafeEqual(credentials, expected)
 }
 export class RequestBudget {
   private active = 0

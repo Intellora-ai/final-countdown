@@ -108,3 +108,19 @@ Activating ruleset 20990225 via the existing GitHub integration returned HTTP
 repository administration access must activate it and require `release-gate`
 from GitHub Actions (integration 15368). Workflow installation and passing runs
 must not be confused with enforced merge protection.
+
+Scanner findings now emit GitHub error annotations with the SARIF source file,
+line and column when provided, rule identifier, diagnostic and the rule's
+remediation documentation link. Every finding in a report is printed before
+failure, including suppressed findings. Command values are escaped so untrusted
+source text cannot forge workflow commands. Missing locations are reported
+without inventing a line. Automated fixes are not applied to protected branches;
+changes must pass the same gates. This is diagnostic guidance, not a promise
+that a scanner can generate a correct repair for every bug.
+
+Verified GitHub run for cd21f80: all eight jobs succeeded in approximately
+84 seconds: https://github.com/Intellora-ai/final-countdown/actions/runs/38170035443.
+That run included 150 unit tests across 17 files, 20 browser checks, mutation,
+production API, deployable container, workflow integrity and three CodeQL scans.
+The annotation enhancements additionally have adversarial tests for exact
+locations, remediation links, command injection and reporting multiple findings.

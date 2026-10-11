@@ -4,6 +4,8 @@ import json
 import shutil
 import tempfile
 import unittest
+import io
+from contextlib import redirect_stdout
 from pathlib import Path
 import yaml
 
@@ -82,11 +84,33 @@ class GateAttacks(unittest.TestCase):
             for suppressed in [False, True]:
                 result = {'level': level, 'ruleId': 'example'}
                 if suppressed: result['suppressions'] = [{'kind': 'inSource'}]
-                with self.assertRaises(ValueError): sarif.inspect({'runs': [{'results': [result]}]})
+                with redirect_stdout(io.StringIO()), self.assertRaises(ValueError): sarif.inspect({'runs': [{'results': [result]}]})
         for report in [{}, {'runs': []}, {'runs': [{'invocations': [{'executionSuccessful': False}]}]}]:
             with self.assertRaises(ValueError): sarif.inspect(report)
 
-if __name__ == '__main__': unittest.main()
+class ScannerDiagnostics(unittest.TestCase):
+    def test_annotation_has_exact_location_and_remediation_link(self):
+        result = {'ruleId': 'js/example', 'message': {'text': 'Unsafe input'}, 'locations': [{'physicalLocation': {'artifactLocation': {'uri': 'frontend/src/example.ts'}, 'region': {'startLine': 12, 'startColumn': 4}}}]}
+        output = sarif.annotation(result, {'js/example': {'helpUri': 'https://codeql.github.com/example'}})
+        self.assertIn('file=frontend/src/example.ts,line=12,col=4', output)
+        self.assertIn('Remediation guidance: https://codeql.github.com/example', output)
+    def test_untrusted_messages_cannot_inject_workflow_commands(self):
+        result = {'ruleId': 'bad,title\n::notice::fake', 'message': {'text': '100%\n::notice::fake\rnext'}, 'locations': [{'physicalLocation': {'artifactLocation': {'uri': 'bad,file\nname.ts'}}}]}
+        output = sarif.annotation(result, {})
+        self.assertNotIn('\n', output)
+        self.assertNotIn('\r', output)
+        self.assertIn('%0A', output)
+        self.assertIn('%2C', output)
+        self.assertIn('100%25', output)
+    def test_all_findings_are_reported_before_failing(self):
+        report = {'runs': [{'results': [{'ruleId': name, 'level': 'error'} for name in ['first', 'second']]}]}
+        stream = io.StringIO()
+        with redirect_stdout(stream), self.assertRaises(ValueError): sarif.inspect(report)
+        self.assertIn('title=first', stream.getvalue())
+        self.assertIn('title=second', stream.getvalue())
+    def test_unknown_severity_fails_closed(self):
+        with redirect_stdout(io.StringIO()), self.assertRaises(ValueError):
+            sarif.inspect({'runs': [{'results': [{'level': 'unexpected'}]}]})
 
 class EvidenceAttacks(unittest.TestCase):
     def setUp(self):
@@ -127,3 +151,6 @@ class EvidenceAttacks(unittest.TestCase):
     def test_coverage_regression(self):
         self.coverage['total']['branches']['pct'] = 0
         self.assertNotEqual(self.run_checker().returncode, 0)
+
+if __name__ == '__main__':
+    unittest.main()

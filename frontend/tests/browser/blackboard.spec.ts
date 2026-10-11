@@ -61,3 +61,33 @@ test('model text is rendered literally without running markup', async ({ page })
   await expect(page.getByRole('img', { name: 'Literal text' })).toContainText('<script>window.pwned=true</script>')
   expect(await page.evaluate(() => 'pwned' in window)).toBe(false)
 })
+
+test('equations, exact polygons and automatic connected diagrams render together', async ({ page }, testInfo) => {
+  const nodes = Array.from({ length: 12 }, (_, i) => ({ id: `n${i}`, label: `Idea ${i}`, detail: 'A longer explanation that needs measured wrapping.' }))
+  const edges = nodes.slice(1).map((node, i) => ({ from: nodes[i].id, to: node.id, label: 'leads to' }))
+  await page.route('**/api/health', route => route.fulfill({ json: { modelConfigured: true } }))
+  await page.route('**/api/lesson', route => route.fulfill({ json: { lesson: { explanation: 'Typeset and lay out the meaning.', blocks: [
+    { kind: 'math', title: 'Formula', latex: '\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}' },
+    { kind: 'scene', title: 'Exact shapes', width: 650, height: 350, elements: [
+      { type: 'polygon', x: 150, y: 150, radius: 90, sides: 3, color: '#9cd8ff' },
+      { type: 'polygon', x: 400, y: 150, radius: 90, sides: 6, color: '#f2dc8e' },
+      { type: 'math', x: 100, y: 260, width: 400, height: 80, latex: 'a^2+b^2=c^2' },
+    ] },
+    { kind: 'diagram', title: 'Connected ideas', nodes, edges },
+  ] } } }))
+  const errors: string[] = []; page.on('pageerror', e => errors.push(e.message))
+  await page.goto('/')
+  await page.getByRole('textbox', { name: 'Your question' }).fill('Explain using equations and connected shapes')
+  await page.getByRole('button', { name: 'Send' }).click()
+  await expect(page.locator('math')).toHaveCount(2)
+  const shapes = page.getByRole('img', { name: 'Exact shapes' })
+  expect(await shapes.locator('polygon').evaluateAll(polygons => polygons.map(p => (p as SVGPolygonElement).points.numberOfItems))).toEqual([3, 6])
+  const diagram = page.getByRole('img', { name: 'Connected ideas' })
+  await expect(diagram.locator('button')).toHaveCount(12)
+  await expect(diagram.locator('path[marker-end]')).toHaveCount(11)
+  await diagram.getByRole('button', { name: /Idea 0/ }).click()
+  await expect(diagram.getByRole('button', { name: /Idea 0/ })).toHaveAttribute('aria-pressed', 'true')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  expect(errors).toEqual([])
+  await page.screenshot({ path: testInfo.outputPath('computed-visuals.png'), fullPage: true })
+})

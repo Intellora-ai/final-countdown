@@ -1,32 +1,24 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Lesson } from './lesson'
-import { plotPath } from './drawing'
+import { plotPath, polygonPoints } from './drawing'
+import { wrapText, fontMeasure } from './text-layout'
+const MathNote = lazy(() => import('./MathNote'))
 
 type SceneBlock = Extract<Lesson['blocks'][number], { kind: 'scene' }>
 type Element = SceneBlock['elements'][number]
-function lines(text: string, width: number, fontSize: number) {
-  const limit = Math.max(1, Math.floor(width / (fontSize * 0.5)))
-  return text.split('\n').flatMap(paragraph => {
-    const result: string[] = []; let line = ''
-    for (const word of paragraph.split(/\s+/)) {
-      if (line && (line + ' ' + word).length > limit) { result.push(line); line = '' }
-      if (word.length > limit) {
-        if (line) { result.push(line); line = '' }
-        for (let i = 0; i < word.length; i += limit) result.push(word.slice(i, i + limit))
-      } else line = line ? line + ' ' + word : word
-    }
-    return [...result, ...(line || !result.length ? [line] : [])]
-  })
-}
 function Label({ x, y, label, width = 300, size = 28, center = false, color = 'currentColor' }: { x: number; y: number; label: string; width?: number; size?: number; center?: boolean; color?: string }) {
-  const rows = lines(label, width, size)
+  const [fontReady, setFontReady] = useState(false)
+  useEffect(() => { let active = true; void document.fonts?.ready.then(() => { if (active) setFontReady(true) }); return () => { active = false } }, [])
+  const rows = useMemo(() => wrapText(label, width, fontMeasure(size)), [label, width, size, fontReady])
   return <text x={x} y={y} fill={color} fontSize={size} textAnchor={center ? 'middle' : 'start'}>
     {rows.map((row, i) => <tspan key={i} x={x} dy={i === 0 ? (center ? -(rows.length - 1) * size * 0.6 + size * 0.3 : 0) : size * 1.2}>{row}</tspan>)}
   </text>
 }
 function Draw({ element }: { element: Element }) {
-  const color = element.color ?? 'currentColor'
+  const color = 'color' in element ? element.color ?? 'currentColor' : 'currentColor'
   const stroke = { stroke: color, strokeWidth: ('strokeWidth' in element ? element.strokeWidth : undefined) ?? 2.5, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+  if (element.type === 'math') return <foreignObject x={element.x} y={element.y} width={element.width ?? 500} height={element.height ?? 180}><div style={{ fontSize: element.fontSize ?? 28 }}><Suspense fallback={<p>{element.latex}</p>}><MathNote latex={element.latex} /></Suspense></div></foreignObject>
+  if (element.type === 'polygon') return <g><polygon points={polygonPoints(element.x, element.y, element.radius, element.sides, element.rotation)} {...stroke} fill={element.fill ?? 'none'} />{element.label && <Label x={element.x} y={element.y} label={element.label} width={element.radius * 1.4} center />}</g>
   if (element.type === 'text') return <Label x={element.x} y={element.y} label={element.label} width={element.width} size={element.fontSize} color={color} />
   if (element.type === 'path') return <path d={element.d} {...stroke} fill={element.fill ?? 'none'} />
   if (element.type === 'plot') {
@@ -75,7 +67,7 @@ export function Scene({ block }: { block: SceneBlock }) {
       const right = Math.max(block.width, bounds.x + bounds.width + 24), bottom = Math.max(block.height, bounds.y + bounds.height + 24)
       setBox(`${left} ${top} ${right - left} ${bottom - top}`)
     }
-    fit(); void document.fonts?.ready.then(fit)
+    fit(); void document.fonts?.ready.then(() => { if (active) requestAnimationFrame(fit) })
     return () => { active = false }
   }, [block])
   async function download() {

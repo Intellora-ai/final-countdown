@@ -38,3 +38,10 @@ export function plotPath(plot: Plot) {
   }
   return points.join(' ')
 }
+
+export function polygonPoints(x: number, y: number, radius: number, sides: number, rotation = -90) {
+  return Array.from({ length: sides }, (_, i) => {
+    const angle = (rotation + i * 360 / sides) * Math.PI / 180
+    return `${x + radius * Math.cos(angle)},${y + radius * Math.sin(angle)}`
+  }).join(' ')
+}

@@ -39,16 +39,18 @@ npm run build
 npm run test:e2e
 ```
 
-The completed unit/integration run has **83 passing tests in eight files**.
+The completed unit/integration run has **108 passing tests in eleven files**.
 The build typechecks and produces browser and Node server bundles.
 
-The **six passing Chromium browser checks** run the following three workflows
+The **eight passing Chromium browser checks** run the following four workflows
 on desktop and phone:
 
 1. Generated lesson, persistence, reload, and context-carrying follow-up.
 2. General paths, arrows, computed plot, wrapped text, measured bounds, zoom/fit,
    embedded-font SVG download, full-board revision, and reload.
 3. Markup-shaped model text rendered literally without executing scripts.
+4. Native MathML equations, exact triangle/hexagon vertices, twelve-node automatic
+   connected layout, selection, and phone overflow checks.
 
 Browser responses are explicitly labelled fixtures. They establish application
 behavior, not model intelligence. The drawing case takes a screenshot under
@@ -91,3 +93,25 @@ A live plot request returned `expression: "x**2"` and the requested domains
 (-3 to 3 and 0 to 10). The parser now accepts both `^` and `**` power notation;
 two regression cases cover ordinary and negated powers. The real response was
 loaded into Chromium and produced one finite curve with 401 calculated points.
+
+## Subtraction and deterministic drawing pass
+
+1. Question: the model need not estimate graph positions, polygon vertices or
+   text widths. Those are calculable browser operations, not learning content.
+2. Delete: removed the fixed two-column layout and character-width approximation.
+3. Simplify: use small pinned open-source Dagre and KaTeX libraries rather than
+   building custom layout and TeX engines. Regular polygon vertices use geometry.
+4. Shorten feedback: unit properties cover multiple shapes, orientations, graphs,
+   Unicode text and equations; Chromium checks the combined rendered result.
+5. Automate verified mechanics: font measurement, graph placement, exact vertices
+   and typesetting happen independently of the chosen model.
+
+The first new browser run failed in two projects because its path-count selector
+counted the SVG marker definition as an edge. It now counts paths with marker-end;
+no product behavior was disabled to pass.
+
+A live qwen2.5:3b drawing request timed out after sixty seconds. Earlier live
+requests also produced incorrect geometry despite valid JSON. The application now
+returns HTTP 504 for upstream timeout with a specific message. Automated fixture
+tests validate rendering, not the model's ability to choose correct content.
+These changes do not establish that this model can draw any requested image.

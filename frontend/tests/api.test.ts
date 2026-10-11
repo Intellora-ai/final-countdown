@@ -70,6 +70,14 @@ describe('one teaching path', () => {
     expect((await fetch(base + '/api/lesson', { method: 'POST', body: '{"question":""}' })).status).toBe(400)
     expect((await fetch(base + '/api/lesson', { method: 'POST', headers: { Origin: 'https://unrelated.test' }, body: '{"question":"Energy"}' })).status).toBe(403)
   })
+  it('distinguishes a slow model from an unreachable model', async () => {
+    const base = await endpoint(config)
+    const request = fetch
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException('Timed out', 'TimeoutError')))
+    const response = await request(base + '/api/lesson', { method: 'POST', body: JSON.stringify({ question: 'Draw something' }) })
+    expect(response.status).toBe(504)
+    expect((await response.json()).error).toContain('took too long')
+  })
   it('reports provider rejection without exposing its response or credentials', async () => {
     const send = vi.fn<typeof fetch>().mockResolvedValue(new Response('secret upstream error', { status: 429 }))
     await expect(generateLesson({ question: 'Energy' }, config, send)).rejects.toThrow('MODEL_HTTP_429')

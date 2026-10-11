@@ -110,8 +110,10 @@ export async function api(req: IncomingMessage, res: ServerResponse, config = mo
     if (res.destroyed) return
     const message = error instanceof Error ? error.message : ''
     const missing = message === 'MODEL_NOT_CONFIGURED'
-    json(res, missing ? 503 : 502, { error: missing
+    const timedOut = error instanceof Error && error.name === 'TimeoutError'
+    json(res, missing ? 503 : timedOut ? 504 : 502, { error: missing
       ? 'Teaching is not connected yet. Ask the person running this canvas to connect a model. Saved lessons still open.'
+      : timedOut ? 'The model took too long to answer. Try a smaller drawing or a faster model.'
       : message === 'MODEL_OUTPUT_INVALID' ? 'The model returned an invalid visual lesson. Try asking again.'
       : message === 'MODEL_HTTP_404' ? 'The configured model is unavailable. For Ollama, pull the model named in LESSON_MODEL, then try again.'
       : message.startsWith('MODEL_HTTP_') ? `The model service rejected the request (HTTP ${message.slice(11)}). Check the server connection and quota.`

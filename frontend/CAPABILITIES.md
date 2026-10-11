@@ -19,14 +19,15 @@
 ## Not implemented
 
 - Model-driven web search, citations, or tool calling. Disconnected helper endpoints were removed.
-- File upload, image/audio understanding, raster image generation, or video.
+- Audio-file understanding, OCR, raster image generation, or video.
+- Arbitrary binary-format parsing; export native office files as PDF or text.
 - Streaming, cross-device accounts/memory, or offline recognition guarantees.
 - Automatic model failover, arbitrary code execution, or executable generated HTML.
 - Guaranteed correct educational content, optimal layout, or human-quality voice.
 
 The board is reusable across subjects. Its primitives are implementation tools,
 not subject-specific lessons or fixed illustrations. A better model can use the
-same drawing contract later; the model still needs JSON-schema support.
+same drawing contract later; the model needs a supported JSON response mode.
 
 Dagre (MIT) handles graph placement; KaTeX (MIT) parses equations into safe
 MathML and loads only when needed. No image-generation subscription is required
@@ -53,7 +54,7 @@ Invalid arithmetic is reported while controls remain available for recovery.
 Duplicate IDs and missing local SVG definitions are detected before display.
 These controls require no paid API, new package or subject-specific engine.
 
-Object editing, streaming and file/image understanding remain future work.
+Object editing and streaming remain future work.
 
 ## Current generation contract
 
@@ -68,3 +69,18 @@ Visible answers now live on the canvas, not separate explanation paragraphs.
 Plain model replies are rendered as responsive handwritten SVG text. For generated
 SVGs the model supplies the full visible writing and diagrams together; the text
 transcript is retained for screen readers, voice, and conversation context.
+
+## Learner continuity and attachments
+
+Compact editable learner memory is updated optionally in the same model answer.
+Relevant older saved transcripts can be retrieved across new topics; common
+archive vocabulary is discounted without subject-specific rules. Memory can be
+disabled or erased, and learning backups exported/restored. This is per-browser
+storage and context adaptation, not model-weight training or perfect recall.
+
+PDF, EPUB and arbitrary-extension UTF-8 text are parsed locally. Relevant excerpts
+go to the same model endpoint. Photos are resized and sent as image inputs;
+understanding requires a vision-capable provider/model. Files stay in this tab.
+Browser tests exercise PDF worker loading, EPUB reading order, text, image input,
+memory persistence, opt-out and backups in development and production. Live
+provider behavior remains unverified without LESSON_API_KEY in this runtime.

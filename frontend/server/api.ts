@@ -7,7 +7,7 @@ export interface ModelConfig { url?: string; model?: string; key?: string; forma
 // Long string limits explode some providers' grammar compilers. Validate lengths
 // locally; the wire schema supplies the drawing structure without repetition rules.
 const wireSchema = JSON.parse(JSON.stringify(zodToJsonSchema(modelLessonSchema), (key, value) => key === 'maxLength' ? undefined : value))
-const jsonContract = 'JSON shape: {"explanation":"full readable transcript","title":"optional","blocks":[{"kind":"svg","title":"drawing title","source":"complete SVG","parameters":[{"id":"variable","label":"label","min":0,"max":100,"value":50,"step":1}]}]}. blocks and parameters may be omitted. Keep text concise and avoid redundant SVG markup.'
+const jsonContract = 'JSON shape: {"explanation":"full readable transcript","title":"optional","blocks":[{"kind":"svg","title":"drawing title","source":"complete SVG","parameters":[{"id":"variable","label":"label","min":0,"max":100,"value":50,"step":1}]}]}. Optional learner is a compact replacement learning memory string (max 2000 characters). blocks and parameters may be omitted. Keep text concise and avoid redundant SVG markup.'
 export function modelConfig(env: Record<string, string | undefined> = process.env): ModelConfig {
   const maxTokens = Number(env.LESSON_MAX_TOKENS ?? 4096)
   if (!Number.isInteger(maxTokens) || maxTokens < 256 || maxTokens > 8192) throw new Error('LESSON_MAX_TOKENS must be between 256 and 8192.')
@@ -30,12 +30,16 @@ export async function generateLesson(input: unknown, config: ModelConfig, send: 
       response_format: config.format === 'json_object' ? { type: 'json_object' } : { type: 'json_schema', json_schema: { name: 'explanation', schema: wireSchema } },
       messages: [
         { role: 'system', content: lessonInstructions + (config.format === 'json_object' ? '\n' + jsonContract : '') },
+        ...(!request.remember ? [{ role: 'system', content: 'Learning memory is disabled. Do not return learner or use learner memory or earlier retrieved notes.' }] : []),
         ...history.turns.flatMap(turn => [
           { role: 'user', content: turn.question },
           { role: 'assistant', content: JSON.stringify(turn.lesson) },
         ]),
         ...(history.geometryOmitted ? [{ role: 'system', content: 'The previous artwork exceeded the context budget; only its transcript is available. Do not claim to inspect or preserve unseen geometry.' }] : []),
-        { role: 'user', content: request.question },
+        { role: 'user', content: !request.learner && !request.recall && !request.attachments.length ? request.question : [
+          { type: 'text', text: JSON.stringify({ question: request.question, learnerMemory: request.remember ? request.learner : '', earlierRelevantNotes: request.remember ? request.recall : '', documents: request.attachments.filter(a => a.text).map(a => ({ name: a.name, excerpt: a.text })) }) },
+          ...request.attachments.filter(a => a.image).map(a => ({ type: 'image_url', image_url: { url: a.image, detail: 'auto' } })),
+        ] },
       ],
     }),
   })

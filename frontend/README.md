@@ -109,3 +109,27 @@ no external font request is required. Other repository projects and legacy
 student data are outside this canvas and remain untouched.
 
 Protected deployment and token budgets: [release instructions](RELEASE.md).
+
+## Personalized learning and files
+
+Open Saved lessons → Learning memory to review or correct the teacher's notes.
+The model can update this compact memory in the same answer, without another API
+call. Relevant older saved answers can be retrieved even after starting a new
+topic. Disable memory to stop sending/updating learner notes and older retrieval;
+recent conversation is controlled separately. Erase memory or all learning, and
+export/restore a JSON backup to preserve learning or transfer it manually.
+Storage is local to this browser; no account or cloud memory sync is added.
+
+Attach PDF, EPUB, UTF-8 text (including CSV, JSON, Markdown and source files),
+HTML or browser-decodable photos using the composer. Documents are parsed locally
+and relevant text excerpts are sent with your question. Photos are resized locally
+and sent to the configured model, which must support image input. Files stay in
+this tab until removed; they are not retained in learning backups. Scanned PDFs
+need OCR that is not included: attach page photos instead. Unsupported binary
+formats, such as native office documents, need export to PDF or text. See
+[design decisions and processing limits](DESIGN.md).
+
+PDF.js and fflate are open-source parsers loaded on demand. General SVG drawings
+remain subject-independent, with optional local controls and no drawing-service
+charge. Model inference may have provider costs. Context improves the evidence
+available to the model; it does not promise perfect recall, reasoning or artwork.

@@ -26,6 +26,7 @@ jobs:
       - run: npm audit --audit-level=moderate
       - run: npx --no-install playwright install --with-deps chromium
       - run: npm run test:e2e
+      - run: TEST_PRODUCTION=1 npm run test:e2e -- tests/browser/learning.spec.ts
   frontend-verdict:
     needs: frontend
     if: always()

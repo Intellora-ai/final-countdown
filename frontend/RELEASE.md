@@ -71,3 +71,15 @@ and microphone interruption in the target browser behind your HTTPS deployment.
 Secrets saved in Codex environment settings do not configure a Mac or deployed
 container automatically. Broader Python services elsewhere in this repository
 are outside this canvas release and dependency audit.
+
+## Files and learner data
+
+Learning notes and saved boards stay in local browser storage. Export backups
+before clearing site data. Files stay in the current tab; selected excerpts or
+resized photos go to the configured provider when you submit a question. Avoid
+sharing sensitive files without considering that provider's data policy. Image
+understanding requires a vision-capable model; a text-only model cannot gain
+vision through application changes. PDF/EPUB parsers run in the browser, not a
+new server upload service. The production server serves PDF worker `.mjs` files
+with JavaScript MIME type. CI also exercises upload and memory/backup workflows
+behind production authentication and security headers.

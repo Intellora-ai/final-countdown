@@ -225,3 +225,38 @@ See RELEASE.md for HTTPS, persistent storage and single-instance limitations.
 The repaired Docker image builds and its running container passes unauthenticated
 401, authenticated UI 200, CSP and authenticated health checks. Docker confirms
 the runtime user is node. Both temporary verification containers were removed.
+
+## Personalized learning and local files — 12 October 2026 (India)
+
+Added compact learner-memory replacement in the normal model response, editable
+notes, persistent opt-out, erasure, and JSON learning backup export/restore.
+Relevant older saved answers can be retrieved across topics; repeated vocabulary
+is discounted and recent-context answers are excluded from retrieval duplicates.
+The general SVG renderer and single configurable model endpoint are unchanged.
+
+Added on-demand PDF.js text extraction, EPUB spine-ordered text via fflate,
+arbitrary-extension UTF-8 text/HTML reading, excerpt selection, and local photo
+resizing. Binary and unreadable documents fail explicitly; PDF/EPUB resource
+limits are documented. No model call is made while choosing files. Browser-only
+parsers are build dependencies, absent from production Node runtime installs.
+
+The initial test run failed because memory/file modules did not yet exist
+(zero tests collected, not assertion failures). Later, an existing UTF-8 context
+assertion failed because increasing the upload-body allowance inadvertently
+increased conversation history. Restoring the separate 64 KB history budget
+fixed that regression. Production worker MIME handling was corrected before
+running PDF uploads behind production security headers.
+
+Final results: 143 unit tests across 15 files, 18 development browser checks,
+2 additional production desktop/phone upload-memory-backup checks, type checking,
+client/server builds and production-server smoke pass. Frontend dependency audit
+reports zero advisories. Browser/provider fixtures verify workflows, not real
+Groq teaching or image understanding. LESSON_API_KEY remains absent in this
+runtime. No perfect recall, 100% coverage, model-weight training or universal
+binary parsing claim is made.
+
+The final Docker image builds successfully. Its running container returns 401
+without authentication, serves the authenticated UI, and serves the PDF worker
+with JavaScript MIME type. A runtime module-resolution check confirms PDF.js and
+fflate are absent from Node runtime dependencies (browser assets are bundled).
+The temporary test container was stopped and removed.

@@ -12,7 +12,7 @@ const daily = Number(process.env.CANVAS_DAILY_REQUESTS ?? 100)
 if (!Number.isInteger(daily) || daily < 1 || daily > 10000) throw new Error('CANVAS_DAILY_REQUESTS must be between 1 and 10000.')
 const budget = new RequestBudget({ daily, file: production ? resolve(process.env.CANVAS_STATE_DIR ?? '.canvas-state', 'request-budget.json') : undefined })
 const root = fileURLToPath(new URL('../dist', import.meta.url))
-const mime: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.ttf': 'font/ttf', '.txt': 'text/plain' }
+const mime: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.ttf': 'font/ttf', '.txt': 'text/plain' }
 const server = createServer({ maxHeaderSize: 16384 }, async (req, res) => {
   res.setHeader('X-Content-Type-Options', 'nosniff')
   res.setHeader('Referrer-Policy', 'no-referrer')

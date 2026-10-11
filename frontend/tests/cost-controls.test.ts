@@ -68,3 +68,14 @@ it('retains a daily budget across restarts and renews on the next UTC day', () =
   now += 86400000
   expect('release' in new RequestBudget(options).acquire()).toBe(true)
 })
+it('transmits learner context, file excerpts and photos through the configured model without extra calls', async () => {
+ let payload: any
+ const send = async (_url: unknown, init?: RequestInit) => { payload=JSON.parse(init!.body as string);return Response.json({choices:[{message:{content:JSON.stringify({explanation:'A tailored answer',learner:'Learning algebra',blocks:[]})}}]}) }
+ const result=await generateLesson({question:'Explain',learner:'Prefers diagrams',recall:'Struggled with fractions',attachments:[{name:'notes.txt',text:'Evidence'},{name:'photo.jpg',image:'data:image/jpeg;base64,YQ=='}]}, {url:'https://provider.test/chat',model:'replaceable',format:'json_object'},send as typeof fetch)
+ expect(result.learner).toBe('Learning algebra');expect(payload.messages.at(-1).content[0].text).toContain('Struggled with fractions');expect(payload.messages.at(-1).content[1].image_url.url).toBe('data:image/jpeg;base64,YQ==')
+})
+it('does not expose disabled learner memory even if a client includes it',async()=>{
+ let payload:any;const send=async(_url:unknown,init?:RequestInit)=>{payload=JSON.parse(init!.body as string);return Response.json({choices:[{message:{content:'{"explanation":"Hello"}'}}]})}
+ await generateLesson({question:'hi',remember:false,learner:'private preference',recall:'private answer'},{url:'https://provider.test/chat',model:'test'},send as typeof fetch)
+ expect(JSON.stringify(payload)).not.toContain('private preference');expect(JSON.stringify(payload)).not.toContain('private answer')
+})

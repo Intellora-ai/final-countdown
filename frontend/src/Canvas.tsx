@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
-import { lessonSchema, MAX_REQUEST_BYTES, type Lesson } from './lesson'
+import { lessonSchema, type Lesson } from './lesson'
+import { learnerKey, readLearner, mergeMemory, retrieve } from './learner'
+import { passages, readAttachment, type Attachment } from './attachments'
 import { WrittenReply } from './WrittenReply'
 import { Visual } from './Visual'
 import { recognitionAvailable, speak, startListening, stopSpeaking } from './voice'
@@ -21,12 +23,43 @@ function context(entries: Entry[], entry: Entry | undefined, question: string) {
   }
   let memory = turns.map(({ question, lesson }) => ({ question, lesson }))
   const bytes = () => new TextEncoder().encode(JSON.stringify({ question, memory })).byteLength
-  while (memory.length > 1 && bytes() > MAX_REQUEST_BYTES) memory.shift()
-  if (bytes() > MAX_REQUEST_BYTES) memory = memory.map(turn => ({ ...turn, lesson: { ...turn.lesson, blocks: [] } }))
+  while (memory.length > 1 && bytes() > 64000) memory.shift()
+  if (bytes() > 64000) memory = memory.map(turn => ({ ...turn, lesson: { ...turn.lesson, blocks: [] } }))
   return memory
 }
 export function Canvas() {
   const [entries, setEntries] = useState(readHistory)
+  const [learner, setLearner] = useState(readLearner)
+  const [remember, setRemember] = useState(() => { try { return localStorage.getItem(learnerKey + '/enabled') !== 'false' } catch { return true } })
+  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [reading, setReading] = useState(false)
+  function saveLearner(value: string) {
+    setLearner(value)
+    try { localStorage.setItem(learnerKey, value) } catch { setStorageError('Learning memory could not be saved in this browser.') }
+  }
+  function exportLearning() {
+    const url = URL.createObjectURL(new Blob([JSON.stringify({ learner, entries }, null, 2)], { type: 'application/json' }))
+    const link = document.createElement('a'); link.href = url; link.download = 'blackboard-learning.json'; link.click()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+  async function restoreLearning(file: File | undefined) {
+    if (!file) return
+    try {
+      if (file.size > 20 * 1024 * 1024) throw new Error('Learning backup exceeds 20 MB.')
+      const backup = z.object({ learner: z.string().max(2000), entries: historySchema }).parse(JSON.parse(await file.text()))
+      endVoice(); cancelRequest()
+      localStorage.setItem(storageKey, JSON.stringify(backup.entries)); localStorage.setItem(learnerKey, backup.learner)
+      setEntries(backup.entries); setLearner(backup.learner); setActive(backup.entries.at(-1)?.id ?? null); setError('')
+    } catch { setError('Could not restore the learning backup. Use an exported Blackboard JSON file and check available browser storage.') }
+  }
+  async function addFiles(files: FileList | null) {
+    if (!files) return
+    if (attachments.length + files.length > 3) { setError('Attach up to three files at once.'); return }
+    setReading(true); setError('')
+    try { const results = await Promise.all([...files].map(readAttachment)); setAttachments(current => [...current, ...results]) }
+    catch (err) { setError(err instanceof Error ? err.message : 'The file could not be read.') }
+    finally { setReading(false) }
+  }
   const [active, setActive] = useState<string | null>(() => entries.at(-1)?.id ?? null)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [question, setQuestion] = useState('')
@@ -87,6 +120,7 @@ export function Canvas() {
   }
   async function submit(spoken?: string) {
     const value = (spoken ?? question).trim()
+    if (reading) return
     if (!value || value.length > 1000) {
       if (spoken) voiceFailed('Please ask a shorter question, up to 1,000 characters.')
       return
@@ -99,16 +133,23 @@ export function Canvas() {
       cancelRequest(); endVoice(); setError('The answer took too long. Please try again.')
     }, 70000)
     const parent = followUp ? entry : undefined
+    const recent = context(entries, parent, value)
+    const included = new Set(entries.filter(e => recent.some(turn => turn.question === e.question && turn.lesson.explanation === e.lesson.explanation)).map(e => e.id))
     try {
       const response = await fetch('/api/lesson', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal,
-        body: JSON.stringify({ question: value, memory: context(entries, parent, value) }),
+        body: JSON.stringify({ question: value, memory: recent,
+          remember, learner: remember ? learner : '',
+          recall: remember ? retrieve(entries, value, included) : '',
+          attachments: attachments.map(a => a.text ? { name: a.name, text: passages(a.text, value) } : a),
+        }),
       })
       const result = await response.json()
       // A transport can still finish after cancellation. It must not repaint or save.
       if (controller.signal.aborted || requestRef.current !== controller) return
       if (!response.ok) throw new Error(result.error ?? 'The answer could not be created.')
       const lesson = lessonSchema.parse(result.lesson)
+      if (remember && typeof result.lesson.learner === 'string') saveLearner(mergeMemory(learner, result.lesson.learner))
       const next = [...entries, { id: crypto.randomUUID(), parentId: parent?.id, question: value, lesson }]
       setEntries(next); setActive(next.at(-1)!.id); setQuestion(current => current.trim() === value ? '' : current); setFollowUp(true)
       try { localStorage.setItem(storageKey, JSON.stringify(next)); setStorageError('') }
@@ -149,6 +190,15 @@ export function Canvas() {
       <nav aria-label="Saved lessons">{entries.map(e => <button key={e.id} className={active === e.id ? 'history active' : 'history'} onClick={() => select(e.id)}>{e.lesson.title ?? e.question}</button>)}</nav>
       {entries.length === 0 && <p>No lessons yet.</p>}
       <p className="local-note">Saved in this browser.</p>
+      <details className="learner-settings"><summary>Learning memory</summary>
+        <label><input type="checkbox" checked={remember} disabled={busy} onChange={e => { setRemember(e.target.checked); try { localStorage.setItem(learnerKey + '/enabled', String(e.target.checked)) } catch { setStorageError('Memory preference could not be saved.') } }} /> Use and update memory</label>
+        <textarea aria-label="Learning memory" disabled={busy} value={learner} maxLength={2000} placeholder="Your goals, preferences and learning so far…" onChange={e => saveLearner(e.target.value)} />
+        <p>Editable notes and relevant older answers help personalize new topics. Files stay in this tab. No account or cross-device sync.</p>
+        <button disabled={busy || reading} onClick={exportLearning}>Export learning</button>
+        <label>Restore learning<input type="file" accept="application/json,.json" disabled={busy || reading} aria-label="Restore learning" onChange={e => { void restoreLearning(e.target.files?.[0]); e.target.value = '' }} /></label>
+        <button disabled={busy} onClick={() => saveLearner('')}>Erase memory</button>
+        <button disabled={reading} onClick={() => { endVoice(); cancelRequest(); setEntries([]); setAttachments([]); setActive(null); saveLearner(''); try { localStorage.removeItem(storageKey) } catch { setStorageError('Could not erase saved lessons.') } }}>Erase all learning</button>
+      </details>
     </aside>
     <main id="canvas">
       <header><div className="toolbar"><button className="history-toggle" aria-label="Saved lessons" aria-expanded={historyOpen} aria-controls="lesson-history" onClick={() => setHistoryOpen(!historyOpen)}>☰</button><a className="brand" href="#canvas">Blackboard</a></div><div className="toolbar"><span className="connection">{connected === null ? 'Checking connection…' : connected ? 'Model configured' : 'Model not configured'}</span><button className="new-topic" onClick={() => select(null)}>+ New topic</button></div></header>
@@ -165,10 +215,15 @@ export function Canvas() {
       </article> : <section className="welcome"><h1>What do you want<br />to understand?</h1><p>A blank board for your next idea.<br />Ask, sketch it out, and ask again.</p></section>}
       <div className="composer"><form onSubmit={event => { event.preventDefault(); void submit() }}>
         {entry && <label className="follow-up"><input type="checkbox" checked={followUp} onChange={e => setFollowUp(e.target.checked)} /> Keep conversation context</label>}
+        <div className="file-input"><label>Attach files or photos<input type="file" multiple disabled={reading || busy} aria-label="Attach files or photos" onChange={e => { void addFiles(e.target.files); e.target.value = '' }} /></label>
+          {attachments.map((a, i) => <span key={i}>{a.name}<button type="button" aria-label={`Remove ${a.name}`} onClick={() => setAttachments(current => current.filter((_, index) => index !== i))}>×</button></span>)}
+          {reading && <p role="status">Reading files locally…</p>}
+          {attachments.length > 0 && <p>Relevant excerpts are sent with your question. Photos need a vision-capable model.</p>}
+        </div>
         <div className="input-row"><textarea ref={inputRef} aria-label="Your question" placeholder={entry ? 'Ask a follow-up, or try answering…' : 'What would you like to learn?'} value={question} maxLength={1000} onChange={e => setQuestion(e.target.value)} rows={2} /><div className="composer-actions">
           {recognitionAvailable() && <button type="button" onClick={() => voiceOn ? (endVoice(), cancelRequest()) : listen()}>{voiceOn ? 'End voice' : 'Start voice'}</button>}
           {voiceOn && (speaking || busy) && <button type="button" onClick={listen}>Interrupt</button>}
-          {busy && !voiceOn ? <button type="button" onClick={cancelRequest}>Stop answer</button> : <button type="submit" disabled={busy || !question.trim()}>Send</button>}
+          {busy && !voiceOn ? <button type="button" onClick={cancelRequest}>Stop answer</button> : <button type="submit" disabled={busy || reading || !question.trim()}>Send</button>}
         </div></div>
         {listening && <p role="status">Listening… pause when you finish.</p>}{speaking && <p role="status">Speaking…</p>}{busy && <p role="status">Working on your question…</p>}
         {error && <p role="alert">{error}</p>}{voiceError && <p role="alert">{voiceError}</p>}{storageError && <p role="alert">{storageError}</p>}

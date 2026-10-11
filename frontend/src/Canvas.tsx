@@ -160,7 +160,7 @@ export function Canvas() {
         {entry.lesson.check && <section className="check"><span>Your turn</span><p>{entry.lesson.check}</p><button onClick={() => { setFollowUp(true); inputRef.current?.focus() }}>Try it below ↓</button></section>}
       </article> : <section className="welcome"><h1>What do you want<br />to understand?</h1><p>A blank board for your next idea.<br />Ask, sketch it out, and ask again.</p></section>}
       <div className="composer"><form onSubmit={event => { event.preventDefault(); void submit() }}>
-        {entry && <label className="follow-up"><input type="checkbox" checked={followUp} onChange={e => setFollowUp(e.target.checked)} /> Use this lesson as context</label>}
+        {entry && <label className="follow-up"><input type="checkbox" checked={followUp} onChange={e => setFollowUp(e.target.checked)} /> Keep conversation context</label>}
         <div className="input-row"><textarea ref={inputRef} aria-label="Your question" placeholder={entry ? 'Ask a follow-up, or try answering…' : 'What would you like to learn?'} value={question} maxLength={1000} onChange={e => setQuestion(e.target.value)} rows={2} /><div className="composer-actions">
           {recognitionAvailable() && <button type="button" onClick={() => voiceOn ? (endVoice(), cancelRequest()) : listen()}>{voiceOn ? 'End voice' : 'Start voice'}</button>}
           {voiceOn && (speaking || busy) && <button type="button" onClick={listen}>Interrupt</button>}

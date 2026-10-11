@@ -31,7 +31,7 @@ it('New topic sends no previous topic in memory', async () => {
 it('turning context off removes it from the request entirely', async () => {
   const send = transport()
   render(<Canvas />)
-  fireEvent.click(screen.getByLabelText('Use this lesson as context'))
+  fireEvent.click(screen.getByLabelText('Keep conversation context'))
   const body = await ask(send)
   expect(body.memory).toEqual([])
   expect(body.previous).toBeUndefined()

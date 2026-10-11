@@ -2,12 +2,12 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import { lessonInstructions, modelLessonSchema, requestSchema, MAX_REQUEST_BYTES } from '../src/lesson'
 
-export interface ModelConfig { url?: string; model?: string; key?: string }
+export interface ModelConfig { url?: string; model?: string; key?: string; format?: 'json_schema' | 'json_object' }
 // Long string limits explode some providers' grammar compilers. Validate lengths
 // locally; the wire schema supplies the drawing structure without repetition rules.
 const wireSchema = JSON.parse(JSON.stringify(zodToJsonSchema(modelLessonSchema), (key, value) => key === 'maxLength' ? undefined : value))
 export function modelConfig(): ModelConfig {
-  return { url: process.env.LESSON_API_URL, model: process.env.LESSON_MODEL, key: process.env.LESSON_API_KEY }
+  return { url: process.env.LESSON_API_URL, model: process.env.LESSON_MODEL, key: process.env.LESSON_API_KEY, format: process.env.LESSON_RESPONSE_FORMAT === 'json_object' ? 'json_object' : 'json_schema' }
 }
 export async function generateLesson(input: unknown, config: ModelConfig, send: typeof fetch = fetch, signal?: AbortSignal) {
   const request = requestSchema.parse(input)
@@ -21,9 +21,9 @@ export async function generateLesson(input: unknown, config: ModelConfig, send: 
     headers: { 'Content-Type': 'application/json', ...(config.key ? { Authorization: `Bearer ${config.key}` } : {}) },
     body: JSON.stringify({
       model: config.model,
-      response_format: { type: 'json_schema', json_schema: { name: 'explanation', schema: wireSchema } },
+      response_format: config.format === 'json_object' ? { type: 'json_object' } : { type: 'json_schema', json_schema: { name: 'explanation', schema: wireSchema } },
       messages: [
-        { role: 'system', content: lessonInstructions },
+        { role: 'system', content: lessonInstructions + (config.format === 'json_object' ? '\nResponse schema: ' + JSON.stringify(wireSchema) : '') },
         ...request.memory.flatMap(turn => [
           { role: 'user', content: turn.question },
           { role: 'assistant', content: JSON.stringify(turn.lesson) },
@@ -90,7 +90,7 @@ export async function api(req: IncomingMessage, res: ServerResponse, config = mo
       ? 'Teaching is not connected yet. Ask the person running this canvas to connect a model. Saved lessons still open.'
       : timedOut ? 'The model took too long to answer. Try a smaller drawing or a faster model.'
       : message === 'MODEL_OUTPUT_INVALID' ? 'The model returned an invalid visual lesson. Try asking again.'
-      : message === 'MODEL_HTTP_404' ? 'The configured model is unavailable. For Ollama, pull the model named in LESSON_MODEL, then try again.'
+      : message === 'MODEL_HTTP_404' ? 'The configured model or API endpoint is unavailable. Check the endpoint and model name on the server.'
       : message.startsWith('MODEL_HTTP_') ? `The model service rejected the request (HTTP ${message.slice(11)}). Check the server connection and quota.`
       : 'The model could not be reached. Check the server connection and try again.' })
   } finally { res.off('close', disconnect) }

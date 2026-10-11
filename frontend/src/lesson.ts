@@ -56,10 +56,11 @@ export const lessonSchema = z.object({
   ])).max(12).default([]),
   check: text.optional(),
 })
-// Older saved templates remain readable, but new model output uses one drawing
-// surface plus semantic layout and equation typesetting.
-export const modelLessonSchema = lessonSchema.extend({
-  blocks: z.array(z.union([diagram, scene, artwork, z.object({ kind: z.literal('math'), title: text, latex: text })])).max(12).default([]),
+// Saved boards retain their original renderers. New replies are only text and
+// optional general SVG canvases: the model decides when a visual is useful.
+export const modelLessonSchema = z.object({
+  title: text.optional(), explanation: text,
+  blocks: z.array(artwork).max(12).default([]),
 })
 export type Lesson = z.infer<typeof lessonSchema>
 export const requestSchema = z.object({
@@ -68,8 +69,6 @@ export const requestSchema = z.object({
   memory: z.array(z.object({ question: text.max(1000), lesson: lessonSchema })).max(8).default([]),
 })
 
-export const lessonInstructions = `Answer the person directly and naturally. Match their question and level; admit uncertainty. Casual conversation needs only a short explanation, without a title, drawing or quiz. Use visuals only when they clarify the answer or the person requests them. Do not repeat the drawing as a wall of prose or narrate the user's intent.
-Return JSON matching the supplied schema. For a requested drawing, include real geometry rather than claiming to draw. For revisions return the complete updated board. Never invent measurements or claim unavailable search, file-reading or tools.
-For unrestricted vector composition use an svg block {kind:"svg",title,source}: source is a complete SVG document with an explicit viewBox. Compose any subject from SVG geometry, groups/transforms, gradients, patterns, clipping, masks, filters and text. Aim for an artist's study sheet: a strong focal drawing, generous negative space, precise contours, smaller supporting details, and brief handwritten annotations connected to what they explain. Use varied line weights to separate silhouette, internal structure and fine detail. Avoid decorative clutter, repeated box grids and generic clip art. Use a warm ivory background rectangle covering the viewBox, dark ink, and selective contrasting pigments such as terracotta, teal, ochre and ultramarine. Color should distinguish meaning or guide attention, not obscure it. Use gradients, shading, hatching or layering only when they clarify form. Preserve the requested object's actual geometry and relationships; style never excuses inaccuracies. Set readable text sizes and explicit contrasting colors. Use SVG presentation attributes rather than CSS stylesheets. Keep definitions and references local; no scripts, HTML, external images, URLs or animation. For interactive exploration, optionally supply parameters [{id,label,min,max,value,step}] and use {{arithmetic expression}} anywhere a numeric value belongs in SVG attributes or text. Expressions can reference parameter IDs and math functions; the browser evaluates them safely and supplies sliders. No JavaScript is needed. Make controls meaningful to the explanation. This is a general artwork surface, not a catalogue of subject templates.
-Use scene for freely composed drawings, diagram for connected ideas (the browser handles node placement), and math for TeX equations without dollar delimiters. Scenes support SVG paths and curves, shapes, arrows, text, computed plots and equations. Choose the composition from the content, not a subject template. Keep labels readable and leave whitespace. Scenes and diagrams sit on warm ivory paper; use dark ink and clear colored accents. Coordinates are pixels; text y is its baseline.
-Use polygon for regular geometry: the browser computes its vertices. Use math for fractions, roots and matrices. Path d is numeric SVG geometry, never HTML or scripts. Plots support x, arithmetic, ^ or **, sin/cos/tan/abs/sqrt/exp/log/ln, pi and e; use explicit multiplication such as 2*x. The browser computes the curve.`
+export const lessonInstructions = `Respond naturally to the person and their request. You decide whether to converse, explain, teach or draw; no lesson format, quiz or visual is mandatory. Be accurate and acknowledge uncertainty. Do not claim unavailable tools or actions.
+Return JSON matching the response schema: explanation is the reply; title and blocks are optional. For visuals use svg blocks with a complete SVG source and finite positive viewBox. Draw actual content, not promises to draw. Revisions contain the complete updated artwork. Use clear composition, readable annotations, varied line weights and meaningful color on an explicit warm-paper background. Keep SVG definitions local; use presentation attributes, not scripts, HTML, CSS stylesheets, external resources or animation.
+Optional parameters define sliders {id,label,min,max,value,step}. Numeric {{expressions}} in SVG attributes/text may reference those IDs, arithmetic, sin/cos/tan/abs/sqrt/exp/log/ln, pi and e. They run locally without JavaScript. Use controls only when helpful.`

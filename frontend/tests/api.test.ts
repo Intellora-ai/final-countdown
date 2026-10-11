@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createServer, type Server } from 'node:http'
 import { api, generateLesson } from '../server/api'
 
-export const example = { title: 'Energy transfer', explanation: 'Energy moves between stores.', blocks: [{ kind: 'diagram', title: 'A falling object', nodes: [{ id: 'a', label: 'Potential energy' }, { id: 'b', label: 'Kinetic energy' }], edges: [{ from: 'a', to: 'b', label: 'falls' }] }], check: 'What changes as the object falls?' }
+export const example = { title: 'Energy transfer', explanation: 'Energy moves between stores.', blocks: [{ kind: 'svg', title: 'A falling object', source: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400"><path d="M100 80 L100 300" stroke="#335b4a"/><text x="120" y="100">Potential energy</text><text x="120" y="300">Kinetic energy</text></svg>' }] }
 const config = { url: 'https://model.example.test/v1/chat/completions', model: 'test-model', key: 'test-only-key' }
 const servers: Server[] = []
 afterEach(async () => { vi.unstubAllGlobals(); await Promise.all(servers.splice(0).map(s => new Promise<void>(resolve => { s.closeAllConnections(); s.close(() => resolve()) }))) })
@@ -20,8 +20,15 @@ describe('one teaching path', () => {
     await generateLesson({ question: 'Draw connections' }, { ...config, model: 'replacement-model' }, send)
     const payload = JSON.parse(send.mock.calls[0][1]!.body as string)
     expect(payload.model).toBe('replacement-model')
-    const kinds = payload.response_format.json_schema.schema.properties.blocks.items.anyOf.map((option: { properties: { kind: { const: string } } }) => option.properties.kind.const)
-    expect(kinds).toEqual(['diagram', 'scene', 'svg', 'math'])
+    expect(payload.response_format.json_schema.schema.properties.blocks.items.properties.kind.const).toBe('svg')
+    expect(payload.response_format.json_schema.schema.properties.check).toBeUndefined()
+  })
+  it('supports JSON mode on the same replaceable endpoint without vendor tuning', async () => {
+    const send = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ choices: [{ message: { content: JSON.stringify(example) } }] }))
+    expect(await generateLesson({ question: 'Draw energy' }, { ...config, format: 'json_object' }, send)).toEqual(example)
+    const payload = JSON.parse(send.mock.calls[0][1]!.body as string)
+    expect(payload.response_format).toEqual({ type: 'json_object' })
+    expect(payload.messages[0].content).toContain('Response schema:')
   })
   it('returns 404 for removed disconnected tools', async () => {
     const base = await endpoint()
@@ -65,8 +72,8 @@ describe('one teaching path', () => {
     expect(options.headers).toMatchObject({ Authorization: 'Bearer test-only-key' })
     expect(options.redirect).toBe('error')
   })
-  it('refuses fabricated diagram references', async () => {
-    const invalid = { ...example, blocks: [{ ...example.blocks[0], edges: [{ from: 'a', to: 'missing' }] }] }
+  it('rejects teaching templates in new model output', async () => {
+    const invalid = { ...example, blocks: [{ kind: 'steps', title: 'Forced lesson', items: ['First', 'Second'] }] }
     const send = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ choices: [{ message: { content: JSON.stringify(invalid) } }] }))
     await expect(generateLesson({ question: 'Energy' }, config, send)).rejects.toThrow('MODEL_OUTPUT_INVALID')
   })

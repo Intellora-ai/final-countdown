@@ -23,7 +23,7 @@ LESSON_MODEL=qwen2.5:3b
 ```
 
 Restart Vite after changing settings. The endpoint is a full OpenAI-compatible
-chat-completions URL supporting `response_format: json_schema`; the renderer
+chat-completions URL supporting `response_format: json_schema` or `json_object`; the renderer
 has no dependency on a particular vendor or model name. Hosted endpoints can
 use `LESSON_API_KEY`, kept on the server. Production reads process environment
 variables. A model is not needed to open saved work.
@@ -41,16 +41,37 @@ Production defaults to `http://127.0.0.1:8787`. The cloud test environment can
 use `CHROMIUM_PATH=/usr/bin/chromium npm run test:e2e`; that Linux path is not
 needed on a Mac. This server is intended for local, single-user use.
 
+## Replace the model
+
+Keep the same UI and drawing contract. Change only the endpoint, model name and
+server-side key. For an OpenAI-compatible provider using JSON mode:
+
+```dotenv
+LESSON_API_URL=https://api.groq.com/openai/v1/chat/completions
+LESSON_MODEL=<a model supporting JSON mode>
+LESSON_API_KEY=<your key>
+LESSON_RESPONSE_FORMAT=json_object
+```
+
+Gemini's OpenAI-compatible endpoint is
+`https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`;
+use a supported Gemini model name and its API key. Model IDs and supported
+response modes vary: check the provider's current documentation. There is no
+provider-specific routing or automatic failover. Restart after changing settings.
+Provider billing/free quotas are separate from this open-source application.
+
 ## What the board does
 
 - Native vector writing: multiline labels, shapes, arrows, arbitrary SVG paths.
-- Formula plots calculated by the browser, with gaps at undefined points. Supported
+- Earlier saved scenes include formula plots calculated by the browser, with gaps at undefined points. Supported
   expressions use `x`, `+ - * / ^ **`, parentheses, `sin`, `cos`, `tan`, `abs`,
   `sqrt`, `exp`, `log`/`ln`, `pi`, and `e`. Multiplication is explicit (`2*x`).
 - Fit-to-content viewport, zoom, scroll/pan, and self-contained SVG downloads
   including the locally bundled, open-licensed handwritten font.
-- Optional diagrams, process notes, comparisons, and charts. A simple reply does
-  not have to become a lesson, drawing, or quiz.
+- New responses are text plus optional general SVG canvases, including
+  declarative interactive controls. The model decides when to draw; there is no
+  lesson detector, subject router, forced quiz or mandatory teaching sequence.
+- Earlier scene/diagram/math/template formats remain readable in saved boards.
 - Follow-ups receive their own ancestor conversation, up to eight turns within
   the request byte budget. Oldest turns are removed first. If one drawing is
   too large, its textual explanation is retained without the geometry.
@@ -74,7 +95,7 @@ or illustration is correct.
 | Drawings must stay inside a fixed page | Removed. The viewport expands around actual rendered bounds, including text. |
 | Sentence-by-sentence speech queue | Removed. One utterance prevents cancelled audio from restarting and preserves punctuation/decimals. |
 | All saved lessons go into every question | Removed. Only ancestors of the selected answer belong to that conversation. |
-| Permanent sidebar and dark/light style mixture | Removed. History is collapsible; the board uses one readable chalk palette. |
+| Permanent sidebar and dark/light style mixture | Removed. History is collapsible; the board uses a warm paper-and-ink palette. |
 | Duplicate generic tool route | Removed. Disconnected calculator/search endpoints were also removed. |
 | Large string-length grammar constraints upstream | Removed from the wire schema after reproducing an Ollama grammar compiler crash. Local validation still limits content. |
 | Thousands of renamed happy-path tests prove quality | Removed. Keep focused assertions about real rendering, transport, persistence, cancellation, calculation, and failure behavior. |

@@ -54,3 +54,12 @@ Duplicate IDs and missing local SVG definitions are detected before display.
 These controls require no paid API, new package or subject-specific engine.
 
 Object editing, streaming and file/image understanding remain future work.
+
+## Current generation contract
+
+New responses use explanation text, an optional title, and optional general SVG
+canvases. No scene/diagram/math/template routing or quiz field is offered to the
+model. Previous formats are retained solely for saved-board compatibility.
+JSON-schema and JSON-object response modes share one OpenAI-compatible model
+endpoint. Groq/Gemini endpoint configuration is documented; authenticated live
+provider requests have not been verified without their credentials.

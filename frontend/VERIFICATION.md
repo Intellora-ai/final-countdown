@@ -39,7 +39,7 @@ npm run build
 npm run test:e2e
 ```
 
-The completed unit/integration run has **123 passing tests in thirteen files**.
+The completed unit/integration run has **124 passing tests in thirteen files**.
 The build typechecks and produces browser and Node server bundles.
 
 The **twelve passing Chromium browser checks** run the following six workflows
@@ -172,3 +172,15 @@ negative space, connected annotations and meaningful pigment rather than generic
 box grids. No drawing templates or art-generation service were added.
 These checks demonstrate interface and renderer behavior, not Leonardo-level
 output from the currently configured model.
+
+## Text and optional canvas only
+
+Removed legacy teaching block types and the separate check field from new model
+output. Retained the saved-board schema and renderers so existing work still
+opens. Replaced the long teaching/primitive prompt with concise response and
+canvas mechanics. No lesson detection or subject routing is added.
+Added selectable JSON-object response mode for compatible replacement providers;
+transport fixtures verify its payload and local output validation. Plain replies
+need neither title nor canvas. Provider integration tests use fake fetch responses,
+not authenticated Groq/Gemini calls. Existing voice, context and browser regression
+checks remain applicable.

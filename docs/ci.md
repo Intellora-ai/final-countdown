@@ -91,3 +91,18 @@ Model teaching accuracy, real provider quota/latency and physical microphone
 quality require live testing. The release workflow uses local provider/browser
 fixtures and does not consume model API keys. Passing it is evidence of the
 listed checks, not a perfection certificate or production hosting deployment.
+
+## Installation evidence
+
+The first GitHub run at commit 13e2958 passed integrity, unit/coverage/strength,
+production API, browser, container and Python/Actions security checks. Its
+JavaScript security scan found `js/xss-through-dom` at the mathematical markup
+boundary; the release verdict correctly failed. MathML is now sanitized with
+the existing DOMPurify dependency before insertion, in addition to KaTeX's
+untrusted-input options. No scanner suppression was added.
+
+Activating ruleset 20990225 via the existing GitHub integration returned HTTP
+403 `Resource not accessible by integration`. The ruleset remains disabled;
+repository administration access must activate it and require `release-gate`
+from GitHub Actions (integration 15368). Workflow installation and passing runs
+must not be confused with enforced merge protection.

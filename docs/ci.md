@@ -23,6 +23,10 @@ prevent an owner from bypassing it when the ruleset is disabled.
 
 ## Coverage and test strength
 
+Dependabot groups React, React DOM and both type packages into one PR so
+coupled major upgrades are validated together. Node type major upgrades are
+held for an intentional runtime upgrade; the deployed runtime is Node 24.
+
 The measured unit baseline is about 75.98% lines, 68.30% statements, 69.23%
 functions and 64.43% branches, including entry points. Floors are 75/68/69/64;
 these prevent regression, not certify high or complete coverage. Production

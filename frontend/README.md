@@ -1,72 +1,88 @@
-# Visual learning canvas
+# Blackboard
 
-One student question → one model request → a clear answer, with optional visuals.
+Ask a question. The model explains it and can draw directly on a blackboard.
+Ask a follow-up to revise the drawing; earlier versions remain in saved lessons.
 
-## Run
+## Run locally
 
-Node 24 and npm are the only local runtime requirements.
+Install Node 24 or newer. In your existing checkout:
 
 ```sh
-cd /workspace/final-countdown/frontend
-npm ci --cache /workspace/.npm-cache
-npm run dev -- --host 127.0.0.1
+cd ~/final-countdown/frontend
+npm ci
+npm run dev
 ```
 
-The development server serves both the canvas and its API. No second process,
-database, search service, planner, or Python engine is required.
+Open the localhost URL printed by Vite. The same process serves the UI and API.
+Model settings go in the ignored `frontend/.env.local` for development. For an
+already-running Ollama with an installed model, for example:
 
-Set `LESSON_API_URL` to a full OpenAI-compatible chat-completions URL and
-`LESSON_MODEL` to an available model. Hosted services also need
-`LESSON_API_KEY`. Export these variables or put them in ignored `.env.local`
-for development. Restart after configuration changes. The production server
-reads process variables, not `.env.local`. The model must support JSON output.
-Remote endpoints require HTTPS; local endpoints may use HTTP. Secrets stay on
-the server. A missing model leaves the app running with an explicit connection
-notice; it does not supply canned lessons.
+```dotenv
+LESSON_API_URL=http://127.0.0.1:11434/v1/chat/completions
+LESSON_MODEL=qwen2.5:3b
+```
+
+Restart Vite after changing settings. The endpoint is a full OpenAI-compatible
+chat-completions URL supporting `response_format: json_schema`; the renderer
+has no dependency on a particular vendor or model name. Hosted endpoints can
+use `LESSON_API_KEY`, kept on the server. Production reads process environment
+variables. A model is not needed to open saved work.
 
 ```sh
 npm test
 npm run build
 npm start
-# Browser binaries are installed separately:
-PLAYWRIGHT_BROWSERS_PATH=/workspace/.cache/ms-playwright npx playwright install chromium
-PLAYWRIGHT_BROWSERS_PATH=/workspace/.cache/ms-playwright npm run test:e2e
+# Install Playwright's browser once, then run browser checks:
+npx playwright install chromium
+npm run test:e2e
 ```
 
-Production defaults to loopback port 8787; set HOST and PORT when needed.
-This is a local, single-user development server. Before exposing model access
-publicly, add authentication and request quotas.
+Production defaults to `http://127.0.0.1:8787`. The cloud test environment can
+use `CHROMIUM_PATH=/usr/bin/chromium npm run test:e2e`; that Linux path is not
+needed on a Mac. This server is intended for local, single-user use.
 
-## Requirements challenged
+## What the board does
 
-| Requirement | Source / reason | Decision and removal consequence |
-| --- | --- | --- |
-| Student chooses any subject | Owner's explicit request; fixed content failed their intended use | Keep. Questions go verbatim to the configured model. |
-| Visuals on every question | Initially inferred from the canvas request; explicitly challenged by the owner | Delete the mandate. Plain text is valid; use diagrams, steps, comparisons, or charts only when useful. Remove bespoke 3D simulations and subject-specific renderers. |
-| Quiz after every answer | Teaching convention, not a customer requirement | Delete the mandate. Checks are optional and omitted when they do not help. |
-| Follow-up questions | Minimum useful learning loop | Keep previous lesson as context. Remove resolver escalation, research pipelines, shadow controllers, and competing decision engines. |
-| Keep generated work | Prevent refresh from losing the session | Keep browser-local storage. Remove server database, student identities, migrations, and distributed memory. No account or cross-device sync. Existing legacy data files are left untouched; they are not imported into this format. |
-| Validate untrusted output | A malformed model response must not crash or invent connections | Keep one shared schema. Remove overlapping lesson-arc, semantic, assurance, and provenance gates. Schema validity does not prove educational correctness. |
-| Multiple vendors and automatic failover | Historical architectural choice, not needed to establish the loop | Delete. One compatible endpoint is selected explicitly. Provider failure is visible. |
-| Curriculum planning, dashboard, separate practice/tutor screens | Previous product scope, superseded by the owner's canvas focus | Delete from this app. No generated daily schedule or hardcoded curriculum. |
-| Hosted formal proofs and Python engines | Separate repository workflow; no dependency in this canvas | Disconnect from canvas. Other root projects remain untouched. |
-| Mandatory live model for server boot | Historical startup choice | Delete. Missing configuration blocks generation, not the UI or saved work. |
-| Third-party fonts, graphics frameworks, orchestration scripts | Presentation/implementation preferences | Delete. System fonts, SVG, CSS, React, one API. |
+- Native vector writing: multiline labels, shapes, arrows, arbitrary SVG paths.
+- Formula plots calculated by the browser, with gaps at undefined points. Supported
+  expressions use `x`, `+ - * / ^ **`, parentheses, `sin`, `cos`, `tan`, `abs`,
+  `sqrt`, `exp`, `log`/`ln`, `pi`, and `e`. Multiplication is explicit (`2*x`).
+- Fit-to-content viewport, zoom, scroll/pan, and self-contained SVG downloads
+  including the locally bundled, open-licensed handwritten font.
+- Optional diagrams, process notes, comparisons, and charts. A simple reply does
+  not have to become a lesson, drawing, or quiz.
+- Follow-ups receive their own ancestor conversation, up to eight turns within
+  the request byte budget. Oldest turns are removed first. If one drawing is
+  too large, its textual explanation is retained without the geometry.
+- Saved versions persist in this browser, including earlier scene formats.
+- Browser voice input and output, repeat turns, explicit interruption, and stop.
+  Recognition support and voice quality depend on the browser/OS. Recognition
+  may use a browser vendor's service; offline or human-level audio is not promised.
 
-None of these software choices is a physical law. Quantitative visuals must
-come from the question or an explicitly stated example; factual accuracy still
-depends on the model and student review. Tests use labelled provider fixtures
-to verify transport, validation, follow-ups, persistence, and failure behavior;
-they do not establish live model quality.
+Vector drawings have no paid image-generation quota. They are not photo generation,
+video, arbitrary executable HTML, or a substitute for a capable model. Response
+sizes and browser storage remain finite. Layout and factual correctness still
+need review: validation proves safe structure, not that a model's explanation
+or illustration is correct.
 
-Legacy frontend-specific gates and workflows describe the removed architecture
-and are not validation of this replacement. The new checks are the commands
-above. The prior tracked frontend source is recoverable from Git and from
-`/workspace/canvas-before-simplification.tar` in this machine.
+## Requirements questioned
 
-Cloud setup uses Ollama 0.13.5 (image pinned by digest) and qwen2.5:3b as a
-small CPU development default, not a claim of best teaching quality. Models
-are retained under `/workspace/.ollama`. The model download needs
-`registry.ollama.ai` and any storage host it redirects to allowed in environment
-settings. A model running on your laptop is not automatically reachable here.
-Browser tests can use the installed Chromium with `CHROMIUM_PATH=/usr/bin/chromium`.
+| Proposed requirement | Decision and reason |
+| --- | --- |
+| Every message needs a visual/title/quiz | Removed. Let the question determine the presentation. |
+| Every subject needs a custom visual engine | Removed. General vector geometry handles diagrams and illustrations; a small expression parser handles numerical plots. |
+| Drawings must stay inside a fixed page | Removed. The viewport expands around actual rendered bounds, including text. |
+| Sentence-by-sentence speech queue | Removed. One utterance prevents cancelled audio from restarting and preserves punctuation/decimals. |
+| All saved lessons go into every question | Removed. Only ancestors of the selected answer belong to that conversation. |
+| Permanent sidebar and dark/light style mixture | Removed. History is collapsible; the board uses one readable chalk palette. |
+| Duplicate generic tool route | Removed. The standalone calculator/search endpoints remain, but are not connected to model tool calling. |
+| Large string-length grammar constraints upstream | Removed from the wire schema after reproducing an Ollama grammar compiler crash. Local validation still limits content. |
+| Thousands of renamed happy-path tests prove quality | Removed. Keep focused assertions about real rendering, transport, persistence, cancellation, calculation, and failure behavior. |
+
+The browser tests use clearly identified model fixtures to cover UI behavior.
+They do not prove model intelligence, microphone capture, or audible playback.
+`VERIFICATION.md` records the checks and live model evidence from this change.
+
+Caveat font and its SIL Open Font License are bundled under `public/fonts`;
+no external font request is required. Other repository projects and legacy
+student data are outside this canvas and remain untouched.

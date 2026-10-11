@@ -15,6 +15,26 @@ async function endpoint(model = {}) {
   return `http://127.0.0.1:${address.port}`
 }
 describe('one teaching path', () => {
+  it('allows conversation without a forced title, diagram, or check', async () => {
+    const send = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ choices: [{ message: { content: '{"explanation":"Hey!"}' } }] }))
+    expect(await generateLesson({ question: 'lol hi' }, config, send)).toEqual({ explanation: 'Hey!', blocks: [] })
+  })
+  it('sends selected context once and no vendor-specific tuning fields', async () => {
+    const send = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ choices: [{ message: { content: JSON.stringify(example) } }] }))
+    await generateLesson({ question: 'Why?', previous: example, memory: [{ question: 'Explain energy', lesson: example }] }, config, send)
+    const payload = JSON.parse(send.mock.calls[0][1]!.body as string)
+    expect(payload.messages.filter((message: { role: string }) => message.role === 'assistant')).toHaveLength(1)
+    expect(payload.options).toBeUndefined()
+    expect(payload.response_format.json_schema.strict).not.toBe(true)
+    expect(JSON.stringify(payload.response_format.json_schema.schema)).not.toContain('maxLength')
+  })
+  it('enforces same-origin access on every POST endpoint', async () => {
+    const base = await endpoint()
+    for (const path of ['/api/lesson', '/api/calculate', '/api/search', '/api/tool']) {
+      const response = await fetch(base + path, { method: 'POST', headers: { Origin: 'https://unrelated.test' }, body: '{"expression":"1+1","name":"calculator","input":"1+1","query":"energy"}' })
+      expect(response.status).toBe(403)
+    }
+  })
   it('accepts a direct answer without forcing a visual or a quiz', async () => {
     const answer = { title: 'A prime number', explanation: 'A prime has exactly two positive divisors: 1 and itself.' }
     const send = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ choices: [{ message: { content: JSON.stringify(answer) } }] }))

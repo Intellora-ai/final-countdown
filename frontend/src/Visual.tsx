@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
 import type { Lesson } from './lesson'
+import { Scene } from './Scene'
 
 export function Visual({ block }: { block: Lesson['blocks'][number] }) {
   const arrow = useId().replace(/:/g, '')
@@ -20,11 +21,11 @@ export function Visual({ block }: { block: Lesson['blocks'][number] }) {
         const dx = x2 - x1, dy = y2 - y1
         const offset = dx === 0 ? 46 / Math.max(1, Math.abs(dy)) : 140 / Math.max(1, Math.abs(dx))
         const active = selectedEdges.has(edge.from + '::' + edge.to)
-        return <g key={i}><line x1={x1 + dx * offset} y1={y1 + dy * offset} x2={x2 - dx * offset} y2={y2 - dy * offset} stroke={selected === null || active ? 'var(--accent)' : 'var(--line)'} strokeWidth={active ? '4' : '2'} markerEnd={`url(#${arrow})`} />{edge.label && <text x={(x1 + x2) / 2} y={(y1 + y2) / 2 + 22} textAnchor="middle" className="edge-label">{edge.label.slice(0, 36)}</text>}</g>
+        return <g key={i}><line x1={x1 + dx * offset} y1={y1 + dy * offset} x2={x2 - dx * offset} y2={y2 - dy * offset} stroke={selected === null || active ? 'var(--accent)' : 'var(--line)'} strokeWidth={active ? '4' : '2'} markerEnd={`url(#${arrow})`} />{edge.label && <text x={(x1 + x2) / 2} y={(y1 + y2) / 2 + 22} textAnchor="middle" className="edge-label">{edge.label}</text>}</g>
       })}
       {block.nodes.map((node, i) => <foreignObject key={node.id} x={30 + (i % 2) * 340} y={18 + Math.floor(i / 2) * 160} width="280" height="92"><button className="diagram-node" aria-pressed={selected === node.id} onClick={() => setSelected(current => current === node.id ? null : node.id)} title={node.detail}><strong>{node.label}</strong>{node.detail && <small>{node.detail}</small>}</button></foreignObject>)}
     </svg></div>}
     {block.kind === 'diagram' && selected !== null && <button onClick={() => setSelected(null)}>Clear selection · {block.nodes.find(node => node.id === selected)?.label}</button>}
-    {block.kind === 'scene' && <div className="diagram-scroll"><svg viewBox={`0 0 ${block.width} ${block.height}`} role="img" aria-label={block.title}>{block.elements.map((element, i) => { const color = element.color ?? 'var(--accent)'; if (element.type === 'rect') return <g key={i}><rect x={element.x} y={element.y} width={element.width} height={element.height} rx="10" fill="var(--surface, #213629)" stroke={color} strokeWidth="2" />{element.label && <text x={element.x + element.width / 2} y={element.y + element.height / 2} textAnchor="middle" dominantBaseline="middle" fill="currentColor">{element.label}</text>}</g>; if (element.type === 'circle') return <g key={i}><circle cx={element.x} cy={element.y} r={element.radius} fill="var(--surface, #213629)" stroke={color} strokeWidth="2" />{element.label && <text x={element.x} y={element.y} textAnchor="middle" dominantBaseline="middle" fill="currentColor">{element.label}</text>}</g>; if (element.type === 'line') return <g key={i}><line x1={element.x1} y1={element.y1} x2={element.x2} y2={element.y2} stroke={color} strokeWidth="3" />{element.label && <text x={(element.x1 + element.x2) / 2} y={(element.y1 + element.y2) / 2 - 8} textAnchor="middle" fill="currentColor">{element.label}</text>}</g>; return <text key={i} x={element.x} y={element.y} fill={color}>{element.label}</text> })}</svg></div>}
+    {block.kind === 'scene' && <Scene block={block} />}
   </section>
 }

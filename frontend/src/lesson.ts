@@ -1,4 +1,7 @@
 import { z } from 'zod'
+import { validPath } from './drawing'
+
+export const MAX_REQUEST_BYTES = 64000
 
 const text = z.string().trim().min(1).max(2000)
 const node = z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]+$/), label: text, detail: text.optional() })
@@ -12,15 +15,27 @@ const diagram = z.object({
     ctx.addIssue({ code: 'custom', message: 'Diagram connections must reference unique nodes.' })
   }
 })
+const coordinate = z.number().finite().min(-10000).max(10000)
+const size = z.number().finite().positive().max(10000)
+const color = z.string().regex(/^#[0-9a-fA-F]{6}$/)
+const ink = { color: color.optional(), strokeWidth: z.number().min(0.5).max(20).optional() }
+const label = { label: text.optional() }
 const sceneElement = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('rect'), x: z.number().finite().min(0).max(1200), y: z.number().finite().min(0).max(800), width: z.number().finite().positive().max(1200), height: z.number().finite().positive().max(800), label: text.optional(), color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional() }),
-  z.object({ type: z.literal('circle'), x: z.number().finite().min(0).max(1200), y: z.number().finite().min(0).max(800), radius: z.number().finite().positive().max(400), label: text.optional(), color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional() }),
-  z.object({ type: z.literal('line'), x1: z.number().finite().min(0).max(1200), y1: z.number().finite().min(0).max(800), x2: z.number().finite().min(0).max(1200), y2: z.number().finite().min(0).max(800), label: text.optional(), color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional() }),
-  z.object({ type: z.literal('text'), x: z.number().finite().min(0).max(1200), y: z.number().finite().min(0).max(800), label: text, color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional() }),
+  z.object({ type: z.literal('rect'), x: coordinate, y: coordinate, width: size, height: size, ...label, ...ink, fill: color.optional() }),
+  z.object({ type: z.literal('circle'), x: coordinate, y: coordinate, radius: size, ...label, ...ink, fill: color.optional() }),
+  z.object({ type: z.literal('line'), x1: coordinate, y1: coordinate, x2: coordinate, y2: coordinate, ...label, ...ink }),
+  z.object({ type: z.literal('arrow'), x1: coordinate, y1: coordinate, x2: coordinate, y2: coordinate, ...label, ...ink }),
+  z.object({ type: z.literal('text'), x: coordinate, y: coordinate, label: text, color: color.optional(), fontSize: z.number().min(12).max(96).optional(), width: size.optional() }),
+  z.object({ type: z.literal('path'), d: z.string().max(20000).refine(validPath, 'Use valid SVG path geometry.'), ...ink, fill: color.optional() }),
+  z.object({ type: z.literal('plot'), expression: z.string().trim().min(1).max(200), x: coordinate, y: coordinate, width: size, height: size, xMin: coordinate, xMax: coordinate, yMin: coordinate, yMax: coordinate, ...ink }),
 ])
-const scene = z.object({ kind: z.literal('scene'), title: text, width: z.number().int().min(320).max(1200).default(800), height: z.number().int().min(200).max(800).default(500), elements: z.array(sceneElement).min(1).max(40) })
+const scene = z.object({ kind: z.literal('scene'), title: text, width: z.number().int().min(320).max(4000).default(800), height: z.number().int().min(200).max(8000).default(500), elements: z.array(sceneElement).min(1).max(200) }).superRefine((value, ctx) => {
+  value.elements.forEach((element, i) => {
+    if (element.type === 'plot' && (element.xMax <= element.xMin || element.yMax <= element.yMin)) ctx.addIssue({ code: 'custom', path: ['elements', i], message: 'Plot ranges must increase.' })
+  })
+})
 export const lessonSchema = z.object({
-  title: text,
+  title: text.optional(),
   explanation: text,
   blocks: z.array(z.union([
     diagram,
@@ -28,7 +43,7 @@ export const lessonSchema = z.object({
     z.object({ kind: z.literal('steps'), title: text, items: z.array(text).min(2).max(8) }),
     z.object({ kind: z.literal('comparison'), title: text, columns: z.tuple([text, text]), rows: z.array(z.tuple([text, text])).min(2).max(8) }),
     z.object({ kind: z.literal('chart'), title: text, unit: text, points: z.array(z.object({ label: text, value: z.number().finite().nonnegative() })).min(2).max(8) }),
-  ])).max(4).default([]),
+  ])).max(12).default([]),
   check: text.optional(),
 })
 export type Lesson = z.infer<typeof lessonSchema>
@@ -38,6 +53,8 @@ export const requestSchema = z.object({
   memory: z.array(z.object({ question: text.max(1000), lesson: lessonSchema })).max(8).default([]),
 })
 
-export const lessonInstructions = `Solve the student's actual objective, not the loudest wording. Before answering, identify the objective, separate hard constraints from preferences, remove unnecessary assumptions, and use only the minimum context needed. Answer directly and naturally using the shortest response that fits the message. For greetings, jokes, thanks, or casual messages, reply like a person in one short sentence; never describe the student in third person, never say "the student responded", and never append a generic offer to help. Do not force a lesson onto casual conversation. State uncertainty instead of guessing. Use the previous explanation as context for follow-ups.
-Visual blocks are optional. Add a diagram, scene, steps, comparison, or chart only when it makes the answer easier to understand. Use no visual for a simple factual answer. A scene is an editable native SVG made only from validated rect, circle, line, and text elements. For math or transformations, prefer a clean whiteboard layout: generous empty space, labeled axes or before/after regions, short handwritten-style labels, arrows, and highlighted rule cards. Never return HTML, CSS, JavaScript, or raw SVG markup. Connect diagram edges only to distinct node IDs that exist in that diagram.
-Never invent quantitative data: chart values must follow from the question or an explicitly stated example. Text is plain text. Include a check question only if the student wants practice or it helps them learn; otherwise omit it. Do not force a lesson or quiz onto a simple question.`
+export const lessonInstructions = `Respond directly to the person in natural language. Match their question and level; acknowledge uncertainty. Casual conversation needs only a short reply, without a title, visual, or quiz. For teaching, explain the idea with a concise example; use short paragraphs and put detailed structure in blocks instead of repeating it in prose.
+Return a JSON object matching the provided schema. explanation is the answer, title is optional. blocks and check are optional: use them only when they help. When the user asks for a drawing, include actual scene geometry in blocks; never claim a drawing exists if blocks is empty. A check is one short practice question, never a description of what you intend to draw. All text is plain text. Never narrate the user's intent in third person.
+Use a scene for a spatial sketch, a diagram for relationships, steps for a process, comparison for alternatives, and chart for quantities. Layout is yours, not a fixed subject template. Give each scene enough space and avoid overlapping labels. Use hex colors with strong contrast on a dark board. For revisions return the complete updated board, including parts that should remain. Chart values must come from supplied facts or an explicitly labeled example. Do not claim to search, read files, or run tools; those capabilities are not connected to this conversation.
+Drawing contract: a scene block is {kind:"scene",title,width,height,elements:[...]}. Choose elements from:
+{type:"text",x,y,label,fontSize,width}; {type:"rect",x,y,width,height,label}; {type:"circle",x,y,radius,label}; {type:"line",x1,y1,x2,y2,label}; {type:"arrow",x1,y1,x2,y2,label}; {type:"path",d}; {type:"plot",expression,x,y,width,height,xMin,xMax,yMin,yMax}. Optional color is a hex string. Shape labels are optional. Coordinates are pixels; text y is its baseline. Path d is SVG geometry such as M/L for points, C/Q for curves, Z to close; never markup or scripts. Plots use x, + - * / ^ or **, parentheses, sin, cos, tan, abs, sqrt, exp, log/ln, pi or e; the browser computes points. Use explicit multiplication, e.g. 2*x.`

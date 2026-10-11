@@ -5,7 +5,7 @@ import { resolve, extname, sep } from 'node:path'
 import { api } from './api'
 
 const root = fileURLToPath(new URL('../dist', import.meta.url))
-const mime: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png' }
+const mime: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.ttf': 'font/ttf', '.txt': 'text/plain' }
 createServer(async (req, res) => {
   try {
     if ((req.url ?? '').startsWith('/api/')) { await api(req, res); return }

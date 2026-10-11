@@ -1,14 +1,17 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { zodToJsonSchema } from 'zod-to-json-schema'
-import { lessonInstructions, lessonSchema, requestSchema } from '../src/lesson'
+import { lessonInstructions, lessonSchema, requestSchema, MAX_REQUEST_BYTES } from '../src/lesson'
 import { calculate } from './calculator'
 import { searchWeb } from './tools'
 
 export interface ModelConfig { url?: string; model?: string; key?: string }
+// Long string limits explode some providers' grammar compilers. Validate lengths
+// locally; the wire schema supplies the drawing structure without repetition rules.
+const wireSchema = JSON.parse(JSON.stringify(zodToJsonSchema(lessonSchema), (key, value) => key === 'maxLength' ? undefined : value))
 export function modelConfig(): ModelConfig {
   return { url: process.env.LESSON_API_URL, model: process.env.LESSON_MODEL, key: process.env.LESSON_API_KEY }
 }
-export async function generateLesson(input: unknown, config: ModelConfig, send: typeof fetch = fetch) {
+export async function generateLesson(input: unknown, config: ModelConfig, send: typeof fetch = fetch, signal?: AbortSignal) {
   const request = requestSchema.parse(input)
   if (!config.url || !config.model) throw new Error('MODEL_NOT_CONFIGURED')
   const url = new URL(config.url)
@@ -16,21 +19,21 @@ export async function generateLesson(input: unknown, config: ModelConfig, send: 
     throw new Error('MODEL_CONFIGURATION_INVALID')
   }
   const response = await send(url, {
-    method: 'POST', redirect: 'error', signal: AbortSignal.timeout(60000),
+    method: 'POST', redirect: 'error', signal: AbortSignal.any([AbortSignal.timeout(60000), ...(signal ? [signal] : [])]),
     headers: { 'Content-Type': 'application/json', ...(config.key ? { Authorization: `Bearer ${config.key}` } : {}) },
     body: JSON.stringify({
       model: config.model,
-      response_format: { type: 'json_schema', json_schema: { name: 'explanation', schema: zodToJsonSchema(lessonSchema), strict: true } },
+      response_format: { type: 'json_schema', json_schema: { name: 'explanation', schema: wireSchema } },
       messages: [
         { role: 'system', content: lessonInstructions },
         ...request.memory.flatMap(turn => [
           { role: 'user', content: turn.question },
           { role: 'assistant', content: JSON.stringify(turn.lesson) },
         ]),
-        ...(request.previous ? [{ role: 'assistant', content: JSON.stringify(request.previous) }] : []),
+        ...(request.previous && !request.memory.some(turn => JSON.stringify(turn.lesson) === JSON.stringify(request.previous))
+          ? [{ role: 'assistant', content: JSON.stringify(request.previous) }] : []),
         { role: 'user', content: request.question },
       ],
-      options: { num_ctx: Math.max(4096, Math.min(32768, Number(process.env.LESSON_CONTEXT ?? 8192))) },
     }),
   })
   if (!response.ok) throw new Error(`MODEL_HTTP_${response.status}`)
@@ -49,6 +52,14 @@ export async function api(req: IncomingMessage, res: ServerResponse, config = mo
   const path = (req.url ?? '').split('?')[0]
   if (path === '/api/health' && req.method === 'GET') {
     json(res, 200, { ok: true, modelConfigured: Boolean(config.url && config.model) }); return
+  }
+  // Browser requests stay on the same origin. No cross-origin API access.
+  if (req.headers.origin) {
+    try {
+      if (new URL(req.headers.origin).host !== req.headers.host) {
+        json(res, 403, { error: 'Use the canvas on this server.' }); return
+      }
+    } catch { json(res, 403, { error: 'Invalid origin.' }); return }
   }
   if (path === '/api/calculate' && req.method === 'POST') {
     let body = ''
@@ -73,41 +84,30 @@ export async function api(req: IncomingMessage, res: ServerResponse, config = mo
     }
     return
   }
-  if (path === '/api/tool' && req.method === 'POST') {
-    let body = ''
-    try {
-      for await (const chunk of req) { body += chunk.toString(); if (Buffer.byteLength(body) > 4096) throw new Error() }
-      const value = JSON.parse(body) as { name?: unknown; input?: unknown }
-      if (value.name !== 'calculator' || typeof value.input !== 'string') throw new Error()
-      json(res, 200, { name: value.name, output: { result: calculate(value.input) } })
-    } catch { json(res, 400, { error: 'Only the bounded calculator tool is available.' }) }
-    return
-  }
   if (path !== '/api/lesson' || req.method !== 'POST') {
     json(res, 404, { error: 'Unknown API route.' }); return
-  }
-  // Browser requests stay on the same origin. No cross-origin API access.
-  if (req.headers.origin) {
-    try {
-      if (new URL(req.headers.origin).host !== req.headers.host) {
-        json(res, 403, { error: 'Use the canvas on this server.' }); return
-      }
-    } catch { json(res, 403, { error: 'Invalid origin.' }); return }
   }
   let input: unknown
   try {
     let body = ''
     for await (const chunk of req) {
       body += chunk.toString()
-      if (Buffer.byteLength(body) > 64000) { json(res, 413, { error: 'Question is too large.' }); return }
+      if (Buffer.byteLength(body) > MAX_REQUEST_BYTES) { json(res, 413, { error: 'Question and conversation context are too large.' }); return }
     }
     input = JSON.parse(body)
     const parsed = requestSchema.safeParse(input)
     if (!parsed.success) { json(res, 400, { error: 'Enter a question of at most 1,000 characters.' }); return }
     input = parsed.data
   } catch { json(res, 400, { error: 'The question could not be read.' }); return }
-  try { json(res, 200, { lesson: await generateLesson(input, config) }) }
+  const controller = new AbortController()
+  const disconnect = () => controller.abort()
+  res.on('close', disconnect)
+  try {
+    const lesson = await generateLesson(input, config, fetch, controller.signal)
+    if (!res.destroyed) json(res, 200, { lesson })
+  }
   catch (error) {
+    if (res.destroyed) return
     const message = error instanceof Error ? error.message : ''
     const missing = message === 'MODEL_NOT_CONFIGURED'
     json(res, missing ? 503 : 502, { error: missing
@@ -116,5 +116,5 @@ export async function api(req: IncomingMessage, res: ServerResponse, config = mo
       : message === 'MODEL_HTTP_404' ? 'The configured model is unavailable. For Ollama, pull the model named in LESSON_MODEL, then try again.'
       : message.startsWith('MODEL_HTTP_') ? `The model service rejected the request (HTTP ${message.slice(11)}). Check the server connection and quota.`
       : 'The model could not be reached. Check the server connection and try again.' })
-  }
+  } finally { res.off('close', disconnect) }
 }

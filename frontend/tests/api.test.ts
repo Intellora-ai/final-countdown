@@ -21,7 +21,7 @@ describe('one teaching path', () => {
     const payload = JSON.parse(send.mock.calls[0][1]!.body as string)
     expect(payload.model).toBe('replacement-model')
     const kinds = payload.response_format.json_schema.schema.properties.blocks.items.anyOf.map((option: { properties: { kind: { const: string } } }) => option.properties.kind.const)
-    expect(kinds).toEqual(['diagram', 'scene', 'math'])
+    expect(kinds).toEqual(['diagram', 'scene', 'svg', 'math'])
   })
   it('returns 404 for removed disconnected tools', async () => {
     const base = await endpoint()

@@ -39,10 +39,10 @@ npm run build
 npm run test:e2e
 ```
 
-The completed unit/integration run has **110 passing tests in eleven files**.
+The completed unit/integration run has **119 passing tests in twelve files**.
 The build typechecks and produces browser and Node server bundles.
 
-The **eight passing Chromium browser checks** run the following four workflows
+The **ten passing Chromium browser checks** run the following five workflows
 on desktop and phone:
 
 1. Generated lesson, persistence, reload, and context-carrying follow-up.
@@ -127,3 +127,19 @@ instructions. Model replacement is tested through the same configurable endpoint
 and drawing contract. Server bundle decreased from 19.08 kB to 13.08 kB.
 The last two steps are short feedback cycles and automated checks; no extra
 orchestrator, subject router or retry engine was added.
+
+## General artwork surface
+
+The earlier three-block generation contract was an unnecessary composition
+constraint. Added complete SVG artwork as the general vector representation;
+scene, graph layout and equations remain optional conveniences, not subject
+routing or fixed templates. SVG artwork is bounded to 40,000 characters and uses
+an explicit finite positive viewBox. The model connection is unchanged.
+
+Nine new unit checks cover transformations, gradients, masks, clipping, patterns,
+filters, text, malformed SVG and active/external content removal. One failed
+initially because DOMPurify removed the browser-global ID 'blur'; namespacing
+local IDs and references fixed it without weakening sanitization. Two new browser
+checks verify image decoding, zoom, sanitized download, persistence and no
+external resource requests on desktop and phone. These are renderer fixtures,
+not proof that the existing small model generates high-quality SVG.

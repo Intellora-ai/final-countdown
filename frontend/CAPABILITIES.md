@@ -11,7 +11,9 @@
 - Optional plain replies, diagrams, steps, comparisons, charts, and practice checks.
 - Conversation ancestry, bounded recent memory, cancellation, timeout, and preserved drafts.
 - Browser microphone and speech synthesis, automatic next turns, and explicit interruption.
-- One generation contract: scenes, automatically arranged diagrams, and equations.
+- General SVG artwork: arbitrary vector composition with groups/transforms, curves,
+  gradients, patterns, clipping, masks, filters, and text; zoom/pan and SVG export.
+- One generation contract with optional scene/layout/equation conveniences.
 - Older saved step/comparison/chart lessons remain readable.
 
 ## Not implemented
@@ -31,3 +33,9 @@ MathML and loads only when needed. No image-generation subscription is required
 for these vector drawings. This is not unlimited computation: scene elements,
 text lengths and graph sizes remain bounded to keep the browser responsive.
 Native MathML in exported SVG requires a viewer supporting foreignObject/MathML.
+
+General SVG is rendered as an image, not inserted as executable page markup.
+DOMPurify sanitizes displayed and exported artwork; external resources, HTML,
+CSS stylesheets and animation are excluded. SVG presentation attributes and local
+definitions remain available. This expands composition freedom without promising
+photorealistic raster generation or guaranteed model accuracy.

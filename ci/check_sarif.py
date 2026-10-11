@@ -13,7 +13,9 @@ def inspect(report):
         for result in run.get('results', []):
             if result.get('level', 'warning') in ('warning', 'error'):
                 # Suppressed results still block; no silent allowlist of findings.
-                raise ValueError('CodeQL finding: ' + result.get('ruleId', 'unknown rule'))
+                raise ValueError('CodeQL finding: ' + result.get('ruleId', 'unknown rule')
+                                 + ' ' + json.dumps(result.get('locations', []))
+                                 + ' ' + json.dumps(result.get('message', {})))
 
 
 if __name__ == '__main__':

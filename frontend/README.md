@@ -105,8 +105,8 @@ They do not prove model intelligence, microphone capture, or audible playback.
 `VERIFICATION.md` records the checks and live model evidence from this change.
 
 Caveat font and its SIL Open Font License are bundled under `public/fonts`;
-no external font request is required. Other repository projects and legacy
-student data are outside this canvas and remain untouched.
+no external font request is required. The unused Python/proof engines were
+retired; their earlier source remains available in Git history.
 
 Protected deployment and token budgets: [release instructions](RELEASE.md).
 

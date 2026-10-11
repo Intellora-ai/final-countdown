@@ -61,15 +61,11 @@ def check(root):
     uses = [s.get('uses', '').split('@')[0] for s in security['steps']]
     if uses.count('github/codeql-action/init') != 1 or uses.count('github/codeql-action/analyze') != 1:
         raise ValueError('CodeQL execution removed.')
-    for other in (root / '.github/workflows').glob('*.yml'):
+    for other in (root / '.github/workflows').iterdir():
+        if other.suffix not in ('.yml', '.yaml'):
+            continue
         if other != path:
-            if other.name != 'legacy-checks.yml':
-                raise ValueError('Unexpected competing workflow: ' + other.name)
-            legacy = yaml.load(other.read_text(), Loader=yaml.BaseLoader)
-            if set(legacy.get('on', {})) != {'workflow_dispatch'} or legacy.get('permissions') != {'contents': 'read'}:
-                raise ValueError('Legacy checks must remain manual and read-only.')
-            if any('permissions' in job for job in legacy.get('jobs', {}).values()):
-                raise ValueError('Legacy job token escalation.')
+            raise ValueError('Unexpected competing workflow: ' + other.name)
         if '${{ secrets.' in other.read_text() or 'pull_request_target' in other.read_text():
             raise ValueError('Release checks must not receive model secrets or untrusted write triggers.')
     return True

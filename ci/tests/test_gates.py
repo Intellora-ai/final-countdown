@@ -36,6 +36,15 @@ class GateAttacks(unittest.TestCase):
         with self.assertRaises(ValueError): workflow.check(self.root)
     def test_real_workflow_matches_contract(self):
         self.assertTrue(workflow.check(self.root))
+    def test_competing_workflow_cannot_hide_under_another_yaml_extension(self):
+        for extension in ['yml', 'yaml']:
+            with self.subTest(extension=extension):
+                path = self.root / '.github/workflows' / ('extra.' + extension)
+                path.write_text('name: extra\non: push\njobs: {}\n')
+                try:
+                    with self.assertRaises(ValueError): workflow.check(self.root)
+                finally:
+                    path.unlink()
     def test_gate_deletion_and_renaming(self):
         original = copy.deepcopy(self.data)
         for name in ['integrity', 'core', 'browser', 'container', 'security']:

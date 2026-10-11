@@ -1,15 +1,14 @@
 # final-countdown
 
-The active product is the learning canvas in `frontend/`, packaged by the root
-Dockerfile. Start with [canvas setup](frontend/README.md),
+The learning canvas lives in `frontend/`. Start with [canvas setup](frontend/README.md),
 [protected deployment](frontend/RELEASE.md), and [release gates](docs/ci.md).
+The root Dockerfile builds only this app.
 
-GitHub runs independent code/test, browser, container, workflow-integrity and
-security checks. A final release verdict requires all of them to succeed.
-The live branch ruleset must also require `release-gate` to enforce merges.
-Passing checks does not establish perfect teaching or 100% coverage.
+GitHub runs independent tests, browser, container, workflow-integrity and security
+checks. The final `release-gate` requires every check to succeed. Repository rules
+must require that status to enforce merges; this connection currently lacks
+permission to activate them.
 
-Legacy Python, Lean and backend sources remain for reference/manual testing;
-they are not part of the canvas Docker deployment. Their old workflows and
-verification claims are retired; [historical documentation](docs/legacy-verification.md)
-records that scope. Existing legacy failures are not claimed to be resolved.
+The unused Python/proof engines and their obsolete verification harness were
+retired from main with user authorization. They remain recoverable in Git history.
+See [verification scope](docs/verification-scope.md) for evidence and limits.

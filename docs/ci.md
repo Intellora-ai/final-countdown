@@ -80,12 +80,11 @@ The previous 13 workflows included checks for removed frontend paths, a
 credential-dependent live tutor, redundant annotation/run reconciliation and
 AI workflows with write permissions. Their historical failures were not
 "fixed" by renaming them green. Those release workflows were removed.
-Git retains their complete history. Legacy Python/proof/backend sources remain
-in the repository but are not packaged into the canvas image. Their tests are
-available through the manual, non-release `legacy-checks.yml`; existing legacy
-failures remain unresolved. `ci/gates.toml` and older verifier scripts describe
-that retired topology and do not authorize canvas releases. Security scanning
-still includes the legacy source.
+Git retains their complete history. With explicit user authorization, the unused
+Python/proof/backend systems and their obsolete harness, fixtures and dependency
+bundles were also retired from main. Their observed failures were recorded
+before deletion; deletion is not a claim they were repaired. The duplicate practice-map app was also retired; the canvas is the single retained application.
+See [verification scope](verification-scope.md) for the retained components.
 
 Model teaching accuracy, real provider quota/latency and physical microphone
 quality require live testing. The release workflow uses local provider/browser

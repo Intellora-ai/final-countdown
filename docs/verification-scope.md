@@ -1,50 +1,49 @@
-# Verification scope and remaining gaps
+# Verification scope
 
 The shipped product is `frontend/`, built by the root Dockerfile. Its release
-workflow covers every executable frontend/server TypeScript file in the unit
-coverage denominator, type checks the application, exercises desktop/phone
-Chromium, checks the production API and deployable container, and runs CodeQL
-for JavaScript/TypeScript, Python and GitHub Actions across the repository.
-Coverage floors prevent regression; they are not 100% coverage or correctness.
+workflow includes every executable frontend/server TypeScript file in the unit
+coverage denominator, type checks the application, runs desktop/phone Chromium,
+checks the production API and container, and scans repository JavaScript,
+Python and GitHub Actions with CodeQL.
 
-## Component inventory
-
-| Component | Purpose and observed verification | Release status |
+| Retained component | Verified behavior | Release scope |
 | --- | --- | --- |
-| frontend | Canvas, provider adapter, memory, uploads, visuals and browser voice; 150 unit tests, 20 browser checks, production/container smoke and deliberate fault checks passed on GitHub | Canvas release checks |
-| ci | Workflow/evidence/SARIF/verdict integrity; 21 adversarial tests and actionlint pass | Canvas release checks |
-| practice-map | Separate Next.js practice application; frozen install, 32 tests, TypeScript and production build passed locally | Separate manual job; no production/browser certification |
-| learning-os | Legacy Python teaching backend; 867 passes, 12 failures with documented import path enabled; database suite not run | Not packaged; unresolved old canvas fixture/renderer integration |
-| root src/tests/scripts/proofs/specs | Legacy formal-verification and workflow harness; root offline suite produced 1244 passes, 178 failures, 5 skips and 13 hosted-proof deselections | Not packaged; retired-workflow contracts remain broken |
-| technology-universe/registry | Historical catalog data, not application imports | Not a supported runtime |
+| frontend | 150 unit tests, 20 browser checks, production/container smoke and deliberate fault detection | Canvas release |
+| ci | 22 adversarial workflow/evidence/verdict/annotation tests and actionlint | Canvas release |
 
-The 49 tracked files under `technology-universe/runtimes` were removed after
-checking that frontend, practice-map, learning-os, current workflows and scripts
-have no references to their installation paths. They installed hundreds of
-unrelated libraries but supplied no shipped application behavior. Their source
-and locks remain recoverable from Git history before this cleanup. The registry
-is historical inventory, not evidence that those libraries are installed.
+## Retired systems
 
-## Reproduce and inspect gaps
+The user authorized retirement of unused engines to keep the canvas minimal.
+The duplicate practice-map app, Python teaching backend, Lean proofs, old root verification harness,
+related fixtures/configuration/documentation and unused dependency catalog were
+removed from main. They supplied no current canvas runtime behavior. Git history
+before this retirement preserves them; removal is not a claim their failures
+were fixed. Before retirement, the root offline suite had 1244 passes and 178
+failures; the Python teaching backend had 867 passes and 12 failures. Those
+failures largely concerned interfaces removed from the earlier canvas.
 
-Root legacy tests: `.venv/bin/python -m pytest -m 'not axle' --tb=short`.
-Learning backend: from learning-os, `PYTHONPATH=src ../.venv/bin/python -m pytest
- tests --ignore=tests/db --tb=short`. These suites are intentionally still red;
-no assertions were removed to hide their retired-contract failures.
-Practice-map: from practice-map, `corepack pnpm install --frozen-lockfile` then
-`corepack pnpm run check`. The manual legacy workflow includes the documented
-Python import path and repeats practice-map's checks.
+Practice-map had 32 passing tests and a passing local build, but its separate
+Next.js runtime had dependency advisories and no canvas consumers. It was retired
+as an unused duplicate app, not described as repaired.
 
-Physical microphone/speaker behavior, real provider teaching quality and quotas,
-database integration and hosted formal proofs are not established by fixture
-checks. Scanners cannot detect every bug and passing tests do not imply every
-line's behavior was checked.
+The root Docker build context now includes only frontend files. Retired app,
+retired code and unrelated local data are excluded. Application dependencies
+come from each retained application's own manifest/lockfile. Dependabot checks
+the remaining npm application and GitHub Actions.
 
-## Merge enforcement
+## Limits and enforcement
 
-The repository ruleset is disabled. Updating it through this connection returns
-HTTP 403, `Resource not accessible by integration`. Administration access must
-activate an up-to-date ruleset requiring the GitHub Actions `release-gate`
-context, with no bypasses. A workflow cannot grant its own token repository
-administration permission. Until the ruleset is active, failed checks can still
-be bypassed by repository writes. Do not describe enforcement as complete.
+Coverage floors prevent regression; they are not 100% coverage or correctness.
+Physical microphone/speaker behavior and real provider teaching quality/quotas
+need live testing. Scanners cannot detect every bug and passing tests do not
+prove every line's behavior correct.
+
+The branch ruleset remains disabled. Updating it through this connection returns
+HTTP 403 `Resource not accessible by integration`. Repository administration
+access must activate an up-to-date ruleset requiring GitHub Actions `release-gate`
+with no bypasses. A workflow cannot grant itself administration permission.
+Until then, successful checks do not establish mandatory merge enforcement.
+
+A permanent gate test first failed when an extra `.yaml` workflow escaped the
+integrity checker. The checker now examines both GitHub-supported YAML extensions;
+all 22 gate tests pass after the fix.

@@ -196,3 +196,32 @@ chat paragraphs, hidden transcript availability, no extra handwriting buttons an
 no page overflow. Screenshot review includes the phone handwriting view.
 The initial browser run exposed duplicate controls; removing them from the plain
 writing renderer fixed the failure. Final build and fourteen browser checks pass.
+
+## Protected release and token budget — 11 October 2026
+
+133 unit tests across 14 files pass. All 16 desktop/phone browser checks pass.
+Type checking, client/server builds and the actual production-server smoke pass.
+The smoke proves authentication, UTF-8 body handling, JSON-object transport,
+output caps, security headers, persistent daily quota across restart, password
+requirement and graceful shutdown against a local provider fixture.
+The first phone fallback assertion exposed SVG text wrapping across tspan nodes;
+the assertion now accepts the wrapping boundary and still requires the answer.
+
+The frontend dependency audit reports zero advisories after updating Vite,
+Vitest and the React build plugin. CI now runs the production smoke and audit.
+The first Docker installation failed certificate verification; supplying the
+existing environment CA as a BuildKit secret fixed it without disabling TLS.
+The first container startup exposed unreadable copied files under the non-root
+user; runtime ownership was corrected before repeating the container check.
+
+Conversation compaction removes older geometry, keeps recent geometry when it
+fits, deduplicates the current board and bounds history. JSON-object requests
+use a short contract; output limits, one-call behavior and persistent quotas
+have regression checks. These reduce and bound consumption; no measured real
+provider token savings or live voice-quality claim is made. LESSON_API_KEY was
+absent from this runtime, so authenticated Groq/Gemini generation is unverified.
+See RELEASE.md for HTTPS, persistent storage and single-instance limitations.
+
+The repaired Docker image builds and its running container passes unauthenticated
+401, authenticated UI 200, CSP and authenticated health checks. Docker confirms
+the runtime user is node. Both temporary verification containers were removed.

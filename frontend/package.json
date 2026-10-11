@@ -12,7 +12,8 @@
     "start": "node dist-server/index.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --maxWorkers=4",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:production": "node scripts/check-production.mjs"
   },
   "dependencies": {
     "@dagrejs/dagre": "3.1.1",
@@ -29,10 +30,10 @@
     "@types/node": "^24.0.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.1",
+    "@vitejs/plugin-react": "6.1.2",
     "jsdom": "^30.0.1",
     "typescript": "^5.5.4",
-    "vite": "^5.4.0",
-    "vitest": "^3.2.7"
+    "vite": "8.3.4",
+    "vitest": "5.0.3"
   }
 }

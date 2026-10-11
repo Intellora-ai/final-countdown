@@ -207,3 +207,5 @@ node_modules [0-9]/
 # Engineering harness runtime state: per-checkout task, evidence, verdict, memory.
 # See docs/superpowers/specs/2026-09-02-engineering-harness-design.md.
 .harness/
+
+frontend/.canvas-state/

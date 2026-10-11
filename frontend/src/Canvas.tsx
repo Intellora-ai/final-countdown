@@ -159,7 +159,7 @@ export function Canvas() {
         <section className="answer-board" aria-label="Answer canvas">
           <p className="sr-only">{entry.lesson.explanation}</p>
           {(!entry.lesson.blocks.length || entry.lesson.blocks.some(block => block.kind !== 'svg')) && <WrittenReply text={entry.lesson.explanation} />}
-          {entry.lesson.blocks.length > 0 && <div className="visuals">{entry.lesson.blocks.map((block, i) => <Visual block={block} key={i} />)}</div>}
+          {entry.lesson.blocks.length > 0 && <div className="visuals">{entry.lesson.blocks.map((block, i) => <Visual block={block} fallbackText={i === 0 ? entry.lesson.explanation : undefined} key={i} />)}</div>}
         </section>
         {entry.lesson.check && <section className="check"><span>Your turn</span><p>{entry.lesson.check}</p><button onClick={() => { setFollowUp(true); inputRef.current?.focus() }}>Try it below ↓</button></section>}
       </article> : <section className="welcome"><h1>What do you want<br />to understand?</h1><p>A blank board for your next idea.<br />Ask, sketch it out, and ask again.</p></section>}

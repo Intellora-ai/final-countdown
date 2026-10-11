@@ -107,3 +107,5 @@ They do not prove model intelligence, microphone capture, or audible playback.
 Caveat font and its SIL Open Font License are bundled under `public/fonts`;
 no external font request is required. Other repository projects and legacy
 student data are outside this canvas and remain untouched.
+
+Protected deployment and token budgets: [release instructions](RELEASE.md).

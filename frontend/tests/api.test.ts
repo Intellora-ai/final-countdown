@@ -28,7 +28,7 @@ describe('one teaching path', () => {
     expect(await generateLesson({ question: 'Draw energy' }, { ...config, format: 'json_object' }, send)).toEqual(example)
     const payload = JSON.parse(send.mock.calls[0][1]!.body as string)
     expect(payload.response_format).toEqual({ type: 'json_object' })
-    expect(payload.messages[0].content).toContain('Response schema:')
+    expect(payload.messages[0].content).toContain('JSON shape:')
   })
   it('returns 404 for removed disconnected tools', async () => {
     const base = await endpoint()

@@ -1,13 +1,17 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { compactContext } from './context.ts'
 import { zodToJsonSchema } from 'zod-to-json-schema'
-import { lessonInstructions, modelLessonSchema, requestSchema, MAX_REQUEST_BYTES } from '../src/lesson'
+import { lessonInstructions, modelLessonSchema, requestSchema, MAX_REQUEST_BYTES } from '../src/lesson.ts'
 
-export interface ModelConfig { url?: string; model?: string; key?: string; format?: 'json_schema' | 'json_object' }
+export interface ModelConfig { url?: string; model?: string; key?: string; format?: 'json_schema' | 'json_object'; maxTokens?: number }
 // Long string limits explode some providers' grammar compilers. Validate lengths
 // locally; the wire schema supplies the drawing structure without repetition rules.
 const wireSchema = JSON.parse(JSON.stringify(zodToJsonSchema(modelLessonSchema), (key, value) => key === 'maxLength' ? undefined : value))
-export function modelConfig(): ModelConfig {
-  return { url: process.env.LESSON_API_URL, model: process.env.LESSON_MODEL, key: process.env.LESSON_API_KEY, format: process.env.LESSON_RESPONSE_FORMAT === 'json_object' ? 'json_object' : 'json_schema' }
+const jsonContract = 'JSON shape: {"explanation":"full readable transcript","title":"optional","blocks":[{"kind":"svg","title":"drawing title","source":"complete SVG","parameters":[{"id":"variable","label":"label","min":0,"max":100,"value":50,"step":1}]}]}. blocks and parameters may be omitted. Keep text concise and avoid redundant SVG markup.'
+export function modelConfig(env: Record<string, string | undefined> = process.env): ModelConfig {
+  const maxTokens = Number(env.LESSON_MAX_TOKENS ?? 4096)
+  if (!Number.isInteger(maxTokens) || maxTokens < 256 || maxTokens > 8192) throw new Error('LESSON_MAX_TOKENS must be between 256 and 8192.')
+  return { url: env.LESSON_API_URL, model: env.LESSON_MODEL, key: env.LESSON_API_KEY, format: env.LESSON_RESPONSE_FORMAT === 'json_object' ? 'json_object' : 'json_schema', maxTokens }
 }
 export async function generateLesson(input: unknown, config: ModelConfig, send: typeof fetch = fetch, signal?: AbortSignal) {
   const request = requestSchema.parse(input)
@@ -16,26 +20,28 @@ export async function generateLesson(input: unknown, config: ModelConfig, send: 
   if (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname))) {
     throw new Error('MODEL_CONFIGURATION_INVALID')
   }
+  const history = compactContext(request.memory, request.previous)
   const response = await send(url, {
     method: 'POST', redirect: 'error', signal: AbortSignal.any([AbortSignal.timeout(60000), ...(signal ? [signal] : [])]),
     headers: { 'Content-Type': 'application/json', ...(config.key ? { Authorization: `Bearer ${config.key}` } : {}) },
     body: JSON.stringify({
       model: config.model,
+      max_tokens: config.maxTokens ?? 4096,
       response_format: config.format === 'json_object' ? { type: 'json_object' } : { type: 'json_schema', json_schema: { name: 'explanation', schema: wireSchema } },
       messages: [
-        { role: 'system', content: lessonInstructions + (config.format === 'json_object' ? '\nResponse schema: ' + JSON.stringify(wireSchema) : '') },
-        ...request.memory.flatMap(turn => [
+        { role: 'system', content: lessonInstructions + (config.format === 'json_object' ? '\n' + jsonContract : '') },
+        ...history.turns.flatMap(turn => [
           { role: 'user', content: turn.question },
           { role: 'assistant', content: JSON.stringify(turn.lesson) },
         ]),
-        ...(request.previous && !request.memory.some(turn => JSON.stringify(turn.lesson) === JSON.stringify(request.previous))
-          ? [{ role: 'assistant', content: JSON.stringify(request.previous) }] : []),
+        ...(history.geometryOmitted ? [{ role: 'system', content: 'The previous artwork exceeded the context budget; only its transcript is available. Do not claim to inspect or preserve unseen geometry.' }] : []),
         { role: 'user', content: request.question },
       ],
     }),
   })
   if (!response.ok) throw new Error(`MODEL_HTTP_${response.status}`)
-  const payload = await response.json() as { choices?: { message?: { content?: string } }[] }
+  const payload = await response.json() as { choices?: { finish_reason?: string; message?: { content?: string } }[] }
+  if (payload.choices?.[0]?.finish_reason === 'length') throw new Error('MODEL_OUTPUT_TRUNCATED')
   const content = payload.choices?.[0]?.message?.content
   if (!content) throw new Error('MODEL_OUTPUT_INVALID')
   try { return modelLessonSchema.parse(JSON.parse(content)) }
@@ -64,12 +70,12 @@ export async function api(req: IncomingMessage, res: ServerResponse, config = mo
   }
   let input: unknown
   try {
-    let body = ''
+    const chunks: Buffer[] = []; let bytes = 0
     for await (const chunk of req) {
-      body += chunk.toString()
-      if (Buffer.byteLength(body) > MAX_REQUEST_BYTES) { json(res, 413, { error: 'Question and conversation context are too large.' }); return }
+      const buffer = Buffer.from(chunk); bytes += buffer.length; chunks.push(buffer)
+      if (bytes > MAX_REQUEST_BYTES) { json(res, 413, { error: 'Question and conversation context are too large.' }); return }
     }
-    input = JSON.parse(body)
+    input = JSON.parse(Buffer.concat(chunks).toString('utf8'))
     const parsed = requestSchema.safeParse(input)
     if (!parsed.success) { json(res, 400, { error: 'Enter a question of at most 1,000 characters.' }); return }
     input = parsed.data
@@ -89,6 +95,7 @@ export async function api(req: IncomingMessage, res: ServerResponse, config = mo
     json(res, missing ? 503 : timedOut ? 504 : 502, { error: missing
       ? 'Teaching is not connected yet. Ask the person running this canvas to connect a model. Saved lessons still open.'
       : timedOut ? 'The model took too long to answer. Try a smaller drawing or a faster model.'
+      : message === 'MODEL_OUTPUT_TRUNCATED' ? 'The drawing exceeded the answer budget. Ask for a smaller board or raise the server output limit.'
       : message === 'MODEL_OUTPUT_INVALID' ? 'The model returned an invalid visual lesson. Try asking again.'
       : message === 'MODEL_HTTP_404' ? 'The configured model or API endpoint is unavailable. Check the endpoint and model name on the server.'
       : message.startsWith('MODEL_HTTP_') ? `The model service rejected the request (HTTP ${message.slice(11)}). Check the server connection and quota.`

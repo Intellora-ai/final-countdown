@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { validPath } from './drawing'
+import { validPath } from './drawing.ts'
 
 export const MAX_REQUEST_BYTES = 64000
 

@@ -155,3 +155,15 @@ test('plain conversation is handwritten on the answer canvas without chat paragr
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: testInfo.outputPath('canvas-only-writing.png'), fullPage: true })
 })
+
+test('invalid model artwork still leaves a readable written answer without another request', async ({ page }) => {
+  let requests = 0
+  await page.route('**/api/health', route => route.fulfill({ json: { modelConfigured: true } }))
+  await page.route('**/api/lesson', route => { requests++; return route.fulfill({ json: { lesson: { explanation: 'The answer remains available even when a drawing fails.', blocks: [{ kind: 'svg', title: 'Broken drawing', source: '<svg viewBox="0 0 300 200"><path fill="url(#missing)"/></svg>' }] } } }) })
+  await page.goto('/')
+  await page.getByRole('textbox', { name: 'Your question' }).fill('Explain and draw')
+  await page.getByRole('button', { name: 'Send' }).click()
+  await expect(page.getByRole('alert')).toContainText('missing SVG definition')
+  await expect(page.getByRole('region', { name: 'Answer canvas' }).locator('svg text')).toContainText(/answer remains\s*available/)
+  expect(requests).toBe(1)
+})

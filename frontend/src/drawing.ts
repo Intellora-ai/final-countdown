@@ -1,4 +1,4 @@
-import { calculate } from './math'
+import { calculate } from './math.ts'
 
 // SVG path data is numeric geometry, never markup, URLs, or executable code.
 export function validPath(source: string) {

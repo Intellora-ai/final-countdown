@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { WrittenReply } from './WrittenReply'
 import { calculate } from './math'
 import type { Lesson } from './lesson'
 import DOMPurify from 'dompurify'
@@ -50,7 +51,7 @@ export function prepareSvg(source: string) {
   root.setAttribute('width', String(box[2])); root.setAttribute('height', String(box[3]))
   return new XMLSerializer().serializeToString(root)
 }
-export default function SvgArtwork({ source, title, parameters = [] }: { source: string; title: string; parameters?: Parameter[] }) {
+export default function SvgArtwork({ source, title, parameters = [], fallbackText }: { source: string; title: string; parameters?: Parameter[]; fallbackText?: string }) {
   const [changes, setChanges] = useState<Record<string, number>>({})
   useEffect(() => { setChanges({}) }, [source])
   const values = Object.fromEntries(parameters.map(p => [p.id, Math.max(p.min, Math.min(p.max, changes[p.id] ?? p.value))]))
@@ -68,6 +69,6 @@ export default function SvgArtwork({ source, title, parameters = [] }: { source:
       <span>{Math.round(zoom * 100)}%</span>{!drawing.error && <a href={url} download="artwork.svg">Save SVG</a>}
     </div>
     {parameters.length > 0 && <fieldset className="artwork-controls"><legend>Explore</legend>{parameters.map(p => <label key={p.id}>{p.label} <output>{values[p.id]}</output><input type="range" aria-label={p.label} min={p.min} max={p.max} step={p.step} value={values[p.id]} onChange={event => setChanges(current => ({ ...current, [p.id]: Number(event.target.value) }))} /></label>)}<button onClick={() => setChanges({})}>Reset controls</button></fieldset>}
-    {drawing.error ? <p role="alert">The drawing could not be evaluated: {drawing.error}</p> : <div className="drawing-viewport" tabIndex={0} aria-label={`Pan ${title}`}><img src={url} alt={title} style={{ width: `${zoom * 100}%`, maxWidth: 'none', display: 'block' }} /></div>}
+    {drawing.error ? <><p role="alert">The drawing could not be evaluated: {drawing.error}</p>{fallbackText && <WrittenReply text={fallbackText} />}</> : <div className="drawing-viewport" tabIndex={0} aria-label={`Pan ${title}`}><img src={url} alt={title} style={{ width: `${zoom * 100}%`, maxWidth: 'none', display: 'block' }} /></div>}
   </div>
 }

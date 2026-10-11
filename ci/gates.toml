@@ -1,3 +1,6 @@
+# RETIRED LEGACY TOPOLOGY. Active canvas release gates are ci/release-gates.json.
+# Kept for historical Python verifier compatibility; this is not current release authorization.
+
 # CANONICAL VERIFICATION TOPOLOGY — one declaration, no competing truths.
 #
 # This file is the single source of truth for what the verification system is.

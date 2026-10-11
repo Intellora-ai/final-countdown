@@ -1,0 +1,50 @@
+{
+  "workflow": ".github/workflows/ci.yml",
+  "required_jobs": [
+    "integrity",
+    "core",
+    "browser",
+    "container",
+    "security"
+  ],
+  "commands": {
+    "integrity": [
+      "python3 ci/check_workflows.py",
+      "python3 -m unittest discover -s ci/tests",
+      "python3 ci/install_actionlint.py",
+      ".ci-tools/actionlint -color"
+    ],
+    "core": [
+      "npm ci",
+      "npm run test:ci",
+      "npm run test:strength",
+      "npm run build",
+      "npm run test:production",
+      "npm audit --audit-level=moderate"
+    ],
+    "browser": [
+      "npm ci",
+      "npm run build",
+      "npx --no-install playwright install --with-deps chromium",
+      "TEST_PRODUCTION=1 npm run test:e2e -- --fail-on-flaky-tests",
+      "npm run test:e2e -- tests/browser/learning.spec.ts --fail-on-flaky-tests"
+    ],
+    "container": [
+      "docker build -t canvas-ci .",
+      "node frontend/scripts/check-container.mjs canvas-ci"
+    ],
+    "security": [
+      "python3 ci/check_sarif.py codeql-results"
+    ],
+    "release-gate": [
+      "python3 ci/check_verdict.py"
+    ]
+  },
+  "unit_script": "vitest run --maxWorkers=4 --coverage --reporter=default --reporter=json --outputFile=test-results/unit.json && node scripts/check-test-results.mjs",
+  "coverage_floors": {
+    "lines": 75,
+    "statements": 68,
+    "functions": 69,
+    "branches": 64
+  }
+}

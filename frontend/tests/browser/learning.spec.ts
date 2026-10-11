@@ -10,6 +10,8 @@ test('learner memory survives reload and files feed the same canvas request',asy
  const requests:any[]=[]
  await page.route('**/api/lesson',async r=>{requests.push(r.request().postDataJSON());await r.fulfill({json:{lesson:{explanation:'Let us work from your notes.',learner:'Prefers visual examples; studying energy.',blocks:[]}}})})
  await page.goto('/');await page.getByLabel('Your question').fill('I prefer visual examples.');await page.getByRole('button',{name:'Send',exact:true}).click();await expect.poll(()=>requests.length).toBe(1)
+ await expect(page.getByRole('img',{name:'Written answer',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'Read aloud',exact:true})).toBeEnabled()
  await page.reload();await page.getByRole('button',{name:'Saved lessons',exact:true}).click();await page.getByText('Learning memory',{exact:true}).click();await expect(page.getByLabel('Learning memory',{exact:true})).toHaveValue('Prefers visual examples; studying energy.')
  await page.getByRole('button',{name:'+ New topic'}).click()
  const epub=zipSync({'META-INF/container.xml':strToU8('<container><rootfile full-path="book.opf"/></container>'),'book.opf':strToU8('<package><manifest><item id="one" href="one.xhtml"/></manifest><spine><itemref idref="one"/></spine></package>'),'one.xhtml':strToU8('<html><body>Energy EPUB evidence</body></html>')})

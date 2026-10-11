@@ -96,10 +96,12 @@ listed checks, not a perfection certificate or production hosting deployment.
 
 The first GitHub run at commit 13e2958 passed integrity, unit/coverage/strength,
 production API, browser, container and Python/Actions security checks. Its
-JavaScript security scan found `js/xss-through-dom` at the mathematical markup
-boundary; the release verdict correctly failed. MathML is now sanitized with
-the existing DOMPurify dependency before insertion, in addition to KaTeX's
-untrusted-input options. No scanner suppression was added.
+JavaScript security scan found `js/xss-through-dom`; the release verdict
+correctly failed. Detailed diagnostics located it at the uploaded EPUB/HTML
+parsing boundary, which now sanitizes markup with the existing DOMPurify
+dependency. MathML also retains sanitization as additional defense. No scanner
+suppression was added. A browser test reload race was corrected by waiting for
+the visible answer and completed turn before testing persisted memory.
 
 Activating ruleset 20990225 via the existing GitHub integration returned HTTP
 403 `Resource not accessible by integration`. The ruleset remains disabled;

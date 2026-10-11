@@ -1,4 +1,5 @@
 import { tokens } from './learner'
+import DOMPurify from 'dompurify'
 export type Attachment = { name: string; text?: string; image?: string }
 const MAX_FILE = 20 * 1024 * 1024
 export function passages(text: string, question: string, budget = 6000) {
@@ -32,8 +33,7 @@ export function passages(text: string, question: string, budget = 6000) {
  return selected.sort((a,b) => a.start - b.start).map(c => c.excerpt).join('\n')
 }
 function plain(markup:string, mime:DOMParserSupportedType='text/html') {
- const doc=new DOMParser().parseFromString(markup,mime)
- doc.querySelectorAll('script,style,noscript').forEach(e=>e.remove())
+ const doc=new DOMParser().parseFromString(DOMPurify.sanitize(markup, { FORBID_TAGS: ['style', 'noscript'] }),mime)
  doc.querySelectorAll('p,div,h1,h2,h3,h4,li,tr,br,text').forEach(e=>e.appendChild(doc.createTextNode(' ')))
  return (doc.body?.textContent??doc.documentElement.textContent??'').replace(/\s+/g,' ').trim()
 }
